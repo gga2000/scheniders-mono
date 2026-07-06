@@ -20,6 +20,8 @@ import type {
     PageMeta,
 } from "@scheniders/shared";
 import { Switch } from "@scheniders/ui";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { I18nStringInput } from "./i18n-string-input";
 
 const EMPTY_I18N: I18nString = {};
@@ -46,6 +48,7 @@ export function PageSeoPanel({
     storefrontUrl,
     businessName,
 }: PageSeoPanelProps) {
+    const locale = useResolvedEditorLocale(activeLocale);
     const current: PageMeta = meta ?? {};
     const patch = (p: Partial<PageMeta>): void => onChange({ ...current, ...p });
 
@@ -77,10 +80,10 @@ export function PageSeoPanel({
                 </div>
                 <div>
                     <h3 className="text-sm font-semibold text-foreground">
-                        Page SEO — {pageLabel}
+                        {tFormat(STRINGS.seo.heading, locale, { page: pageLabel })}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                        How this page appears in Google and when it&apos;s shared.
+                        {t(STRINGS.seo.subtitle, locale)}
                     </p>
                 </div>
             </header>
@@ -91,7 +94,7 @@ export function PageSeoPanel({
                 className="rounded-xl border border-(--card-border) bg-(--card-bg) p-3.5"
             >
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Search preview
+                    {t(STRINGS.seo.serp_preview, locale)}
                 </p>
                 <p className="truncate text-xs text-emerald-700">
                     {host} › {pageId}
@@ -100,30 +103,28 @@ export function PageSeoPanel({
                     {resolvedTitle}
                 </p>
                 <p className="line-clamp-2 text-xs text-[#4d5156]">
-                    {resolvedDesc ||
-                        "Add a description so Google doesn't generate its own."}
+                    {resolvedDesc || t(STRINGS.seo.description_fallback, locale)}
                 </p>
             </div>
 
             <I18nStringInput
-                label="Meta title"
+                label={t(STRINGS.seo.title_label, locale)}
                 value={title}
                 onChange={(v) => patch({ title: v })}
-                placeholder={businessName ?? "Page title"}
+                placeholder={businessName ?? pageLabel}
                 activeLocale={activeLocale}
                 testIdPrefix="seo-title"
-                helperText="~60 characters. The blue headline in search results."
+                helperText={t(STRINGS.seo.title_help, locale)}
             />
 
             <I18nStringInput
-                label="Meta description"
+                label={t(STRINGS.seo.description_label, locale)}
                 value={description}
                 onChange={(v) => patch({ description: v })}
                 multiline
-                placeholder="One or two sentences describing this page."
                 activeLocale={activeLocale}
                 testIdPrefix="seo-description"
-                helperText="~155 characters. The gray snippet under the title."
+                helperText={t(STRINGS.seo.description_help, locale)}
             />
 
             {/* Social share (OG) image */}
@@ -132,7 +133,7 @@ export function PageSeoPanel({
                     htmlFor="seo-og-image"
                     className="text-xs font-semibold text-foreground"
                 >
-                    Social share image
+                    {t(STRINGS.seo.og_label, locale)}
                 </label>
                 <input
                     id="seo-og-image"
@@ -157,8 +158,7 @@ export function PageSeoPanel({
                     />
                 ) : null}
                 <p className="text-xs text-muted-foreground">
-                    1200×630 recommended. Shown when the page is shared on WhatsApp
-                    or social. Falls back to your store&apos;s brand-kit image.
+                    {t(STRINGS.seo.og_help, locale)}
                 </p>
             </div>
 
@@ -166,17 +166,19 @@ export function PageSeoPanel({
             <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--background-soft) px-3.5 py-3">
                 <div>
                     <span className="text-xs font-semibold text-foreground">
-                        Hide from search engines
+                        {t(STRINGS.seo.noindex_label, locale)}
                     </span>
                     <p className="text-xs text-muted-foreground">
-                        Adds <code>noindex</code> — Google won&apos;t list this page.
+                        {t(STRINGS.seo.noindex_help_prefix, locale)}{" "}
+                        <code>noindex</code>{" "}
+                        {t(STRINGS.seo.noindex_help_suffix, locale)}
                     </p>
                 </div>
                 <Switch
                     data-testid="seo-noindex-toggle"
                     checked={!!current.noindex}
                     onCheckedChange={(v) => patch({ noindex: v })}
-                    aria-label="Hide this page from search engines"
+                    aria-label={t(STRINGS.seo.noindex_aria, locale)}
                 />
             </label>
         </div>

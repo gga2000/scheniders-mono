@@ -393,8 +393,15 @@ export function useStoreBuilderV2(
 
     /* ── Mark dirty whenever config changes ───────────────────────── */
     const initialSerializedRef = useRef<string>(JSON.stringify(initialConfig));
+    // A never-published store ALWAYS has something to publish — the seeded
+    // draft itself. Without this, the effect below would flip the initial
+    // `!hasPublished` dirty state back to false on mount (config === load
+    // snapshot) and a first-time merchant lands on a disabled Publish button.
+    const everPublishedRef = useRef<boolean>(hasPublished);
     useEffect(() => {
-        set_has_unpublished_changes(serializedConfig !== initialSerializedRef.current);
+        set_has_unpublished_changes(
+            serializedConfig !== initialSerializedRef.current || !everPublishedRef.current,
+        );
     }, [serializedConfig]);
 
     /* ── Auto-save to DB (2s debounce) ────────────────────────────── */
@@ -619,6 +626,7 @@ export function useStoreBuilderV2(
             set_save_state("saved");
             set_last_saved_at(new Date());
             initialSerializedRef.current = JSON.stringify(config);
+            everPublishedRef.current = true;
             set_has_unpublished_changes(false);
             if (typeof window !== "undefined") {
                 try {
@@ -670,6 +678,7 @@ export function useStoreBuilderV2(
             skipHistoryRef.current = true;
             setConfigState(published);
             initialSerializedRef.current = JSON.stringify(published);
+            everPublishedRef.current = true; // a published config just loaded
             set_has_unpublished_changes(false);
             // The draft is nulled server-side — stop any pending autosave/retry
             // from resurrecting it.

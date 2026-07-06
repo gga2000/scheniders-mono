@@ -171,7 +171,11 @@ function HeroImageRender({
             className="flex-grow sm:flex-grow-0"
             data-i18n-field="cta_label_i18n"
           >
-            <ChunkyButton bg="mint" size="lg" fullWidth>
+            {/* Primary CTA wears the tenant's brand primary (bg="pink" maps to
+                --bk-primary/--bk-on-primary) — the onboarding wizard promises
+                the chosen brand colour is "used on buttons". The fixed candy
+                mint stays for decorative surfaces only. */}
+            <ChunkyButton bg="pink" size="lg" fullWidth>
               {ctaLabel}
               <MaterialIcon name="shopping_cart" />
             </ChunkyButton>

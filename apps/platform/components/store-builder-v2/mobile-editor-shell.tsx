@@ -50,14 +50,18 @@ import type {
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { SectionListPanel } from "./section-list-panel";
-import { PageTree, type SettingsSectionId } from "./page-tree";
+import { PageTree, getSettingLabel, type SettingsSectionId } from "./page-tree";
 import {
     BreakpointToggle,
     LocaleSelect,
+    ModeToggle,
     PublishButton,
     SaveStatePill,
 } from "./toolbar-controls";
 import { PreviewAsControls, type PreviewAsState } from "./preview-as-controls";
+import { useEditorMode } from "@/lib/editor-mode-context";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -161,6 +165,8 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
 
     const [drawer, setDrawer] = useState<DrawerKind>(null);
     const [firstRunDismissed, setFirstRunDismissed] = useState<boolean>(false);
+    // Simple ⇄ Advanced — provided by EditorShell's EditorModeProvider.
+    const { mode: editorMode, setMode: setEditorMode } = useEditorMode();
 
     // Hydrate first-run dismissal so the banner doesn't reappear.
     const firstRunStorageKey = `schneiders.builder.first_run_banner.dismissed.${tenant.id}`;
@@ -227,7 +233,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                     <Link
                         href="/store"
                         data-testid="mobile-editor-back"
-                        aria-label="Back to store builder"
+                        aria-label={t(STRINGS.toolbar.back_to_hub, builder.active_locale)}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
                     >
                         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -235,7 +241,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                     <button
                         type="button"
                         data-testid="mobile-editor-menu"
-                        aria-label="Open pages menu"
+                        aria-label={t(STRINGS.mobile.open_pages_menu, builder.active_locale)}
                         onClick={() => setDrawer("pages")}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground/80 transition-colors hover:bg-muted/40 hover:text-foreground"
                     >
@@ -263,7 +269,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                     <button
                         type="button"
                         data-testid="mobile-editor-more"
-                        aria-label="More options"
+                        aria-label={t(STRINGS.mobile.more_options, builder.active_locale)}
                         onClick={() => setDrawer("more")}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground/80 transition-colors hover:bg-muted/40 hover:text-foreground"
                     >
@@ -294,11 +300,11 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                         className="mx-2 mt-2 flex items-center gap-2 rounded-lg border border-(--card-border) bg-gradient-to-r from-pink-500/10 via-amber-500/10 to-violet-500/10 px-3 py-2 text-xs"
                     >
                         <p className="flex-1 text-foreground/90">
-                            Tap any text to edit. Hit Publish when ready.
+                            {t(STRINGS.mobile.first_run_message, builder.active_locale)}
                         </p>
                         <button
                             type="button"
-                            aria-label="Dismiss"
+                            aria-label={t(STRINGS.first_run.dismiss, builder.active_locale)}
                             data-testid="mobile-editor-first-run-banner-dismiss"
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -330,7 +336,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                     className="inline-flex h-12 min-w-12 flex-col items-center justify-center gap-0.5 rounded-md px-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted/40 hover:text-foreground"
                 >
                     <Layers className="h-5 w-5" aria-hidden="true" />
-                    <span>Pages</span>
+                    <span>{t(STRINGS.page_tree.group_pages, builder.active_locale)}</span>
                 </button>
 
                 <button
@@ -355,7 +361,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                     className="inline-flex h-12 min-w-12 flex-col items-center justify-center gap-0.5 rounded-md px-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted/40 hover:text-foreground"
                 >
                     <SlidersHorizontal className="h-5 w-5" aria-hidden="true" />
-                    <span>Edit</span>
+                    <span>{t(STRINGS.section_list.row_edit_label, builder.active_locale)}</span>
                 </button>
             </nav>
 
@@ -364,7 +370,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                 open={drawer === "pages"}
                 onOpenChange={(o) => setDrawer(o ? "pages" : null)}
                 title="Pages"
-                subtitle="Tap a page to edit"
+                subtitle={t(STRINGS.mobile.pages_subtitle, builder.active_locale)}
                 testId="mobile-editor-drawer-pages"
                 initialHeight={0.7}
             >
@@ -386,7 +392,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                 title={inspectorTitle}
                 subtitle={
                     editingSection
-                        ? "Edit properties"
+                        ? t(STRINGS.mobile.edit_properties, builder.active_locale)
                         : `${activeSections.length} section${activeSections.length === 1 ? "" : "s"}`
                 }
                 testId="mobile-editor-drawer-inspector"
@@ -423,7 +429,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
             <BottomSheet
                 open={drawer === "more"}
                 onOpenChange={(o) => setDrawer(o ? "more" : null)}
-                title="Preview & history"
+                title={t(STRINGS.mobile.more_title, builder.active_locale)}
                 testId="mobile-editor-drawer-more"
                 initialHeight={0.55}
                 draggable={false}
@@ -431,7 +437,14 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                 <div className="space-y-4 px-4 pb-4">
                     <section className="space-y-2">
                         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Language
+                            {t(STRINGS.mode.group_aria, builder.active_locale)}
+                        </div>
+                        <ModeToggle value={editorMode} onChange={setEditorMode} />
+                    </section>
+
+                    <section className="space-y-2">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {t(STRINGS.mobile.language_heading, builder.active_locale)}
                         </div>
                         <LocaleSelect
                             value={builder.active_locale}
@@ -441,7 +454,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
 
                     <section className="space-y-2">
                         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Preview size
+                            {t(STRINGS.mobile.preview_size_heading, builder.active_locale)}
                         </div>
                         <BreakpointToggle
                             value={builder.active_breakpoint}
@@ -449,9 +462,10 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                         />
                     </section>
 
+                    {editorMode === "advanced" && (
                     <section className="space-y-2">
                         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Preview as
+                            {t(STRINGS.preview_as.button, builder.active_locale)}
                         </div>
                         <PreviewAsControls
                             value={previewAs}
@@ -460,10 +474,11 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                             experiments={config.experiments}
                         />
                     </section>
+                    )}
 
                     <section className="space-y-2">
                         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            History
+                            {t(STRINGS.mobile.history_heading, builder.active_locale)}
                         </div>
                         <div className="flex gap-2">
                             <button
@@ -479,7 +494,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                                 )}
                             >
                                 <Undo2 className="h-4 w-4" aria-hidden="true" />
-                                Undo
+                                {t(STRINGS.toolbar.undo, builder.active_locale)}
                             </button>
                             <button
                                 type="button"
@@ -494,7 +509,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
                                 )}
                             >
                                 <Redo2 className="h-4 w-4" aria-hidden="true" />
-                                Redo
+                                {t(STRINGS.toolbar.redo, builder.active_locale)}
                             </button>
                         </div>
                     </section>
@@ -564,35 +579,27 @@ export function MobileDesktopOnlyStub({
     settingId: SettingsSectionId;
     onClose: () => void;
 }): React.ReactElement {
-    const LABELS: Record<SettingsSectionId, string> = {
-        brand_kit: "Brand Kit",
-        experiments: "A/B tests",
-        segments: "Audiences",
-        scheduled: "Scheduled changes",
-        versions: "Version history",
-        health: "Health",
-        i18n: "Translations",
-        shipping: "Shipping rates",
-        discounts: "Discount codes",
-        bundles: "Bundles",
-        cart_recovery: "Cart recovery",
-        pixels: "Pixels & tracking",
-        loyalty: "Loyalty points",
-        custom_pages: "Custom pages",
-        nav: "Navigation",
-        redirects: "Redirects",
-    };
+    const locale = useResolvedEditorLocale();
+    // A few stub labels differ in wording from the page-tree entries;
+    // everything else reuses the shared setting labels.
+    const name =
+        settingId === "brand_kit"
+            ? t(STRINGS.mobile.stub_label_brand_kit, locale)
+            : settingId === "versions"
+              ? t(STRINGS.mobile.stub_label_versions, locale)
+              : settingId === "i18n"
+                ? t(STRINGS.mobile.stub_label_i18n, locale)
+                : getSettingLabel(settingId, locale);
     return (
         <div
             data-testid="mobile-desktop-only-stub"
             className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
         >
             <div className="text-base font-semibold text-foreground">
-                Open on a larger screen to edit {LABELS[settingId]}
+                {tFormat(STRINGS.mobile.stub_title, locale, { name })}
             </div>
             <p className="max-w-xs text-sm text-muted-foreground">
-                This section has lots of fine-grained controls that don't fit on
-                a phone. Open this editor on a tablet or laptop to make changes.
+                {t(STRINGS.mobile.stub_body, locale)}
             </p>
             <button
                 type="button"
@@ -600,7 +607,7 @@ export function MobileDesktopOnlyStub({
                 onClick={onClose}
                 className="mt-2 inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
             >
-                Back to editor
+                {t(STRINGS.toolbar.back_to_canvas, locale)}
             </button>
         </div>
     );

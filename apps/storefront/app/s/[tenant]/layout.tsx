@@ -181,7 +181,9 @@ export default async function TenantLayout({ params, children }: Props) {
   };
 
   const brandKit: BrandKit = v2?.brand_kit ?? derivedBrandKit;
-  const bkVars = buildBrandKitVars(brandKit);
+  // Locale-aware: Arabic/Kurdish visitors get the kit's Arabic font
+  // pairing as the MAIN font vars ([D3]).
+  const bkVars = buildBrandKitVars(brandKit, { locale: currentLocale });
   const bkMotion: "auto" | "reduce" = brandKit.motion?.enabled === false ? "reduce" : "auto";
   const bkFontsUrl = buildBrandKitFontsUrl(brandKit);
 

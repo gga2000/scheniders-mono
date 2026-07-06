@@ -41,7 +41,103 @@ import {
     type PublishDiff,
     type SectionChange,
 } from "@/lib/publish-diff";
+import type { EditorString } from "@/lib/editor-i18n";
+import type { LocaleCode } from "@scheniders/shared";
 import { getPageLabel } from "./page-tree";
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Localized copy for the checks this sheet surfaces                    */
+/* ─────────────────────────────────────────────────────────────────── */
+// Health-rule messages come from @scheniders/shared in English tech-speak
+// ("analytics pixel", "OG image"). The sheet is the single scariest moment
+// of a merchant's first session, so we override the surfaced checks with
+// plain merchant language per locale. Unknown checks fall back to the
+// English rule message.
+const CHECK_COPY: Record<string, { message: EditorString; fix?: EditorString }> = {
+    pixel_or_gtm_configured: {
+        message: {
+            en: "No ad tracking set up yet — Facebook/TikTok ads won't be measurable.",
+            ar: "لم يتم إعداد تتبّع الإعلانات بعد — لن تتمكن من قياس إعلانات فيسبوك/تيك توك. لا يؤثر على عمل المتجر.",
+            ku: "شوێنکەوتنی ڕیکلام هێشتا ڕێکنەخراوە — ناتوانیت ڕیکلامەکانی فەیسبووک/تیکتۆک بپێویت. کاریگەری لەسەر کارکردنی فرۆشگا نییە.",
+        },
+        fix: { en: "Set up tracking", ar: "إعداد التتبّع", ku: "ڕێکخستنی شوێنکەوتن" },
+    },
+    og_image_set: {
+        message: {
+            en: "No share image yet — links to your store will look plain on WhatsApp and social.",
+            ar: "لا توجد صورة للمشاركة بعد — روابط متجرك ستظهر بدون صورة عند مشاركتها على واتساب ووسائل التواصل.",
+            ku: "هێشتا وێنەی هاوبەشکردن نییە — بەستەرەکانی فرۆشگاکەت بە بێ وێنە دەردەکەون لە واتساپ و سۆشیال میدیا.",
+        },
+        fix: { en: "Add a share image", ar: "أضف صورة المشاركة", ku: "وێنەی هاوبەشکردن زیاد بکە" },
+    },
+    home_has_content: {
+        message: {
+            en: "Your home page has no visible sections — visitors would see an empty store.",
+            ar: "صفحتك الرئيسية بدون عناصر ظاهرة — سيرى الزوار متجراً فارغاً.",
+            ku: "پەڕەی سەرەکیت هیچ بەشێکی دیاری نییە — سەردانیکەران فرۆشگایەکی بەتاڵ دەبینن.",
+        },
+        fix: { en: "Build home page", ar: "ابنِ الصفحة الرئيسية", ku: "پەڕەی سەرەکی دروست بکە" },
+    },
+    privacy_policy_has_content: {
+        message: {
+            en: "Privacy policy page is empty — ad platforms require it.",
+            ar: "صفحة سياسة الخصوصية فارغة — منصات الإعلانات تتطلبها.",
+            ku: "پەڕەی سیاسەتی تایبەتمەندێتی بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
+        },
+        fix: { en: "Edit privacy policy", ar: "عدّل سياسة الخصوصية", ku: "سیاسەتی تایبەتمەندێتی دەستکاری بکە" },
+    },
+    shipping_policy_has_content: {
+        message: {
+            en: "Shipping policy page is empty — ad platforms require it.",
+            ar: "صفحة سياسة الشحن فارغة — منصات الإعلانات تتطلبها.",
+            ku: "پەڕەی سیاسەتی گەیاندن بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
+        },
+        fix: { en: "Edit shipping policy", ar: "عدّل سياسة الشحن", ku: "سیاسەتی گەیاندن دەستکاری بکە" },
+    },
+    returns_policy_has_content: {
+        message: {
+            en: "Returns policy page is empty — ad platforms require it.",
+            ar: "صفحة سياسة الإرجاع فارغة — منصات الإعلانات تتطلبها.",
+            ku: "پەڕەی سیاسەتی گەڕاندنەوە بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
+        },
+        fix: { en: "Edit returns policy", ar: "عدّل سياسة الإرجاع", ku: "سیاسەتی گەڕاندنەوە دەستکاری بکە" },
+    },
+    terms_has_content: {
+        message: {
+            en: "Terms & conditions page is empty — ad platforms require it.",
+            ar: "صفحة الشروط والأحكام فارغة — منصات الإعلانات تتطلبها.",
+            ku: "پەڕەی مەرج و ڕێساکان بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
+        },
+        fix: { en: "Edit terms", ar: "عدّل الشروط", ku: "مەرجەکان دەستکاری بکە" },
+    },
+};
+
+function checkMessage(check: HealthCheck & CheckResult, locale: LocaleCode): string {
+    const override = CHECK_COPY[check.id];
+    if (override) return t(override.message, locale);
+    return check.message ?? check.id;
+}
+
+function checkFixLabel(check: HealthCheck & CheckResult, locale: LocaleCode): string | null {
+    if (!check.fix_action) return null;
+    const override = CHECK_COPY[check.id]?.fix;
+    if (override) return t(override, locale);
+    return check.fix_action.label;
+}
+
+const CATEGORY_LABELS: Record<string, EditorString> = {
+    ad_compliance: STRINGS.health.cat_ad_compliance,
+    conversion: STRINGS.health.cat_conversion,
+    seo: STRINGS.health.cat_seo,
+    trust: STRINGS.health.cat_trust,
+    content: STRINGS.health.cat_content,
+    performance: STRINGS.health.cat_performance,
+};
+
+function categoryLabel(category: string, locale: LocaleCode): string {
+    const s = CATEGORY_LABELS[category];
+    return s ? t(s, locale) : category.replace(/_/g, " ");
+}
 
 export interface PublishConfirmSheetProps {
     open: boolean;
@@ -142,7 +238,7 @@ export function PublishConfirmSheet({
                 <div className="flex-1 overflow-y-auto p-3">
                     {/* ── Changes-since-last-publish diff ───────────────── */}
                     {diff ? (
-                        <PublishDiffSection diff={diff} />
+                        <PublishDiffSection diff={diff} locale={locale} />
                     ) : null}
 
                     {/* ── Health warnings ───────────────────────────────── */}
@@ -163,7 +259,7 @@ export function PublishConfirmSheet({
                         ) : (
                             <>
                                 <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
-                                    {t(STRINGS.publish.confirm_title, locale)}
+                                    {t(STRINGS.publish.checks_heading, locale)}
                                 </h3>
                                 <ul className="flex flex-col gap-2">
                                     {blockingChecks.map((check) => (
@@ -180,7 +276,7 @@ export function PublishConfirmSheet({
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-sm font-semibold text-foreground/90">
-                                                            {check.message ?? check.id}
+                                                            {checkMessage(check, locale)}
                                                         </span>
                                                         <span
                                                             className={cn(
@@ -188,11 +284,13 @@ export function PublishConfirmSheet({
                                                                 "bg-amber-500/15 text-amber-600 dark:text-amber-300",
                                                             )}
                                                         >
-                                                            {t(STRINGS.publish.blocks_chip, locale)}
+                                                            {/* Publishing is never actually gated on these —
+                                                                the chip must read as advice, not prohibition. */}
+                                                            {t(STRINGS.publish.warn_chip, locale)}
                                                         </span>
                                                     </div>
                                                     <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                                                        {check.category.replace(/_/g, " ")}
+                                                        {categoryLabel(check.category, locale)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -203,7 +301,7 @@ export function PublishConfirmSheet({
                                                     onClick={() => onJumpToFix(check.fix_action!)}
                                                     className="self-start inline-flex h-7 items-center rounded-md border border-(--card-border) bg-(--card-bg) px-2.5 text-xs font-semibold text-foreground/80 hover:text-foreground"
                                                 >
-                                                    {check.fix_action.label}
+                                                    {checkFixLabel(check, locale)}
                                                 </button>
                                             ) : null}
                                         </li>
@@ -244,7 +342,9 @@ export function PublishConfirmSheet({
                             ? t(STRINGS.publish.publishing, locale)
                             : error
                               ? t(STRINGS.publish.retry, locale)
-                              : t(STRINGS.publish.publish_anyway, locale)}
+                              : blockingChecks.length === 0
+                                ? t(STRINGS.publish.publish_cta, locale)
+                                : t(STRINGS.publish.publish_anyway, locale)}
                     </button>
                 </footer>
             </div>
@@ -256,7 +356,13 @@ export function PublishConfirmSheet({
 /* Diff renderer                                                        */
 /* ─────────────────────────────────────────────────────────────────── */
 
-function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement {
+function PublishDiffSection({
+    diff,
+    locale,
+}: {
+    diff: PublishDiff;
+    locale: LocaleCode;
+}): React.ReactElement {
     if (diff.isFirstPublish) {
         return (
             <section
@@ -266,13 +372,13 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
             >
                 <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-                    Changes since last publish
+                    {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
                 <p
                     data-testid="publish-diff-first-publish"
                     className="text-xs text-foreground/80"
                 >
-                    First publish — everything is new.
+                    {t(STRINGS.publish.diff_first_publish, locale)}
                 </p>
             </section>
         );
@@ -286,10 +392,10 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
                 className="rounded-xl border border-dashed border-(--card-border) p-3"
             >
                 <h3 className="mb-1 text-sm font-semibold text-foreground">
-                    Changes since last publish
+                    {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                    No content changes — config matches what's already live.
+                    {t(STRINGS.publish.diff_no_changes, locale)}
                 </p>
             </section>
         );
@@ -302,7 +408,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
         >
             <header className="border-b border-(--card-border) px-3 py-2">
                 <h3 className="text-sm font-semibold text-foreground">
-                    Changes since last publish
+                    {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
             </header>
             <div className="flex flex-col">
@@ -312,8 +418,12 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
                         className="flex items-center gap-2 border-b border-(--card-border) px-3 py-2 text-xs"
                     >
                         <Pencil className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-                        <span className="font-semibold text-foreground">Brand kit</span>
-                        <span className="text-muted-foreground">— colors / fonts / shape updated</span>
+                        <span className="font-semibold text-foreground">
+                            {t(STRINGS.publish.diff_brand_kit, locale)}
+                        </span>
+                        <span className="text-muted-foreground">
+                            {t(STRINGS.publish.diff_brand_kit_desc, locale)}
+                        </span>
                     </div>
                 )}
                 {diff.globalsChanged.length > 0 && (
@@ -336,7 +446,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
                 )}
                 <ul className="flex flex-col">
                     {diff.pages.map((page) => (
-                        <PageGroup key={page.page_id} page={page} />
+                        <PageGroup key={page.page_id} page={page} locale={locale} />
                     ))}
                 </ul>
             </div>
@@ -344,7 +454,13 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
     );
 }
 
-function PageGroup({ page }: { page: PageDiff }): React.ReactElement {
+function PageGroup({
+    page,
+    locale,
+}: {
+    page: PageDiff;
+    locale: LocaleCode;
+}): React.ReactElement {
     const [open, setOpen] = useState<boolean>(true);
     const counts = summarisePageChangeCounts(page);
     return (
@@ -361,9 +477,13 @@ function PageGroup({ page }: { page: PageDiff }): React.ReactElement {
                 ) : (
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 )}
-                <span className="font-semibold text-foreground">{getPageLabel(page.page_id)}</span>
+                <span className="font-semibold text-foreground">{getPageLabel(page.page_id, locale)}</span>
                 <span className="text-muted-foreground">
-                    — {page.changes.length} change{page.changes.length === 1 ? "" : "s"}
+                    {page.changes.length === 1
+                        ? t(STRINGS.publish.diff_change_count_one, locale)
+                        : tFormat(STRINGS.publish.diff_change_count_many, locale, {
+                              n: page.changes.length,
+                          })}
                 </span>
                 <span className="ml-auto flex items-center gap-1">
                     {counts.added > 0 && (

@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { ChevronLeft, ExternalLink, Redo2, Smartphone, Store, Undo2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
     DndContext,
     PointerSensor,
@@ -16,7 +15,6 @@ import type {
     Breakpoint,
     CheckResult,
     LocaleCode,
-    PageConfig,
     PageId,
     PageMeta,
     RuntimeContext,
@@ -36,7 +34,7 @@ import {
     type PreviewPageConfig,
 } from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
-import { getManifestEntry } from "@/lib/sections-manifest";
+import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import { PageTree, getPageLabel, type SettingsSectionId } from "./page-tree";
 import { PreviewModal } from "./preview-modal";
 import {
@@ -46,37 +44,20 @@ import {
 } from "./preview-overlay";
 import type { LivePreviewContextMenuAction } from "./live-preview-context-menu";
 import {
-    BreakpointToggle,
-    LocaleSelect,
-    PublishButton,
-    SaveStatePill,
-} from "./toolbar-controls";
-import {
-    PreviewAsControls,
     EMPTY_PREVIEW_AS,
     type PreviewAsState,
 } from "./preview-as-controls";
 import { PreviewFrame } from "./preview-frame";
-import { BrandKitEditor } from "./brand-kit-editor";
 import { SectionPicker } from "./section-picker";
 import { PageTemplatePicker } from "./page-template-picker";
 import { useSectionPresets } from "@/hooks/use-section-presets";
-import { VersionHistoryScreen } from "./version-history-screen";
-import { ScheduledChangesScreen } from "./scheduled-changes-screen";
-import { SegmentsScreen } from "./segments-screen";
-import { ExperimentsScreen } from "./experiments-screen";
-import { RedirectsScreen } from "./redirects-screen";
-import { ShippingScreen } from "./shipping-screen";
-import { DiscountsScreen } from "./discounts-screen";
-import { CartRecoveryScreen } from "./cart-recovery-screen";
-import { BundlesScreen } from "./bundles-screen";
-import { PixelsScreen } from "./pixels-screen";
-import { LoyaltyScreen } from "./loyalty-screen";
-import { CustomPagesScreen } from "./custom-pages-screen";
-import { NavBuilderScreen } from "./nav-builder-screen";
-import { I18nScreen, I18nToolbarPill } from "./i18n-screen";
+import { templatesForPage } from "@/lib/page-templates";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
+import { cn } from "@/lib/utils";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
+import { EditorModeProvider, type EditorMode } from "@/lib/editor-mode-context";
+import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
+import { STRINGS, t } from "@/lib/editor-i18n";
 import { PublishConfirmSheet } from "./publish-confirm-sheet";
 import {
     runHealthChecks,
@@ -93,6 +74,23 @@ import {
     MobileDesktopOnlyStub,
 } from "./mobile-editor-shell";
 import { SectionEditPanel } from "./section-edit-panel";
+import { SystemScreenRouter } from "./system-screen-router";
+import { EditorToolbar } from "./editor-toolbar";
+import {
+    DraftRecoveryBanner,
+    FirstRunBanner,
+    ModeElevatedToast,
+    ModeIntroPopover,
+    PublishSuccessDialog,
+    WelcomeCard,
+} from "./editor-banners";
+import {
+    DEV_PREVIEW_TOKEN,
+    buildPreviewUrl,
+    deepCloneJson,
+    generateSectionId,
+    parsePathSegments,
+} from "@/lib/editor-shell-utils";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Tenant prop (what the page passes in)                                */
@@ -161,43 +159,12 @@ export interface EditorShellProps {
      * screens, so they travel via this prop rather than `?screen=`.
      */
     initialInspectorTab?: InspectorTab | null;
-}
-
-/* ─────────────────────────────────────────────────────────────────── */
-/* Storefront preview URL builder                                       */
-/* ─────────────────────────────────────────────────────────────────── */
-
-// Local-dev fallback when no token is plumbed through (tests / harnesses).
-const DEV_PREVIEW_TOKEN = "dev-preview-token";
-
-function buildPreviewUrl(
-    base: string,
-    tenantSlug: string,
-    page: string,
-    breakpoint: string,
-    locale: string,
-    token: string,
-): string {
-    // Strip any tenant-suffix the storefront URL helper may have appended
-    // and target the dedicated preview route under the storefront origin.
-    let origin = base;
-    try {
-        const parsed = new URL(base);
-        origin = parsed.origin;
-    } catch {
-        // Treat as already-an-origin.
-    }
-    // The page id is a PATH segment — the storefront route is
-    // `/_preview/[tenant]/[page_id]`. A `?page=` query is only a
-    // lower-priority alias there, so emitting the page as a query alone
-    // (with no path segment) 404s the iframe. Keep token/breakpoint/locale
-    // in the query.
-    const params = new URLSearchParams({
-        token,
-        breakpoint,
-        locale,
-    });
-    return `${origin}/_preview/${tenantSlug}/${encodeURIComponent(page)}?${params.toString()}`;
+    /**
+     * True when the merchant just arrived from the onboarding wizard
+     * (?welcome=1) — shows the one-time Arabic welcome card instead of
+     * the plain first-run banner.
+     */
+    initialWelcome?: boolean;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -223,6 +190,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialPageId,
         initialSectionId,
         initialInspectorTab,
+        initialWelcome,
     } = props;
 
     const activePreviewToken = previewToken ?? DEV_PREVIEW_TOKEN;
@@ -262,8 +230,116 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialInspectorTab ?? "blocks",
     );
 
+    /* ── Simple ⇄ Advanced editor mode ─────────────────────────────── */
+    // A per-USER view preference (never data). SSR + first paint always
+    // render Simple — the saved preference hydrates after mount, which is
+    // safe because Simple is the default for everyone anyway.
+    const { getPreference, setPreference, userId } = useUserPreferences();
+    const [editor_mode, set_editor_mode_state] = useState<EditorMode>("simple");
+    // Deep links can target Advanced-only surfaces (Health fix-actions,
+    // Command Center tiles). Honor the intent by elevating for this visit
+    // (session-only — the preference is NOT overwritten).
+    const deepLinkNeedsAdvanced =
+        (initialSystemScreen != null && initialSystemScreen !== "brand_kit") ||
+        initialInspectorTab === "seo";
+    const [mode_elevated_toast, set_mode_elevated_toast] = useState<boolean>(false);
+    // Preferences are USER-scoped; at mount the auth user is often still
+    // resolving, so the key reads as `anonymous` and misses the saved
+    // value. Re-hydrate whenever userId lands — but never override a
+    // choice the merchant made in this session.
+    const modeTouchedRef = useRef<boolean>(false);
+    const deepLinkElevatedRef = useRef<boolean>(false);
+    useEffect(() => {
+        if (modeTouchedRef.current) return;
+        const saved = getPreference<EditorMode>(PREFERENCE_KEYS.EDITOR_MODE);
+        if (saved === "advanced") {
+            set_editor_mode_state("advanced");
+        } else if (deepLinkNeedsAdvanced && !deepLinkElevatedRef.current) {
+            deepLinkElevatedRef.current = true;
+            set_editor_mode_state("advanced");
+            set_mode_elevated_toast(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate on auth landing only
+    }, [userId]);
+    // One-time "what is Advanced?" intro, shown on the first MANUAL switch.
+    const [mode_intro_open, set_mode_intro_open] = useState<boolean>(false);
+
+    /* ── Post-wizard welcome card (2.2) ────────────────────────────── */
+    // Shown once per tenant when arriving from the wizard (?welcome=1).
+    // While open it replaces the first-run banner — one voice at a time.
+    const welcomeStorageKey = `schneiders.builder.welcome.dismissed.${tenant.id}`;
+    const [welcome_open, set_welcome_open] = useState<boolean>(false);
+    useEffect(() => {
+        if (!initialWelcome || typeof window === "undefined") return;
+        try {
+            if (window.localStorage.getItem(welcomeStorageKey) === "true") return;
+        } catch {
+            /* storage unavailable — still show once this session */
+        }
+        set_welcome_open(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+    }, []);
+    const dismiss_welcome = useCallback((): void => {
+        set_welcome_open(false);
+        try {
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(welcomeStorageKey, "true");
+            }
+        } catch {
+            /* ignore */
+        }
+    }, [welcomeStorageKey]);
+    const set_editor_mode = useCallback(
+        (next: EditorMode): void => {
+            modeTouchedRef.current = true;
+            set_editor_mode_state(next);
+            setPreference(PREFERENCE_KEYS.EDITOR_MODE, next, 0);
+            if (next === "advanced") {
+                const seen = getPreference<boolean>(
+                    PREFERENCE_KEYS.EDITOR_MODE_INTRO_SEEN,
+                );
+                if (!seen) set_mode_intro_open(true);
+            }
+        },
+        [getPreference, setPreference],
+    );
+    const dismiss_mode_intro = useCallback((): void => {
+        set_mode_intro_open(false);
+        setPreference(PREFERENCE_KEYS.EDITOR_MODE_INTRO_SEEN, true, 0);
+    }, [setPreference]);
+    // Simple hides the tablet breakpoint — never leave the canvas stuck on
+    // a breakpoint the toolbar can no longer represent.
+    useEffect(() => {
+        if (editor_mode === "simple" && builder.active_breakpoint === "tablet") {
+            builder.set_active_breakpoint("desktop");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- react to mode flips only
+    }, [editor_mode]);
+    const editorModeCtx = useMemo(
+        () => ({ mode: editor_mode, setMode: set_editor_mode }),
+        [editor_mode, set_editor_mode],
+    );
+
+    // O3: live-activity badges on the Advanced settings buttons, so a
+    // running experiment / scheduled change is discoverable from the rail.
+    const settingBadges = useMemo<Partial<Record<SettingsSectionId, number>>>(() => {
+        const running = builder.config.experiments.filter(
+            (e) => e.status === "running",
+        ).length;
+        return {
+            experiments: running,
+            segments: builder.config.segments.length,
+            scheduled: builder.config.schedules.length,
+        };
+    }, [builder.config.experiments, builder.config.segments, builder.config.schedules]);
+
     // Publish confirm sheet state.
     const [publish_sheet_open, set_publish_sheet_open] = useState<boolean>(false);
+    // Post-publish celebration dialog — opened after a successful publish.
+    const [publish_success_open, set_publish_success_open] = useState<boolean>(false);
+    // True once a publish landed THIS session (keeps the launch-checklist
+    // "publish" step honest without a reload).
+    const [published_session, set_published_session] = useState<boolean>(false);
 
     // Section picker open state.
     const [picker_open, set_picker_open] = useState<boolean>(false);
@@ -303,6 +379,29 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     const bridge = useIframeBridge(iframe_ref);
     const [iframe_bounds, set_iframe_bounds] = useState<DOMRect | null>(null);
 
+    // BUG29: pages with no valid templates (category, product, cart…)
+    // must not offer "start from a template" — the picker would be empty.
+    const hasTemplatesForActivePage = useMemo(
+        () => templatesForPage(builder.active_page).length > 0,
+        [builder.active_page],
+    );
+
+    /* ── Canvas zoom (A1) ─────────────────────────────────────────── */
+    const [zoom_setting, set_zoom_setting] = useState<"fit" | 0.5 | 0.75 | 1>(1);
+    const [canvas_width, set_canvas_width] = useState<number>(0);
+    const canvas_zoom = useMemo<number>(() => {
+        if (zoom_setting !== "fit") return zoom_setting;
+        const deviceW =
+            builder.active_breakpoint === "mobile"
+                ? 390
+                : builder.active_breakpoint === "tablet"
+                  ? 820
+                  : null;
+        if (deviceW === null || canvas_width <= 0) return 1;
+        // 32px = the frame's own padding (p-4 both sides).
+        return Math.min(1, (canvas_width - 32) / deviceW);
+    }, [zoom_setting, builder.active_breakpoint, canvas_width]);
+
     // Track the iframe's bounding rect so the overlay can position itself
     // in the editor viewport. We use a ResizeObserver on the iframe plus
     // resize listener on window to keep this fresh.
@@ -319,6 +418,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             set_iframe_bounds(
                 new DOMRect(r.left - c.left, r.top - c.top, r.width, r.height),
             );
+            set_canvas_width(c.width);
         };
         update();
         let ro: ResizeObserver | null = null;
@@ -333,6 +433,28 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             window.removeEventListener("resize", update);
         };
     }, [system_screen, builder.active_breakpoint]);
+
+    // UX-09: switching breakpoint resizes the iframe and reflows its content,
+    // but the overlay's rects (selection ring, floating toolbar, insert gaps)
+    // were measured at the previous width — the ring visibly overflows the new
+    // frame. Re-request fresh rects after the reflow settles (two rAFs lets
+    // the iframe finish its own layout pass before we measure).
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        let raf1 = 0;
+        let raf2 = 0;
+        raf1 = window.requestAnimationFrame(() => {
+            raf2 = window.requestAnimationFrame(() => {
+                bridge.requestAllRects();
+                if (selected_section_id) bridge.requestRect(selected_section_id);
+            });
+        });
+        return () => {
+            window.cancelAnimationFrame(raf1);
+            window.cancelAnimationFrame(raf2);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- re-measure only on breakpoint flips; selected id is read fresh
+    }, [builder.active_breakpoint, bridge]);
 
     // Subscribe to iframe clicks → mark selected.
     useEffect(() => {
@@ -1002,8 +1124,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         if (!s) return null;
         if (s.label?.trim()) return s.label;
         const manifest = getManifestEntry(s.type);
-        return manifest?.name.en ?? s.type;
-    }, [activeSections, selected_section_id]);
+        return manifest ? sectionDisplayName(manifest, builder.active_locale) : s.type;
+    }, [activeSections, selected_section_id, builder.active_locale]);
 
     // Current bottom spacing of the selected section — seeds the drag handle.
     const selected_spacing_bottom_px = useMemo<number>(() => {
@@ -1177,7 +1299,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         // stays open so the Publish button doubles as Retry (the sheet surfaces
         // the error via builder.save_state).
         const ok = await builder.publish();
-        if (ok) set_publish_sheet_open(false);
+        if (ok) {
+            set_publish_sheet_open(false);
+            set_publish_success_open(true);
+            set_published_session(true);
+        }
     }, [builder]);
 
     const handlePublishJumpToFix = useCallback(
@@ -1251,6 +1377,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     if (isMobile) {
         return (
             <EditorLocaleProvider value={builder.active_locale}>
+            <EditorModeProvider value={editorModeCtx}>
             <DndContext
                 sensors={dnd_sensors}
                 onDragStart={handleDndDragStart}
@@ -1363,7 +1490,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         set_picker_insert_at(null);
                     }}
                     pageId={builder.active_page}
-                    pageLabel={getPageLabel(builder.active_page)}
+                    pageLabel={getPageLabel(builder.active_page, builder.active_locale)}
                     storefrontUrl={storefrontUrl}
                     onAdd={(instance) => {
                         handleAddSection(instance, picker_insert_at ?? undefined);
@@ -1377,6 +1504,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
                 <PageTemplatePicker
                     open={template_picker_open}
+                    activePageId={builder.active_page}
                     onClose={() => set_template_picker_open(false)}
                     currentSectionCount={activeSections.length}
                     onApply={handleApplyTemplate}
@@ -1394,16 +1522,24 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     publishedConfig={publishedConfig ?? null}
                 />
 
+                <PublishSuccessDialog
+                    open={publish_success_open}
+                    onClose={() => set_publish_success_open(false)}
+                    storeUrl={storefrontUrl}
+                />
+
                 <span className="sr-only" data-testid="editor-shell-business-name">
                     {tenant.business_name}
                 </span>
             </DndContext>
+            </EditorModeProvider>
             </EditorLocaleProvider>
         );
     }
 
     return (
         <EditorLocaleProvider value={builder.active_locale}>
+        <EditorModeProvider value={editorModeCtx}>
         <DndContext
             sensors={dnd_sensors}
             onDragStart={handleDndDragStart}
@@ -1428,150 +1564,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     makeUrl={makePreviewUrl}
                 />
             )}
-            {/* Top bar */}
-            <header
-                data-testid="editor-shell-topbar"
-                className="sb-glass-bar z-20 flex h-14 shrink-0 items-center justify-between border-b border-(--card-border) px-3 shadow-[0_1px_0_rgba(0,0,0,0.02),0_10px_24px_-18px_rgba(0,0,0,0.25)]"
-            >
-                <div className="flex items-center gap-2">
-                    <Link
-                        href="/store"
-                        data-testid="editor-shell-back"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/4 hover:text-foreground"
-                        aria-label="Back to store builder"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Link>
-                    <span
-                        aria-hidden="true"
-                        className="sb-tile sb-tile--page flex h-8 w-8"
-                    >
-                        <Store className="h-4 w-4" />
-                    </span>
-                    <span className="flex min-w-0 flex-col leading-tight">
-                        <span
-                            data-testid="editor-shell-tenant-name"
-                            className="truncate text-sm font-semibold tracking-tight text-foreground"
-                        >
-                            {tenant.business_name}
-                        </span>
-                        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                            Store builder
-                        </span>
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                    <LocaleSelect
-                        value={builder.active_locale}
-                        onChange={builder.set_active_locale}
-                    />
-                    <BreakpointToggle
-                        value={builder.active_breakpoint}
-                        onChange={builder.set_active_breakpoint}
-                    />
-                    <span
-                        aria-hidden="true"
-                        className="h-5 w-px bg-(--card-border)"
-                    />
-                    <div
-                        data-testid="undo-redo-group"
-                        className="inline-flex items-center gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1"
-                    >
-                        <button
-                            type="button"
-                            data-testid="undo-button"
-                            aria-label="Undo"
-                            title={
-                                builder.can_undo
-                                    ? `Undo: ${builder.undo_description ?? "Edit config."}`
-                                    : "Nothing to undo"
-                            }
-                            disabled={!builder.can_undo}
-                            onClick={() => builder.undo()}
-                            className={
-                                "flex h-7 w-7 items-center justify-center rounded-full transition-all duration-150 " +
-                                (builder.can_undo
-                                    ? "text-foreground hover:bg-(--card-bg) hover:shadow-(--card-shadow)"
-                                    : "cursor-not-allowed text-muted-foreground/40")
-                            }
-                        >
-                            <Undo2 className="h-4 w-4" />
-                        </button>
-                        <button
-                            type="button"
-                            data-testid="redo-button"
-                            aria-label="Redo"
-                            title={
-                                builder.can_redo
-                                    ? `Redo: ${builder.redo_description ?? "Edit config."}`
-                                    : "Nothing to redo"
-                            }
-                            disabled={!builder.can_redo}
-                            onClick={() => builder.redo()}
-                            className={
-                                "flex h-7 w-7 items-center justify-center rounded-full transition-all duration-150 " +
-                                (builder.can_redo
-                                    ? "text-foreground hover:bg-(--card-bg) hover:shadow-(--card-shadow)"
-                                    : "cursor-not-allowed text-muted-foreground/40")
-                            }
-                        >
-                            <Redo2 className="h-4 w-4" />
-                        </button>
-                    </div>
-                    <span
-                        aria-hidden="true"
-                        className="h-5 w-px bg-(--card-border)"
-                    />
-                    <PreviewAsControls
-                        value={preview_as}
-                        onChange={set_preview_as}
-                        segments={builder.config.segments}
-                        experiments={builder.config.experiments}
-                    />
-                    <I18nToolbarPill
-                        config={builder.config}
-                        onClick={() => set_system_screen("i18n")}
-                    />
-                    <button
-                        type="button"
-                        onClick={() => set_preview_modal_open(true)}
-                        data-testid="open-accurate-preview"
-                        title="Preview at a real device viewport (accurate responsive layout)"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
-                    >
-                        <Smartphone className="h-3.5 w-3.5" />
-                        <span>Preview</span>
-                    </button>
-                    <a
-                        href={previewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-testid="open-in-storefront"
-                        title="Open production preview in a new tab"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
-                    >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        <span>Open</span>
-                    </a>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                    <SaveStatePill
-                        state={builder.save_state}
-                        lastSavedAt={builder.last_saved_at}
-                        onRetry={() => {
-                            void builder.save_draft();
-                        }}
-                    />
-                    <PublishButton
-                        onPublish={handleOpenPublishSheet}
-                        disabled={publishDisabled}
-                        busy={publishBusy}
-                        title={publishBlockedReason ?? undefined}
-                    />
-                </div>
-            </header>
+            <EditorToolbar
+                tenantName={tenant.business_name}
+                builder={builder}
+                editorMode={editor_mode}
+                onChangeMode={set_editor_mode}
+                previewAs={preview_as}
+                onChangePreviewAs={set_preview_as}
+                previewUrl={previewUrl}
+                onOpenPreviewModal={() => set_preview_modal_open(true)}
+                onOpenI18nScreen={() => set_system_screen("i18n")}
+                onPublish={handleOpenPublishSheet}
+                publishDisabled={publishDisabled}
+                publishBusy={publishBusy}
+                publishBlockedReason={publishBlockedReason}
+            />
 
             {/* BUG25: another editor published since we loaded — publishing was
                 rejected to avoid clobbering their work; prompt a reload. */}
@@ -1581,11 +1588,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     data-testid="publish-conflict-banner"
                     className="flex items-center justify-between gap-3 border-b border-amber-300 bg-amber-50 px-5 py-2.5 text-sm text-amber-900"
                 >
-                    <span>
-                        Someone else published changes since you opened the editor.
-                        Reload to get the latest before publishing again — your draft is
-                        kept.
-                    </span>
+                    <span>{t(STRINGS.publish.conflict_message, builder.active_locale)}</span>
                     <button
                         type="button"
                         onClick={() => {
@@ -1593,9 +1596,32 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         }}
                         className="shrink-0 rounded-full bg-amber-900 px-3 py-1 text-xs font-semibold text-amber-50 transition-opacity hover:opacity-90"
                     >
-                        Reload
+                        {t(STRINGS.publish.conflict_reload, builder.active_locale)}
                     </button>
                 </div>
+            )}
+
+            {/* Post-wizard welcome (one card, three facts, one CTA) */}
+            {welcome_open && (
+                <WelcomeCard
+                    locale={builder.active_locale}
+                    onDismiss={dismiss_welcome}
+                />
+            )}
+
+            {/* One-time Advanced-mode intro (first manual switch) */}
+            {mode_intro_open && (
+                <ModeIntroPopover
+                    locale={builder.active_locale}
+                    onDismiss={dismiss_mode_intro}
+                />
+            )}
+            {/* Deep link forced Advanced for this visit */}
+            {mode_elevated_toast && (
+                <ModeElevatedToast
+                    locale={builder.active_locale}
+                    onDone={() => set_mode_elevated_toast(false)}
+                />
             )}
 
             {/* Main */}
@@ -1609,97 +1635,34 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     activeCustomPageId={builder.active_custom_page_id}
                     onSelectCustomPage={handleSelectCustomPage}
                     onManageCustomPages={() => handleSelectSetting("custom_pages")}
+                    activeSettingId={system_screen}
+                    settingBadges={settingBadges}
                 />
                 <main
                     data-testid="editor-shell-main"
-                    className="flex flex-1 overflow-hidden"
+                    className={cn(
+                        "flex flex-1 overflow-hidden",
+                        system_screen !== null && "flex-col",
+                    )}
                 >
-                    {system_screen === "brand_kit" ? (
-                        <BrandKitEditor
-                            value={builder.config.brand_kit}
-                            onChange={handleBrandKitChange}
+                    {system_screen !== null ? (
+                        <SystemScreenRouter
+                            screen={system_screen}
+                            builder={builder}
                             tenantId={tenant.id}
-                        />
-                    ) : system_screen === "versions" ? (
-                        <VersionHistoryScreen
-                            builder={builder}
                             onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "scheduled" ? (
-                        <ScheduledChangesScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "segments" ? (
-                        <SegmentsScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "experiments" ? (
-                        <ExperimentsScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "i18n" ? (
-                        <I18nScreen
-                            config={builder.config}
-                            onSelectPage={(page) => {
+                            onBrandKitChange={handleBrandKitChange}
+                            onSelectCustomPage={handleSelectCustomPage}
+                            onI18nSelectPage={(page) => {
                                 set_system_screen(null);
                                 builder.set_active_page(page);
                             }}
-                            onSelectSection={(page, section_id) => {
+                            onI18nSelectSection={(page, section_id) => {
                                 set_system_screen(null);
                                 builder.set_active_page(page);
                                 set_selected_section_id(section_id);
                                 set_editing_section_id(section_id);
                             }}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "shipping" ? (
-                        <ShippingScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "discounts" ? (
-                        <DiscountsScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "cart_recovery" ? (
-                        <CartRecoveryScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "bundles" ? (
-                        <BundlesScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "pixels" ? (
-                        <PixelsScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "loyalty" ? (
-                        <LoyaltyScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "custom_pages" ? (
-                        <CustomPagesScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                            onEditSections={handleSelectCustomPage}
-                        />
-                    ) : system_screen === "nav" ? (
-                        <NavBuilderScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
-                        />
-                    ) : system_screen === "redirects" ? (
-                        <RedirectsScreen
-                            builder={builder}
-                            onClose={handleCloseSystemScreen}
                         />
                     ) : (
                         <>
@@ -1709,14 +1672,57 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             >
                                 <FirstRunBanner
                                     tenantId={tenant.id}
-                                    visible={isFirstTimeTenant}
+                                    visible={isFirstTimeTenant && !welcome_open}
+                                    isHome={
+                                        builder.active_page === "home" &&
+                                        !builder.active_custom_page_id
+                                    }
+                                    pageLabel={
+                                        builder.active_custom_page
+                                            ? (builder.active_custom_page.title?.[builder.active_locale] ??
+                                              builder.active_custom_page.title?.en ??
+                                              builder.active_custom_page.slug)
+                                            : getPageLabel(builder.active_page, builder.active_locale)
+                                    }
                                 />
                                 <div className="relative flex flex-1 overflow-hidden">
                                     <PreviewFrame
                                         ref={iframe_ref}
                                         url={iframePreviewUrl}
                                         breakpoint={builder.active_breakpoint}
+                                        zoom={canvas_zoom}
                                     />
+                                </div>
+                                {/* Zoom pill (A1) — bottom-left over the canvas */}
+                                <div
+                                    data-testid="canvas-zoom-pill"
+                                    role="radiogroup"
+                                    aria-label={t(STRINGS.toolbar.zoom_group, builder.active_locale)}
+                                    className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-0.5 rounded-full border border-(--card-border) bg-(--card-bg)/90 p-1 shadow-(--card-shadow) backdrop-blur-sm"
+                                >
+                                    {([
+                                        ["fit", t(STRINGS.toolbar.zoom_fit, builder.active_locale)],
+                                        [0.5, "50%"],
+                                        [0.75, "75%"],
+                                        [1, "100%"],
+                                    ] as const).map(([val, label]) => (
+                                        <button
+                                            key={String(val)}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={zoom_setting === val}
+                                            data-testid={`canvas-zoom-${val}`}
+                                            onClick={() => set_zoom_setting(val)}
+                                            className={cn(
+                                                "rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors",
+                                                zoom_setting === val
+                                                    ? "bg-foreground text-background"
+                                                    : "text-muted-foreground hover:text-foreground",
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
                                 </div>
                                 {/* Click-to-edit overlay — positioned over the
                                     iframe via bounds relative to the canvas
@@ -1745,13 +1751,64 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     }
                                     onSpacingPreview={handleSpacingPreview}
                                     onSpacingChange={handleSectionSpacingChange}
+                                    zoom={canvas_zoom}
                                 />
+                                {/* Empty-page card ON the canvas — the rail's
+                                    template shelf isn't where a first-timer is
+                                    looking; a blank white canvas reads broken. */}
+                                {activeSections.length === 0 && (
+                                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+                                        <div
+                                            data-testid="canvas-empty-state"
+                                            className="pointer-events-auto w-full max-w-sm rounded-2xl border border-(--card-border) bg-(--card-bg)/95 p-6 text-center shadow-(--card-shadow-hover) backdrop-blur-sm"
+                                        >
+                                            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                                                <Plus className="h-5 w-5 text-foreground" aria-hidden="true" />
+                                            </div>
+                                            <h3 className="text-sm font-semibold text-foreground">
+                                                {t(STRINGS.section_list.canvas_empty_title, builder.active_locale)}
+                                            </h3>
+                                            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                                                {t(
+                                                    hasTemplatesForActivePage
+                                                        ? STRINGS.section_list.canvas_empty_hint
+                                                        : STRINGS.section_list.canvas_empty_hint_no_templates,
+                                                    builder.active_locale,
+                                                )}
+                                            </p>
+                                            <div className="mt-4 flex flex-col gap-2">
+                                                <button
+                                                    type="button"
+                                                    data-testid="canvas-empty-add-block"
+                                                    onClick={() => {
+                                                        set_picker_insert_at(null);
+                                                        set_picker_open(true);
+                                                    }}
+                                                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    {t(STRINGS.section_list.empty_first_button, builder.active_locale)}
+                                                </button>
+                                                {hasTemplatesForActivePage && (
+                                                    <button
+                                                        type="button"
+                                                        data-testid="canvas-empty-template"
+                                                        onClick={() => set_template_picker_open(true)}
+                                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-(--card-border) bg-(--background-soft) px-3 text-sm font-medium text-foreground transition-colors hover:border-(--border-hover)"
+                                                    >
+                                                        {t(STRINGS.section_list.empty_template_button, builder.active_locale)}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <InspectorRail
                                 activeTab={inspector_tab}
                                 onChangeTab={set_inspector_tab}
                                 pageId={builder.active_page}
-                                pageLabel={getPageLabel(builder.active_page)}
+                                pageLabel={getPageLabel(builder.active_page, builder.active_locale)}
                                 sections={activeSections}
                                 onChangeSections={handleSectionsChange}
                                 onAddSection={() => {
@@ -1781,6 +1838,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                 storefrontUrl={storefrontUrl}
                                 config={builder.config}
                                 tenantName={tenant.business_name}
+                                hasPublished={hasPublished || published_session}
                                 onJumpToSetting={handleSelectSetting}
                                 onJumpToPage={(page) => {
                                     set_system_screen(null);
@@ -1806,7 +1864,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     set_picker_insert_at(null);
                 }}
                 pageId={builder.active_page}
-                pageLabel={getPageLabel(builder.active_page)}
+                pageLabel={getPageLabel(builder.active_page, builder.active_locale)}
                 storefrontUrl={storefrontUrl}
                 onAdd={(instance) => {
                     handleAddSection(
@@ -1824,6 +1882,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             {/* Page-template picker overlay */}
             <PageTemplatePicker
                 open={template_picker_open}
+                activePageId={builder.active_page}
                 onClose={() => set_template_picker_open(false)}
                 currentSectionCount={activeSections.length}
                 onApply={handleApplyTemplate}
@@ -1842,178 +1901,20 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 publishedConfig={publishedConfig ?? null}
             />
 
+            {/* Post-publish celebration — the live-URL handoff moment */}
+            <PublishSuccessDialog
+                open={publish_success_open}
+                onClose={() => set_publish_success_open(false)}
+                storeUrl={storefrontUrl}
+            />
+
             {/* Hidden business-name anchor for downstream selectors. */}
             <span className="sr-only" data-testid="editor-shell-business-name">
                 {tenant.business_name}
             </span>
         </div>
         </DndContext>
+        </EditorModeProvider>
         </EditorLocaleProvider>
     );
 }
-
-/* ─────────────────────────────────────────────────────────────────── */
-/* FirstRunBanner                                                       */
-/* ─────────────────────────────────────────────────────────────────── */
-
-/**
- * Tiny bento-styled banner shown above the canvas for first-time
- * tenants. Dismissal is persisted per-tenant in localStorage so it
- * doesn't reappear across sessions.
- */
-function FirstRunBanner({
-    tenantId,
-    visible,
-}: {
-    tenantId: string;
-    visible: boolean;
-}): React.ReactElement | null {
-    const storageKey = `schneiders.builder.first_run_banner.dismissed.${tenantId}`;
-    const [dismissed, setDismissed] = useState<boolean>(true);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        try {
-            const stored = window.localStorage.getItem(storageKey);
-            setDismissed(stored === "true");
-        } catch {
-            setDismissed(false);
-        }
-    }, [storageKey]);
-
-    if (!visible || dismissed) return null;
-
-    const handleDismiss = (): void => {
-        setDismissed(true);
-        try {
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(storageKey, "true");
-            }
-        } catch {
-            /* ignore */
-        }
-    };
-
-    return (
-        <div
-            data-testid="editor-shell-first-run-banner"
-            className="mx-3 mt-3 flex items-center gap-3 rounded-xl border border-(--card-border) bg-gradient-to-r from-pink-500/10 via-amber-500/10 to-violet-500/10 px-4 py-3 text-sm"
-        >
-            <span aria-hidden="true" className="text-base">
-                ✨
-            </span>
-            <p className="flex-1 text-foreground/90">
-                This is your homepage. Click any text to edit. Hit Publish when
-                you're ready.
-            </p>
-            <button
-                type="button"
-                aria-label="Dismiss first-run banner"
-                data-testid="editor-shell-first-run-banner-dismiss"
-                onClick={handleDismiss}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground"
-            >
-                ×
-            </button>
-        </div>
-    );
-}
-
-/** Relative "N min ago" label for the recovery banner timestamp. */
-function relativeTimeFrom(ms: number): string {
-    const diff = Date.now() - ms;
-    if (diff < 60_000) return "just now";
-    const mins = Math.round(diff / 60_000);
-    if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
-    const hrs = Math.round(mins / 60);
-    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
-    const days = Math.round(hrs / 24);
-    return `${days} day${days === 1 ? "" : "s"} ago`;
-}
-
-/**
- * Crash-recovery banner — shown when a local backup newer than the DB draft is
- * found on mount (BUG4). Restoring is undoable (routes through applyConfig).
- */
-function DraftRecoveryBanner({
-    backup,
-    onRestore,
-    onDismiss,
-}: {
-    backup: { saved_at: number };
-    onRestore: () => void;
-    onDismiss: () => void;
-}) {
-    return (
-        <div
-            data-testid="editor-shell-recovery-banner"
-            className="fixed inset-x-0 top-2 z-50 mx-auto flex w-fit max-w-[92vw] items-center gap-3 rounded-xl border border-amber-400/50 bg-amber-50/95 px-4 py-2.5 text-sm shadow-[0_10px_30px_-12px_rgba(0,0,0,0.35)] backdrop-blur"
-        >
-            <span aria-hidden="true" className="text-base">
-                ⏱️
-            </span>
-            <p className="flex-1 text-amber-900">
-                Unsaved changes from {relativeTimeFrom(backup.saved_at)} were
-                recovered.
-            </p>
-            <button
-                type="button"
-                onClick={onRestore}
-                data-testid="editor-shell-recovery-restore"
-                className="inline-flex h-7 items-center rounded-md bg-amber-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-amber-700"
-            >
-                Restore
-            </button>
-            <button
-                type="button"
-                aria-label="Dismiss recovery banner"
-                onClick={onDismiss}
-                data-testid="editor-shell-recovery-dismiss"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-amber-900/60 transition-colors hover:bg-amber-500/15 hover:text-amber-900"
-            >
-                ×
-            </button>
-        </div>
-    );
-}
-
-/* ─────────────────────────────────────────────────────────────────── */
-/* Internal helpers                                                     */
-/* ─────────────────────────────────────────────────────────────────── */
-
-function generateSectionId(): string {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-        return crypto.randomUUID();
-    }
-    return `sec_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function deepCloneJson<T>(value: T): T {
-    return JSON.parse(JSON.stringify(value)) as T;
-}
-
-/**
- * Parse a path like `foo.bar[2].baz` into an ordered list of string keys
- * and numeric array indices. Used for inline-edit field-paths emitted by
- * section components.
- */
-function parsePathSegments(path: string): Array<string | number> {
-    if (!path) return [];
-    const segs: Array<string | number> = [];
-    const parts = path.split(".");
-    for (const part of parts) {
-        // Match `name`, `name[0]`, `[0]`, possibly nested `[0][1]`.
-        const bracketMatch = /^([^\[\]]*)(.*)$/.exec(part);
-        if (!bracketMatch) continue;
-        const head = bracketMatch[1];
-        const rest = bracketMatch[2];
-        if (head) segs.push(head);
-        const indexRe = /\[(\d+)\]/g;
-        let m: RegExpExecArray | null;
-        while ((m = indexRe.exec(rest)) !== null) {
-            segs.push(Number(m[1]));
-        }
-    }
-    return segs;
-}
-

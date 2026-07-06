@@ -84,17 +84,21 @@ describe("BrandKitEditor", () => {
         expect(last.colors.primary.toLowerCase()).toBe("#ff0000");
     });
 
-    it("switching the tagline locale pill re-binds the input", () => {
+    it("tagline translations tuck behind the reveal and stay editable", () => {
         const value = clone();
         value.identity.tagline = { en: "Hello world", ar: "مرحبا" };
         const onChange = vi.fn();
         render(<BrandKitEditor value={value} onChange={onChange} />);
 
+        // Active locale (en without a provider) is the primary input.
         const enInput = screen.getByTestId("identity-tagline-input") as HTMLInputElement;
         expect(enInput.value).toBe("Hello world");
 
-        fireEvent.click(screen.getByTestId("identity-tagline-locale-ar"));
-        const arInput = screen.getByTestId("identity-tagline-input") as HTMLInputElement;
+        // Other locales are collapsed until the translations toggle opens.
+        fireEvent.click(screen.getByTestId("identity-tagline-translations-toggle"));
+        const arInput = screen.getByTestId(
+            "identity-tagline-input-ar",
+        ) as HTMLInputElement;
         expect(arInput.value).toBe("مرحبا");
     });
 

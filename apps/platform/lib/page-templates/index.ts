@@ -7,7 +7,8 @@
 // rehashes those ids so reapplying always produces fresh sections.
 // =====================================================================
 
-import type { SectionInstance } from "@scheniders/shared";
+import type { PageId, SectionInstance } from "@scheniders/shared";
+import { getManifestEntry } from "@/lib/sections-manifest";
 import { salePageTemplate } from "./sale-page";
 import { productLaunchTemplate } from "./product-launch";
 import { brandStoryTemplate } from "./brand-story";
@@ -29,6 +30,25 @@ export function getPageTemplate(id: string): PageTemplate | undefined {
     return PAGE_TEMPLATES.find((t) => t.id === id);
 }
 
+/** Can this section type legally live on the given page? */
+function sectionValidOnPage(type: string, pageId: PageId): boolean {
+    const entry = getManifestEntry(type);
+    if (!entry) return true; // unknown types: don't silently drop
+    return entry.valid_on.includes(pageId);
+}
+
+/**
+ * BUG29 guard: templates whose sections ALL fit the target page. The
+ * curated packs are home-flavored, so non-home pages usually get an
+ * empty list — the UI hides the template entry point instead of
+ * injecting hero_image onto a checkout page.
+ */
+export function templatesForPage(pageId: PageId): PageTemplate[] {
+    return PAGE_TEMPLATES.filter((t) =>
+        t.sections.every((s) => sectionValidOnPage(s.type, pageId)),
+    );
+}
+
 /**
  * Rehash placeholder section ids into fresh uuids. Deep-clones the
  * template's sections so the canonical template object is never mutated.
@@ -36,8 +56,19 @@ export function getPageTemplate(id: string): PageTemplate | undefined {
  * Re-applying the same template should always produce new ids — that's
  * required so dnd-kit / undo-redo / variant references stay consistent.
  */
-export function applyTemplate(template: PageTemplate): SectionInstance[] {
-    return template.sections.map((section) => ({
+export function applyTemplate(
+    template: PageTemplate,
+    /**
+     * Target page. When given, sections invalid on that page are
+     * dropped (BUG29 defense-in-depth — pickers already filter whole
+     * templates).
+     */
+    targetPageId?: PageId,
+): SectionInstance[] {
+    const sections = targetPageId
+        ? template.sections.filter((s) => sectionValidOnPage(s.type, targetPageId))
+        : template.sections;
+    return sections.map((section) => ({
         ...section,
         id: cryptoRandomId(),
         base: deepCloneJson(section.base),

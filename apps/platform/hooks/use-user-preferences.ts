@@ -129,4 +129,8 @@ export const PREFERENCE_KEYS = {
     ANALYTICS_LEVEL: "analyticsLevel",
     SHOW_SEARCH_BAR: "showSearchBar",
     ORDER_PIPELINE: "orderPipelineLayout",
+    /** Store-builder Simple ⇄ Advanced mode ("simple" | "advanced"). */
+    EDITOR_MODE: "editorMode",
+    /** One-time "what is Advanced mode" intro popover dismissed. */
+    EDITOR_MODE_INTRO_SEEN: "editorModeIntroSeen",
 } as const;

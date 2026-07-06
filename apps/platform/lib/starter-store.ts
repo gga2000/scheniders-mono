@@ -23,6 +23,7 @@ import type {
 } from "@scheniders/shared";
 import { PAGE_TEMPLATES, applyTemplate, getPageTemplate } from "./page-templates";
 import { getManifestEntry } from "./sections-manifest";
+import { applyIndustrySeedCopy } from "./industry-seed-copy";
 
 /** Templates offered in the wizard's "pick a starter" step. */
 export const STARTER_TEMPLATES = PAGE_TEMPLATES;
@@ -63,6 +64,13 @@ export { FALLBACK_INDUSTRIES } from "./wizard-industry-types";
 export interface StarterStoreInput {
     /** Chosen `PageTemplate.id` (home starter pack). */
     templateId: string;
+    /**
+     * Wizard vertical (e.g. "beauty", "electronics"). Drives the
+     * industry copy pack so the seeded story/reviews/about read like
+     * THIS store's vertical, never another one's. Unknown/absent ids
+     * fall back to a neutral de-branded pack.
+     */
+    industryId?: string;
     /** Merchant's business name → brand identity + (template) hero copy. */
     businessName: string;
     /** Optional brand primary colour, `#rrggbb`. Invalid values are ignored. */
@@ -231,6 +239,12 @@ export function buildStarterStoreConfigV2(
         const page = cfg.pages.find((p) => p.page_id === pageId);
         if (page) page.sections = types.map(makeSection);
     }
+
+    // ── Industry copy pack (UX-11) ──────────────────────────────────
+    // After templates + supporting pages so it overlays every seeded
+    // section; before name-personalization so the brand-label stamp
+    // always wins.
+    applyIndustrySeedCopy(cfg, input.industryId);
 
     // ── Personalize: stamp the business name onto brand-label fields ─
     if (name) {

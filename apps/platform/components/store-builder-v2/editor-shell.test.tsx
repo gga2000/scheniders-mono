@@ -26,6 +26,23 @@ vi.mock("@/hooks/use-storefront-url", () => ({
     useStorefrontUrl: () => "http://localhost:3001/s/test-store",
 }));
 
+// User preferences reach useAuth (needs AuthProvider); stub to in-memory.
+// Tests run with no saved preference → editor opens in Simple mode, same
+// as a first-time user.
+vi.mock("@/hooks/use-user-preferences", () => ({
+    useUserPreferences: () => ({
+        getPreference: () => null,
+        setPreference: () => undefined,
+        clearPreference: () => undefined,
+        clearAllPreferences: () => undefined,
+        userId: null,
+    }),
+    PREFERENCE_KEYS: {
+        EDITOR_MODE: "editorMode",
+        EDITOR_MODE_INTRO_SEEN: "editorModeIntroSeen",
+    },
+}));
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Bridge mock — capture postMessage calls without a real iframe       */
 /* ─────────────────────────────────────────────────────────────────── */

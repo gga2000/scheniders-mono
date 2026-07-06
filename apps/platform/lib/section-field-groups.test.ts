@@ -5,6 +5,7 @@ import {
     FIELD_GROUPS_ORDER,
     getFieldGroup,
     hasFieldGroups,
+    isFieldVisible,
 } from "./section-field-groups";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -264,5 +265,49 @@ describe("hasFieldGroups", () => {
 describe("FIELD_GROUPS_ORDER", () => {
     it("is deterministic and in the expected render order", () => {
         expect(FIELD_GROUPS_ORDER).toEqual(["essential", "style", "logic"]);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Simple ⇄ Advanced mode — isFieldVisible
+// ─────────────────────────────────────────────────────────────────────
+
+describe("isFieldVisible", () => {
+    it("advanced mode shows every field", () => {
+        expect(isFieldVisible("advanced", "hero_image", "cta_href")).toBe(true);
+        expect(isFieldVisible("advanced", "product_grid", "manual_skus")).toBe(true);
+        expect(isFieldVisible("advanced", undefined, "analytics_tag")).toBe(true);
+    });
+
+    it("simple mode hides logic-group fields and keeps essential/style", () => {
+        expect(isFieldVisible("simple", "hero_image", "cta_href")).toBe(false);
+        expect(isFieldVisible("simple", "product_grid", "manual_skus")).toBe(false);
+        expect(isFieldVisible("simple", "hero_image", "title_i18n")).toBe(true);
+        expect(isFieldVisible("simple", "hero_image", "image_url")).toBe(true);
+        expect(isFieldVisible("simple", "hero_image", "align")).toBe(true);
+    });
+
+    it("unknown section types never hide fields they can't misclassify as logic", () => {
+        // Fallback safety: unknown types still classify by name only —
+        // an essential-named field stays visible.
+        expect(isFieldVisible("simple", "totally_unknown", "title_i18n")).toBe(true);
+    });
+
+    it("every known section keeps at least one Simple-visible field", async () => {
+        const { SECTIONS_MANIFEST } = await import("./sections-manifest");
+        for (const entry of SECTIONS_MANIFEST) {
+            const def = (entry.schema as unknown as { _def?: { type?: string } })._def;
+            if (def?.type !== "object") continue;
+            const shape = (entry.schema as unknown as {
+                shape: Record<string, unknown>;
+            }).shape;
+            const visible = Object.keys(shape).filter((k) =>
+                isFieldVisible("simple", entry.type, k),
+            );
+            expect(
+                visible.length,
+                `section '${entry.type}' has NO Simple-visible fields`,
+            ).toBeGreaterThan(0);
+        }
     });
 });

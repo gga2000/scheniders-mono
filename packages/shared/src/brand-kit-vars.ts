@@ -224,9 +224,11 @@ export const BK_VAR_NAMES = [
   "--bk-ink-soft",
   "--bk-ink-faint",
   "--bk-divider",
-  // Typography (4)
+  // Typography (6)
   "--bk-font-display",
   "--bk-font-body",
+  "--bk-font-display-ar",
+  "--bk-font-body-ar",
   "--bk-scale-base",
   "--bk-scale-leading",
   // Shape (7)
@@ -260,7 +262,20 @@ export type BkVarName = (typeof BK_VAR_NAMES)[number];
  * Emits exactly the variables listed in `BK_VAR_NAMES` (34 entries
  * grouped into the documented colour/typography/shape/motion surface).
  */
-export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
+export function buildBrandKitVars(
+  kit: BrandKit,
+  opts?: {
+    /**
+     * Locale of the page being rendered. When `ar`/`ku` AND the kit
+     * carries an Arabic pairing ([D3]), the MAIN font vars swap to the
+     * Arabic stack (Latin face kept as fallback for mixed content).
+     * Sections consume the vars via inline styles, so the swap must
+     * happen at emit time — a stylesheet `:lang()` override can never
+     * beat an inline `font-family: var(--bk-font-display)`.
+     */
+    locale?: string;
+  },
+): React.CSSProperties {
   const defaults = EMPTY_BRAND_KIT.colors;
 
   // Colors — sanitize all inputs against EMPTY_BRAND_KIT.
@@ -294,8 +309,17 @@ export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
   const divider = rgba(ink, 0.1);
 
   // Typography
-  const fontDisplay = fontStack(kit.typography?.display, "Bricolage Grotesque", "display");
-  const fontBody = fontStack(kit.typography?.body, "DM Sans", "body");
+  const latinDisplay = fontStack(kit.typography?.display, "Bricolage Grotesque", "display");
+  const latinBody = fontStack(kit.typography?.body, "DM Sans", "body");
+  // Arabic pairing ([D3]): prepend the Arabic face to the Latin stack so
+  // Latin brand names inside Arabic copy still render in the brand face.
+  const arDisplayName = kit.typography?.display_ar?.trim();
+  const arBodyName = kit.typography?.body_ar?.trim();
+  const fontDisplayAr = arDisplayName ? `'${arDisplayName}', ${latinDisplay}` : latinDisplay;
+  const fontBodyAr = arBodyName ? `'${arBodyName}', ${latinBody}` : latinBody;
+  const isArabicScript = opts?.locale === "ar" || opts?.locale === "ku";
+  const fontDisplay = isArabicScript ? fontDisplayAr : latinDisplay;
+  const fontBody = isArabicScript ? fontBodyAr : latinBody;
   const scale: BrandTypography["scale"] = kit.typography?.scale ?? "comfortable";
   const scaleBase = SCALE_BASE_REM[scale] ?? SCALE_BASE_REM.comfortable;
   const scaleLeading = SCALE_LEADING[scale] ?? SCALE_LEADING.comfortable;
@@ -353,6 +377,8 @@ export function buildBrandKitVars(kit: BrandKit): React.CSSProperties {
     // Typography
     "--bk-font-display": fontDisplay,
     "--bk-font-body": fontBody,
+    "--bk-font-display-ar": fontDisplayAr,
+    "--bk-font-body-ar": fontBodyAr,
     "--bk-scale-base": `${scaleBase}rem`,
     "--bk-scale-leading": String(scaleLeading),
     // Shape
@@ -399,6 +425,8 @@ export function buildBrandKitFontsUrl(
   };
   add(kit.typography?.display);
   add(kit.typography?.body);
+  add(kit.typography?.display_ar);
+  add(kit.typography?.body_ar);
   if (names.size === 0) return null;
   const families = Array.from(names)
     .map((f) => `family=${f.replace(/\s+/g, "+")}:wght@400;500;600;700`)

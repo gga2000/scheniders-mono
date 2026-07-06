@@ -399,7 +399,8 @@ export default async function PreviewPage({
   /* ───── Brand kit + CSS vars ───── */
 
   const brandKit: BrandKit = v2?.brand_kit ?? EMPTY_BRAND_KIT;
-  const bkVars = buildBrandKitVars(brandKit);
+  // Locale-aware: previewing in ar/ku applies the Arabic font pairing.
+  const bkVars = buildBrandKitVars(brandKit, { locale });
   const bkFontsUrl = buildBrandKitFontsUrl(brandKit);
   const bkMotion: "auto" | "reduce" =
     brandKit.motion?.enabled === false ? "reduce" : "auto";

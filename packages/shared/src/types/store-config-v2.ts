@@ -225,6 +225,13 @@ export type GoogleFontName = string;
 export interface BrandTypography {
   display: GoogleFontName;
   body: GoogleFontName;
+  /**
+   * Optional Arabic-script pairing ([D3]). Latin display faces have no
+   * Arabic glyphs; when set, Arabic/Kurdish pages render headlines/body
+   * in these faces instead of an arbitrary system fallback.
+   */
+  display_ar?: GoogleFontName;
+  body_ar?: GoogleFontName;
   scale: "compact" | "comfortable" | "spacious";
 }
 

@@ -202,3 +202,41 @@ export function getFieldGroup(
     const key = fieldPath.split(".")[0] ?? fieldPath;
     return classifyKey(key);
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Simple ⇄ Advanced mode — field visibility
+ * ─────────────────────────────────────────────────────────────────────
+ * Simple mode shows essential + style fields and hides the logic group
+ * (hrefs, ids, queries, analytics tags…). The convention-based grouping
+ * occasionally misfiles a field a first-week merchant genuinely needs —
+ * correct those here per section, never by rewriting the conventions.
+ */
+
+interface SimpleOverride {
+    /** Field keys forced VISIBLE in Simple even though grouped as logic. */
+    show?: readonly string[];
+    /** Field keys forced HIDDEN in Simple even though essential/style. */
+    hide?: readonly string[];
+}
+
+const SIMPLE_OVERRIDES: Record<string, SimpleOverride> = {
+    // (seed as misclassifications surface — intentionally empty for now)
+};
+
+/**
+ * Should this field render in the given editor mode?
+ * Advanced always sees everything. Unknown section types fall back to
+ * "show everything" — never hide fields we can't classify.
+ */
+export function isFieldVisible(
+    mode: "simple" | "advanced",
+    sectionType: string | undefined,
+    fieldPath: string,
+): boolean {
+    if (mode === "advanced") return true;
+    const key = fieldPath.split(".")[0] ?? fieldPath;
+    const override = sectionType ? SIMPLE_OVERRIDES[sectionType] : undefined;
+    if (override?.show?.includes(key)) return true;
+    if (override?.hide?.includes(key)) return false;
+    return classifyKey(key) !== "logic";
+}

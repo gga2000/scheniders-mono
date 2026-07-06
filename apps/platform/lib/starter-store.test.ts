@@ -220,3 +220,93 @@ describe("buildStarterStoreConfigV2", () => {
         expect(home?.sections).toHaveLength(0);
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Industry copy packs (UX-11)
+// ─────────────────────────────────────────────────────────────────────
+
+describe("industry seed copy", () => {
+    function seededStory(industryId?: string) {
+        // product_launch is the template that carries a brand_story section.
+        const cfg = buildStarterStoreConfigV2({
+            templateId: "product_launch",
+            industryId,
+            businessName: "متجر فاطمة للتجميل",
+        });
+        const home = cfg.pages.find((p) => p.page_id === "home");
+        const story = home?.sections.find((s) => s.type === "brand_story");
+        return (story?.base ?? {}) as Record<
+            string,
+            Record<string, string> | undefined
+        >;
+    }
+
+    it("beauty pack replaces the fashion default story", () => {
+        const base = seededStory("beauty");
+        const paragraphs = base.paragraphs_i18n?.ar ?? "";
+        // No leaked fashion copy or old brand backstory.
+        expect(paragraphs).not.toContain("سنرتديها");
+        expect(paragraphs).not.toContain("شنايدرز");
+        expect(paragraphs).toContain("أصلي");
+    });
+
+    it("unknown industries get the neutral de-branded default pack", () => {
+        const base = seededStory("carpets_or_something");
+        const paragraphs = base.paragraphs_i18n?.ar ?? "";
+        expect(paragraphs).not.toContain("شنايدرز");
+        expect(paragraphs).not.toContain("سنرتديها");
+    });
+
+    it("testimonial reviewer names are Arabic-script for every pack", () => {
+        for (const industryId of ["beauty", "fashion", "electronics", "food", undefined]) {
+            const cfg = buildStarterStoreConfigV2({
+                templateId: "product_launch",
+                industryId,
+                businessName: "X",
+            });
+            const home = cfg.pages.find((p) => p.page_id === "home");
+            const t = home?.sections.find(
+                (s) => s.type === "testimonials_carousel",
+            );
+            if (!t) continue; // template variant without reviews
+            const items = (t.base as { items: Array<{ author_name: string }> }).items;
+            expect(items.length).toBeGreaterThan(0);
+            for (const item of items) {
+                expect(
+                    /[؀-ۿ]/.test(item.author_name),
+                    `latin reviewer name "${item.author_name}" for pack ${industryId}`,
+                ).toBe(true);
+            }
+        }
+    });
+
+    it("two sections of the same type never share pack objects by reference", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: "brand_story",
+            industryId: "beauty",
+            businessName: "X",
+        });
+        const stories = cfg.pages
+            .flatMap((p) => p.sections)
+            .filter((s) => s.type === "testimonials_carousel");
+        if (stories.length >= 2) {
+            const a = (stories[0].base as { items: unknown[] }).items;
+            const b = (stories[1].base as { items: unknown[] }).items;
+            expect(a).not.toBe(b);
+        }
+    });
+});
+
+    it("resolves DB display names to packs (uuid ids arrive as names)", () => {
+        const cfg = buildStarterStoreConfigV2({
+            templateId: "product_launch",
+            industryId: "Beauty & Cosmetics",
+            businessName: "X",
+        });
+        const home = cfg.pages.find((p) => p.page_id === "home");
+        const story = home?.sections.find((s) => s.type === "brand_story");
+        const paragraphs = (
+            (story?.base as Record<string, Record<string, string>>).paragraphs_i18n ?? {}
+        ).ar ?? "";
+        expect(paragraphs).toContain("أصلي");
+    });

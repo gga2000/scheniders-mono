@@ -173,16 +173,10 @@ export function BlockLayersPanel(props: BlockLayersPanelProps): ReactElement | n
         [onEditLayer, queryRoot],
     );
 
-    if (layers.length === 0) {
-        return (
-            <div
-                data-testid="block-layers-panel-empty"
-                className="rounded-md border border-dashed border-(--card-border) px-3 py-2 text-[11px] text-muted-foreground"
-            >
-                No editable layers detected
-            </div>
-        );
-    }
+    // No layers → render nothing. A "No editable layers detected" notice is
+    // pure noise for the merchant (UX-10): it's technical, negative, and
+    // describes an internal concept they never asked about.
+    if (layers.length === 0) return null;
 
     return (
         <section

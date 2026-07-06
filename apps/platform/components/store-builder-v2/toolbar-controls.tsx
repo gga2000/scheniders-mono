@@ -17,15 +17,65 @@ import type { Breakpoint, LocaleCode } from "@scheniders/shared";
 import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import type { SaveStateV2 } from "@/hooks/use-store-builder-v2";
+import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorMode, type EditorMode } from "@/lib/editor-mode-context";
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Mode toggle — Simple ⇄ Advanced                                      */
+/* ─────────────────────────────────────────────────────────────────── */
+
+export interface ModeToggleProps {
+    value: EditorMode;
+    onChange: (next: EditorMode) => void;
+}
+
+export function ModeToggle({ value, onChange }: ModeToggleProps) {
+    const locale = useEditorLocale();
+    const OPTIONS: Array<{ id: EditorMode; label: EditorString }> = [
+        { id: "simple", label: STRINGS.mode.simple },
+        { id: "advanced", label: STRINGS.mode.advanced },
+    ];
+    return (
+        <div
+            role="radiogroup"
+            aria-label={t(STRINGS.mode.group_aria, locale)}
+            data-testid="mode-toggle"
+            className="inline-flex items-center gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1"
+        >
+            {OPTIONS.map(({ id, label }) => {
+                const isActive = id === value;
+                return (
+                    <button
+                        key={id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        data-testid={`mode-${id}`}
+                        onClick={() => onChange(id)}
+                        className={cn(
+                            "flex h-7 items-center justify-center rounded-full px-2.5 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                            isActive
+                                ? "bg-(--card-bg) text-foreground shadow-(--card-shadow)"
+                                : "text-muted-foreground hover:bg-black/3 hover:text-foreground",
+                        )}
+                    >
+                        {t(label, locale)}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Breakpoint toggle — segmented control                                */
 /* ─────────────────────────────────────────────────────────────────── */
 
-const BREAKPOINTS: Array<{ id: Breakpoint; icon: typeof Smartphone; label: string }> = [
-    { id: "mobile", icon: Smartphone, label: "Mobile" },
-    { id: "tablet", icon: Tablet, label: "Tablet" },
-    { id: "desktop", icon: Monitor, label: "Desktop" },
+const BREAKPOINTS: Array<{ id: Breakpoint; icon: typeof Smartphone; label: EditorString }> = [
+    { id: "mobile", icon: Smartphone, label: STRINGS.toolbar.breakpoint_mobile },
+    { id: "tablet", icon: Tablet, label: STRINGS.toolbar.breakpoint_tablet },
+    { id: "desktop", icon: Monitor, label: STRINGS.toolbar.breakpoint_desktop },
 ];
 
 export interface BreakpointToggleProps {
@@ -34,14 +84,21 @@ export interface BreakpointToggleProps {
 }
 
 export function BreakpointToggle({ value, onChange }: BreakpointToggleProps) {
+    const locale = useEditorLocale();
+    const { mode } = useEditorMode();
+    // Iraq is mobile-first: Simple mode shows mobile + desktop only —
+    // the tablet breakpoint is an Advanced concern.
+    const visible = BREAKPOINTS.filter(
+        (b) => mode === "advanced" || b.id !== "tablet",
+    );
     return (
         <div
             role="radiogroup"
-            aria-label="Preview breakpoint"
+            aria-label={t(STRINGS.toolbar.breakpoint_group, locale)}
             data-testid="breakpoint-toggle"
             className="inline-flex items-center gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1"
         >
-            {BREAKPOINTS.map(({ id, icon: Icon, label }) => {
+            {visible.map(({ id, icon: Icon, label }) => {
                 const isActive = id === value;
                 return (
                     <button
@@ -49,8 +106,8 @@ export function BreakpointToggle({ value, onChange }: BreakpointToggleProps) {
                         type="button"
                         role="radio"
                         aria-checked={isActive}
-                        aria-label={label}
-                        title={label}
+                        aria-label={t(label, locale)}
+                        title={t(label, locale)}
                         data-testid={`breakpoint-${id}`}
                         onClick={() => onChange(id)}
                         className={cn(
@@ -78,6 +135,7 @@ export interface LocaleSelectProps {
 }
 
 export function LocaleSelect({ value, onChange }: LocaleSelectProps) {
+    const locale = useEditorLocale();
     return (
         <div className="relative inline-flex items-center">
             <Globe
@@ -85,7 +143,7 @@ export function LocaleSelect({ value, onChange }: LocaleSelectProps) {
                 className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground"
             />
             <select
-                aria-label="Preview locale"
+                aria-label={t(STRINGS.toolbar.locale_select, locale)}
                 data-testid="locale-select"
                 value={value}
                 onChange={(e) => onChange(e.target.value as LocaleCode)}
@@ -121,16 +179,16 @@ export interface SaveStatePillProps {
     onRetry?: () => void;
 }
 
-function formatRelative(date: Date, now: number): string {
+function formatSavedLabel(date: Date, now: number, locale: LocaleCode): string {
     const seconds = Math.max(0, Math.floor((now - date.getTime()) / 1000));
-    if (seconds < 5) return "just now";
-    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 5) return t(STRINGS.save_state.saved_just_now, locale);
+    if (seconds < 60) return tFormat(STRINGS.save_state.saved_seconds, locale, { n: seconds });
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60) return tFormat(STRINGS.save_state.saved_minutes, locale, { n: minutes });
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return tFormat(STRINGS.save_state.saved_hours, locale, { n: hours });
     const days = Math.floor(hours / 24);
-    return `${days}d ago`;
+    return tFormat(STRINGS.save_state.saved_days, locale, { n: days });
 }
 
 export function SaveStatePill({
@@ -138,6 +196,7 @@ export function SaveStatePill({
     lastSavedAt,
     onRetry,
 }: SaveStatePillProps) {
+    const locale = useEditorLocale();
     const [now, setNow] = useState<number>(() => Date.now());
 
     useEffect(() => {
@@ -172,12 +231,12 @@ export function SaveStatePill({
     let style: React.CSSProperties | undefined;
     switch (state) {
         case "saving":
-            label = "Saving…";
+            label = t(STRINGS.save_state.saving, locale);
             tone = "text-muted-foreground";
             icon = <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />;
             break;
         case "error":
-            label = "Save failed";
+            label = t(STRINGS.save_state.error, locale);
             tone = "text-destructive";
             icon = <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />;
             break;
@@ -185,18 +244,18 @@ export function SaveStatePill({
         case "idle":
         default:
             if (showSavedPulse) {
-                label = "Saved";
+                label = t(STRINGS.save_state.saved_pulse, locale);
                 tone = "text-white border-transparent";
                 style = { backgroundColor: "var(--bk-success, #10b981)" };
                 icon = <Check className="h-3.5 w-3.5" aria-hidden="true" />;
             } else if (lastSavedAt) {
-                label = `Saved ${formatRelative(lastSavedAt, now)}`;
+                label = formatSavedLabel(lastSavedAt, now, locale);
                 tone = "text-muted-foreground";
                 icon = (
                     <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
                 );
             } else {
-                label = "Not saved";
+                label = t(STRINGS.save_state.not_saved_yet, locale);
                 tone = "text-muted-foreground";
                 icon = (
                     <span
@@ -225,9 +284,9 @@ export function SaveStatePill({
             {isError && onRetry ? (
                 <button
                     type="button"
-                    aria-label="Retry save"
+                    aria-label={t(STRINGS.save_state.retry, locale)}
                     data-testid="save-state-retry"
-                    title="Click to try saving again."
+                    title={t(STRINGS.save_state.retry_hint, locale)}
                     onClick={onRetry}
                     className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-destructive transition-colors hover:bg-destructive/10"
                 >
@@ -251,6 +310,7 @@ export interface PublishButtonProps {
 }
 
 export function PublishButton({ onPublish, disabled, busy, title }: PublishButtonProps) {
+    const locale = useEditorLocale();
     // `disabled` means "no unpublished changes". When the button is
     // active and not mid-publish there ARE pending changes worth shipping,
     // so we surface a gentle pulse to draw the eye.
@@ -274,7 +334,7 @@ export function PublishButton({ onPublish, disabled, busy, title }: PublishButto
             ) : (
                 <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
             )}
-            <span>{busy ? "Publishing…" : "Publish"}</span>
+            <span>{busy ? t(STRINGS.publish.publishing, locale) : t(STRINGS.publish.button, locale)}</span>
             {hasChanges ? (
                 <span
                     aria-hidden="true"
