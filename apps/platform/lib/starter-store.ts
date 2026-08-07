@@ -17,16 +17,14 @@
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 import type {
     LocaleCode,
-    PageId,
     SectionInstance,
     StoreConfigV2,
 } from "@scheniders/shared";
-import { PAGE_TEMPLATES, applyTemplate, getPageTemplate } from "./page-templates";
-import { getManifestEntry } from "./sections-manifest";
+import { STORE_TEMPLATES, applyStoreTemplate, getStoreTemplate } from "./store-templates";
 import { applyIndustrySeedCopy } from "./industry-seed-copy";
 
 /** Templates offered in the wizard's "pick a starter" step. */
-export const STARTER_TEMPLATES = PAGE_TEMPLATES;
+export const STARTER_TEMPLATES = STORE_TEMPLATES;
 
 /**
  * Business verticals shown in the wizard's first "what do you sell?" step.
@@ -42,12 +40,12 @@ export interface StarterVertical {
 }
 
 export const STARTER_VERTICALS: StarterVertical[] = [
-    { id: "fashion", label: "Fashion & apparel", recommendedTemplateId: "brand_story" },
-    { id: "beauty", label: "Beauty & cosmetics", recommendedTemplateId: "product_launch" },
-    { id: "electronics", label: "Electronics & gadgets", recommendedTemplateId: "minimal_catalog" },
-    { id: "food", label: "Food & grocery", recommendedTemplateId: "iraqi_market_landing" },
-    { id: "home_goods", label: "Home & furniture", recommendedTemplateId: "brand_story" },
-    { id: "general", label: "Something else", recommendedTemplateId: "iraqi_market_landing" },
+    { id: "fashion", label: "Fashion & apparel", recommendedTemplateId: "cobalt_broadsheet" },
+    { id: "beauty", label: "Beauty & cosmetics", recommendedTemplateId: "aurora_glass" },
+    { id: "electronics", label: "Electronics & gadgets", recommendedTemplateId: "kinetic_ink" },
+    { id: "food", label: "Food & grocery", recommendedTemplateId: "sunbleach" },
+    { id: "home_goods", label: "Home & furniture", recommendedTemplateId: "cobalt_broadsheet" },
+    { id: "general", label: "Something else", recommendedTemplateId: "sunbleach" },
 ];
 
 /** Recommended template id for a vertical, falling back to the first template. */
@@ -98,21 +96,6 @@ export interface StarterStoreInput {
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 /**
- * Baseline content seeded onto the supporting pages so a fresh store is
- * close to launch-ready, not just a home page. The policy pages each get a
- * `policy_content` section — that alone satisfies the ad-compliance health
- * checks (which only require ≥1 section) and unblocks publish.
- */
-const SUPPORTING_PAGE_SECTIONS: Partial<Record<PageId, string[]>> = {
-    about: ["about_block", "founder_note"],
-    faq: ["faq_accordion"],
-    policy_shipping: ["policy_content"],
-    policy_returns: ["policy_content"],
-    policy_privacy: ["policy_content"],
-    policy_terms: ["policy_content"],
-};
-
-/**
  * Per-section field that should carry the merchant's business name, so the
  * seeded store reads like *their* store, not template filler. Keep this to
  * fields that are genuinely a brand label (the hero eyebrow), never the
@@ -148,25 +131,6 @@ function personalizeSections(
     }
 }
 
-function freshSectionId(): string {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-        return crypto.randomUUID();
-    }
-    return `sec_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-/** Instantiate a section from its manifest defaults with a fresh id. */
-function makeSection(type: string): SectionInstance {
-    const entry = getManifestEntry(type);
-    if (!entry) throw new Error(`Missing manifest entry: ${type}`);
-    return {
-        id: freshSectionId(),
-        type,
-        enabled: true,
-        base: JSON.parse(JSON.stringify(entry.defaultProps)),
-    };
-}
-
 /**
  * Build a fully-populated `StoreConfigV2` draft from the wizard answers.
  * Pure + deterministic apart from the fresh section ids `applyTemplate`
@@ -176,6 +140,15 @@ export function buildStarterStoreConfigV2(
     input: StarterStoreInput,
 ): StoreConfigV2 {
     const cfg = emptyStoreConfigV2();
+
+    // ── Visual direction + every page the template covers ───────────
+    // Applied FIRST because the template owns the whole brand kit: the
+    // merchant's own colour below has to win over the template's primary,
+    // not be overwritten by it. Unknown template id → the store stays on
+    // the default kit with empty pages (defensive; the wizard only sends
+    // known ids, and legacy ids resolve through LEGACY_TEMPLATE_ALIAS).
+    const template = getStoreTemplate(input.templateId);
+    if (template) applyStoreTemplate(cfg, template);
 
     // ── Brand identity ──────────────────────────────────────────────
     const name = input.businessName.trim();
@@ -225,25 +198,9 @@ export function buildStarterStoreConfigV2(
         };
     }
 
-    // ── Home page from the chosen template ──────────────────────────
-    // Unknown template id → home stays empty (defensive; the wizard only
-    // ever sends a known id).
-    const template = getPageTemplate(input.templateId);
-    if (template) {
-        const home = cfg.pages.find((p) => p.page_id === "home");
-        if (home) home.sections = applyTemplate(template);
-    }
-
-    // ── Supporting pages (about / faq / policies) ───────────────────
-    for (const [pageId, types] of Object.entries(SUPPORTING_PAGE_SECTIONS)) {
-        const page = cfg.pages.find((p) => p.page_id === pageId);
-        if (page) page.sections = types.map(makeSection);
-    }
-
     // ── Industry copy pack (UX-11) ──────────────────────────────────
-    // After templates + supporting pages so it overlays every seeded
-    // section; before name-personalization so the brand-label stamp
-    // always wins.
+    // After the template so it overlays every seeded section; before
+    // name-personalization so the brand-label stamp always wins.
     applyIndustrySeedCopy(cfg, input.industryId);
 
     // ── Personalize: stamp the business name onto brand-label fields ─

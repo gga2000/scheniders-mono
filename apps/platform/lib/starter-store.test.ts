@@ -24,7 +24,7 @@ describe("buildStarterStoreConfigV2", () => {
             businessName: "Audit Test Store",
         });
         const home = cfg.pages.find((p) => p.page_id === "home");
-        expect(home?.sections.length).toBe(FIRST.sections.length);
+        expect(home?.sections.length).toBe((FIRST.pages.home ?? []).length);
         expect(home!.sections.length).toBeGreaterThan(0);
     });
 
@@ -35,7 +35,7 @@ describe("buildStarterStoreConfigV2", () => {
         });
         const home = cfg.pages.find((p) => p.page_id === "home");
         for (const s of home!.sections) {
-            expect(s.id).not.toMatch(/^__template-/);
+            expect(s.id).not.toMatch(/^__/);
         }
     });
 
@@ -135,7 +135,7 @@ describe("buildStarterStoreConfigV2", () => {
         });
         const ids = cfg.pages.flatMap((p) => p.sections.map((s) => s.id));
         expect(new Set(ids).size).toBe(ids.length); // all unique
-        for (const id of ids) expect(id).not.toMatch(/^__template-/);
+        for (const id of ids) expect(id).not.toMatch(/^__/);
     });
 
     it("seeds a delivery default_rate when a fee is given", () => {
@@ -188,7 +188,7 @@ describe("buildStarterStoreConfigV2", () => {
 
     it("stamps the business name onto the hero brand-label field", () => {
         const cfg = buildStarterStoreConfigV2({
-            templateId: FIRST.id, // sale_page → includes a hero_image
+            templateId: FIRST.id, // kinetic_ink → includes a hero_image
             businessName: "Audit Test Store",
         });
         const home = cfg.pages.find((p) => p.page_id === "home");
@@ -208,7 +208,7 @@ describe("buildStarterStoreConfigV2", () => {
 
     it("recommendedTemplateForVertical falls back for an unknown vertical", () => {
         expect(recommendedTemplateForVertical("nope")).toBe(STARTER_TEMPLATES[0].id);
-        expect(recommendedTemplateForVertical("food")).toBe("iraqi_market_landing");
+        expect(recommendedTemplateForVertical("food")).toBe("sunbleach");
     });
 
     it("leaves the home page empty for an unknown template id", () => {
@@ -227,9 +227,9 @@ describe("buildStarterStoreConfigV2", () => {
 
 describe("industry seed copy", () => {
     function seededStory(industryId?: string) {
-        // product_launch is the template that carries a brand_story section.
+        // cobalt_broadsheet is a direction that carries a brand_story section.
         const cfg = buildStarterStoreConfigV2({
-            templateId: "product_launch",
+            templateId: "cobalt_broadsheet",
             industryId,
             businessName: "متجر فاطمة للتجميل",
         });
@@ -260,7 +260,7 @@ describe("industry seed copy", () => {
     it("testimonial reviewer names are Arabic-script for every pack", () => {
         for (const industryId of ["beauty", "fashion", "electronics", "food", undefined]) {
             const cfg = buildStarterStoreConfigV2({
-                templateId: "product_launch",
+                templateId: "kinetic_ink",
                 industryId,
                 businessName: "X",
             });
@@ -282,7 +282,7 @@ describe("industry seed copy", () => {
 
     it("two sections of the same type never share pack objects by reference", () => {
         const cfg = buildStarterStoreConfigV2({
-            templateId: "brand_story",
+            templateId: "kinetic_ink",
             industryId: "beauty",
             businessName: "X",
         });
@@ -299,7 +299,7 @@ describe("industry seed copy", () => {
 
     it("resolves DB display names to packs (uuid ids arrive as names)", () => {
         const cfg = buildStarterStoreConfigV2({
-            templateId: "product_launch",
+            templateId: "cobalt_broadsheet",
             industryId: "Beauty & Cosmetics",
             businessName: "X",
         });

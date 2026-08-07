@@ -806,7 +806,7 @@ function TemplateStep({
                                 )}
                             >
                                 <TemplateThumbnail
-                                    sections={tpl.sections}
+                                    sections={tpl.pages.home ?? []}
                                     selected={selected}
                                 />
                                 <div className="flex items-center justify-between gap-2">
@@ -819,7 +819,9 @@ function TemplateStep({
                                         </span>
                                     ) : (
                                         <span className="inline-flex h-5 items-center rounded-full bg-muted/60 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
-                                            {t("wizard.template.sections", { count: tpl.sections.length })}
+                                            {t("wizard.template.sections", {
+                                                count: (tpl.pages.home ?? []).length,
+                                            })}
                                         </span>
                                     )}
                                 </div>
