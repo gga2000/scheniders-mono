@@ -92,7 +92,7 @@ export interface UseStoreBuilderV2Return {
     /**
      * Update the draft config. The optional `description` is attached to
      * the resulting history entry and surfaces in the undo/redo tooltips.
-     * Defaults to "Edit config." when omitted.
+     * Omitted → the toolbar shows a locale-aware generic label.
      */
     setConfig: (
         next: StoreConfigV2 | ((prev: StoreConfigV2) => StoreConfigV2),
@@ -317,18 +317,20 @@ export function useStoreBuilderV2(
     /**
      * Each history entry stores the JSON snapshot of the config *plus* a
      * short human label describing the edit (e.g. "Deleted Hero section").
-     * The label is what we surface in the undo/redo tooltips. The default
-     * label is "Edit config." so legacy callers keep working.
+     * The label is what we surface in the undo/redo tooltips. A null
+     * label falls back to a locale-aware generic in the toolbar.
      */
     interface HistoryEntry {
         snapshot: StoreConfigV2;
-        description: string;
+        description: string | null;
     }
-    const DEFAULT_HISTORY_DESCRIPTION = "Edit config.";
+    // null → the toolbar falls back to a locale-aware generic label
+    // (STRINGS.toolbar.history_generic) instead of hardcoded English.
+    const DEFAULT_HISTORY_DESCRIPTION: string | null = null;
     const pastRef = useRef<HistoryEntry[]>([]);
     const futureRef = useRef<HistoryEntry[]>([]);
     const lastSnapshotRef = useRef<string>(JSON.stringify(initialConfig));
-    const lastDescriptionRef = useRef<string>(DEFAULT_HISTORY_DESCRIPTION);
+    const lastDescriptionRef = useRef<string | null>(DEFAULT_HISTORY_DESCRIPTION);
     /** Description for the *upcoming* commit (set by next setConfig call). */
     const pendingDescriptionRef = useRef<string | null>(null);
     const skipHistoryRef = useRef<boolean>(false);
@@ -611,7 +613,10 @@ export function useStoreBuilderV2(
                     /config_conflict/i.test(error.message ?? "")
                 ) {
                     set_publish_conflict(true);
-                    set_save_state("error");
+                    // The DRAFT is intact — an error save-pill would send the
+                    // merchant retrying the wrong operation (UX2-04). The
+                    // conflict banner owns this failure.
+                    set_save_state("idle");
                     return false;
                 }
                 throw error;
@@ -641,7 +646,9 @@ export function useStoreBuilderV2(
             return true;
         } catch (err) {
             console.error("[store-builder-v2] publish failed:", err);
-            set_save_state("error");
+            // Draft is safe; the publish sheet shows its own localized
+            // failure state. Don't turn the save pill red (UX2-04).
+            set_save_state("idle");
             return false;
         }
     }, [config, tenantId]);

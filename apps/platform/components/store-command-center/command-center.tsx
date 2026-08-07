@@ -1,7 +1,7 @@
 "use client";
 
 import { isStorePubliclyLive } from "@scheniders/shared";
-import type { StoreConfigV2 } from "@scheniders/shared";
+import type { LocaleCode, StoreConfigV2 } from "@scheniders/shared";
 import { useStoreAnalytics } from "@/hooks/use-store-analytics";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { HeaderBar } from "./header-bar";
@@ -52,6 +52,15 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
             .length ?? 0;
     const isBrandNew = !storeStatus.published && homeSectionCount === 0;
 
+    // Hub chrome locale (UX2-14). The hub renders outside the editor, so there
+    // is no EditorLocaleProvider to read — mirror the editor's own rule
+    // (`useStoreBuilderV2` seeds `active_locale` from `default_locale`) and
+    // thread the result down as a prop. No config yet (tenant hasn't run the
+    // wizard) falls back to Arabic, not English: the market is Iraq, both the
+    // seeded config and the resolver default to "ar" (EC32), and this branch
+    // is exactly the brand-new merchant who most needs their own language.
+    const locale: LocaleCode = resolvedConfig?.default_locale ?? "ar";
+
     return (
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto space-y-6">
             <HeaderBar
@@ -60,6 +69,7 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                 storefrontUrl={storefrontUrl}
                 published={storeStatus.published}
                 isBrandNew={isBrandNew}
+                locale={locale}
             />
 
             {/* 2-column desktop layout, stacked on mobile */}
@@ -70,22 +80,29 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                         storefrontUrl={storefrontUrl}
                         published={storeStatus.published}
                         isBrandNew={isBrandNew}
+                        locale={locale}
                     />
                     <KpiStrip
                         analytics={analyticsQuery.data}
                         isLoading={analyticsQuery.isLoading}
+                        locale={locale}
                     />
                 </div>
 
                 {/* Right column */}
                 <div className="space-y-6">
-                    <HealthCard config={resolvedConfig} isBrandNew={isBrandNew} />
-                    <PagesCard config={resolvedConfig} />
+                    <HealthCard
+                        config={resolvedConfig}
+                        isBrandNew={isBrandNew}
+                        locale={locale}
+                    />
+                    <PagesCard config={resolvedConfig} locale={locale} />
                     <SettingsTiles
                         storefrontUrl={storefrontUrl}
                         businessName={tenant.business_name}
                         tenantId={tenantId}
                         slug={tenant.slug}
+                        locale={locale}
                     />
                 </div>
             </div>

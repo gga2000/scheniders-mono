@@ -22,6 +22,8 @@ import { validateRedirects } from "@scheniders/shared";
 import type { RedirectRule } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
 
 export interface RedirectsScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -32,6 +34,7 @@ export function RedirectsScreen({
     builder,
     onClose,
 }: RedirectsScreenProps): React.ReactElement {
+    const locale = useEditorLocale();
     const redirects: RedirectRule[] = builder.config.redirects ?? [];
     const issues = validateRedirects(redirects);
 
@@ -111,7 +114,7 @@ export function RedirectsScreen({
                         className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-(--card-border) bg-(--background-soft) py-10 text-sm text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
                     >
                         <Signpost className="h-6 w-6" />
-                        No redirects yet — add your first
+                        {t(STRINGS.advanced_chrome.red_empty, locale)}
                     </button>
                 ) : (
                     <ul className="flex flex-col gap-2.5">

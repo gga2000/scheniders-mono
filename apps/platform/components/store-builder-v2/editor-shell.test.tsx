@@ -365,7 +365,7 @@ describe("EditorShell", () => {
         );
         const btn = screen.getByTestId("publish-button") as HTMLButtonElement;
         expect(btn.disabled).toBe(false);
-        expect(btn.getAttribute("title") ?? "").toMatch(/will be shown before you publish/);
+        expect(btn.getAttribute("title") ?? "").toMatch(/checks need attention before you publish/);
         // Click does NOT publish directly — the sheet should open.
         fireEvent.click(btn);
         expect(onPublish).not.toHaveBeenCalled();

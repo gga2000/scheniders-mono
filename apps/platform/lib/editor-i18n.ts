@@ -87,6 +87,7 @@ export const STRINGS = {
         aria_label: { en: "Page tree", ar: "شجرة الصفحات", ku: "دارچەی پەڕەکان" },
         settings_heading: { en: "Settings", ar: "الإعدادات", ku: "ڕێکخستنەکان" },
         advanced_heading: { en: "Advanced", ar: "متقدم", ku: "پێشکەوتوو" },
+        advanced_live_chip: { en: "Active advanced settings — view", ar: "إعدادات متقدّمة نشطة — اعرضها", ku: "ڕێکخستنە پێشکەوتووە چالاکەکان — بیانبینە" },
         coming_soon: { en: "soon", ar: "قريباً", ku: "بەم زووانە" },
         // Page groups
         group_storefront: { en: "Storefront", ar: "المتجر", ku: "فرۆشگا" },
@@ -421,6 +422,10 @@ export const STRINGS = {
         // Positive CTA when nothing needs fixing — first publish should feel
         // like a win, not like overriding a safety warning.
         publish_cta: { en: "Publish my store", ar: "انشر متجري", ku: "فرۆشگاکەم بڵاوبکەرەوە" },
+        // tFormat: {n} {list} — tooltip on the disabled/annotated publish button
+        blocked_tooltip: { en: "{n} checks need attention before you publish: {list}", ar: "{n} فحوصات تحتاج انتباهك قبل النشر: {list}", ku: "{n} پشکنین پێویستیان بە سەرنجە پێش بڵاوکردنەوە: {list}" },
+        // tFormat: {n}
+        blocked_tooltip_more: { en: ", +{n} more", ar: "، و{n} أخرى", ku: "، و {n}ی تر" },
         checks_heading: { en: "Recommended before you publish", ar: "توصيات قبل النشر", ku: "پێشنیارەکان پێش بڵاوکردنەوە" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
         // Publish is never actually blocked by health (the merchant stays in
@@ -578,6 +583,21 @@ export const STRINGS = {
         bp_override_label: { en: "{bp} override", ar: "تخصيص {bp}", ku: "دەستکاری {bp}" },
         bp_use_base: { en: "Use base value", ar: "استخدم القيمة الأساسية", ku: "بەهای بنەڕەت بەکاربهێنە" },
         bp_unavailable: { en: "Override unavailable for this field type.", ar: "التخصيص غير متاح لهذا النوع من الحقول.", ku: "دەستکاری بەردەست نییە بۆ ئەم جۆرە خانەیە." },
+        // tFormat: {min} {max} — numeric bound hints
+        range_hint: { en: "Range: {min}–{max}", ar: "النطاق: {min}–{max}", ku: "مەودا: {min}–{max}" },
+        min_hint: { en: "Min: {min}", ar: "الأدنى: {min}", ku: "کەمترین: {min}" },
+        max_hint: { en: "Max: {max}", ar: "الأقصى: {max}", ku: "زۆرترین: {max}" },
+    },
+
+    /* ── Undo-history entry descriptions (UX2-12) ─────────────── */
+    history: {
+        add_section: { en: "Add section", ar: "إضافة قسم", ku: "زیادکردنی بەش" },
+        delete_section: { en: "Delete section", ar: "حذف قسم", ku: "سڕینەوەی بەش" },
+        reorder_sections: { en: "Reorder sections", ar: "إعادة ترتيب الأقسام", ku: "ڕیزکردنەوەی بەشەکان" },
+        edit_section: { en: "Edit section", ar: "تعديل قسم", ku: "دەستکاری بەش" },
+        edit_brand_kit: { en: "Edit brand kit", ar: "تعديل هوية العلامة", ku: "دەستکاری کیتی برێند" },
+        edit_page_seo: { en: "Edit page SEO", ar: "تعديل سيو الصفحة", ku: "دەستکاری SEO ی پەڕە" },
+        resize_spacing: { en: "Resize spacing", ar: "تغيير التباعد", ku: "گۆڕینی بۆشایی" },
     },
 
     /* ── Simple ⇄ Advanced editor mode ────────────────────────── */
@@ -827,6 +847,410 @@ export const STRINGS = {
         stub_label_brand_kit: { en: "Brand Kit", ar: "هوية العلامة", ku: "کیتی برێند" },
         stub_label_versions: { en: "Version history", ar: "سجل النسخ", ku: "مێژووی وەشانەکان" },
         stub_label_i18n: { en: "Translations", ar: "الترجمات", ku: "وەرگێڕانەکان" },
+    },
+
+    /* ── Brand-kit editor body (agent A region — UX2-06/07/08/09) ── */
+    brand_kit_body: {
+        // Identity
+        tagline_placeholder: { en: "A short line that describes your store", ar: "سطر قصير يصف متجرك", ku: "دێڕێکی کورت کە فرۆشگاکەت وەسف دەکات" },
+        // Color swatch labels
+        color_primary: { en: "Primary", ar: "الأساسي", ku: "سەرەکی" },
+        color_secondary: { en: "Secondary", ar: "الثانوي", ku: "لاوەکی" },
+        color_accent: { en: "Accent", ar: "المميّز", ku: "جیاکەرەوە" },
+        color_surface: { en: "Surface", ar: "الخلفية", ku: "ڕووکار" },
+        color_surface_alt: { en: "Surface alt", ar: "الخلفية البديلة", ku: "ڕووکاری لاوەکی" },
+        color_ink: { en: "Ink", ar: "الحبر", ku: "مەرەکەب" },
+        color_success: { en: "Success", ar: "النجاح", ku: "سەرکەوتن" },
+        color_danger: { en: "Danger", ar: "الخطر", ku: "مەترسی" },
+        // Palette extraction errors
+        extract_error_no_colors: { en: "Couldn't find dominant colors in this logo.", ar: "تعذّر العثور على ألوان بارزة في هذا الشعار.", ku: "نەتوانرا ڕەنگە سەرەکییەکان لەم لۆگۆیەدا بدۆزرێنەوە." },
+        extract_error_cors: { en: "Couldn't read logo — make sure it's hosted with CORS enabled.", ar: "تعذّرت قراءة الشعار — تأكد من أنه مستضاف مع تفعيل CORS.", ku: "نەتوانرا لۆگۆکە بخوێنرێتەوە — دڵنیابە لەوەی لە شوێنێک دانراوە کە CORS چالاککراوە." },
+        // Toasts. tFormat: {hex} {slot}
+        toast_applied_color: { en: "Applied {hex} to {slot}", ar: "تم تطبيق {hex} على {slot}", ku: "{hex} بۆ {slot} جێبەجێکرا" },
+        toast_palette_generated: { en: "New palette generated", ar: "تم إنشاء لوحة ألوان جديدة", ku: "پاڵێتێکی نوێ دروستکرا" },
+        // Voice — formality option subtitles
+        formality_sub_formal: { en: "Precise, polite", ar: "دقيق ومهذّب", ku: "ورد و بەڕێز" },
+        formality_sub_casual: { en: "Friendly, easy", ar: "ودود وبسيط", ku: "دۆستانە و ئاسان" },
+        formality_sub_playful: { en: "Fun, cheeky", ar: "مرح وجريء", ku: "خۆش و شۆخ" },
+        formality_sub_luxe: { en: "Elevated, refined", ar: "راقٍ وأنيق", ku: "بەرز و ناسک" },
+        notes_placeholder: { en: "Anything else worth knowing about how you want to speak…", ar: "أي شيء آخر يجدر معرفته عن أسلوب مخاطبتك لعملائك…", ku: "هەر شتێکی تر کە پێویستە بزانرێت دەربارەی شێوازی قسەکردنت…" },
+        help_notes: { en: "Used as guidance for content writers and templates.", ar: "تُستخدم كإرشادات لكتّاب المحتوى والقوالب.", ku: "وەکو ڕێنمایی بۆ نووسەرانی ناوەڕۆک و قاڵبەکان بەکاردێت." },
+        // Color popover
+        hue: { en: "Hue", ar: "درجة اللون", ku: "تۆنی ڕەنگ" },
+        saturation: { en: "Saturation", ar: "التشبّع", ku: "تێربوونی ڕەنگ" },
+        lightness: { en: "Lightness", ar: "الإضاءة", ku: "ڕووناکی" },
+        suggested: { en: "Suggested", ar: "مقترحة", ku: "پێشنیارکراو" },
+        pick: { en: "Pick", ar: "التقاط", ku: "هەڵگرتن" },
+        // Aria templates. tFormat: {label}
+        edit_color_aria: { en: "Edit {label} color", ar: "تعديل لون {label}", ku: "دەستکاری ڕەنگی {label}" },
+        clear_aria: { en: "Clear {label}", ar: "مسح {label}", ku: "سڕینەوەی {label}" },
+        // Upload toasts. tFormat: {label} {mb}
+        upload_too_large: { en: "{label} must be under {mb}MB", ar: "يجب أن يكون {label} أقل من {mb}MB", ku: "پێویستە {label} لە {mb}MB کەمتر بێت" },
+        upload_missing_tenant: { en: "Missing tenant context for upload", ar: "سياق المتجر مفقود — تعذّر الرفع", ku: "زانیاری فرۆشگا بەردەست نییە — بارکردن نەکرا" },
+        upload_success: { en: "{label} uploaded", ar: "تم رفع {label}", ku: "{label} بارکرا" },
+        upload_failed_title: { en: "Upload failed", ar: "فشل الرفع", ku: "بارکردن شکستی هێنا" },
+        upload_failed_body: { en: "Something went wrong while uploading. Please try again.", ar: "حدث خطأ أثناء الرفع. يرجى المحاولة مرة أخرى.", ku: "هەڵەیەک ڕوویدا لە کاتی بارکردندا. تکایە دووبارە هەوڵبدەوە." },
+    },
+
+    /* ── Store Command Center hub chrome (UX2-14) ────────────────── */
+    // The `/store` hub the merchant lands on before opening the editor:
+    // header bar, live-preview card, KPI strip, health card, pages card,
+    // quick-settings tiles and the share / custom-domain dialogs.
+    // Health-check MESSAGES are NOT duplicated here — they resolve via
+    // `lib/health-check-copy.ts` (checkCopyMessage / checkCopyFixLabel).
+    command_center: {
+        /* Header bar */
+        status_live: { en: "Live", ar: "مباشر", ku: "ڕاستەوخۆ" },
+        status_unpublished_changes: { en: "Unpublished changes", ar: "تغييرات غير منشورة", ku: "گۆڕانکاری بڵاونەکراوە" },
+        status_draft: { en: "Draft", ar: "مسودة", ku: "ڕەشنووس" },
+        visit_store: { en: "Visit store", ar: "زيارة المتجر", ku: "سەردانی فرۆشگا" },
+        visit_store_disabled_title: { en: "Publish your store first", ar: "انشر متجرك أولاً", ku: "سەرەتا فرۆشگاکەت بڵاو بکەرەوە" },
+        set_up_store: { en: "Set up store", ar: "إعداد المتجر", ku: "ڕێکخستنی فرۆشگا" },
+        customize: { en: "Customize", ar: "تخصيص", ku: "تایبەتکردن" },
+
+        /* Live preview card */
+        live_preview: { en: "Live preview", ar: "معاينة مباشرة", ku: "پێشبینینی ڕاستەوخۆ" },
+        preview_desktop: { en: "Desktop", ar: "سطح المكتب", ku: "کۆمپیوتەر" },
+        preview_mobile: { en: "Mobile", ar: "الجوال", ku: "مۆبایل" },
+        preview_unpublished_title: { en: "Your store isn't published yet", ar: "لم يتم نشر متجرك بعد", ku: "فرۆشگاکەت هێشتا بڵاو نەکراوەتەوە" },
+        preview_unpublished_body_new: { en: "Set up your store to get a branded home page, then publish to see it live here.", ar: "أعدّ متجرك للحصول على صفحة رئيسية بهويتك، ثم انشره لتراه مباشرة هنا.", ku: "فرۆشگاکەت ڕێکبخە بۆ ئەوەی پەڕەیەکی سەرەکی بە برێندی خۆت هەبێت، پاشان بڵاوی بکەرەوە تا لێرە بە زیندوویی بیبینیت." },
+        preview_unpublished_body_built: { en: "Build your home page in the editor and hit Publish — your live storefront will appear here.", ar: "ابنِ صفحتك الرئيسية في المحرّر ثم اضغط نشر — سيظهر متجرك المباشر هنا.", ku: "پەڕەی سەرەکی لە دەستکاریکەردا دروست بکە و کلیکی بڵاوکردنەوە بکە — فرۆشگا زیندووەکەت لێرە دەردەکەوێت." },
+        preview_set_up_your_store: { en: "Set up your store", ar: "أعدّ متجرك", ku: "فرۆشگاکەت ڕێکبخە" },
+        preview_open_editor: { en: "Open editor", ar: "فتح المحرّر", ku: "کردنەوەی دەستکاریکەر" },
+        preview_loading: { en: "Loading preview…", ar: "جارٍ تحميل المعاينة…", ku: "پێشبینین بار دەکرێت…" },
+        preview_iframe_title: { en: "Store preview", ar: "معاينة المتجر", ku: "پێشبینینی فرۆشگا" },
+
+        /* KPI strip */
+        kpi_orders: { en: "Orders", ar: "الطلبات", ku: "داواکارییەکان" },
+        kpi_revenue: { en: "Revenue", ar: "الإيرادات", ku: "داهات" },
+        kpi_aov: { en: "Avg. order value", ar: "متوسط قيمة الطلب", ku: "ناوەندی بەهای داواکاری" },
+        kpi_last_7_days: { en: "Last 7 days", ar: "آخر 7 أيام", ku: "٧ ڕۆژی ڕابردوو" },
+        kpi_no_orders_yet: { en: "No orders yet", ar: "لا توجد طلبات بعد", ku: "هێشتا داواکاری نییە" },
+
+        /* Health card */
+        health_heading: { en: "Store health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
+        health_new_store_heading: { en: "Finish setting up your store", ar: "أكمل إعداد متجرك", ku: "ڕێکخستنی فرۆشگاکەت تەواو بکە" },
+        health_new_store_body: { en: "Your store doesn't have any content yet. Open the editor to add sections and build out your home page — your store health score will appear once you've started.", ar: "متجرك لا يحتوي على أي محتوى بعد. افتح المحرّر لإضافة الأقسام وبناء صفحتك الرئيسية — ستظهر درجة صحة متجرك بمجرد أن تبدأ.", ku: "فرۆشگاکەت هێشتا هیچ ناوەڕۆکێکی نییە. دەستکاریکەر بکەرەوە بۆ زیادکردنی بەشەکان و دروستکردنی پەڕەی سەرەکی — خاڵی تەندروستی فرۆشگاکەت دەردەکەوێت هەر کە دەستت پێکرد." },
+        health_get_started: { en: "Get started", ar: "ابدأ الآن", ku: "دەست پێبکە" },
+        health_score_needs_attention: { en: "Needs attention", ar: "يحتاج انتباهاً", ku: "پێویستی بە سەرنجە" },
+        health_score_getting_there: { en: "Getting there", ar: "في الطريق الصحيح", ku: "بەرەو باشتر دەچێت" },
+        health_score_looking_good: { en: "Looking good", ar: "يبدو جيداً", ku: "باش دیارە" },
+        health_score_launch_ready: { en: "Launch-ready", ar: "جاهز للإطلاق", ku: "ئامادەیە بۆ دەستپێک" },
+        health_all_passing_detail: { en: "All checks passing — store is launch-ready.", ar: "جميع الفحوصات ناجحة — المتجر جاهز للإطلاق.", ku: "هەموو پشکنینەکان سەرکەوتوون — فرۆشگا ئامادەیە بۆ دەستپێک." },
+        // tFormat: {n}
+        health_items_to_address_one: { en: "{n} item to address before launch.", ar: "{n} عنصر يجب معالجته قبل الإطلاق.", ku: "{n} بابەت هەیە پێویستە پێش دەستپێکردن چارەسەر بکرێت." },
+        health_items_to_address_other: { en: "{n} items to address before launch.", ar: "{n} عناصر يجب معالجتها قبل الإطلاق.", ku: "{n} بابەت هەیە پێویستە پێش دەستپێکردن چارەسەر بکرێن." },
+        health_fix: { en: "Fix", ar: "إصلاح", ku: "چاککردن" },
+        health_all_passing: { en: "All checks passing", ar: "جميع الفحوصات ناجحة", ku: "هەموو پشکنینەکان سەرکەوتوون" },
+        health_full_checklist: { en: "Full checklist in editor", ar: "القائمة الكاملة في المحرّر", ku: "لیستی تەواو لە دەستکاریکەردا" },
+
+        /* Pages card */
+        pages_heading: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
+        // tFormat: {n}
+        pages_count: { en: "{n} pages", ar: "{n} صفحة", ku: "{n} پەڕە" },
+        pages_section_count_one: { en: "{n} section", ar: "{n} قسم", ku: "{n} بەش" },
+        pages_section_count_other: { en: "{n} sections", ar: "{n} أقسام", ku: "{n} بەش" },
+        pages_empty: { en: "No pages configured. Open the editor to start.", ar: "لا توجد صفحات مُعدّة. افتح المحرّر للبدء.", ku: "هیچ پەڕەیەک ڕێکنەخراوە. دەستکاریکەر بکەرەوە بۆ دەستپێکردن." },
+        pages_edit: { en: "Edit", ar: "تعديل", ku: "دەستکاری" },
+        // Page labels — hub wording, deliberately fuller than the page-tree rail.
+        page_home: { en: "Home", ar: "الرئيسية", ku: "ماڵەوە" },
+        page_category: { en: "Category", ar: "الفئة", ku: "پۆل" },
+        page_product: { en: "Product page", ar: "صفحة المنتج", ku: "پەڕەی بەرهەم" },
+        page_search: { en: "Search", ar: "البحث", ku: "گەڕان" },
+        page_cart: { en: "Cart", ar: "السلة", ku: "سەبەتە" },
+        page_checkout: { en: "Checkout", ar: "الدفع", ku: "پارەدان" },
+        page_checkout_success: { en: "Order confirmed", ar: "تأكيد الطلب", ku: "داواکاری پشتڕاستکرایەوە" },
+        page_track: { en: "Track order", ar: "تتبع الطلب", ku: "بەدواداچوونی داواکاری" },
+        page_about: { en: "About", ar: "حول", ku: "دەربارە" },
+        page_faq: { en: "FAQ", ar: "الأسئلة الشائعة", ku: "پرسیارە باوەکان" },
+        page_contact: { en: "Contact", ar: "اتصل بنا", ku: "پەیوەندی" },
+        page_policy_shipping: { en: "Shipping policy", ar: "سياسة الشحن", ku: "سیاسەتی گەیاندن" },
+        page_policy_returns: { en: "Returns policy", ar: "سياسة الإرجاع", ku: "سیاسەتی گەڕاندنەوە" },
+        page_policy_privacy: { en: "Privacy policy", ar: "سياسة الخصوصية", ku: "سیاسەتی تایبەتمەندێتی" },
+        page_policy_terms: { en: "Terms of service", ar: "شروط الخدمة", ku: "مەرجەکانی خزمەتگوزاری" },
+        page_not_found: { en: "404 page", ar: "صفحة 404", ku: "پەڕەی 404" },
+
+        /* Quick-settings tiles */
+        quick_settings: { en: "Quick settings", ar: "إعدادات سريعة", ku: "ڕێکخستنە خێراکان" },
+        tile_brand_label: { en: "Brand & theme", ar: "الهوية والمظهر", ku: "برێند و ڕووکار" },
+        tile_brand_desc: { en: "Logo, colors, fonts, shapes", ar: "الشعار والألوان والخطوط والأشكال", ku: "لۆگۆ، ڕەنگ، فۆنت، شێوە" },
+        tile_languages_label: { en: "Languages", ar: "اللغات", ku: "زمانەکان" },
+        tile_languages_desc: { en: "Arabic, English, Kurdish", ar: "العربية والإنجليزية والكردية", ku: "عەرەبی، ئینگلیزی، کوردی" },
+        tile_seo_label: { en: "SEO", ar: "SEO", ku: "SEO" },
+        tile_seo_desc: { en: "Page titles & meta descriptions", ar: "عناوين الصفحات والأوصاف التعريفية", ku: "ناونیشانی پەڕەکان و وەسفی مێتا" },
+        tile_domain_label: { en: "Custom domain", ar: "نطاق مخصّص", ku: "دۆمەینی تایبەت" },
+        tile_domain_desc: { en: "Connect your own domain", ar: "اربط نطاقك الخاص", ku: "دۆمەینی خۆت ببەستەوە" },
+        tile_share_label: { en: "Share", ar: "مشاركة", ku: "هاوبەشکردن" },
+        tile_share_desc: { en: "Get a link or QR code for your store", ar: "احصل على رابط أو رمز QR لمتجرك", ku: "بەستەر یان کۆدی QR بۆ فرۆشگاکەت وەربگرە" },
+
+        /* Shared dialog chrome */
+        dialog_close: { en: "Close", ar: "إغلاق", ku: "داخستن" },
+
+        /* Share dialog */
+        share_heading: { en: "Share your store", ar: "شارك متجرك", ku: "فرۆشگاکەت هاوبەش بکە" },
+        share_qr_alt: { en: "Store QR code", ar: "رمز QR للمتجر", ku: "کۆدی QR ی فرۆشگا" },
+        share_copied: { en: "Copied!", ar: "تم النسخ!", ku: "کۆپی کرا!" },
+        share_copy: { en: "Copy", ar: "نسخ", ku: "کۆپی" },
+
+        /* Custom-domain dialog */
+        domain_heading: { en: "Custom domain", ar: "نطاق مخصّص", ku: "دۆمەینی تایبەت" },
+        domain_intro: { en: "Connect your own domain to this store.", ar: "اربط نطاقك الخاص بهذا المتجر.", ku: "دۆمەینی خۆت بەم فرۆشگایەوە ببەستەوە." },
+        domain_status_active: { en: "Active", ar: "نشط", ku: "چالاک" },
+        domain_status_pending: { en: "Pending", ar: "قيد الانتظار", ku: "چاوەڕوان" },
+        domain_verify: { en: "Verify", ar: "تحقّق", ku: "پشتڕاستکردنەوە" },
+        domain_connect_cta: { en: "Connect Custom Domain", ar: "ربط نطاق مخصّص", ku: "بەستنەوەی دۆمەینی تایبەت" },
+        domain_name_label: { en: "Domain Name", ar: "اسم النطاق", ku: "ناوی دۆمەین" },
+        domain_dns_heading: { en: "DNS Configuration", ar: "إعدادات DNS", ku: "ڕێکخستنی DNS" },
+        domain_dns_type: { en: "Type:", ar: "النوع:", ku: "جۆر:" },
+        domain_dns_name: { en: "Name:", ar: "الاسم:", ku: "ناو:" },
+        domain_dns_value: { en: "Value:", ar: "القيمة:", ku: "بەها:" },
+        domain_connect: { en: "Connect", ar: "ربط", ku: "بەستنەوە" },
+        domain_cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوونەوە" },
+        domain_toast_added: { en: "Domain added. Configure your DNS to complete setup.", ar: "تمت إضافة النطاق. اضبط إعدادات DNS لإكمال الإعداد.", ku: "دۆمەین زیادکرا. DNS ڕێکبخە بۆ تەواوکردنی ڕێکخستن." },
+        domain_toast_add_failed: { en: "Failed to add domain", ar: "تعذّرت إضافة النطاق", ku: "زیادکردنی دۆمەین سەرکەوتوو نەبوو" },
+        domain_toast_verified: { en: "Domain verified!", ar: "تم التحقق من النطاق!", ku: "دۆمەین پشتڕاست کرایەوە!" },
+        domain_toast_verify_failed: { en: "Verification failed", ar: "فشل التحقق", ku: "پشتڕاستکردنەوە سەرکەوتوو نەبوو" },
+    },
+
+    /* ── Advanced-screens chrome (agent B region — UX2-15) ───────── */
+    advanced_chrome: {
+        // Shared across the advanced screens
+        adv_back: { en: "Back", ar: "رجوع", ku: "گەڕانەوە" },
+        adv_untitled: { en: "Untitled", ar: "بدون عنوان", ku: "بێ ناونیشان" },
+        adv_untitled_paren: { en: "(Untitled)", ar: "(بدون عنوان)", ku: "(بێ ناونیشان)" },
+        adv_understand_continue: { en: "I understand, continue", ar: "أفهم ذلك، متابعة", ku: "تێدەگەم، بەردەوامبە" },
+        // tFormat: {name}
+        adv_delete_name_title: { en: "Delete “{name}”?", ar: "حذف “{name}”؟", ku: "“{name}” بسڕدرێتەوە؟" },
+        adv_percent_off: { en: "% off", ar: "خصم %", ku: "% داشکاندن" },
+        adv_iqd_off: { en: "IQD off", ar: "خصم د.ع", ku: "داشکاندنی IQD" },
+        adv_value: { en: "Value", ar: "القيمة", ku: "بەها" },
+        adv_active: { en: "Active", ar: "نشط", ku: "چالاک" },
+        adv_field_name: { en: "Name", ar: "الاسم", ku: "ناو" },
+        adv_close: { en: "Close", ar: "إغلاق", ku: "داخستن" },
+        adv_cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوونەوە" },
+        adv_refresh: { en: "Refresh", ar: "تحديث", ku: "نوێکردنەوە" },
+        adv_upcoming: { en: "Upcoming", ar: "قادم", ku: "داهاتوو" },
+        adv_expired: { en: "Expired", ar: "منتهٍ", ku: "بەسەرچووە" },
+
+        // Experiments screen
+        exp_empty_title: { en: "No experiments yet", ar: "لا توجد تجارب بعد", ku: "هێشتا هیچ تاقیکردنەوەیەک نییە" },
+        exp_empty_body: { en: "Run A/B tests against any section variant. Pick a primary metric, split traffic across arms, and promote the winner.", ar: "شغّل اختبارات A/B على أي نسخة من عنصر. اختر مقياساً أساسياً، قسّم الزوار على الأذرع، ثم رقّ الفائز.", ku: "تاقیکردنەوەی A/B لەسەر هەر وەشانێکی بەش ئەنجام بدە. پێوەرێکی سەرەکی هەڵبژێرە، سەردانیکەران دابەش بکە، پاشان براوە پلەی بەرز بکەرەوە." },
+        exp_empty_new: { en: "Create your first experiment", ar: "أنشئ أول تجربة", ku: "یەکەم تاقیکردنەوەت دروست بکە" },
+        exp_primary_metric_label: { en: "Primary metric:", ar: "المقياس الأساسي:", ku: "پێوەری سەرەکی:" },
+        exp_traffic_split: { en: "Traffic split:", ar: "تقسيم الزوار:", ku: "دابەشکردنی سەردانیکەران:" },
+        exp_stop_promote: { en: "Stop & promote winner", ar: "إيقاف وترقية الفائز", ku: "ڕاگرتن و بەرزکردنەوەی براوە" },
+        exp_editor_title: { en: "Edit experiment", ar: "تعديل التجربة", ku: "دەستکاری تاقیکردنەوە" },
+        exp_field_primary_metric: { en: "Primary metric", ar: "المقياس الأساسي", ku: "پێوەری سەرەکی" },
+        exp_field_starts_at: { en: "Starts at", ar: "يبدأ في", ku: "دەستپێدەکات لە" },
+        exp_field_ends_at: { en: "Ends at (optional)", ar: "ينتهي في (اختياري)", ku: "کۆتایی دێت لە (ئارەزوومەندانە)" },
+        exp_arms: { en: "Arms", ar: "الأذرع", ku: "لقەکان" },
+        exp_add_arm: { en: "Add arm", ar: "إضافة ذراع", ku: "زیادکردنی لق" },
+        exp_delete_arm_aria: { en: "Delete arm", ar: "حذف الذراع", ku: "سڕینەوەی لق" },
+        exp_total_traffic: { en: "Total traffic:", ar: "إجمالي الزوار:", ku: "کۆی سەردانیکەران:" },
+        exp_traffic_sum_error: { en: "— must sum to 100", ar: "— يجب أن يساوي المجموع 100", ku: "— کۆکەرەوەکە دەبێت 100 بێت" },
+        exp_field_status: { en: "Status", ar: "الحالة", ku: "دۆخ" },
+        exp_stats_error: { en: "Failed to load stats", ar: "فشل تحميل الإحصائيات", ku: "بارکردنی ئامارەکان سەرکەوتوو نەبوو" },
+        exp_no_data: { en: "No data yet.", ar: "لا توجد بيانات بعد.", ku: "هێشتا هیچ داتایەک نییە." },
+        exp_control_badge: { en: "Control", ar: "الضابط", ku: "کۆنترۆڵ" },
+        // tFormat: {n}
+        exp_pct_traffic: { en: "{n}% traffic", ar: "{n}% من الزوار", ku: "{n}% سەردانیکەران" },
+        exp_stat_atc: { en: "ATC", ar: "إضافة للسلة", ku: "بۆ سەبەتە" },
+        exp_stat_checkout: { en: "Checkout", ar: "الدفع", ku: "پارەدان" },
+        exp_stat_aov: { en: "AOV", ar: "متوسط الطلب", ku: "تێکڕای داواکاری" },
+        exp_stat_uplift_control: { en: "Uplift vs control", ar: "التحسن مقابل الضابط", ku: "بەرزبوونەوە بەراورد بە کۆنترۆڵ" },
+        exp_delete_refs_prefix: { en: "This experiment is referenced by", ar: "هذه التجربة مُشار إليها من", ku: "ئەم تاقیکردنەوەیە ئاماژەی پێدراوە لەلایەن" },
+        exp_delete_refs_suffix_one: { en: "variant. Deleting it will leave those variants targeting a non-existent test. Proceed?", ar: "نسخة واحدة. حذفها سيترك تلك النسخ تستهدف اختباراً غير موجود. متابعة؟", ku: "وەشانێک. سڕینەوەی وا دەکات ئەو وەشانانە تاقیکردنەوەیەکی نەبوو ئامانج بکەن. بەردەوامبیت؟" },
+        exp_delete_refs_suffix_many: { en: "variants. Deleting it will leave those variants targeting a non-existent test. Proceed?", ar: "نسخ. حذفها سيترك تلك النسخ تستهدف اختباراً غير موجود. متابعة؟", ku: "وەشان. سڕینەوەی وا دەکات ئەو وەشانانە تاقیکردنەوەیەکی نەبوو ئامانج بکەن. بەردەوامبیت؟" },
+        exp_delete_body: { en: "This will remove the experiment from your store config.", ar: "سيؤدي هذا إلى إزالة التجربة من إعدادات متجرك.", ku: "ئەمە تاقیکردنەوەکە لە ڕێکخستنی فرۆشگاکەت لادەبات." },
+        exp_delete_confirm: { en: "Delete experiment", ar: "حذف التجربة", ku: "سڕینەوەی تاقیکردنەوە" },
+
+        // Empty states for the remaining advanced screens
+        red_empty: { en: "No redirects yet — add your first", ar: "لا توجد عمليات إعادة توجيه بعد — أضف أولها", ku: "هێشتا هیچ ڕەوانەکردنەوەیەک نییە — یەکەمیان زیاد بکە" },
+        bun_empty: { en: "No bundles yet — add your first", ar: "لا توجد حزم بعد — أضف أولها", ku: "هێشتا هیچ پاکێجێک نییە — یەکەمیان زیاد بکە" },
+        ver_empty_title: { en: "No versions yet", ar: "لا توجد نسخ بعد", ku: "هێشتا هیچ وەشانێک نییە" },
+        ver_empty_body: { en: "Snapshots are created automatically on publish, or you can save a named snapshot right now.", ar: "تُنشأ النسخ تلقائياً عند النشر، أو يمكنك حفظ نسخة باسم الآن.", ku: "وێنەگرتنەکان بە خۆکاری لە کاتی بڵاوکردنەوەدا دروست دەبن، یان دەتوانیت ئێستا وێنەیەکی ناودار هەڵبگریت." },
+        sched_empty_title: { en: "No scheduled changes", ar: "لا توجد تغييرات مجدولة", ku: "هیچ گۆڕانکاریەکی کاتبەندیکراو نییە" },
+        sched_empty_body: { en: "Use this screen to schedule future variants of any section — promo banners, hero swaps, free-shipping notices, and more.", ar: "استخدم هذه الشاشة لجدولة نسخ مستقبلية من أي قسم — لافتات العروض، تبديل الأغلفة، إشعارات التوصيل المجاني وغيرها.", ku: "ئەم پەردەیە بەکاربهێنە بۆ کاتبەندیکردنی وەشانی داهاتووی هەر بەشێک — بەنەڕی ئۆفەر، گۆڕینی بەرگ، ئاگاداری گەیاندنی بێبەرامبەر و زیاتر." },
+
+        // Segments (audiences) screen
+        seg_rule_first_visit: { en: "First visit", ar: "أول زيارة", ku: "یەکەم سەردان" },
+        seg_rule_returning: { en: "Returning visitor", ar: "زائر عائد", ku: "سەردانیکەری گەڕاوە" },
+        seg_rule_ordered: { en: "Has ordered before", ar: "طلب من قبل", ku: "پێشتر داواکاری کردووە" },
+        seg_rule_cart_total: { en: "Cart total", ar: "إجمالي السلة", ku: "کۆی سەبەتە" },
+        seg_rule_abandoned: { en: "Abandoned cart", ar: "سلة متروكة", ku: "سەبەتەی بەجێهێڵراو" },
+        seg_rule_governorate: { en: "Governorate", ar: "المحافظة", ku: "پارێزگا" },
+        seg_rule_traffic: { en: "Traffic source", ar: "مصدر الزيارات", ku: "سەرچاوەی سەردان" },
+        seg_rule_device: { en: "Device", ar: "الجهاز", ku: "ئامێر" },
+        // tFormat: {n}
+        seg_rule_count_one: { en: "{n} rule", ar: "{n} قاعدة", ku: "{n} ڕێسا" },
+        seg_rule_count_many: { en: "{n} rules", ar: "{n} قواعد", ku: "{n} ڕێسا" },
+        seg_visitors_label: { en: "Visitors:", ar: "الزوار:", ku: "سەردانیکەران:" },
+        seg_select_to_edit: { en: "Select a segment to edit it.", ar: "اختر جمهوراً لتعديله.", ku: "بینەرێک هەڵبژێرە بۆ دەستکاریکردنی." },
+        seg_edit_segment: { en: "Edit segment", ar: "تعديل الجمهور", ku: "دەستکاری بینەر" },
+        seg_delete_segment: { en: "Delete segment", ar: "حذف الجمهور", ku: "سڕینەوەی بینەر" },
+        seg_field_description: { en: "Description", ar: "الوصف", ku: "وەسف" },
+        seg_field_combine: { en: "Combine logic", ar: "منطق الدمج", ku: "لۆژیکی تێکەڵکردن" },
+        seg_match_all: { en: "Match ALL rules", ar: "مطابقة كل القواعد", ku: "هەموو ڕێساکان بگونجێنە" },
+        seg_match_any: { en: "Match ANY rules", ar: "مطابقة أي قاعدة", ku: "هەر ڕێسایەک بگونجێنە" },
+        seg_rules_heading: { en: "Rules", ar: "القواعد", ku: "ڕێساکان" },
+        seg_add_rule: { en: "Add rule", ar: "إضافة قاعدة", ku: "زیادکردنی ڕێسا" },
+        seg_rules_empty: { en: "No rules. Add one to start matching visitors.", ar: "لا توجد قواعد. أضف واحدة لبدء مطابقة الزوار.", ku: "هیچ ڕێسایەک نییە. یەکێک زیاد بکە بۆ دەستپێکردنی گونجاندنی سەردانیکەران." },
+        seg_delete_rule_aria: { en: "Delete rule", ar: "حذف القاعدة", ku: "سڕینەوەی ڕێسا" },
+        seg_within: { en: "Within", ar: "خلال", ku: "لە ماوەی" },
+        seg_minutes_optional: { en: "minutes (optional)", ar: "دقيقة (اختياري)", ku: "خولەک (ئارەزوومەندانە)" },
+        seg_no_config: { en: "No configuration.", ar: "لا إعدادات.", ku: "هیچ ڕێکخستنێک نییە." },
+        seg_iqd: { en: "IQD", ar: "د.ع", ku: "دینار" },
+        seg_inactive_for: { en: "Inactive for at least", ar: "غير نشط لمدة لا تقل عن", ku: "ناچالاک بۆ لانیکەم" },
+        seg_minutes: { en: "minutes", ar: "دقيقة", ku: "خولەک" },
+        seg_delete_refs_prefix: { en: "This segment is used by", ar: "هذا الجمهور مستخدم من قبل", ku: "ئەم بینەرە بەکارهاتووە لەلایەن" },
+        seg_delete_refs_suffix_one: { en: "variant. Deleting it will leave those variants matching nothing. Proceed?", ar: "نسخة واحدة. حذفه سيترك تلك النسخ دون أي تطابق. متابعة؟", ku: "وەشانێک. سڕینەوەی وا دەکات ئەو وەشانانە هیچ نەگونجێنن. بەردەوامبیت؟" },
+        seg_delete_refs_suffix_many: { en: "variants. Deleting it will leave those variants matching nothing. Proceed?", ar: "نسخ. حذفه سيترك تلك النسخ دون أي تطابق. متابعة؟", ku: "وەشان. سڕینەوەی وا دەکات ئەو وەشانانە هیچ نەگونجێنن. بەردەوامبیت؟" },
+        seg_delete_body: { en: "This will remove the segment from your store config. Any variant that targets it will no longer match.", ar: "سيؤدي هذا إلى إزالة الجمهور من إعدادات متجرك. أي نسخة تستهدفه لن تتطابق بعد الآن.", ku: "ئەمە بینەرەکە لە ڕێکخستنی فرۆشگاکەت لادەبات. هەر وەشانێک ئامانجی بکات چیتر ناگونجێت." },
+
+        // Scheduled-changes screen
+        sched_subtitle: { en: "Time-windowed variants you've set up across your store.", ar: "اختلافات محدّدة زمنياً قمت بإعدادها في متجرك.", ku: "جیاوازییە کاتدارەکانی فرۆشگاکەت کە دایناون." },
+        // tFormat: {when}
+        sched_row_started: { en: "Started {when}", ar: "بدأ {when}", ku: "دەستیپێکرد {when}" },
+        sched_row_ends: { en: "ends {when}", ar: "ينتهي {when}", ku: "کۆتایی دێت {when}" },
+        sched_row_no_end: { en: "no end date", ar: "بدون تاريخ انتهاء", ku: "بەبێ بەرواری کۆتایی" },
+        sched_row_starts: { en: "Starts {when}", ar: "يبدأ {when}", ku: "دەستپێدەکات {when}" },
+        sched_row_ended: { en: "Ended {when}", ar: "انتهى {when}", ku: "کۆتایی هات {when}" },
+        sched_row_cancelled: { en: "Cancelled", ar: "ملغي", ku: "هەڵوەشێنراوەتەوە" },
+        sched_target_label: { en: "Target:", ar: "الهدف:", ku: "ئامانج:" },
+        sched_target_section_fallback: { en: "Section", ar: "قسم", ku: "بەش" },
+        sched_target_unknown: { en: "Unknown", ar: "غير معروف", ku: "نەزانراو" },
+        sched_no_targets: { en: "No targets.", ar: "لا توجد أهداف.", ku: "هیچ ئامانجێک نییە." },
+        sched_section_label: { en: "Section:", ar: "القسم:", ku: "بەش:" },
+        sched_variant_label: { en: "Variant:", ar: "النسخة:", ku: "وەشان:" },
+        sched_variant_missing: { en: "(missing)", ar: "(مفقود)", ku: "(بزربووە)" },
+        sched_variant_override: { en: "Variant override", ar: "تعديلات النسخة", ku: "گۆڕانکارییەکانی وەشان" },
+        sched_creator_subtitle: { en: "Show a section variant for a fixed time window.", ar: "اعرض نسخة قسم لفترة زمنية محددة.", ku: "وەشانێکی بەش بۆ ماوەیەکی کاتی دیاریکراو پیشان بدە." },
+        sched_field_label: { en: "Label", ar: "الاسم", ku: "ناونیشان" },
+        sched_label_placeholder: { en: "e.g. 'Black Friday hero swap'", ar: "مثال: 'تبديل بانر الجمعة السوداء'", ku: "نموونە: 'گۆڕینی هیرۆی هەینی ڕەش'" },
+        sched_field_start: { en: "Start date / time", ar: "تاريخ / وقت البداية", ku: "بەروار / کاتی دەستپێک" },
+        sched_field_end: { en: "End date / time (optional)", ar: "تاريخ / وقت الانتهاء (اختياري)", ku: "بەروار / کاتی کۆتایی (ئارەزوومەندانە)" },
+        sched_field_timezone: { en: "Timezone", ar: "المنطقة الزمنية", ku: "ناوچەی کات" },
+        sched_field_page: { en: "Page", ar: "الصفحة", ku: "پەڕە" },
+        sched_field_section: { en: "Section", ar: "القسم", ku: "بەشی پەڕە" },
+        sched_field_variant: { en: "Variant", ar: "النسخة", ku: "وەشان" },
+        sched_choose_page: { en: "Choose a page…", ar: "اختر صفحة…", ku: "پەڕەیەک هەڵبژێرە…" },
+        sched_choose_section: { en: "Choose a section…", ar: "اختر قسماً…", ku: "بەشێک هەڵبژێرە…" },
+        sched_pick_page_first: { en: "Pick a page first", ar: "اختر صفحة أولاً", ku: "سەرەتا پەڕەیەک هەڵبژێرە" },
+        sched_choose_variant: { en: "Choose a variant…", ar: "اختر نسخة…", ku: "وەشانێک هەڵبژێرە…" },
+        sched_pick_section_first: { en: "Pick a section first", ar: "اختر قسماً أولاً", ku: "سەرەتا بەشێک هەڵبژێرە" },
+        sched_create_variant_option: { en: "+ Create new variant for this schedule", ar: "+ إنشاء نسخة جديدة لهذه الجدولة", ku: "+ وەشانی نوێ بۆ ئەم خشتەیە دروست بکە" },
+        sched_field_new_variant_label: { en: "New variant label", ar: "اسم النسخة الجديدة", ku: "ناونیشانی وەشانی نوێ" },
+        sched_new_variant_placeholder: { en: "e.g. 'Black Friday'", ar: "مثال: 'الجمعة السوداء'", ku: "نموونە: 'هەینی ڕەش'" },
+        sched_new_variant_hint: { en: "A `time_window` variant will be created in this section, wired to the schedule's start/end times.", ar: "ستُنشأ نسخة `time_window` في هذا القسم، مرتبطة بأوقات بداية/نهاية الجدولة.", ku: "وەشانێکی `time_window` لەم بەشەدا دروستدەکرێت، بەستراوە بە کاتەکانی دەستپێک/کۆتایی خشتەکە." },
+        sched_err_label_required: { en: "Label is required", ar: "الاسم مطلوب", ku: "ناونیشان پێویستە" },
+        sched_err_start_required: { en: "Valid start date is required", ar: "تاريخ بداية صالح مطلوب", ku: "بەرواری دەستپێکی دروست پێویستە" },
+        sched_err_end_invalid: { en: "End date is invalid", ar: "تاريخ الانتهاء غير صالح", ku: "بەرواری کۆتایی نادروستە" },
+        sched_err_end_before_start: { en: "End must be after start", ar: "يجب أن يكون الانتهاء بعد البداية", ku: "کۆتایی دەبێت دوای دەستپێک بێت" },
+        sched_err_pick_page: { en: "Pick a page", ar: "اختر صفحة", ku: "پەڕەیەک هەڵبژێرە" },
+        sched_err_pick_section: { en: "Pick a section", ar: "اختر قسماً", ku: "بەشێک هەڵبژێرە" },
+        sched_err_pick_variant: { en: "Pick or create a variant", ar: "اختر نسخة أو أنشئها", ku: "وەشانێک هەڵبژێرە یان دروستی بکە" },
+        sched_create_submit: { en: "Create schedule", ar: "إنشاء الجدولة", ku: "دروستکردنی خشتە" },
+        sched_error_load: { en: "Failed to load schedules", ar: "فشل تحميل الجدولات", ku: "بارکردنی خشتەکان سەرکەوتوو نەبوو" },
+        sched_error_end: { en: "Failed to end schedule", ar: "فشل إنهاء الجدولة", ku: "کۆتاییهێنانی خشتە سەرکەوتوو نەبوو" },
+        sched_error_cancel: { en: "Failed to cancel schedule", ar: "فشل إلغاء الجدولة", ku: "هەڵوەشاندنەوەی خشتە سەرکەوتوو نەبوو" },
+        sched_error_delete: { en: "Failed to delete schedule", ar: "فشل حذف الجدولة", ku: "سڕینەوەی خشتە سەرکەوتوو نەبوو" },
+        sched_error_update: { en: "Failed to update", ar: "فشل التحديث", ku: "نوێکردنەوە سەرکەوتوو نەبوو" },
+        sched_error_create: { en: "Failed to create schedule", ar: "فشل إنشاء الجدولة", ku: "دروستکردنی خشتە سەرکەوتوو نەبوو" },
+
+        // Version-history screen (extends STRINGS.version_history)
+        vh_error_load: { en: "Failed to load versions", ar: "فشل تحميل النسخ", ku: "بارکردنی وەشانەکان سەرکەوتوو نەبوو" },
+        vh_error_snapshot: { en: "Snapshot failed", ar: "فشل حفظ اللقطة", ku: "هەڵگرتنی وێنە سەرکەوتوو نەبوو" },
+        vh_error_restore: { en: "Restore failed", ar: "فشل الاسترجاع", ku: "گەڕاندنەوە سەرکەوتوو نەبوو" },
+        vh_error_no_config: { en: "Version has no config payload", ar: "لا تحتوي النسخة على بيانات إعدادات", ku: "ئەم وەشانە داتای ڕێکخستنی نییە" },
+        // tFormat: {label}
+        vh_restored_label: { en: "Restored \"{label}\"", ar: "استُرجعت \"{label}\"", ku: "\"{label}\" گەڕێنرایەوە" },
+        vh_you: { en: "You", ar: "أنت", ku: "تۆ" },
+        // tFormat: {name}
+        vh_by_author: { en: "by {name}", ar: "بواسطة {name}", ku: "لەلایەن {name}" },
+        vh_restore_body_prefix: { en: "Restore", ar: "استرجاع", ku: "گەڕاندنەوەی" },
+        // tFormat: {time}
+        vh_restore_body_suffix: { en: "from {time}? This replaces your current draft. You can undo this in this session.", ar: "من {time}؟ سيستبدل هذا مسودتك الحالية. يمكنك التراجع خلال هذه الجلسة.", ku: "لە {time}؟ ئەمە ڕەشنووسی ئێستات دەگۆڕێت. دەتوانی لەم دانیشتنەدا پاشگەزبیتەوە." },
+        vh_promote_body: { en: "Give this auto-save a memorable label so it doesn't get pruned.", ar: "أعطِ هذا الحفظ التلقائي اسماً لا يُنسى حتى لا يُحذف.", ku: "ناوێکی بیرهێنەرەوە بدە بەم خەزنە ئۆتۆماتیکە بۆ ئەوەی نەسڕدرێتەوە." },
+        vh_diff_before: { en: "before:", ar: "قبل:", ku: "پێش:" },
+        vh_diff_after: { en: "after:", ar: "بعد:", ku: "دوای:" },
+
+        // Nav-builder screen
+        nav_close_aria: { en: "Close navigation", ar: "إغلاق التنقل", ku: "داخستنی ناڤیگەیشن" },
+        nav_heading: { en: "Navigation", ar: "التنقل", ku: "ناڤیگەیشن" },
+        nav_add_link: { en: "Add link", ar: "إضافة رابط", ku: "زیادکردنی بەستەر" },
+        nav_intro_prefix: { en: "Header menu links. Point each at a path like", ar: "روابط قائمة الترويسة. وجّه كل رابط إلى مسار مثل", ku: "بەستەرەکانی مێنیوی سەرەوە. هەریەکەیان ئاراستەی ڕێچکەیەک بکە وەکو" },
+        nav_intro_suffix: { en: ", or a full URL.", ar: "، أو رابط كامل.", ku: "، یان بەستەری تەواو." },
+        nav_empty: { en: "No nav links yet — add your first", ar: "لا توجد روابط تنقل بعد — أضف أول رابط", ku: "هێشتا هیچ بەستەرێک نییە — یەکەمیان زیاد بکە" },
+        nav_label_en_aria: { en: "Label (English)", ar: "التسمية (بالإنجليزية)", ku: "ناونیشان (ئینگلیزی)" },
+        nav_label_en_placeholder: { en: "Label (EN)", ar: "التسمية (EN)", ku: "ناونیشان (EN)" },
+        nav_label_ar_aria: { en: "Label (Arabic)", ar: "التسمية (بالعربية)", ku: "ناونیشان (عەرەبی)" },
+        nav_href_aria: { en: "Link target", ar: "وجهة الرابط", ku: "ئامانجی بەستەر" },
+        nav_move_up: { en: "Move up", ar: "تحريك لأعلى", ku: "بردنە سەرەوە" },
+        nav_move_down: { en: "Move down", ar: "تحريك لأسفل", ku: "بردنە خوارەوە" },
+        nav_remove_link: { en: "Remove link", ar: "إزالة الرابط", ku: "لابردنی بەستەر" },
+
+        // Discounts screen
+        disc_close_aria: { en: "Close discount codes", ar: "إغلاق أكواد الخصم", ku: "داخستنی کۆدەکانی داشکاندن" },
+        disc_heading: { en: "Discount codes", ar: "أكواد الخصم", ku: "کۆدەکانی داشکاندن" },
+        disc_add_code: { en: "Add code", ar: "إضافة كود", ku: "زیادکردنی کۆد" },
+        disc_intro: { en: "Create coupon codes customers enter at checkout. Percent codes take a share off the subtotal (optionally capped); fixed codes take a set amount (IQD). Both can require a minimum subtotal.", ar: "أنشئ أكواد قسائم يدخلها العملاء عند الدفع. أكواد النسبة تخصم حصة من الإجمالي الفرعي (مع حد أقصى اختياري)؛ والأكواد الثابتة تخصم مبلغاً محدداً (د.ع). كلاهما يمكن أن يتطلب حداً أدنى للإجمالي الفرعي.", ku: "کۆدی کۆپۆن دروست بکە کە کڕیاران لە کاتی پارەدان دەینووسن. کۆدە ڕێژەییەکان بەشێک لە کۆی بەرهەمەکان کەم دەکەنەوە (بە سنوورێکی ئارەزوومەندانە)؛ کۆدە جێگیرەکان بڕێکی دیاریکراو کەم دەکەنەوە (IQD). هەردووکیان دەتوانن داوای کەمترین کۆ بکەن." },
+        disc_empty: { en: "No codes yet — add your first", ar: "لا توجد أكواد بعد — أضف أول كود", ku: "هێشتا هیچ کۆدێک نییە — یەکەمیان زیاد بکە" },
+        disc_min_subtotal: { en: "Min subtotal", ar: "الحد الأدنى للإجمالي", ku: "کەمترین کۆ" },
+        disc_max_off: { en: "Max off", ar: "أقصى خصم", ku: "زۆرترین داشکاندن" },
+        disc_remove_aria: { en: "Remove code", ar: "إزالة الكود", ku: "لابردنی کۆد" },
+
+        // Redirects screen
+        redir_close_aria: { en: "Close redirects", ar: "إغلاق التحويلات", ku: "داخستنی ئاراستەکردنەکان" },
+        redir_heading: { en: "Redirects", ar: "التحويلات", ku: "ئاراستەکردنەکان" },
+        redir_add: { en: "Add redirect", ar: "إضافة تحويل", ku: "زیادکردنی ئاراستەکردن" },
+        redir_intro_prefix: { en: "Send an old URL to a new one — useful after you change a product or category slug, so links you've shared on WhatsApp, ads, or that Google has indexed don't break. Paths are relative to your store (e.g.", ar: "حوّل رابطاً قديماً إلى رابط جديد — مفيد بعد تغيير معرّف منتج أو فئة، حتى لا تتعطل الروابط التي شاركتها على واتساب أو الإعلانات أو التي فهرسها جوجل. المسارات نسبية لمتجرك (مثل", ku: "بەستەرێکی کۆن بنێرە بۆ نوێیەک — بەسوودە دوای گۆڕینی سلەگی بەرهەم یان پۆل، بۆ ئەوەی ئەو بەستەرانەی لە واتساپ و ڕیکلامەکان بڵاوتکردوونەتەوە یان گووگڵ تۆماری کردوون نەشکێن. ڕێچکەکان نیسبین بۆ فرۆشگاکەت (وەکو" },
+        redir_empty: { en: "No redirects yet — add your first", ar: "لا توجد تحويلات بعد — أضف أول تحويل", ku: "هێشتا هیچ ئاراستەکردنێک نییە — یەکەمیان زیاد بکە" },
+        redir_permanent: { en: "Permanent", ar: "دائم", ku: "هەمیشەیی" },
+        redir_remove_aria: { en: "Remove redirect", ar: "إزالة التحويل", ku: "لابردنی ئاراستەکردن" },
+
+        // Bundles screen
+        bundle_close_aria: { en: "Close bundles", ar: "إغلاق الباقات", ku: "داخستنی پاکێجەکان" },
+        bundle_heading: { en: "Bundles", ar: "الباقات", ku: "پاکێجەکان" },
+        bundle_add: { en: "Add bundle", ar: "إضافة باقة", ku: "زیادکردنی پاکێج" },
+        bundle_intro: { en: "Group 2+ products into a \"frequently bought together\" bundle with a discount on their combined price. It shows on the PDP of any product in the bundle.", ar: "اجمع منتجين أو أكثر في باقة «يُشترى معاً عادةً» مع خصم على سعرها الإجمالي. تظهر في صفحة أي منتج ضمن الباقة.", ku: "دوو بەرهەم یان زیاتر کۆبکەرەوە لە پاکێجی «زۆرجار پێکەوە دەکڕدرێن» لەگەڵ داشکاندن لەسەر نرخە کۆکراوەکەیان. لە پەڕەی هەر بەرهەمێکی ناو پاکێجەکە دەردەکەوێت." },
+        bundle_empty: { en: "No bundles yet — add your first", ar: "لا توجد باقات بعد — أضف أول باقة", ku: "هێشتا هیچ پاکێجێک نییە — یەکەمیان زیاد بکە" },
+        // tFormat: {n}
+        bundle_product_count: { en: "{n} product(s)", ar: "{n} منتج", ku: "{n} بەرهەم" },
+        bundle_remove_aria: { en: "Remove bundle", ar: "إزالة الباقة", ku: "لابردنی پاکێج" },
+        bundle_no_products: { en: "No products to add.", ar: "لا توجد منتجات للإضافة.", ku: "هیچ بەرهەمێک نییە بۆ زیادکردن." },
+
+        // Loyalty screen
+        loyal_close_aria: { en: "Close loyalty", ar: "إغلاق نقاط الولاء", ku: "داخستنی خاڵی وەفاداری" },
+        loyal_heading: { en: "Loyalty points", ar: "نقاط الولاء", ku: "خاڵەکانی وەفاداری" },
+        loyal_intro: { en: "Reward repeat customers: they earn points on every order and redeem them for a discount at checkout. Off by default — turn it on to start the program.", ar: "كافئ العملاء المتكررين: يكسبون نقاطاً مع كل طلب ويستبدلونها بخصم عند الدفع. معطّل افتراضياً — فعّله لبدء البرنامج.", ku: "کڕیارە دووبارەکان خەڵات بکە: لە هەر داواکارییەک خاڵ بەدەستدەهێنن و لە کاتی پارەدان بە داشکاندن دەیگۆڕنەوە. بە بنەڕەت کوژاوەتەوە — هەڵیبکە بۆ دەستپێکردنی بەرنامەکە." },
+        loyal_enable: { en: "Enable loyalty points", ar: "تفعيل نقاط الولاء", ku: "چالاککردنی خاڵی وەفاداری" },
+        loyal_earn_label: { en: "Points earned per IQD", ar: "النقاط المكتسبة لكل دينار", ku: "خاڵی بەدەستهاتوو بۆ هەر IQD" },
+        loyal_earn_hint: { en: "e.g. 0.001 = 1 point per 1,000 IQD spent", ar: "مثال: 0.001 = نقطة واحدة لكل 1,000 د.ع", ku: "نموونە: 0.001 = خاڵێک بۆ هەر 1,000 IQD" },
+        loyal_redeem_label: { en: "IQD value per point", ar: "قيمة النقطة بالدينار", ku: "بەهای IQD بۆ هەر خاڵێک" },
+        loyal_redeem_hint: { en: "e.g. 10 = each point is worth 10 IQD off", ar: "مثال: 10 = كل نقطة تساوي خصم 10 د.ع", ku: "نموونە: 10 = هەر خاڵێک 10 IQD داشکاندنە" },
+        loyal_min_label: { en: "Minimum points to redeem", ar: "الحد الأدنى من النقاط للاستبدال", ku: "کەمترین خاڵ بۆ گۆڕینەوە" },
+        loyal_min_hint: { en: "Customers can't redeem below this balance", ar: "لا يمكن للعملاء الاستبدال دون هذا الرصيد", ku: "کڕیاران ناتوانن لە خوار ئەم باڵانسە بیگۆڕنەوە" },
+        loyal_max_label: { en: "Max % of order from points", ar: "أقصى نسبة من الطلب بالنقاط", ku: "زۆرترین % ی داواکاری بە خاڵ" },
+        loyal_max_hint: { en: "Cap redemption to this share of the subtotal (0–100)", ar: "حدّد الاستبدال بهذه الحصة من الإجمالي الفرعي (0–100)", ku: "گۆڕینەوە بەم بەشەی کۆ سنووردار بکە (0–100)" },
+
+        // Cart-recovery screen
+        cr_close_aria: { en: "Close cart recovery", ar: "إغلاق استرداد السلة", ku: "داخستنی گەڕاندنەوەی سەبەتە" },
+        cr_heading: { en: "Cart recovery", ar: "استرداد السلة", ku: "گەڕاندنەوەی سەبەتە" },
+        cr_intro: { en: "Send a WhatsApp nudge to customers who reached checkout but didn't complete their order. Off by default — turn it on to start recovering carts.", ar: "أرسل تذكيراً عبر واتساب للعملاء الذين وصلوا إلى الدفع ولم يكملوا طلبهم. معطّل افتراضياً — فعّله لبدء استرداد السلات.", ku: "ئاگادارکردنەوەی واتساپ بنێرە بۆ ئەو کڕیارانەی گەیشتنە پارەدان بەڵام داواکارییەکەیان تەواو نەکرد. بە بنەڕەت کوژاوەتەوە — هەڵیبکە بۆ دەستپێکردنی گەڕاندنەوەی سەبەتەکان." },
+        cr_enable: { en: "Enable cart recovery", ar: "تفعيل استرداد السلة", ku: "چالاککردنی گەڕاندنەوەی سەبەتە" },
+        cr_delay_label: { en: "Wait before messaging", ar: "الانتظار قبل المراسلة", ku: "چاوەڕوانی پێش ناردنی نامە" },
+        cr_delay_hint: { en: "(minutes, 5–1440)", ar: "(دقيقة، 5–1440)", ku: "(خولەک، 5–1440)" },
+
+        // Preview modal
+        pv_device_mobile: { en: "Mobile", ar: "الهاتف", ku: "مۆبایل" },
+        pv_device_tablet: { en: "Tablet", ar: "جهاز لوحي", ku: "تابلێت" },
+        pv_device_desktop: { en: "Desktop", ar: "سطح المكتب", ku: "دێسکتۆپ" },
+        pv_dialog_aria: { en: "Accurate device preview", ar: "معاينة دقيقة للجهاز", ku: "پێشبینینی وردی ئامێر" },
+        pv_title: { en: "Accurate preview", ar: "معاينة دقيقة", ku: "پێشبینینی ورد" },
+        pv_subtitle: { en: "— real device viewport", ar: "— أبعاد جهاز حقيقية", ku: "— ڕوانگەی ئامێری ڕاستەقینە" },
+        pv_open_tab_title: { en: "Open this preview in a new tab", ar: "افتح هذه المعاينة في تبويب جديد", ku: "ئەم پێشبینینە لە تابێکی نوێدا بکەرەوە" },
+        pv_new_tab: { en: "New tab", ar: "تبويب جديد", ku: "تابی نوێ" },
+        pv_close_aria: { en: "Close preview", ar: "إغلاق المعاينة", ku: "داخستنی پێشبینین" },
     },
 
     /* ── i18n screen ──────────────────────────────────────────── */

@@ -4,6 +4,7 @@ import { useTenant } from "@/hooks/use-tenant";
 import { useRouter, usePathname } from "next/navigation";
 import { Clock, AlertTriangle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 function computeDaysLeft(trialEndsAt: string | null): number | null {
     if (!trialEndsAt) return null;
@@ -12,6 +13,7 @@ function computeDaysLeft(trialEndsAt: string | null): number | null {
 
 export function TrialBanner() {
     const router = useRouter();
+    const { t } = useLanguage();
     const pathname = usePathname();
 
     const { data: tenant } = useTenant();
@@ -36,18 +38,18 @@ export function TrialBanner() {
                         <XCircle className="w-7 h-7 text-red-600" />
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">
-                        {isSuspended ? "Account Suspended" : "Account Cancelled"}
+                        {isSuspended ? t("billing.suspendedTitle") : t("billing.cancelledTitle")}
                     </h2>
                     <p className="text-gray-600 text-sm mb-6">
                         {isSuspended
-                            ? "Your account has been suspended due to insufficient balance. Please top up your wallet to continue."
-                            : "Your subscription has been cancelled. Please contact support to reactivate."}
+                            ? t("billing.suspendedBody")
+                            : t("billing.cancelledBody")}
                     </p>
                     <button
                         onClick={() => router.push("/settings")}
                         className="w-full py-3 rounded-xl bg-gray-900 text-white font-semibold hover:bg-gray-800 transition-colors"
                     >
-                        Go to Billing Settings
+                        {t("billing.goToBilling")}
                     </button>
                 </div>
             </div>
@@ -59,12 +61,12 @@ export function TrialBanner() {
         return (
             <div className="bg-red-600 text-white px-4 py-2.5 flex items-center justify-center gap-3 text-sm">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span className="font-medium">Your free trial has expired.</span>
+                <span className="font-medium">{t("billing.trialExpired")}</span>
                 <button
                     onClick={() => router.push("/settings")}
                     className="px-3 py-1 rounded-lg bg-white text-red-700 text-xs font-semibold hover:bg-red-50 transition-colors"
                 >
-                    Choose a Plan
+                    {t("billing.choosePlan")}
                 </button>
             </div>
         );
@@ -82,8 +84,8 @@ export function TrialBanner() {
                 <Clock className="w-4 h-4 shrink-0" />
                 <span>
                     {daysLeft === 1
-                        ? "Your trial ends tomorrow!"
-                        : `${daysLeft} days left in your free trial.`}
+                        ? t("billing.trialEndsTomorrow")
+                        : t("billing.trialDaysLeft").replace("{n}", String(daysLeft))}
                 </span>
                 <button
                     onClick={() => router.push("/settings")}
@@ -94,7 +96,7 @@ export function TrialBanner() {
                             : "bg-amber-700 text-white hover:bg-amber-800"
                     )}
                 >
-                    View Plans
+                    {t("billing.viewPlans")}
                 </button>
             </div>
         );

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
+import { useLanguage } from "@/hooks/use-language";
 
 /** Smooth two-tone ring spinner — replaces the default Loader2 for a more premium feel. */
 function ButtonSpinner() {
@@ -43,6 +44,7 @@ function SuccessCheck() {
 }
 
 function LoginForm() {
+    const { t } = useLanguage();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { signIn, signInWithGoogle, user, isLoading: authLoading } = useAuth();
@@ -140,7 +142,7 @@ function LoginForm() {
                         transition={{ delay: 0.3 }}
                         className="text-2xl font-bold text-[#1E1E1E] mb-1"
                     >
-                        Welcome Back
+                        {t("login.title")}
                     </motion.h1>
                     <motion.p
                         initial={{ opacity: 0 }}
@@ -148,7 +150,7 @@ function LoginForm() {
                         transition={{ delay: 0.4 }}
                         className="text-[#6B6B6B] text-sm"
                     >
-                        Sign in to Schenider Order Management
+                        {t("login.subtitle")}
                     </motion.p>
                 </div>
 
@@ -187,7 +189,7 @@ function LoginForm() {
                         transition={{ delay: 0.4 }}
                     >
                         <label className="block text-sm font-medium text-[#1E1E1E] mb-2">
-                            Email Address
+                            {t("login.email")}
                         </label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
@@ -215,7 +217,7 @@ function LoginForm() {
                         transition={{ delay: 0.5 }}
                     >
                         <label className="block text-sm font-medium text-[#1E1E1E] mb-2">
-                            Password
+                            {t("login.password")}
                         </label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
@@ -272,14 +274,14 @@ function LoginForm() {
                                 </div>
                             </div>
                             <span className="text-sm text-[#6B6B6B] group-hover:text-[#1E1E1E] transition-colors">
-                                Remember me
+                                {t("login.rememberMe")}
                             </span>
                         </label>
                         <Link
                             href="/forgot-password"
                             className="text-sm text-[#6B6B6B] hover:text-[#1E1E1E] transition-colors"
                         >
-                            Forgot password?
+                            {t("login.forgot")}
                         </Link>
                     </motion.div>
 
@@ -353,7 +355,7 @@ function LoginForm() {
                                             className="flex items-center gap-2"
                                         >
                                             <ButtonSpinner />
-                                            <span>Signing in</span>
+                                            <span>{t("login.submitting")}</span>
                                         </motion.span>
                                     ) : (
                                         <motion.span
@@ -363,7 +365,7 @@ function LoginForm() {
                                             exit={{ opacity: 0, y: -8 }}
                                             transition={{ duration: 0.2 }}
                                         >
-                                            Sign In
+                                            {t("login.submit")}
                                         </motion.span>
                                     )}
                                 </AnimatePresence>
@@ -374,7 +376,7 @@ function LoginForm() {
                     {/* Divider */}
                     <div className="flex items-center gap-3 py-1">
                         <div className="h-px flex-1 bg-[#E8E4DC]" />
-                        <span className="text-xs text-[#9A9A9A]">or</span>
+                        <span className="text-xs text-[#9A9A9A]">{t("login.or")}</span>
                         <div className="h-px flex-1 bg-[#E8E4DC]" />
                     </div>
 
@@ -391,7 +393,7 @@ function LoginForm() {
                             <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/>
                             <path fill="#EA4335" d="M12 4.75c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 1.46 14.97.5 12 .5A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 6.68 9.14 4.75 12 4.75Z"/>
                         </svg>
-                        <span>Continue with Google</span>
+                        <span>{t("login.google")}</span>
                     </button>
                 </form>
 

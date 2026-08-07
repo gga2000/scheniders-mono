@@ -7,6 +7,7 @@
 // =====================================================================
 
 import type { z } from "zod";
+import { humanizeFieldKey } from "@/lib/section-field-meta";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Schema introspection                                                 */
@@ -208,14 +209,9 @@ export function hasOverrideAtPath(obj: Record<string, unknown>, path: string): b
 /* ─────────────────────────────────────────────────────────────────── */
 
 export function humanLabel(key: string): string {
-    if (!key) return "";
-    return key
-        .replace(/_i18n$/g, "")
-        .replace(/_/g, " ")
-        .replace(/\bid\b/gi, "ID")
-        .replace(/\bcta\b/gi, "CTA")
-        .replace(/\burl\b/gi, "URL")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
+    // Single shared humanizer (UX2-17) — kept as a named re-export because
+    // variant UI imports it from this module.
+    return humanizeFieldKey(key);
 }
 
 export function humanPath(path: string): string {

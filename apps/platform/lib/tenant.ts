@@ -93,14 +93,46 @@ export interface WalletInfo {
 // =============================================
 
 /**
+ * Arabic → Latin transliteration for slugs (UX2-13).
+ *
+ * Without this every Arabic-named store slugged to `tenant-<timestamp>`,
+ * because the `[^a-z0-9-]` strip below deleted the whole name — so the
+ * merchant's public, WhatsApp-shared URL was a machine id. Iraqi
+ * merchants name their store in Arabic, so this is the common path, not
+ * the edge case. Mapping is intentionally simple (no diacritics, no
+ * hamza forms) because the output only needs to be readable and stable.
+ */
+const AR_TO_LATIN: Record<string, string> = {
+    'ا': 'a', 'أ': 'a', 'إ': 'a', 'آ': 'a', 'ب': 'b', 'ت': 't', 'ث': 'th',
+    'ج': 'j', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'dh', 'ر': 'r', 'ز': 'z',
+    'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a',
+    'غ': 'gh', 'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n',
+    'ه': 'h', 'و': 'w', 'ي': 'y', 'ى': 'a', 'ة': 'a', 'ء': '', 'ؤ': 'w',
+    'ئ': 'y', 'پ': 'p', 'چ': 'ch', 'ژ': 'zh', 'گ': 'g', 'ڵ': 'l', 'ڕ': 'r',
+    'ۆ': 'o', 'ێ': 'e',
+};
+
+function transliterateArabic(input: string): string {
+    let out = '';
+    for (const ch of input) {
+        if (ch in AR_TO_LATIN) out += AR_TO_LATIN[ch];
+        // Drop Arabic diacritics/tatweel entirely rather than turning them
+        // into separators.
+        else if (/[ً-ْـ]/.test(ch)) continue;
+        else out += ch;
+    }
+    return out;
+}
+
+/**
  * Generate a URL-safe slug from a business name.
  * "Acme Perfumes" → "acme-perfumes"
+ * "متجر زهراء"    → "mtjr-zhraa"
  */
 export function generateSlug(name: string): string {
-    return name
+    return transliterateArabic(name)
         .toLowerCase()
         .trim()
-        // Replace Arabic/special chars with latin equivalents where possible
         .replace(/\s+/g, '-')
         .replace(/[^a-z0-9-]/g, '')
         .replace(/-+/g, '-')

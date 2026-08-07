@@ -194,6 +194,7 @@ export function ExperimentsScreen({
     onClose,
     nowOverride,
 }: ExperimentsScreenProps): ReactElement {
+    const locale = useEditorLocale();
     const experiments = builder.config.experiments;
     const [editingId, setEditingId] = useState<string | null>(null);
     const [viewingId, setViewingId] = useState<string | null>(null);
@@ -316,7 +317,7 @@ export function ExperimentsScreen({
                         type="button"
                         onClick={onClose}
                         data-testid="experiments-back"
-                        aria-label="Back"
+                        aria-label={t(STRINGS.advanced_chrome.adv_back, locale)}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
@@ -348,10 +349,11 @@ export function ExperimentsScreen({
                         className="max-w-md rounded-2xl border border-dashed border-(--card-border) p-10 text-center"
                     >
                         <BarChart3 className="mx-auto h-6 w-6 text-muted-foreground" />
-                        <p className="mt-2 text-sm font-medium">No experiments yet</p>
+                        <p className="mt-2 text-sm font-medium">
+                            {t(STRINGS.advanced_chrome.exp_empty_title, locale)}
+                        </p>
                         <p className="mt-1 text-[12px] text-foreground/80">
-                            Run A/B tests against any section variant. Pick a primary
-                            metric, split traffic across arms, and promote the winner.
+                            {t(STRINGS.advanced_chrome.exp_empty_body, locale)}
                         </p>
                         <button
                             type="button"
@@ -360,7 +362,7 @@ export function ExperimentsScreen({
                             className="mt-4 inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                         >
                             <Plus className="h-3.5 w-3.5" />
-                            Create your first experiment
+                            {t(STRINGS.advanced_chrome.exp_empty_new, locale)}
                         </button>
                     </div>
                 </div>
@@ -686,6 +688,7 @@ function ExperimentEditor({
     onPatch,
     onDelete,
 }: ExperimentEditorProps): ReactElement {
+    const locale = useEditorLocale();
     const total = experiment.arms.reduce((s, a) => s + a.traffic_pct, 0);
     const sumsTo100 = total === 100;
 
@@ -730,13 +733,13 @@ function ExperimentEditor({
             <aside className="flex w-full max-w-xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <h3 className="text-base font-bold tracking-tight">
-                        Edit experiment
+                        {t(STRINGS.advanced_chrome.exp_editor_title, locale)}
                     </h3>
                     <button
                         type="button"
                         onClick={onClose}
                         data-testid="experiment-editor-close"
-                        aria-label="Close"
+                        aria-label={t(STRINGS.advanced_chrome.adv_close, locale)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
@@ -807,7 +810,7 @@ function ExperimentEditor({
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
-                                Arms
+                                {t(STRINGS.advanced_chrome.exp_arms, locale)}
                             </span>
                             <button
                                 type="button"
@@ -820,7 +823,7 @@ function ExperimentEditor({
                                 )}
                             >
                                 <Plus className="h-3 w-3" />
-                                Add arm
+                                {t(STRINGS.advanced_chrome.exp_add_arm, locale)}
                             </button>
                         </div>
                         <ul className="space-y-2">
@@ -860,7 +863,7 @@ function ExperimentEditor({
                                         onClick={() => handleArmDelete(arm.id)}
                                         disabled={arm.id === "control"}
                                         data-testid={`experiment-arm-${arm.id}-delete`}
-                                        aria-label="Delete arm"
+                                        aria-label={t(STRINGS.advanced_chrome.exp_delete_arm_aria, locale)}
                                         className={cn(
                                             "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-700",
                                             arm.id === "control" && "opacity-30 cursor-not-allowed",
@@ -884,7 +887,7 @@ function ExperimentEditor({
                             <span className="font-semibold tabular-nums">{total}%</span>{" "}
                             {!sumsTo100 && (
                                 <span data-testid="experiment-editor-traffic-error">
-                                    — must sum to 100
+                                    {t(STRINGS.advanced_chrome.exp_traffic_sum_error, locale)}
                                 </span>
                             )}
                         </div>
@@ -894,7 +897,7 @@ function ExperimentEditor({
                     <Field label="Status">
                         <div
                             role="radiogroup"
-                            aria-label="Status"
+                            aria-label={t(STRINGS.advanced_chrome.exp_field_status, locale)}
                             className="flex flex-wrap gap-2"
                         >
                             {STATUSES.map((s) => (
@@ -962,6 +965,7 @@ function ExperimentViewer({
     builder,
     onClose,
 }: ExperimentViewerProps): ReactElement {
+    const locale = useEditorLocale();
     const [stats, setStats] = useState<ExperimentStats | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -1009,7 +1013,7 @@ function ExperimentViewer({
                             type="button"
                             onClick={() => void refresh()}
                             data-testid="experiment-viewer-refresh"
-                            aria-label="Refresh"
+                            aria-label={t(STRINGS.advanced_chrome.adv_refresh, locale)}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                         >
                             <RefreshCw
@@ -1020,7 +1024,7 @@ function ExperimentViewer({
                             type="button"
                             onClick={onClose}
                             data-testid="experiment-viewer-close"
-                            aria-label="Close"
+                            aria-label={t(STRINGS.advanced_chrome.adv_close, locale)}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                         >
                             <X className="h-4 w-4" />
@@ -1041,7 +1045,7 @@ function ExperimentViewer({
                         </div>
                     ) : !stats ? (
                         <p className="text-[12px] text-muted-foreground">
-                            No data yet.
+                            {t(STRINGS.advanced_chrome.exp_no_data, locale)}
                         </p>
                     ) : (
                         <ul className="space-y-3" data-testid="experiment-viewer-arms">
@@ -1070,7 +1074,7 @@ function ExperimentViewer({
                                                 </h4>
                                                 {isControl && (
                                                     <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
-                                                        Control
+                                                        {t(STRINGS.advanced_chrome.exp_control_badge, locale)}
                                                     </span>
                                                 )}
                                                 <span className="text-[11px] text-muted-foreground">
@@ -1266,6 +1270,7 @@ function DeleteConfirm({
     onCancel,
     onConfirm,
 }: DeleteConfirmProps): ReactElement {
+    const locale = useEditorLocale();
     const needsAck = refsCount > 0 && !acknowledgedRefs;
     return (
         <div
@@ -1282,7 +1287,7 @@ function DeleteConfirm({
                         type="button"
                         onClick={onCancel}
                         data-testid="experiment-delete-cancel"
-                        aria-label="Cancel"
+                        aria-label={t(STRINGS.advanced_chrome.adv_cancel, locale)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
@@ -1310,7 +1315,7 @@ function DeleteConfirm({
                         </div>
                     ) : (
                         <p className="text-muted-foreground">
-                            This will remove the experiment from your store config.
+                            {t(STRINGS.advanced_chrome.exp_delete_body, locale)}
                         </p>
                     )}
                 </div>
@@ -1332,12 +1337,12 @@ function DeleteConfirm({
                         {needsAck ? (
                             <>
                                 <AlertCircle className="h-3.5 w-3.5" />
-                                I understand, continue
+                                {t(STRINGS.advanced_chrome.adv_understand_continue, locale)}
                             </>
                         ) : (
                             <>
                                 <Check className="h-3.5 w-3.5" />
-                                Delete experiment
+                                {t(STRINGS.advanced_chrome.exp_delete_confirm, locale)}
                             </>
                         )}
                     </button>

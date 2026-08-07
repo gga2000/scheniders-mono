@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import {
     FIELD_GROUPS_ORDER,
     getFieldGroup,
+    getFieldGroupForMode,
     hasFieldGroups,
     isFieldVisible,
 } from "./section-field-groups";
@@ -280,11 +281,40 @@ describe("isFieldVisible", () => {
     });
 
     it("simple mode hides logic-group fields and keeps essential/style", () => {
-        expect(isFieldVisible("simple", "hero_image", "cta_href")).toBe(false);
-        expect(isFieldVisible("simple", "product_grid", "manual_skus")).toBe(false);
+        expect(isFieldVisible("simple", "hero_image", "analytics_tag")).toBe(false);
+        expect(isFieldVisible("simple", "product_grid", "query")).toBe(false);
         expect(isFieldVisible("simple", "hero_image", "title_i18n")).toBe(true);
         expect(isFieldVisible("simple", "hero_image", "image_url")).toBe(true);
         expect(isFieldVisible("simple", "hero_image", "align")).toBe(true);
+    });
+
+    it("UX2-01: merchant-essential wiring stays visible in Simple", () => {
+        // A button whose text is editable must have an editable target.
+        expect(isFieldVisible("simple", "hero_image", "cta_href")).toBe(true);
+        expect(isFieldVisible("simple", "hero_image", "secondary_cta_kind")).toBe(true);
+        expect(isFieldVisible("simple", "hero_image", "secondary_cta_value")).toBe(true);
+        // Grids need their product picker; countdowns need their date.
+        expect(isFieldVisible("simple", "product_grid", "product_ids")).toBe(true);
+        expect(isFieldVisible("simple", "product_grid", "manual_skus")).toBe(true);
+        expect(isFieldVisible("simple", "countdown_card", "countdown_to_iso")).toBe(true);
+        expect(isFieldVisible("simple", "free_gift_strip", "threshold_iqd")).toBe(true);
+        expect(isFieldVisible("simple", "exit_intent_offer", "discount_code")).toBe(true);
+        expect(isFieldVisible("simple", "category_grid", "category_id")).toBe(true);
+    });
+
+    it("UX2-01: whitelisted wiring is promoted into the essential group in Simple", () => {
+        expect(getFieldGroupForMode("simple", "hero_image", "cta_href")).toBe("essential");
+        expect(getFieldGroupForMode("simple", "product_grid", "product_ids")).toBe("essential");
+        // Advanced keeps the true classification.
+        expect(getFieldGroupForMode("advanced", "hero_image", "cta_href")).toBe("logic");
+        // Non-whitelisted keys keep their group in Simple too.
+        expect(getFieldGroupForMode("simple", "hero_image", "title_i18n")).toBe("essential");
+        expect(getFieldGroupForMode("simple", "hero_image", "align")).toBe("style");
+    });
+
+    it("UX2-16: raw HTML is Advanced-only", () => {
+        expect(isFieldVisible("simple", "html_embed", "html")).toBe(false);
+        expect(isFieldVisible("advanced", "html_embed", "html")).toBe(true);
     });
 
     it("unknown section types never hide fields they can't misclassify as logic", () => {

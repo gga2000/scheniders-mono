@@ -11,7 +11,9 @@ import {
     Loader2,
     RefreshCw,
 } from "lucide-react";
+import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
+import { STRINGS, t } from "@/lib/editor-i18n";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 
@@ -19,6 +21,8 @@ interface DomainDialogProps {
     tenantId: string;
     slug: string;
     onClose: () => void;
+    /** Hub chrome locale — the store's `default_locale` (UX2-14). */
+    locale: LocaleCode;
 }
 
 interface TenantDomain {
@@ -30,8 +34,9 @@ interface TenantDomain {
     created_at: string;
 }
 
-export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
+export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogProps) {
     const queryClient = useQueryClient();
+    const verifyFailed = t(STRINGS.command_center.domain_toast_verify_failed, locale);
     const [showConnect, setShowConnect] = useState(false);
     const [domainInput, setDomainInput] = useState("");
 
@@ -77,10 +82,10 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
             queryClient.invalidateQueries({ queryKey: ["tenant-domains", tenantId] });
             setShowConnect(false);
             setDomainInput("");
-            toast.success("Domain added. Configure your DNS to complete setup.");
+            toast.success(t(STRINGS.command_center.domain_toast_added, locale));
         },
         onError: () => {
-            toast.error("Failed to add domain");
+            toast.error(t(STRINGS.command_center.domain_toast_add_failed, locale));
         },
     });
 
@@ -94,16 +99,16 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
             });
             if (!res.ok) {
                 const err = (await res.json()) as { error?: string };
-                throw new Error(err.error ?? "Verification failed");
+                throw new Error(err.error ?? verifyFailed);
             }
             return res.json();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tenant-domains", tenantId] });
-            toast.success("Domain verified!");
+            toast.success(t(STRINGS.command_center.domain_toast_verified, locale));
         },
         onError: (err: Error) => {
-            toast.error(err.message || "Verification failed");
+            toast.error(err.message || verifyFailed);
         },
     });
 
@@ -121,9 +126,12 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
             <div className="relative rounded-2xl border border-border bg-(--card-bg) p-6 w-full max-w-sm shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-semibold text-foreground">Custom domain</h3>
+                    <h3 className="text-base font-semibold text-foreground">
+                        {t(STRINGS.command_center.domain_heading, locale)}
+                    </h3>
                     <button
                         onClick={onClose}
+                        aria-label={t(STRINGS.command_center.dialog_close, locale)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
                     >
                         <X className="w-4 h-4" />
@@ -131,7 +139,7 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
                 </div>
 
                 <p className="text-sm text-muted-foreground mb-4">
-                    Connect your own domain to this store.
+                    {t(STRINGS.command_center.domain_intro, locale)}
                 </p>
 
                 {/* Domain list */}
@@ -153,11 +161,13 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
                                     </span>
                                     {domain.verified ? (
                                         <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full shrink-0">
-                                            <Check className="w-2.5 h-2.5" /> Active
+                                            <Check className="w-2.5 h-2.5" />{" "}
+                                            {t(STRINGS.command_center.domain_status_active, locale)}
                                         </span>
                                     ) : (
                                         <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full shrink-0">
-                                            <AlertCircle className="w-2.5 h-2.5" /> Pending
+                                            <AlertCircle className="w-2.5 h-2.5" />{" "}
+                                            {t(STRINGS.command_center.domain_status_pending, locale)}
                                         </span>
                                     )}
                                 </div>
@@ -173,7 +183,7 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
                                         ) : (
                                             <RefreshCw className="w-3 h-3" />
                                         )}
-                                        Verify
+                                        {t(STRINGS.command_center.domain_verify, locale)}
                                     </button>
                                 )}
                             </div>
@@ -189,13 +199,13 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                     >
                         <Globe className="w-4 h-4" />
-                        Connect Custom Domain
+                        {t(STRINGS.command_center.domain_connect_cta, locale)}
                     </button>
                 ) : (
                     <div className="rounded-xl border border-border bg-muted/10 p-4 space-y-3">
                         <div>
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                                Domain Name
+                                {t(STRINGS.command_center.domain_name_label, locale)}
                             </label>
                             <input
                                 type="text"
@@ -211,17 +221,20 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
                         {/* DNS instructions */}
                         <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
                             <p className="text-xs font-medium text-blue-800 dark:text-blue-200 mb-2">
-                                DNS Configuration
+                                {t(STRINGS.command_center.domain_dns_heading, locale)}
                             </p>
                             <div className="text-[11px] text-blue-700 dark:text-blue-300 font-mono space-y-1">
                                 <p>
-                                    Type: <strong>CNAME</strong>
+                                    {t(STRINGS.command_center.domain_dns_type, locale)}{" "}
+                                    <strong>CNAME</strong>
                                 </p>
                                 <p>
-                                    Name: <strong>{domainInput || slug}</strong>
+                                    {t(STRINGS.command_center.domain_dns_name, locale)}{" "}
+                                    <strong>{domainInput || slug}</strong>
                                 </p>
                                 <p>
-                                    Value: <strong>cname.scheniders.com</strong>
+                                    {t(STRINGS.command_center.domain_dns_value, locale)}{" "}
+                                    <strong>cname.scheniders.com</strong>
                                 </p>
                             </div>
                         </div>
@@ -239,14 +252,14 @@ export function DomainDialog({ tenantId, slug, onClose }: DomainDialogProps) {
                                 {addDomain.isPending && (
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 )}
-                                Connect
+                                {t(STRINGS.command_center.domain_connect, locale)}
                             </button>
                             <button
                                 type="button"
                                 onClick={cancelConnect}
                                 className="px-3 py-2 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted/30 transition-colors"
                             >
-                                Cancel
+                                {t(STRINGS.command_center.domain_cancel, locale)}
                             </button>
                         </div>
                     </div>

@@ -275,17 +275,6 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
     return wrap(control);
 }
 
-export function humanLabel(key: string): string {
-    if (!key || key === "root") return "";
-    return key
-        .replace(/_i18n$/g, "")
-        .replace(/_/g, " ")
-        .replace(/\bid\b/gi, "ID")
-        .replace(/\bcta\b/gi, "CTA")
-        .replace(/\burl\b/gi, "URL")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 export function defaultValueForField(field: FieldShape): unknown {
     switch (field.kind) {
         case "string":
@@ -566,6 +555,7 @@ interface NumberControlProps {
 }
 
 export function NumberControl(p: NumberControlProps): ReactElement {
+    const locale = useResolvedEditorLocale();
     // A bounded range (both min + max) gets a slider for fast, in-range
     // adjustment (C7). Step is 1 for integers, else a fine fraction so 0–1
     // ratios (e.g. opacity) feel continuous.
@@ -618,10 +608,10 @@ export function NumberControl(p: NumberControlProps): ReactElement {
             {(p.min !== undefined || p.max !== undefined) && (
                 <p className="text-[11px] text-muted-foreground">
                     {p.min !== undefined && p.max !== undefined
-                        ? `Range: ${p.min}–${p.max}`
+                        ? tFormat(STRINGS.auto_form.range_hint, locale, { min: p.min, max: p.max })
                         : p.min !== undefined
-                          ? `Min: ${p.min}`
-                          : `Max: ${p.max}`}
+                          ? tFormat(STRINGS.auto_form.min_hint, locale, { min: p.min })
+                          : tFormat(STRINGS.auto_form.max_hint, locale, { max: p.max ?? "" })}
                 </p>
             )}
         </div>

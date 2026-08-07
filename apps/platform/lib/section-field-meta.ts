@@ -102,6 +102,11 @@ const GENERIC_FIELD_LABELS: Record<string, EditorString> = {
     manual_skus: { en: "Product codes (SKU)", ar: "أكواد المنتجات (SKU)", ku: "کۆدی بەرهەمەکان (SKU)" },
     analytics_tag: { en: "Analytics tag", ar: "وسم التحليلات", ku: "تاگی شیکاری" },
     show_prices: { en: "Show prices", ar: "إظهار الأسعار", ku: "نرخەکان پیشان بدە" },
+    countdown_to_iso: { en: "Ends at", ar: "ينتهي في", ku: "کۆتایی دێت لە" },
+    target_iso: { en: "Ends at", ar: "ينتهي في", ku: "کۆتایی دێت لە" },
+    discount_code: { en: "Discount code", ar: "كود الخصم", ku: "کۆدی داشکاندن" },
+    threshold_iqd: { en: "Minimum order (IQD)", ar: "الحد الأدنى للطلب (د.ع)", ku: "کەمترین داواکاری (د.ع)" },
+    html: { en: "HTML code", ar: "كود HTML", ku: "کۆدی HTML" },
 };
 
 /* ── Sparse help — only where the label alone isn't enough ────────── */
@@ -114,6 +119,11 @@ const GENERIC_FIELD_HELP: Record<string, EditorString> = {
     analytics_tag: { en: "Optional — a name for tracking clicks on this section.", ar: "اختياري — اسم لتتبّع النقرات على هذا القسم.", ku: "ئارەزوومەندانە — ناوێک بۆ شوێنکەوتنی کلیکەکان لەم بەشە." },
     limit: { en: "Maximum number of products shown in this section.", ar: "أقصى عدد منتجات يظهر في هذا القسم.", ku: "زۆرترین ژمارەی بەرهەم کە لەم بەشەدا دەردەکەوێت." },
     overlay_opacity: { en: "Higher = darker image, easier-to-read text.", ar: "أعلى = صورة أغمق ونص أوضح.", ku: "بەرزتر = وێنەی تاریکتر و دەقی ڕوونتر." },
+    countdown_to_iso: { en: "Date and time the countdown reaches zero.", ar: "تاريخ ووقت وصول العدّاد إلى الصفر.", ku: "بەروار و کاتی گەیشتنی ژمێرەر بە سفر." },
+    target_iso: { en: "Date and time the countdown reaches zero.", ar: "تاريخ ووقت وصول العدّاد إلى الصفر.", ku: "بەروار و کاتی گەیشتنی ژمێرەر بە سفر." },
+    discount_code: { en: "The code your customer types at checkout.", ar: "الكود الذي يكتبه زبونك عند الدفع.", ku: "ئەو کۆدەی کڕیارەکەت لە کاتی پارەداندا دەینووسێت." },
+    threshold_iqd: { en: "Offer applies from this order total.", ar: "يسري العرض ابتداءً من هذا المجموع.", ku: "ئۆفەرەکە لەم کۆیەوە دەستپێدەکات." },
+    secondary_cta_value: { en: "Phone number, or category link — depends on the type above.", ar: "رقم هاتف أو رابط فئة — حسب النوع أعلاه.", ku: "ژمارەی تەلەفۆن یان بەستەری پۆل — بەپێی جۆرەکەی سەرەوە." },
 };
 
 /* ── Per-section overrides (labels that need section context) ─────── */

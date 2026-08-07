@@ -52,12 +52,13 @@ import { SectionPicker } from "./section-picker";
 import { PageTemplatePicker } from "./page-template-picker";
 import { useSectionPresets } from "@/hooks/use-section-presets";
 import { templatesForPage } from "@/lib/page-templates";
+import { checkCopyMessage } from "@/lib/health-check-copy";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { cn } from "@/lib/utils";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 import { EditorModeProvider, type EditorMode } from "@/lib/editor-mode-context";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { PublishConfirmSheet } from "./publish-confirm-sheet";
 import {
     runHealthChecks,
@@ -699,7 +700,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleBrandKitChange = useCallback(
         (next: BrandKit): void => {
-            builder.setConfig((prev) => ({ ...prev, brand_kit: next }));
+            builder.setConfig(
+                (prev) => ({ ...prev, brand_kit: next }),
+                t(STRINGS.history.edit_brand_kit, builder.active_locale),
+            );
         },
         [builder],
     );
@@ -722,8 +726,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleSectionsChange = useCallback(
         (next: SectionInstance[]): void => {
-            builder.setConfig((prev) =>
-                withActivePageSections(prev, editTarget, () => next),
+            // UX2-12: readable undo history — infer the operation from the
+            // shape of the change (all add/delete/reorder/edit flows funnel
+            // through here, including the mobile shell and context menu).
+            const prevSections = activePageSections(builder.config, editTarget);
+            const desc =
+                next.length > prevSections.length
+                    ? STRINGS.history.add_section
+                    : next.length < prevSections.length
+                      ? STRINGS.history.delete_section
+                      : prevSections.some((s, i) => next[i]?.id !== s.id)
+                        ? STRINGS.history.reorder_sections
+                        : STRINGS.history.edit_section;
+            builder.setConfig(
+                (prev) => withActivePageSections(prev, editTarget, () => next),
+                t(desc, builder.active_locale),
             );
         },
         [builder, editTarget],
@@ -743,7 +760,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         (next: PageMeta): void => {
             builder.setConfig(
                 (prev) => withActivePageMeta(prev, editTarget, next),
-                "Edited page SEO",
+                t(STRINGS.history.edit_page_seo, builder.active_locale),
             );
         },
         [builder, editTarget],
@@ -792,7 +809,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         };
                         return next;
                     }),
-                "Resized spacing",
+                t(STRINGS.history.resize_spacing, builder.active_locale),
             );
         },
         [builder, editTarget],
@@ -1231,15 +1248,24 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // otherwise it contradicts the enabled Publish button.
     const publishBlockedReason = useMemo<string | null>(() => {
         if (healthBlocking.length === 0) return null;
-        // Use rule-defined messages instead of raw ids so the tooltip is
-        // human-readable. Locale-aware message fields would go here if
-        // added; for now `message` is English-only.
+        // Localized merchant copy per check (UX2-05) — shared with the
+        // Health screen and publish sheet via lib/health-check-copy.
         const messages = healthBlocking
             .slice(0, 3)
-            .map((c) => c.message ?? c.id);
-        const more = healthBlocking.length > 3 ? `, +${healthBlocking.length - 3} more` : "";
-        return `${healthBlocking.length} health warning${healthBlocking.length === 1 ? "" : "s"} will be shown before you publish: ${messages.join("; ")}${more}`;
-    }, [healthBlocking]);
+            .map((c) => checkCopyMessage(c.id, c.message ?? c.id, builder.active_locale));
+        const more =
+            healthBlocking.length > 3
+                ? tFormat(STRINGS.publish.blocked_tooltip_more, builder.active_locale, {
+                      n: healthBlocking.length - 3,
+                  })
+                : "";
+        return (
+            tFormat(STRINGS.publish.blocked_tooltip, builder.active_locale, {
+                n: healthBlocking.length,
+                list: messages.join("؛ "),
+            }) + more
+        );
+    }, [healthBlocking, builder.active_locale]);
 
     // Phase 2d: detect mobile viewport. We keep the desktop 3-pane path
     // unchanged for ≥1024px and swap to MobileEditorShell below.

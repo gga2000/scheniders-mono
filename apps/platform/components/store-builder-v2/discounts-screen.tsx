@@ -13,6 +13,8 @@ import { useCallback } from "react";
 import { X, Plus, Trash2, Ticket } from "lucide-react";
 import type { DiscountCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 
 export interface DiscountsScreenProps {
@@ -35,6 +37,7 @@ export function DiscountsScreen({
     builder,
     onClose,
 }: DiscountsScreenProps): React.ReactElement {
+    const locale = useResolvedEditorLocale();
     const discounts: DiscountCode[] = builder.config.commerce?.discounts ?? [];
 
     const setDiscounts = useCallback(
@@ -69,7 +72,7 @@ export function DiscountsScreen({
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        aria-label="Close discount codes"
+                        aria-label={t(STRINGS.advanced_chrome.disc_close_aria, locale)}
                         data-testid="discounts-close"
                         onClick={onClose}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
@@ -79,7 +82,7 @@ export function DiscountsScreen({
                     <div className="flex items-center gap-2">
                         <Ticket className="h-4 w-4 text-fuchsia-600" aria-hidden="true" />
                         <h2 className="text-sm font-semibold text-foreground">
-                            Discount codes
+                            {t(STRINGS.advanced_chrome.disc_heading, locale)}
                         </h2>
                     </div>
                 </div>
@@ -90,15 +93,13 @@ export function DiscountsScreen({
                     className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
                 >
                     <Plus className="h-3.5 w-3.5" />
-                    Add code
+                    {t(STRINGS.advanced_chrome.disc_add_code, locale)}
                 </button>
             </header>
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">
-                    Create coupon codes customers enter at checkout. Percent codes
-                    take a share off the subtotal (optionally capped); fixed codes
-                    take a set amount (IQD). Both can require a minimum subtotal.
+                    {t(STRINGS.advanced_chrome.disc_intro, locale)}
                 </p>
 
                 {discounts.length === 0 ? (
@@ -109,7 +110,7 @@ export function DiscountsScreen({
                         className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-(--card-border) bg-(--background-soft) py-10 text-sm text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
                     >
                         <Ticket className="h-6 w-6" />
-                        No codes yet — add your first
+                        {t(STRINGS.advanced_chrome.disc_empty, locale)}
                     </button>
                 ) : (
                     <ul className="flex flex-col gap-2.5">
@@ -146,11 +147,11 @@ export function DiscountsScreen({
                                         }
                                         className={inputCls}
                                     >
-                                        <option value="percent">% off</option>
-                                        <option value="fixed">IQD off</option>
+                                        <option value="percent">{t(STRINGS.advanced_chrome.adv_percent_off, locale)}</option>
+                                        <option value="fixed">{t(STRINGS.advanced_chrome.adv_iqd_off, locale)}</option>
                                     </select>
                                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        Value
+                                        {t(STRINGS.advanced_chrome.adv_value, locale)}
                                         <input
                                             type="number"
                                             min={0}
@@ -164,7 +165,7 @@ export function DiscountsScreen({
                                         />
                                     </label>
                                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        Min subtotal
+                                        {t(STRINGS.advanced_chrome.disc_min_subtotal, locale)}
                                         <input
                                             type="number"
                                             min={0}
@@ -182,7 +183,7 @@ export function DiscountsScreen({
                                     </label>
                                     {d.kind === "percent" && (
                                         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                            Max off
+                                            {t(STRINGS.advanced_chrome.disc_max_off, locale)}
                                             <input
                                                 type="number"
                                                 min={0}
@@ -208,11 +209,11 @@ export function DiscountsScreen({
                                                 updateRow(i, { enabled: e.target.checked })
                                             }
                                         />
-                                        Active
+                                        {t(STRINGS.advanced_chrome.adv_active, locale)}
                                     </label>
                                     <button
                                         type="button"
-                                        aria-label="Remove code"
+                                        aria-label={t(STRINGS.advanced_chrome.disc_remove_aria, locale)}
                                         data-testid={`discount-remove-${i}`}
                                         onClick={() => removeRow(i)}
                                         className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"

@@ -191,19 +191,21 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
     const setVoiceNotes = (v: I18nString): void => patch("voice", { notes: v });
 
     const colorRows: ReadonlyArray<{ key: keyof BrandColors; label: string }> = [
-        { key: "primary", label: "Primary" },
-        { key: "secondary", label: "Secondary" },
-        { key: "accent", label: "Accent" },
-        { key: "surface", label: "Surface" },
-        { key: "surface_alt", label: "Surface alt" },
-        { key: "ink", label: "Ink" },
-        { key: "success", label: "Success" },
-        { key: "danger", label: "Danger" },
+        { key: "primary", label: tChrome(STRINGS.brand_kit_body.color_primary, chromeLocale) },
+        { key: "secondary", label: tChrome(STRINGS.brand_kit_body.color_secondary, chromeLocale) },
+        { key: "accent", label: tChrome(STRINGS.brand_kit_body.color_accent, chromeLocale) },
+        { key: "surface", label: tChrome(STRINGS.brand_kit_body.color_surface, chromeLocale) },
+        { key: "surface_alt", label: tChrome(STRINGS.brand_kit_body.color_surface_alt, chromeLocale) },
+        { key: "ink", label: tChrome(STRINGS.brand_kit_body.color_ink, chromeLocale) },
+        { key: "success", label: tChrome(STRINGS.brand_kit_body.color_success, chromeLocale) },
+        { key: "danger", label: tChrome(STRINGS.brand_kit_body.color_danger, chromeLocale) },
     ];
 
     /* ── Palette extraction ───────────────────────────────────────── */
     const [extractedPalette, setExtractedPalette] = useState<string[] | null>(null);
-    const [extractionError, setExtractionError] = useState<string | null>(null);
+    // Stored as a kind (not a rendered string) so the message follows the
+    // chrome locale even if it changes while the error is on screen.
+    const [extractionError, setExtractionError] = useState<"no_colors" | "cors" | null>(null);
     const [extracting, setExtracting] = useState<boolean>(false);
 
     const runExtraction = useCallback(async () => {
@@ -213,14 +215,12 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
         try {
             const palette = await extractPaletteFromLogo(identity.logo_url);
             if (palette.length === 0) {
-                setExtractionError("Couldn't find dominant colors in this logo.");
+                setExtractionError("no_colors");
             } else {
                 setExtractedPalette(palette);
             }
         } catch {
-            setExtractionError(
-                "Couldn't read logo — make sure it's hosted with CORS enabled.",
-            );
+            setExtractionError("cors");
         } finally {
             setExtracting(false);
         }
@@ -228,14 +228,19 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
     const applyExtracted = (slot: keyof BrandColors, hex: string): void => {
         setColor(slot, hex);
-        toast.success(`Applied ${hex} to ${slot.replace("_", " ")}`);
+        toast.success(
+            tChromeFormat(STRINGS.brand_kit_body.toast_applied_color, chromeLocale, {
+                hex,
+                slot: slot.replace("_", " "),
+            }),
+        );
     };
 
     const randomizePalette = (): void => {
         const next = randomHarmoniousPalette();
         // preserve surface_alt + ink + success + danger if merchant set custom values? Keep simple: full overwrite.
         setAllColors(next);
-        toast.success("New palette generated");
+        toast.success(tChrome(STRINGS.brand_kit_body.toast_palette_generated, chromeLocale));
     };
 
     return (
@@ -246,16 +251,17 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
             {/* Left: form */}
             <div className="space-y-5">
                 <header className="space-y-1">
-                    <h2 className="text-xl font-bold tracking-tight">Brand Kit</h2>
+                    <h2 className="text-xl font-bold tracking-tight">
+                        {tChrome(STRINGS.brand_kit.heading, chromeLocale)}
+                    </h2>
                     <p className="text-sm text-muted-foreground">
-                        Single source of truth for your storefront&apos;s visual identity.
-                        Edit any field — the right preview updates instantly.
+                        {tChrome(STRINGS.brand_kit.intro, chromeLocale)}
                     </p>
                 </header>
 
                 {/* Identity */}
                 <Card
-                    title="Identity"
+                    title={tChrome(STRINGS.brand_kit.card_identity, chromeLocale)}
                     icon={<ImageIcon className="h-3.5 w-3.5" />}
                     onReset={() => resetBranch("identity")}
                     resetTestId="reset-identity"
@@ -263,21 +269,23 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                     <div className="space-y-4">
                         <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium">Store name</label>
+                                <label className="text-sm font-medium">
+                                    {tChrome(STRINGS.brand_kit.field_store_name, chromeLocale)}
+                                </label>
                                 <button
                                     type="button"
                                     onClick={() => setName("")}
                                     className="text-[11px] text-muted-foreground hover:text-foreground"
                                     data-testid="reset-identity-name"
                                 >
-                                    Reset
+                                    {tChrome(STRINGS.brand_kit.reset, chromeLocale)}
                                 </button>
                             </div>
                             <input
                                 type="text"
                                 value={identity.name ?? ""}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="Your store name"
+                                placeholder={tChrome(STRINGS.brand_kit.store_name_placeholder, chromeLocale)}
                                 data-testid="identity-name-input"
                                 className={cn(
                                     "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
@@ -285,50 +293,50 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 )}
                             />
                             <p className="text-[11px] text-muted-foreground">
-                                Used as the storefront wordmark and in the header by default.
+                                {tChrome(STRINGS.brand_kit.help_store_name, chromeLocale)}
                             </p>
                         </div>
 
                         <I18nStringInput
-                            label="Tagline"
+                            label={tChrome(STRINGS.brand_kit.field_tagline, chromeLocale)}
                             value={identity.tagline ?? {}}
                             onChange={setTagline}
-                            placeholder="A short line that describes your store"
-                            helperText="Falls back to English if a locale is empty."
+                            placeholder={tChrome(STRINGS.brand_kit_body.tagline_placeholder, chromeLocale)}
+                            helperText={tChrome(STRINGS.brand_kit.help_tagline, chromeLocale)}
                             testIdPrefix="identity-tagline"
                         />
 
                         <ImageField
-                            label="Logo"
+                            label={tChrome(STRINGS.brand_kit.field_logo, chromeLocale)}
                             value={identity.logo_url}
                             onChange={setLogo}
                             tenantId={tenantId}
                             maxBytes={2 * 1024 * 1024}
-                            helperText="PNG or SVG. Max 2MB. Appears in header + on receipts."
+                            helperText={tChrome(STRINGS.brand_kit.help_logo, chromeLocale)}
                             previewAspect="square"
                             onReset={() => setLogo(undefined)}
                             testIdPrefix="identity-logo"
                         />
 
                         <ImageField
-                            label="Favicon"
+                            label={tChrome(STRINGS.brand_kit.field_favicon, chromeLocale)}
                             value={identity.favicon_url}
                             onChange={setFavicon}
                             tenantId={tenantId}
                             maxBytes={512 * 1024}
-                            helperText="32×32 PNG or ICO. Max 512KB."
+                            helperText={tChrome(STRINGS.brand_kit.help_favicon, chromeLocale)}
                             previewAspect="favicon"
                             onReset={() => setFavicon(undefined)}
                             testIdPrefix="identity-favicon"
                         />
 
                         <ImageField
-                            label="OG image"
+                            label={tChrome(STRINGS.brand_kit.field_og_image, chromeLocale)}
                             value={identity.og_image_url}
                             onChange={setOgImage}
                             tenantId={tenantId}
                             maxBytes={2 * 1024 * 1024}
-                            helperText="1200×630 JPG/PNG. Used when your store is shared on social."
+                            helperText={tChrome(STRINGS.brand_kit.help_og_image, chromeLocale)}
                             previewAspect="og"
                             onReset={() => setOgImage(undefined)}
                             testIdPrefix="identity-og"
@@ -411,7 +419,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
                 {/* Colors */}
                 <Card
-                    title="Colors"
+                    title={tChrome(STRINGS.brand_kit.card_colors, chromeLocale)}
                     icon={<Palette className="h-3.5 w-3.5" />}
                     onReset={() => resetBranch("colors")}
                     resetTestId="reset-colors"
@@ -432,7 +440,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 ) : (
                                     <Wand2 className="h-3.5 w-3.5" />
                                 )}
-                                {extracting ? "Reading logo…" : "Extract palette from logo"}
+                                {extracting
+                                    ? tChrome(STRINGS.brand_kit.extract_reading, chromeLocale)
+                                    : tChrome(STRINGS.brand_kit.extract_palette, chromeLocale)}
                             </button>
                         )}
                         {editorMode === "advanced" && (
@@ -443,7 +453,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 className="inline-flex items-center gap-1.5 rounded-lg border-2 border-foreground bg-background px-3 py-1.5 text-[12px] font-semibold shadow-[2px_2px_0_0_var(--card-border)] transition-transform hover:-translate-y-px"
                             >
                                 <Shuffle className="h-3.5 w-3.5" />
-                                Random palette
+                                {tChrome(STRINGS.brand_kit.random_palette, chromeLocale)}
                             </button>
                         )}
                     </div>
@@ -453,7 +463,12 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                             data-testid="extract-error"
                             className="mb-3 rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[11px] text-red-700"
                         >
-                            {extractionError}
+                            {tChrome(
+                                extractionError === "no_colors"
+                                    ? STRINGS.brand_kit_body.extract_error_no_colors
+                                    : STRINGS.brand_kit_body.extract_error_cors,
+                                chromeLocale,
+                            )}
                         </div>
                     )}
 
@@ -482,23 +497,23 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                     {/* Contrast scores */}
                     <div className="mt-5 space-y-2">
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Accessibility · contrast
+                            {tChrome(STRINGS.brand_kit.accessibility_contrast, chromeLocale)}
                         </div>
                         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                             <ContrastBadge
-                                label="Primary on surface"
+                                label={tChrome(STRINGS.brand_kit.contrast_primary_surface, chromeLocale)}
                                 fg={colors.primary}
                                 bg={colors.surface}
                                 testId="contrast-primary-surface"
                             />
                             <ContrastBadge
-                                label="Ink on surface"
+                                label={tChrome(STRINGS.brand_kit.contrast_ink_surface, chromeLocale)}
                                 fg={colors.ink}
                                 bg={colors.surface}
                                 testId="contrast-ink-surface"
                             />
                             <ContrastBadge
-                                label="Primary on ink"
+                                label={tChrome(STRINGS.brand_kit.contrast_primary_ink, chromeLocale)}
                                 fg={colors.primary}
                                 bg={colors.ink}
                                 testId="contrast-primary-ink"
@@ -508,7 +523,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
                     <div className="mt-5 space-y-2">
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Resolved palette · live
+                            {tChrome(STRINGS.brand_kit.resolved_palette_live, chromeLocale)}
                         </div>
                         <DerivedSwatchStrip kit={value} />
                     </div>
@@ -516,33 +531,37 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
                 {/* Typography */}
                 <Card
-                    title="Typography"
+                    title={tChrome(STRINGS.brand_kit.card_typography, chromeLocale)}
                     icon={<TypeIcon className="h-3.5 w-3.5" />}
                     onReset={() => resetBranch("typography")}
                     resetTestId="reset-typography"
                 >
                     <div className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Display font</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_display_font, chromeLocale)}
+                            </label>
                             <FontCombo
                                 value={typography.display}
                                 onChange={setDisplay}
                                 testId="typography-display-select"
                             />
                             <p className="text-[11px] text-muted-foreground">
-                                Used for headlines and the wordmark.
+                                {tChrome(STRINGS.brand_kit.help_display_font, chromeLocale)}
                             </p>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Body font</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_body_font, chromeLocale)}
+                            </label>
                             <FontCombo
                                 value={typography.body}
                                 onChange={setBody}
                                 testId="typography-body-select"
                             />
                             <p className="text-[11px] text-muted-foreground">
-                                Used for paragraphs, descriptions, and UI labels.
+                                {tChrome(STRINGS.brand_kit.help_body_font, chromeLocale)}
                             </p>
                         </div>
 
@@ -587,7 +606,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Scale</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_scale, chromeLocale)}
+                            </label>
                             <Segmented
                                 value={typography.scale}
                                 onChange={setScale}
@@ -596,7 +617,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 options={[
                                     {
                                         value: "compact",
-                                        label: "Compact",
+                                        label: tChrome(STRINGS.brand_kit.opt_compact, chromeLocale),
                                         sub: "0.875rem",
                                         preview: (
                                             <span style={{ fontSize: "11px" }}>Aa</span>
@@ -604,7 +625,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     },
                                     {
                                         value: "comfortable",
-                                        label: "Comfortable",
+                                        label: tChrome(STRINGS.brand_kit.opt_comfortable, chromeLocale),
                                         sub: "1rem",
                                         preview: (
                                             <span style={{ fontSize: "14px" }}>Aa</span>
@@ -612,7 +633,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     },
                                     {
                                         value: "spacious",
-                                        label: "Spacious",
+                                        label: tChrome(STRINGS.brand_kit.opt_spacious, chromeLocale),
                                         sub: "1.125rem",
                                         preview: (
                                             <span style={{ fontSize: "18px" }}>Aa</span>
@@ -645,14 +666,16 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
                 {/* Shape */}
                 <Card
-                    title="Shape"
+                    title={tChrome(STRINGS.brand_kit.card_shape, chromeLocale)}
                     icon={<Shapes className="h-3.5 w-3.5" />}
                     onReset={() => resetBranch("shape")}
                     resetTestId="reset-shape"
                 >
                     <div className="space-y-5">
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Radius</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_radius, chromeLocale)}
+                            </label>
                             <Segmented
                                 value={shape.radius}
                                 onChange={setRadius}
@@ -660,28 +683,28 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 options={[
                                     {
                                         value: "none",
-                                        label: "Sharp",
+                                        label: tChrome(STRINGS.brand_kit.opt_sharp, chromeLocale),
                                         preview: (
                                             <div className="h-5 w-5 border-2 border-foreground" />
                                         ),
                                     },
                                     {
                                         value: "soft",
-                                        label: "Soft",
+                                        label: tChrome(STRINGS.brand_kit.opt_soft, chromeLocale),
                                         preview: (
                                             <div className="h-5 w-5 rounded-sm border-2 border-foreground" />
                                         ),
                                     },
                                     {
                                         value: "round",
-                                        label: "Round",
+                                        label: tChrome(STRINGS.brand_kit.opt_round, chromeLocale),
                                         preview: (
                                             <div className="h-5 w-5 rounded-lg border-2 border-foreground" />
                                         ),
                                     },
                                     {
                                         value: "pill",
-                                        label: "Pill",
+                                        label: tChrome(STRINGS.brand_kit.opt_pill, chromeLocale),
                                         preview: (
                                             <div className="h-5 w-5 rounded-full border-2 border-foreground" />
                                         ),
@@ -691,7 +714,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Border thickness</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_border_thickness, chromeLocale)}
+                            </label>
                             <Segmented
                                 value={shape.border_thickness}
                                 onChange={setBorder}
@@ -699,22 +724,22 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 options={[
                                     {
                                         value: "none",
-                                        label: "None",
+                                        label: tChrome(STRINGS.brand_kit.opt_none, chromeLocale),
                                         preview: <div className="h-1 w-6 bg-muted" />,
                                     },
                                     {
                                         value: "thin",
-                                        label: "Thin",
+                                        label: tChrome(STRINGS.brand_kit.opt_thin, chromeLocale),
                                         preview: <div className="h-px w-6 bg-foreground" />,
                                     },
                                     {
                                         value: "thick",
-                                        label: "Thick",
+                                        label: tChrome(STRINGS.brand_kit.opt_thick, chromeLocale),
                                         preview: <div className="h-[2px] w-6 bg-foreground" />,
                                     },
                                     {
                                         value: "chunky",
-                                        label: "Chunky",
+                                        label: tChrome(STRINGS.brand_kit.opt_chunky, chromeLocale),
                                         preview: <div className="h-[3px] w-6 bg-foreground" />,
                                     },
                                 ]}
@@ -722,7 +747,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Shadow style</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_shadow_style, chromeLocale)}
+                            </label>
                             <Segmented
                                 value={shape.shadow_style}
                                 onChange={setShadow}
@@ -730,17 +757,17 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 options={[
                                     {
                                         value: "flat",
-                                        label: "Flat",
+                                        label: tChrome(STRINGS.brand_kit.opt_flat, chromeLocale),
                                         preview: <div className="h-5 w-8 rounded bg-foreground/5 border border-foreground" />,
                                     },
                                     {
                                         value: "soft",
-                                        label: "Soft",
+                                        label: tChrome(STRINGS.brand_kit.opt_soft, chromeLocale),
                                         preview: <div className="h-5 w-8 rounded bg-background border border-foreground shadow-md" />,
                                     },
                                     {
                                         value: "hard-offset",
-                                        label: "Offset",
+                                        label: tChrome(STRINGS.brand_kit.opt_offset, chromeLocale),
                                         preview: (
                                             <div className="relative">
                                                 <div className="absolute left-[3px] top-[3px] h-5 w-8 rounded bg-foreground" />
@@ -750,7 +777,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     },
                                     {
                                         value: "elevated",
-                                        label: "Elevated",
+                                        label: tChrome(STRINGS.brand_kit.opt_elevated, chromeLocale),
                                         preview: <div className="h-5 w-8 rounded bg-background border border-foreground shadow-lg" />,
                                     },
                                 ]}
@@ -758,7 +785,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Rotation intensity</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_rotation, chromeLocale)}
+                            </label>
                             <Segmented
                                 value={shape.rotation_intensity}
                                 onChange={setRotation}
@@ -766,14 +795,14 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 options={[
                                     {
                                         value: "none",
-                                        label: "None",
+                                        label: tChrome(STRINGS.brand_kit.opt_none, chromeLocale),
                                         preview: (
                                             <div className="h-5 w-9 rounded bg-primary/30 border border-foreground" />
                                         ),
                                     },
                                     {
                                         value: "subtle",
-                                        label: "Subtle",
+                                        label: tChrome(STRINGS.brand_kit.opt_subtle, chromeLocale),
                                         preview: (
                                             <div
                                                 className="h-5 w-9 rounded bg-primary/30 border border-foreground"
@@ -783,7 +812,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     },
                                     {
                                         value: "playful",
-                                        label: "Playful",
+                                        label: tChrome(STRINGS.brand_kit.opt_playful, chromeLocale),
                                         preview: (
                                             <div
                                                 className="h-5 w-9 rounded bg-primary/30 border border-foreground"
@@ -793,7 +822,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     },
                                     {
                                         value: "wild",
-                                        label: "Wild",
+                                        label: tChrome(STRINGS.brand_kit.opt_wild, chromeLocale),
                                         preview: (
                                             <div
                                                 className="h-5 w-9 rounded bg-primary/30 border border-foreground"
@@ -809,7 +838,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
                 {/* Motion */}
                 <Card
-                    title="Motion"
+                    title={tChrome(STRINGS.brand_kit.card_motion, chromeLocale)}
                     icon={<Activity className="h-3.5 w-3.5" />}
                     onReset={() => resetBranch("motion")}
                     resetTestId="reset-motion"
@@ -817,9 +846,11 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-background p-3">
                             <div>
-                                <div className="text-sm font-medium">Motion enabled</div>
+                                <div className="text-sm font-medium">
+                                    {tChrome(STRINGS.brand_kit.field_motion_enabled, chromeLocale)}
+                                </div>
                                 <p className="text-[11px] text-muted-foreground">
-                                    Adds subtle animations to interactive elements.
+                                    {tChrome(STRINGS.brand_kit.help_motion_enabled, chromeLocale)}
                                 </p>
                             </div>
                             <button
@@ -843,7 +874,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Speed</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_speed, chromeLocale)}
+                            </label>
                             <Segmented
                                 value={motion.speed}
                                 onChange={setSpeed}
@@ -851,9 +884,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 columns={3}
                                 testIdPrefix="motion-speed"
                                 options={[
-                                    { value: "slow", label: "Slow", sub: "300ms" },
-                                    { value: "normal", label: "Normal", sub: "150ms" },
-                                    { value: "snappy", label: "Snappy", sub: "80ms" },
+                                    { value: "slow", label: tChrome(STRINGS.brand_kit.opt_slow, chromeLocale), sub: "300ms" },
+                                    { value: "normal", label: tChrome(STRINGS.brand_kit.opt_normal, chromeLocale), sub: "150ms" },
+                                    { value: "snappy", label: tChrome(STRINGS.brand_kit.opt_snappy, chromeLocale), sub: "80ms" },
                                 ]}
                             />
                         </div>
@@ -862,34 +895,52 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
                 {/* Voice */}
                 <Card
-                    title="Voice & tone"
+                    title={tChrome(STRINGS.brand_kit.card_voice, chromeLocale)}
                     icon={<MessageCircle className="h-3.5 w-3.5" />}
                     onReset={() => resetBranch("voice")}
                     resetTestId="reset-voice"
                 >
                     <div className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Formality</label>
+                            <label className="text-sm font-medium">
+                                {tChrome(STRINGS.brand_kit.field_formality, chromeLocale)}
+                            </label>
                             <Segmented
                                 value={voice.formality}
                                 onChange={setFormality}
                                 testIdPrefix="voice-formality"
                                 options={[
-                                    { value: "formal", label: "Formal", sub: "Precise, polite" },
-                                    { value: "casual", label: "Casual", sub: "Friendly, easy" },
-                                    { value: "playful", label: "Playful", sub: "Fun, cheeky" },
-                                    { value: "luxe", label: "Luxe", sub: "Elevated, refined" },
+                                    {
+                                        value: "formal",
+                                        label: tChrome(STRINGS.brand_kit.opt_formal, chromeLocale),
+                                        sub: tChrome(STRINGS.brand_kit_body.formality_sub_formal, chromeLocale),
+                                    },
+                                    {
+                                        value: "casual",
+                                        label: tChrome(STRINGS.brand_kit.opt_casual, chromeLocale),
+                                        sub: tChrome(STRINGS.brand_kit_body.formality_sub_casual, chromeLocale),
+                                    },
+                                    {
+                                        value: "playful",
+                                        label: tChrome(STRINGS.brand_kit.opt_playful, chromeLocale),
+                                        sub: tChrome(STRINGS.brand_kit_body.formality_sub_playful, chromeLocale),
+                                    },
+                                    {
+                                        value: "luxe",
+                                        label: tChrome(STRINGS.brand_kit.opt_luxe, chromeLocale),
+                                        sub: tChrome(STRINGS.brand_kit_body.formality_sub_luxe, chromeLocale),
+                                    },
                                 ]}
                             />
                         </div>
 
                         <I18nStringInput
-                            label="Notes"
+                            label={tChrome(STRINGS.brand_kit.field_notes, chromeLocale)}
                             value={voice.notes ?? {}}
                             onChange={setVoiceNotes}
-                            placeholder="Anything else worth knowing about how you want to speak…"
+                            placeholder={tChrome(STRINGS.brand_kit_body.notes_placeholder, chromeLocale)}
                             multiline
-                            helperText="Used as guidance for content writers and templates."
+                            helperText={tChrome(STRINGS.brand_kit_body.help_notes, chromeLocale)}
                             testIdPrefix="voice-notes"
                         />
                     </div>

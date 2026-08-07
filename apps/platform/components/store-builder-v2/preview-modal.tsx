@@ -20,11 +20,13 @@ import { X, Smartphone, Tablet, Monitor, ExternalLink } from "lucide-react";
 import type { Breakpoint } from "@scheniders/shared";
 import { PreviewFrame } from "./preview-frame";
 import { cn } from "@/lib/utils";
+import { STRINGS, t, type EditorString } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 
-const DEVICES: { id: Breakpoint; label: string; Icon: typeof Smartphone }[] = [
-    { id: "mobile", label: "Mobile", Icon: Smartphone },
-    { id: "tablet", label: "Tablet", Icon: Tablet },
-    { id: "desktop", label: "Desktop", Icon: Monitor },
+const DEVICES: { id: Breakpoint; label: EditorString; Icon: typeof Smartphone }[] = [
+    { id: "mobile", label: STRINGS.advanced_chrome.pv_device_mobile, Icon: Smartphone },
+    { id: "tablet", label: STRINGS.advanced_chrome.pv_device_tablet, Icon: Tablet },
+    { id: "desktop", label: STRINGS.advanced_chrome.pv_device_desktop, Icon: Monitor },
 ];
 
 export interface PreviewModalProps {
@@ -41,6 +43,7 @@ export function PreviewModal({
     initialBreakpoint,
     makeUrl,
 }: PreviewModalProps) {
+    const locale = useResolvedEditorLocale();
     const [breakpoint, setBreakpoint] = useState<Breakpoint>(initialBreakpoint);
 
     // Escape closes.
@@ -61,16 +64,16 @@ export function PreviewModal({
         <div
             role="dialog"
             aria-modal="true"
-            aria-label="Accurate device preview"
+            aria-label={t(STRINGS.advanced_chrome.pv_dialog_aria, locale)}
             data-testid="preview-modal"
             className="fixed inset-0 z-[60] flex flex-col bg-black/55 backdrop-blur-sm"
         >
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
                 <div className="text-sm font-semibold text-white">
-                    Accurate preview{" "}
+                    {t(STRINGS.advanced_chrome.pv_title, locale)}{" "}
                     <span className="font-normal text-white/70">
-                        — real device viewport
+                        {t(STRINGS.advanced_chrome.pv_subtitle, locale)}
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -81,7 +84,7 @@ export function PreviewModal({
                                 type="button"
                                 onClick={() => setBreakpoint(id)}
                                 aria-pressed={breakpoint === id}
-                                title={label}
+                                title={t(label, locale)}
                                 data-testid={`preview-modal-device-${id}`}
                                 className={cn(
                                     "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
@@ -91,7 +94,7 @@ export function PreviewModal({
                                 )}
                             >
                                 <Icon className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">{label}</span>
+                                <span className="hidden sm:inline">{t(label, locale)}</span>
                             </button>
                         ))}
                     </div>
@@ -99,17 +102,17 @@ export function PreviewModal({
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title="Open this preview in a new tab"
+                        title={t(STRINGS.advanced_chrome.pv_open_tab_title, locale)}
                         data-testid="preview-modal-open-tab"
                         className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/10 px-3 text-xs font-medium text-white/90 transition-colors hover:bg-white/20"
                     >
                         <ExternalLink className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">New tab</span>
+                        <span className="hidden sm:inline">{t(STRINGS.advanced_chrome.pv_new_tab, locale)}</span>
                     </a>
                     <button
                         type="button"
                         onClick={onClose}
-                        aria-label="Close preview"
+                        aria-label={t(STRINGS.advanced_chrome.pv_close_aria, locale)}
                         data-testid="preview-modal-close"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
                     >

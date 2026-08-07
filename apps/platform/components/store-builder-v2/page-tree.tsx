@@ -279,7 +279,7 @@ export function PageTree({
     settingBadges,
 }: PageTreeProps) {
     const locale = useResolvedEditorLocale(activeLocale);
-    const { mode } = useEditorMode();
+    const { mode, setMode } = useEditorMode();
     const [comingSoon, setComingSoon] = useState<SettingsSectionId | null>(null);
     const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
 
@@ -290,6 +290,12 @@ export function PageTree({
             ? PRIMARY_SETTINGS.filter((s) => s.id !== "i18n")
             : PRIMARY_SETTINGS;
     const showCustomPages = mode === "advanced" && !!onSelectCustomPage;
+
+    // Total live items behind the hidden Advanced group (Simple mode).
+    const liveAdvancedCount = Object.values(settingBadges ?? {}).reduce(
+        (sum, n) => sum + (n ?? 0),
+        0,
+    );
 
     // Hydrate Advanced open state from localStorage.
     useEffect(() => {
@@ -571,6 +577,29 @@ export function PageTree({
                             </ul>
                         )}
                     </li>
+                    )}
+
+                    {/* UX2-10: hidden ≠ silent — when Simple hides the
+                        Advanced group but live data exists behind it
+                        (running experiments, segments, schedules), show a
+                        count chip that elevates to Advanced on tap. */}
+                    {mode === "simple" && liveAdvancedCount > 0 && (
+                        <li>
+                            <button
+                                type="button"
+                                data-testid="page-tree-advanced-live-chip"
+                                onClick={() => setMode("advanced")}
+                                className="mt-1 inline-flex w-full items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-2.5 py-2 text-left text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-bold"
+                                >
+                                    {liveAdvancedCount}
+                                </span>
+                                {t(STRINGS.page_tree.advanced_live_chip, locale)}
+                            </button>
+                        </li>
                     )}
                 </ul>
             </div>

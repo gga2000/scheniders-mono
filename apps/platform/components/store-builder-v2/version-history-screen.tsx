@@ -40,6 +40,8 @@ import {
     groupDiffByTop,
     type DiffEntry,
 } from "./config-diff";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -96,6 +98,7 @@ export function VersionHistoryScreen({
     onClose,
     initialVersions,
 }: VersionHistoryScreenProps): ReactElement {
+    const locale = useEditorLocale();
     const [versions, setVersions] = useState<StoredVersion[] | null>(initialVersions ?? null);
     const [loading, setLoading] = useState<boolean>(!initialVersions);
     const [error, setError] = useState<string | null>(null);
@@ -277,7 +280,7 @@ export function VersionHistoryScreen({
                         type="button"
                         onClick={onClose}
                         data-testid="version-history-back"
-                        aria-label="Back"
+                        aria-label={t(STRINGS.advanced_chrome.adv_back, locale)}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
@@ -379,10 +382,11 @@ export function VersionHistoryScreen({
                             data-testid="version-history-empty"
                             className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center"
                         >
-                            <div className="text-sm font-medium">No versions yet</div>
+                            <div className="text-sm font-medium">
+                                {t(STRINGS.advanced_chrome.ver_empty_title, locale)}
+                            </div>
                             <div className="text-[11px] text-foreground/80">
-                                Snapshots are created automatically on publish, or you can
-                                save a named snapshot right now.
+                                {t(STRINGS.advanced_chrome.ver_empty_body, locale)}
                             </div>
                         </div>
                     ) : (
@@ -569,7 +573,7 @@ export function VersionHistoryScreen({
                                 )}
                             >
                                 {restoring ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                                Restore
+                                {t(STRINGS.advanced_chrome.vh_restore_body_prefix, locale)}
                             </button>
                         </div>
                     </div>
@@ -679,6 +683,7 @@ function DiffView({ entries }: DiffViewProps): ReactElement {
 }
 
 function DiffRow({ entry }: { entry: DiffEntry }): ReactElement {
+    const locale = useEditorLocale();
     const tone =
         entry.kind === "added"
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
@@ -705,10 +710,10 @@ function DiffRow({ entry }: { entry: DiffEntry }): ReactElement {
             {entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div>
-                        <span className="font-semibold">before:</span> <code>{previewValue(entry.before)}</code>
+                        <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span> <code>{previewValue(entry.before)}</code>
                     </div>
                     <div>
-                        <span className="font-semibold">after:</span> <code>{previewValue(entry.after)}</code>
+                        <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span> <code>{previewValue(entry.after)}</code>
                     </div>
                 </div>
             )}

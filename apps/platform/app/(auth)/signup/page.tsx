@@ -17,15 +17,18 @@ import {
     MapPin,
 } from "lucide-react";
 import Link from "next/link";
+import { useLanguage } from "@/hooks/use-language";
+import { supabase } from "@/lib/supabase";
 
 const PLANS = [
-    { value: "starter", label: "Starter", desc: "500 orders/mo", price: "10K IQD" },
-    { value: "growth", label: "Growth", desc: "2,000 orders/mo", price: "30K IQD" },
-    { value: "professional", label: "Professional", desc: "10,000 orders/mo", price: "70K IQD" },
-    { value: "enterprise", label: "Enterprise", desc: "Unlimited", price: "100K IQD" },
+    { value: "starter", labelKey: "signup.plan.starter", orders: "500", price: "10K" },
+    { value: "growth", labelKey: "signup.plan.growth", orders: "2,000", price: "30K" },
+    { value: "professional", labelKey: "signup.plan.professional", orders: "10,000", price: "70K" },
+    { value: "enterprise", labelKey: "signup.plan.enterprise", orders: null, price: "100K" },
 ];
 
 function SignupForm() {
+    const { t } = useLanguage();
     const router = useRouter();
 
     const [email, setEmail] = useState("");
@@ -73,6 +76,16 @@ function SignupForm() {
             }
 
             setSuccess(data.message || "Account created! Redirecting to login...");
+            // UX2-18: the API creates the account server-side and we send the
+            // merchant to /login. If this browser still holds a session for a
+            // DIFFERENT account, /login bounces straight back into that old
+            // tenant and the new store silently disappears. Clear it first so
+            // the login screen is actually reachable.
+            try {
+                await supabase.auth.signOut();
+            } catch {
+                /* no session to clear — proceed to login */
+            }
             setTimeout(() => {
                 router.push("/login");
             }, 2000);
@@ -107,7 +120,7 @@ function SignupForm() {
                         transition={{ delay: 0.3 }}
                         className="text-2xl font-bold text-[#1E1E1E] mb-1"
                     >
-                        Create Your Account
+                        {t("signup.title")}
                     </motion.h1>
                     <motion.p
                         initial={{ opacity: 0 }}
@@ -115,7 +128,7 @@ function SignupForm() {
                         transition={{ delay: 0.4 }}
                         className="text-[#6B6B6B] text-sm"
                     >
-                        Start your 14-day free trial
+                        {t("signup.subtitle")}
                     </motion.p>
                 </div>
 
@@ -149,7 +162,7 @@ function SignupForm() {
 
                     {/* Business Name */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}>
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">Business Name *</label>
+                        <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">{t("signup.businessName")}</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                                 <Building2 className="w-5 h-5 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -158,7 +171,7 @@ function SignupForm() {
                                 type="text"
                                 value={businessName}
                                 onChange={(e) => setBusinessName(e.target.value)}
-                                placeholder="Your business name"
+                                placeholder={t("signup.businessNamePlaceholder")}
                                 required
                                 className="w-full h-12 pl-12 pr-4 rounded-xl bg-white/80 border-2 border-transparent text-[#1E1E1E] placeholder:text-[#9A9A9A] focus:border-[#FBE38E] focus:bg-white focus:outline-none transition-all duration-200"
                             />
@@ -167,7 +180,7 @@ function SignupForm() {
 
                     {/* Email */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">Email Address *</label>
+                        <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">{t("signup.email")}</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                                 <Mail className="w-5 h-5 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -186,7 +199,7 @@ function SignupForm() {
 
                     {/* Password */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45 }}>
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">Password *</label>
+                        <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">{t("signup.password")}</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                                 <Lock className="w-5 h-5 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -195,7 +208,7 @@ function SignupForm() {
                                 type={showPassword ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Min 8 characters"
+                                placeholder={t("signup.passwordPlaceholder")}
                                 autoComplete="new-password"
                                 required
                                 minLength={8}
@@ -214,7 +227,7 @@ function SignupForm() {
                     {/* Phone + City row */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">Phone</label>
+                            <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">{t("signup.phone")}</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                     <Phone className="w-4 h-4 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -229,7 +242,7 @@ function SignupForm() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">City</label>
+                            <label className="block text-sm font-medium text-[#1E1E1E] mb-1.5">{t("signup.city")}</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                     <MapPin className="w-4 h-4 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -238,7 +251,7 @@ function SignupForm() {
                                     type="text"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
-                                    placeholder="Baghdad"
+                                    placeholder={t("signup.cityPlaceholder")}
                                     className="w-full h-12 pl-10 pr-3 rounded-xl bg-white/80 border-2 border-transparent text-[#1E1E1E] placeholder:text-[#9A9A9A] focus:border-[#FBE38E] focus:bg-white focus:outline-none transition-all duration-200 text-sm"
                                 />
                             </div>
@@ -247,7 +260,7 @@ function SignupForm() {
 
                     {/* Plan Selection */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 }}>
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">Select Plan</label>
+                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">{t("signup.selectPlan")}</label>
                         <div className="grid grid-cols-2 gap-2">
                             {PLANS.map((p) => (
                                 <button
@@ -260,9 +273,15 @@ function SignupForm() {
                                             : "border-transparent bg-white/80 hover:bg-white"
                                     }`}
                                 >
-                                    <p className="text-sm font-semibold text-[#1E1E1E]">{p.label}</p>
-                                    <p className="text-xs text-[#6B6B6B]">{p.desc}</p>
-                                    <p className="text-xs font-medium text-[#1E1E1E] mt-0.5">{p.price}/mo</p>
+                                    <p className="text-sm font-semibold text-[#1E1E1E]">{t(p.labelKey)}</p>
+                                    <p className="text-xs text-[#6B6B6B]">
+                                        {p.orders
+                                            ? t("signup.plan.ordersPerMo").replace("{n}", p.orders)
+                                            : t("signup.plan.unlimited")}
+                                    </p>
+                                    <p className="text-xs font-medium text-[#1E1E1E] mt-0.5">
+                                        {t("signup.plan.pricePerMo").replace("{price}", p.price)}
+                                    </p>
                                 </button>
                             ))}
                         </div>
@@ -278,10 +297,10 @@ function SignupForm() {
                             {isLoading ? (
                                 <span className="flex items-center justify-center gap-2">
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    Creating account...
+                                    {t("signup.submitting")}
                                 </span>
                             ) : (
-                                "Start Free Trial"
+                                t("signup.submit")
                             )}
                         </button>
                     </motion.div>
@@ -295,9 +314,9 @@ function SignupForm() {
                     className="px-8 py-5 bg-[#F5F0E8]/50 border-t border-[#E8E4DC]/50 text-center"
                 >
                     <p className="text-sm text-[#6B6B6B]">
-                        Already have an account?{" "}
+                        {t("signup.haveAccount")}{" "}
                         <Link href="/login" className="text-[#1E1E1E] font-medium hover:underline">
-                            Sign in
+                            {t("signup.signIn")}
                         </Link>
                     </p>
                 </motion.div>

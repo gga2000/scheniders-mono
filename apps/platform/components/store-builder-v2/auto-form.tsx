@@ -30,7 +30,7 @@ import { z } from "zod";
 import type { Breakpoint, LocaleCode, SectionInstance } from "@scheniders/shared";
 import {
     FIELD_GROUPS_ORDER,
-    getFieldGroup,
+    getFieldGroupForMode,
     hasFieldGroups,
     isFieldVisible,
     type FieldGroup,
@@ -42,8 +42,6 @@ import {
     isFieldEnabledBySiblings,
 } from "@/lib/section-field-meta";
 import { getManifestEntry } from "@/lib/sections-manifest";
-import {
-} from "@/lib/responsive-overrides";
 import {
     FieldRenderer,
     type RenderFieldAdornment,
@@ -145,7 +143,7 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
             // overrides) entirely — the whole Logic accordion disappears
             // because its bucket stays empty.
             if (!isFieldVisible(mode, sectionType, key)) continue;
-            buckets[getFieldGroup(sectionType, key)].push(key);
+            buckets[getFieldGroupForMode(mode, sectionType, key)].push(key);
         }
         return { shape, buckets };
     }, [schema, sectionType, mode]);

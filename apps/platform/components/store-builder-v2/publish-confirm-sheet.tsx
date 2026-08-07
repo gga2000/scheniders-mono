@@ -44,85 +44,20 @@ import {
 import type { EditorString } from "@/lib/editor-i18n";
 import type { LocaleCode } from "@scheniders/shared";
 import { getPageLabel } from "./page-tree";
+import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Localized copy for the checks this sheet surfaces                    */
 /* ─────────────────────────────────────────────────────────────────── */
-// Health-rule messages come from @scheniders/shared in English tech-speak
-// ("analytics pixel", "OG image"). The sheet is the single scariest moment
-// of a merchant's first session, so we override the surfaced checks with
-// plain merchant language per locale. Unknown checks fall back to the
-// English rule message.
-const CHECK_COPY: Record<string, { message: EditorString; fix?: EditorString }> = {
-    pixel_or_gtm_configured: {
-        message: {
-            en: "No ad tracking set up yet — Facebook/TikTok ads won't be measurable.",
-            ar: "لم يتم إعداد تتبّع الإعلانات بعد — لن تتمكن من قياس إعلانات فيسبوك/تيك توك. لا يؤثر على عمل المتجر.",
-            ku: "شوێنکەوتنی ڕیکلام هێشتا ڕێکنەخراوە — ناتوانیت ڕیکلامەکانی فەیسبووک/تیکتۆک بپێویت. کاریگەری لەسەر کارکردنی فرۆشگا نییە.",
-        },
-        fix: { en: "Set up tracking", ar: "إعداد التتبّع", ku: "ڕێکخستنی شوێنکەوتن" },
-    },
-    og_image_set: {
-        message: {
-            en: "No share image yet — links to your store will look plain on WhatsApp and social.",
-            ar: "لا توجد صورة للمشاركة بعد — روابط متجرك ستظهر بدون صورة عند مشاركتها على واتساب ووسائل التواصل.",
-            ku: "هێشتا وێنەی هاوبەشکردن نییە — بەستەرەکانی فرۆشگاکەت بە بێ وێنە دەردەکەون لە واتساپ و سۆشیال میدیا.",
-        },
-        fix: { en: "Add a share image", ar: "أضف صورة المشاركة", ku: "وێنەی هاوبەشکردن زیاد بکە" },
-    },
-    home_has_content: {
-        message: {
-            en: "Your home page has no visible sections — visitors would see an empty store.",
-            ar: "صفحتك الرئيسية بدون عناصر ظاهرة — سيرى الزوار متجراً فارغاً.",
-            ku: "پەڕەی سەرەکیت هیچ بەشێکی دیاری نییە — سەردانیکەران فرۆشگایەکی بەتاڵ دەبینن.",
-        },
-        fix: { en: "Build home page", ar: "ابنِ الصفحة الرئيسية", ku: "پەڕەی سەرەکی دروست بکە" },
-    },
-    privacy_policy_has_content: {
-        message: {
-            en: "Privacy policy page is empty — ad platforms require it.",
-            ar: "صفحة سياسة الخصوصية فارغة — منصات الإعلانات تتطلبها.",
-            ku: "پەڕەی سیاسەتی تایبەتمەندێتی بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
-        },
-        fix: { en: "Edit privacy policy", ar: "عدّل سياسة الخصوصية", ku: "سیاسەتی تایبەتمەندێتی دەستکاری بکە" },
-    },
-    shipping_policy_has_content: {
-        message: {
-            en: "Shipping policy page is empty — ad platforms require it.",
-            ar: "صفحة سياسة الشحن فارغة — منصات الإعلانات تتطلبها.",
-            ku: "پەڕەی سیاسەتی گەیاندن بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
-        },
-        fix: { en: "Edit shipping policy", ar: "عدّل سياسة الشحن", ku: "سیاسەتی گەیاندن دەستکاری بکە" },
-    },
-    returns_policy_has_content: {
-        message: {
-            en: "Returns policy page is empty — ad platforms require it.",
-            ar: "صفحة سياسة الإرجاع فارغة — منصات الإعلانات تتطلبها.",
-            ku: "پەڕەی سیاسەتی گەڕاندنەوە بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
-        },
-        fix: { en: "Edit returns policy", ar: "عدّل سياسة الإرجاع", ku: "سیاسەتی گەڕاندنەوە دەستکاری بکە" },
-    },
-    terms_has_content: {
-        message: {
-            en: "Terms & conditions page is empty — ad platforms require it.",
-            ar: "صفحة الشروط والأحكام فارغة — منصات الإعلانات تتطلبها.",
-            ku: "پەڕەی مەرج و ڕێساکان بەتاڵە — پلاتفۆرمەکانی ڕیکلام پێویستیان پێیەتی.",
-        },
-        fix: { en: "Edit terms", ar: "عدّل الشروط", ku: "مەرجەکان دەستکاری بکە" },
-    },
-};
-
+// Localized check copy is shared with the Health screen (UX2-02) —
+// single source in lib/health-check-copy.ts.
 function checkMessage(check: HealthCheck & CheckResult, locale: LocaleCode): string {
-    const override = CHECK_COPY[check.id];
-    if (override) return t(override.message, locale);
-    return check.message ?? check.id;
+    return checkCopyMessage(check.id, check.message ?? check.id, locale);
 }
 
 function checkFixLabel(check: HealthCheck & CheckResult, locale: LocaleCode): string | null {
     if (!check.fix_action) return null;
-    const override = CHECK_COPY[check.id]?.fix;
-    if (override) return t(override, locale);
-    return check.fix_action.label;
+    return checkCopyFixLabel(check.id, check.fix_action.label, locale) ?? null;
 }
 
 const CATEGORY_LABELS: Record<string, EditorString> = {
@@ -342,9 +277,7 @@ export function PublishConfirmSheet({
                             ? t(STRINGS.publish.publishing, locale)
                             : error
                               ? t(STRINGS.publish.retry, locale)
-                              : blockingChecks.length === 0
-                                ? t(STRINGS.publish.publish_cta, locale)
-                                : t(STRINGS.publish.publish_anyway, locale)}
+                              : t(STRINGS.publish.publish_cta, locale)}
                     </button>
                 </footer>
             </div>

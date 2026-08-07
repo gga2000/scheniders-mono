@@ -30,7 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
-import { STRINGS, t as tChrome } from "@/lib/editor-i18n";
+import { STRINGS, t as tChrome, tFormat as tChromeFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import {
     CANDY_DEFAULTS,
@@ -189,11 +189,16 @@ export function ImageField({
             const file = e.target.files?.[0];
             if (!file) return;
             if (file.size > maxBytes) {
-                toast.error(`${label} must be under ${Math.round(maxBytes / 1024 / 1024 * 10) / 10}MB`);
+                toast.error(
+                    tChromeFormat(STRINGS.brand_kit_body.upload_too_large, chromeLocale, {
+                        label,
+                        mb: Math.round(maxBytes / 1024 / 1024 * 10) / 10,
+                    }),
+                );
                 return;
             }
             if (!tenantId) {
-                toast.error("Missing tenant context for upload");
+                toast.error(tChrome(STRINGS.brand_kit_body.upload_missing_tenant, chromeLocale));
                 return;
             }
             const ext = file.name.split(".").pop()?.toLowerCase() || "png";
@@ -208,15 +213,22 @@ export function ImageField({
                     data: { publicUrl },
                 } = supabase.storage.from("tenant-assets").getPublicUrl(path);
                 onChange(publicUrl);
-                toast.success(`${label} uploaded`);
+                toast.success(
+                    tChromeFormat(STRINGS.brand_kit_body.upload_success, chromeLocale, { label }),
+                );
             } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : "Upload failed";
-                toast.error("Upload failed", msg);
+                // Keep the raw error out of the merchant-facing toast — it's
+                // developer noise (storage/RLS internals). Log it for debugging.
+                console.warn("[brand-kit] asset upload failed:", err);
+                toast.error(
+                    tChrome(STRINGS.brand_kit_body.upload_failed_title, chromeLocale),
+                    tChrome(STRINGS.brand_kit_body.upload_failed_body, chromeLocale),
+                );
             } finally {
                 setUploading(false);
             }
         },
-        [label, maxBytes, onChange, tenantId, testIdPrefix],
+        [chromeLocale, label, maxBytes, onChange, tenantId, testIdPrefix],
     );
 
     const previewBox = (
@@ -289,7 +301,7 @@ export function ImageField({
                         type="button"
                         onClick={() => onChange(undefined)}
                         data-testid={`${testIdPrefix}-clear`}
-                        aria-label={`Clear ${label}`}
+                        aria-label={tChromeFormat(STRINGS.brand_kit_body.clear_aria, chromeLocale, { label })}
                         className="self-start rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
@@ -371,6 +383,7 @@ export function ColorPopover({
     onReset,
     onClose,
 }: ColorPopoverProps): ReactElement {
+    const chromeLocale = useResolvedEditorLocale();
     const safeValue = isValidHex(value) ? value : "#000000";
     const hsl = useMemo(() => hexToHsl(safeValue), [safeValue]);
     const tones = useMemo(() => suggestedTones(safeValue), [safeValue]);
@@ -421,7 +434,7 @@ export function ColorPopover({
         >
             <div className="space-y-3">
                 <HslSlider
-                    label="Hue"
+                    label={tChrome(STRINGS.brand_kit_body.hue, chromeLocale)}
                     value={hsl.h}
                     min={0}
                     max={360}
@@ -430,7 +443,7 @@ export function ColorPopover({
                     testId={`color-hue-${keyName}`}
                 />
                 <HslSlider
-                    label="Saturation"
+                    label={tChrome(STRINGS.brand_kit_body.saturation, chromeLocale)}
                     value={hsl.s}
                     min={0}
                     max={100}
@@ -439,7 +452,7 @@ export function ColorPopover({
                     testId={`color-sat-${keyName}`}
                 />
                 <HslSlider
-                    label="Lightness"
+                    label={tChrome(STRINGS.brand_kit_body.lightness, chromeLocale)}
                     value={hsl.l}
                     min={0}
                     max={100}
@@ -450,7 +463,7 @@ export function ColorPopover({
 
                 <div className="space-y-1.5">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Suggested
+                        {tChrome(STRINGS.brand_kit_body.suggested, chromeLocale)}
                     </div>
                     <div
                         className="grid grid-cols-6 gap-1"
@@ -479,7 +492,7 @@ export function ColorPopover({
                             className="inline-flex items-center gap-1 rounded-md border border-(--card-border) bg-background px-2 py-1 text-[11px] font-medium hover:bg-muted/40"
                         >
                             <Pipette className="h-3 w-3" />
-                            Pick
+                            {tChrome(STRINGS.brand_kit_body.pick, chromeLocale)}
                         </button>
                     )}
                     <button
@@ -489,7 +502,7 @@ export function ColorPopover({
                         className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                     >
                         <RotateCcw className="h-3 w-3" />
-                        Reset
+                        {tChrome(STRINGS.brand_kit.reset, chromeLocale)}
                     </button>
                 </div>
             </div>
@@ -509,6 +522,7 @@ interface ColorFieldProps {
 }
 
 export function ColorField({ label, keyName, value, onChange }: ColorFieldProps): ReactElement {
+    const chromeLocale = useResolvedEditorLocale();
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<string>(value);
 
@@ -536,7 +550,7 @@ export function ColorField({ label, keyName, value, onChange }: ColorFieldProps)
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
-                    aria-label={`Edit ${label} color`}
+                    aria-label={tChromeFormat(STRINGS.brand_kit_body.edit_color_aria, chromeLocale, { label })}
                     data-testid={`color-swatch-${keyName}`}
                     className="relative h-10 w-10 shrink-0 cursor-pointer rounded-lg border-[3px] border-foreground shadow-[3px_3px_0_0_var(--card-border)] transition-transform hover:scale-[1.04] active:translate-x-px active:translate-y-px active:shadow-[2px_2px_0_0_var(--card-border)]"
                     style={{ backgroundColor: isValidHex(value) ? value : "#ffffff" }}

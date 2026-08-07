@@ -51,6 +51,8 @@ import type {
 } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
 import { getPageLabel } from "./page-tree";
+import { STRINGS, t as tx } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -203,6 +205,7 @@ export function ScheduledChangesScreen({
     initialSchedules,
     nowOverride,
 }: ScheduledChangesScreenProps): ReactElement {
+    const locale = useEditorLocale();
     const [schedules, setSchedules] = useState<StoredSchedule[] | null>(initialSchedules ?? null);
     const [loading, setLoading] = useState<boolean>(!initialSchedules);
     const [error, setError] = useState<string | null>(null);
@@ -394,7 +397,7 @@ export function ScheduledChangesScreen({
                         type="button"
                         onClick={onClose}
                         data-testid="scheduled-changes-back"
-                        aria-label="Back"
+                        aria-label={tx(STRINGS.advanced_chrome.adv_back, locale)}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
@@ -447,16 +450,17 @@ export function ScheduledChangesScreen({
                         className="rounded-2xl border border-dashed border-(--card-border) p-10 text-center"
                     >
                         <Calendar className="mx-auto h-6 w-6 text-muted-foreground" />
-                        <p className="mt-2 text-sm font-medium">No scheduled changes</p>
+                        <p className="mt-2 text-sm font-medium">
+                            {tx(STRINGS.advanced_chrome.sched_empty_title, locale)}
+                        </p>
                         <p className="mt-1 text-[12px] text-foreground/80">
-                            Use this screen to schedule future variants of any section —
-                            promo banners, hero swaps, free-shipping notices, and more.
+                            {tx(STRINGS.advanced_chrome.sched_empty_body, locale)}
                         </p>
                     </div>
                 ) : (
                     <div className="space-y-5">
                         <Bucket
-                            title="Active"
+                            title={tx(STRINGS.advanced_chrome.adv_active, locale)}
                             tone="active"
                             count={buckets.active.length}
                             testId="bucket-active"
@@ -477,7 +481,7 @@ export function ScheduledChangesScreen({
                         </Bucket>
 
                         <Bucket
-                            title="Upcoming"
+                            title={tx(STRINGS.advanced_chrome.adv_upcoming, locale)}
                             tone="upcoming"
                             count={buckets.scheduled.length}
                             testId="bucket-upcoming"
@@ -502,7 +506,7 @@ export function ScheduledChangesScreen({
 
                         {(buckets.expired.length > 0 || buckets.cancelled.length > 0) && (
                             <Bucket
-                                title="Expired"
+                                title={tx(STRINGS.advanced_chrome.adv_expired, locale)}
                                 tone="expired"
                                 count={buckets.expired.length + buckets.cancelled.length}
                                 testId="bucket-expired"
@@ -650,6 +654,7 @@ function ScheduleRow({
     onEditStartCancel,
     onEditStartSave,
 }: ScheduleRowProps): ReactElement {
+    const locale = useEditorLocale();
     const start = new Date(schedule.starts_at_iso);
     const end = schedule.ends_at_iso ? new Date(schedule.ends_at_iso) : null;
 
@@ -732,11 +737,11 @@ function ScheduleRow({
                     </>
                 )}
                 {status === "expired" && <>Ended {endsAgo ?? startedAgo}</>}
-                {status === "cancelled" && <>Cancelled</>}
+                {status === "cancelled" && <>{tx(STRINGS.advanced_chrome.sched_row_cancelled, locale)}</>}
             </div>
 
             <div className="mt-1 ml-8 text-[11px] text-muted-foreground">
-                <span className="font-semibold text-foreground/80">Target:</span> {targetSummary}
+                <span className="font-semibold text-foreground/80">{tx(STRINGS.advanced_chrome.sched_target_label, locale)}</span> {targetSummary}
             </div>
 
             {isEditing && status === "scheduled" && (
@@ -848,6 +853,7 @@ interface TargetsViewerProps {
 }
 
 function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): ReactElement {
+    const locale = useEditorLocale();
     const resolved = useMemo(
         () => resolveTargets(builder, schedule.targets),
         [builder, schedule.targets],
@@ -865,7 +871,7 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
                         type="button"
                         onClick={onClose}
                         data-testid="schedule-targets-viewer-close"
-                        aria-label="Close"
+                        aria-label={tx(STRINGS.advanced_chrome.adv_close, locale)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
@@ -876,7 +882,7 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
                         Targets
                     </h4>
                     {resolved.length === 0 ? (
-                        <p className="text-[12px] text-foreground/80">No targets.</p>
+                        <p className="text-[12px] text-foreground/80">{tx(STRINGS.advanced_chrome.sched_no_targets, locale)}</p>
                     ) : (
                         <ul className="space-y-2">
                             {resolved.map((t, i) => {
@@ -905,7 +911,7 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
                                         {variant?.override && (
                                             <details className="mt-2">
                                                 <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
-                                                    Variant override
+                                                    {tx(STRINGS.advanced_chrome.sched_variant_override, locale)}
                                                 </summary>
                                                 <pre className="mt-1 max-h-40 overflow-auto rounded-md bg-muted/40 p-2 text-[10px]">
                                                     {JSON.stringify(variant.override, null, 2)}
@@ -940,6 +946,7 @@ function ScheduleCreatorModal({
     onClose,
     onCreated,
 }: ScheduleCreatorModalProps): ReactElement {
+    const locale = useEditorLocale();
     const [label, setLabel] = useState<string>("");
     const [startInput, setStartInput] = useState<string>("");
     const [endInput, setEndInput] = useState<string>("");
@@ -1090,14 +1097,14 @@ function ScheduleCreatorModal({
                     <div>
                         <h3 className="text-base font-semibold tracking-tight">New schedule</h3>
                         <p className="text-[11px] text-foreground/80">
-                            Show a section variant for a fixed time window.
+                            {tx(STRINGS.advanced_chrome.sched_creator_subtitle, locale)}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         data-testid="schedule-creator-close"
-                        aria-label="Close"
+                        aria-label={tx(STRINGS.advanced_chrome.adv_close, locale)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
@@ -1111,7 +1118,7 @@ function ScheduleCreatorModal({
                             type="text"
                             value={label}
                             onChange={(e) => setLabel(e.target.value)}
-                            placeholder="e.g. 'Black Friday hero swap'"
+                            placeholder={tx(STRINGS.advanced_chrome.sched_label_placeholder, locale)}
                             data-testid="schedule-creator-label"
                             className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
@@ -1162,7 +1169,7 @@ function ScheduleCreatorModal({
                             data-testid="schedule-creator-page"
                             className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         >
-                            <option value="">Choose a page…</option>
+                            <option value="">{tx(STRINGS.advanced_chrome.sched_choose_page, locale)}</option>
                             {availablePages.map((p) => (
                                 <option key={p.page_id} value={p.page_id}>
                                     {getPageLabel(p.page_id)}
@@ -1215,7 +1222,7 @@ function ScheduleCreatorModal({
                             ))}
                             {sectionId && (
                                 <option value={NEW_VARIANT_SENTINEL}>
-                                    + Create new variant for this schedule
+                                    {tx(STRINGS.advanced_chrome.sched_create_variant_option, locale)}
                                 </option>
                             )}
                         </select>
@@ -1227,7 +1234,7 @@ function ScheduleCreatorModal({
                                 type="text"
                                 value={newVariantLabel}
                                 onChange={(e) => setNewVariantLabel(e.target.value)}
-                                placeholder="e.g. 'Black Friday'"
+                                placeholder={tx(STRINGS.advanced_chrome.sched_new_variant_placeholder, locale)}
                                 data-testid="schedule-creator-new-variant-label"
                                 className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
@@ -1271,7 +1278,7 @@ function ScheduleCreatorModal({
                         )}
                     >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                        Create schedule
+                        {tx(STRINGS.advanced_chrome.sched_create_submit, locale)}
                     </button>
                 </footer>
             </div>
