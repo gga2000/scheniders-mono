@@ -29,10 +29,33 @@ const columnSchema = z.object({
   links: z.array(navLinkSchema),
 });
 
+const contactSchema = z.object({
+  phone: z.string().optional(),
+  address_i18n: i18nStringOptional,
+});
+
+const legalSchema = z.object({
+  company_name: z.string().optional(),
+  business_license: z.string().optional(),
+});
+
 const schema = z.object({
+  /** Footer lockup: "bento" = classic dark anchor footer (default,
+   *  unchanged for existing stores); "info_panel" = light rounded panel
+   *  with brand / links / contact+legal columns and a rights line. */
+  layout: z.enum(["bento", "info_panel"]).optional(),
   tagline_i18n: i18nStringOptional,
   columns: z.array(columnSchema),
   show_cod_badge: z.boolean(),
+  /** info_panel: heading above the link list (falls back to the first
+   *  column's heading). */
+  links_heading_i18n: i18nStringOptional,
+  /** info_panel: contact lines (phone + address, shown per locale). */
+  contact: contactSchema.optional(),
+  /** info_panel: legal identity lines. */
+  legal: legalSchema.optional(),
+  /** info_panel: bottom rights line (falls back to "© year name"). */
+  rights_i18n: i18nStringOptional,
 });
 
 type Props = z.infer<typeof schema>;
@@ -86,6 +109,148 @@ function SiteFooterRender({
     ? resolveI18n(props.tagline_i18n, locale)
     : null;
   const year = new Date().getFullYear();
+
+  // -------------------------------------------------------------------
+  // info_panel — large light rounded panel on --bk-surface-alt with a
+  // 3-column grid (brand+tagline / link list / contact+legal) and a
+  // bottom rights line. The classic dark bento footer below stays
+  // byte-identical for existing stores.
+  // -------------------------------------------------------------------
+  if ((props.layout ?? "bento") === "info_panel") {
+    const links = props.columns.flatMap((col) => col.links);
+    const linksHeading = props.links_heading_i18n
+      ? resolveI18n(props.links_heading_i18n, locale)
+      : props.columns[0]
+        ? resolveI18n(props.columns[0].heading_i18n, locale)
+        : "";
+    const rights = props.rights_i18n
+      ? resolveI18n(props.rights_i18n, locale)
+      : `© ${year} ${name}`;
+    const address = props.contact?.address_i18n;
+    // The legal address is often bilingual — show every provided
+    // translation as its own line (deduped), matching Iraqi business
+    // footers that print the address in both Arabic and English.
+    const addressLines = address
+      ? [
+          ...new Set(
+            [address.en, address.ar, address.ku].filter(
+              (line): line is string => Boolean(line && line.trim()),
+            ),
+          ),
+        ]
+      : [];
+
+    return (
+      <footer className="px-3 pb-6 pt-2 sm:px-6">
+        <div
+          className="mx-auto max-w-6xl rounded-[24px] px-6 py-10 sm:px-10"
+          style={{
+            backgroundColor: "var(--bk-surface-alt, #f4ede1)",
+            color: "var(--bk-ink, #1a1a1a)",
+          }}
+        >
+          <div className="grid gap-10 md:grid-cols-3">
+            {/* Brand: wordmark + tagline */}
+            <div className="space-y-3">
+              <p
+                className="font-display text-2xl font-black tracking-tight"
+                style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+              >
+                {name}
+              </p>
+              {tagline && (
+                <p className="max-w-xs font-body text-sm opacity-70">
+                  {tagline}
+                </p>
+              )}
+            </div>
+
+            {/* Link list — flattened from the existing columns prop */}
+            <div className="space-y-3">
+              {linksHeading && (
+                <h3 className="font-label text-base font-bold">
+                  {linksHeading}
+                </h3>
+              )}
+              <ul className="space-y-0.5">
+                {links.map((l, i) => (
+                  <li key={`${l.href}-${i}`}>
+                    <StoreLink
+                      href={l.href}
+                      className="inline-flex min-h-9 items-center font-body text-sm opacity-75 transition-opacity underline-offset-4 hover:opacity-100 hover:underline"
+                    >
+                      {resolveI18n(l.label_i18n, locale)}
+                    </StoreLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Contact + legal — small muted lines */}
+            {(props.contact?.phone ||
+              addressLines.length > 0 ||
+              props.legal?.company_name ||
+              props.legal?.business_license) && (
+              <div className="space-y-2 font-body text-sm opacity-70">
+                {props.contact?.phone && (
+                  <p>
+                    <span className="font-bold">
+                      {t ? "رقم الهاتف:" : "Phone:"}
+                    </span>{" "}
+                    <a
+                      href={`tel:${props.contact.phone}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {props.contact.phone}
+                    </a>
+                  </p>
+                )}
+                {addressLines.map((line, i) => (
+                  <p key={line}>
+                    {i === 0 && (
+                      <>
+                        <span className="font-bold">
+                          {t ? "العنوان:" : "Address:"}
+                        </span>{" "}
+                      </>
+                    )}
+                    {line}
+                  </p>
+                ))}
+                {props.legal?.company_name && (
+                  <p>
+                    <span className="font-bold">
+                      {t ? "الاسم القانوني للشركة:" : "Company legal name:"}
+                    </span>{" "}
+                    {props.legal.company_name}
+                  </p>
+                )}
+                {props.legal?.business_license && (
+                  <p>
+                    <span className="font-bold">
+                      {t ? "رقم الإجازة التجارية:" : "Business license:"}
+                    </span>{" "}
+                    {props.legal.business_license}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom rights line */}
+          <div
+            className="mt-8 border-t pt-5 text-center"
+            style={{
+              borderColor:
+                "color-mix(in srgb, var(--bk-ink, #1a1a1a) 12%, transparent)",
+            }}
+          >
+            <p className="font-body text-xs opacity-60">{rights}</p>
+          </div>
+        </div>
+      </footer>
+    );
+  }
 
   return (
     <footer

@@ -38,10 +38,15 @@ export interface StoreTemplate {
      * so re-applying always mints fresh ids.
      */
     pages: Partial<Record<PageId, SectionInstance[]>>;
-    /** Global sections. Only `header`/`footer` are seeded. */
+    /**
+     * Global sections. `header`/`footer` are always seeded; `promo_bar`
+     * lets a direction ship a branded top bar instead of the storefront's
+     * default `announcement_bar` fallback.
+     */
     globals: {
         header: SectionInstance;
         footer: SectionInstance;
+        promo_bar?: SectionInstance;
     };
 }
 

@@ -12,6 +12,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { cn } from "./helpers/utils";
@@ -28,10 +29,16 @@ const navLinkSchema = z.object({
 });
 
 const schema = z.object({
+  /** Header lockup: "bento" = classic Candy Bento bar (default, unchanged
+   *  for existing stores); "floating_pill" = fully-rounded surface pill
+   *  floating with a margin from the page edges. */
+  layout: z.enum(["bento", "floating_pill"]).optional(),
   /** Override the store name shown as the wordmark (defaults to business_name). */
   wordmark_i18n: i18nStringOptional,
   /** "pill" = butter logo chip (default); "plain" = square + wordmark. */
   wordmark_style: z.enum(["pill", "plain"]).optional(),
+  /** Logo image for the floating_pill lockup (falls back to tenant branding). */
+  logo_image_url: z.string().optional(),
   nav_links: z.array(navLinkSchema),
   show_search: z.boolean(),
   show_cart: z.boolean(),
@@ -95,6 +102,160 @@ function SiteHeaderRender({
     href: l.href,
     label: resolveI18n(l.label_i18n, locale),
   }));
+
+  // -------------------------------------------------------------------
+  // floating_pill — fully-rounded surface bar floating with a margin
+  // from the page edges: nav links at inline-start, search/cart + the
+  // logo-image + wordmark lockup grouped at inline-end. The classic
+  // bento lockup below stays byte-identical for existing stores.
+  // -------------------------------------------------------------------
+  if ((props.layout ?? "bento") === "floating_pill") {
+    const pillLogo = props.logo_image_url ?? logo;
+    const pillIconBtn =
+      "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full " +
+      "transition-opacity hover:opacity-70 active:opacity-60";
+
+    return (
+      <header
+        className={cn(
+          "w-full z-40 px-3 pt-3 sm:px-6 sm:pt-4",
+          props.sticky && "sticky top-0",
+        )}
+      >
+        <div
+          className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-3 rounded-full px-4 sm:px-7"
+          style={{
+            backgroundColor: "var(--bk-surface, #ffffff)",
+            color: "var(--bk-ink, #1a1a1a)",
+            boxShadow: "0 14px 40px -18px rgb(0 0 0 / 0.35)",
+          }}
+        >
+          {/* Inline-start: mobile menu toggle + desktop nav links */}
+          <div className="flex min-w-0 items-center gap-1">
+            {navLinks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-label={t ? "القائمة" : "Menu"}
+                aria-expanded={open}
+                className={cn(pillIconBtn, "sm:hidden")}
+                style={{ color: "var(--bk-ink, #1a1a1a)" }}
+              >
+                <MaterialIcon
+                  name={open ? "close" : "menu"}
+                  className="text-2xl"
+                />
+              </button>
+            )}
+            <nav className="hidden items-center gap-6 sm:flex">
+              {navLinks.map((l) => (
+                <StoreLink
+                  key={`${l.href}-${l.label}`}
+                  href={l.href}
+                  className="font-body text-sm font-bold transition-opacity hover:opacity-70"
+                  style={{ color: "var(--bk-ink, #1a1a1a)" }}
+                >
+                  {l.label}
+                </StoreLink>
+              ))}
+            </nav>
+          </div>
+
+          {/* Inline-end: search + cart, then the logo lockup at the edge */}
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            {props.show_search && (
+              <StoreLink
+                href="/search"
+                aria-label={t ? "بحث" : "Search"}
+                className={cn(pillIconBtn, "hidden sm:inline-flex")}
+                style={{ color: "var(--bk-ink, #1a1a1a)" }}
+              >
+                <MaterialIcon name="search" className="text-2xl" />
+              </StoreLink>
+            )}
+            {props.show_cart && (
+              <StoreLink
+                href="/cart"
+                aria-label={t ? `سلة التسوّق (${count})` : `Cart (${count})`}
+                className={cn(pillIconBtn, "relative")}
+                style={{ color: "var(--bk-ink, #1a1a1a)" }}
+              >
+                <MaterialIcon name="shopping_bag" className="text-2xl" />
+                {count > 0 && (
+                  <span
+                    className="absolute right-0 top-0 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums"
+                    style={{
+                      backgroundColor: "var(--bk-primary, #ffd84a)",
+                      color: "var(--bk-ink, #1a1a1a)",
+                    }}
+                  >
+                    {count}
+                  </span>
+                )}
+              </StoreLink>
+            )}
+            <StoreLink
+              href="/"
+              onClick={() => setOpen(false)}
+              aria-label={wordmark}
+              className="flex min-w-0 items-center gap-2"
+            >
+              <span
+                className="truncate font-display text-xl font-black tracking-tight sm:text-2xl"
+                style={{
+                  color: "var(--bk-ink, #1a1a1a)",
+                  fontFamily: "var(--bk-font-display, inherit)",
+                }}
+              >
+                {wordmark}
+              </span>
+              {pillLogo && (
+                <Image
+                  src={pillLogo}
+                  alt=""
+                  width={40}
+                  height={40}
+                  unoptimized
+                  sizes="40px"
+                  className="h-10 w-10 shrink-0 rounded-full object-cover"
+                />
+              )}
+            </StoreLink>
+          </div>
+        </div>
+
+        {/* Mobile nav sheet — a rounded card floating under the pill */}
+        {open && navLinks.length > 0 && (
+          <nav
+            className="mx-auto mt-2 max-w-6xl rounded-3xl px-5 py-1 sm:hidden"
+            style={{
+              backgroundColor: "var(--bk-surface, #ffffff)",
+              color: "var(--bk-ink, #1a1a1a)",
+              boxShadow: "0 14px 40px -18px rgb(0 0 0 / 0.35)",
+            }}
+          >
+            <ul>
+              {navLinks.map((l) => (
+                <li
+                  key={`m-${l.href}-${l.label}`}
+                  className="border-b border-black/5 last:border-0"
+                >
+                  <StoreLink
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className="block py-3 font-body text-sm font-bold"
+                    style={{ color: "var(--bk-ink, #1a1a1a)" }}
+                  >
+                    {l.label}
+                  </StoreLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+      </header>
+    );
+  }
 
   return (
     <header

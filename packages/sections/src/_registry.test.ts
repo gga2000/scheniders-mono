@@ -73,12 +73,23 @@ const EXPECTED_TYPES = [
   // Site chrome (global header / footer)
   "site_header",
   "site_footer",
+  // Signature family (funnel-style storefront)
+  "hero_card_float",
+  "trust_badge_row",
+  "category_spotlight_pair",
+  "collection_trio",
+  "testimonial_cards",
+  "pillars_grid",
+  "about_spotlight",
+  "faq_contact_split",
+  "countdown_announcement",
+  "pdp_direct_order",
 ];
 
 describe("section registry", () => {
-  it("registers exactly 50 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(50);
-    expect(listSections()).toHaveLength(50);
+  it("registers exactly 60 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(60);
+    expect(listSections()).toHaveLength(60);
   });
 
   it("each section's defaultProps validates against its own schema", () => {
@@ -103,13 +114,19 @@ describe("section registry", () => {
     expect(getSection("about_block")).toBeTruthy();
   });
 
-  it("listSections({ category: 'hero' }) returns 4 hero sections", () => {
+  it("listSections({ category: 'hero' }) returns 5 hero sections", () => {
     const hero = listSections({ category: "hero" });
     const types = hero.map((s) => s.type).sort();
     expect(types).toEqual(
-      ["hero_image", "hero_split", "hero_marquee", "hero_video"].sort(),
+      [
+        "hero_image",
+        "hero_split",
+        "hero_marquee",
+        "hero_video",
+        "hero_card_float",
+      ].sort(),
     );
-    expect(hero).toHaveLength(4);
+    expect(hero).toHaveLength(5);
   });
 
   it("listSections({ for_page: 'about' }) returns at least 5 sections", () => {
@@ -130,18 +147,24 @@ describe("section registry", () => {
 
   it("listSections() filters compose (for_page AND category)", () => {
     const both = listSections({ for_page: "home", category: "trust" });
-    expect(both.map((s) => s.type)).toEqual(["trust_strip"]);
+    expect(both.map((s) => s.type)).toEqual(["trust_strip", "trust_badge_row"]);
   });
 
   it("getSection returns undefined for unknown types", () => {
     expect(getSection("nonexistent_section")).toBeUndefined();
   });
 
-  it("listSections({ category: 'story' }) returns 4 story sections", () => {
+  it("listSections({ category: 'story' }) returns 5 story sections", () => {
     const story = listSections({ category: "story" });
     const types = story.map((s) => s.type).sort();
     expect(types).toEqual(
-      ["about_block", "brand_story", "founder_note", "press_quotes"].sort(),
+      [
+        "about_block",
+        "about_spotlight",
+        "brand_story",
+        "founder_note",
+        "press_quotes",
+      ].sort(),
     );
   });
 

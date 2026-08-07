@@ -18,6 +18,7 @@ import { auroraGlassTemplate } from "./aurora-glass";
 import { cobaltBroadsheetTemplate } from "./cobalt-broadsheet";
 import { chromeNightTemplate } from "./chrome-night";
 import { sunbleachTemplate } from "./sunbleach";
+import { schenidersSignatureTemplate } from "./scheniders-signature";
 import type { StoreTemplate } from "./types";
 
 export type { StoreTemplate, BrandKitPreset } from "./types";
@@ -28,6 +29,7 @@ export const STORE_TEMPLATES: StoreTemplate[] = [
     cobaltBroadsheetTemplate,
     chromeNightTemplate,
     sunbleachTemplate,
+    schenidersSignatureTemplate,
 ];
 
 /**
@@ -85,6 +87,9 @@ export function applyStoreTemplate(
         ...cfg.globals,
         header: rehashSections([template.globals.header])[0],
         footer: rehashSections([template.globals.footer])[0],
+        ...(template.globals.promo_bar
+            ? { promo_bar: rehashSections([template.globals.promo_bar])[0] }
+            : {}),
     };
 
     for (const page of cfg.pages) {
