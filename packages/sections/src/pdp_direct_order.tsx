@@ -136,6 +136,9 @@ function PdpDirectOrderRender({
   const base = useStoreBase();
 
   const [qty, setQty] = useState(1);
+  // Server-corrected unit price (422 `price_changed` self-heal); null until
+  // the server reports a drift.
+  const [livePrice, setLivePrice] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
     "idle",
   );
@@ -189,13 +192,17 @@ function PdpDirectOrderRender({
     return null;
   }
 
+  // The server verifies each line's price against the live product row and
+  // 422s with `new_price` when it drifted; `livePrice` adopts that correction
+  // so the retry succeeds without a page reload (parity with checkout_form's
+  // cart-store `updatePrice` self-heal).
+  const price = livePrice ?? product.price;
+
   const onSale =
-    product.compare_at_price != null && product.compare_at_price > product.price;
+    product.compare_at_price != null && product.compare_at_price > price;
   const discountPct = onSale
     ? Math.round(
-        ((product.compare_at_price! - product.price) /
-          product.compare_at_price!) *
-          100,
+        ((product.compare_at_price! - price) / product.compare_at_price!) * 100,
       )
     : 0;
   const stockLeft =
@@ -203,7 +210,7 @@ function PdpDirectOrderRender({
   const oos = stockLeft <= 0;
   const maxQty = Math.min(props.max_qty, stockLeft > 0 ? stockLeft : props.max_qty);
 
-  const subtotal = product.price * qty;
+  const subtotal = price * qty;
   // Same per-governorate shipping engine as checkout_form so the total this
   // CTA shows matches what the server records for the order.
   const commerce = (
@@ -281,7 +288,7 @@ function PdpDirectOrderRender({
         variant_id: null,
         name: product.name,
         variant_name: null,
-        price: product.price,
+        price,
         quantity: qty,
       },
     ];
@@ -374,6 +381,15 @@ function PdpDirectOrderRender({
           | null;
         const issues = Array.isArray(data?.issues) ? data!.issues : [];
         if (issues.length > 0) idempotencyKeyRef.current = null;
+        // Self-heal a price drift: adopt the server's verified price so the
+        // shopper's retry submits (and displays) the correct number.
+        const priceIssue = issues.find(
+          (i) =>
+            i.reason === "price_changed" &&
+            i.product_id === product.id &&
+            typeof i.new_price === "number",
+        );
+        if (priceIssue) setLivePrice(priceIssue.new_price!);
         setErrorMsg(
           data?.error ??
             (t ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."),
@@ -508,7 +524,7 @@ function PdpDirectOrderRender({
                 className="font-display font-black text-3xl"
                 style={{ color: "var(--bk-primary, #ff5a8a)" }}
               >
-                <bdi>{formatPrice(product.price, locale)}</bdi>
+                <bdi>{formatPrice(price, locale)}</bdi>
               </span>
               {onSale && product.compare_at_price != null && (
                 <span className="font-body text-lg text-bk-ink-soft line-through">

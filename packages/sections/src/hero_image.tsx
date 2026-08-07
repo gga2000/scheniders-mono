@@ -20,7 +20,11 @@ import {
   MaterialIcon,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
-import { isPlausiblePhone } from "./helpers/whatsapp";
+import {
+  isPlausiblePhone,
+  resolveTenantWhatsapp,
+  whatsappDigits,
+} from "./helpers/whatsapp";
 import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
@@ -61,7 +65,7 @@ function HeroImageRender({
   ctx,
 }: {
   props: Props;
-  ctx: { runtime: { locale: "ar" | "en" | "ku" } };
+  ctx: { runtime: { locale: "ar" | "en" | "ku" }; tenant?: unknown };
 }) {
   const locale = ctx.runtime.locale;
   const title = resolveI18n(props.title_i18n, locale);
@@ -71,11 +75,13 @@ function HeroImageRender({
   const secondaryLabel = resolveI18n(props.secondary_cta_label_i18n, locale);
 
   const secondaryHref = (() => {
-    if (
-      props.secondary_cta_kind === "whatsapp" &&
-      isPlausiblePhone(props.secondary_cta_value)
-    ) {
-      return `https://wa.me/${props.secondary_cta_value!.replace(/\D/g, "")}`;
+    if (props.secondary_cta_kind === "whatsapp") {
+      // Per-section override first, then the tenant's canonical number —
+      // templates seed an empty value on purpose so the store-wide number
+      // applies without per-template wiring. `whatsappDigits` normalizes the
+      // common local 07xx format to 9647xx (wa.me needs country code).
+      const number = resolveTenantWhatsapp(ctx.tenant, props.secondary_cta_value);
+      return number ? `https://wa.me/${whatsappDigits(number)}` : null;
     }
     if (
       props.secondary_cta_kind === "call" &&
@@ -83,11 +89,14 @@ function HeroImageRender({
     ) {
       return `tel:${props.secondary_cta_value}`;
     }
-    if (props.secondary_cta_kind === "category_link" && props.secondary_cta_value) {
-      return `/categories/${props.secondary_cta_value}`;
-    }
     return null;
   })();
+  // Category links are store-internal: rendered through StoreLink so the
+  // store base path (`/s/{slug}` when not on a subdomain) is preserved.
+  const secondaryCategoryHref =
+    props.secondary_cta_kind === "category_link" && props.secondary_cta_value
+      ? `/categories/${props.secondary_cta_value}`
+      : null;
 
   const hasImage = !!props.image_url;
 
@@ -202,6 +211,13 @@ function HeroImageRender({
                 {secondaryLabel}
               </ChunkyButton>
             </a>
+          )}
+          {secondaryCategoryHref && (
+            <StoreLink href={secondaryCategoryHref} aria-label={secondaryLabel}>
+              <ChunkyButton bg="white" size="lg">
+                {secondaryLabel}
+              </ChunkyButton>
+            </StoreLink>
           )}
         </div>
       </BentoCard>

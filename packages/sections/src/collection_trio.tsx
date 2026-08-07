@@ -13,6 +13,7 @@ import { resolveI18n } from "@scheniders/shared";
 import { Section } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { i18nStringOptional, i18nStringSchema } from "./_schema";
+import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
@@ -137,11 +138,12 @@ function CollectionTrio({
               ) : (
                 <SparkleGlyph className="opacity-80" />
               )}
-              {eyebrow}
+              <span data-i18n-field="eyebrow_i18n">{eyebrow}</span>
             </span>
           )}
           {title && (
             <h2
+              data-i18n-field="title_i18n"
               className="font-display font-black text-3xl sm:text-4xl tracking-tight"
               style={{
                 color: "var(--bk-ink, #1a1a1a)",
@@ -189,7 +191,7 @@ function CollectionTrio({
                         src={item.image_url}
                         alt={cardTitle}
                         fill
-                        unoptimized
+                        unoptimized={!isOptimizableImageHost(item.image_url)}
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
                       />
@@ -214,11 +216,12 @@ function CollectionTrio({
                           fontFamily: "var(--bk-font-display, inherit)",
                         }}
                       >
-                        {cardTitle}
+                        <span data-i18n-field="title_i18n">{cardTitle}</span>
                       </h3>
                     )}
                     {sub && (
                       <p
+                        data-i18n-field="sub_i18n"
                         className="font-body text-sm leading-snug line-clamp-1"
                         style={{
                           color: "var(--bk-ink-soft, rgb(26 26 26 / 0.6))",
@@ -241,7 +244,7 @@ function CollectionTrio({
                         }}
                       >
                         <SparkleGlyph size={12} className="opacity-80" />
-                        {ctaLabel}
+                        <span data-i18n-field="cta_label_i18n">{ctaLabel}</span>
                       </span>
                     )}
                   </div>

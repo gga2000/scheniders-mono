@@ -110,7 +110,9 @@ function SiteHeaderRender({
   // bento lockup below stays byte-identical for existing stores.
   // -------------------------------------------------------------------
   if ((props.layout ?? "bento") === "floating_pill") {
-    const pillLogo = props.logo_image_url ?? logo;
+    // `||` (not `??`): an empty-string override must fall back to the
+    // tenant's uploaded logo instead of suppressing the image entirely.
+    const pillLogo = props.logo_image_url || logo;
     const pillIconBtn =
       "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full " +
       "transition-opacity hover:opacity-70 active:opacity-60";

@@ -149,7 +149,10 @@ function CountdownAnnouncement({
           <FlameIcon className="shrink-0" />
         )}
         {label && (
-          <span className="font-label font-bold text-xs sm:text-sm">
+          <span
+            data-i18n-field="label_i18n"
+            className="font-label font-bold text-xs sm:text-sm"
+          >
             {label}
           </span>
         )}

@@ -14,6 +14,7 @@ import { resolveI18n } from "@scheniders/shared";
 import { Section } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { i18nStringOptional, i18nStringSchema } from "./_schema";
+import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
@@ -141,11 +142,12 @@ function CategorySpotlightPair({
               ) : (
                 <SparkleGlyph className="opacity-80" />
               )}
-              {eyebrow}
+              <span data-i18n-field="eyebrow_i18n">{eyebrow}</span>
             </span>
           )}
           {title && (
             <h2
+              data-i18n-field="title_i18n"
               className="font-display font-black text-3xl sm:text-4xl tracking-tight"
               style={{
                 color: "var(--bk-ink, #1a1a1a)",
@@ -203,7 +205,7 @@ function CategorySpotlightPair({
                       alt={label}
                       fill
                       priority={i < 2}
-                      unoptimized
+                      unoptimized={!isOptimizableImageHost(item.image_url)}
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
                     />
@@ -232,7 +234,9 @@ function CategorySpotlightPair({
                         fontFamily: "var(--bk-font-body, inherit)",
                       }}
                     >
-                      <span className="truncate">{label}</span>
+                      <span className="truncate" data-i18n-field="label_i18n">
+                        {label}
+                      </span>
                       <ChevronGlyph className="shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
                     </span>
                   )}
