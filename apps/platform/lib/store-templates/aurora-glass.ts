@@ -34,7 +34,10 @@ export const auroraGlassTemplate: StoreTemplate = {
             display: "Outfit",
             body: "Manrope",
             display_ar: "Readex Pro",
-            body_ar: "Almarai",
+            // Not Almarai: it only ships 400/700, so the 500 and 600 weights
+            // the loader requests would be synthesised — and faux-bold Arabic
+            // looks broken. Noto Sans Arabic covers all four.
+            body_ar: "Noto Sans Arabic",
             scale: "spacious",
         },
         shape: {
