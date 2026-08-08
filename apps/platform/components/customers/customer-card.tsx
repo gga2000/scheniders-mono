@@ -1,43 +1,22 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { MapPin, MessageCircle, Phone, MoreVertical, Star, Flag, Ban, ShoppingCart, Diamond } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, MessageCircle, Phone, Star, Tag, X, Check } from "lucide-react";
+import { governorateLabel } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import { TRUST_TIER_CONFIG, type TrustTier } from "@/types/customer";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
-import { TrustSparkline } from "@/components/customers/shared/trust-sparkline";
-
-/**
- * Build a synthetic 6-point trust trend as a visual placeholder.
- * Ramps from (score - 10) up to `score`, with small per-point variance based
- * on total_orders and delivery_success_rate. Not historical — purely cosmetic
- * until `trust_history` is returned by `get_paginated_customers`.
- */
-function synthesizeTrustTrend(
-    score: number,
-    totalOrders: number,
-    successRate: number,
-): number[] {
-    const clampedScore = Math.max(0, Math.min(100, score));
-    const start = Math.max(0, clampedScore - 10);
-    // Amplitude: more orders + lower success rate => slightly more wobble
-    const volatility = Math.min(
-        6,
-        Math.max(1, Math.log10(totalOrders + 1) * (1 + (100 - successRate) / 100)),
-    );
-    const points: number[] = [];
-    for (let i = 0; i < 6; i++) {
-        const t = i / 5;
-        const base = start + (clampedScore - start) * t;
-        // Deterministic-ish wobble seeded by i + totalOrders so it's stable per customer
-        const seed = Math.sin((i + 1) * (totalOrders + 7)) * volatility;
-        points.push(Math.max(0, Math.min(100, base + seed)));
-    }
-    // Force last point to match current score exactly so the trend lands on "now"
-    points[5] = clampedScore;
-    return points;
-}
+import {
+    VALUE_META,
+    recencyStatus,
+    firstDeliveryPending,
+    effectiveSuccessRate,
+} from "@/lib/customer-reliability";
+import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
+import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
+import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
+import { formatCompactIQD, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
 interface CustomerCardProps {
     customer: PaginatedCustomer;
@@ -51,496 +30,147 @@ interface CustomerCardProps {
     onShowDuplicates?: (phone: string) => void;
 }
 
-function formatCompactValue(value: number): string {
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
-    return value.toLocaleString("en-US");
-}
+export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: CustomerCardProps) {
+    const { t, language } = useLanguage();
+    const [quickOpen, setQuickOpen] = useState(false);
+    const select = onToggleSelect as (() => void) | undefined;
 
-/** Normalize and format Iraqi phone for display: 0780 230 1677 */
-function formatPhoneDisplay(raw: string): string {
-    // Strip non-digits
-    let digits = raw.replace(/\D/g, "");
-    // Strip country code +964 / 964
-    if (digits.startsWith("964") && digits.length > 10) {
-        digits = digits.slice(3);
-    }
-    // Strip leading 0
-    if (digits.startsWith("0")) {
-        digits = digits.slice(1);
-    }
-    // Pad to 10 digits if needed
-    digits = digits.padStart(10, "0");
-    // Format: 0XXX XXX XXXX
-    return `0${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Last Order Status Badge                                           */
-/* ------------------------------------------------------------------ */
-
-function LastOrderStatusBadge({ status }: { status: string }) {
-    const s = status?.toLowerCase();
-    if (s === "delivered" || s === "completed") {
-        return (
-            <span className="inline-flex items-center px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider bg-[#c7f8ef] text-[#33605a]">
-                Delivered
-            </span>
-        );
-    }
-    if (s === "rejected" || s === "returned") {
-        return (
-            <span className="inline-flex items-center px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider bg-red-100 text-red-700">
-                Rejected
-            </span>
-        );
-    }
-    if (s === "in_transit" || s === "shipping") {
-        return (
-            <span className="inline-flex items-center px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider bg-blue-100 text-blue-700">
-                In Transit
-            </span>
-        );
-    }
-    if (s === "confirmed" || s === "pending") {
-        return (
-            <span className="inline-flex items-center px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider bg-amber-100 text-amber-700">
-                {s === "confirmed" ? "Confirmed" : "Pending"}
-            </span>
-        );
-    }
-    if (s === "cancelled") {
-        return (
-            <span className="inline-flex items-center px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider bg-gray-100 text-gray-600">
-                Cancelled
-            </span>
-        );
-    }
-    return null;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Trust Ring                                                        */
-/* ------------------------------------------------------------------ */
-
-function TrustRing({
-    score,
-    tier,
-}: {
-    score: number;
-    tier: TrustTier;
-}) {
-    const config = TRUST_TIER_CONFIG[tier];
-
-    // SVG uses viewBox 0 0 36 36 — radius 14, center 18
-    const radius = 14;
-    const circumference = 2 * Math.PI * radius;
-    // Normalize progress: 100 = full circle. Scores >100 still show full ring; <0 show empty.
-    const normalizedProgress = Math.max(0, Math.min(score, 150)) / 150;
-    const progress = normalizedProgress * circumference;
-
-    const isPlatinum = tier === "platinum" || tier === "gold";
-    const isWarning = tier === "watch" || tier === "risky";
-    const isCritical = tier === "critical";
-    const isBlocked = tier === "blocked";
-    const isNew = tier === "new";
-
-    // Track dash pattern per tier
-    let trackDasharray: string | undefined;
-    if (isBlocked) trackDasharray = "2, 2";
-    else if (isCritical) trackDasharray = "3, 2";
-    else if (isWarning) trackDasharray = "4, 2";
-    else if (isNew) trackDasharray = "2, 1";
-
-    // Ring color override for new tier
-    const ringStroke = isNew ? "var(--pastel-mint)" : config.ringColor;
-
-    // Score text color overrides
-    let scoreColorClass = "";
-    if (isCritical) scoreColorClass = "text-red-900";
-    else if (isWarning) scoreColorClass = "text-red-600";
-    else if (isBlocked) scoreColorClass = "text-red-700";
-
-    // Score display — handle negative values
-    const scoreDisplay = score < 0 ? `${score}` : score.toString();
-
-    return (
-        <div
-            className={cn(
-                "relative w-14 h-14 shrink-0",
-                isPlatinum && "trust-ring-glow",
-            )}
-            style={
-                isPlatinum
-                    ? { filter: "drop-shadow(0 0 8px rgba(228,193,249,0.6))" }
-                    : undefined
-            }
-        >
-            <svg width={56} height={56} viewBox="0 0 36 36">
-                {/* Track */}
-                <circle
-                    cx={18}
-                    cy={18}
-                    r={radius}
-                    fill="none"
-                    stroke="#E7E5E4"
-                    strokeWidth={isPlatinum ? 4 : 3}
-                    strokeDasharray={trackDasharray}
-                />
-                {/* Progress arc */}
-                <motion.circle
-                    cx={18}
-                    cy={18}
-                    r={radius}
-                    fill="none"
-                    stroke={ringStroke}
-                    strokeWidth={isPlatinum ? 4 : 3}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    initial={{ strokeDashoffset: circumference }}
-                    animate={{ strokeDashoffset: circumference - progress }}
-                    transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-                    transform="rotate(-90 18 18)"
-                />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-                <span
-                    className={cn(
-                        "font-black tabular-nums",
-                        score > 99 || score < 0 ? "text-xs" : "text-sm",
-                        scoreColorClass || "text-foreground",
-                    )}
-                    style={!scoreColorClass ? { color: config.ringColor } : undefined}
-                >
-                    {scoreDisplay}
-                </span>
-            </div>
-        </div>
-    );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Customer Card                                                     */
-/* ------------------------------------------------------------------ */
-
-export function CustomerCard({
-    customer,
-    onClick,
-    isSelected,
-}: CustomerCardProps) {
-    const { t } = useLanguage();
-    const tier = customer.trust_tier;
-    const config = TRUST_TIER_CONFIG[tier];
-
-    const isPlatinum = tier === "platinum" || tier === "gold";
-    const isWarning = tier === "watch" || tier === "risky" || tier === "critical";
-    const isBlocked = tier === "blocked";
-    const isNew = tier === "new";
-
-    const lastOrderDays = customer.last_order_date
-        ? Math.floor(
-              (Date.now() - new Date(customer.last_order_date).getTime()) /
-                  (1000 * 60 * 60 * 24),
-          )
-        : null;
-
-    // Compute join-ago text for new customers
-    const joinText = (() => {
-        if (!isNew || !customer.first_order_date) return null;
-        const days = Math.floor(
-            (Date.now() - new Date(customer.first_order_date).getTime()) /
-                (1000 * 60 * 60 * 24),
-        );
-        if (days === 0) return t("customers.card.joinToday");
-        if (days === 1) return t("customers.card.joinYesterday");
-        return t("customers.card.joinDaysAgo").replace("{days}", days.toLocaleString("en-US"));
-    })();
-
-    // Bottom-left label for warning tiers
-    const warningLabel = isWarning
-        ? tier === "watch"
-            ? t("customers.card.underWatch")
-            : t("customers.card.highRisk")
-        : null;
+    const value = customer.value_tier;
+    const risk = customer.risk_level;
+    const meta = VALUE_META[value];
+    const pending = firstDeliveryPending(customer);
+    const recency = recencyStatus(customer.last_order_date, risk);
+    const success = effectiveSuccessRate(customer);
+    const e164 = toIraqE164(customer.phone);
+    const gov = customer.governorate ? governorateLabel(customer.governorate, language) || customer.governorate : null;
 
     return (
         <motion.div
             onClick={onClick}
             whileHover={{ y: -2 }}
             className={cn(
-                // Base
-                "relative bg-(--card-bg) rounded-[3rem] border p-6 cursor-pointer transition-all group customer-card",
-                // Normal
-                !isPlatinum &&
-                    !isWarning &&
-                    !isBlocked &&
-                    "border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.08)]",
-                // Platinum / Gold
-                isPlatinum &&
-                    "border-pastel-purple/30 shadow-[0_2px_4px_rgba(228,193,249,0.1),0_12px_32px_rgba(228,193,249,0.15)] hover:shadow-[0_4px_8px_rgba(228,193,249,0.15),0_16px_40px_rgba(228,193,249,0.2)] overflow-hidden customer-card-platinum",
-                // Warning (watch / risky)
-                isWarning &&
-                    "border-red-200 border-dashed shadow-[0_1px_3px_rgba(239,68,68,0.04),0_8px_24px_rgba(239,68,68,0.06)] hover:shadow-[0_2px_6px_rgba(239,68,68,0.08),0_12px_32px_rgba(239,68,68,0.1)] customer-card-warning",
-                // Blocked
-                isBlocked &&
-                    "border-red-200 border-dashed shadow-[0_1px_3px_rgba(239,68,68,0.04),0_8px_24px_rgba(239,68,68,0.06)] hover:shadow-[0_2px_6px_rgba(239,68,68,0.08),0_12px_32px_rgba(239,68,68,0.1)] customer-card-warning",
-                // Selection ring
+                "relative bg-(--card-bg) rounded-3xl border border-(--card-border) pl-6 pr-5 py-5 cursor-pointer overflow-hidden transition-shadow group",
+                "shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)]",
                 isSelected && "ring-2 ring-foreground",
             )}
         >
-            {/* Platinum decorative blur blob */}
-            {isPlatinum && (
-                <div className="absolute top-0 left-0 w-24 h-24 bg-pastel-purple/10 blur-3xl pointer-events-none" />
+            {/* Value accent rail */}
+            <span className={cn("absolute left-0 top-0 bottom-0 w-1.5", meta.rail)} aria-hidden />
+
+            {/* Select checkbox */}
+            {select && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); select(); }}
+                    className={cn(
+                        "absolute top-3 left-3 z-10 w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                        isSelected
+                            ? "bg-foreground border-foreground text-background opacity-100"
+                            : "bg-(--card-bg) border-(--card-border) text-transparent opacity-0 group-hover:opacity-100",
+                    )}
+                    aria-label={t("customers.bulk.select", "Select")}
+                >
+                    <Check className="w-3.5 h-3.5" />
+                </button>
             )}
 
-            {/* ── Top Row ── */}
-            <div className="flex items-start justify-between gap-3">
-                {/* Left: ring + name/phone/address */}
-                <div className="flex items-start gap-3 min-w-0">
-                    <TrustRing score={customer.trust_score} tier={tier} />
-                    <div className="min-w-0 pt-0.5">
-                        <div className="flex items-center gap-1.5">
-                            <h3 className="font-bold text-foreground truncate">
-                                {customer.name}
-                            </h3>
-                            {isPlatinum && (
-                                <Star className="w-3.5 h-3.5 text-purple-500 shrink-0 fill-purple-500" />
-                            )}
-                            {isBlocked && (
-                                <span className="text-[8px] font-bold text-foreground bg-pastel-purple px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-0.5">
-                                    <Flag className="w-3 h-3" />
-                                    {t("customers.card.networkFlag")}
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-xs font-mono text-muted-foreground tabular-nums mt-0.5">
-                            {formatPhoneDisplay(customer.phone)}
-                        </p>
-                        <div className="mt-1 -ml-1">
-                            <TrustSparkline
-                                data={synthesizeTrustTrend(
-                                    customer.trust_score,
-                                    customer.total_orders,
-                                    customer.delivery_success_rate,
-                                )}
-                                color={config.ringColor}
-                            />
-                        </div>
-                        {customer.city && (
-                            <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+            {/* Identity */}
+            <div className="flex items-start gap-3">
+                <span className={cn("w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shrink-0", meta.pillBg, meta.pillText)}>
+                    {monogram(customer.name)}
+                </span>
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                        <h3 className="font-bold text-foreground truncate">{customer.name}</h3>
+                        {customer.completed_count > 3 && (
+                            <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">
+                                <Star className="w-2.5 h-2.5" />{t("customers.loyal")}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 text-[13px] text-muted-foreground">
+                        <span className="font-mono tabular-nums">{formatPhoneDisplay(customer.phone)}</span>
+                        {gov && (
+                            <span className="inline-flex items-center gap-1 min-w-0">
                                 <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{customer.city}{customer.governorate && customer.governorate !== customer.city ? `, ${customer.governorate}` : ""}</span>
-                            </p>
+                                <span className="truncate">{gov}</span>
+                            </span>
                         )}
                     </div>
                 </div>
-
-                {/* Right: last order status + LTV tier + trust tier badge */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                    {customer.last_order_status && (
-                        <LastOrderStatusBadge status={customer.last_order_status} />
-                    )}
-                    {/* LTV Tier Badge */}
-                    <span className={cn(
-                        "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-0.5",
-                        customer.total_spent >= 500_000 && "bg-(--pastel-purple)/60 text-purple-700",
-                        customer.total_spent >= 200_000 && customer.total_spent < 500_000 && "bg-(--pastel-green)/60 text-green-700",
-                        customer.total_spent >= 50_000 && customer.total_spent < 200_000 && "bg-(--pastel-yellow)/60 text-amber-700",
-                        customer.total_spent < 50_000 && "bg-(--pastel-pink)/60 text-rose-700",
-                    )}>
-                        {customer.total_spent >= 500_000 && <Diamond className="w-2.5 h-2.5" />}
-                        {customer.total_spent >= 500_000 ? "Whale" : customer.total_spent >= 200_000 ? "High" : customer.total_spent >= 50_000 ? "Medium" : "Low"}
-                    </span>
-                    <span className={cn(
-                        "text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider",
-                        config.bgClass,
-                        config.textClass,
-                    )}>
-                        {t(config.labelKey)}
-                    </span>
-                </div>
+                <RiskChip risk={risk} className="shrink-0" />
             </div>
 
-            {/* ── Stats Grid ── */}
-            <div className="grid grid-cols-3 gap-2 my-4">
-                {/* Total Orders */}
-                <div className={cn(
-                    "text-center rounded-2xl p-3",
-                    isPlatinum && "bg-[var(--pastel-purple)]/15",
-                    (isWarning || isBlocked) && "bg-rose-50",
-                    isNew && "bg-[var(--pastel-blue)]/15",
-                    !isPlatinum && !isWarning && !isBlocked && !isNew && "bg-[var(--pastel-yellow)]/25",
-                )}>
-                    <p className="text-[10px] font-semibold text-muted-foreground mb-1 flex items-center justify-center gap-0.5">
-                        <ShoppingCart className={cn(
-                            "w-3 h-3",
-                            isPlatinum && "text-purple-500",
-                            (isWarning || isBlocked) && "text-rose-500",
-                            isNew && "text-blue-500",
-                            !isPlatinum && !isWarning && !isBlocked && !isNew && "text-amber-500",
-                        )} />
-                        {t("customers.card.totalOrders")}
-                    </p>
-                    <p className={cn(
-                        "text-lg font-black tabular-nums",
-                        isPlatinum && "text-purple-700",
-                        (isWarning || isBlocked) && "text-rose-700",
-                        isNew && "text-blue-700",
-                        !isPlatinum && !isWarning && !isBlocked && !isNew && "text-amber-700",
-                    )}>
-                        {customer.total_orders.toLocaleString("en-US")}
-                    </p>
-                </div>
-
-                {/* Success Rate */}
-                <div className={cn(
-                    "text-center rounded-2xl p-3",
-                    customer.delivery_success_rate >= 80 && "bg-[var(--pastel-green)]/25",
-                    customer.delivery_success_rate >= 50 && customer.delivery_success_rate < 80 && "bg-[var(--pastel-yellow)]/25",
-                    customer.delivery_success_rate < 50 && "bg-[var(--pastel-pink)]/25",
-                )}>
-                    <p className="text-[10px] font-semibold text-muted-foreground mb-1">
-                        {t("customers.card.successRate")}
-                    </p>
-                    <p
-                        className={cn(
-                            "text-lg font-black tabular-nums",
-                            customer.delivery_success_rate >= 80 && "text-emerald-600",
-                            customer.delivery_success_rate >= 50 && customer.delivery_success_rate < 80 && "text-amber-600",
-                            customer.delivery_success_rate < 50 && "text-rose-600",
-                        )}
-                    >
-                        {Math.round(customer.delivery_success_rate)}%
-                    </p>
-                </div>
-
-                {/* Total Value */}
-                <div className={cn(
-                    "text-center rounded-2xl p-3",
-                    isPlatinum && "bg-[var(--pastel-purple)]/15",
-                    (isWarning || isBlocked) && "bg-rose-50",
-                    isNew && "bg-[var(--pastel-mint)]/15",
-                    !isPlatinum && !isWarning && !isBlocked && !isNew && "bg-[var(--pastel-green)]/25",
-                )}>
-                    <p className="text-[10px] font-semibold text-muted-foreground mb-1">
-                        {t("customers.card.totalValue")}
-                    </p>
-                    <p className={cn(
-                        "text-lg font-black tabular-nums",
-                        isPlatinum && "text-purple-700",
-                        (isWarning || isBlocked) && "text-rose-700",
-                        isNew && "text-teal-700",
-                        !isPlatinum && !isWarning && !isBlocked && !isNew && "text-emerald-700",
-                    )}>
-                        {formatCompactValue(customer.total_spent)}
-                    </p>
-                    <span className="bg-white/60 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-block mt-0.5">
-                        IQD {formatCompactValue(customer.total_spent)}
-                    </span>
-                </div>
+            {/* Value hero */}
+            <div className="mt-4">
+                <ValuePill tier={value} variant="hero" />
             </div>
 
-            {/* ── Bottom Row ── */}
-            <div className="flex items-center justify-between">
-                {/* Left side: last-order indicator or warning/new label */}
-                <div className="flex items-center gap-1.5 min-w-0">
-                    {warningLabel ? (
-                        <>
-                            <span className={cn("w-2 h-2 rounded-full shrink-0", tier === "risky" ? "bg-red-700" : "bg-red-500")} />
-                            <span className="text-red-600 font-black text-[11px]">
-                                {warningLabel}
-                            </span>
-                        </>
-                    ) : isNew && joinText ? (
-                        <>
-                            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                            <span className="text-[11px] text-muted-foreground">
-                                {joinText}
-                            </span>
-                        </>
-                    ) : lastOrderDays !== null ? (
-                        <>
-                            <span
-                                className={cn(
-                                    "w-2 h-2 rounded-full shrink-0",
-                                    lastOrderDays <= 7
-                                        ? "bg-green-500"
-                                        : lastOrderDays <= 30
-                                          ? "bg-amber-500"
-                                          : "bg-red-400",
-                                )}
-                            />
-                            <span className="text-[11px] text-muted-foreground truncate">
-                                {t("customers.card.lastOrder")} {lastOrderDays === 0
-                                    ? t("customers.card.today")
-                                    : t("customers.card.daysAgo").replace("{days}", lastOrderDays.toLocaleString("en-US"))}
-                            </span>
-                            <span className={cn(
-                                "text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0",
-                                lastOrderDays <= 7 && "bg-emerald-50 text-emerald-700 border border-emerald-200",
-                                lastOrderDays > 7 && lastOrderDays <= 30 && "bg-amber-50 text-amber-700 border border-amber-200",
-                                lastOrderDays > 30 && lastOrderDays <= 60 && "bg-orange-50 text-orange-700 border border-orange-200",
-                                lastOrderDays > 60 && "bg-rose-50 text-rose-700 border border-rose-200",
-                            )}>
-                                {lastOrderDays <= 7 ? "Active" : lastOrderDays <= 30 ? "Cooling" : lastOrderDays <= 60 ? "At Risk" : "Dormant"}
-                            </span>
-                        </>
-                    ) : null}
-                </div>
+            {/* Metric line */}
+            <div className="mt-3 flex items-center gap-2 text-[13px] text-muted-foreground flex-wrap">
+                <span><span className="font-mono font-medium text-foreground tabular-nums">{customer.total_orders.toLocaleString("en-US")}</span> {t("customers.orders").toLowerCase()}</span>
+                <span className="text-(--card-border)">·</span>
+                <span className="font-mono font-medium text-foreground tabular-nums">{formatCompactIQD(customer.total_spent)} IQD</span>
+                {!pending && (
+                    <>
+                        <span className="text-(--card-border)">·</span>
+                        <span><span className="font-mono font-medium text-foreground tabular-nums">{success}%</span> {t("customers.card.delivered")}</span>
+                    </>
+                )}
+            </div>
 
-                {/* Right side: action buttons */}
-                <div className="flex items-center gap-1 shrink-0">
-                    {/* WhatsApp — green for normal/platinum/new; gray for warning; hidden for blocked */}
-                    {!isBlocked && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(
-                                    `https://wa.me/964${customer.phone}`,
-                                    "_blank",
-                                );
-                            }}
-                            className={cn(
-                                "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
-                                isWarning ? "bg-gray-50 text-gray-600 hover:bg-gray-100" : "bg-green-50 text-green-600 hover:bg-green-100"
-                            )}
-                        >
-                            <MessageCircle className="w-4 h-4" />
-                        </button>
-                    )}
+            {/* Order-outcome flags (the human reason behind the risk level) */}
+            <CustomerStatusFlags customer={customer} className="mt-2.5" />
 
-                    {/* Phone — only for normal/platinum/new tiers */}
-                    {!isWarning && !isBlocked && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(`tel:+964${customer.phone}`);
-                            }}
-                            className="w-8 h-8 rounded-xl bg-gray-50 text-gray-600 flex items-center justify-center hover:bg-gray-100 transition-colors"
-                        >
-                            <Phone className="w-4 h-4" />
-                        </button>
-                    )}
-
-                    {/* Block button for blocked tiers */}
-                    {isBlocked && (
-                        <button
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-8 h-8 rounded-xl bg-red-100 text-red-700 flex items-center justify-center hover:bg-red-200 transition-colors"
-                        >
-                            <Ban className="w-4 h-4" />
-                        </button>
-                    )}
-
-                    {/* More */}
+            {/* Recency + actions */}
+            <div className="mt-3 pt-3 border-t border-(--card-border) flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground min-w-0">
+                    <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} />
+                    <span className="truncate">{pending ? t("customers.card.firstDeliveryPending") : recency.label}</span>
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
                     <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-8 h-8 rounded-xl border border-gray-100 text-gray-400 flex items-center justify-center hover:text-foreground hover:bg-gray-50 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); setQuickOpen(true); }}
+                        className="w-9 h-9 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
+                        aria-label={t("customers.quick.title", "Tag or note")}
                     >
-                        <MoreVertical className="w-4 h-4" />
+                        <Tag className="w-4 h-4" />
                     </button>
-                </div>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
+                        className="w-9 h-9 rounded-xl bg-lime-50 text-lime-700 flex items-center justify-center hover:bg-lime-100 transition-colors"
+                        aria-label="WhatsApp"
+                    >
+                        <MessageCircle className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); window.location.href = `tel:+${e164}`; }}
+                        className="w-9 h-9 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
+                        aria-label="Call"
+                    >
+                        <Phone className="w-4 h-4" />
+                    </button>
+                </span>
             </div>
+
+            {/* Quick tag/note overlay */}
+            <AnimatePresence>
+                {quickOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute inset-0 z-20 bg-(--card-bg) rounded-3xl border border-(--card-border) p-4 overflow-y-auto"
+                    >
+                        <div className="flex items-center justify-between mb-2.5">
+                            <span className="text-sm font-bold inline-flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />{t("customers.quick.title", "Quick actions")}</span>
+                            <button onClick={() => setQuickOpen(false)} className="w-7 h-7 rounded-lg border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40" aria-label={t("common.close", "Close")}>
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <CustomerQuickActions phone={customer.phone} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 }

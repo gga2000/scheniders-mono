@@ -23,6 +23,10 @@ import type {
 } from "@scheniders/shared";
 import { blockingChecks, runHealthChecks } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
+import { CHECK_COPY, checkCopyFixLabel } from "@/lib/health-check-copy";
+import type { LocaleCode } from "@scheniders/shared";
 import type { SettingsSectionId } from "./page-tree";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -40,6 +44,11 @@ export interface HealthChecklistScreenProps {
     onSelectSection?: (page_id: PageId, section_id: string) => void;
     /** Close the health screen and return to the live preview. */
     onClose?: () => void;
+    /**
+     * Whether the store has ever been published — drives the ordered
+     * first-launch checklist's final step. Omitted = step hidden.
+     */
+    hasPublished?: boolean;
 }
 
 type Filter = "all" | "failing" | "warn" | "passing";
@@ -48,14 +57,14 @@ type Filter = "all" | "failing" | "warn" | "passing";
 /* Category metadata                                                   */
 /* ─────────────────────────────────────────────────────────────────── */
 
-const CATEGORY_LABEL: Record<HealthCategory, string> = {
-    ad_compliance: "Ad compliance",
-    conversion: "Conversion",
-    seo: "SEO",
-    trust: "Trust",
-    content: "Content",
-    performance: "Performance",
-};
+const CATEGORY_LABEL = {
+    ad_compliance: STRINGS.health.cat_ad_compliance,
+    conversion: STRINGS.health.cat_conversion,
+    seo: STRINGS.health.cat_seo,
+    trust: STRINGS.health.cat_trust,
+    content: STRINGS.health.cat_content,
+    performance: STRINGS.health.cat_performance,
+} as const;
 
 const CATEGORY_ORDER: HealthCategory[] = [
     "ad_compliance",
@@ -77,11 +86,11 @@ function scoreColor(score: number): string {
     return "#16a34a"; // green
 }
 
-function scoreLabel(score: number): string {
-    if (score < 40) return "Needs work";
-    if (score < 70) return "Almost there";
-    if (score < 85) return "Ready to launch";
-    return "Looking great";
+function scoreLabel(score: number, locale: LocaleCode): string {
+    if (score < 40) return t(STRINGS.health.score_needs_work, locale);
+    if (score < 70) return t(STRINGS.health.score_almost, locale);
+    if (score < 85) return t(STRINGS.health.score_ready, locale);
+    return t(STRINGS.health.score_great, locale);
 }
 
 function statusDotColor(s: RuleStatus): string {
@@ -153,12 +162,76 @@ function ScoreDonut({ score }: { score: number }): ReactElement {
 export function HealthChecklistScreen(
     props: HealthChecklistScreenProps,
 ): ReactElement {
-    const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose } = props;
+    const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished } = props;
+    const locale = useResolvedEditorLocale();
 
     const report = useMemo(() => runHealthChecks(config), [config]);
     const blocking = useMemo(() => blockingChecks(report), [report]);
 
     const [filter, setFilter] = useState<Filter>("failing");
+
+    /* ── First-launch ordered checklist (2.3) ───────────────────────
+     * Reframes the scariest surface into a guided "do these 5 things"
+     * path for a first-week merchant, derived from the existing rules
+     * engine (zero new checks). Hidden once everything is done. */
+    const launchSteps = useMemo(() => {
+        const byId = new Map(report.checks.map((c) => [c.id, c]));
+        const pass = (id: string): boolean => byId.get(id)?.status === "pass";
+        const fixOf = (id: string) => byId.get(id)?.fix_action ?? null;
+        const policiesDone =
+            pass("privacy_policy_has_content") &&
+            pass("shipping_policy_has_content") &&
+            pass("returns_policy_has_content") &&
+            pass("terms_has_content");
+        const steps: Array<{
+            key: string;
+            label: string;
+            done: boolean;
+            fix: FixAction | null;
+            checkId?: string;
+            hint?: string;
+        }> = [
+            {
+                key: "logo",
+                label: t(STRINGS.health.launch_step_logo, locale),
+                done: pass("logo_uploaded"),
+                fix: fixOf("logo_uploaded"),
+            },
+            {
+                key: "whatsapp",
+                label: t(STRINGS.health.launch_step_whatsapp, locale),
+                done: pass("whatsapp_number_set"),
+                fix: fixOf("whatsapp_number_set"),
+                checkId: "whatsapp_number_set",
+            },
+            {
+                key: "home",
+                label: t(STRINGS.health.launch_step_home, locale),
+                done: pass("home_has_content"),
+                fix: fixOf("home_has_content"),
+            },
+            {
+                key: "policies",
+                label: t(STRINGS.health.launch_step_policies, locale),
+                done: policiesDone,
+                fix:
+                    fixOf("shipping_policy_has_content") ??
+                    fixOf("privacy_policy_has_content"),
+            },
+        ];
+        if (hasPublished !== undefined) {
+            steps.push({
+                key: "publish",
+                label: t(STRINGS.health.launch_step_publish, locale),
+                done: hasPublished,
+                fix: null,
+                hint: t(STRINGS.health.launch_step_publish_hint, locale),
+            });
+        }
+        return steps;
+    }, [report.checks, hasPublished, locale]);
+    const launchDone = launchSteps.filter((s) => s.done).length;
+    const showLaunchCard = launchDone < launchSteps.length;
 
     const visibleChecks = useMemo(() => {
         return report.checks.filter((c) => {
@@ -169,7 +242,36 @@ export function HealthChecklistScreen(
         });
     }, [report.checks, filter]);
 
-    const handleFix = (action: FixAction): void => {
+    /* UX2-03: a page-level fix while already ON that page changes nothing
+     * visible — a dead-end for the merchant. When the rule targets a field
+     * that lives on a section (wa_number), pinpoint the section and open
+     * its edit panel instead. */
+    const findWhatsappTarget = (): { page: PageId; sectionId: string } | null => {
+        const pages = Object.entries(config.pages ?? {}) as Array<[
+            PageId,
+            { sections?: Array<{ id: string; base?: Record<string, unknown> }> },
+        ]>;
+        for (const [pageId, page] of pages) {
+            for (const sec of page.sections ?? []) {
+                const base = sec.base ?? {};
+                for (const k of Object.keys(base)) {
+                    if (/^wa_number$|^whatsapp_number$|^whatsapp$/.test(k)) {
+                        return { page: pageId, sectionId: sec.id };
+                    }
+                }
+            }
+        }
+        return null;
+    };
+
+    const handleFix = (action: FixAction, checkId?: string): void => {
+        if (checkId === "whatsapp_number_set" && onSelectSection) {
+            const target = findWhatsappTarget();
+            if (target) {
+                onSelectSection(target.page, target.sectionId);
+                return;
+            }
+        }
         const go = action.go_to;
         if (go.kind === "settings") {
             onSelectSetting(go.key as SettingsSectionId);
@@ -204,18 +306,93 @@ export function HealthChecklistScreen(
                         onClick={onClose}
                         data-testid="health-close"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                        aria-label="Close health screen"
+                        aria-label={t(STRINGS.health.close, locale)}
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
                 ) : null}
                 <div>
-                    <h1 className="text-lg font-semibold tracking-tight">Store Health</h1>
+                    <h1 className="text-lg font-semibold tracking-tight">
+                        {t(STRINGS.health.heading, locale)}
+                    </h1>
                     <p className="text-xs text-foreground/80">
-                        {tenantName} — what to fix before launch
+                        {tFormat(STRINGS.health.subtitle, locale, { tenant: tenantName })}
                     </p>
                 </div>
             </header>
+
+            {/* First-launch ordered checklist */}
+            {showLaunchCard && (
+                <section className="px-6 pt-6" data-testid="health-launch-steps">
+                    <div className="rounded-2xl border border-(--card-border) bg-background p-4 shadow-(--card-shadow)">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                            <h2 className="text-sm font-bold text-foreground">
+                                {t(STRINGS.health.launch_title, locale)}
+                            </h2>
+                            <span className="text-[11px] font-semibold text-muted-foreground">
+                                {tFormat(STRINGS.health.launch_progress, locale, {
+                                    done: launchDone,
+                                    total: launchSteps.length,
+                                })}
+                            </span>
+                        </div>
+                        <ol className="space-y-1.5">
+                            {launchSteps.map((step, i) => (
+                                <li
+                                    key={step.key}
+                                    data-testid={`health-launch-step-${step.key}`}
+                                    data-done={step.done ? "true" : "false"}
+                                    className={cn(
+                                        "flex items-center gap-2.5 rounded-xl border px-3 py-2",
+                                        step.done
+                                            ? "border-emerald-500/30 bg-emerald-500/5"
+                                            : "border-(--card-border)",
+                                    )}
+                                >
+                                    {step.done ? (
+                                        <CheckCircle2
+                                            className="h-4 w-4 shrink-0 text-emerald-600"
+                                            aria-hidden="true"
+                                        />
+                                    ) : (
+                                        <span
+                                            aria-hidden="true"
+                                            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-(--card-border) text-[9px] font-bold text-muted-foreground"
+                                        >
+                                            {i + 1}
+                                        </span>
+                                    )}
+                                    <span
+                                        className={cn(
+                                            "min-w-0 flex-1 truncate text-sm",
+                                            step.done
+                                                ? "text-muted-foreground line-through decoration-emerald-500/40"
+                                                : "text-foreground",
+                                        )}
+                                    >
+                                        {step.label}
+                                    </span>
+                                    {!step.done && step.fix && (
+                                        <button
+                                            type="button"
+                                            data-testid={`health-launch-fix-${step.key}`}
+                                            onClick={() => handleFix(step.fix!, step.checkId)}
+                                            className="inline-flex h-7 shrink-0 items-center rounded-lg bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                        >
+                                            {t(STRINGS.health.launch_fix, locale)}
+                                        </button>
+                                    )}
+                                    {!step.done && !step.fix && step.hint && (
+                                        <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:block">
+                                            {step.hint}
+                                        </span>
+                                    )}
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
+                </section>
+            )}
 
             {/* Score card + categories */}
             <section className="grid gap-6 px-6 py-6 lg:grid-cols-[auto_1fr]">
@@ -230,10 +407,10 @@ export function HealthChecklistScreen(
                             style={{ color: scoreColor(report.score) }}
                             data-testid="health-score-label"
                         >
-                            {scoreLabel(report.score)}
+                            {scoreLabel(report.score, locale)}
                         </div>
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            out of 100
+                            {t(STRINGS.health.out_of_100, locale)}
                         </div>
                     </div>
                 </div>
@@ -249,7 +426,7 @@ export function HealthChecklistScreen(
                             >
                                 <div className="flex items-baseline justify-between">
                                     <span className="text-xs font-medium text-foreground/80">
-                                        {CATEGORY_LABEL[cat]}
+                                        {t(CATEGORY_LABEL[cat], locale)}
                                     </span>
                                     <span
                                         className="text-sm font-semibold tabular-nums"
@@ -281,10 +458,10 @@ export function HealthChecklistScreen(
                 >
                     <AlertTriangle className="h-4 w-4" />
                     <span className="font-semibold">
-                        Blocks publish ({blocking.length})
+                        {tFormat(STRINGS.health.blocks_publish, locale, { n: blocking.length })}
                     </span>
                     <span className="text-red-600/80 dark:text-red-300/70">
-                        — fix these before you can publish.
+                        {t(STRINGS.health.blocks_publish_hint, locale)}
                     </span>
                 </div>
             ) : null}
@@ -304,11 +481,20 @@ export function HealthChecklistScreen(
                                 : "border-(--card-border) bg-(--background-soft) text-muted-foreground hover:border-(--border-hover) hover:text-foreground",
                         )}
                     >
-                        {f === "failing" ? "Failing + Warn" : f}
+                        {f === "failing"
+                            ? t(STRINGS.health.filter_failing, locale)
+                            : f === "all"
+                              ? t(STRINGS.health.filter_all, locale)
+                              : f === "warn"
+                                ? t(STRINGS.health.filter_warn, locale)
+                                : t(STRINGS.health.filter_passing, locale)}
                     </button>
                 ))}
                 <span className="ml-auto text-xs text-muted-foreground">
-                    {visibleChecks.length} of {report.checks.length} checks
+                    {tFormat(STRINGS.health.checks_count, locale, {
+                        visible: visibleChecks.length,
+                        total: report.checks.length,
+                    })}
                 </span>
             </div>
 
@@ -322,12 +508,13 @@ export function HealthChecklistScreen(
                         key={c.id}
                         check={c}
                         onFix={handleFix}
+                        locale={locale}
                     />
                 ))}
                 {visibleChecks.length === 0 ? (
                     <li className="flex items-center gap-2 px-6 py-8 text-sm text-foreground/80">
                         <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        No checks match this filter — nice work.
+                        {t(STRINGS.health.no_checks_match, locale)}
                     </li>
                 ) : null}
             </ul>
@@ -342,6 +529,7 @@ export function HealthChecklistScreen(
 function HealthCheckRow({
     check,
     onFix,
+    locale,
 }: {
     check: HealthCheck & {
         status: RuleStatus;
@@ -349,8 +537,15 @@ function HealthCheckRow({
         fix_action?: FixAction;
         blocks_publish?: boolean;
     };
-    onFix: (action: FixAction) => void;
+    onFix: (action: FixAction, checkId?: string) => void;
+    locale: LocaleCode;
 }): ReactElement {
+    // Merchant copy first (UX2-02): when we have localized copy for this
+    // check it becomes the row title; the engine's English id/message is
+    // the fallback for unknown checks only.
+    const copy = CHECK_COPY[check.id];
+    const title = copy ? t(copy.message, locale) : humanize(check.id);
+    const subtitle = copy ? null : check.message;
     return (
         <li
             data-testid={`health-check-row-${check.id}`}
@@ -363,28 +558,28 @@ function HealthCheckRow({
             />
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{humanize(check.id)}</span>
+                    <span className="text-sm font-medium">{title}</span>
                     <span className="rounded-full bg-muted/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        {CATEGORY_LABEL[check.category]}
+                        {t(CATEGORY_LABEL[check.category], locale)}
                     </span>
                     {check.blocks_publish && check.status === "fail" ? (
                         <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:bg-red-500/15 dark:text-red-300">
-                            Blocks publish
+                            {t(STRINGS.health.blocks_publish_chip, locale)}
                         </span>
                     ) : null}
                 </div>
-                {check.message ? (
-                    <p className="mt-0.5 text-xs text-foreground/80">{check.message}</p>
+                {subtitle ? (
+                    <p className="mt-0.5 text-xs text-foreground/80">{subtitle}</p>
                 ) : null}
             </div>
             {check.fix_action ? (
                 <button
                     type="button"
                     data-testid={`health-fix-${check.id}`}
-                    onClick={() => onFix(check.fix_action!)}
+                    onClick={() => onFix(check.fix_action!, check.id)}
                     className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-(--card-border) bg-(--background-soft) px-3 py-1.5 text-xs font-medium transition-colors hover:border-(--border-hover) hover:text-foreground"
                 >
-                    {check.fix_action.label}
+                    {checkCopyFixLabel(check.id, check.fix_action.label, locale)}
                     {check.fix_action.go_to.kind === "external" ? (
                         <ExternalLink className="h-3 w-3" />
                     ) : null}

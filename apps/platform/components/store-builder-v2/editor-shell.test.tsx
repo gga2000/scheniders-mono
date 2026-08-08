@@ -26,6 +26,23 @@ vi.mock("@/hooks/use-storefront-url", () => ({
     useStorefrontUrl: () => "http://localhost:3001/s/test-store",
 }));
 
+// User preferences reach useAuth (needs AuthProvider); stub to in-memory.
+// Tests run with no saved preference → editor opens in Simple mode, same
+// as a first-time user.
+vi.mock("@/hooks/use-user-preferences", () => ({
+    useUserPreferences: () => ({
+        getPreference: () => null,
+        setPreference: () => undefined,
+        clearPreference: () => undefined,
+        clearAllPreferences: () => undefined,
+        userId: null,
+    }),
+    PREFERENCE_KEYS: {
+        EDITOR_MODE: "editorMode",
+        EDITOR_MODE_INTRO_SEEN: "editorModeIntroSeen",
+    },
+}));
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Bridge mock — capture postMessage calls without a real iframe       */
 /* ─────────────────────────────────────────────────────────────────── */
@@ -348,7 +365,7 @@ describe("EditorShell", () => {
         );
         const btn = screen.getByTestId("publish-button") as HTMLButtonElement;
         expect(btn.disabled).toBe(false);
-        expect(btn.getAttribute("title") ?? "").toMatch(/will be shown before you publish/);
+        expect(btn.getAttribute("title") ?? "").toMatch(/checks need attention before you publish/);
         // Click does NOT publish directly — the sheet should open.
         fireEvent.click(btn);
         expect(onPublish).not.toHaveBeenCalled();

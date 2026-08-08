@@ -13,8 +13,11 @@
 // visual signal without us silently filtering them.
 // =====================================================================
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bookmark, Plus, Search, Trash2, X } from "lucide-react";
+
+/** localStorage key for the "recently used sections" shelf (B4). */
+const RECENT_SECTIONS_KEY = "schneiders.builder.recent_sections";
 import { useDraggable } from "@dnd-kit/core";
 import type { PageId, SectionInstance } from "@scheniders/shared";
 import {
@@ -29,7 +32,9 @@ import { cn } from "@/lib/utils";
 import {
     SECTIONS_MANIFEST,
     SECTION_CATEGORIES,
-    SECTION_CATEGORY_LABELS,
+    sectionCategoryLabel,
+    sectionDisplayDescription,
+    sectionDisplayName,
     type SectionCategory,
     type SectionManifestEntry,
 } from "@/lib/sections-manifest";
@@ -128,6 +133,40 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
     const [category, setCategory] = useState<CategoryFilter>("all");
     const [tab, setTab] = useState<PickerTab>("library");
 
+    // B4: "recently used" shelf. Persisted per browser (device-level is
+    // fine — it's a convenience, not data).
+    const [recentTypes, setRecentTypes] = useState<string[]>([]);
+    useEffect(() => {
+        if (!open || typeof window === "undefined") return;
+        try {
+            const raw = window.localStorage.getItem(RECENT_SECTIONS_KEY);
+            const parsed: unknown = raw ? JSON.parse(raw) : [];
+            setRecentTypes(
+                Array.isArray(parsed)
+                    ? parsed.filter((x): x is string => typeof x === "string")
+                    : [],
+            );
+        } catch {
+            setRecentTypes([]);
+        }
+    }, [open]);
+    const recordRecent = useCallback((type: string): void => {
+        setRecentTypes((prev) => {
+            const next = [type, ...prev.filter((t2) => t2 !== type)].slice(0, 6);
+            try {
+                if (typeof window !== "undefined") {
+                    window.localStorage.setItem(
+                        RECENT_SECTIONS_KEY,
+                        JSON.stringify(next),
+                    );
+                }
+            } catch {
+                /* ignore */
+            }
+            return next;
+        });
+    }, []);
+
     // Reset filters whenever the picker is opened.
     useEffect(() => {
         if (open) {
@@ -163,11 +202,21 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
             if (entry.valid_on.length === 0) return false;
             if (category !== "all" && entry.category !== category) return false;
             if (!q) return true;
+            // Search across English AND the active locale so an Arabic
+            // merchant can type either "hero" or "غلاف" and find it.
             const name = entry.name.en.toLowerCase();
             const desc = entry.description.en.toLowerCase();
-            return name.includes(q) || desc.includes(q) || entry.type.includes(q);
+            const nameLocalized = sectionDisplayName(entry, locale).toLowerCase();
+            const descLocalized = sectionDisplayDescription(entry, locale).toLowerCase();
+            return (
+                name.includes(q) ||
+                desc.includes(q) ||
+                nameLocalized.includes(q) ||
+                descLocalized.includes(q) ||
+                entry.type.includes(q)
+            );
         });
-    }, [manifest, category, query]);
+    }, [manifest, category, query, locale]);
 
     if (!open) return null;
 
@@ -282,7 +331,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                         {visibleCategories.map((c) => (
                             <CategoryChip
                                 key={c}
-                                label={SECTION_CATEGORY_LABELS[c]}
+                                label={sectionCategoryLabel(c, locale)}
                                 active={category === c}
                                 onClick={() => setCategory(c)}
                                 testId={`section-picker-chip-${c}`}
@@ -303,6 +352,43 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                             </p>
                         </div>
                     ) : (
+                        <>
+                        {/* B4: recently-used shelf — only unfiltered view,
+                            only types valid on THIS page. */}
+                        {!query && category === "all" && (() => {
+                            const recents = recentTypes
+                                .map((type) => manifest.find((e) => e.type === type))
+                                .filter(
+                                    (e): e is SectionManifestEntry =>
+                                        !!e && e.valid_on.includes(pageId),
+                                )
+                                .slice(0, 3);
+                            if (recents.length === 0) return null;
+                            return (
+                                <div className="mb-4" data-testid="section-picker-recents">
+                                    <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        {t(STRINGS.section_picker.recent_heading, locale)}
+                                    </h3>
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                        {recents.map((entry) => (
+                                            <SectionCard
+                                                key={`recent-${entry.type}`}
+                                                entry={entry}
+                                                valid
+                                                testIdPrefix="section-picker-recent"
+                                                storefrontUrl={storefrontUrl}
+                                                locale={locale}
+                                                onPick={() => {
+                                                    recordRecent(entry.type);
+                                                    onAdd(buildInstance(entry));
+                                                    onClose();
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                         <div
                             data-testid="section-picker-grid"
                             className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
@@ -318,6 +404,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                                         locale={locale}
                                         onPick={() => {
                                             if (!isValid) return;
+                                            recordRecent(entry.type);
                                             onAdd(buildInstance(entry));
                                             onClose();
                                         }}
@@ -325,6 +412,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                                 );
                             })}
                         </div>
+                        </>
                     )}
                 </div>
                 </>
@@ -552,16 +640,20 @@ function SectionCard({
     storefrontUrl,
     locale,
     onPick,
+    testIdPrefix = "section-picker-card",
 }: {
     entry: SectionManifestEntry;
     valid: boolean;
     storefrontUrl?: string;
     locale: import("@scheniders/shared").LocaleCode;
     onPick: () => void;
+    /** Distinct prefix when the same entry renders twice (recents shelf). */
+    testIdPrefix?: string;
 }): React.ReactElement {
     const src = buildThumbnailSrc(entry.thumbnail, storefrontUrl);
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-        id: `picker-card-${entry.type}`,
+        // Prefix keeps dnd ids unique when the recents shelf repeats a card.
+        id: `${testIdPrefix}-drag-${entry.type}`,
         // Disabled cards can't be dragged.
         disabled: !valid,
         data: { manifestType: entry.type, sectionType: entry.type },
@@ -577,7 +669,7 @@ function SectionCard({
         <button
             ref={setNodeRef}
             type="button"
-            data-testid={`section-picker-card-${entry.type}`}
+            data-testid={`${testIdPrefix}-${entry.type}`}
             data-valid={valid ? "true" : "false"}
             data-dragging={isDragging ? "true" : "false"}
             onClick={onPick}
@@ -585,8 +677,12 @@ function SectionCard({
             aria-disabled={!valid}
             title={
                 valid
-                    ? `Add ${entry.name.en}`
-                    : `${entry.name.en} can't be placed on this page`
+                    ? tFormat(STRINGS.section_picker.card_add_title, locale, {
+                          name: sectionDisplayName(entry, locale),
+                      })
+                    : tFormat(STRINGS.section_picker.card_invalid_title, locale, {
+                          name: sectionDisplayName(entry, locale),
+                      })
             }
             {...listeners}
             {...dndAttributes}
@@ -613,7 +709,7 @@ function SectionCard({
             <div className="flex flex-1 flex-col gap-1 p-2.5">
                 <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-foreground">
-                        {entry.name.en}
+                        {sectionDisplayName(entry, locale)}
                     </span>
                     <span
                         className={cn(
@@ -621,17 +717,17 @@ function SectionCard({
                             categoryTintClass(entry.category),
                         )}
                     >
-                        {SECTION_CATEGORY_LABELS[entry.category]}
+                        {sectionCategoryLabel(entry.category, locale)}
                     </span>
                 </div>
                 <p className="line-clamp-2 text-xs text-muted-foreground">
-                    {entry.description.en}
+                    {sectionDisplayDescription(entry, locale)}
                 </p>
                 <div className="mt-1">
                     {valid ? (
                         <span
                             className="inline-flex h-6 items-center gap-1 rounded-full bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground opacity-0 shadow-(--card-shadow) transition-opacity group-hover:opacity-100"
-                            data-testid={`section-picker-card-${entry.type}-add`}
+                            data-testid={`${testIdPrefix}-${entry.type}-add`}
                         >
                             <Plus className="h-3 w-3" aria-hidden="true" />
                             {t(STRINGS.section_picker.add_chip, locale)}

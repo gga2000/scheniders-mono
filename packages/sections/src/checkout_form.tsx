@@ -294,6 +294,10 @@ function CheckoutFormRender({
         body: JSON.stringify({
           tenant_id: ctx.tenant.id,
           ...form,
+          // The server's `email` is `z.string().email().optional()` — an
+          // empty string fails the format check (zod 4), so the field must
+          // be ABSENT when the shopper leaves it blank.
+          ...(form.email.trim() === "" ? { email: undefined } : {}),
           items,
           subtotal,
           locale,

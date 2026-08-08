@@ -23,11 +23,12 @@
 
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { Check, LayoutTemplate, X } from "lucide-react";
-import type { SectionInstance } from "@scheniders/shared";
+import type { PageId, SectionInstance } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import {
     PAGE_TEMPLATES,
     applyTemplate,
+    templatesForPage,
     type PageTemplate,
 } from "@/lib/page-templates";
 import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
@@ -45,23 +46,31 @@ export interface PageTemplateEmptyStateProps {
     onStartBlank: () => void;
     /** Editor locale; falls through `useResolvedEditorLocale` defaults. */
     activeLocale?: LocaleCode;
+    /**
+     * Active page — templates that don't fully fit it are hidden and
+     * applied sections are re-validated (BUG29). Omitted = all templates.
+     */
+    activePageId?: PageId;
     /** Test-only — override the template list. */
     templatesOverride?: PageTemplate[];
 }
 
 export function PageTemplateEmptyState(
     props: PageTemplateEmptyStateProps,
-): ReactElement {
+): ReactElement | null {
     const {
         currentSectionCount,
         onApply,
         onStartBlank,
         activeLocale,
+        activePageId,
         templatesOverride,
     } = props;
 
     const locale = useResolvedEditorLocale(activeLocale);
-    const templates = templatesOverride ?? PAGE_TEMPLATES;
+    const templates =
+        templatesOverride ??
+        (activePageId ? templatesForPage(activePageId) : PAGE_TEMPLATES);
     const [pendingId, setPendingId] = useState<string | null>(null);
 
     const pending = useMemo<PageTemplate | null>(() => {
@@ -71,9 +80,12 @@ export function PageTemplateEmptyState(
 
     const handleConfirm = useCallback((): void => {
         if (!pending) return;
-        onApply(applyTemplate(pending));
+        onApply(applyTemplate(pending, activePageId));
         setPendingId(null);
-    }, [pending, onApply]);
+    }, [pending, onApply, activePageId]);
+
+    // No template fits this page (checkout, cart…) — nothing to offer.
+    if (templates.length === 0) return null;
 
     return (
         <div

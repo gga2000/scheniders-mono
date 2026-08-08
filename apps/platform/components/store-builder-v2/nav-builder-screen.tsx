@@ -14,6 +14,8 @@ import { X, Plus, Trash2, Menu, ArrowUp, ArrowDown } from "lucide-react";
 import { getSection } from "@scheniders/sections";
 import type { I18nString } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 
 export interface NavBuilderScreenProps {
@@ -40,6 +42,7 @@ export function NavBuilderScreen({
     builder,
     onClose,
 }: NavBuilderScreenProps): React.ReactElement {
+    const locale = useResolvedEditorLocale();
     const header = builder.config.globals?.header;
     const base = (header?.base ?? {}) as Record<string, unknown>;
     const links = (Array.isArray(base.nav_links) ? base.nav_links : []) as NavLink[];
@@ -94,7 +97,7 @@ export function NavBuilderScreen({
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        aria-label="Close navigation"
+                        aria-label={t(STRINGS.advanced_chrome.nav_close_aria, locale)}
                         data-testid="nav-builder-close"
                         onClick={onClose}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
@@ -102,7 +105,7 @@ export function NavBuilderScreen({
                         <X className="h-4 w-4" />
                     </button>
                     <Menu className="h-4 w-4 text-teal-600" aria-hidden="true" />
-                    <h2 className="text-sm font-semibold text-foreground">Navigation</h2>
+                    <h2 className="text-sm font-semibold text-foreground">{t(STRINGS.advanced_chrome.nav_heading, locale)}</h2>
                 </div>
                 <button
                     type="button"
@@ -111,16 +114,16 @@ export function NavBuilderScreen({
                     className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
                 >
                     <Plus className="h-3.5 w-3.5" />
-                    Add link
+                    {t(STRINGS.advanced_chrome.nav_add_link, locale)}
                 </button>
             </header>
 
             <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">
-                    Header menu links. Point each at a path like{" "}
+                    {t(STRINGS.advanced_chrome.nav_intro_prefix, locale)}{" "}
                     <code className="rounded bg-black/5 px-1">/products</code>,{" "}
-                    <code className="rounded bg-black/5 px-1">/p/&lt;slug&gt;</code>, or a
-                    full URL.
+                    <code className="rounded bg-black/5 px-1">/p/&lt;slug&gt;</code>
+                    {t(STRINGS.advanced_chrome.nav_intro_suffix, locale)}
                 </p>
 
                 {links.length === 0 ? (
@@ -131,7 +134,7 @@ export function NavBuilderScreen({
                         className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-(--card-border) bg-(--background-soft) py-10 text-sm text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
                     >
                         <Menu className="h-6 w-6" />
-                        No nav links yet — add your first
+                        {t(STRINGS.advanced_chrome.nav_empty, locale)}
                     </button>
                 ) : (
                     <ul className="flex flex-col gap-2.5">
@@ -144,10 +147,10 @@ export function NavBuilderScreen({
                                 <div className="flex flex-wrap items-center gap-2.5">
                                     <input
                                         type="text"
-                                        aria-label="Label (English)"
+                                        aria-label={t(STRINGS.advanced_chrome.nav_label_en_aria, locale)}
                                         data-testid={`nav-link-label-en-${i}`}
                                         value={l.label_i18n?.en ?? ""}
-                                        placeholder="Label (EN)"
+                                        placeholder={t(STRINGS.advanced_chrome.nav_label_en_placeholder, locale)}
                                         onChange={(e) =>
                                             updateLink(i, {
                                                 label_i18n: { ...l.label_i18n, en: e.target.value },
@@ -158,7 +161,7 @@ export function NavBuilderScreen({
                                     <input
                                         type="text"
                                         dir="rtl"
-                                        aria-label="Label (Arabic)"
+                                        aria-label={t(STRINGS.advanced_chrome.nav_label_ar_aria, locale)}
                                         data-testid={`nav-link-label-ar-${i}`}
                                         value={l.label_i18n?.ar ?? ""}
                                         placeholder="التسمية"
@@ -172,7 +175,7 @@ export function NavBuilderScreen({
                                     <input
                                         type="text"
                                         dir="ltr"
-                                        aria-label="Link target"
+                                        aria-label={t(STRINGS.advanced_chrome.nav_href_aria, locale)}
                                         data-testid={`nav-link-href-${i}`}
                                         value={l.href}
                                         placeholder="/products"
@@ -182,7 +185,7 @@ export function NavBuilderScreen({
                                     <div className="ml-auto flex items-center gap-1">
                                         <button
                                             type="button"
-                                            aria-label="Move up"
+                                            aria-label={t(STRINGS.advanced_chrome.nav_move_up, locale)}
                                             data-testid={`nav-link-up-${i}`}
                                             disabled={i === 0}
                                             onClick={() => move(i, -1)}
@@ -192,7 +195,7 @@ export function NavBuilderScreen({
                                         </button>
                                         <button
                                             type="button"
-                                            aria-label="Move down"
+                                            aria-label={t(STRINGS.advanced_chrome.nav_move_down, locale)}
                                             data-testid={`nav-link-down-${i}`}
                                             disabled={i === links.length - 1}
                                             onClick={() => move(i, 1)}
@@ -202,7 +205,7 @@ export function NavBuilderScreen({
                                         </button>
                                         <button
                                             type="button"
-                                            aria-label="Remove link"
+                                            aria-label={t(STRINGS.advanced_chrome.nav_remove_link, locale)}
                                             data-testid={`nav-link-remove-${i}`}
                                             onClick={() => removeLink(i)}
                                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"

@@ -75,6 +75,8 @@ export interface PreviewOverlayProps {
     onSpacingPreview?: (section_id: string, bottom_px: number) => void;
     /** Drag committed — editor writes the spacing into the config (undoable). */
     onSpacingChange?: (section_id: string, bottom_px: number) => void;
+    /** Visual zoom of the preview frame (A1) — geometry multiplier. */
+    zoom?: number;
 }
 
 const SPACING_SNAP_PX = 4;
@@ -106,9 +108,24 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         selectedSpacingBottomPx,
         onSpacingPreview,
         onSpacingChange,
+        zoom = 1,
     } = props;
 
     const { state, requestRect } = bridge;
+
+    // A1 zoom: the iframe reports rects in its LOGICAL (unscaled) pixels;
+    // the overlay lives in screen space over the transform-scaled frame,
+    // so every geometry we consume multiplies by the zoom factor. UI
+    // chrome (rings' borders, toolbar, labels) stays unscaled.
+    const scaleRect = useCallback(
+        (r: PreviewRect): PreviewRect => ({
+            top: r.top * zoom,
+            left: r.left * zoom,
+            width: r.width * zoom,
+            height: r.height * zoom,
+        }),
+        [zoom],
+    );
 
     // Track whether the iframe is currently scrolling — if so, hide hover
     // ring and refresh the selected rect on every scroll tick.
@@ -137,12 +154,17 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
     const hovered_rect: PreviewRect | null =
         state.hovered_section_id && state.hovered_section_id !== selected_section_id
             ? state.hovered_rect
+                ? scaleRect(state.hovered_rect)
+                : null
             : null;
 
     // Selected rect = latest rect_update for this section, falling back to
     // the click rect that seeded rect_updates.
-    const selected_rect: PreviewRect | null = selected_section_id
+    const selected_rect_raw: PreviewRect | null = selected_section_id
         ? (state.rect_updates[selected_section_id] ?? null)
+        : null;
+    const selected_rect: PreviewRect | null = selected_rect_raw
+        ? scaleRect(selected_rect_raw)
         : null;
 
     // Insert-`+` gap slots derived from every section's rect (document order):
@@ -153,20 +175,20 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         const rects = state.all_rects;
         if (rects.length === 0) return [];
         const gaps = rects.map((r, i) => ({
-            top: r.rect.top,
-            left: r.rect.left,
-            width: r.rect.width,
+            top: r.rect.top * zoom,
+            left: r.rect.left * zoom,
+            width: r.rect.width * zoom,
             insertAt: i,
         }));
         const last = rects[rects.length - 1].rect;
         gaps.push({
-            top: last.top + last.height,
-            left: last.left,
-            width: last.width,
+            top: (last.top + last.height) * zoom,
+            left: last.left * zoom,
+            width: last.width * zoom,
             insertAt: rects.length,
         });
         return gaps;
-    }, [state.all_rects, onAddAt]);
+    }, [state.all_rects, onAddAt, zoom]);
 
     const handleEdit = useCallback(() => {
         if (selected_section_id) onEditRequest(selected_section_id);
@@ -220,7 +242,8 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         if (!spacingDrag) return;
         const { section_id, startY, startBottom } = spacingDrag;
         const onMove = (e: MouseEvent): void => {
-            const raw = startBottom + (e.clientY - startY);
+            // Screen-space drag delta → logical config px (zoom-corrected).
+            const raw = startBottom + (e.clientY - startY) / zoom;
             const snapped = Math.round(raw / SPACING_SNAP_PX) * SPACING_SNAP_PX;
             const clamped = Math.max(0, Math.min(SPACING_MAX_PX, snapped));
             spacingValueRef.current = clamped;
@@ -315,12 +338,12 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                 </>
             ) : null}
 
-            {/* Right-click context menu — coords are iframe-local, which maps
-                directly to this container (positioned at the iframe bounds). */}
+            {/* Right-click context menu — coords are iframe-local (logical),
+                mapped into this container via the zoom factor. */}
             {contextMenu && onContextMenuClose && onContextMenuAction ? (
                 <LivePreviewContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
+                    x={contextMenu.x * zoom}
+                    y={contextMenu.y * zoom}
                     onClose={onContextMenuClose}
                     onAction={onContextMenuAction}
                 />

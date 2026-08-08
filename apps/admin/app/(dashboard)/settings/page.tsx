@@ -11,7 +11,9 @@ import {
   Trash2,
   Loader2,
   Pencil,
+  Building2,
 } from "lucide-react";
+import { LeadIndustryManager } from "@/components/leads/lead-industry-manager";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,6 +34,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<AdminSetting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isIndustriesOpen, setIsIndustriesOpen] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -132,7 +135,40 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* Section 2: Admin Users */}
+      {/* Section 2: Store Industries */}
+      <div className="pastel-card p-6">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center">
+              <Building2 className="w-4 h-4 text-foreground/70" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Store Industries
+              </h2>
+              <p className="text-xs text-foreground/50">
+                Categories shown in the store-creation wizard. Add, remove, or reorder.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsIndustriesOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold text-foreground transition-colors hover:bg-muted/50 shrink-0"
+          >
+            Manage
+          </button>
+        </div>
+        <p className="text-xs text-foreground/40">
+          Changes take effect immediately for new merchants going through onboarding.
+        </p>
+      </div>
+
+      <LeadIndustryManager
+        isOpen={isIndustriesOpen}
+        onClose={() => setIsIndustriesOpen(false)}
+      />
+
+      {/* Section 3: Admin Users */}
       <div className="pastel-card p-6">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center">

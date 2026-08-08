@@ -102,6 +102,8 @@ export default async function StoreV2Page({
         rawTab && (DEEP_LINK_TABS as readonly string[]).includes(rawTab)
             ? (rawTab as InspectorTab)
             : null;
+    // Wizard handoff (?welcome=1): show the one-time Arabic welcome card.
+    const initialWelcome = sp.welcome === "1";
 
     const {
         data: { user },
@@ -185,6 +187,7 @@ export default async function StoreV2Page({
             previewCategories={previewCategories}
             initialSystemScreen={initialSystemScreen}
             initialPageId={initialPageId}
+            initialWelcome={initialWelcome}
             initialSectionId={initialSectionId}
             initialInspectorTab={initialInspectorTab}
         />

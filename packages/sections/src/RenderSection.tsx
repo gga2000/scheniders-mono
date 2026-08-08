@@ -74,6 +74,16 @@ import "./exit_intent_offer";
 import "./sticky_cta_bar";
 import "./site_header";
 import "./site_footer";
+import "./hero_card_float";
+import "./trust_badge_row";
+import "./category_spotlight_pair";
+import "./collection_trio";
+import "./testimonial_cards";
+import "./pillars_grid";
+import "./about_spotlight";
+import "./faq_contact_split";
+import "./countdown_announcement";
+import "./pdp_direct_order";
 
 /**
  * Surface a silently-dropped section. In dev we warn to the console (as

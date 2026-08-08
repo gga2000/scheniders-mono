@@ -43,6 +43,7 @@ import {
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorMode } from "@/lib/editor-mode-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Tree definition                                                      */
@@ -127,6 +128,18 @@ export function getPageLabel(id: PageId, locale?: LocaleCode): string {
         }
     }
     return id;
+}
+
+/** Localized label for a settings screen (breadcrumbs, headers). */
+export function getSettingLabel(
+    id: SettingsSectionId,
+    locale: LocaleCode,
+): string {
+    const node = [...PRIMARY_SETTINGS, ...ADVANCED_SETTINGS].find(
+        (s) => s.id === id,
+    );
+    if (!node) return id;
+    return t(STRINGS.page_tree[node.labelKey], locale);
 }
 
 /** Settings section ids (not PageId — distinct namespace). */
@@ -243,6 +256,13 @@ export interface PageTreeProps {
     onSelectCustomPage?: (id: string) => void;
     /** Open the custom-pages manager (create / slug / hide / delete). */
     onManageCustomPages?: () => void;
+    /** Currently-open settings screen — highlights its rail button (O2). */
+    activeSettingId?: SettingsSectionId | null;
+    /**
+     * Live-activity counts per settings screen (O3) — e.g. running
+     * experiments. Rendered as small count chips on the buttons.
+     */
+    settingBadges?: Partial<Record<SettingsSectionId, number>>;
 }
 
 export function PageTree({
@@ -255,10 +275,27 @@ export function PageTree({
     activeCustomPageId,
     onSelectCustomPage,
     onManageCustomPages,
+    activeSettingId,
+    settingBadges,
 }: PageTreeProps) {
     const locale = useResolvedEditorLocale(activeLocale);
+    const { mode, setMode } = useEditorMode();
     const [comingSoon, setComingSoon] = useState<SettingsSectionId | null>(null);
     const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
+
+    // Simple mode: settings shrink to Brand Kit + Health; the Languages
+    // screen, custom pages and the whole Advanced accordion are deferred.
+    const primarySettings =
+        mode === "simple"
+            ? PRIMARY_SETTINGS.filter((s) => s.id !== "i18n")
+            : PRIMARY_SETTINGS;
+    const showCustomPages = mode === "advanced" && !!onSelectCustomPage;
+
+    // Total live items behind the hidden Advanced group (Simple mode).
+    const liveAdvancedCount = Object.values(settingBadges ?? {}).reduce(
+        (sum, n) => sum + (n ?? 0),
+        0,
+    );
 
     // Hydrate Advanced open state from localStorage.
     useEffect(() => {
@@ -299,13 +336,21 @@ export function PageTree({
 
     const renderSettingButton = (item: SettingsNode): React.ReactElement => {
         const Icon = item.icon;
+        const isActive = item.id === activeSettingId;
+        const badge = settingBadges?.[item.id];
         return (
             <li key={item.id}>
                 <button
                     type="button"
                     data-testid={`page-tree-setting-${item.id}`}
                     onClick={() => handleSetting(item.id)}
-                    className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-foreground/75 transition-all duration-150 hover:bg-black/3 hover:text-foreground"
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                        "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150",
+                        isActive
+                            ? "sb-active-bar bg-background font-semibold text-foreground shadow-(--card-shadow)"
+                            : "text-foreground/75 hover:bg-black/3 hover:text-foreground",
+                    )}
                 >
                     <span
                         aria-hidden="true"
@@ -314,6 +359,14 @@ export function PageTree({
                         <Icon className="h-4 w-4" />
                     </span>
                     <span className="truncate">{t(STRINGS.page_tree[item.labelKey], locale)}</span>
+                    {typeof badge === "number" && badge > 0 && (
+                        <span
+                            data-testid={`page-tree-setting-${item.id}-badge`}
+                            className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums text-emerald-700"
+                        >
+                            {badge}
+                        </span>
+                    )}
                     {comingSoon === item.id && (
                         <span className="ml-auto text-[9px] uppercase tracking-wide text-muted-foreground/70">
                             {t(STRINGS.page_tree.coming_soon, locale)}
@@ -387,7 +440,7 @@ export function PageTree({
                 ))}
 
                 {/* Custom pages (E4) — selectable; authored in the canvas. */}
-                {onSelectCustomPage && (
+                {showCustomPages && onSelectCustomPage && (
                     <div className="mb-4">
                         <div className="mb-1.5 flex items-center justify-between px-2">
                             <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -488,9 +541,10 @@ export function PageTree({
                     {t(STRINGS.page_tree.settings_heading, locale)}
                 </div>
                 <ul className="space-y-0.5">
-                    {PRIMARY_SETTINGS.map(renderSettingButton)}
+                    {primarySettings.map(renderSettingButton)}
 
-                    {/* Advanced (collapsed accordion) */}
+                    {/* Advanced (collapsed accordion) — Advanced mode only */}
+                    {mode === "advanced" && (
                     <li>
                         <button
                             type="button"
@@ -523,6 +577,30 @@ export function PageTree({
                             </ul>
                         )}
                     </li>
+                    )}
+
+                    {/* UX2-10: hidden ≠ silent — when Simple hides the
+                        Advanced group but live data exists behind it
+                        (running experiments, segments, schedules), show a
+                        count chip that elevates to Advanced on tap. */}
+                    {mode === "simple" && liveAdvancedCount > 0 && (
+                        <li>
+                            <button
+                                type="button"
+                                data-testid="page-tree-advanced-live-chip"
+                                onClick={() => setMode("advanced")}
+                                className="mt-1 inline-flex w-full items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-2.5 py-2 text-left text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-bold"
+                                >
+                                    {liveAdvancedCount}
+                                </span>
+                                {t(STRINGS.page_tree.advanced_live_chip, locale)}
+                            </button>
+                        </li>
+                    )}
                 </ul>
             </div>
         </nav>

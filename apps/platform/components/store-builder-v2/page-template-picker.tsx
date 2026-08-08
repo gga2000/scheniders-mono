@@ -18,11 +18,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { Check, Layout, LayoutTemplate, X } from "lucide-react";
-import type { SectionInstance } from "@scheniders/shared";
+import type { PageId, SectionInstance } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import {
     PAGE_TEMPLATES,
     applyTemplate,
+    templatesForPage,
     type PageTemplate,
 } from "@/lib/page-templates";
 import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
@@ -35,6 +36,11 @@ export interface PageTemplatePickerProps {
     currentSectionCount: number;
     /** Fired with the rehashed template sections when the merchant confirms. */
     onApply: (sections: SectionInstance[]) => void;
+    /**
+     * Active page — filters templates to those fully valid on it and
+     * re-validates applied sections (BUG29). Omitted = all templates.
+     */
+    activePageId?: PageId;
     /** Test-only — override the template list. */
     templatesOverride?: PageTemplate[];
 }
@@ -47,11 +53,14 @@ export function PageTemplatePicker(
         onClose,
         currentSectionCount,
         onApply,
+        activePageId,
         templatesOverride,
     } = props;
 
     const locale = useEditorLocale();
-    const templates = templatesOverride ?? PAGE_TEMPLATES;
+    const templates =
+        templatesOverride ??
+        (activePageId ? templatesForPage(activePageId) : PAGE_TEMPLATES);
     const [pendingId, setPendingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -77,10 +86,10 @@ export function PageTemplatePicker(
 
     const handleConfirm = useCallback((): void => {
         if (!pending) return;
-        onApply(applyTemplate(pending));
+        onApply(applyTemplate(pending, activePageId));
         setPendingId(null);
         onClose();
-    }, [pending, onApply, onClose]);
+    }, [pending, onApply, onClose, activePageId]);
 
     if (!open) return null;
 

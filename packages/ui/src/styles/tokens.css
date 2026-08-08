@@ -67,6 +67,11 @@
   /* Semantic Colors */
   --primary: #1E1E1E;
   --primary-fg: #FFFFFF;
+  /* Alias for the shadcn-convention name: the @theme block below maps
+     --color-primary-foreground → var(--primary-foreground). Without this alias
+     the var is undefined and `text-primary-foreground` inherits the ink color —
+     black-on-black primary buttons. */
+  --primary-foreground: var(--primary-fg);
   --destructive: #F4C7CF;
   --destructive-fg: #1E1E1E;
   --financial: #FBE38E;
@@ -172,6 +177,7 @@
   --primary: #EFFF00;
   --primary-fg: #000000;
   /* black text on yellow */
+  --primary-foreground: var(--primary-fg);
   --destructive: #c85c73;
   --destructive-fg: #fff1f5;
   --financial: #EFFF00;

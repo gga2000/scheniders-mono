@@ -92,7 +92,7 @@ export interface UseStoreBuilderV2Return {
     /**
      * Update the draft config. The optional `description` is attached to
      * the resulting history entry and surfaces in the undo/redo tooltips.
-     * Defaults to "Edit config." when omitted.
+     * Omitted → the toolbar shows a locale-aware generic label.
      */
     setConfig: (
         next: StoreConfigV2 | ((prev: StoreConfigV2) => StoreConfigV2),
@@ -317,18 +317,20 @@ export function useStoreBuilderV2(
     /**
      * Each history entry stores the JSON snapshot of the config *plus* a
      * short human label describing the edit (e.g. "Deleted Hero section").
-     * The label is what we surface in the undo/redo tooltips. The default
-     * label is "Edit config." so legacy callers keep working.
+     * The label is what we surface in the undo/redo tooltips. A null
+     * label falls back to a locale-aware generic in the toolbar.
      */
     interface HistoryEntry {
         snapshot: StoreConfigV2;
-        description: string;
+        description: string | null;
     }
-    const DEFAULT_HISTORY_DESCRIPTION = "Edit config.";
+    // null → the toolbar falls back to a locale-aware generic label
+    // (STRINGS.toolbar.history_generic) instead of hardcoded English.
+    const DEFAULT_HISTORY_DESCRIPTION: string | null = null;
     const pastRef = useRef<HistoryEntry[]>([]);
     const futureRef = useRef<HistoryEntry[]>([]);
     const lastSnapshotRef = useRef<string>(JSON.stringify(initialConfig));
-    const lastDescriptionRef = useRef<string>(DEFAULT_HISTORY_DESCRIPTION);
+    const lastDescriptionRef = useRef<string | null>(DEFAULT_HISTORY_DESCRIPTION);
     /** Description for the *upcoming* commit (set by next setConfig call). */
     const pendingDescriptionRef = useRef<string | null>(null);
     const skipHistoryRef = useRef<boolean>(false);
@@ -393,8 +395,15 @@ export function useStoreBuilderV2(
 
     /* ── Mark dirty whenever config changes ───────────────────────── */
     const initialSerializedRef = useRef<string>(JSON.stringify(initialConfig));
+    // A never-published store ALWAYS has something to publish — the seeded
+    // draft itself. Without this, the effect below would flip the initial
+    // `!hasPublished` dirty state back to false on mount (config === load
+    // snapshot) and a first-time merchant lands on a disabled Publish button.
+    const everPublishedRef = useRef<boolean>(hasPublished);
     useEffect(() => {
-        set_has_unpublished_changes(serializedConfig !== initialSerializedRef.current);
+        set_has_unpublished_changes(
+            serializedConfig !== initialSerializedRef.current || !everPublishedRef.current,
+        );
     }, [serializedConfig]);
 
     /* ── Auto-save to DB (2s debounce) ────────────────────────────── */
@@ -604,7 +613,10 @@ export function useStoreBuilderV2(
                     /config_conflict/i.test(error.message ?? "")
                 ) {
                     set_publish_conflict(true);
-                    set_save_state("error");
+                    // The DRAFT is intact — an error save-pill would send the
+                    // merchant retrying the wrong operation (UX2-04). The
+                    // conflict banner owns this failure.
+                    set_save_state("idle");
                     return false;
                 }
                 throw error;
@@ -619,6 +631,7 @@ export function useStoreBuilderV2(
             set_save_state("saved");
             set_last_saved_at(new Date());
             initialSerializedRef.current = JSON.stringify(config);
+            everPublishedRef.current = true;
             set_has_unpublished_changes(false);
             if (typeof window !== "undefined") {
                 try {
@@ -633,7 +646,9 @@ export function useStoreBuilderV2(
             return true;
         } catch (err) {
             console.error("[store-builder-v2] publish failed:", err);
-            set_save_state("error");
+            // Draft is safe; the publish sheet shows its own localized
+            // failure state. Don't turn the save pill red (UX2-04).
+            set_save_state("idle");
             return false;
         }
     }, [config, tenantId]);
@@ -670,6 +685,7 @@ export function useStoreBuilderV2(
             skipHistoryRef.current = true;
             setConfigState(published);
             initialSerializedRef.current = JSON.stringify(published);
+            everPublishedRef.current = true; // a published config just loaded
             set_has_unpublished_changes(false);
             // The draft is nulled server-side — stop any pending autosave/retry
             // from resurrecting it.

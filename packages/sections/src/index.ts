@@ -78,6 +78,19 @@ import sticky_cta_bar from "./sticky_cta_bar";
 import site_header from "./site_header";
 import site_footer from "./site_footer";
 
+// Signature family (funnel-style storefront: floating hero card, static
+// badge/testimonial bands, split FAQ, inline COD order box)
+import hero_card_float from "./hero_card_float";
+import trust_badge_row from "./trust_badge_row";
+import category_spotlight_pair from "./category_spotlight_pair";
+import collection_trio from "./collection_trio";
+import testimonial_cards from "./testimonial_cards";
+import pillars_grid from "./pillars_grid";
+import about_spotlight from "./about_spotlight";
+import faq_contact_split from "./faq_contact_split";
+import countdown_announcement from "./countdown_announcement";
+import pdp_direct_order from "./pdp_direct_order";
+
 export { getSection, listSections, registerSection } from "./_registry";
 export type {
   SectionDefinition,
@@ -138,6 +151,16 @@ export const BUILTIN_SECTIONS = [
   sticky_cta_bar,
   site_header,
   site_footer,
+  hero_card_float,
+  trust_badge_row,
+  category_spotlight_pair,
+  collection_trio,
+  testimonial_cards,
+  pillars_grid,
+  about_spotlight,
+  faq_contact_split,
+  countdown_announcement,
+  pdp_direct_order,
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";

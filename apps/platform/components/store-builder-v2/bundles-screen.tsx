@@ -15,6 +15,8 @@ import type { Bundle } from "@scheniders/shared";
 import { useProductsQuery } from "@/hooks/use-products-query";
 import { cn } from "@/lib/utils";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
 
 export interface BundlesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -35,6 +37,7 @@ export function BundlesScreen({
     builder,
     onClose,
 }: BundlesScreenProps): React.ReactElement {
+    const locale = useEditorLocale();
     const bundles: Bundle[] = builder.config.commerce?.bundles ?? [];
     const { data: products = [] } = useProductsQuery();
 
@@ -115,7 +118,7 @@ export function BundlesScreen({
                         className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-(--card-border) bg-(--background-soft) py-10 text-sm text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
                     >
                         <Boxes className="h-6 w-6" />
-                        No bundles yet — add your first
+                        {t(STRINGS.advanced_chrome.bun_empty, locale)}
                     </button>
                 ) : (
                     <ul className="flex flex-col gap-3">

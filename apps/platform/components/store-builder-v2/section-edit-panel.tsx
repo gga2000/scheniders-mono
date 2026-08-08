@@ -35,9 +35,11 @@ import type {
 import { cn } from "@/lib/utils";
 import {
     getManifestEntry,
+    sectionDisplayName,
     type SectionCategory,
 } from "@/lib/sections-manifest";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { useEditorMode } from "@/lib/editor-mode-context";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { summarizeVariantConditions } from "@/lib/variant-summary";
 import { AutoForm } from "./auto-form";
@@ -139,13 +141,21 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
     } = props;
 
     const locale = useResolvedEditorLocale(activeLocale);
+    const { mode, setMode } = useEditorMode();
+    const isSimple = mode === "simple";
+    // Hidden-but-live rule: Simple may hide the visibility/variants
+    // machinery, but never silently — live data surfaces as count chips.
+    const liveRuleCount = instance.visibility?.length ?? 0;
+    const liveVariantCount = (instance.variants ?? []).filter(
+        (v) => v.enabled !== false,
+    ).length;
 
     const [wizardOpen, setWizardOpen] = useState<boolean>(false);
     const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
     const [visibilityWizardKind, setVisibilityWizardKind] = useState<VariantKind | null>(null);
 
     const manifest = useMemo(() => getManifestEntry(instance.type), [instance.type]);
-    const sectionName = manifest?.name.en ?? instance.type;
+    const sectionName = manifest ? sectionDisplayName(manifest, locale) : instance.type;
     const category: SectionCategory | "unknown" = manifest?.category ?? "unknown";
 
     const handleLabelChange = useCallback(
@@ -249,8 +259,10 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
 
             {/* Body */}
             <div className={inline ? "p-3" : "flex-1 overflow-y-auto p-3"}>
-                {/* Section metadata */}
+                {/* Section metadata — the editor-only rename field is an
+                    Advanced affordance; Simple keeps just the enabled switch. */}
                 <div className="space-y-3">
+                    {!isSimple && (
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium" htmlFor="section-edit-panel-label">
                             {t(STRINGS.section_edit.label_field, locale)}
@@ -271,6 +283,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                             {t(STRINGS.section_edit.label_hint, locale)}
                         </p>
                     </div>
+                    )}
 
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2.5">
                         <div>
@@ -303,20 +316,22 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                     </div>
                 </div>
 
-                <div className="my-4 h-px bg-(--card-border)" />
-
-                {/* Layers strip — sub-element selection within this section */}
+                {/* Layers strip — sub-element selection within this section.
+                    Advanced only; BlockLayersPanel also renders null when the
+                    section exposes no layers. */}
+                {!isSimple && (
                 <section
                     data-testid="section-edit-panel-layers"
-                    className="mb-3"
+                    className="mt-4 empty:mt-0"
                 >
                     <BlockLayersPanel
                         sectionId={instance.id}
                         onEditLayer={onEditLayer}
                     />
                 </section>
+                )}
 
-                <div className="my-3 h-px bg-(--card-border)" />
+                <div className="my-4 h-px bg-(--card-border)" />
 
                 {/* Base properties — auto-form */}
                 <section data-testid="section-edit-panel-base">
@@ -345,6 +360,42 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                     )}
                 </section>
 
+                {/* Simple mode: visibility + variants machinery is deferred.
+                    Live data still surfaces as clickable count chips, and a
+                    quiet footer link opens Advanced. */}
+                {isSimple ? (
+                    <div className="mt-4 space-y-2" data-testid="section-edit-panel-simple-footer">
+                        {liveRuleCount > 0 && (
+                            <button
+                                type="button"
+                                data-testid="section-edit-panel-live-rules-chip"
+                                onClick={() => setMode("advanced")}
+                                className="inline-flex h-7 items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                            >
+                                {tFormat(STRINGS.mode.live_rules_chip, locale, { n: liveRuleCount })}
+                            </button>
+                        )}
+                        {liveVariantCount > 0 && (
+                            <button
+                                type="button"
+                                data-testid="section-edit-panel-live-versions-chip"
+                                onClick={() => setMode("advanced")}
+                                className="inline-flex h-7 items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                            >
+                                {tFormat(STRINGS.mode.live_versions_chip, locale, { n: liveVariantCount })}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            data-testid="section-edit-panel-more-options"
+                            onClick={() => setMode("advanced")}
+                            className="block text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            {t(STRINGS.mode.more_options, locale)}
+                        </button>
+                    </div>
+                ) : (
+                <>
                 <div className="my-4 h-px bg-(--card-border)" />
 
                 {/* Visibility */}
@@ -423,6 +474,8 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                         onEdit={(id) => setEditingVariantId(id)}
                     />
                 </div>
+                </>
+                )}
             </div>
 
             {/* Add-variant wizard */}

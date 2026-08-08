@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Monitor, Smartphone, Globe, Rocket, Pencil } from "lucide-react";
+import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
+import { STRINGS, t } from "@/lib/editor-i18n";
 
 interface PreviewCardProps {
     storefrontUrl: string;
@@ -18,6 +20,8 @@ interface PreviewCardProps {
      * onboarding wizard. A built-but-unpublished store → it opens the editor.
      */
     isBrandNew?: boolean;
+    /** Hub chrome locale — the store's `default_locale` (UX2-14). */
+    locale: LocaleCode;
 }
 
 type ViewMode = "desktop" | "mobile";
@@ -26,6 +30,7 @@ export function PreviewCard({
     storefrontUrl,
     published,
     isBrandNew = false,
+    locale,
 }: PreviewCardProps) {
     const [mode, setMode] = useState<ViewMode>("desktop");
     const [loaded, setLoaded] = useState(false);
@@ -38,7 +43,9 @@ export function PreviewCard({
                     <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
                         <Globe className="w-3.5 h-3.5 text-blue-700" />
                     </div>
-                    <span className="text-sm font-semibold text-foreground">Live preview</span>
+                    <span className="text-sm font-semibold text-foreground">
+                        {t(STRINGS.command_center.live_preview, locale)}
+                    </span>
                 </div>
                 {published && (
                     <div className="flex items-center gap-1 bg-background rounded-lg border border-border p-0.5">
@@ -52,7 +59,7 @@ export function PreviewCard({
                             )}
                         >
                             <Monitor className="w-3 h-3" />
-                            Desktop
+                            {t(STRINGS.command_center.preview_desktop, locale)}
                         </button>
                         <button
                             onClick={() => setMode("mobile")}
@@ -64,7 +71,7 @@ export function PreviewCard({
                             )}
                         >
                             <Smartphone className="w-3 h-3" />
-                            Mobile
+                            {t(STRINGS.command_center.preview_mobile, locale)}
                         </button>
                     </div>
                 )}
@@ -81,12 +88,12 @@ export function PreviewCard({
                     </div>
                     <div className="space-y-1.5 max-w-sm">
                         <p className="text-base font-semibold text-foreground">
-                            Your store isn&apos;t published yet
+                            {t(STRINGS.command_center.preview_unpublished_title, locale)}
                         </p>
                         <p className="text-sm text-muted-foreground">
                             {isBrandNew
-                                ? "Set up your store to get a branded home page, then publish to see it live here."
-                                : "Build your home page in the editor and hit Publish — your live storefront will appear here."}
+                                ? t(STRINGS.command_center.preview_unpublished_body_new, locale)
+                                : t(STRINGS.command_center.preview_unpublished_body_built, locale)}
                         </p>
                     </div>
                     <Link
@@ -94,7 +101,9 @@ export function PreviewCard({
                         className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                     >
                         <Pencil className="h-3.5 w-3.5" />
-                        {isBrandNew ? "Set up your store" : "Open editor"}
+                        {isBrandNew
+                            ? t(STRINGS.command_center.preview_set_up_your_store, locale)
+                            : t(STRINGS.command_center.preview_open_editor, locale)}
                     </Link>
                 </div>
             ) : (
@@ -124,7 +133,9 @@ export function PreviewCard({
                                 <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
                                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                         <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                        <span className="text-xs">Loading preview…</span>
+                                        <span className="text-xs">
+                                            {t(STRINGS.command_center.preview_loading, locale)}
+                                        </span>
                                     </div>
                                 </div>
                             )}
@@ -138,7 +149,7 @@ export function PreviewCard({
                                 src={storefrontUrl}
                                 className="w-full h-full"
                                 onLoad={() => setLoaded(true)}
-                                title="Store preview"
+                                title={t(STRINGS.command_center.preview_iframe_title, locale)}
                                 sandbox="allow-scripts allow-same-origin allow-forms"
                             />
                         </div>

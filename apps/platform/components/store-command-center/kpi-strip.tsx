@@ -2,12 +2,16 @@
 
 import { ShoppingBag, Banknote, TrendingUp } from "lucide-react";
 import { formatIQD } from "@scheniders/shared";
+import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
+import { STRINGS, t } from "@/lib/editor-i18n";
 import type { StoreAnalytics } from "@/hooks/use-store-analytics";
 
 interface KpiStripProps {
     analytics: StoreAnalytics | undefined;
     isLoading: boolean;
+    /** Hub chrome locale — the store's `default_locale` (UX2-14). */
+    locale: LocaleCode;
 }
 
 interface KpiCardProps {
@@ -41,35 +45,36 @@ function KpiCard({ label, value, icon, tint, sub, loading }: KpiCardProps) {
     );
 }
 
-export function KpiStrip({ analytics, isLoading }: KpiStripProps) {
+export function KpiStrip({ analytics, isLoading, locale }: KpiStripProps) {
     const orderCount = analytics?.orderCount ?? 0;
     const revenue = analytics?.revenue ?? 0;
     const aov = orderCount > 0 ? revenue / orderCount : null;
+    const last7Days = t(STRINGS.command_center.kpi_last_7_days, locale);
 
     return (
         <div className="grid grid-cols-3 gap-3">
             <KpiCard
-                label="Orders"
+                label={t(STRINGS.command_center.kpi_orders, locale)}
                 value={isLoading ? "—" : String(orderCount)}
                 icon={<ShoppingBag className="h-4 w-4" />}
                 tint="bg-blue-100 text-blue-700"
-                sub="Last 7 days"
+                sub={last7Days}
                 loading={isLoading}
             />
             <KpiCard
-                label="Revenue"
+                label={t(STRINGS.command_center.kpi_revenue, locale)}
                 value={isLoading ? "—" : formatIQD(revenue)}
                 icon={<Banknote className="h-4 w-4" />}
                 tint="bg-emerald-100 text-emerald-700"
-                sub="Last 7 days"
+                sub={last7Days}
                 loading={isLoading}
             />
             <KpiCard
-                label="Avg. order value"
+                label={t(STRINGS.command_center.kpi_aov, locale)}
                 value={isLoading ? "—" : aov !== null ? formatIQD(aov) : "—"}
                 icon={<TrendingUp className="h-4 w-4" />}
                 tint="bg-violet-100 text-violet-700"
-                sub={orderCount === 0 ? "No orders yet" : undefined}
+                sub={orderCount === 0 ? t(STRINGS.command_center.kpi_no_orders_yet, locale) : undefined}
                 loading={isLoading}
             />
         </div>

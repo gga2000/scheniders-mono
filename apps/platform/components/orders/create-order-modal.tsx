@@ -54,11 +54,9 @@ import {
     Moon,
     Clock,
     Ban,
-    ShieldCheck,
 } from "lucide-react";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
-import { trustEngine, type TrustAssessment } from "@/lib/fraud-detector";
-import { TRUST_TIER_CONFIG } from "@/types/customer";
+import { OrderCustomerRiskPanel } from "./order-customer-risk-panel";
 import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { BulkUploadModal } from "./bulk-upload-modal";
@@ -133,29 +131,6 @@ export function CreateOrderModal({
     const [customCreatedAt, setCustomCreatedAt] = useState<string>(new Date().toISOString());
     const [createAndNew, setCreateAndNew] = useState(false);
     const handleCreateRef = useRef<(() => void) | undefined>(undefined);
-    const [trustAssessment, setTrustAssessment] = useState<TrustAssessment | null>(null);
-    const [isFetchingTrust, setIsFetchingTrust] = useState(false);
-
-    // Fetch trust assessment when phone changes (debounced)
-    useEffect(() => {
-        const normalized = normalizeIraqiPhone(formData.phone);
-        if (!normalized || normalized.length < 10) {
-            setTrustAssessment(null);
-            return;
-        }
-        const timer = setTimeout(async () => {
-            setIsFetchingTrust(true);
-            try {
-                const result = await trustEngine.assessCustomerTrust(normalized);
-                setTrustAssessment(result);
-            } catch {
-                setTrustAssessment(null);
-            } finally {
-                setIsFetchingTrust(false);
-            }
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [formData.phone]);
 
     // Check plan limits when modal opens
     useEffect(() => {
@@ -834,38 +809,8 @@ export function CreateOrderModal({
                                         })()}
                                     </div>
 
-                                        {/* Pre-flight Trust Card */}
-                                        {trustAssessment && trustAssessment.historicalData.totalOrders > 0 && (() => {
-                                            const tc = TRUST_TIER_CONFIG[trustAssessment.tier];
-                                            const isRisky = trustAssessment.tier === 'watch' || trustAssessment.tier === 'risky' || trustAssessment.tier === 'critical';
-                                            return (
-                                                <div className={cn(
-                                                    "flex items-center gap-3 rounded-xl px-3 py-2.5 mt-1 border",
-                                                    isRisky ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
-                                                )}>
-                                                    <ShieldCheck className="w-5 h-5 shrink-0" style={{ color: tc.ringColor }} />
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-bold text-sm tabular-nums" style={{ color: tc.ringColor }}>
-                                                                {trustAssessment.score}
-                                                            </span>
-                                                            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase", tc.bgClass, tc.textClass)}>
-                                                                {trustAssessment.tier}
-                                                            </span>
-                                                            <span className="text-[10px] text-muted-foreground">
-                                                                {trustAssessment.historicalData.totalOrders} orders · {Math.round(trustAssessment.deliverySuccessRate)}% success
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-                                        {isFetchingTrust && (
-                                            <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                Checking trust...
-                                            </div>
-                                        )}
+                                        {/* Pre-flight COD-risk panel (two-axis VALUE + RISK) */}
+                                        <OrderCustomerRiskPanel phone={formData.phone} />
 
                                     {/* Secondary Phone */}
                                     <div className="space-y-1">

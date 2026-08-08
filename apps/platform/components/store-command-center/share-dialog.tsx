@@ -3,14 +3,18 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Copy, Check, QrCode } from "lucide-react";
 import QRCode from "qrcode";
+import type { LocaleCode } from "@scheniders/shared";
+import { STRINGS, t } from "@/lib/editor-i18n";
 
 interface ShareDialogProps {
     url: string;
     businessName: string;
     onClose: () => void;
+    /** Hub chrome locale — the store's `default_locale` (UX2-14). */
+    locale: LocaleCode;
 }
 
-export function ShareDialog({ url, businessName, onClose }: ShareDialogProps) {
+export function ShareDialog({ url, businessName, onClose, locale }: ShareDialogProps) {
     const [copied, setCopied] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const dialogRef = useRef<HTMLDivElement>(null);
@@ -50,9 +54,12 @@ export function ShareDialog({ url, businessName, onClose }: ShareDialogProps) {
                 className="relative rounded-2xl border border-border bg-(--card-bg) p-6 w-full max-w-sm shadow-2xl"
             >
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-semibold text-foreground">Share your store</h3>
+                    <h3 className="text-base font-semibold text-foreground">
+                        {t(STRINGS.command_center.share_heading, locale)}
+                    </h3>
                     <button
                         onClick={onClose}
+                        aria-label={t(STRINGS.command_center.dialog_close, locale)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
                     >
                         <X className="w-4 h-4" />
@@ -67,7 +74,7 @@ export function ShareDialog({ url, businessName, onClose }: ShareDialogProps) {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={qrDataUrl}
-                            alt="Store QR code"
+                            alt={t(STRINGS.command_center.share_qr_alt, locale)}
                             width={160}
                             height={160}
                             className="rounded-xl border border-border"
@@ -91,7 +98,9 @@ export function ShareDialog({ url, businessName, onClose }: ShareDialogProps) {
                         ) : (
                             <Copy className="w-3.5 h-3.5" />
                         )}
-                        {copied ? "Copied!" : "Copy"}
+                        {copied
+                            ? t(STRINGS.command_center.share_copied, locale)
+                            : t(STRINGS.command_center.share_copy, locale)}
                     </button>
                 </div>
             </div>

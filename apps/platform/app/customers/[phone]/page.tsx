@@ -12,6 +12,7 @@ import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
 import { useVoiceNotes } from "@/hooks/use-voice-notes";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { HeroIdentityBanner } from "@/components/customers/detail/hero-identity-banner";
+import { CustomerValueRiskBanner, type CustomerReliability } from "@/components/customers/detail/value-risk-banner";
 import { DeliverySuccessCard } from "@/components/customers/detail/delivery-success-card";
 import { TrustHistoryCard } from "@/components/customers/detail/trust-history-card";
 import { BehavioralPatternsCard } from "@/components/customers/detail/behavioral-patterns-card";
@@ -33,9 +34,10 @@ function useCustomerProfile(phone: string) {
         queryKey: ["customer-profile", phone],
         queryFn: async () => {
             const normalized = trustEngine.normalizePhone(phone);
-            // PostgREST `.in()` treats a leading `+` as a special char and 400s,
-            // so skip the `+964` variant — store it as `964` (unprefixed).
-            const phoneVariants = [normalized, `0${normalized}`, `964${normalized}`];
+            // Match every stored phone format for this person: bare (07…/7…), the
+            // normalized key, `964…` and `+964…`. supabase-js encodes the leading
+            // `+`, so the `.in()` filter is safe (same variant list the dialog uses).
+            const phoneVariants = [normalized, `0${normalized}`, `964${normalized}`, `+964${normalized}`];
 
             const { data: trust } = await supabase
                 .from("customer_trust")
@@ -68,6 +70,11 @@ function useCustomerProfile(phone: string) {
                 .limit(1);
             const blacklist = blacklistRows?.[0] || null;
 
+            // Two-axis VALUE + RISK (same SQL helpers as the list/dialog/order panel).
+            const { data: reliabilityRows } = await supabase
+                .rpc("get_customer_reliability", { p_phone: normalized });
+            const reliability = (reliabilityRows as CustomerReliability[] | null)?.[0] ?? null;
+
             // Fetch orders for the order history table.
             // NOTE: the orders table column is `phone`, not `customer_phone`.
             const { data: orders } = await supabase
@@ -75,7 +82,7 @@ function useCustomerProfile(phone: string) {
                 .select("id, order_id, created_at, items, price, total_price:price, status, governorate_code")
                 .in("phone", phoneVariants)
                 .order("created_at", { ascending: false })
-                .limit(20);
+                .limit(200);
 
             // Prefer authoritative trust-engine totals over the aggregate mat-view
             // (the mv is per-tenant and can lag); fall back to the mv and finally
@@ -109,6 +116,7 @@ function useCustomerProfile(phone: string) {
                 notes: notes || [],
                 tags: (tagAssignments || []).map((ta: any) => ta.tag).filter(Boolean),
                 orders: ordersList,
+                reliability,
             };
         },
         staleTime: 5 * 60 * 1000,
@@ -189,6 +197,13 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     firstOrderDate={profile.firstOrderDate}
                 />
             </div>
+
+            {/* Two-axis VALUE + RISK headline — keeps the full profile consistent with the list/dialog */}
+            {profile.reliability && (
+                <div className="mb-8">
+                    <CustomerValueRiskBanner reliability={profile.reliability} />
+                </div>
+            )}
 
             {/* Bento Grid — Stitch Layout */}
             <div className="grid grid-cols-12 gap-6">

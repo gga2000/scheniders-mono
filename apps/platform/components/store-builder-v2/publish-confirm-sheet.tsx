@@ -41,7 +41,38 @@ import {
     type PublishDiff,
     type SectionChange,
 } from "@/lib/publish-diff";
+import type { EditorString } from "@/lib/editor-i18n";
+import type { LocaleCode } from "@scheniders/shared";
 import { getPageLabel } from "./page-tree";
+import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Localized copy for the checks this sheet surfaces                    */
+/* ─────────────────────────────────────────────────────────────────── */
+// Localized check copy is shared with the Health screen (UX2-02) —
+// single source in lib/health-check-copy.ts.
+function checkMessage(check: HealthCheck & CheckResult, locale: LocaleCode): string {
+    return checkCopyMessage(check.id, check.message ?? check.id, locale);
+}
+
+function checkFixLabel(check: HealthCheck & CheckResult, locale: LocaleCode): string | null {
+    if (!check.fix_action) return null;
+    return checkCopyFixLabel(check.id, check.fix_action.label, locale) ?? null;
+}
+
+const CATEGORY_LABELS: Record<string, EditorString> = {
+    ad_compliance: STRINGS.health.cat_ad_compliance,
+    conversion: STRINGS.health.cat_conversion,
+    seo: STRINGS.health.cat_seo,
+    trust: STRINGS.health.cat_trust,
+    content: STRINGS.health.cat_content,
+    performance: STRINGS.health.cat_performance,
+};
+
+function categoryLabel(category: string, locale: LocaleCode): string {
+    const s = CATEGORY_LABELS[category];
+    return s ? t(s, locale) : category.replace(/_/g, " ");
+}
 
 export interface PublishConfirmSheetProps {
     open: boolean;
@@ -142,7 +173,7 @@ export function PublishConfirmSheet({
                 <div className="flex-1 overflow-y-auto p-3">
                     {/* ── Changes-since-last-publish diff ───────────────── */}
                     {diff ? (
-                        <PublishDiffSection diff={diff} />
+                        <PublishDiffSection diff={diff} locale={locale} />
                     ) : null}
 
                     {/* ── Health warnings ───────────────────────────────── */}
@@ -163,7 +194,7 @@ export function PublishConfirmSheet({
                         ) : (
                             <>
                                 <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
-                                    {t(STRINGS.publish.confirm_title, locale)}
+                                    {t(STRINGS.publish.checks_heading, locale)}
                                 </h3>
                                 <ul className="flex flex-col gap-2">
                                     {blockingChecks.map((check) => (
@@ -180,7 +211,7 @@ export function PublishConfirmSheet({
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-sm font-semibold text-foreground/90">
-                                                            {check.message ?? check.id}
+                                                            {checkMessage(check, locale)}
                                                         </span>
                                                         <span
                                                             className={cn(
@@ -188,11 +219,13 @@ export function PublishConfirmSheet({
                                                                 "bg-amber-500/15 text-amber-600 dark:text-amber-300",
                                                             )}
                                                         >
-                                                            {t(STRINGS.publish.blocks_chip, locale)}
+                                                            {/* Publishing is never actually gated on these —
+                                                                the chip must read as advice, not prohibition. */}
+                                                            {t(STRINGS.publish.warn_chip, locale)}
                                                         </span>
                                                     </div>
                                                     <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                                                        {check.category.replace(/_/g, " ")}
+                                                        {categoryLabel(check.category, locale)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -203,7 +236,7 @@ export function PublishConfirmSheet({
                                                     onClick={() => onJumpToFix(check.fix_action!)}
                                                     className="self-start inline-flex h-7 items-center rounded-md border border-(--card-border) bg-(--card-bg) px-2.5 text-xs font-semibold text-foreground/80 hover:text-foreground"
                                                 >
-                                                    {check.fix_action.label}
+                                                    {checkFixLabel(check, locale)}
                                                 </button>
                                             ) : null}
                                         </li>
@@ -244,7 +277,7 @@ export function PublishConfirmSheet({
                             ? t(STRINGS.publish.publishing, locale)
                             : error
                               ? t(STRINGS.publish.retry, locale)
-                              : t(STRINGS.publish.publish_anyway, locale)}
+                              : t(STRINGS.publish.publish_cta, locale)}
                     </button>
                 </footer>
             </div>
@@ -256,7 +289,13 @@ export function PublishConfirmSheet({
 /* Diff renderer                                                        */
 /* ─────────────────────────────────────────────────────────────────── */
 
-function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement {
+function PublishDiffSection({
+    diff,
+    locale,
+}: {
+    diff: PublishDiff;
+    locale: LocaleCode;
+}): React.ReactElement {
     if (diff.isFirstPublish) {
         return (
             <section
@@ -266,13 +305,13 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
             >
                 <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-                    Changes since last publish
+                    {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
                 <p
                     data-testid="publish-diff-first-publish"
                     className="text-xs text-foreground/80"
                 >
-                    First publish — everything is new.
+                    {t(STRINGS.publish.diff_first_publish, locale)}
                 </p>
             </section>
         );
@@ -286,10 +325,10 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
                 className="rounded-xl border border-dashed border-(--card-border) p-3"
             >
                 <h3 className="mb-1 text-sm font-semibold text-foreground">
-                    Changes since last publish
+                    {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                    No content changes — config matches what's already live.
+                    {t(STRINGS.publish.diff_no_changes, locale)}
                 </p>
             </section>
         );
@@ -302,7 +341,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
         >
             <header className="border-b border-(--card-border) px-3 py-2">
                 <h3 className="text-sm font-semibold text-foreground">
-                    Changes since last publish
+                    {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
             </header>
             <div className="flex flex-col">
@@ -312,8 +351,12 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
                         className="flex items-center gap-2 border-b border-(--card-border) px-3 py-2 text-xs"
                     >
                         <Pencil className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-                        <span className="font-semibold text-foreground">Brand kit</span>
-                        <span className="text-muted-foreground">— colors / fonts / shape updated</span>
+                        <span className="font-semibold text-foreground">
+                            {t(STRINGS.publish.diff_brand_kit, locale)}
+                        </span>
+                        <span className="text-muted-foreground">
+                            {t(STRINGS.publish.diff_brand_kit_desc, locale)}
+                        </span>
                     </div>
                 )}
                 {diff.globalsChanged.length > 0 && (
@@ -336,7 +379,7 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
                 )}
                 <ul className="flex flex-col">
                     {diff.pages.map((page) => (
-                        <PageGroup key={page.page_id} page={page} />
+                        <PageGroup key={page.page_id} page={page} locale={locale} />
                     ))}
                 </ul>
             </div>
@@ -344,7 +387,13 @@ function PublishDiffSection({ diff }: { diff: PublishDiff }): React.ReactElement
     );
 }
 
-function PageGroup({ page }: { page: PageDiff }): React.ReactElement {
+function PageGroup({
+    page,
+    locale,
+}: {
+    page: PageDiff;
+    locale: LocaleCode;
+}): React.ReactElement {
     const [open, setOpen] = useState<boolean>(true);
     const counts = summarisePageChangeCounts(page);
     return (
@@ -361,9 +410,13 @@ function PageGroup({ page }: { page: PageDiff }): React.ReactElement {
                 ) : (
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 )}
-                <span className="font-semibold text-foreground">{getPageLabel(page.page_id)}</span>
+                <span className="font-semibold text-foreground">{getPageLabel(page.page_id, locale)}</span>
                 <span className="text-muted-foreground">
-                    — {page.changes.length} change{page.changes.length === 1 ? "" : "s"}
+                    {page.changes.length === 1
+                        ? t(STRINGS.publish.diff_change_count_one, locale)
+                        : tFormat(STRINGS.publish.diff_change_count_many, locale, {
+                              n: page.changes.length,
+                          })}
                 </span>
                 <span className="ml-auto flex items-center gap-1">
                     {counts.added > 0 && (

@@ -19,8 +19,9 @@
 //     (`schema`, the real Zod schema from the def — zero drift)
 // =====================================================================
 
-import type { PageId } from "@scheniders/shared";
+import type { LocaleCode, PageId } from "@scheniders/shared";
 import { BUILTIN_SECTIONS, type AnySectionDefinition } from "@scheniders/sections";
+import { STRINGS, t } from "@/lib/editor-i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -90,3 +91,33 @@ export const SECTION_CATEGORY_LABELS: Record<SectionCategory, string> = {
     conversion: "Conversion",
     page: "Page",
 };
+
+// ─── Locale-aware display helpers ─────────────────────────────────────
+// Section defs carry `{ en, ar? }` names/descriptions; the editor chrome
+// must resolve them by the active editor locale instead of hardcoding
+// `.en` (Arabic-first market). Kurdish falls back to English until the
+// section catalog grows `ku` strings.
+
+export function sectionDisplayName(
+    entry: Pick<SectionManifestEntry, "name" | "type">,
+    locale: LocaleCode,
+): string {
+    const name = entry.name as { en: string; ar?: string; ku?: string };
+    return name[locale] ?? name.en ?? entry.type;
+}
+
+export function sectionDisplayDescription(
+    entry: Pick<SectionManifestEntry, "description">,
+    locale: LocaleCode,
+): string {
+    const desc = entry.description as { en: string; ar?: string; ku?: string };
+    return desc[locale] ?? desc.en ?? "";
+}
+
+/** Localized category label (picker chips, row sublabels). */
+export function sectionCategoryLabel(
+    category: SectionCategory,
+    locale: LocaleCode,
+): string {
+    return t(STRINGS.section_category[category], locale);
+}

@@ -40,6 +40,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Storybook build output — minified bundles, not source.
+    "storybook-static/**",
   ]),
 ]);
 

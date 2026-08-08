@@ -9,6 +9,8 @@ import {
     Plus,
     Trash2,
 } from "lucide-react";
+import { STRINGS, t, type EditorString } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 
 export type LivePreviewContextMenuAction =
     | "edit"
@@ -29,7 +31,8 @@ export interface LivePreviewContextMenuProps {
 
 interface MenuItem {
     action: LivePreviewContextMenuAction;
-    label: string;
+    /** Localized via editor-i18n at render (A3 — canvas chrome). */
+    label: EditorString;
     icon: typeof Pencil;
     danger?: boolean;
     testId: string;
@@ -38,37 +41,37 @@ interface MenuItem {
 const ITEMS: MenuItem[] = [
     {
         action: "edit",
-        label: "Edit",
+        label: STRINGS.section_list.row_edit_label,
         icon: Pencil,
         testId: "live-preview-context-menu-edit",
     },
     {
         action: "duplicate",
-        label: "Duplicate",
+        label: STRINGS.section_list.row_duplicate,
         icon: Copy,
         testId: "live-preview-context-menu-duplicate",
     },
     {
         action: "up",
-        label: "Move up",
+        label: STRINGS.auto_form.move_up,
         icon: ArrowUp,
         testId: "live-preview-context-menu-up",
     },
     {
         action: "down",
-        label: "Move down",
+        label: STRINGS.auto_form.move_down,
         icon: ArrowDown,
         testId: "live-preview-context-menu-down",
     },
     {
         action: "add_variant",
-        label: "Add variant",
+        label: STRINGS.context_menu.add_variant,
         icon: Plus,
         testId: "live-preview-context-menu-add-variant",
     },
     {
         action: "delete",
-        label: "Delete",
+        label: STRINGS.section_list.row_delete,
         icon: Trash2,
         danger: true,
         testId: "live-preview-context-menu-delete",
@@ -81,6 +84,7 @@ export function LivePreviewContextMenu({
     onClose,
     onAction,
 }: LivePreviewContextMenuProps): ReactElement {
+    const locale = useResolvedEditorLocale();
     const ref = useRef<HTMLDivElement | null>(null);
 
     // Outside click + Escape closes the menu. We use a mount-time flag so
@@ -141,11 +145,11 @@ export function LivePreviewContextMenu({
                             "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors " +
                             (item.danger
                                 ? "text-red-600 hover:bg-red-50"
-                                : "text-gray-800 hover:bg-pink-50")
+                                : "text-gray-900 hover:bg-gray-100")
                         }
                     >
                         <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>{item.label}</span>
+                        <span>{t(item.label, locale)}</span>
                     </button>
                 );
             })}

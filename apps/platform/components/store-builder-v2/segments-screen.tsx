@@ -220,7 +220,7 @@ export function SegmentsScreen({
                         type="button"
                         onClick={onClose}
                         data-testid="segments-back"
-                        aria-label="Back"
+                        aria-label={t(STRINGS.advanced_chrome.adv_back, locale)}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />
@@ -324,7 +324,7 @@ export function SegmentsScreen({
                                             )}
                                         </div>
                                         <div className="mt-1 text-[10px] text-muted-foreground">
-                                            Visitors: <span className="font-medium">—</span>
+                                            {t(STRINGS.advanced_chrome.seg_visitors_label, locale)} <span className="font-medium">—</span>
                                         </div>
                                     </button>
                                 </li>
@@ -350,7 +350,7 @@ export function SegmentsScreen({
                             />
                         ) : (
                             <div className="flex h-full items-center justify-center text-sm text-foreground/80">
-                                Select a segment to edit it.
+                                {t(STRINGS.advanced_chrome.seg_select_to_edit, locale)}
                             </div>
                         )}
                     </section>
@@ -399,10 +399,11 @@ function SegmentEditor({
     onDeleteRule,
     onDelete,
 }: SegmentEditorProps): ReactElement {
+    const locale = useEditorLocale();
     return (
         <div data-testid="segment-editor" className="space-y-5">
             <header className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-bold tracking-tight">Edit segment</h3>
+                <h3 className="text-sm font-bold tracking-tight">{t(STRINGS.advanced_chrome.seg_edit_segment, locale)}</h3>
                 <button
                     type="button"
                     onClick={onDelete}
@@ -410,7 +411,7 @@ function SegmentEditor({
                     className="inline-flex h-8 items-center gap-1 rounded-md border border-rose-500/40 px-2 text-[12px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
                 >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Delete segment
+                    {t(STRINGS.advanced_chrome.seg_delete_segment, locale)}
                 </button>
             </header>
 
@@ -437,7 +438,7 @@ function SegmentEditor({
             <Field label="Combine logic">
                 <div
                     role="radiogroup"
-                    aria-label="Combine logic"
+                    aria-label={t(STRINGS.advanced_chrome.seg_field_combine, locale)}
                     className="inline-flex rounded-md border border-(--card-border) bg-muted/30 p-0.5"
                 >
                     {(["all", "any"] as const).map((opt) => (
@@ -464,7 +465,7 @@ function SegmentEditor({
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
-                        Rules
+                        {t(STRINGS.advanced_chrome.seg_rules_heading, locale)}
                     </span>
                     <div className="relative">
                         <button
@@ -474,7 +475,7 @@ function SegmentEditor({
                             className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                         >
                             <Plus className="h-3 w-3" />
-                            Add rule
+                            {t(STRINGS.advanced_chrome.seg_add_rule, locale)}
                         </button>
                         {addRuleOpen && (
                             <div
@@ -502,7 +503,7 @@ function SegmentEditor({
                         data-testid="segment-editor-rules-empty"
                         className="rounded-md border border-dashed border-(--card-border) px-3 py-4 text-center text-[12px] text-muted-foreground"
                     >
-                        No rules. Add one to start matching visitors.
+                        {t(STRINGS.advanced_chrome.seg_rules_empty, locale)}
                     </p>
                 ) : (
                     <ul className="space-y-2">
@@ -520,7 +521,7 @@ function SegmentEditor({
                                         type="button"
                                         onClick={() => onDeleteRule(i)}
                                         data-testid={`segment-rule-${i}-delete`}
-                                        aria-label="Delete rule"
+                                        aria-label={t(STRINGS.advanced_chrome.seg_delete_rule_aria, locale)}
                                         className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-700"
                                     >
                                         <X className="h-3.5 w-3.5" />
@@ -553,11 +554,12 @@ interface RuleConfigProps {
 }
 
 function RuleConfig({ rule, index, onChange }: RuleConfigProps): ReactElement | null {
+    const locale = useEditorLocale();
     switch (rule.kind) {
         case "first_visit":
             return (
                 <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                    Within
+                    {t(STRINGS.advanced_chrome.seg_within, locale)}
                     <input
                         type="number"
                         min={0}
@@ -572,13 +574,13 @@ function RuleConfig({ rule, index, onChange }: RuleConfigProps): ReactElement | 
                         data-testid={`segment-rule-${index}-within-minutes`}
                         className="w-24 rounded-md border border-(--card-border) bg-background px-2 py-1 text-sm"
                     />
-                    minutes (optional)
+                    {t(STRINGS.advanced_chrome.seg_minutes_optional, locale)}
                 </label>
             );
         case "returning_visitor":
         case "has_ordered_before":
             return (
-                <p className="text-[12px] text-muted-foreground">No configuration.</p>
+                <p className="text-[12px] text-muted-foreground">{t(STRINGS.advanced_chrome.seg_no_config, locale)}</p>
             );
         case "cart_total":
             return (
@@ -612,13 +614,13 @@ function RuleConfig({ rule, index, onChange }: RuleConfigProps): ReactElement | 
                         data-testid={`segment-rule-${index}-value`}
                         className="w-32 rounded-md border border-(--card-border) bg-background px-2 py-1 text-sm"
                     />
-                    <span className="text-muted-foreground">IQD</span>
+                    <span className="text-muted-foreground">{t(STRINGS.advanced_chrome.seg_iqd, locale)}</span>
                 </div>
             );
         case "abandoned_cart":
             return (
                 <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                    Inactive for at least
+                    {t(STRINGS.advanced_chrome.seg_inactive_for, locale)}
                     <input
                         type="number"
                         min={0}
@@ -632,7 +634,7 @@ function RuleConfig({ rule, index, onChange }: RuleConfigProps): ReactElement | 
                         data-testid={`segment-rule-${index}-minutes-since`}
                         className="w-24 rounded-md border border-(--card-border) bg-background px-2 py-1 text-sm"
                     />
-                    minutes
+                    {t(STRINGS.advanced_chrome.seg_minutes, locale)}
                 </label>
             );
         case "governorate":
@@ -740,6 +742,7 @@ function DeleteConfirm({
     onCancel,
     onConfirm,
 }: DeleteConfirmProps): ReactElement {
+    const locale = useEditorLocale();
     const needsAck = refsCount > 0 && !acknowledgedRefs;
     return (
         <div
@@ -756,7 +759,7 @@ function DeleteConfirm({
                         type="button"
                         onClick={onCancel}
                         data-testid="segment-delete-cancel"
-                        aria-label="Cancel"
+                        aria-label={t(STRINGS.advanced_chrome.adv_cancel, locale)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-black/5 hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
@@ -806,12 +809,12 @@ function DeleteConfirm({
                         {needsAck ? (
                             <>
                                 <AlertCircle className="h-3.5 w-3.5" />
-                                I understand, continue
+                                {t(STRINGS.advanced_chrome.adv_understand_continue, locale)}
                             </>
                         ) : (
                             <>
                                 <Check className="h-3.5 w-3.5" />
-                                Delete segment
+                                {t(STRINGS.advanced_chrome.seg_delete_segment, locale)}
                             </>
                         )}
                     </button>

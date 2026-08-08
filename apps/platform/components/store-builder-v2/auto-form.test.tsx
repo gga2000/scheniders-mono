@@ -238,11 +238,15 @@ describe("AutoForm", () => {
                 onChange={() => {}}
             />,
         );
-        // I18nStringInput emits these test ids using the prefix.
+        // I18nStringInput emits these test ids using the prefix. The
+        // non-active locales tuck behind a single translations toggle.
         expect(screen.getByTestId("auto-form-root.title_i18n-root")).toBeTruthy();
-        expect(screen.getByTestId("auto-form-root.title_i18n-locale-en")).toBeTruthy();
-        expect(screen.getByTestId("auto-form-root.title_i18n-locale-ar")).toBeTruthy();
-        expect(screen.getByTestId("auto-form-root.title_i18n-locale-ku")).toBeTruthy();
+        expect(screen.getByTestId("auto-form-root.title_i18n-input")).toBeTruthy();
+        fireEvent.click(
+            screen.getByTestId("auto-form-root.title_i18n-translations-toggle"),
+        );
+        expect(screen.getByTestId("auto-form-root.title_i18n-input-ar")).toBeTruthy();
+        expect(screen.getByTestId("auto-form-root.title_i18n-input-ku")).toBeTruthy();
     });
 
     it(".describe('multiline') renders textarea instead of input", () => {
@@ -410,7 +414,11 @@ describe("AutoForm", () => {
                 activeLocale="ar"
             />,
         );
-        // Find any i18n-root inside the array — its active locale must be 'ar'.
+        // Items collapse by default (C8) — expand the first one, then the
+        // i18n input inside it must carry the active locale.
+        fireEvent.click(
+            screen.getByTestId("auto-form-root.pills-item-0-toggle"),
+        );
         const roots = document.querySelectorAll('[data-active-locale="ar"]');
         expect(roots.length).toBeGreaterThanOrEqual(1);
     });

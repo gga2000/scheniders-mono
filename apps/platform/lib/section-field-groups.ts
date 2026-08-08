@@ -202,3 +202,87 @@ export function getFieldGroup(
     const key = fieldPath.split(".")[0] ?? fieldPath;
     return classifyKey(key);
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Simple ⇄ Advanced mode — field visibility
+ * ─────────────────────────────────────────────────────────────────────
+ * Simple mode shows essential + style fields and hides the logic group
+ * (hrefs, ids, queries, analytics tags…). The convention-based grouping
+ * occasionally misfiles a field a first-week merchant genuinely needs —
+ * correct those here per section, never by rewriting the conventions.
+ */
+
+interface SimpleOverride {
+    /** Field keys forced VISIBLE in Simple even though grouped as logic. */
+    show?: readonly string[];
+    /** Field keys forced HIDDEN in Simple even though essential/style. */
+    hide?: readonly string[];
+}
+
+const SIMPLE_OVERRIDES: Record<string, SimpleOverride> = {
+    // Raw markup is the one essential-bucket field a first-week merchant
+    // should NOT meet — Advanced only (UX2-16).
+    html_embed: { hide: ["html"] },
+};
+
+/*
+ * Merchant-essential wiring (UX2-01): these logic-bucket fields are the
+ * CONTENT of their sections — a button's destination, a grid's products,
+ * a countdown's date, a promo's code. Hiding them in Simple ships
+ * half-controls (editable label, unreachable target), so they stay
+ * visible in both modes. Kept as a name convention, mirroring classifyKey.
+ */
+const SIMPLE_SHOW_SUFFIXES = ["_href"] as const;
+const SIMPLE_SHOW_EXACT = new Set([
+    "secondary_cta_kind",
+    "secondary_cta_value",
+    "product_ids",
+    "manual_skus",
+    "countdown_to_iso",
+    "target_iso",
+    "category_id",
+    "category_slug",
+    "discount_code",
+    "threshold_iqd",
+    "wa_number",
+    "whatsapp_number",
+]);
+
+function isSimpleWhitelisted(key: string): boolean {
+    if (SIMPLE_SHOW_EXACT.has(key)) return true;
+    return SIMPLE_SHOW_SUFFIXES.some((s) => key.endsWith(s));
+}
+
+/**
+ * Should this field render in the given editor mode?
+ * Advanced always sees everything. Unknown section types fall back to
+ * "show everything" — never hide fields we can't classify.
+ */
+/**
+ * Group for a field UNDER a given mode. In Simple, whitelisted wiring
+ * fields are promoted into "essential" so they sit next to the content
+ * they belong to (a collapsed "الإعدادات" accordion would bury them).
+ */
+export function getFieldGroupForMode(
+    mode: "simple" | "advanced",
+    sectionType: string | undefined,
+    fieldPath: string,
+): FieldGroup {
+    const key = fieldPath.split(".")[0] ?? fieldPath;
+    if (mode === "simple" && isSimpleWhitelisted(key)) return "essential";
+    return classifyKey(key);
+}
+
+export function isFieldVisible(
+    mode: "simple" | "advanced",
+    sectionType: string | undefined,
+    fieldPath: string,
+): boolean {
+    if (mode === "advanced") return true;
+    const key = fieldPath.split(".")[0] ?? fieldPath;
+    const override = sectionType ? SIMPLE_OVERRIDES[sectionType] : undefined;
+    if (override?.show?.includes(key)) return true;
+    if (override?.hide?.includes(key)) return false;
+    if (isSimpleWhitelisted(key)) return true;
+    return classifyKey(key) !== "logic";
+}

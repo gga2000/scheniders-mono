@@ -62,16 +62,19 @@ import type {
 } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import {
-    SECTION_CATEGORY_LABELS,
     getManifestEntry,
+    sectionCategoryLabel,
+    sectionDisplayName,
     type SectionCategory,
 } from "@/lib/sections-manifest";
 import { toast } from "@/hooks/use-toast";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorMode } from "@/lib/editor-mode-context";
 import { SectionEditPanel } from "./section-edit-panel";
 import { SavePresetDialog } from "./save-preset-dialog";
 import { PageTemplateEmptyState } from "./page-template-empty-state";
+import { templatesForPage } from "@/lib/page-templates";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public API                                                           */
@@ -222,9 +225,10 @@ function SectionRow({
     locale,
 }: SectionRowProps): React.ReactElement {
     const manifest = getManifestEntry(section.type);
+    const { mode } = useEditorMode();
     const category: SectionCategory | "unknown" = manifest?.category ?? "unknown";
-    const categoryLabel = manifest ? SECTION_CATEGORY_LABELS[manifest.category] : "—";
-    const name = manifest?.name.en ?? section.type;
+    const categoryLabel = manifest ? sectionCategoryLabel(manifest.category, locale) : "—";
+    const name = manifest ? sectionDisplayName(manifest, locale) : section.type;
     const displayLabel = section.label?.trim() ? section.label : name;
 
     const [menuOpen, setMenuOpen] = useState<boolean>(false);
@@ -414,7 +418,7 @@ function SectionRow({
                                     <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                                     {t(STRINGS.section_list.row_duplicate, locale)}
                                 </button>
-                                {onSaveAsPreset && (
+                                {onSaveAsPreset && mode === "advanced" && (
                                     <button
                                         type="button"
                                         role="menuitem"
@@ -484,6 +488,12 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
         segments,
         onEditLayer,
     } = props;
+
+    // BUG29: hide template entry points on pages no curated pack fits.
+    const hasTemplatesForPage = useMemo(
+        () => templatesForPage(pageId).length > 0,
+        [pageId],
+    );
 
     const locale = useResolvedEditorLocale(activeLocale);
 
@@ -580,7 +590,8 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
             onChange(next);
             const manifest = getManifestEntry(removed.type);
             const name =
-                removed.label?.trim() || manifest?.name.en || removed.type;
+                removed.label?.trim() ||
+                (manifest ? sectionDisplayName(manifest, locale) : removed.type);
             toast({
                 title: tFormat(STRINGS.section_list.toast_deleted, locale, { name }),
                 description: t(STRINGS.section_list.toast_undo_hint, locale),
@@ -654,7 +665,7 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    {onStartFromTemplate && (
+                    {onStartFromTemplate && hasTemplatesForPage && (
                         <button
                             type="button"
                             data-testid="section-list-templates"
@@ -676,6 +687,7 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
                         <PageTemplateEmptyState
                             currentSectionCount={count}
                             activeLocale={activeLocale}
+                            activePageId={pageId}
                             onStartBlank={() => setTemplatesDismissed(true)}
                             onApply={(next) => {
                                 // Defensive: if a stale render leaves the
@@ -724,7 +736,7 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
                             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                             {t(STRINGS.section_list.empty_first_button, locale)}
                         </button>
-                        {onStartFromTemplate && (
+                        {onStartFromTemplate && hasTemplatesForPage && (
                             <button
                                 type="button"
                                 data-testid="section-list-empty-template"

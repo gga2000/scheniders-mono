@@ -20,10 +20,12 @@ afterEach(() => {
 });
 
 describe("BlockLayersPanel", () => {
-    it("shows the empty state when the section has no editable layers", () => {
+    it("renders nothing when the section has no editable layers", () => {
         const root = setupRoot("<p>plain</p>");
-        render(<BlockLayersPanel sectionId="sec-test" rootEl={root} />);
-        expect(screen.getByTestId("block-layers-panel-empty")).toBeTruthy();
+        const { container } = render(
+            <BlockLayersPanel sectionId="sec-test" rootEl={root} />,
+        );
+        expect(container.firstChild).toBeNull();
     });
 
     it("lists [data-i18n-field] and [data-layer] descendants with the right kinds", () => {

@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight, Rocket } from "lucide-react";
 import { runHealthChecks, emptyStoreConfigV2 } from "@scheniders/shared";
-import type { StoreConfigV2, FixAction } from "@scheniders/shared";
+import type { LocaleCode, StoreConfigV2, FixAction } from "@scheniders/shared";
+import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
+import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
 
 interface HealthCardProps {
     config: StoreConfigV2 | null;
     /** A brand-new store (not published, nothing built) has no meaningful health
      * to score — show a neutral onboarding prompt instead of a red "failing" label. */
     isBrandNew?: boolean;
+    /** Hub chrome locale — the store's `default_locale` (UX2-14). */
+    locale: LocaleCode;
 }
 
 /**
@@ -44,11 +48,11 @@ function scoreColor(score: number): string {
     return "#16a34a";
 }
 
-function scoreLabel(score: number): string {
-    if (score < 40) return "Needs attention";
-    if (score < 70) return "Getting there";
-    if (score < 85) return "Looking good";
-    return "Launch-ready";
+function scoreLabel(score: number): EditorString {
+    if (score < 40) return STRINGS.command_center.health_score_needs_attention;
+    if (score < 70) return STRINGS.command_center.health_score_getting_there;
+    if (score < 85) return STRINGS.command_center.health_score_looking_good;
+    return STRINGS.command_center.health_score_launch_ready;
 }
 
 /** Simple SVG ring showing the score 0–100. */
@@ -80,7 +84,7 @@ function ScoreRing({ score }: { score: number }) {
     );
 }
 
-export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
+export function HealthCard({ config, isBrandNew = false, locale }: HealthCardProps) {
     if (isBrandNew) {
         return (
             <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
@@ -88,18 +92,18 @@ export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
                     <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
                         <Rocket className="w-4 h-4 text-violet-700" />
                     </div>
-                    <h3 className="text-base font-semibold text-foreground">Finish setting up your store</h3>
+                    <h3 className="text-base font-semibold text-foreground">
+                        {t(STRINGS.command_center.health_new_store_heading, locale)}
+                    </h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-5">
-                    Your store doesn&apos;t have any content yet. Open the editor to
-                    add sections and build out your home page — your store health
-                    score will appear once you&apos;ve started.
+                    {t(STRINGS.command_center.health_new_store_body, locale)}
                 </p>
                 <Link
                     href="/store/onboarding"
                     className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                 >
-                    Get started <ArrowRight className="w-3.5 h-3.5" />
+                    {t(STRINGS.command_center.health_get_started, locale)} <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
             </div>
         );
@@ -123,17 +127,25 @@ export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
                 <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
                     <HeartPulse className="w-4 h-4 text-emerald-700" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground">Store health</h3>
+                <h3 className="text-base font-semibold text-foreground">
+                    {t(STRINGS.command_center.health_heading, locale)}
+                </h3>
             </div>
 
             <div className="flex items-start gap-4 mb-5">
                 <ScoreRing score={score} />
                 <div className="flex flex-col justify-center gap-1">
-                    <p className="text-sm font-semibold text-foreground">{scoreLabel(score)}</p>
+                    <p className="text-sm font-semibold text-foreground">{t(scoreLabel(score), locale)}</p>
                     <p className="text-xs text-muted-foreground">
                         {issues.length === 0
-                            ? "All checks passing — store is launch-ready."
-                            : `${issues.length} item${issues.length !== 1 ? "s" : ""} to address before launch.`}
+                            ? t(STRINGS.command_center.health_all_passing_detail, locale)
+                            : tFormat(
+                                  issues.length === 1
+                                      ? STRINGS.command_center.health_items_to_address_one
+                                      : STRINGS.command_center.health_items_to_address_other,
+                                  locale,
+                                  { n: issues.length },
+                              )}
                     </p>
                 </div>
             </div>
@@ -149,12 +161,19 @@ export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
                                         : "w-4 h-4 text-amber-500 mt-0.5 shrink-0"
                                 }
                             />
-                            <p className="text-xs text-foreground flex-1">{check.message ?? check.id}</p>
+                            <p className="text-xs text-foreground flex-1">
+                                {checkCopyMessage(check.id, check.message ?? check.id, locale)}
+                            </p>
                             <Link
                                 href={fixHref(check.fix_action)}
+                                /* The chip stays a compact "Fix"; the specific localized
+                                 * action ("Edit privacy policy") is exposed as its
+                                 * accessible name so the target is never ambiguous. */
+                                aria-label={checkCopyFixLabel(check.id, check.fix_action?.label, locale)}
+                                title={checkCopyFixLabel(check.id, check.fix_action?.label, locale)}
                                 className="shrink-0 rounded-lg bg-(--background-soft) px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             >
-                                Fix
+                                {t(STRINGS.command_center.health_fix, locale)}
                             </Link>
                         </div>
                     ))}
@@ -164,7 +183,9 @@ export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
             {issues.length === 0 && (
                 <div className="flex items-center gap-2 text-emerald-600">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span className="text-xs font-medium">All checks passing</span>
+                    <span className="text-xs font-medium">
+                        {t(STRINGS.command_center.health_all_passing, locale)}
+                    </span>
                 </div>
             )}
 
@@ -172,7 +193,7 @@ export function HealthCard({ config, isBrandNew = false }: HealthCardProps) {
                 href="/store/edit"
                 className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
-                Full checklist in editor <ArrowRight className="w-3 h-3" />
+                {t(STRINGS.command_center.health_full_checklist, locale)} <ArrowRight className="w-3 h-3" />
             </Link>
         </div>
     );

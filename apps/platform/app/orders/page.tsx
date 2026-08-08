@@ -597,6 +597,28 @@ export default function OrdersPage() {
     const dateButtonRef = useRef<HTMLButtonElement>(null);
     const datePickerRef = useRef<HTMLDivElement>(null);
 
+    // Toolbar scroller edge fades — only shown while content actually
+    // overflows on that side, so nothing ever hard-clips at the seam.
+    const toolbarScrollRef = useRef<HTMLDivElement>(null);
+    const [toolbarFade, setToolbarFade] = useState({ left: false, right: false });
+    useEffect(() => {
+        const el = toolbarScrollRef.current;
+        if (!el) return;
+        const update = () => {
+            const left = el.scrollLeft > 4;
+            const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+            setToolbarFade(prev => (prev.left === left && prev.right === right) ? prev : { left, right });
+        };
+        update();
+        el.addEventListener("scroll", update, { passive: true });
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => {
+            el.removeEventListener("scroll", update);
+            ro.disconnect();
+        };
+    }, []);
+
     // Update date picker position when opened
     useEffect(() => {
         if (showDatePicker && dateButtonRef.current) {
@@ -1386,13 +1408,25 @@ export default function OrdersPage() {
                                                     {/* Old Actions Location Removed */}
                                                 </div>
 
-                                                {/* Row 2: Control Groups - Premium Glass Cards */}
-                                                <div className="flex items-start justify-between gap-3 pb-6 md:mx-0 md:px-0 pt-2 w-full overflow-x-auto scrollbar-hide flex-nowrap">
+                                                {/* Row 2: Control Groups - Premium Glass Cards.
+                                                    One flex container so justify-between spreads free space
+                                                    evenly between ALL cards. Never position:sticky a card in
+                                                    here — it paints over the cards scrolling beneath it; the
+                                                    edge fades below signal overflow instead. */}
+                                                    <div
+                                                        ref={toolbarScrollRef}
+                                                        className={cn(
+                                                            "flex items-start justify-between gap-3 pt-2 pb-6 w-full md:mx-0 md:px-0 overflow-x-auto scrollbar-hide flex-nowrap",
+                                                            toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px,black_calc(100%-32px),transparent)]",
+                                                            toolbarFade.left && !toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px)]",
+                                                            !toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]"
+                                                        )}
+                                                    >
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             {/* Saved Views Dropdown */}
                                                             <SavedViewsTabs
                                                                 presets={filterPresets}
@@ -1418,7 +1452,7 @@ export default function OrdersPage() {
                                                                 }}
                                                             />
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
                                                             {/* Workflow Toggle */}
                                                             <div className="flex items-center bg-black/5 rounded-xl p-1 gap-1">
                                                                 <button
@@ -1445,7 +1479,7 @@ export default function OrdersPage() {
                                                                 </button>
                                                             </div>
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
 
                                                             {/* Layout Toggles */}
                                                             {!workflowMode && [
@@ -1512,7 +1546,7 @@ export default function OrdersPage() {
                                                                 </button>
                                                             )}
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
 
                                                             {/* Collapse Toolbar */}
                                                             <button
@@ -1528,7 +1562,7 @@ export default function OrdersPage() {
                                                     {/* Filter Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             {/* Date Picker */}
                                                             <div>
                                                                 <button
@@ -1666,7 +1700,7 @@ export default function OrdersPage() {
                                                                 <GitBranch className="w-4 h-4" />
                                                             </button>
 
-                                                            <div className="w-px h-8 bg-black/5 mx-1 orders-toolbar-divider" />
+                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
 
                                                             {/* Archive Toggle */}
                                                             <button
@@ -1704,7 +1738,7 @@ export default function OrdersPage() {
                                                     {/* Tools Group - NEW */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             {/* Notifications */}
                                                             <button
                                                                 onClick={async () => {
@@ -1790,7 +1824,7 @@ export default function OrdersPage() {
                                                     {/* Export Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
 
                                                             <button
                                                                 onClick={() => setIsExportModalOpen(true)}
@@ -1813,10 +1847,10 @@ export default function OrdersPage() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Action Group — pinned to the right edge via sticky */}
-                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min sticky right-0 z-10">
+                                                    {/* Action Group */}
+                                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}
                                                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
