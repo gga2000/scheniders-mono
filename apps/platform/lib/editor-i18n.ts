@@ -876,6 +876,22 @@ export const STRINGS = {
     },
 
     /* ── Brand-kit editor body (agent A region — UX2-06/07/08/09) ── */
+    /* ── Brand-kit live preview card (S3-03 localization) ────────── */
+    brand_kit_preview: {
+        heading: { en: "Live preview", ar: "معاينة حية", ku: "پێشبینینی ڕاستەوخۆ" },
+        realtime: { en: "Real-time", ar: "مباشر", ku: "ڕاستەوخۆ" },
+        wordmark_caption: { en: "Brand wordmark + body type", ar: "شعار العلامة وخط النص", ku: "لۆگۆی برێند و فۆنتی دەق" },
+        cta_label: { en: "Button", ar: "زر", ku: "دوگمە" },
+        cta_sample: { en: "Shop now", ar: "تسوّق الآن", ku: "ئێستا بکڕە" },
+        surface_label: { en: "Surface", ar: "سطح", ku: "ڕووکار" },
+        surface_sample: { en: "Hello", ar: "مرحباً", ku: "سڵاو" },
+        ink_label: { en: "Text", ar: "النص", ku: "دەق" },
+        ink_sample: { en: "Aa Bb", ar: "أب جد", ku: "ئا ب" },
+        sale_sample: { en: "SALE!", ar: "تخفيض!", ku: "داشکاندن!" },
+        tokens_heading: { en: "Resolved palette", ar: "الألوان الناتجة", ku: "ڕەنگە دەرئەنجامەکان" },
+        store_fallback: { en: "Your Store", ar: "متجرك", ku: "فرۆشگاکەت" },
+    },
+
     brand_kit_body: {
         // Identity
         tagline_placeholder: { en: "A short line that describes your store", ar: "سطر قصير يصف متجرك", ku: "دێڕێکی کورت کە فرۆشگاکەت وەسف دەکات" },
