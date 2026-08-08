@@ -115,7 +115,7 @@ function FaqAccordionRender({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t ? "ابحث في الأسئلة…" : "Search FAQs…"}
-          className="w-full bg-white pl-11 pr-4 py-3 font-body text-base focus:outline-none"
+          className="w-full bg-bk-surface-alt pl-11 pr-4 py-3 font-body text-base focus:outline-none"
           style={{
             border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
             borderRadius: "var(--bk-radius-input, 0.75rem)",

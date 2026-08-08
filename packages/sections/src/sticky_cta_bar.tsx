@@ -82,7 +82,7 @@ function StickyCtaBarRender({
 
   return (
     <div
-      className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur p-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+      className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-bk-surface-alt/95 backdrop-blur p-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
       style={{
         borderTop:
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",

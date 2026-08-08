@@ -72,7 +72,7 @@ function FreeGiftStrip({
       <BentoCard bg={unlocked ? "mint" : "butter"} size="sm" className="p-bk-sm sm:p-bk-md">
         <div className="flex items-center gap-bk-sm">
           <div
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-[3px] border-candy-ink shrink-0 bg-white overflow-hidden"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-bk-bold border-bk-ink shrink-0 bg-bk-surface-alt overflow-hidden"
             aria-hidden="true"
           >
             {props.gift_image_url ? (
@@ -92,9 +92,9 @@ function FreeGiftStrip({
             <p className="font-display font-black text-sm sm:text-base uppercase leading-tight">
               {unlocked ? unlockedLabel : headingResolved}
             </p>
-            <div className="mt-bk-2xs h-2.5 rounded-full bg-white border-[3px] border-candy-ink overflow-hidden">
+            <div className="mt-bk-2xs h-2.5 rounded-full bg-bk-surface-alt border-bk-bold border-bk-ink overflow-hidden">
               <div
-                className="h-full bg-candy-pink transition-[width] duration-500"
+                className="h-full bg-bk-primary transition-[width] duration-500"
                 style={{
                   width: `${pct}%`,
                   backgroundColor: "var(--bk-primary, #ff5a8a)",

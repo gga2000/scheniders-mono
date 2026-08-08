@@ -382,7 +382,7 @@ function CheckoutFormRender({
   }
 
   const inputCls =
-    "w-full bg-white px-3 py-3 font-body text-base focus:outline-none";
+    "w-full bg-bk-surface-alt px-3 py-3 font-body text-base focus:outline-none";
   const inputStyle: React.CSSProperties = {
     border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
     borderRadius: "var(--bk-radius-input, 0.75rem)",
@@ -500,7 +500,7 @@ function CheckoutFormRender({
                   }
                   value={form.phone}
                   onChange={(e) => set("phone", e.target.value)}
-                  className="w-full bg-white px-3 py-3 font-body text-base focus:outline-none"
+                  className="w-full bg-bk-surface-alt px-3 py-3 font-body text-base focus:outline-none"
                   style={{
                     ...inputStyle,
                     borderRadius:
@@ -709,7 +709,7 @@ function CheckoutFormRender({
                       const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
                       setRedeemPoints(Math.min(n, pointsBalance ?? 0));
                     }}
-                    className="w-24 bg-white px-3 py-2 font-body text-base focus:outline-none"
+                    className="w-24 bg-bk-surface-alt px-3 py-2 font-body text-base focus:outline-none"
                     style={{
                       border:
                         "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -762,11 +762,11 @@ function CheckoutFormRender({
             {waEnabled && (
               <>
                 <div className="my-bk-2xs flex items-center gap-bk-sm">
-                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
+                  <span className="h-[3px] flex-1 bg-bk-ink/20" />
                   <span className="font-display font-black text-sm uppercase text-bk-ink-soft">
                     {t ? "أو" : "Or"}
                   </span>
-                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
+                  <span className="h-[3px] flex-1 bg-bk-ink/20" />
                 </div>
                 <a
                   href={waHref}

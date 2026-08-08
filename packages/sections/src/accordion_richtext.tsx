@@ -127,7 +127,7 @@ function AccordionRichtextRender({
                 </span>
                 <span
                   className={cn(
-                    "w-9 h-9 rounded-xl border-[3px] border-candy-ink flex items-center justify-center shrink-0 transition-transform",
+                    "w-9 h-9 rounded-xl border-bk-bold border-bk-ink flex items-center justify-center shrink-0 transition-transform",
                     `bg-candy-${tint}`,
                     open && "rotate-45",
                   )}
@@ -136,7 +136,7 @@ function AccordionRichtextRender({
                 </span>
               </button>
               {open && (
-                <div className="px-4 pb-4 text-bk-ink-soft border-t-[3px] border-dashed border-candy-ink/10 pt-3">
+                <div className="px-4 pb-4 text-bk-ink-soft border-t-[3px] border-dashed border-bk-ink/10 pt-3">
                   {renderParagraphs(body)}
                 </div>
               )}

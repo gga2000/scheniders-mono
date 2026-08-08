@@ -142,7 +142,7 @@ function OrderTrackerRender({
   }
 
   const inputCls =
-    "w-full bg-white px-3 py-3 font-body text-base focus:outline-none";
+    "w-full bg-bk-surface-alt px-3 py-3 font-body text-base focus:outline-none";
   const inputStyle: React.CSSProperties = {
     border:
       "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",

@@ -275,7 +275,7 @@ function SiteFooterRender({
               className="[--bm-ink:#ffffff] [--bm-mark-border:#ffffff]"
             />
             {tagline && (
-              <p className="font-body text-sm text-white/70 max-w-xs">{tagline}</p>
+              <p className="font-body text-sm text-bk-surface/70 max-w-xs">{tagline}</p>
             )}
             {props.show_cod_badge && (
               <TrustPill icon={<MaterialIcon name="payments" className="text-lg" />} bg="mint">
@@ -307,7 +307,7 @@ function SiteFooterRender({
                   <li key={`${l.href}-ci${ci}`}>
                     <StoreLink
                       href={l.href}
-                      className="inline-flex min-h-[44px] items-center font-body text-sm text-white/75 transition-colors hover:text-white hover:underline underline-offset-4"
+                      className="inline-flex min-h-[44px] items-center font-body text-sm text-bk-surface/75 transition-colors hover:text-bk-surface hover:underline underline-offset-4"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>
@@ -319,10 +319,10 @@ function SiteFooterRender({
         </div>
 
         <div className="mt-10 flex flex-col gap-2 border-t border-white/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-body text-xs text-white/60">
+          <p className="font-body text-xs text-bk-surface/60">
             © {year} {name}
           </p>
-          <p className="font-label font-bold text-[11px] uppercase tracking-[0.2em] text-white/60">
+          <p className="font-label font-bold text-[11px] uppercase tracking-[0.2em] text-bk-surface/60">
             {t ? "صُنع بحب في العراق 🇮🇶" : "Made with love in Iraq 🇮🇶"}
           </p>
         </div>

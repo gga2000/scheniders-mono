@@ -173,7 +173,7 @@ function ProductReviewsRender({
   const distRows = [5, 4, 3, 2, 1] as const;
   const maxBar = Math.max(1, summary.count);
   const inputCls =
-    "w-full rounded-xl border-2 border-bk-ink/15 bg-white px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus:outline-none";
+    "w-full rounded-xl border-2 border-bk-ink/15 bg-bk-surface-alt px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus:outline-none";
 
   return (
     <Section>
@@ -221,7 +221,7 @@ function ProductReviewsRender({
           {reviews.map((r) => (
             <li
               key={r.id}
-              className="rounded-2xl border-2 border-bk-ink/10 bg-white p-bk-md"
+              className="rounded-2xl border-2 border-bk-ink/10 bg-bk-surface-alt p-bk-md"
             >
               <div className="flex items-center justify-between gap-bk-sm">
                 <span className="font-label font-bold text-bk-ink">

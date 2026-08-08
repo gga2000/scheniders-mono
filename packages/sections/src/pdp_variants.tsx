@@ -91,7 +91,7 @@ function PdpVariantsRender({
           <select
             value={selected ?? ""}
             onChange={(e) => setSelected(e.target.value || null)}
-            className="w-full bg-white px-4 py-3 font-body text-base focus:outline-none focus:ring-0"
+            className="w-full bg-bk-surface-alt px-4 py-3 font-body text-base focus:outline-none focus:ring-0"
             style={{
               color: "var(--bk-ink, #1a1a1a)",
               border:

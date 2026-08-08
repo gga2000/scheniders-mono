@@ -98,7 +98,7 @@ function LogoStripRender({
     <Section density="dense">
       {heading && <SectionHeader title={heading} color="sky" />}
       {props.layout === "scroll" ? (
-        <div className="overflow-hidden border-y-[3px] border-candy-ink bg-candy-cream py-3">
+        <div className="overflow-hidden border-y-[3px] border-bk-ink bg-bk-surface py-3">
           <div className="flex gap-8 whitespace-nowrap animate-marquee">
             {[...props.logos, ...props.logos].map((logo, i) => (
               <LogoCell

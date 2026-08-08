@@ -41,7 +41,7 @@ describe("section render smoke", () => {
       ),
     );
     expect(html).toContain("Cash on delivery");
-    expect(html).toMatch(/bg-candy-mint/);
+    expect(html).toMatch(/bg-bk-mint/);
   });
 
   it("hero_image renders title + CTA", () => {
