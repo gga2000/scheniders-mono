@@ -822,6 +822,11 @@ export const STRINGS = {
         launch_whatsapp_save: { en: "Save", ar: "حفظ", ku: "پاشەکەوت" },
         launch_whatsapp_invalid: { en: "Enter a valid Iraqi number, e.g. 07701234567.", ar: "أدخل رقماً عراقياً صحيحاً، مثل 07701234567.", ku: "ژمارەیەکی عێراقی دروست بنووسە، وەک 07701234567." },
         launch_whatsapp_history: { en: "Set WhatsApp number", ar: "تعيين رقم الواتساب", ku: "دانانی ژمارەی واتساپ" },
+        // Inline delivery-fee capture (S3-09 — moved out of the wizard)
+        launch_step_delivery: { en: "Set your delivery fee", ar: "حدد رسوم التوصيل", ku: "کرێی گەیاندن دیاری بکە" },
+        launch_delivery_placeholder: { en: "5000", ar: "5000", ku: "5000" },
+        launch_delivery_invalid: { en: "Enter the fee in dinars, e.g. 5000.", ar: "أدخل الرسوم بالدينار، مثل 5000.", ku: "کرێیەکە بە دینار بنووسە، وەک 5000." },
+        launch_delivery_history: { en: "Set delivery fee", ar: "تحديد رسوم التوصيل", ku: "دیاریکردنی کرێی گەیاندن" },
     },
 
     /* ── Page SEO panel ───────────────────────────────────────── */

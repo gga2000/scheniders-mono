@@ -57,74 +57,10 @@ interface OnboardingWizardProps {
 }
 
 /** Curated brand-colour presets — covers the common storefront palettes. */
-const COLOR_PRESETS: { label: string; hex: string }[] = [
-    { label: "Midnight", hex: "#1e1e1e" },
-    { label: "Royal", hex: "#4f46e5" },
-    { label: "Ocean", hex: "#0ea5e9" },
-    { label: "Emerald", hex: "#10b981" },
-    { label: "Sunset", hex: "#f97316" },
-    { label: "Rose", hex: "#e11d48" },
-];
-
-/* ── Contrast guard ─────────────────────────────────────────────────
- * The chosen colour becomes the storefront's primary button surface.
- * The brand-kit emitter picks white text when luminance < 0.5, else
- * ink (#1a1a1a) — mirror that here and warn (with a one-tap fix) when
- * the resulting pair falls below WCAG AA (4.5:1), instead of letting a
- * first-time merchant ship unreadable buttons without knowing.
- */
-
-function hexToRgb(hex: string): [number, number, number] | null {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-    if (!m) return null;
-    const n = parseInt(m[1], 16);
-    return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
-}
-
-function relLuminance([r, g, b]: [number, number, number]): number {
-    const lin = (c: number): number => {
-        const s = c / 255;
-        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
-function contrastRatio(a: string, b: string): number {
-    const ra = hexToRgb(a);
-    const rb = hexToRgb(b);
-    if (!ra || !rb) return 21;
-    const la = relLuminance(ra);
-    const lb = relLuminance(rb);
-    const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
-    return (hi + 0.05) / (lo + 0.05);
-}
-
-/** Contrast of the button pair the emitter will actually produce. */
-function buttonContrast(hex: string): number {
-    const rgb = hexToRgb(hex);
-    if (!rgb) return 21;
-    const fg = relLuminance(rgb) < 0.5 ? "#ffffff" : "#1a1a1a";
-    return contrastRatio(hex, fg);
-}
-
-/** Nudge the colour darker/lighter (keeping hue) until the pair passes AA. */
-function suggestReadableShade(hex: string): string {
-    const rgb = hexToRgb(hex);
-    if (!rgb) return hex;
-    // Mid-luminance colours fail both ways; darkening preserves the
-    // "white text on brand colour" look merchants expect from buttons.
-    let [r, g, b] = rgb;
-    for (let i = 0; i < 20; i++) {
-        const candidate = `#${[r, g, b]
-            .map((c) => Math.round(c).toString(16).padStart(2, "0"))
-            .join("")}`;
-        if (buttonContrast(candidate) >= 4.5) return candidate;
-        r *= 0.88;
-        g *= 0.88;
-        b *= 0.88;
-    }
-    return "#1e1e1e";
-}
+/* S3-09: the wizard no longer asks for a brand colour — every starter
+ * template ships a designed, AA-validated palette, and a post-hoc primary
+ * override quietly fought it. Colour lives in the Brand Kit (with its
+ * contrast guard) where changing it is a decision, not a signup toll. */
 
 /**
  * Lucide icon registry keyed on the icon name stored in the `industries` DB
@@ -149,12 +85,6 @@ const ICON_REGISTRY: Record<string, LucideIcon> = {
 
 type Step = 0 | 1 | 2;
 
-/** Parse a money input to a positive integer, or undefined when blank/invalid. */
-function parsePositiveInt(value: string): number | undefined {
-    const n = Number(value.replace(/[,\s]/g, ""));
-    return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
-}
-
 export function OnboardingWizard({
     tenantId,
     defaultBusinessName,
@@ -174,10 +104,7 @@ export function OnboardingWizard({
     );
     const [businessName, setBusinessName] = useState(defaultBusinessName);
     const [whatsapp, setWhatsapp] = useState(defaultWhatsapp ?? "");
-    const [brandColor, setBrandColor] = useState<string>(COLOR_PRESETS[0].hex);
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
-    const [deliveryFee, setDeliveryFee] = useState("");
-    const [freeThreshold, setFreeThreshold] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -207,11 +134,8 @@ export function OnboardingWizard({
             templateId,
             industryId: industryName,
             businessName: businessName.trim(),
-            brandColor,
             logoUrl: logoUrl ?? undefined,
             whatsappNumber: whatsapp.trim() || undefined,
-            deliveryFeeIqd: parsePositiveInt(deliveryFee),
-            freeDeliveryThresholdIqd: parsePositiveInt(freeThreshold),
         });
 
         try {
@@ -278,12 +202,6 @@ export function OnboardingWizard({
                         onLogoUrl={setLogoUrl}
                         whatsapp={whatsapp}
                         onWhatsapp={setWhatsapp}
-                        brandColor={brandColor}
-                        onBrandColor={setBrandColor}
-                        deliveryFee={deliveryFee}
-                        onDeliveryFee={setDeliveryFee}
-                        freeThreshold={freeThreshold}
-                        onFreeThreshold={setFreeThreshold}
                         t={t}
                     />
                 )}
@@ -481,12 +399,6 @@ function BasicsStep({
     onLogoUrl,
     whatsapp,
     onWhatsapp,
-    brandColor,
-    onBrandColor,
-    deliveryFee,
-    onDeliveryFee,
-    freeThreshold,
-    onFreeThreshold,
     t,
 }: {
     tenantId: string;
@@ -496,12 +408,6 @@ function BasicsStep({
     onLogoUrl: (v: string | null) => void;
     whatsapp: string;
     onWhatsapp: (v: string) => void;
-    brandColor: string;
-    onBrandColor: (v: string) => void;
-    deliveryFee: string;
-    onDeliveryFee: (v: string) => void;
-    freeThreshold: string;
-    onFreeThreshold: (v: string) => void;
     t: TFn;
 }) {
     const inputCls =
@@ -541,95 +447,9 @@ function BasicsStep({
                 />
             </Field>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field
-                    label={t("wizard.basics.deliveryFee")}
-                    hint={t("wizard.basics.deliveryFeeHint")}
-                >
-                    <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        value={deliveryFee}
-                        onChange={(e) => onDeliveryFee(e.target.value)}
-                        placeholder="5000"
-                        className={inputCls}
-                    />
-                </Field>
-                <Field
-                    label={t("wizard.basics.freeDelivery")}
-                    hint={t("wizard.basics.freeDeliveryHint")}
-                >
-                    <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        value={freeThreshold}
-                        onChange={(e) => onFreeThreshold(e.target.value)}
-                        placeholder="50000"
-                        className={inputCls}
-                    />
-                </Field>
-            </div>
-
-            <Field label={t("wizard.basics.brandColor")} hint={t("wizard.basics.brandColorHint")}>
-                <div className="flex flex-wrap items-center gap-2.5">
-                    {COLOR_PRESETS.map((c) => {
-                        const selected = c.hex === brandColor;
-                        return (
-                            <button
-                                key={c.hex}
-                                type="button"
-                                aria-label={c.label}
-                                aria-pressed={selected}
-                                onClick={() => onBrandColor(c.hex)}
-                                className={cn(
-                                    "h-9 w-9 rounded-full ring-offset-2 ring-offset-(--card-bg) transition-all",
-                                    selected
-                                        ? "ring-2 ring-foreground"
-                                        : "ring-1 ring-border hover:scale-105",
-                                )}
-                                style={{ backgroundColor: c.hex }}
-                            >
-                                {selected && (
-                                    <Check className="mx-auto h-4 w-4 text-white" />
-                                )}
-                            </button>
-                        );
-                    })}
-                    <label className="ml-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
-                        <input
-                            type="color"
-                            value={brandColor}
-                            onChange={(e) => onBrandColor(e.target.value)}
-                            className="h-9 w-9 cursor-pointer rounded-lg border border-border bg-background p-0.5"
-                            aria-label={t("wizard.basics.colorCustom")}
-                        />
-                        {t("wizard.basics.colorCustom")}
-                    </label>
-                </div>
-                {buttonContrast(brandColor) < 4.5 && (
-                    <div
-                        data-testid="wizard-contrast-warn"
-                        className="mt-2.5 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900"
-                    >
-                        <span>{t("wizard.basics.contrastWarn")}</span>
-                        <button
-                            type="button"
-                            data-testid="wizard-contrast-fix"
-                            onClick={() => onBrandColor(suggestReadableShade(brandColor))}
-                            className="inline-flex h-6 items-center gap-1.5 rounded-md border border-amber-400/60 bg-white px-2 font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-                        >
-                            <span
-                                aria-hidden="true"
-                                className="h-3 w-3 rounded-full border border-black/10"
-                                style={{ backgroundColor: suggestReadableShade(brandColor) }}
-                            />
-                            {t("wizard.basics.contrastFix")}
-                        </button>
-                    </div>
-                )}
-            </Field>
+            {/* S3-09: delivery fees + brand colour dropped from the wizard —
+                the template palette stands, and the delivery fee is a
+                launch-checklist step that appears only while unset. */}
         </div>
     );
 }

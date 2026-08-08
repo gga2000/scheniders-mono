@@ -245,6 +245,43 @@ describe("HealthChecklistScreen", () => {
         expect((step as HTMLElement).dataset.done).toBe("true");
     });
 
+    it("delivery-fee step appears while unset and captures inline (S3-09)", () => {
+        const cfg = freshEmpty();
+        const onSetDeliveryFee = vi.fn();
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetDeliveryFee={onSetDeliveryFee}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("health-launch-fix-delivery"));
+        const inline = screen.getByTestId("health-launch-delivery-inline");
+        const input = inline.querySelector("input") as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "5000" } });
+        fireEvent.click(screen.getByTestId("health-launch-delivery-save"));
+        expect(onSetDeliveryFee).toHaveBeenCalledWith(5000);
+    });
+
+    it("delivery-fee step is absent when the fee is already configured (S3-09)", () => {
+        const cfg = freshEmpty();
+        cfg.commerce = { shipping: { default_rate: { fee_iqd: 5000 } } };
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetDeliveryFee={() => {}}
+            />,
+        );
+        expect(screen.queryByTestId("health-launch-step-delivery")).toBeNull();
+    });
+
     it("Simple mode shows the launch checklist only — no donut/filters/check list (S3-03)", () => {
         const cfg = freshEmpty();
         render(

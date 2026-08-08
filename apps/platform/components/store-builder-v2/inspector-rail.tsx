@@ -88,6 +88,8 @@ export interface InspectorRailProps {
     onJumpToSection?: (page: PageId, sectionId: string) => void;
     /** Persist the store-level WhatsApp number (launch checklist inline capture). */
     onSetWhatsappNumber?: (value: string) => void;
+    /** Persist the default delivery fee (launch checklist inline capture, S3-09). */
+    onSetDeliveryFee?: (feeIqd: number) => void;
 }
 
 export function InspectorRail(props: InspectorRailProps): React.ReactElement {
@@ -122,6 +124,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
         onJumpToPage,
         onJumpToSection,
         onSetWhatsappNumber,
+        onSetDeliveryFee,
     } = props;
 
     const locale = useResolvedEditorLocale(activeLocale);
@@ -241,6 +244,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                                 onJumpToSection?.(page, sectionId)
                             }
                             onSetWhatsappNumber={onSetWhatsappNumber}
+                            onSetDeliveryFee={onSetDeliveryFee}
                             onClose={() => onChangeTab("blocks")}
                         />
                     </div>

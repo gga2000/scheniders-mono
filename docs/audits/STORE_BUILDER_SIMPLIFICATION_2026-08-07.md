@@ -205,6 +205,21 @@ Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 278 ✓ (new: Simple
 
 Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 282 ✓ (4 new: destination picker ×3, Simple picker filtering ×1).
 
+## Round 4 — fix status (2026-08-08, same branch)
+
+"Ask less at the start" — implemented and live-verified end-to-end on fresh tenant #100054:
+
+| ID | Status | Fix |
+|---|---|---|
+| S3-02a | **FIXED** | Signup drops the 4-plan × 8-number matrix — every account starts on the trial with the default plan (`DEFAULT_PLAN = "growth"` sent server-side); paid plans stay reachable via the in-app billing banner («اختر باقة»). Signup is now 5 fields. |
+| S3-09a | **FIXED** | Wizard drops the brand-colour question (+ its whole in-wizard contrast-guard apparatus) — the template's designed, AA-validated palette stands; colour changes live in the Brand Kit where the AA guard already exists. |
+| S3-09b | **FIXED** | Wizard drops both delivery-fee fields; a «حدد رسوم التوصيل» launch-checklist step appears **only while the fee is unset** (config check on `commerce.shipping.default_rate.fee_iqd`) with the same inline capture pattern as WhatsApp (numeric input + «حفظ», autosaved with a localized undo entry). Wizard basics = 3 fields: name (prefilled), logo (optional), WhatsApp (prefilled). |
+| S3-14 | **FIXED** | Industry hero copy: all four packs (beauty/fashion/electronics/food) now override the hero title/subtitle across all four hero flavors. Live: beauty store seeds «جمالكِ يبدأ من منتجات أصلية» instead of generic-fashion «تشكيلة جديدة». |
+
+Gates: type-check 3/3 ✓, lint 0 errors ✓, builder+lib suites 620 ✓ (2 new delivery-step tests). Live E2E: fresh signup → 3-field wizard → beauty hero → delivery inline capture → 3/6 checklist, all on #100054.
+
+**Sweep complete.** All four proposed rounds shipped. Still deliberately open (deferred, not forgotten): OMS double chrome (UX-21), real per-template thumbnail art, auto-translate/AI copy, slug/handle claim UI, brand-kit body dev-fields (favicon/OG → Advanced) + English live-preview card.
+
 ---
 
 *Test artifacts: tenant #100053 (`noor.simplify3@example.com` / `NoorSimplify3_2026!`) created and left unpublished with hero text «تشكيلة للعيد جديدة»; tenant #100051 gained one publish + a شبكة منتجات section during T3/T5 measurement, and `commerce.whatsapp_number = 07709998877` during the S3-01 verification; tenant #100054 (`reem.simplify3@example.com`) created during the S3-02 verification, wizard not completed.*
