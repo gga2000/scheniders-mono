@@ -248,11 +248,11 @@ function CartSummaryRender({
             return (
               <>
                 <div className="my-bk-sm flex items-center gap-bk-sm">
-                  <span className="h-[3px] flex-1 bg-bk-ink/20" />
+                  <span className="h-[3px] flex-1 bg-bk-ink/20 text-bk-surface" />
                   <span className="font-display font-black text-sm uppercase text-bk-ink-soft">
                     {locale !== "en" ? "أو" : "Or"}
                   </span>
-                  <span className="h-[3px] flex-1 bg-bk-ink/20" />
+                  <span className="h-[3px] flex-1 bg-bk-ink/20 text-bk-surface" />
                 </div>
                 <a
                   href={href}

@@ -94,7 +94,7 @@ function FreeGiftStrip({
             </p>
             <div className="mt-bk-2xs h-2.5 rounded-full bg-bk-surface-alt border-bk-bold border-bk-ink overflow-hidden">
               <div
-                className="h-full bg-bk-primary transition-[width] duration-500"
+                className="h-full bg-bk-primary transition-[width] duration-500 text-bk-on-primary"
                 style={{
                   width: `${pct}%`,
                   backgroundColor: "var(--bk-primary, #ff5a8a)",

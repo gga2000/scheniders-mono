@@ -105,7 +105,7 @@ function FeatureGridRender({
               <h3 className="font-display font-black text-lg uppercase leading-tight">
                 {title}
               </h3>
-              <p className="mt-bk-xs font-body text-sm text-bk-ink-soft leading-relaxed">
+              <p className="mt-bk-xs font-body text-sm opacity-75 leading-relaxed">
                 {body}
               </p>
             </BentoCard>

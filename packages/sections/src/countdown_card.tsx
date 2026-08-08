@@ -103,7 +103,7 @@ function CountdownCard({
                 <div className="font-display font-black text-3xl sm:text-5xl leading-none tabular-nums">
                   {String(value).padStart(2, "0")}
                 </div>
-                <div className="mt-bk-2xs font-label font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
+                <div className="mt-bk-2xs font-label font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] opacity-75">
                   {labels[i]}
                 </div>
               </div>

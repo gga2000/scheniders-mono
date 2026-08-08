@@ -35,7 +35,7 @@ export function SchneidersPageShell({
 }: Props) {
   const wa = tenant.store_config?.contact?.whatsapp_number ?? tenant.contact_phone ?? null;
   return (
-    <div className="min-h-screen bg-candy-cream text-candy-ink font-body">
+    <div className="min-h-screen bg-bk-surface text-bk-ink font-body">
       <SchneidersHeader
         tenant={tenant}
         categories={categories}

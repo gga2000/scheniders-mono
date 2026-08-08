@@ -70,7 +70,7 @@ export default function NewsletterSection({ data, tenantId }: NewsletterSectionP
             <button
               type="submit"
               disabled={status === "loading"}
-              className="px-6 py-3 bg-white text-[var(--brand-primary)] rounded-lg font-bold hover:opacity-90 transition disabled:opacity-50"
+              className="px-6 py-3 bg-bk-surface-alt text-[var(--brand-primary)] rounded-lg font-bold hover:opacity-90 transition disabled:opacity-50"
             >
               {status === "loading" ? "..." : buttonText}
             </button>

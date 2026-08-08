@@ -57,7 +57,7 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
     <div className="grid md:grid-cols-2 gap-8">
       {/* Image gallery */}
       <div>
-        <div className="relative aspect-square bg-white rounded-lg overflow-hidden border border-zinc-200">
+        <div className="relative aspect-square bg-bk-surface-alt rounded-lg overflow-hidden border border-zinc-200">
           {images[activeImage] ? (
             <Image
               src={images[activeImage]}
@@ -131,7 +131,7 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
                     "px-4 py-2 rounded border font-medium transition",
                     selectedVariantId === v.id
                       ? "bg-brand-primary text-white border-brand-primary"
-                      : "bg-white text-zinc-900 border-zinc-300 hover:border-brand-primary",
+                      : "bg-bk-surface-alt text-zinc-900 border-zinc-300 hover:border-brand-primary",
                     v.stock_quantity === 0 && "opacity-50 cursor-not-allowed",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary",
                   )}

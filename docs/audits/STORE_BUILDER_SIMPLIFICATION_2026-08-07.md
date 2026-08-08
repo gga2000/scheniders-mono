@@ -230,7 +230,11 @@ The last finding-scoped leftover from S3-03, live-verified on #100054:
 
 Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 284 ✓.
 
-**Sweep complete.** All proposed rounds + cleanup shipped. Still deliberately open (deferred, not forgotten): OMS double chrome (UX-21), real per-template thumbnail art (English placeholder art in SVGs), auto-translate/AI copy, slug/handle claim UI.
+## Round 6 (bonus) — UX-21 closed: full-viewport editor (2026-08-08)
+
+The oldest open finding (07-02 audit) — `/store/edit` no longer renders inside the OMS sidebar + top bar + search chrome. `DashboardLayout` gets an immersive branch for the editor route: billing banners stay (they gate whether the store operates), everything else goes; editor shells switch from `h-[calc(100vh-4rem)]` to `h-full`. Canvas gains ~200px of vertical space and the editor reads as its own product, with «العودة» as the way back. Live-verified on #100054.
+
+**Sweep complete.** All proposed rounds + cleanup + UX-21 shipped. Still deliberately open (deferred, not forgotten): real per-template thumbnail art (English placeholder art in SVGs), auto-translate/AI copy, slug/handle claim UI.
 
 ---
 

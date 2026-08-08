@@ -45,13 +45,13 @@ const defaultProps: Props = {
 };
 
 const BG_CLASS: Record<z.infer<typeof stripBg>, string> = {
-  white: "bg-bk-surface-alt",
+  white: "bg-bk-surface-alt text-bk-ink",
   mint: "bg-bk-mint",
-  butter: "bg-bk-accent",
+  butter: "bg-bk-accent text-bk-on-accent",
   lilac: "bg-bk-lilac",
   sky: "bg-bk-sky",
   pink: "bg-bk-primary text-bk-on-primary",
-  cream: "bg-bk-surface",
+  cream: "bg-bk-surface text-bk-ink",
 };
 
 function MarqueeStrip({

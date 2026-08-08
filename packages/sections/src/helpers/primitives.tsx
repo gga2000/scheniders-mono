@@ -69,7 +69,11 @@ export function ScribbleHeading({
       style={
         {
           ["--scribble-color" as string]: SCRIBBLE_HEX[color],
-          color: "var(--bk-ink, #1a1a1a)",
+          // `currentColor`, not ink: this heading is used both on the page
+          // ground and inside filled cards (ink, primary), and those set the
+          // correct foreground on their container. Forcing ink here rendered
+          // it invisible on an ink-filled card.
+          color: "currentColor",
           fontFamily: "var(--bk-font-display, inherit)",
         } as CSSProperties
       }
@@ -89,12 +93,12 @@ export function PromoBar({
   return (
     <div
       className={cn(
-        "bg-candy-butter text-candy-ink font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
+        "bg-bk-accent text-bk-on-accent font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
         className,
       )}
       style={{
         backgroundColor: "var(--bk-accent, #ffd84a)",
-        color: "var(--bk-ink, #1a1a1a)",
+        color: "var(--bk-on-accent, #1a1a1a)",
         borderBottom:
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
       }}
@@ -134,36 +138,42 @@ type CardBg =
  * brand kit wins at runtime.
  */
 const BG_MAP: Record<CardBg, string> = {
-  white: "bg-white",
-  cream: "bg-candy-cream",
-  pink: "bg-candy-pink text-white",
-  mint: "bg-candy-mint",
-  butter: "bg-candy-butter",
-  lilac: "bg-candy-lilac",
-  sky: "bg-candy-sky",
-  ink: "bg-candy-ink text-white",
+  white: "bg-bk-surface-alt",
+  cream: "bg-bk-surface",
+  pink: "bg-bk-primary text-bk-on-primary",
+  mint: "bg-bk-mint",
+  butter: "bg-bk-accent text-bk-on-accent",
+  lilac: "bg-bk-lilac",
+  sky: "bg-bk-sky",
+  ink: "bg-bk-ink text-bk-surface",
   "accent-primary":
     "bg-[var(--schn-accent-primary)] text-[var(--schn-accent-primary-on)]",
-  "accent-secondary": "bg-[var(--schn-accent-secondary)] text-candy-ink",
+  "accent-secondary": "bg-[var(--schn-accent-secondary)] text-bk-ink",
 };
 
 /** Brand-kit CSS variable override per surface tint. `undefined` means
  *  "no override — the Tailwind candy class wins". */
 const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
-  // White surfaces must pin their foreground to ink. Without this, a
-  // `bg="white"` button/card inherits its parent's text colour — on a dark
-  // hero overlay (text = #fff) that yields white-on-white (invisible). See
-  // the hero secondary WhatsApp CTA.
-  white: { bg: "#ffffff", fg: "var(--bk-ink, #1a1a1a)" },
+  // Pins its own foreground: a `bg="white"` card that inherits the parent's
+  // text colour goes white-on-white over a dark hero overlay.
+  //
+  // The value is the card surface, NOT literal white: a hardcoded #ffffff punched a white
+  // card into every dark-kit page (Kinetic Ink, Chrome Night) and left the
+  // product name at 1.1:1 against it.
+  white: { bg: "var(--bk-surface-alt, #ffffff)", fg: "var(--bk-ink, #1a1a1a)" },
   pink: { bg: "var(--bk-primary, #ff5a8a)", fg: "var(--bk-on-primary, #fff)" },
-  // Decorative candy surfaces read the fixed --bk-mint/--bk-lilac/--bk-sky
-  // tokens so they never drift when a tenant overrides success/secondary.
+  // Decorative tints are the kit's own hues pulled toward the page surface,
+  // so ink is the correct foreground on all three by construction.
   mint: { bg: "var(--bk-mint, #7cf0bd)", fg: "var(--bk-ink, #1a1a1a)" },
-  butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-ink, #1a1a1a)" },
+  // Accent is a saturated fill, not a tint — it needs its on-colour. Using
+  // ink here put light text on Kinetic Ink's orange at 1.87:1.
+  butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-on-accent, #1a1a1a)" },
   lilac: { bg: "var(--bk-lilac, #c5b6ff)", fg: "var(--bk-ink, #1a1a1a)" },
   sky: { bg: "var(--bk-sky, #9ad8ff)", fg: "var(--bk-ink, #1a1a1a)" },
   cream: { bg: "var(--bk-surface, #fff7ed)", fg: "var(--bk-ink, #1a1a1a)" },
-  ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "#fff" },
+  // Ink-filled surfaces take the surface colour back, not literal white —
+  // on a dark kit ink IS the light colour, so #fff was invisible on it.
+  ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "var(--bk-surface, #fff7ed)" },
 };
 
 function surfaceStyle(bg: CardBg, base?: CSSProperties): CSSProperties {

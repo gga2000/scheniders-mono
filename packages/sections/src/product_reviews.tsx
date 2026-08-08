@@ -199,9 +199,9 @@ function ProductReviewsRender({
                 {star}
               </span>
               <MaterialIcon name="star" className="text-sm text-bk-primary" />
-              <span className="h-2 flex-1 overflow-hidden rounded-full bg-bk-ink/10">
+              <span className="h-2 flex-1 overflow-hidden rounded-full bg-bk-ink/10 text-bk-surface">
                 <span
-                  className="block h-full rounded-full bg-bk-primary"
+                  className="block h-full rounded-full bg-bk-primary text-bk-on-primary"
                   style={{
                     width: `${(summary.distribution[star] / maxBar) * 100}%`,
                   }}

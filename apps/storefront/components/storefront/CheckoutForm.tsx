@@ -79,7 +79,7 @@ export function CheckoutForm({ tenantId }: Props) {
 
   return (
     <div className="grid lg:grid-cols-3 gap-8">
-      <form onSubmit={handleSubmit} className="lg:col-span-2 bg-white rounded-lg border border-zinc-200 p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="lg:col-span-2 bg-bk-surface-alt rounded-lg border border-zinc-200 p-6 space-y-4">
         <div>
           <label htmlFor="customer_name" className="block text-sm font-medium mb-1">الاسم الكامل</label>
           <input
@@ -179,7 +179,7 @@ export function CheckoutForm({ tenantId }: Props) {
         </button>
       </form>
 
-      <div className="bg-white rounded-lg border border-zinc-200 p-6 h-fit">
+      <div className="bg-bk-surface-alt rounded-lg border border-zinc-200 p-6 h-fit">
         <h2 className="font-bold text-lg mb-4">ملخص الطلب</h2>
         <div className="space-y-2 mb-4 max-h-64 overflow-auto">
           {items.map((item) => (

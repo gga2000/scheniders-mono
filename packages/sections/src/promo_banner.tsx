@@ -114,7 +114,7 @@ function PromoBanner({
               {heading}
             </h2>
             {body && (
-              <p className="mt-bk-2xs font-body text-sm sm:text-base text-bk-ink-soft">
+              <p className="mt-bk-2xs font-body text-sm sm:text-base opacity-75">
                 {body}
               </p>
             )}
