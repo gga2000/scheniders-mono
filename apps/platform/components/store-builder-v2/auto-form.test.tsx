@@ -22,6 +22,7 @@ vi.mock("@/hooks/use-toast", () => ({
 
 import { AutoForm } from "./auto-form";
 import { getManifestEntry } from "@/lib/sections-manifest";
+import { EditorModeProvider } from "@/lib/editor-mode-context";
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -46,6 +47,62 @@ describe("AutoForm", () => {
         expect(input.value).toBe("Hello");
         fireEvent.change(input, { target: { value: "World" } });
         expect(onChange).toHaveBeenCalledWith({ title: "World" });
+    });
+
+    it("Simple mode renders a destination picker for _href fields (S3-06)", () => {
+        const schema = z.object({ cta_href: z.string() });
+        const onChange = vi.fn();
+        render(
+            <EditorModeProvider value={{ mode: "simple", setMode: () => {} }}>
+                <AutoForm
+                    schema={schema}
+                    value={{ cta_href: "/products" }}
+                    onChange={onChange}
+                />
+            </EditorModeProvider>,
+        );
+        const select = screen.getByTestId(
+            "auto-form-root.cta_href-destination",
+        ) as HTMLSelectElement;
+        expect(select.value).toBe("/products");
+        // A known destination keeps the free-text input folded away.
+        expect(
+            screen.queryByTestId("auto-form-root.cta_href-destination-custom"),
+        ).toBeNull();
+        fireEvent.change(select, { target: { value: "/contact" } });
+        expect(onChange).toHaveBeenCalledWith({ cta_href: "/contact" });
+    });
+
+    it("Simple mode destination picker opens free text for custom paths (S3-06)", () => {
+        const schema = z.object({ cta_href: z.string() });
+        render(
+            <EditorModeProvider value={{ mode: "simple", setMode: () => {} }}>
+                <AutoForm
+                    schema={schema}
+                    value={{ cta_href: "/category/lipstick" }}
+                    onChange={() => {}}
+                />
+            </EditorModeProvider>,
+        );
+        const custom = screen.getByTestId(
+            "auto-form-root.cta_href-destination-custom",
+        ) as HTMLInputElement;
+        expect(custom.value).toBe("/category/lipstick");
+    });
+
+    it("Advanced mode keeps the raw href input", () => {
+        const schema = z.object({ cta_href: z.string() });
+        render(
+            <AutoForm
+                schema={schema}
+                value={{ cta_href: "/products" }}
+                onChange={() => {}}
+            />,
+        );
+        expect(screen.getByTestId("auto-form-root.cta_href-input")).toBeTruthy();
+        expect(
+            screen.queryByTestId("auto-form-root.cta_href-destination"),
+        ).toBeNull();
     });
 
     it("renders a number input for a number field with min/max", () => {

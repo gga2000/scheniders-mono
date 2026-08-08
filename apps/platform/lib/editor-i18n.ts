@@ -595,6 +595,14 @@ export const STRINGS = {
         range_hint: { en: "Range: {min}–{max}", ar: "النطاق: {min}–{max}", ku: "مەودا: {min}–{max}" },
         min_hint: { en: "Min: {min}", ar: "الأدنى: {min}", ku: "کەمترین: {min}" },
         max_hint: { en: "Max: {max}", ar: "الأقصى: {max}", ku: "زۆرترین: {max}" },
+        // Simple-mode link destination picker (S3-06)
+        dest_products: { en: "Products page", ar: "صفحة المنتجات", ku: "پەڕەی بەرهەمەکان" },
+        dest_home: { en: "Home page", ar: "الصفحة الرئيسية", ku: "پەڕەی سەرەکی" },
+        dest_about: { en: "About page", ar: "صفحة حول", ku: "پەڕەی دەربارە" },
+        dest_contact: { en: "Contact page", ar: "صفحة اتصل بنا", ku: "پەڕەی پەیوەندی" },
+        dest_faq: { en: "FAQ page", ar: "صفحة الأسئلة الشائعة", ku: "پەڕەی پرسیارە باوەکان" },
+        dest_track: { en: "Order tracking", ar: "تتبع الطلب", ku: "شوێنکەوتنی داواکاری" },
+        dest_custom: { en: "Another link…", ar: "رابط آخر…", ku: "بەستەرێکی تر…" },
     },
 
     /* ── Undo-history entry descriptions (UX2-12) ─────────────── */

@@ -15,5 +15,4 @@
     <rect x="160" y="120" width="60" height="32" rx="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
     <text x="190" y="140" text-anchor="middle" font-family="Impact, sans-serif" font-weight="900" font-size="14" fill="#1a1a1a">LARGE</text>
   </g>
-  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">pdp_variants</text>
 </svg>
