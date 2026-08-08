@@ -3034,6 +3034,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.plan.ordersPerMo": "{n} orders/mo",
         "signup.plan.unlimited": "Unlimited",
         "signup.plan.pricePerMo": "{price} IQD/mo",
+        "signup.success": "Account created! Taking you to your store…",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
         "login.subtitle": "Sign in to Schenider Order Management",
@@ -6086,6 +6087,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.plan.ordersPerMo": "{n} طلب/شهر",
         "signup.plan.unlimited": "غير محدود",
         "signup.plan.pricePerMo": "{price} د.ع/شهر",
+        "signup.success": "تم إنشاء حسابك! جاري نقلك إلى متجرك…",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "أهلاً بعودتك",
         "login.subtitle": "سجّل الدخول إلى نظام شنايدر لإدارة الطلبات",

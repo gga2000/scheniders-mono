@@ -182,6 +182,68 @@ describe("HealthChecklistScreen", () => {
         expect(banner.textContent ?? "").toMatch(/Blocks publish/);
     });
 
+    it("WhatsApp launch step captures the number inline (S3-01)", () => {
+        const cfg = freshEmpty();
+        const onSetWhatsappNumber = vi.fn();
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetWhatsappNumber={onSetWhatsappNumber}
+            />,
+        );
+        // The fix button opens the inline input instead of navigating.
+        fireEvent.click(screen.getByTestId("health-launch-fix-whatsapp"));
+        const inline = screen.getByTestId("health-launch-whatsapp-inline");
+        const input = inline.querySelector("input") as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "0770 123-4567" } });
+        fireEvent.click(screen.getByTestId("health-launch-whatsapp-save"));
+        // Saved digits-only; spaces/dashes stripped.
+        expect(onSetWhatsappNumber).toHaveBeenCalledWith("07701234567");
+    });
+
+    it("WhatsApp inline capture rejects an implausible number", () => {
+        const cfg = freshEmpty();
+        const onSetWhatsappNumber = vi.fn();
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetWhatsappNumber={onSetWhatsappNumber}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("health-launch-fix-whatsapp"));
+        const inline = screen.getByTestId("health-launch-whatsapp-inline");
+        const input = inline.querySelector("input") as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "123" } });
+        fireEvent.click(screen.getByTestId("health-launch-whatsapp-save"));
+        expect(onSetWhatsappNumber).not.toHaveBeenCalled();
+        expect(inline.querySelector('[role="alert"]')).toBeTruthy();
+    });
+
+    it("WhatsApp step is born completed when the config carries a number", () => {
+        const cfg = freshEmpty();
+        cfg.commerce = { whatsapp_number: "07701234567" };
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetWhatsappNumber={() => {}}
+            />,
+        );
+        const step = screen.getByTestId("health-launch-step-whatsapp");
+        expect((step as HTMLElement).dataset.done).toBe("true");
+    });
+
     it("'Blocks publish' banner is absent when no blocking failures exist", () => {
         const cfg = healthyConfig();
         render(

@@ -332,6 +332,12 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         };
     }),
     check("whatsapp_number_set", "ad_compliance", 1, (cfg) => {
+        // Single source of truth: the store-level commerce config (what the
+        // onboarding wizard writes). Section-level numbers are a fallback for
+        // stores that predate the config field.
+        if ((cfg.commerce?.whatsapp_number ?? "").trim().length > 0) {
+            return { status: "pass" };
+        }
         for (const s of allEnabledSections(cfg)) {
             const w = findKey(
                 s.base,
@@ -341,8 +347,8 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         }
         return {
             status: "warn",
-            message: "No WhatsApp number set on any section — strongly recommended for Iraq.",
-            fix_action: fixPage("home", "Add WhatsApp button"),
+            message: "No WhatsApp number set — strongly recommended for Iraq.",
+            fix_action: fixPage("home", "Add WhatsApp number"),
         };
     }),
     check("pixel_or_gtm_configured", "ad_compliance", 1, (cfg) => {

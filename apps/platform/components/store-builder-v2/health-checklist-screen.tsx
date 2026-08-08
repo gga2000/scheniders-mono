@@ -49,6 +49,12 @@ export interface HealthChecklistScreenProps {
      * first-launch checklist's final step. Omitted = step hidden.
      */
     hasPublished?: boolean;
+    /**
+     * Persist the store-level WhatsApp number (`commerce.whatsapp_number`).
+     * When provided, the checklist's WhatsApp step captures the number
+     * inline instead of navigating anywhere (S3-01).
+     */
+    onSetWhatsappNumber?: (value: string) => void;
 }
 
 type Filter = "all" | "failing" | "warn" | "passing";
@@ -162,13 +168,30 @@ function ScoreDonut({ score }: { score: number }): ReactElement {
 export function HealthChecklistScreen(
     props: HealthChecklistScreenProps,
 ): ReactElement {
-    const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished } = props;
+    const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished, onSetWhatsappNumber } = props;
     const locale = useResolvedEditorLocale();
 
     const report = useMemo(() => runHealthChecks(config), [config]);
     const blocking = useMemo(() => blockingChecks(report), [report]);
 
     const [filter, setFilter] = useState<Filter>("failing");
+
+    /* ── Inline WhatsApp capture (S3-01) ────────────────────────────
+     * The number lives at `commerce.whatsapp_number`; navigating away to
+     * "fix" it was a dead end. Capture it right inside the step row. */
+    const [waOpen, setWaOpen] = useState(false);
+    const [waValue, setWaValue] = useState("");
+    const [waError, setWaError] = useState(false);
+    const saveWhatsapp = (): void => {
+        const cleaned = waValue.replace(/[\s-]/g, "");
+        if (!/^\+?\d{10,14}$/.test(cleaned)) {
+            setWaError(true);
+            return;
+        }
+        setWaError(false);
+        setWaOpen(false);
+        onSetWhatsappNumber?.(cleaned);
+    };
 
     /* ── First-launch ordered checklist (2.3) ───────────────────────
      * Reframes the scariest surface into a guided "do these 5 things"
@@ -265,6 +288,12 @@ export function HealthChecklistScreen(
     };
 
     const handleFix = (action: FixAction, checkId?: string): void => {
+        // The number lives at commerce.whatsapp_number — capture it inline
+        // in the launch card instead of navigating (S3-01).
+        if (checkId === "whatsapp_number_set" && onSetWhatsappNumber) {
+            setWaOpen(true);
+            return;
+        }
         if (checkId === "whatsapp_number_set" && onSelectSection) {
             const target = findWhatsappTarget();
             if (target) {
@@ -343,7 +372,7 @@ export function HealthChecklistScreen(
                                     data-testid={`health-launch-step-${step.key}`}
                                     data-done={step.done ? "true" : "false"}
                                     className={cn(
-                                        "flex items-center gap-2.5 rounded-xl border px-3 py-2",
+                                        "flex flex-wrap items-center gap-2.5 rounded-xl border px-3 py-2",
                                         step.done
                                             ? "border-emerald-500/30 bg-emerald-500/5"
                                             : "border-(--card-border)",
@@ -372,11 +401,19 @@ export function HealthChecklistScreen(
                                     >
                                         {step.label}
                                     </span>
-                                    {!step.done && step.fix && (
+                                    {!step.done &&
+                                        (step.fix ||
+                                            (step.key === "whatsapp" && onSetWhatsappNumber)) && (
                                         <button
                                             type="button"
                                             data-testid={`health-launch-fix-${step.key}`}
-                                            onClick={() => handleFix(step.fix!, step.checkId)}
+                                            onClick={() => {
+                                                if (step.key === "whatsapp" && onSetWhatsappNumber) {
+                                                    setWaOpen((v) => !v);
+                                                    return;
+                                                }
+                                                handleFix(step.fix!, step.checkId);
+                                            }}
                                             className="inline-flex h-7 shrink-0 items-center rounded-lg bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                                         >
                                             {t(STRINGS.health.launch_fix, locale)}
@@ -386,6 +423,50 @@ export function HealthChecklistScreen(
                                         <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:block">
                                             {step.hint}
                                         </span>
+                                    )}
+                                    {step.key === "whatsapp" &&
+                                        !step.done &&
+                                        waOpen &&
+                                        onSetWhatsappNumber && (
+                                        <div className="w-full" data-testid="health-launch-whatsapp-inline">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="tel"
+                                                    inputMode="tel"
+                                                    dir="ltr"
+                                                    value={waValue}
+                                                    onChange={(e) => {
+                                                        setWaValue(e.target.value);
+                                                        setWaError(false);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") saveWhatsapp();
+                                                    }}
+                                                    placeholder={t(
+                                                        STRINGS.health.launch_whatsapp_placeholder,
+                                                        locale,
+                                                    )}
+                                                    aria-label={t(
+                                                        STRINGS.health.launch_step_whatsapp,
+                                                        locale,
+                                                    )}
+                                                    className="h-8 min-w-0 flex-1 rounded-lg border border-(--card-border) bg-background px-2.5 text-sm outline-none focus:border-primary"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    data-testid="health-launch-whatsapp-save"
+                                                    onClick={saveWhatsapp}
+                                                    className="inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                                >
+                                                    {t(STRINGS.health.launch_whatsapp_save, locale)}
+                                                </button>
+                                            </div>
+                                            {waError && (
+                                                <p className="mt-1 text-[11px] text-red-600" role="alert">
+                                                    {t(STRINGS.health.launch_whatsapp_invalid, locale)}
+                                                </p>
+                                            )}
+                                        </div>
                                     )}
                                 </li>
                             ))}

@@ -75,20 +75,28 @@ function SignupForm() {
                 return;
             }
 
-            setSuccess(data.message || "Account created! Redirecting to login...");
-            // UX2-18: the API creates the account server-side and we send the
-            // merchant to /login. If this browser still holds a session for a
-            // DIFFERENT account, /login bounces straight back into that old
-            // tenant and the new store silently disappears. Clear it first so
-            // the login screen is actually reachable.
+            setSuccess(data.message || t("signup.success"));
+            // UX2-18: if this browser still holds a session for a DIFFERENT
+            // account, it must be cleared before signing in as the new one.
             try {
                 await supabase.auth.signOut();
             } catch {
-                /* no session to clear — proceed to login */
+                /* no session to clear */
             }
-            setTimeout(() => {
+            // S3-02: the account is auto-confirmed server-side, so sign the
+            // merchant straight in and land them on the store builder — no
+            // silent bounce through an empty /login form.
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password,
+            });
+            if (signInError) {
+                // Extremely unlikely (account was just created) — fall back to
+                // the login screen rather than stranding them here.
                 router.push("/login");
-            }, 2000);
+                return;
+            }
+            router.push("/store");
         } catch {
             setError("Network error. Please check your connection and try again.");
             setIsLoading(false);

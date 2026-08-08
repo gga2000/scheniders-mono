@@ -86,6 +86,8 @@ export interface InspectorRailProps {
     onJumpToSetting?: (id: SettingsSectionId) => void;
     onJumpToPage?: (page: PageId) => void;
     onJumpToSection?: (page: PageId, sectionId: string) => void;
+    /** Persist the store-level WhatsApp number (launch checklist inline capture). */
+    onSetWhatsappNumber?: (value: string) => void;
 }
 
 export function InspectorRail(props: InspectorRailProps): React.ReactElement {
@@ -119,6 +121,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
         onJumpToSetting,
         onJumpToPage,
         onJumpToSection,
+        onSetWhatsappNumber,
     } = props;
 
     const locale = useResolvedEditorLocale(activeLocale);
@@ -257,6 +260,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                             onSelectSection={(page, sectionId) =>
                                 onJumpToSection?.(page, sectionId)
                             }
+                            onSetWhatsappNumber={onSetWhatsappNumber}
                             onClose={() => onChangeTab("blocks")}
                         />
                     </div>
