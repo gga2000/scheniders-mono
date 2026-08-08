@@ -96,6 +96,8 @@ export const STRINGS = {
         group_pages: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
         group_policies: { en: "Policies", ar: "السياسات", ku: "ڕێسـاکان" },
         group_system: { en: "System", ar: "النظام", ku: "سیستەم" },
+        // Simple-mode collapsed page groups (S3-03): tFormat {n}
+        all_pages: { en: "All pages ({n})", ar: "كل الصفحات ({n})", ku: "هەموو پەڕەکان ({n})" },
         // Pages
         page_home: { en: "Home", ar: "الرئيسية", ku: "ماڵەوە" },
         page_category: { en: "Category", ar: "الفئة", ku: "پۆل" },
@@ -440,6 +442,12 @@ export const STRINGS = {
         // tFormat: {n}
         diff_change_count_one: { en: "— 1 change", ar: "— تغيير واحد", ku: "— گۆڕانکارییەک" },
         diff_change_count_many: { en: "— {n} changes", ar: "— {n} تغييرات", ku: "— {n} گۆڕانکاری" },
+        diff_fields_one: { en: "1 field", ar: "حقل واحد", ku: "خانەیەک" },
+        // tFormat: {n}
+        diff_fields_many: { en: "{n} fields", ar: "{n} حقول", ku: "{n} خانە" },
+        diff_hide: { en: "Hide", ar: "إخفاء", ku: "شاردنەوە" },
+        // Simple-mode collapsed recommendations (S3-05): tFormat {n}
+        recommendations_toggle: { en: "Recommendations ({n})", ar: "توصيات ({n})", ku: "پێشنیارەکان ({n})" },
         disabled_no_changes: { en: "Nothing to publish — make a change first.", ar: "لا شيء للنشر — قم بإجراء تغيير أولاً.", ku: "هیچ شت بۆ بڵاوکردنەوە نییە — سەرەتا گۆڕانکارییەک بکە." },
         failed: { en: "Publish failed — please try again.", ar: "فشل النشر — يرجى المحاولة مرة أخرى.", ku: "بڵاوکردنەوە سەرنەکەوت — تکایە دووبارە هەوڵبدەرەوە." },
         retry: { en: "Retry publish", ar: "إعادة المحاولة", ku: "دووبارە هەوڵبدەرەوە" },

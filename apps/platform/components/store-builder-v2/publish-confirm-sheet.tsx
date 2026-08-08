@@ -32,6 +32,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorMode } from "@/lib/editor-mode-context";
 import {
     computePublishDiff,
     humaniseFieldName,
@@ -42,6 +43,7 @@ import {
     type SectionChange,
 } from "@/lib/publish-diff";
 import type { EditorString } from "@/lib/editor-i18n";
+import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import type { LocaleCode } from "@scheniders/shared";
 import { getPageLabel } from "./page-tree";
 import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
@@ -105,6 +107,12 @@ export function PublishConfirmSheet({
     publishedConfig,
 }: PublishConfirmSheetProps): React.ReactElement | null {
     const locale = useEditorLocale();
+    const { mode } = useEditorMode();
+    // S3-05 (Simple): advisory recommendations sit behind a quiet toggle so
+    // ad-tech checks don't stand between a first-timer and «انشر متجري».
+    // Advanced keeps them expanded.
+    const [recsOpen, setRecsOpen] = useState<boolean>(false);
+    const collapseRecs = mode === "simple" && blockingChecks.length > 0;
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent): void => {
@@ -191,6 +199,22 @@ export function PublishConfirmSheet({
                             >
                                 {t(STRINGS.publish.confirm_all_clear, locale)}
                             </div>
+                        ) : collapseRecs && !recsOpen ? (
+                            <button
+                                type="button"
+                                data-testid="publish-confirm-sheet-recs-toggle"
+                                onClick={() => setRecsOpen(true)}
+                                aria-expanded={false}
+                                className="flex w-full items-center justify-between gap-2 rounded-xl border border-(--card-border) bg-background px-3 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted/40"
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
+                                    {tFormat(STRINGS.publish.recommendations_toggle, locale, {
+                                        n: blockingChecks.length,
+                                    })}
+                                </span>
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                            </button>
                         ) : (
                             <>
                                 <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
@@ -451,7 +475,12 @@ function PageGroup({
             {open && (
                 <ul className="flex flex-col gap-1 pb-2 pl-7 pr-3">
                     {page.changes.map((change) => (
-                        <SectionChangeRow key={change.section_id} change={change} pageId={page.page_id} />
+                        <SectionChangeRow
+                            key={change.section_id}
+                            change={change}
+                            pageId={page.page_id}
+                            locale={locale}
+                        />
                     ))}
                 </ul>
             )}
@@ -462,12 +491,25 @@ function PageGroup({
 function SectionChangeRow({
     change,
     pageId,
+    locale,
 }: {
     change: SectionChange;
     pageId: string;
+    locale: LocaleCode;
 }): React.ReactElement {
     const [open, setOpen] = useState<boolean>(false);
     const hasDeltas = change.kind === "modified" && (change.deltas?.length ?? 0) > 0;
+
+    // S3-05: merchants see the section's display name, never the dev type.
+    // A custom instance label (rename) wins; otherwise the localized manifest
+    // name; the raw type only if the manifest doesn't know the section.
+    const manifest = getManifestEntry(change.section_type);
+    const displayName =
+        change.label && change.label !== change.section_type
+            ? change.label
+            : manifest
+              ? sectionDisplayName(manifest, locale)
+              : change.section_type;
 
     const Icon =
         change.kind === "added"
@@ -499,11 +541,16 @@ function SectionChangeRow({
                 )}
             >
                 <Icon className={cn("h-3 w-3 shrink-0", iconClass)} aria-hidden="true" />
-                <span className="font-semibold text-foreground">{change.label}</span>
-                <span className="text-muted-foreground">({change.section_type})</span>
+                <span className="font-semibold text-foreground">{displayName}</span>
                 {hasDeltas && (
                     <span className="ml-auto text-[10px] text-muted-foreground">
-                        {open ? "Hide" : `${change.deltas!.length} field${change.deltas!.length === 1 ? "" : "s"}`}
+                        {open
+                            ? t(STRINGS.publish.diff_hide, locale)
+                            : change.deltas!.length === 1
+                              ? t(STRINGS.publish.diff_fields_one, locale)
+                              : tFormat(STRINGS.publish.diff_fields_many, locale, {
+                                    n: change.deltas!.length,
+                                })}
                     </span>
                 )}
             </button>

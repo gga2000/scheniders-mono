@@ -165,10 +165,6 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
         [instance, onChange],
     );
 
-    const handleEnabledToggle = useCallback((): void => {
-        onChange({ ...instance, enabled: !instance.enabled });
-    }, [instance, onChange]);
-
     const handleBaseChange = useCallback(
         (nextBase: unknown): void => {
             onChange({ ...instance, base: nextBase as Record<string, unknown> });
@@ -285,35 +281,8 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                     </div>
                     )}
 
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) px-3 py-2.5">
-                        <div>
-                            <label className="text-sm font-medium" htmlFor="section-edit-panel-enabled">
-                                {t(STRINGS.section_edit.enabled_field, locale)}
-                            </label>
-                            <p className="text-[11px] text-muted-foreground">
-                                {t(STRINGS.section_edit.enabled_hint, locale)}
-                            </p>
-                        </div>
-                        <button
-                            id="section-edit-panel-enabled"
-                            type="button"
-                            role="switch"
-                            aria-checked={instance.enabled}
-                            data-testid="section-edit-panel-enabled"
-                            onClick={handleEnabledToggle}
-                            className={cn(
-                                "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors",
-                                instance.enabled ? "bg-primary" : "bg-muted",
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform",
-                                    instance.enabled ? "translate-x-[18px]" : "translate-x-0.5",
-                                )}
-                            />
-                        </button>
-                    </div>
+                    {/* S3-12: the enabled switch was removed — it duplicated
+                        the section row's eye toggle one click away. */}
                 </div>
 
                 {/* Layers strip — sub-element selection within this section.
