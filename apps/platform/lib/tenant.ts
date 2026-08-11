@@ -141,6 +141,30 @@ export function generateSlug(name: string): string {
 }
 
 /**
+ * Slug-claim validation (S3 follow-up / UX2-13).
+ *
+ * 3–30 chars, lowercase latin + digits + inner hyphens. Reserved words
+ * cover subdomains the platform does (or plausibly will) own — a claimed
+ * handle becomes `<slug>.<root-domain>` in production.
+ */
+export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
+
+export const RESERVED_SLUGS = new Set([
+    "www", "api", "app", "admin", "mail", "smtp", "shop", "store", "stores",
+    "dev", "staging", "test", "cdn", "assets", "static", "img", "images",
+    "help", "support", "blog", "docs", "status", "dashboard", "login",
+    "signup", "auth", "billing", "pay", "checkout", "schenider", "scheniders",
+]);
+
+export function isValidSlug(slug: string): boolean {
+    return (
+        SLUG_PATTERN.test(slug) &&
+        !RESERVED_SLUGS.has(slug) &&
+        !slug.includes("--")
+    );
+}
+
+/**
  * Ensure the slug is unique by appending a number if needed.
  * Uses service role to bypass RLS.
  */

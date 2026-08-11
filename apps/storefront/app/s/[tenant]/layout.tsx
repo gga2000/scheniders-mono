@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import {
   resolveSchneidersConfig,
@@ -11,6 +11,7 @@ import {
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { resolveRenamedSlug } from "@/lib/slug-redirect";
 import { getRequestOrigin, htmlLangFor, ogLocaleFor } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { CartHydrator } from "@/components/cart-hydrator";
@@ -36,7 +37,25 @@ export default async function TenantLayout({ params, children }: Props) {
   const { tenant: tenantParam } = await params;
   const tenant = await resolveTenant(tenantParam);
 
-  if (!tenant) notFound();
+  if (!tenant) {
+    // Handle claim (UX2-13): a renamed store's OLD slug 301s to the new
+    // one instead of dying — WhatsApp-shared links keep working.
+    if (!tenantParam.startsWith("__domain__")) {
+      const renamed = await resolveRenamedSlug(tenantParam);
+      if (renamed) {
+        const headerList = await headers();
+        const isSubdomainMode = headerList.get("x-store-base") === "";
+        if (isSubdomainMode) {
+          // Subdomain mode: hop to the new host, same root domain.
+          const host = headerList.get("host") ?? "";
+          const rest = host.slice(host.indexOf("."));
+          redirect(`https://${renamed}${rest}`);
+        }
+        redirect(`/s/${renamed}`);
+      }
+    }
+    notFound();
+  }
 
   // Determine store base path from proxy header
   // "" = subdomain mode (links are root-relative), "/s/slug" = path-based mode
