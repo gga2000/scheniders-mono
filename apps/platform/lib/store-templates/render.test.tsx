@@ -23,6 +23,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StoreBaseProvider } from "@scheniders/sections/helpers/store-context";
 import { BUILTIN_SECTIONS, type AnySectionDefinition } from "@scheniders/sections";
+import type { PageId } from "@scheniders/shared";
 import { STORE_TEMPLATES } from "./index";
 
 const runtime = {
@@ -61,11 +62,18 @@ function defOf(type: string): AnySectionDefinition | undefined {
     return (BUILTIN_SECTIONS as AnySectionDefinition[]).find((d) => d.type === type);
 }
 
-/** Render one template's home stack to a single markup string. */
-function renderHome(templateId: string): string {
+/** Every page a template actually seeds, as [templateId, pageId] pairs. */
+const TEMPLATE_PAGES: Array<[string, PageId]> = STORE_TEMPLATES.flatMap((t) =>
+    (Object.keys(t.pages) as PageId[])
+        .filter((pageId) => (t.pages[pageId] ?? []).length > 0)
+        .map((pageId) => [t.id, pageId] as [string, PageId]),
+);
+
+/** Render one template's stack for one page to a single markup string. */
+function renderPage(templateId: string, pageId: PageId): string {
     const tpl = STORE_TEMPLATES.find((t) => t.id === templateId);
     if (!tpl) throw new Error(`unknown template ${templateId}`);
-    return (tpl.pages.home ?? [])
+    return (tpl.pages[pageId] ?? [])
         .map((section) => {
             const def = defOf(section.type);
             if (!def) throw new Error(`${templateId}: unknown section ${section.type}`);
@@ -77,7 +85,12 @@ function renderHome(templateId: string): string {
                         props: def.defaultProps,
                         ctx: {
                             tenant: { name: "متجر نور" } as never,
-                            runtime,
+                            runtime: { ...runtime, page_id: pageId },
+                            // PDP sections read ctx.product; category and
+                            // search read the collections. Supplying all of
+                            // them keeps one ctx valid for every page.
+                            product: products[0],
+                            category: categories[0],
                             products,
                             categories,
                         },
@@ -102,31 +115,37 @@ const FILL_PAIRS: Array<{ bg: RegExp; needs: string[] }> = [
     { bg: /\bbg-bk-ink(?![-/\w])/, needs: ["text-bk-surface", "text-bk-on"] },
 ];
 
-describe.each(STORE_TEMPLATES.map((t) => t.id))("home render — %s", (id) => {
+describe.each(TEMPLATE_PAGES)("%s / %s", (id, pageId) => {
     it("renders every section in the stack", () => {
-        const html = renderHome(id);
+        const html = renderPage(id, pageId);
         expect(html.length).toBeGreaterThan(0);
     });
 
     it("carries no hardcoded Candy Bento palette", () => {
-        const html = renderHome(id);
+        const html = renderPage(id, pageId);
         for (const banned of [
             /\bbg-white\b/,
             /\bcandy-(ink|cream|pink|mint|butter|lilac|sky)\b/,
             /\bshadow-bento(-sm|-lg)?\b/,
         ]) {
-            expect(html.match(banned)?.[0], `${id} still emits ${banned}`).toBeUndefined();
+            expect(
+                html.match(banned)?.[0],
+                `${id}/${pageId} still emits ${banned}`,
+            ).toBeUndefined();
         }
     });
 
     it("pairs every filled background with its on-color", () => {
-        const html = renderHome(id);
+        const html = renderPage(id, pageId);
         const classAttrs = [...html.matchAll(/class="([^"]*)"/g)].map((m) => m[1]);
         const unpaired = classAttrs.filter((cls) =>
             FILL_PAIRS.some(
                 ({ bg, needs }) => bg.test(cls) && !needs.some((n) => cls.includes(n)),
             ),
         );
-        expect(unpaired, `${id} has filled surfaces with no foreground`).toEqual([]);
+        expect(
+            unpaired,
+            `${id}/${pageId} has filled surfaces with no foreground`,
+        ).toEqual([]);
     });
 });

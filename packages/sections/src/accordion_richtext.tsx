@@ -98,6 +98,18 @@ function AccordionRichtextRender({
   }
 
   const tints = ["mint", "butter", "sky", "lilac", "cream"] as const;
+  /**
+   * Static map, not `bg-candy-${tint}`. An interpolated class name is
+   * invisible to Tailwind's content scanner, so the old form emitted a class
+   * with no rule behind it — and it hardcoded the Candy palette besides.
+   */
+  const TINT_CLASS: Record<(typeof tints)[number], string> = {
+    mint: "bg-bk-mint",
+    butter: "bg-bk-accent text-bk-on-accent",
+    sky: "bg-bk-sky",
+    lilac: "bg-bk-lilac",
+    cream: "bg-bk-surface",
+  };
 
   return (
     <Section>
@@ -128,7 +140,7 @@ function AccordionRichtextRender({
                 <span
                   className={cn(
                     "w-9 h-9 rounded-xl border-bk-bold border-bk-ink flex items-center justify-center shrink-0 transition-transform",
-                    `bg-candy-${tint}`,
+                    TINT_CLASS[tint],
                     open && "rotate-45",
                   )}
                 >

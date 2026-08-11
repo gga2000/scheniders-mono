@@ -64,7 +64,19 @@ function HtmlEmbedRender({
   props: Props;
   ctx: SectionRenderContext;
 }): React.ReactElement {
-  const bgClass = props.bg ? `bg-candy-${props.bg}` : undefined;
+  // Static map: an interpolated class is never emitted by Tailwind, and the
+  // candy palette is not the tenant's.
+  const BG_CLASS: Record<string, string> = {
+    mint: "bg-bk-mint",
+    butter: "bg-bk-accent text-bk-on-accent",
+    sky: "bg-bk-sky",
+    lilac: "bg-bk-lilac",
+    cream: "bg-bk-surface",
+    pink: "bg-bk-primary text-bk-on-primary",
+    ink: "bg-bk-ink text-bk-surface",
+    white: "bg-bk-surface-alt",
+  };
+  const bgClass = props.bg ? BG_CLASS[props.bg] : undefined;
   return (
     <section className={bgClass ? `${bgClass} py-6` : "py-6"}>
       {/*
