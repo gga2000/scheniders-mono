@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import {
   createSupabaseServerClient,
   createSupabasePublicClient,
+  createSupabaseServiceClient,
 } from "./supabase/server";
 import { redactServerOnlyConfig } from "@scheniders/shared";
 import type { Tables } from "@scheniders/supabase";
@@ -165,7 +166,14 @@ export const getTenantByCustomDomain = cache(
  */
 export const getTenantForPreview = cache(async (slug: string): Promise<Tenant | null> => {
   if (!slug) return null;
-  const supabase = await createSupabaseServerClient();
+  // Service-role read: `store_config_v2_draft` is NOT granted to anon
+  // (it would let anyone scrape unpublished stores — see migration
+  // 20260817100000). The preview route is token-gated at the request
+  // layer, so the draft only ever reaches a holder of a valid signed
+  // preview token. redactServerOnlyConfig still strips server-only keys.
+  // Cross-version supabase-js generic cast (see ServerClientLike) — same
+  // runtime API as the public/server clients selectTenant already accepts.
+  const supabase = createSupabaseServiceClient() as unknown as ServerClientLike;
   return selectTenant(supabase, { kind: "slug", value: slug }, { includeDraft: true });
 });
 
@@ -178,7 +186,10 @@ export const getTenantForPreview = cache(async (slug: string): Promise<Tenant | 
 export const getTenantByCustomDomainForPreview = cache(
   async (domain: string): Promise<Tenant | null> => {
     if (!domain) return null;
-    const supabase = await createSupabaseServerClient();
+    // Service-role read — same rationale as getTenantForPreview: the draft
+    // column is anon-revoked, and this path is reached only after the
+    // preview route's token gate.
+    const supabase = createSupabaseServiceClient() as unknown as ServerClientLike;
     const { data } = await supabase
       .from("tenant_domains")
       .select("tenant_id")

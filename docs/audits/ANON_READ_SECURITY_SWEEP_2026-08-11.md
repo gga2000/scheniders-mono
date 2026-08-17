@@ -42,7 +42,15 @@ Re-examined column-by-column against actual storefront usage. Findings:
 
 **Fix (migration `20260817090000`, applied + verified):** grant anon exactly the columns the storefront + token-gated preview select; revoke the rest. Verified as the anon role: `SELECT prospect_lead_id FROM tenants` → `42501 denied`; storefront's full public select still returns; storefront home/contact/products all 200; contact_email still renders.
 
-**⚠️ Known remaining exposure (P1, tracked separately — NOT closed):** `store_config_v2_draft` stays anon-readable because the **cross-origin editor preview** (`_preview/[tenant]/[page_id]`) reads it as the anon role — the preview is gated by a signed token at the *route*, which PostgREST column grants can't enforce. So any anonymous client can currently fetch every merchant's *unpublished* store config. Closing it needs a **token-gated `SECURITY DEFINER` RPC** that returns the draft only for a valid preview token, after which the anon grant drops `store_config_v2_draft`. Filed as the top follow-up.
+### P1 · `store_config_v2_draft` (unpublished stores) readable by anon ✅ RESOLVED 2026-08-17
+
+`store_config_v2_draft` was anon-readable because the cross-origin editor preview (`_preview/[tenant]/[page_id]`) read it as the anon role — any anonymous client could fetch every merchant's *unpublished* store.
+
+**Fix (migration `20260817100000` + code, applied + verified):** the storefront preview resolvers (`getTenantForPreview` / `getTenantByCustomDomainForPreview`) now read the draft via the **service-role client**, reached only after the preview route's signed-token gate; `store_config_v2_draft` was then revoked from anon. Verified live:
+- `has_column_privilege('anon', tenants, 'store_config_v2_draft')` → **false**; service_role → true.
+- valid-token preview → 200 and renders real draft content («متجر زهراء», 91 KB); bad-token preview → UnauthorizedPage (gate intact); public storefront → 200.
+
+No remaining anon exposure on `tenants`.
 
 ---
 
@@ -51,5 +59,5 @@ Re-examined column-by-column against actual storefront usage. Findings:
 1. ~~Apply `20260811100000`~~ ✅ **APPLIED 2026-08-17** (P0 cost leak closed). `20260811090000_tenant_slug_history.sql` also applied.
 2. ~~Regenerate DB types~~ ✅ done (`supabase gen types`, checked in).
 3. ~~Product decision on `tenants` exposure (P2)~~ ✅ **RESOLVED 2026-08-17** (migration `20260817090000`). `contact_email` = public by design; internal/CRM columns locked down.
-4. **🔴 Top follow-up:** token-gated RPC for `store_config_v2_draft` so anon can't scrape unpublished stores (see P2 note). This is the one real exposure still open.
+4. ~~token-gated fix for `store_config_v2_draft`~~ ✅ **RESOLVED 2026-08-17** (migration `20260817100000` + service-role preview reads). No anon `tenants` exposure remains.
 5. Re-run this sweep after any new `public_storefront_read_*` policy ships — each one is a column-exposure surface.
