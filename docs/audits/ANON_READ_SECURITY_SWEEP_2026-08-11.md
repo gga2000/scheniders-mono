@@ -33,11 +33,16 @@ Supplier cost — the merchant's margin — plus `cost_breakdown_json`, `reorder
 
 ---
 
-## P2 · `tenants` exposes contact/plan fields to anon — app-intended, flagged not fixed
+## P2 · `tenants` — internal/CRM columns leaked to anon ✅ RESOLVED 2026-08-17
 
-Anon reads `contact_email`, `contact_phone`, `settings`, `plan`, `trial_ends_at` for all tenants. Most of this the **storefront itself reads** under the anon key (`PUBLIC_TENANT_COLS` in `apps/storefront/lib/tenant.ts` — footer contact, WhatsApp CTA phone, branding). So a column lockdown here risks breaking the public store and is **not** applied.
+Re-examined column-by-column against actual storefront usage. Findings:
 
-The one genuinely questionable field is `contact_email` (real merchant emails — `fatima.ux.audit@example.com` etc. — a ready-made spam/phish list). If product confirms the storefront doesn't render it, a follow-up column lockdown should drop `contact_email`, `plan`, and `trial_ends_at` from the anon grant. Needs product sign-off first — hence not in this migration.
+- **`contact_email` is public by design** — rendered on the storefront contact page (`contact/page.tsx:97`) and footer (`StoreFooter.tsx:38`). Kept anon-readable. (Not a leak; the merchant chose a public store.)
+- **Genuine leaks** (anon table-wide SELECT, columns the app never selects): `prospect_lead_id` (CRM link into `leads`), `restrictions`, `metadata`, `trial_ends_at`, `store_config_draft` (V1), `config_version`, `store_config_rev`, `display_id`, timestamps. **`store_config_v2_draft` (unpublished store) also readable** — the worst of them.
+
+**Fix (migration `20260817090000`, applied + verified):** grant anon exactly the columns the storefront + token-gated preview select; revoke the rest. Verified as the anon role: `SELECT prospect_lead_id FROM tenants` → `42501 denied`; storefront's full public select still returns; storefront home/contact/products all 200; contact_email still renders.
+
+**⚠️ Known remaining exposure (P1, tracked separately — NOT closed):** `store_config_v2_draft` stays anon-readable because the **cross-origin editor preview** (`_preview/[tenant]/[page_id]`) reads it as the anon role — the preview is gated by a signed token at the *route*, which PostgREST column grants can't enforce. So any anonymous client can currently fetch every merchant's *unpublished* store config. Closing it needs a **token-gated `SECURITY DEFINER` RPC** that returns the draft only for a valid preview token, after which the anon grant drops `store_config_v2_draft`. Filed as the top follow-up.
 
 ---
 
@@ -45,5 +50,6 @@ The one genuinely questionable field is `contact_email` (real merchant emails �
 
 1. ~~Apply `20260811100000`~~ ✅ **APPLIED 2026-08-17** (P0 cost leak closed). `20260811090000_tenant_slug_history.sql` also applied.
 2. ~~Regenerate DB types~~ ✅ done (`supabase gen types`, checked in).
-3. **Product decision on `tenants.contact_email` exposure (P2)** → possible second lockdown. Still open.
-4. Re-run this sweep after any new `public_storefront_read_*` policy ships — each one is a column-exposure surface.
+3. ~~Product decision on `tenants` exposure (P2)~~ ✅ **RESOLVED 2026-08-17** (migration `20260817090000`). `contact_email` = public by design; internal/CRM columns locked down.
+4. **🔴 Top follow-up:** token-gated RPC for `store_config_v2_draft` so anon can't scrape unpublished stores (see P2 note). This is the one real exposure still open.
+5. Re-run this sweep after any new `public_storefront_read_*` policy ships — each one is a column-exposure surface.
