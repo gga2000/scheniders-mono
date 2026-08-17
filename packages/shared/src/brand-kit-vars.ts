@@ -108,11 +108,20 @@ function rgba(rgb: Rgb, alpha: number): string {
 /* Token tables                                                         */
 /* ─────────────────────────────────────────────────────────────────── */
 
+/**
+ * Card radius per shape setting.
+ *
+ * `pill` is deliberately NOT 9999 here. A fully-round radius is right for a
+ * button or a chip, but applying it to a card-sized box turns a hero section
+ * into a lozenge — Kinetic Ink and Sunbleach both rendered their hero as a
+ * giant orange blob. Pills that really should be fully round read
+ * `--bk-radius-pill`, which stays 9999.
+ */
 const RADIUS_CARD_PX: Record<BrandShape["radius"], number> = {
   none: 0,
   soft: 8,
   round: 16,
-  pill: 9999,
+  pill: 28,
 };
 
 const RADIUS_INPUT_PX: Record<BrandShape["radius"], number> = {
