@@ -6175,6 +6175,32 @@ export type Database = {
           },
         ]
       }
+      tenant_slug_history: {
+        Row: {
+          created_at: string
+          old_slug: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_slug: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          old_slug?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_slug_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           address: string | null

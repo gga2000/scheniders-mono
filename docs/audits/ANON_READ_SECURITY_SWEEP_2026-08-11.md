@@ -29,7 +29,7 @@ Supplier cost — the merchant's margin — plus `cost_breakdown_json`, `reorder
 
 **Fix (migration `20260811100000_anon_products_column_lockdown.sql`, drafted):** revoke anon's table-wide `SELECT`, re-grant only the 29 storefront-facing columns via Postgres column privileges (they compose with RLS — a read must pass both). `authenticated` untouched (merchant app needs cost; its tenant-isolation RLS scopes it). New columns default to no anon grant — safe direction.
 
-**⚠️ NOT YET APPLIED** — no DB access this session (Supabase MCP unauthenticated). The leak is live until the migration is applied to the NEW project.
+**✅ APPLIED 2026-08-17** to the NEW project (`sduvpgqwhxragxtxztur`). Verified as the `anon` role: `SELECT cost FROM products` → `42501 permission denied`; `has_column_privilege('anon',…,'cost')` = false (also cost_breakdown_json, low_stock_threshold, license_key_pattern); safe columns intact (17 products still readable, `price` = true). DB types regenerated.
 
 ---
 
@@ -43,7 +43,7 @@ The one genuinely questionable field is `contact_email` (real merchant emails �
 
 ## Follow-ups
 
-1. **Apply `20260811100000` to the NEW project** — closes the P0 cost leak. (Also apply the pending `20260811090000_tenant_slug_history.sql` from the handle-claim work.)
-2. Regenerate DB types after applying (`pnpm generate-types`).
-3. Product decision on `tenants.contact_email` exposure (P2) → possible second lockdown.
+1. ~~Apply `20260811100000`~~ ✅ **APPLIED 2026-08-17** (P0 cost leak closed). `20260811090000_tenant_slug_history.sql` also applied.
+2. ~~Regenerate DB types~~ ✅ done (`supabase gen types`, checked in).
+3. **Product decision on `tenants.contact_email` exposure (P2)** → possible second lockdown. Still open.
 4. Re-run this sweep after any new `public_storefront_read_*` policy ships — each one is a column-exposure surface.

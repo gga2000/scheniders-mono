@@ -19,43 +19,25 @@ import { createSupabasePublicClient } from "./supabase/server";
 // bounded staleness for public reads.
 const CACHE_SECONDS = 60;
 
-/** Loose query surface — `tenant_slug_history` isn't in the generated
- * DB types until the migration is applied + types regenerated. */
-interface LooseClient {
-    from(table: string): {
-        select(cols: string): {
-            eq(
-                col: string,
-                v: string,
-            ): {
-                maybeSingle(): Promise<{ data: Record<string, unknown> | null }>;
-            };
-        };
-    };
-}
-
 export const resolveRenamedSlug = cache(
     (oldSlug: string): Promise<string | null> =>
         unstable_cache(
             async (): Promise<string | null> => {
                 if (!oldSlug) return null;
                 try {
-                    const supabase =
-                        createSupabasePublicClient() as unknown as LooseClient;
+                    const supabase = createSupabasePublicClient();
                     const { data: hist } = await supabase
                         .from("tenant_slug_history")
                         .select("tenant_id")
                         .eq("old_slug", oldSlug)
                         .maybeSingle();
-                    const tenantId = hist?.tenant_id;
-                    if (typeof tenantId !== "string") return null;
+                    if (!hist?.tenant_id) return null;
                     const { data: tenant } = await supabase
                         .from("tenants")
                         .select("slug")
-                        .eq("id", tenantId)
+                        .eq("id", hist.tenant_id)
                         .maybeSingle();
-                    const slug = tenant?.slug;
-                    return typeof slug === "string" ? slug : null;
+                    return tenant?.slug ?? null;
                 } catch {
                     return null;
                 }
