@@ -31,9 +31,17 @@ export function enforceRedirect(
         return;
     }
 
-    const target = `/s/${tenantParam}${
-        match.to.startsWith("/") ? match.to : `/${match.to}`
-    }`;
+    const path = match.to.startsWith("/") ? match.to : `/${match.to}`;
+    // Percent-encode non-ASCII target paths (Arabic slugs are common here) —
+    // a raw multibyte Location header 500s the response.
+    const encoded = encodeURI(path);
+    // Custom-domain requests reach this route rewritten as
+    // `/s/__domain__<host>/…`; that internal param must never leak into the
+    // browser-facing Location. On a custom domain the tenant IS the host, so
+    // the public target is the bare path — the proxy re-rewrites it inbound.
+    const target = tenantParam.startsWith("__domain__")
+        ? encoded
+        : `/s/${tenantParam}${encoded}`;
 
     // `permanentRedirect`/`redirect` throw to interrupt rendering.
     if (match.permanent) permanentRedirect(target);
