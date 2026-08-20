@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { diag } from "@/lib/diag";
@@ -168,6 +169,17 @@ async function fetchArchivedOrders(): Promise<Order[]> {
 export function useOrdersQuery(refetchTrigger?: string) {
     const queryClient = useQueryClient();
     const { session, clientReady } = useAuth();
+    const pathname = usePathname();
+
+    // Perf: the store-builder editor renders in DashboardLayout's IMMERSIVE
+    // branch — no TopBar (global-search), no chat drawer — so nothing on
+    // `/store/edit` reads the orders context. OrdersProvider still lives at
+    // the root, though, so without this gate the editor pays a ~5.5MB
+    // findAll() (13 paged requests) that competes with the editor's own
+    // loads on Iraqi 3G. Skip the fetch there; SWR initialData still serves
+    // any cached rows for free, and the fetch resumes on the next
+    // orders-consuming route.
+    const skipForImmersiveEditor = pathname?.startsWith("/store/edit") ?? false;
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -181,8 +193,9 @@ export function useOrdersQuery(refetchTrigger?: string) {
         queryKey: orderKeys.lists(),
         queryFn: fetchOrders,
         // CRITICAL: Wait for Supabase client's internal session to be ready
-        // Not just React state - the client must have completed _initialize()
-        enabled: !!session && clientReady,
+        // Not just React state - the client must have completed _initialize().
+        // Also skipped on the immersive store editor (no orders consumer there).
+        enabled: !!session && clientReady && !skipForImmersiveEditor,
         // SWR: Hydrate from sessionStorage immediately (shows data in <5ms).
         // React Query knows the real age via initialDataUpdatedAt, so it will
         // refetch in the background if the cached data is stale (>30s old).
