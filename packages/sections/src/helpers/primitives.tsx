@@ -27,10 +27,11 @@ import type {
      - When no brand kit is set (e.g. the section preview in the
        editor), the Candy Bento palette still shows through.
 
-   We deliberately keep the `bg-candy-*` Tailwind classes on the
-   pastel surfaces so the existing smoke tests (which assert on
-   class names) still pass. Layered on top, inline styles bind the
-   shape + ink + interactive accents to brand-kit vars.
+   The pastel surfaces now use `bg-bk-*` classes bound to the brand
+   kit, not the fixed `bg-candy-*` palette this comment used to
+   describe: a template with a dark ground needs its tinted panels
+   to sit just above that ground, not to drop a pastel block onto
+   near-black. Inline styles still bind shape + interactive accents.
    ============================================================ */
 
 type ScribbleColor = "butter" | "mint" | "lilac" | "sky" | "pink";
