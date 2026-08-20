@@ -5,14 +5,14 @@ import { MaterialIcon, ZigzagDivider } from "./primitives";
 export function SchneidersFooter({ tenant }: { tenant: Tenant }) {
   const c = tenant.store_config?.contact;
   return (
-    <footer className="mt-12 pb-32 bg-candy-cream border-t-4 border-candy-ink">
+    <footer className="mt-12 pb-32 bg-bk-surface border-t-4 border-bk-ink">
       <ZigzagDivider />
       <div className="px-5 py-8 space-y-6 max-w-md mx-auto">
         <div>
-          <h3 className="font-display font-black text-2xl uppercase text-candy-ink mb-2">
+          <h3 className="font-display font-black text-2xl uppercase text-bk-ink mb-2">
             {tenant.business_name || "Schneiders"}
           </h3>
-          <p className="font-body text-sm text-candy-ink/70 leading-relaxed">
+          <p className="font-body text-sm text-bk-ink/70 leading-relaxed">
             {tenant.address && tenant.city
               ? `${tenant.address}, ${tenant.city}`
               : tenant.city ?? "Baghdad, Iraq 🇮🇶"}
@@ -21,7 +21,7 @@ export function SchneidersFooter({ tenant }: { tenant: Tenant }) {
 
         <div className="grid grid-cols-2 gap-3 text-sm font-label font-bold">
           <div className="space-y-2">
-            <p className="font-display font-black uppercase text-xs text-candy-ink/60 tracking-wider">
+            <p className="font-display font-black uppercase text-xs text-bk-ink/60 tracking-wider">
               Shop
             </p>
             <StoreLink href="/" className="block hover:underline">
@@ -35,7 +35,7 @@ export function SchneidersFooter({ tenant }: { tenant: Tenant }) {
             </StoreLink>
           </div>
           <div className="space-y-2">
-            <p className="font-display font-black uppercase text-xs text-candy-ink/60 tracking-wider">
+            <p className="font-display font-black uppercase text-xs text-bk-ink/60 tracking-wider">
               Help
             </p>
             <StoreLink href="/faq" className="block hover:underline">
@@ -52,7 +52,7 @@ export function SchneidersFooter({ tenant }: { tenant: Tenant }) {
 
         <div className="grid grid-cols-2 gap-3 text-sm font-label">
           <div className="space-y-2">
-            <p className="font-display font-black uppercase text-xs text-candy-ink/60 tracking-wider">
+            <p className="font-display font-black uppercase text-xs text-bk-ink/60 tracking-wider">
               Policies
             </p>
             <StoreLink href="/policies/shipping" className="block hover:underline">
@@ -69,7 +69,7 @@ export function SchneidersFooter({ tenant }: { tenant: Tenant }) {
             </StoreLink>
           </div>
           <div className="space-y-2">
-            <p className="font-display font-black uppercase text-xs text-candy-ink/60 tracking-wider">
+            <p className="font-display font-black uppercase text-xs text-bk-ink/60 tracking-wider">
               Contact
             </p>
             {tenant.contact_phone && (
@@ -103,8 +103,8 @@ export function SchneidersFooter({ tenant }: { tenant: Tenant }) {
 
         <ZigzagDivider />
 
-        <p className="font-body text-xs text-candy-ink/60 text-center">
-          Made with <span className="text-candy-pink">♥</span> in Baghdad 🇮🇶
+        <p className="font-body text-xs text-bk-ink/60 text-center">
+          Made with <span className="text-bk-primary">♥</span> in Baghdad 🇮🇶
           <span className="block mt-1">© {new Date().getFullYear()} {tenant.business_name || "Schneiders"}</span>
         </p>
       </div>

@@ -118,7 +118,7 @@ function NewsletterInlineRender({
             {heading}
           </ScribbleHeading>
           {body && (
-            <p className="font-body text-sm sm:text-base text-bk-ink-soft mb-bk-sm">
+            <p className="font-body text-sm sm:text-base opacity-75 mb-bk-sm">
               {body}
             </p>
           )}
@@ -141,7 +141,7 @@ function NewsletterInlineRender({
               }}
               onBlur={() => setTouched(true)}
               aria-invalid={inputErrored || undefined}
-              className="flex-1 bg-white px-4 py-3 font-body text-base placeholder:text-bk-ink-faint focus:outline-none focus:ring-0"
+              className="flex-1 bg-bk-surface-alt px-4 py-3 font-body text-base placeholder:opacity-60 focus:outline-none focus:ring-0"
               style={{
                 border: `var(--bk-border-thickness, 3px) solid ${
                   inputErrored

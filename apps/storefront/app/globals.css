@@ -71,21 +71,21 @@ body {
   border: 3px solid #1a1a1a;
   box-shadow: 4px 4px 0px 0px rgba(26, 26, 26, 1);
   border-radius: 1rem;
-  background: white;
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 .bento-card-sm {
   border: 3px solid #1a1a1a;
   box-shadow: 2px 2px 0px 0px rgba(26, 26, 26, 1);
   border-radius: 0.75rem;
-  background: white;
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 .bento-card-lg {
   border: 3px solid #1a1a1a;
   box-shadow: 6px 6px 0px 0px rgba(26, 26, 26, 1);
   border-radius: 1.25rem;
-  background: white;
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 /* Hand-drawn highlighter scribble underline (used behind section titles) */
@@ -149,7 +149,7 @@ body {
   border: 4px solid #1a1a1a;
   box-shadow: 6px 6px 0px 0px #1a1a1a;
   border-radius: 1rem;
-  background: white;
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 .chunky-border-bold {

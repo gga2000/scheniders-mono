@@ -81,7 +81,7 @@ function Stars({ rating }: { rating: number }) {
         <span
           key={i}
           className={
-            i < rating ? "text-candy-pink" : "text-bk-ink-faint"
+            i < rating ? "text-bk-primary" : "text-bk-ink-faint"
           }
           aria-hidden="true"
         >
@@ -126,7 +126,7 @@ function TestimonialsCarousel({
                   </Sticker>
                 )}
               </div>
-              <p className="font-body text-sm sm:text-base leading-relaxed text-bk-ink-soft flex-1 line-clamp-4">
+              <p className="font-body text-sm sm:text-base leading-relaxed opacity-75 flex-1 line-clamp-4">
                 &ldquo;{quote}&rdquo;
               </p>
               <div className="flex items-center gap-3 pt-2 border-t-[3px] border-dashed border-bk-divider">
@@ -137,10 +137,10 @@ function TestimonialsCarousel({
                     width={48}
                     height={48}
                     unoptimized
-                    className="w-12 h-12 rounded-full border-[3px] border-candy-ink object-cover"
+                    className="w-12 h-12 rounded-full border-bk-bold border-bk-ink object-cover"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-full border-[3px] border-candy-ink bg-candy-butter flex items-center justify-center font-display font-black text-lg">
+                  <div className="w-12 h-12 rounded-full border-bk-bold border-bk-ink bg-bk-accent flex items-center justify-center font-display font-black text-lg text-bk-on-accent">
                     {item.author_name.charAt(0)}
                   </div>
                 )}
@@ -149,7 +149,7 @@ function TestimonialsCarousel({
                     {item.author_name}
                   </div>
                   {item.author_city && (
-                    <div className="font-label font-bold text-[11px] uppercase tracking-[0.2em] text-bk-ink-soft">
+                    <div className="font-label font-bold text-[11px] uppercase tracking-[0.2em] opacity-75">
                       {item.author_city}
                     </div>
                   )}
@@ -167,7 +167,7 @@ function TestimonialsCarousel({
           {props.items.map((_, i) => (
             <span
               key={i}
-              className="w-2 h-2 rounded-full bg-candy-ink/25"
+              className="w-2 h-2 rounded-full bg-bk-ink/25 text-bk-surface"
               style={{ backgroundColor: "var(--bk-ink-faint, rgb(26 26 26 / 0.25))" }}
             />
           ))}

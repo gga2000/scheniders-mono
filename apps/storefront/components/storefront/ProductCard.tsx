@@ -17,7 +17,7 @@ export function ProductCard({ product, variant = "default", className }: Props) 
     <StoreLink
       href={`/products/${product.slug ?? product.id}`}
       className={cn(
-        "group block bg-white rounded-lg overflow-hidden border border-zinc-200 hover:shadow-lg transition",
+        "group block bg-bk-surface-alt rounded-lg overflow-hidden border border-zinc-200 hover:shadow-lg transition",
         variant === "elegant" && "rounded-none border-0 shadow-none",
         className,
       )}

@@ -103,7 +103,7 @@ function CheckoutOrderSummaryRender({
                 >
                   {props.show_thumbnails && (
                     <div
-                      className="relative w-12 h-12 bg-white overflow-hidden shrink-0"
+                      className="relative w-12 h-12 bg-bk-surface-alt overflow-hidden shrink-0"
                       style={{
                         border:
                           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",

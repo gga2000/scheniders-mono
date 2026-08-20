@@ -60,9 +60,9 @@ export function OrderRecap({ locale = "ar" }: { locale?: "ar" | "en" | "ku" }) {
             <span className="font-body min-w-0">
               <span className="font-bold">{it.name}</span>
               {it.variant ? (
-                <span className="text-candy-ink/60"> · {it.variant}</span>
+                <span className="text-bk-ink/60"> · {it.variant}</span>
               ) : null}
-              <span className="text-candy-ink/60"> × {it.qty}</span>
+              <span className="text-bk-ink/60"> × {it.qty}</span>
             </span>
             <span className="font-display font-black whitespace-nowrap">
               {formatIQD(it.price * it.qty)}
@@ -70,7 +70,7 @@ export function OrderRecap({ locale = "ar" }: { locale?: "ar" | "en" | "ku" }) {
           </li>
         ))}
       </ul>
-      <div className="mt-3 pt-3 border-t-[3px] border-dashed border-candy-ink/20 flex items-center justify-between">
+      <div className="mt-3 pt-3 border-t-[3px] border-dashed border-bk-ink/20 flex items-center justify-between">
         <span className="font-display font-black uppercase">
           {t ? "المجموع" : "Total"}
         </span>

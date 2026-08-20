@@ -97,13 +97,13 @@ function NumbersStatStripRender({
                 <div
                   className="font-display font-black text-4xl sm:text-5xl tracking-tight"
                   style={{
-                    color: "var(--bk-ink, #1a1a1a)",
+                    color: "currentColor",
                     fontFamily: "var(--bk-font-display, inherit)",
                   }}
                 >
                   {item.value}
                 </div>
-                <p className="mt-bk-xs font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
+                <p className="mt-bk-xs font-label font-bold text-xs uppercase tracking-[0.2em] opacity-75">
                   {label}
                 </p>
               </div>

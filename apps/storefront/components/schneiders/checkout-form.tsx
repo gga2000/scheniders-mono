@@ -111,7 +111,7 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
 
   if (!mounted) {
     return (
-      <div className="py-16 text-center font-display font-bold text-candy-ink/60">
+      <div className="py-16 text-center font-display font-bold text-bk-ink/60">
         Loading checkout…
       </div>
     );
@@ -122,7 +122,7 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
       <BentoCard bg="lilac" rotate={1} className="p-8 text-center">
         <div className="text-5xl mb-2" style={{ transform: "rotate(-8deg)" }}>🛒</div>
         <h2 className="font-display font-black text-2xl uppercase mb-1">Cart is empty</h2>
-        <p className="font-body text-sm text-candy-ink/80">Add something first ✨</p>
+        <p className="font-body text-sm text-bk-ink/80">Add something first ✨</p>
       </BentoCard>
     );
   }
@@ -142,11 +142,11 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
     <div className="space-y-6">
       {/* Progress strip */}
       <div className="flex items-center justify-center gap-2 font-display font-bold text-xs uppercase">
-        <span className="px-3 py-1 rounded-full bento-card-sm bg-candy-mint">Cart ✓</span>
-        <span className="text-candy-ink/40">→</span>
-        <span className="px-3 py-1 rounded-full bento-card-sm bg-candy-pink text-white">Details</span>
-        <span className="text-candy-ink/40">→</span>
-        <span className="px-3 py-1 rounded-full bento-card-sm bg-white opacity-60">Confirm</span>
+        <span className="px-3 py-1 rounded-full bento-card-sm bg-bk-mint">Cart ✓</span>
+        <span className="text-bk-ink/40">→</span>
+        <span className="px-3 py-1 rounded-full bento-card-sm bg-bk-primary text-white text-bk-on-primary">Details</span>
+        <span className="text-bk-ink/40">→</span>
+        <span className="px-3 py-1 rounded-full bento-card-sm bg-bk-surface-alt opacity-60">Confirm</span>
       </div>
 
       {/* Reassurance */}
@@ -186,23 +186,23 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
               >
                 <span className="min-w-0 truncate">
                   {item.name}
-                  {item.variant_name && <span className="text-candy-ink/50"> · {item.variant_name}</span>}
-                  <span className="text-candy-ink/50"> × {item.quantity}</span>
+                  {item.variant_name && <span className="text-bk-ink/50"> · {item.variant_name}</span>}
+                  <span className="text-bk-ink/50"> × {item.quantity}</span>
                 </span>
                 <span className="font-bold whitespace-nowrap">{formatPrice(item.price * item.quantity)}</span>
               </div>
             ))}
           </div>
         )}
-        <div className="border-t-[3px] border-dashed border-candy-ink/30 mt-4 pt-4 space-y-2 font-body text-sm">
+        <div className="border-t-[3px] border-dashed border-bk-ink/30 mt-4 pt-4 space-y-2 font-body text-sm">
           <Row label="Subtotal" value={formatPrice(subtotal)} />
           <Row
             label="Delivery"
             value={deliveryFee === 0 ? "FREE 🎉" : formatPrice(deliveryFee)}
-            valueClass={deliveryFee === 0 ? "text-candy-mint font-display font-black" : ""}
+            valueClass={deliveryFee === 0 ? "text-bk-mint font-display font-black" : ""}
           />
         </div>
-        <div className="border-t-[3px] border-dashed border-candy-ink/30 mt-3 pt-3 flex items-center justify-between">
+        <div className="border-t-[3px] border-dashed border-bk-ink/30 mt-3 pt-3 flex items-center justify-between">
           <span className="font-display font-black text-xl uppercase">Total</span>
           <span className="font-display font-black text-3xl">{formatPrice(total)}</span>
         </div>
@@ -248,7 +248,7 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
                 </select>
               </FieldShell>
               {shipping.eta != null && (
-                <p className="font-body text-xs text-candy-ink/60 mt-1">
+                <p className="font-body text-xs text-bk-ink/60 mt-1">
                   Estimated arrival: {shipping.eta} hours
                 </p>
               )}
@@ -307,17 +307,17 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
                 return (
                   <div
                     key={m.key}
-                    className="bento-card bg-candy-mint p-4 ring-2 ring-candy-ink ring-offset-2 rotate-[0.5deg] relative"
+                    className="bento-card bg-bk-mint p-4 ring-2 ring-bk-ink ring-offset-2 rotate-[0.5deg] relative"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full border-[3px] border-candy-ink flex items-center justify-center bg-white">
-                        <div className="w-3 h-3 rounded-full bg-candy-ink" />
+                      <div className="w-6 h-6 rounded-full border-bk-bold border-bk-ink flex items-center justify-center bg-bk-surface-alt">
+                        <div className="w-3 h-3 rounded-full bg-bk-ink text-bk-surface" />
                       </div>
                       <div className="flex-1">
                         <p className="font-display font-black uppercase text-base">{m.label}</p>
                         <p className="font-body text-xs">{m.helper}</p>
                       </div>
-                      <MaterialIcon name="check_circle" className="text-2xl text-candy-ink" />
+                      <MaterialIcon name="check_circle" className="text-2xl text-bk-ink" />
                     </div>
                   </div>
                 );
@@ -325,9 +325,9 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
               return (
                 <div
                   key={m.key}
-                  className="bento-card-sm bg-candy-cream/60 p-3 flex items-center gap-3 opacity-60"
+                  className="bento-card-sm bg-bk-surface/60 p-3 flex items-center gap-3 opacity-60"
                 >
-                  <div className="w-6 h-6 rounded-full border-[3px] border-candy-ink/40 bg-white shrink-0" />
+                  <div className="w-6 h-6 rounded-full border-bk-bold border-bk-ink/40 bg-bk-surface-alt shrink-0" />
                   <p className="font-display font-bold uppercase text-sm flex-1">{m.label}</p>
                   <Sticker bg="butter" rotate={i % 2 === 0 ? -3 : 3} size="xs">Coming Soon</Sticker>
                 </div>
@@ -373,7 +373,7 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
           <MaterialIcon name="arrow_forward" className="text-xl" />
         </ChunkyButton>
 
-        <p className="font-body text-xs text-center text-candy-ink/60">
+        <p className="font-body text-xs text-center text-bk-ink/60">
           By placing this order, you agree to our{" "}
           <a href="../policies/terms" className="underline decoration-2">Terms</a> &amp;{" "}
           <a href="../policies/privacy" className="underline decoration-2">Privacy Policy</a>.
@@ -384,25 +384,25 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
       {whatsappNumber && (
         <>
           <div className="flex items-center gap-3 my-2">
-            <div className="flex-1 h-[3px] bg-candy-ink/20" />
-            <span className="font-display font-black text-sm uppercase text-candy-ink/60">OR</span>
-            <div className="flex-1 h-[3px] bg-candy-ink/20" />
+            <div className="flex-1 h-[3px] bg-bk-ink/20 text-bk-surface" />
+            <span className="font-display font-black text-sm uppercase text-bk-ink/60">OR</span>
+            <div className="flex-1 h-[3px] bg-bk-ink/20 text-bk-surface" />
           </div>
 
           <a
             href={waHref}
             target="_blank"
             rel="noreferrer"
-            className="bento-card bg-white text-candy-ink font-display font-black text-base px-5 py-4 flex items-center justify-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
+            className="bento-card bg-bk-surface-alt text-bk-ink font-display font-black text-base px-5 py-4 flex items-center justify-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
           >
-            <WhatsAppIcon className="w-5 h-5 text-candy-mint" />
+            <WhatsAppIcon className="w-5 h-5 text-bk-mint" />
             Place Order via WhatsApp Instead
           </a>
         </>
       )}
 
       {/* Support footer */}
-      <div className="text-center font-body text-sm text-candy-ink/70">
+      <div className="text-center font-body text-sm text-bk-ink/70">
         <SectionEyebrow>Need help?</SectionEyebrow>
         <div className="mt-1 flex items-center justify-center gap-3">
           <MaterialIcon name="call" />
@@ -466,10 +466,10 @@ function PhoneField({
         Phone number
       </SectionEyebrow>
       <div className="flex gap-2">
-        <span className="bento-card-sm bg-candy-butter rounded-xl px-3 py-3 font-display font-black text-base shrink-0">
+        <span className="bento-card-sm bg-bk-accent rounded-xl px-3 py-3 font-display font-black text-base shrink-0 text-bk-on-accent">
           +964
         </span>
-        <div className="flex-1 bento-card-sm bg-candy-cream rounded-xl px-4 py-3">
+        <div className="flex-1 bento-card-sm bg-bk-surface rounded-xl px-4 py-3">
           <input
             type="tel"
             required
@@ -481,7 +481,7 @@ function PhoneField({
           />
         </div>
       </div>
-      <p className="font-body text-xs text-candy-ink/60 mt-1">We'll call to confirm your order.</p>
+      <p className="font-body text-xs text-bk-ink/60 mt-1">We'll call to confirm your order.</p>
     </div>
   );
 }
@@ -503,7 +503,7 @@ function FieldShell({
         <MaterialIcon name={icon} className="text-sm" />
         {label}
       </SectionEyebrow>
-      <div className="bento-card-sm bg-candy-cream rounded-xl px-4 py-3">{children}</div>
+      <div className="bento-card-sm bg-bk-surface rounded-xl px-4 py-3">{children}</div>
     </label>
   );
 }
@@ -511,7 +511,7 @@ function FieldShell({
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-candy-ink/70">{label}</span>
+      <span className="text-bk-ink/70">{label}</span>
       <span className={cn("font-bold", valueClass)}>{value}</span>
     </div>
   );

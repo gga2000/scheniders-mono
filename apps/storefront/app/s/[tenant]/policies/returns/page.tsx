@@ -76,7 +76,7 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
           body: (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="font-display font-bold uppercase text-sm text-candy-mint mb-1">✓ Yes</p>
+                <p className="font-display font-bold uppercase text-sm text-bk-mint mb-1">✓ Yes</p>
                 <ul className="space-y-1 list-disc list-inside text-xs">
                   <li>Clothing &amp; shoes (unworn, tags on)</li>
                   <li>Electronics (sealed, unopened)</li>
@@ -84,7 +84,7 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
                 </ul>
               </div>
               <div>
-                <p className="font-display font-bold uppercase text-sm text-candy-pink mb-1">✗ No</p>
+                <p className="font-display font-bold uppercase text-sm text-bk-primary mb-1">✗ No</p>
                 <ul className="space-y-1 list-disc list-inside text-xs">
                   <li>Underwear &amp; swimwear</li>
                   <li>Personalized gifts</li>

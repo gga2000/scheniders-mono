@@ -61,16 +61,24 @@ const config: Config = {
         },
         // Brand-kit v2 — single source of truth, driven by `--bk-*` vars
         // emitted by `buildBrandKitVars` on the tenant layout root.
+        // Declared in channel form — `rgb(var(--x-rgb) / <alpha-value>)` —
+        // because Tailwind silently drops opacity modifiers on colours whose
+        // value is a bare `var(...)`: `border-bk-ink/10` compiled to no rule
+        // at all. The `--bk-*-rgb` vars come from `buildBrandKitVars`.
         bk: {
-          primary: "var(--bk-primary)",
-          secondary: "var(--bk-secondary)",
-          accent: "var(--bk-accent)",
-          surface: "var(--bk-surface)",
-          "surface-alt": "var(--bk-surface-alt)",
-          surfaceAlt: "var(--bk-surface-alt)",
-          ink: "var(--bk-ink)",
-          success: "var(--bk-success)",
-          danger: "var(--bk-danger)",
+          primary: "rgb(var(--bk-primary-rgb) / <alpha-value>)",
+          secondary: "rgb(var(--bk-secondary-rgb) / <alpha-value>)",
+          accent: "rgb(var(--bk-accent-rgb) / <alpha-value>)",
+          surface: "rgb(var(--bk-surface-rgb) / <alpha-value>)",
+          "surface-alt": "rgb(var(--bk-surface-alt-rgb) / <alpha-value>)",
+          surfaceAlt: "rgb(var(--bk-surface-alt-rgb) / <alpha-value>)",
+          ink: "rgb(var(--bk-ink-rgb) / <alpha-value>)",
+          success: "rgb(var(--bk-success-rgb) / <alpha-value>)",
+          danger: "rgb(var(--bk-danger-rgb) / <alpha-value>)",
+          // Decorative tints, derived from success / secondary / accent.
+          mint: "rgb(var(--bk-mint-rgb) / <alpha-value>)",
+          lilac: "rgb(var(--bk-lilac-rgb) / <alpha-value>)",
+          sky: "rgb(var(--bk-sky-rgb) / <alpha-value>)",
           "on-primary": "var(--bk-on-primary)",
           "on-secondary": "var(--bk-on-secondary)",
           "on-accent": "var(--bk-on-accent)",

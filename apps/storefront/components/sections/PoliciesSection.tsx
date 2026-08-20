@@ -46,7 +46,7 @@ export default function PoliciesSection({ data }: PoliciesSectionProps) {
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === key
                   ? "bg-[var(--brand-primary)] text-white"
-                  : "bg-white text-zinc-600 hover:bg-zinc-100 border border-zinc-200"
+                  : "bg-bk-surface-alt text-zinc-600 hover:bg-zinc-100 border border-zinc-200"
               }`}
             >
               {label}
@@ -55,7 +55,7 @@ export default function PoliciesSection({ data }: PoliciesSectionProps) {
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-6">
+        <div className="bg-bk-surface-alt rounded-2xl shadow-sm border border-zinc-100 p-6">
           <div className="prose prose-zinc max-w-none whitespace-pre-line">
             {activeContent}
           </div>

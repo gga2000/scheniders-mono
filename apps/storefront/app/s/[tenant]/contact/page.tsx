@@ -62,9 +62,9 @@ export default async function ContactPage({ params }: { params: Promise<{ tenant
               href={`https://wa.me/${wa.replace(/\D/g, "")}`}
               target="_blank"
               rel="noreferrer"
-              className="bento-card-sm bg-white text-candy-ink font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
+              className="bento-card-sm bg-bk-surface-alt text-bk-ink font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
             >
-              <WhatsAppIcon className="w-4 h-4 text-candy-mint" />
+              <WhatsAppIcon className="w-4 h-4 text-bk-mint" />
               Open
             </a>
           )}
@@ -81,7 +81,7 @@ export default async function ContactPage({ params }: { params: Promise<{ tenant
           {tenant.contact_phone && (
             <a
               href={`tel:${tenant.contact_phone}`}
-              className="bento-card-sm bg-candy-pink text-white font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
+              className="bento-card-sm bg-bk-primary text-white font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all text-bk-on-primary"
             >
               Call
             </a>
@@ -99,7 +99,7 @@ export default async function ContactPage({ params }: { params: Promise<{ tenant
           {tenant.contact_email && (
             <a
               href={`mailto:${tenant.contact_email}`}
-              className="bento-card-sm bg-candy-lilac text-candy-ink font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
+              className="bento-card-sm bg-bk-lilac text-bk-ink font-display font-black text-xs px-3 py-2 inline-flex items-center gap-1 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
             >
               Send
             </a>

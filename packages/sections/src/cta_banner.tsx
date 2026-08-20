@@ -92,7 +92,7 @@ function CtaBannerRender({
               alt=""
               className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-candy-ink/40" />
+            <div className="absolute inset-0 bg-bk-ink/40 text-bk-surface" />
           </div>
         )}
         <div

@@ -180,7 +180,7 @@ function CartSummaryRender({
                   setPromoCode(e.target.value);
                   setPromoStatus("idle");
                 }}
-                className="flex-1 bg-white px-3 py-2 font-body text-sm focus:outline-none"
+                className="flex-1 bg-bk-surface-alt px-3 py-2 font-body text-sm focus:outline-none"
                 style={{
                   border:
                     "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -248,11 +248,11 @@ function CartSummaryRender({
             return (
               <>
                 <div className="my-bk-sm flex items-center gap-bk-sm">
-                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
+                  <span className="h-[3px] flex-1 bg-bk-ink/20 text-bk-surface" />
                   <span className="font-display font-black text-sm uppercase text-bk-ink-soft">
                     {locale !== "en" ? "أو" : "Or"}
                   </span>
-                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
+                  <span className="h-[3px] flex-1 bg-bk-ink/20 text-bk-surface" />
                 </div>
                 <a
                   href={href}

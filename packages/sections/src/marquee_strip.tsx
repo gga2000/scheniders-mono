@@ -45,13 +45,13 @@ const defaultProps: Props = {
 };
 
 const BG_CLASS: Record<z.infer<typeof stripBg>, string> = {
-  white: "bg-white",
-  mint: "bg-candy-mint",
-  butter: "bg-candy-butter",
-  lilac: "bg-candy-lilac",
-  sky: "bg-candy-sky",
-  pink: "bg-candy-pink text-white",
-  cream: "bg-candy-cream",
+  white: "bg-bk-surface-alt text-bk-ink",
+  mint: "bg-bk-mint",
+  butter: "bg-bk-accent text-bk-on-accent",
+  lilac: "bg-bk-lilac",
+  sky: "bg-bk-sky",
+  pink: "bg-bk-primary text-bk-on-primary",
+  cream: "bg-bk-surface text-bk-ink",
 };
 
 function MarqueeStrip({
@@ -80,7 +80,7 @@ function MarqueeStrip({
           <span className="font-label font-bold text-xs sm:text-sm uppercase tracking-[0.2em]">
             {m}
           </span>
-          <span aria-hidden="true" className="text-candy-pink">
+          <span aria-hidden="true" className="text-bk-primary">
             ★
           </span>
         </span>
@@ -92,7 +92,7 @@ function MarqueeStrip({
     <Section
       bleed
       density="dense"
-      className={`${BG_CLASS[props.bg]} border-y-[3px] border-candy-ink overflow-hidden`}
+      className={`${BG_CLASS[props.bg]} border-y-[3px] border-bk-ink overflow-hidden`}
     >
       <div
         className="inline-flex whitespace-nowrap animate-marquee"

@@ -20,9 +20,11 @@ describe("buildBrandKitVars — default snapshot", () => {
     expect(vars).toMatchInlineSnapshot(`
       {
         "--bk-accent": "#ffd84a",
+        "--bk-accent-rgb": "255 216 74",
         "--bk-border-thickness": "3px",
         "--bk-border-thickness-bold": "4px",
         "--bk-danger": "#ef4444",
+        "--bk-danger-rgb": "239 68 68",
         "--bk-divider": "rgb(26 26 26 / 0.1)",
         "--bk-duration-base": "250ms",
         "--bk-duration-fast": "150ms",
@@ -33,17 +35,21 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-font-display-ar": "'Bricolage Grotesque', 'Bricolage Grotesque', 'Noto Sans Arabic', sans-serif",
         "--bk-ink": "#1a1a1a",
         "--bk-ink-faint": "rgb(26 26 26 / 0.38)",
+        "--bk-ink-rgb": "26 26 26",
         "--bk-ink-soft": "rgb(26 26 26 / 0.7)",
-        "--bk-lilac": "#c5b6ff",
-        "--bk-mint": "#7cf0bd",
+        "--bk-lilac": "#daf5e0",
+        "--bk-lilac-rgb": "218 245 224",
+        "--bk-mint": "#daf5e0",
+        "--bk-mint-rgb": "218 245 224",
         "--bk-motion": "auto",
         "--bk-on-accent": "#1a1a1a",
-        "--bk-on-primary": "#ffffff",
+        "--bk-on-primary": "#1a1a1a",
         "--bk-on-secondary": "#1a1a1a",
         "--bk-primary": "#ff5a8a",
         "--bk-primary-active": "#d64e76",
         "--bk-primary-disabled": "rgb(255 90 138 / 0.4)",
         "--bk-primary-hover": "#e8547f",
+        "--bk-primary-rgb": "255 90 138",
         "--bk-primary-soft": "rgb(255 90 138 / 0.12)",
         "--bk-radius-card": "16px",
         "--bk-radius-input": "12px",
@@ -51,12 +57,17 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-scale-base": "1rem",
         "--bk-scale-leading": "1.55",
         "--bk-secondary": "#7cf0bd",
+        "--bk-secondary-rgb": "124 240 189",
         "--bk-shadow-button": "2px 2px 0px 0px var(--bk-ink)",
         "--bk-shadow-card": "4px 4px 0px 0px var(--bk-ink)",
-        "--bk-sky": "#9ad8ff",
+        "--bk-sky": "#ffeebf",
+        "--bk-sky-rgb": "255 238 191",
         "--bk-success": "#7cf0bd",
+        "--bk-success-rgb": "124 240 189",
         "--bk-surface": "#fff7ed",
         "--bk-surface-alt": "#ffffff",
+        "--bk-surface-alt-rgb": "255 255 255",
+        "--bk-surface-rgb": "255 247 237",
         "--bk-wedge-multiplier": "1",
       }
     `);
@@ -64,11 +75,14 @@ describe("buildBrandKitVars — default snapshot", () => {
 });
 
 describe("buildBrandKitVars — color derivations", () => {
-  it("pure black primary derives white on-color", () => {
+  it("pure black primary derives the light on-color", () => {
     const k = cloneKit();
     k.colors.primary = "#000000";
     const v = buildBrandKitVars(k) as Record<string, string>;
-    expect(v["--bk-on-primary"]).toBe("#ffffff");
+    // The kit's own surface, not literal white: on-colors are picked by
+    // measured contrast against the kit's ink and surface, so a dark kit
+    // (where ink is light) still gets a readable foreground.
+    expect(v["--bk-on-primary"]).toBe(k.colors.surface);
   });
 
   it("pure white primary derives ink on-color", () => {

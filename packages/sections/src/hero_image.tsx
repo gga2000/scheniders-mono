@@ -130,7 +130,7 @@ function HeroImageRender({
             <div className="absolute inset-0 bg-black/40" />
           </div>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-candy-butter via-candy-pink/30 to-candy-lilac" />
+          <div className="absolute inset-0 bg-gradient-to-br from-bk-accent via-bk-primary/30 to-bk-lilac" />
         )}
 
         <div className="relative z-10 p-6 sm:p-10 max-w-xl">
@@ -145,7 +145,7 @@ function HeroImageRender({
             data-i18n-field="title_i18n"
             className="font-display font-black text-bk-hero uppercase leading-[0.9] tracking-tight max-w-[14ch] sm:max-w-2xl"
             style={{
-              color: hasImage ? "#ffffff" : "var(--bk-ink, #1a1a1a)",
+              color: hasImage ? "#ffffff" : "var(--bk-on-accent, #1a1a1a)",
               transform: "rotate(-2deg)",
               transformOrigin: "left top",
               fontFamily: "var(--bk-font-display, inherit)",
@@ -161,7 +161,8 @@ function HeroImageRender({
             style={{
               color: hasImage
                 ? "rgba(255,255,255,0.92)"
-                : "var(--bk-ink-soft, rgba(26,26,26,0.8))",
+                : "var(--bk-on-accent, rgba(26,26,26,0.8))",
+              opacity: hasImage ? 1 : 0.86,
               fontFamily: "var(--bk-font-body, inherit)",
             }}
           >

@@ -106,8 +106,8 @@ function DeliveryPromise({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div
             className={
-              "relative bg-white p-5 shadow-bento-sm " +
-              (visitorIsBaghdad ? "ring-4 ring-candy-pink/40" : "")
+              "relative bg-bk-surface-alt p-5 shadow-bk-card " +
+              (visitorIsBaghdad ? "ring-4 ring-bk-primary/40" : "")
             }
             style={statCardStyle}
           >
@@ -120,7 +120,7 @@ function DeliveryPromise({
             )}
             <div className="flex items-center gap-2 mb-1">
               <MaterialIcon name="local_shipping" className="text-xl" />
-              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
+              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] opacity-75">
                 {locale !== "en" ? "بغداد" : "Baghdad"}
               </span>
             </div>
@@ -130,8 +130,8 @@ function DeliveryPromise({
           </div>
           <div
             className={
-              "relative bg-white p-5 shadow-bento-sm " +
-              (visitorGov && !visitorIsBaghdad ? "ring-4 ring-candy-pink/40" : "")
+              "relative bg-bk-surface-alt p-5 shadow-bk-card " +
+              (visitorGov && !visitorIsBaghdad ? "ring-4 ring-bk-primary/40" : "")
             }
             style={statCardStyle}
           >
@@ -144,7 +144,7 @@ function DeliveryPromise({
             )}
             <div className="flex items-center gap-2 mb-1">
               <MaterialIcon name="map" className="text-xl" />
-              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
+              <span className="font-label font-bold text-xs uppercase tracking-[0.2em] opacity-75">
                 {locale !== "en" ? "بقية المحافظات" : "Other governorates"}
               </span>
             </div>
@@ -155,14 +155,14 @@ function DeliveryPromise({
         </div>
         {props.governorates_covered.length > 0 && (
           <div className="mt-5">
-            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-2">
+            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] opacity-75 mb-2">
               {locale !== "en" ? "نوصل إلى" : "We ship to"}
             </p>
             <div className="flex flex-wrap gap-2">
               {props.governorates_covered.map((g) => (
                 <span
                   key={g}
-                  className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-white border-[3px] border-candy-ink rounded-full px-3 py-1"
+                  className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-bk-surface-alt border-bk-bold border-bk-ink rounded-full px-3 py-1"
                 >
                   {governorateLabel(g, locale)}
                 </span>
@@ -173,9 +173,9 @@ function DeliveryPromise({
         {inspection && (
           <p
             data-i18n-field="inspection_text_i18n"
-            className="mt-5 font-body text-sm sm:text-base text-bk-ink-soft inline-flex items-center gap-2"
+            className="mt-5 font-body text-sm sm:text-base opacity-75 inline-flex items-center gap-2"
           >
-            <MaterialIcon name="verified" className="text-xl text-candy-pink" />
+            <MaterialIcon name="verified" className="text-xl text-bk-primary" />
             {inspection}
           </p>
         )}
