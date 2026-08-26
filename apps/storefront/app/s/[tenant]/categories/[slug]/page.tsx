@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { enforceRedirect } from "@/lib/redirects";
-import { getCategoryBySlug, listCategories, listProducts } from "@/lib/queries";
+import {
+  getCategoryBySlug,
+  listCategories,
+  listProducts,
+  listProductsInCategory,
+} from "@/lib/queries";
 import { StoreHeader } from "@/components/storefront/StoreHeader";
 import { StoreFooter } from "@/components/storefront/StoreFooter";
 import { ProductCard } from "@/components/storefront/ProductCard";
@@ -29,10 +34,19 @@ export default async function CategoryPage({ params }: Props) {
     notFound();
   }
 
-  const [products, categories] = await Promise.all([
+  // Fetch both membership sources: the product_categories junction (multi-category)
+  // and the legacy products.category_id primary-category filter. Stores that never
+  // populated the junction table still get their full legacy list.
+  const [junctionProducts, legacyProducts, categories] = await Promise.all([
+    listProductsInCategory(tenant.id, category.id),
     listProducts(tenant.id, { categoryId: category.id }),
     listCategories(tenant.id),
   ]);
+  const seen = new Set(junctionProducts.map((p) => p.id));
+  const products = [
+    ...junctionProducts,
+    ...legacyProducts.filter((p) => !seen.has(p.id)),
+  ];
 
   const v2 = tenant.store_config_v2 ?? null;
   const v2Page = pickV2Page(v2, "category");

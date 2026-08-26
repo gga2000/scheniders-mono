@@ -359,7 +359,7 @@ const definition: SectionDefinition<Props> = {
     ar: "عمودان: أكورديون أسئلة شائعة بجانب بطاقة تواصل واتساب.",
   },
   thumbnail: "/sections/faq_contact_split.svg",
-  valid_on: ["home", "faq", "about", "product"],
+  valid_on: ["home", "faq", "about", "product", "contact"],
   schema,
   defaultProps,
   render: FaqContactSplit,

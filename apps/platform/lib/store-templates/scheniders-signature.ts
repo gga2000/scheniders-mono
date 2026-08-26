@@ -39,6 +39,19 @@ const ASSETS = {
     mic: `${A}66a2314b-371e-4474-ad0d-53a4cad055f9.svg`,
 };
 
+/** Customer chat-screenshot carousel shown on the original PDP (site-wide). */
+const REVIEW_SCREENSHOTS = [
+    `${A}reviews/1ebf499e-fb7d-4325-a2fe-0b98e8530932.jpeg`,
+    `${A}reviews/cba26e5e-7ad0-4213-b804-d535b7c0d7e6.jpeg`,
+    `${A}reviews/8f742152-1b1a-4d65-a543-331196fc6830.jpeg`,
+    `${A}reviews/6bf95f17-026a-400d-9067-08894b88a4a0.jpeg`,
+    `${A}reviews/536e8d88-e55a-49f0-a9b3-305b69cbfbf5.jpeg`,
+    `${A}reviews/abf3f504-d358-4888-bd0f-eafd1136d248.jpeg`,
+    `${A}reviews/2f8ae556-1a0c-4cdb-b4e2-b30c2808755e.jpeg`,
+    `${A}reviews/13ec2385-384c-4d1f-af39-793949cce8df.jpeg`,
+    `${A}reviews/8e208e9b-b896-430d-839d-44d2a010b588.jpeg`,
+];
+
 /** Top trust badges (hero strip) — original site order and labels. */
 const TRUST_TOP = [
     { icon_url: ASSETS.trustFast, label_i18n: { ar: "توصيل سريع", en: "Fast delivery" } },
@@ -267,10 +280,31 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 ar: "جميع الحقوق محفوظة لمجموعة شركات شنايدر",
                 en: "All rights reserved to the Scheniders group",
             },
+            // Live socials from the original footer (twitter/facebook icons
+            // existed there but pointed nowhere — omitted on purpose).
+            social_links: {
+                tiktok: "https://www.tiktok.com/@kawkab.brand",
+                instagram: "https://www.instagram.com/kawkab.brand/",
+            },
+            newsletter: {
+                enabled: true,
+                copy_i18n: {
+                    ar: "كن أول من يعرف آخر الاخبار عن متجرنا، عند انضمامك ستحصل فورا على كوبون خصم 15% على منتجاتنا.",
+                    en: "Be the first to hear our news — join and instantly get a 15% coupon.",
+                },
+                placeholder_i18n: {
+                    ar: "ادخل بريدك الالكتروني هنا",
+                    en: "Enter your email here",
+                },
+                button_i18n: { ar: "اشترك", en: "Subscribe" },
+            },
         }),
         promo_bar: s("countdown_announcement", {
             label_i18n: { ar: "ينتهي عرض الخصم خلال:", en: "Discount offer ends in:" },
-            mode: "daily_reset",
+            // The original funnel runs a 150-minute evergreen urgency loop
+            // (epoch-aligned, never sits at zero) rather than a daily reset.
+            mode: "evergreen_minutes",
+            duration_minutes: 150,
             bg: "secondary",
             show_flame: true,
         }),
@@ -302,12 +336,12 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                     {
                         image_url: ASSETS.catPicked,
                         label_i18n: { ar: "عطور مختارة", en: "Curated perfumes" },
-                        href: "/products",
+                        href: "/categories/picked",
                     },
                     {
                         image_url: ASSETS.catTop,
                         label_i18n: { ar: "الاكثر مبيعاً", en: "Best sellers" },
-                        href: "/products",
+                        href: "/categories/topsellers",
                     },
                 ],
             }),
@@ -449,11 +483,16 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 items: PDP_POLICIES,
             }),
             s("trust_badge_row", { items: TRUST_BOTTOM, band_style: "tinted" }),
-            s("testimonial_cards", {
-                eyebrow_i18n: { ar: "آراء زبائنا المميزين", en: "From our valued customers" },
-                title_i18n: { ar: "كلامهم مو كلامنا", en: "Their words, not ours" },
-                items: TESTIMONIALS,
+            // The original funnel shows a carousel of customer chat
+            // screenshots on the PDP (site-wide, no names/text) — the named
+            // testimonial trio lives on the home page only.
+            s("image_gallery", {
+                heading_i18n: { ar: "كلامهم مو كلامنا", en: "Their words, not ours" },
+                layout: "carousel",
+                images: REVIEW_SCREENSHOTS.map((url) => ({ url })),
             }),
+            // Real per-product customer reviews + submission form.
+            s("product_reviews"),
             s("faq_contact_split", {
                 eyebrow_i18n: { ar: "أسئلة و أجوبة", en: "Questions & answers" },
                 title_i18n: { ar: "الأسئلة الأكثر شيوعا", en: "Frequently asked questions" },
@@ -592,6 +631,23 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 ],
                 contact: FAQ_CONTACT_MORE,
             }),
+        ],
+        contact: [
+            s("faq_contact_split", {
+                eyebrow_i18n: { ar: "تواصل معنا", en: "Contact us" },
+                title_i18n: {
+                    ar: "لديك أية أسئلة ؟ دعنا نساعدك",
+                    en: "Questions? Let us help",
+                },
+                sub_i18n: {
+                    ar: "تواصل معنا إن كانت لديك أي أسئلة وسنعاود الاتصال بك في أقرب وقت ممكن. يمكنك أيضًا التحقق من قسم المساعدة والأسئلة الشائعة.",
+                    en: "Reach out with any question and we'll get back to you as soon as possible — the FAQ section may help too.",
+                },
+                row_icon_url: ASSETS.faqRow,
+                items: FAQ_ITEMS_HOME,
+                contact: FAQ_CONTACT_HOME,
+            }),
+            s("trust_badge_row", { items: TRUST_BOTTOM, band_style: "plain" }),
         ],
         faq: [
             s("faq_contact_split", {

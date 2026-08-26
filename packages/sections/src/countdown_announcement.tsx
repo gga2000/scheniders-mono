@@ -24,13 +24,16 @@ import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
 const barBg = z.enum(["secondary", "ink"]);
-const modeSchema = z.enum(["daily_reset", "fixed_end"]);
+const modeSchema = z.enum(["daily_reset", "fixed_end", "evergreen_minutes"]);
 
 const schema = z.object({
   label_i18n: i18nStringSchema,
   mode: modeSchema,
   /** ISO datetime the countdown targets — only read when mode is "fixed_end". */
   ends_at: z.string().describe("datetime").optional(),
+  /** Loop length for "evergreen_minutes": the bar counts down this many
+   *  minutes on a fixed wall-clock cycle (classic funnel urgency loop). */
+  duration_minutes: z.number().int().min(1).max(1440).optional(),
   bg: barBg,
   show_flame: z.boolean(),
 });
@@ -65,22 +68,39 @@ const ZERO_TICK: Tick = { hours: 0, minutes: 0, seconds: 0 };
 /**
  * Milliseconds until the countdown target.
  * daily_reset targets the next local midnight (evergreen); fixed_end
- * targets the ISO datetime, clamped at zero once it passes. A fixed_end
- * bar without a usable `ends_at` degrades to the daily reset so the bar
- * never renders a frozen garbage value.
+ * targets the ISO datetime, clamped at zero once it passes;
+ * evergreen_minutes loops on a fixed wall-clock cycle of
+ * `duration_minutes` (epoch-aligned, so every visitor sees the same
+ * remaining time and it never sits at zero). A fixed_end bar without a
+ * usable `ends_at` degrades to the daily reset so the bar never renders
+ * a frozen garbage value.
  */
-function remainingMs(mode: Props["mode"], endsAt: string | undefined, now: Date): number {
+function remainingMs(
+  mode: Props["mode"],
+  endsAt: string | undefined,
+  durationMinutes: number | undefined,
+  now: Date,
+): number {
   if (mode === "fixed_end" && endsAt) {
     const target = new Date(endsAt).getTime();
     if (!Number.isNaN(target)) return Math.max(0, target - now.getTime());
+  }
+  if (mode === "evergreen_minutes") {
+    const cycle = (durationMinutes ?? 150) * 60 * 1000;
+    return cycle - (now.getTime() % cycle);
   }
   const midnight = new Date(now);
   midnight.setHours(24, 0, 0, 0);
   return Math.max(0, midnight.getTime() - now.getTime());
 }
 
-function compute(mode: Props["mode"], endsAt: string | undefined, now: Date): Tick {
-  const ms = remainingMs(mode, endsAt, now);
+function compute(
+  mode: Props["mode"],
+  endsAt: string | undefined,
+  durationMinutes: number | undefined,
+  now: Date,
+): Tick {
+  const ms = remainingMs(mode, endsAt, durationMinutes, now);
   return {
     hours: Math.floor(ms / (1000 * 60 * 60)),
     minutes: Math.floor(ms / (1000 * 60)) % 60,
@@ -119,11 +139,14 @@ function CountdownAnnouncement({
   // mount so hydration never sees mismatched digits (mirrors countdown_card).
   const [tick, setTick] = useState<Tick>(ZERO_TICK);
   useEffect(() => {
-    const update = () => setTick(compute(props.mode, props.ends_at, new Date()));
+    const update = () =>
+      setTick(
+        compute(props.mode, props.ends_at, props.duration_minutes, new Date()),
+      );
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [props.mode, props.ends_at]);
+  }, [props.mode, props.ends_at, props.duration_minutes]);
 
   // Seconds first in DOM: with the centered flex row the group nearest the
   // label ends up being the LAST entry, and the reference design reads
