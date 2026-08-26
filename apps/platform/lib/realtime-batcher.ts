@@ -25,6 +25,39 @@ interface RealtimeBatcherOptions {
     onNewOrder?: (order: Order) => void;
 }
 
+/**
+ * Decide whether an incoming realtime row should replace what's in cache.
+ *
+ * Prefers `version` — a server-assigned counter bumped by a BEFORE UPDATE
+ * trigger on every write, which a client cannot fabricate. Falls back to
+ * `updated_at` only when a version is unavailable on either side (e.g. a row
+ * cached before `version` was added to the list columns).
+ *
+ * Historically this compared `updated_at` first, but platform writes never
+ * moved that column, so every peer edit arrived with an equal timestamp and was
+ * discarded — realtime looked alive while silently delivering nothing (CON-2).
+ */
+export function shouldApplyRealtimeUpdate(
+    cached: { version?: unknown; updated_at?: unknown },
+    incoming: { version?: unknown; updated_at?: unknown },
+): boolean {
+    const cachedVersion = cached.version;
+    const incomingVersion = incoming.version;
+    if (typeof cachedVersion === "number" && typeof incomingVersion === "number") {
+        // Strictly newer wins; equal means we already have this revision.
+        return incomingVersion > cachedVersion;
+    }
+
+    const cachedAt = cached.updated_at;
+    const incomingAt = incoming.updated_at;
+    if (typeof cachedAt === "string" && typeof incomingAt === "string") {
+        return incomingAt > cachedAt;
+    }
+
+    // Not enough information to prove the event is stale — apply it.
+    return true;
+}
+
 export class RealtimeBatcher {
     private buffer: RealtimeEvent[] = [];
     private flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -156,19 +189,9 @@ export class RealtimeBatcher {
                         updates.delete(o.id); // Mark as applied
                         if (updated.is_archived) return null; // Remove archived from active list
 
-                        // Timestamp-aware: skip broadcasts whose updated_at is older
-                        // than or equal to what's already in cache (deterministic dedup)
-                        if (o.updated_at && updated.updated_at && updated.updated_at <= o.updated_at) {
+                        // Version-first dedup (see shouldApplyRealtimeUpdate).
+                        if (!shouldApplyRealtimeUpdate(o, updated)) {
                             return o; // Keep current (newer) data
-                        }
-
-                        // Version-aware: skip stale events (if version column exists)
-                        const oVersion = (o as unknown as Record<string, unknown>).version;
-                        const updatedVersion = (updated as unknown as Record<string, unknown>).version;
-                        if (typeof oVersion === "number" && typeof updatedVersion === "number") {
-                            if (updatedVersion < oVersion) {
-                                return o; // Keep current (newer) version
-                            }
                         }
                         return updated;
                     }
@@ -232,8 +255,8 @@ export class RealtimeBatcher {
                     const updated = updates.get(o.id);
                     if (!updated) return o;
                     updates.delete(o.id); // mark applied
-                    // Timestamp-aware dedup: keep cache if it's already newer/equal.
-                    if (o.updated_at && updated.updated_at && updated.updated_at <= o.updated_at) {
+                    // Version-first dedup (see shouldApplyRealtimeUpdate).
+                    if (!shouldApplyRealtimeUpdate(o, updated)) {
                         return o;
                     }
                     applied++;

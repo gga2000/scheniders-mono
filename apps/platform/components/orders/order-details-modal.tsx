@@ -84,7 +84,7 @@ interface OrderDetailsModalProps {
     order: Order | null;
     open: boolean;
     onClose: () => void;
-    onUpdate: (orderId: string, updates: Partial<Order>, updated_at?: string) => Promise<{ success: boolean; error?: string }>;
+    onUpdate: (orderId: string, updates: Partial<Order>, expectedVersion?: number) => Promise<{ success: boolean; error?: string }>;
     onStatusUpdate?: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;

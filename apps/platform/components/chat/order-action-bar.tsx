@@ -47,7 +47,7 @@ export function OrderActionBar({ order, conversation }: OrderActionBarProps) {
                 status: newStatus,
                 last_status_changed_by_name: profile?.display_name ?? undefined,
                 last_status_changed_by_avatar: profile?.avatar_url ?? undefined,
-                expectedUpdatedAt: order.updated_at,
+                expectedVersion: order.version,
             },
             {
                 onError: (err) => {
