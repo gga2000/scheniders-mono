@@ -2,9 +2,15 @@ import { supabase } from "@/lib/supabase";
 
 // =============================================
 // CONFLICT DETECTION (Optimistic Locking)
-// Uses updated_at to detect when another
-// client has modified an order between your
-// read and your write.
+// Uses the server-maintained `version` column to
+// detect when another client has modified a row
+// between your read and your write.
+//
+// `updated_at` is NOT usable as the token: platform
+// UPDATEs never set it, so the guard silently passed
+// and writes overwrote each other (CON-1). `version`
+// is bumped by a BEFORE UPDATE trigger on every write
+// and cannot be fabricated by a client.
 // =============================================
 
 export interface ConflictResult<T = unknown> {
@@ -15,22 +21,22 @@ export interface ConflictResult<T = unknown> {
 }
 
 /**
- * Perform an update with conflict detection using updated_at.
- * 
- * If the row's updated_at has changed since the client last read it,
- * the update will affect 0 rows → conflict detected.
- * 
+ * Perform an update with conflict detection using `version`.
+ *
+ * If the row's version has advanced since the client last read it, the update
+ * matches 0 rows → conflict detected.
+ *
  * @param table - Supabase table name
  * @param id - Row ID to update
  * @param updates - Fields to update
- * @param expectedUpdatedAt - The updated_at value the client last saw
+ * @param expectedVersion - The `version` the client last saw
  * @returns ConflictResult with success/conflict/error
  */
 export async function updateWithConflictCheck<T extends Record<string, unknown>>(
     table: string,
     id: string,
     updates: Partial<T>,
-    expectedUpdatedAt?: string
+    expectedVersion?: number
 ): Promise<ConflictResult<T>> {
     try {
         let query = supabase
@@ -38,9 +44,9 @@ export async function updateWithConflictCheck<T extends Record<string, unknown>>
             .update(updates as Record<string, unknown>)
             .eq("id", id);
 
-        // If we have an expected updated_at, add conflict check
-        if (expectedUpdatedAt) {
-            query = query.eq("updated_at", expectedUpdatedAt);
+        // If we have an expected version, add the conflict check
+        if (typeof expectedVersion === "number") {
+            query = query.eq("version", expectedVersion);
         }
 
         const { data, error, count } = await query
@@ -52,7 +58,7 @@ export async function updateWithConflictCheck<T extends Record<string, unknown>>
         }
 
         // If no rows were affected and we had a conflict check, it's a conflict
-        if (!data && expectedUpdatedAt) {
+        if (!data && typeof expectedVersion === "number") {
             return {
                 success: false,
                 conflict: true,

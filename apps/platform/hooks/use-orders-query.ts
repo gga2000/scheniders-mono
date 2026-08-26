@@ -238,8 +238,8 @@ export function useUpdateOrderMutation() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, updates, expectedUpdatedAt }: { orderId: string; updates: Partial<Order>; expectedUpdatedAt?: string }) => {
-            const data = await orderRepository.update(orderId, updates, expectedUpdatedAt);
+        mutationFn: async ({ orderId, updates, expectedVersion }: { orderId: string; updates: Partial<Order>; expectedVersion?: number }) => {
+            const data = await orderRepository.update(orderId, updates, expectedVersion);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
@@ -306,7 +306,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId,
             last_status_changed_by_name,
             last_status_changed_by_avatar,
-            expectedUpdatedAt,
+            expectedVersion,
         }: {
             orderId: string;
             status: Order["status"];
@@ -314,7 +314,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId?: string;
             last_status_changed_by_name?: string;
             last_status_changed_by_avatar?: string;
-            expectedUpdatedAt?: string;
+            expectedVersion?: number;
         }) => {
             const data = await orderRepository.updateStatus(
                 orderId,
@@ -322,7 +322,7 @@ export function useUpdateStatusMutation() {
                 rejectionReason,
                 last_status_changed_by_name,
                 last_status_changed_by_avatar,
-                expectedUpdatedAt,
+                expectedVersion,
                 rejectionReasonId
             );
             return { orderId, status, data };
@@ -351,7 +351,11 @@ export function useUpdateStatusMutation() {
                                     ? order.rejection_reason
                                     : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
-                            updated_at: new Date().toISOString(),
+                            // Deliberately NOT stamping `updated_at` here: a
+                            // client-clock value would be compared against real
+                            // server timestamps by the realtime dedup and could
+                            // suppress genuine incoming events. onSuccess writes
+                            // the authoritative server row moments later.
                             last_status_changed_by_name,
                             last_status_changed_by_avatar,
                         } as Order)
@@ -461,12 +465,15 @@ export function useDeleteOrderMutation() {
 /**
  * useCreateOrderMutation - Optimistic create
  */
-export function useCreateOrderMutation(tenantId: string | null) {
+export function useCreateOrderMutation() {
     const queryClient = useQueryClient();
+    // The server action derives the tenant from this token — the client no
+    // longer tells the server which tenant to write into.
+    const { session } = useAuth();
 
     return useMutation({
         mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            const result = await createOrderAction(orderData, tenantId);
+            const result = await createOrderAction(orderData, session?.access_token ?? "");
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 throw new Error(result.error || "Failed to create order");

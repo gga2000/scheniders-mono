@@ -20,6 +20,7 @@ const LIST_VIEW_COLUMNS = `
   id,
   created_at,
   updated_at,
+  version,
   original_created_at,
   order_id,
   customer_name,
@@ -123,7 +124,7 @@ export const orderRepository = {
         const { data, error } = await supabase
             .from("v_orders_with_risk")
             .select(LIST_VIEW_COLUMNS)
-            .gt("updated_at", sinceTimestamp)
+            .gte("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
         if (error) throw error;
@@ -232,18 +233,25 @@ export const orderRepository = {
         return data ? normalizeOrder(data as unknown as Order) : null;
     },
 
-    /** Update an order by ID. Verifies the write actually affected a row. Supports conflict detection via expectedUpdatedAt. */
-    async update(id: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<Order> {
+    /**
+     * Update an order by ID. Verifies the write actually affected a row.
+     *
+     * Conflict detection uses `version`, not `updated_at`: `version` is
+     * incremented server-side by the `increment_orders_version` trigger on every
+     * UPDATE, so it always moves. `updated_at` was not maintained on platform
+     * writes, which silently disabled this guard entirely (CON-1).
+     */
+    async update(id: string, updates: Partial<Order>, expectedVersion?: number): Promise<Order> {
         const _t = performance.now();
-        diag.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')} expectedUpdatedAt=${expectedUpdatedAt}`);
-        
+        diag.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')} expectedVersion=${expectedVersion}`);
+
         let query = supabase
             .from("orders")
             .update(updates)
             .eq("id", id);
-            
-        if (expectedUpdatedAt) {
-            query = query.eq("updated_at", expectedUpdatedAt);
+
+        if (typeof expectedVersion === "number") {
+            query = query.eq("version", expectedVersion);
         }
 
         const { data, error } = await query
@@ -251,7 +259,7 @@ export const orderRepository = {
             .maybeSingle();
 
         if (error) {
-            if (expectedUpdatedAt && error.code === 'PGRST116') {
+            if (typeof expectedVersion === "number" && error.code === 'PGRST116') {
                 diag.log(`[Diag:Repo] update CONFLICT orderId=${id} (PGRST116) took=${(performance.now() - _t).toFixed(1)}ms`);
                 throw new Error("CONFLICT_DETECTED");
             }
@@ -260,7 +268,7 @@ export const orderRepository = {
         }
         
         if (!data) {
-            if (expectedUpdatedAt) {
+            if (typeof expectedVersion === "number") {
                 diag.log(`[Diag:Repo] update CONFLICT orderId=${id} took=${(performance.now() - _t).toFixed(1)}ms`);
                 throw new Error("CONFLICT_DETECTED");
             }
@@ -282,7 +290,7 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAt?: string,
+        expectedVersion?: number,
         rejectionReasonId?: string
     ): Promise<Order> {
         const updateData: Partial<Order> = { status };
@@ -311,7 +319,7 @@ export const orderRepository = {
         const MAX_RETRIES = 2;
         let lastError: unknown;
 
-        diag.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status} expectedUpdatedAt=${expectedUpdatedAt}`);
+        diag.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status} expectedVersion=${expectedVersion}`);
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
                 const t0 = performance.now();
@@ -322,8 +330,8 @@ export const orderRepository = {
                     .update(updateData)
                     .eq("id", id);
                     
-                if (expectedUpdatedAt) {
-                    query = query.eq("updated_at", expectedUpdatedAt);
+                if (typeof expectedVersion === "number") {
+                    query = query.eq("version", expectedVersion);
                 }
                 
                 const supabasePromise = query
@@ -338,7 +346,7 @@ export const orderRepository = {
                 const elapsed = Math.round(performance.now() - t0);
 
                 if (error) {
-                    if (expectedUpdatedAt && error.code === 'PGRST116') {
+                    if (typeof expectedVersion === "number" && error.code === 'PGRST116') {
                         diag.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms (PGRST116)`);
                         throw new Error("CONFLICT_DETECTED");
                     }
@@ -346,7 +354,7 @@ export const orderRepository = {
                     throw error;
                 }
                 if (!data) {
-                    if (expectedUpdatedAt) {
+                    if (typeof expectedVersion === "number") {
                         diag.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms`);
                         throw new Error("CONFLICT_DETECTED");
                     }
@@ -358,7 +366,24 @@ export const orderRepository = {
             } catch (err) {
                 lastError = err;
                 diag.warn(`[updateStatus] attempt ${attempt + 1} error for ${id}:`, err instanceof Error ? err.message : err);
-                
+
+                // A CONFLICT after a retry is usually OUR OWN earlier attempt that
+                // committed before its response arrived (network timeout). Re-read
+                // the row: if it already carries the status we were setting, the
+                // write landed and this is a false conflict. Anything else is a
+                // genuine concurrent edit and must still surface.
+                if (err instanceof Error && err.message === "CONFLICT_DETECTED" && attempt > 0) {
+                    const { data: current } = await supabase
+                        .from("orders")
+                        .select("*")
+                        .eq("id", id)
+                        .maybeSingle();
+                    if (current && current.status === status) {
+                        diag.log(`[updateStatus] CONFLICT resolved: our own write had already landed for ${id}`);
+                        return normalizeOrder(current);
+                    }
+                }
+
                 // Do not retry on intentional application errors or data conflicts
                 if (err instanceof Error && (err.message === "CONFLICT_DETECTED" || err.message.includes("row not found"))) {
                     throw err;
@@ -376,7 +401,7 @@ export const orderRepository = {
 
     /**
      * Update order status in bulk. Includes retry mechanism per-order
-     * and conflict detection if expectedUpdatedAts is provided.
+     * and conflict detection if expectedVersions is provided.
      * Keeps track of successful and failed operations.
      */
     async bulkUpdateStatus(
@@ -385,7 +410,7 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAts?: Record<string, string>
+        expectedVersions?: Record<string, number>
     ): Promise<{
         successfulOperations: { id: string, order: Order }[],
         failedOperations: { id: string, error: unknown }[]
@@ -394,7 +419,7 @@ export const orderRepository = {
         
         const results = await Promise.allSettled(
             orderIds.map(async id => {
-                const expectedAt = expectedUpdatedAts ? expectedUpdatedAts[id] : undefined;
+                const expectedAt = expectedVersions ? expectedVersions[id] : undefined;
                 const order = await this.updateStatus(
                     id, 
                     status, 
