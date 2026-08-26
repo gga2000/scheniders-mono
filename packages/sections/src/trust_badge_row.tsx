@@ -137,7 +137,7 @@ const definition: SectionDefinition<Props> = {
     ar: "صف ثابت موزع بالتساوي من شارات الثقة (أيقونة + عنوان).",
   },
   thumbnail: "/sections/trust_badge_row.svg",
-  valid_on: ["home", "category", "product", "cart", "about", "checkout_success"],
+  valid_on: ["home", "category", "product", "cart", "about", "checkout_success", "contact"],
   schema,
   defaultProps,
   render: TrustBadgeRowRender,

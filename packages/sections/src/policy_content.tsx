@@ -160,6 +160,7 @@ const definition: SectionDefinition<Props> = {
     "policy_privacy",
     "policy_terms",
     "about",
+    "contact",
   ],
   schema,
   defaultProps,
