@@ -97,7 +97,7 @@ export function CreateOrderModal({
     initialData,
     getBlacklistEntry,
 }: CreateOrderModalProps) {
-    const { session, tenantId } = useAuth();
+    const { session } = useAuth();
     const [limitWarning, setLimitWarning] = useState<string | null>(null);
     const [limitBlocked, setLimitBlocked] = useState<string | null>(null);
     const [orderType, setOrderType] = useState<OrderType>("delivery");
@@ -134,10 +134,11 @@ export function CreateOrderModal({
 
     // Check plan limits when modal opens
     useEffect(() => {
-        if (open && tenantId) {
+        if (open && session?.access_token) {
             setLimitWarning(null);
             setLimitBlocked(null);
-            checkOrderLimitsAction(tenantId).then((result) => {
+            // The action resolves the tenant from the session token itself.
+            checkOrderLimitsAction(session.access_token).then((result) => {
                 if (!result.allowed) {
                     setLimitBlocked(result.reason ?? "Order limit reached");
                 } else if (result.warning) {
@@ -145,7 +146,7 @@ export function CreateOrderModal({
                 }
             }).catch(() => { /* non-critical */ });
         }
-    }, [open, tenantId]);  
+    }, [open, session?.access_token]);
 
     // Sync formData with initialData only when modal first opens
     useEffect(() => {
@@ -235,9 +236,16 @@ export function CreateOrderModal({
         setIsCheckingId(true);
 
         const timer = setTimeout(async () => {
-            const exists = await checkOrderIdExists(id);
-            setOrderIdStatus(exists ? "exists" : "available");
-            setIsCheckingId(false);
+            try {
+                const exists = await checkOrderIdExists(id);
+                setOrderIdStatus(exists ? "exists" : "available");
+            } catch {
+                // Could not verify (expired session / network) — stay silent
+                // rather than claiming the id is available.
+                setOrderIdStatus("idle");
+            } finally {
+                setIsCheckingId(false);
+            }
         }, 500);
 
         return () => clearTimeout(timer);
@@ -433,7 +441,11 @@ export function CreateOrderModal({
             // Calculate total price from items
             const itemsTotal = formData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const actualDeliveryFee = orderType === "shop" ? 0 : (includeDeliveryFee ? deliveryFee : 0);
-            const finalPrice = Math.max(0, itemsTotal - discount + actualDeliveryFee);
+            // `price` stores the discounted line-item subtotal WITHOUT delivery —
+            // the canonical convention shared with the storefront and every
+            // courier export (see lib/order-money). Delivery rides along in
+            // `delivery_fee`; the courier collects price + delivery_fee.
+            const finalPrice = Math.max(0, itemsTotal - discount);
 
 
             const result = await onCreate({
