@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { WaseetSubmitSummary } from "@/types/waseet";
+import { MAX_WASEET_ORDERS_PER_REQUEST } from "@/lib/order-api-schemas";
 
 /**
  * Client-side hook for Al-Waseet operations.
@@ -13,6 +14,7 @@ export function useWaseet() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [lastResults, setLastResults] = useState<WaseetSubmitSummary | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
     /**
      * Submit selected orders to Al-Waseet delivery company.
@@ -31,33 +33,60 @@ export function useWaseet() {
         setIsSubmitting(true);
         setError(null);
         setLastResults(null);
+        setProgress({ done: 0, total: orderIds.length });
+
+        // Al-Waseet throttles to ~30 calls / 30s, so a request may only carry one
+        // window's worth. Larger selections are sent as sequential chunks: each
+        // request completes well inside the function timeout, and per-order results
+        // are accumulated so the merchant sees exactly what shipped. Re-submitting
+        // is safe — the route skips orders that already have a waseet_qr_id.
+        const aggregate: WaseetSubmitSummary = { submitted: 0, failed: 0, results: [] };
 
         try {
-            const response = await fetch("/api/waseet/submit-orders", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({ orderIds }),
-            });
+            for (let i = 0; i < orderIds.length; i += MAX_WASEET_ORDERS_PER_REQUEST) {
+                const chunk = orderIds.slice(i, i + MAX_WASEET_ORDERS_PER_REQUEST);
 
-            const result = await response.json();
+                const response = await fetch("/api/waseet/submit-orders", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ orderIds: chunk }),
+                });
 
-            if (!result.success) {
-                setError(result.error || "Submission failed");
-                return null;
+                const result = await response.json();
+
+                if (!result.success) {
+                    // Keep whatever already shipped rather than discarding it.
+                    setError(result.error || "Submission failed");
+                    if (aggregate.results.length > 0) {
+                        setLastResults(aggregate);
+                        return aggregate;
+                    }
+                    return null;
+                }
+
+                const summary: WaseetSubmitSummary = result.data;
+                aggregate.submitted += summary.submitted;
+                aggregate.failed += summary.failed;
+                aggregate.results.push(...summary.results);
+                setProgress({ done: Math.min(i + chunk.length, orderIds.length), total: orderIds.length });
             }
 
-            const summary: WaseetSubmitSummary = result.data;
-            setLastResults(summary);
-            return summary;
+            setLastResults(aggregate);
+            return aggregate;
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Network error";
             setError(msg);
+            if (aggregate.results.length > 0) {
+                setLastResults(aggregate);
+                return aggregate;
+            }
             return null;
         } finally {
             setIsSubmitting(false);
+            setProgress(null);
         }
     }, [session]);
 
@@ -176,6 +205,8 @@ export function useWaseet() {
         // Submit
         submitToWaseet,
         isSubmitting,
+        /** {done,total} while a multi-chunk submission is in flight, else null. */
+        submitProgress: progress,
         lastResults,
         error,
         // Config
