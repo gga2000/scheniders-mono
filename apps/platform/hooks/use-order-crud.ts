@@ -19,6 +19,7 @@ import { cleanPhoneForExport } from "@/lib/export-utils";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { splitOrderAction } from "@/app/actions/orders";
+import { MAX_ORDER_IDS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "sonner";
 import {
@@ -68,7 +69,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // Mutations
     const updateStatusMutation = useUpdateStatusMutation();
     const updateOrderMutation = useUpdateOrderMutation();
-    const createOrderMutation = useCreateOrderMutation(tenantId);
+    const createOrderMutation = useCreateOrderMutation();
 
     // Undo stack
     const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -176,6 +177,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
                     const changedByAvatar = currentProfile?.avatar_url;
 
+                    // Read the concurrency token at FIRE time, not at click time:
+                    // `previousOrder` was snapshotted before the 300ms debounce, so
+                    // a preceding write by this same user may already have advanced
+                    // the version. Using the stale snapshot produced a false
+                    // "modified elsewhere" conflict against ourselves.
+                    const freshOrder = queryClient
+                        .getQueryData<Order[]>(orderKeys.lists())
+                        ?.find(o => o.id === orderId);
+
                     await updateStatusMutation.mutateAsync({
                         orderId,
                         status,
@@ -183,7 +193,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         rejectionReasonId: reasonId,
                         last_status_changed_by_name: changedBy,
                         last_status_changed_by_avatar: changedByAvatar || undefined,
-                        expectedUpdatedAt: previousOrder?.updated_at,
+                        expectedVersion: freshOrder?.version ?? previousOrder?.version,
                     });
                     diag.log(`[Diag:StatusUpdate] MUTATION_OK orderId=${orderId} seq=${mySeq} took=${(performance.now() - _tMut).toFixed(1)}ms`);
 
@@ -272,7 +282,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         });
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>, expectedUpdatedAt?: string, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>, expectedVersion?: number, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
         const _tUpdate = performance.now();
         diag.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')} retry=${retryCount}`);
         try {
@@ -325,13 +335,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 auditChanges = changes;
             }
 
-            // Use passed expectedUpdatedAt or fallback to cache if not provided
-            const conflictCheckTimestamp = expectedUpdatedAt || previousOrder?.updated_at;
+            // Use the caller's expected version, else the one we hold in cache.
+            const conflictCheckVersion = expectedVersion ?? previousOrder?.version;
 
             await updateOrderMutation.mutateAsync({
                 orderId,
                 updates: cleanUpdates,
-                expectedUpdatedAt: conflictCheckTimestamp
+                expectedVersion: conflictCheckVersion
             });
 
             // Record audit trail AFTER successful update (not before!)
@@ -572,7 +582,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const originalOrder = orders.find(o => o.id === originalOrderId);
 
-            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems, tenantId);
+            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems, session?.access_token ?? "");
 
             if (result.success) {
                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -797,10 +807,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const previousOrders = orders.filter(o => orderIds.includes(o.id));
             const currentStatuses: { [key: string]: Order["status"] } = {};
-            const expectedUpdatedAts: { [key: string]: string } = {};
+            const expectedVersions: { [key: string]: number } = {};
             previousOrders.forEach(o => {
                 currentStatuses[o.id] = o.status;
-                if (o.updated_at) expectedUpdatedAts[o.id] = o.updated_at;
+                if (typeof o.version === "number") expectedVersions[o.id] = o.version;
             });
 
             // Get current user information for attribution
@@ -815,7 +825,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 undefined, // rejectionReason
                 changedBy,
                 changedByAvatar || undefined,
-                expectedUpdatedAts
+                expectedVersions
             );
 
             if (successfulOperations.length === 0 && failedOperations.length > 0) {
@@ -942,25 +952,40 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             }
 
             const t1 = performance.now();
-            // Use server-side API route with service role to bypass RLS
-            const res = await fetch("/api/orders/delete", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({ ids: uniqueOrderIds }),
-            });
+            // The delete route caps a single request at MAX_ORDER_IDS_PER_REQUEST
+            // ids, so "select all" over a large book is sent in chunks. Each chunk
+            // is independent: a later failure does not undo earlier deletions, and
+            // the caller still receives the true deleted set.
+            const deletedIds = new Set<string>();
+            let chunkError: string | null = null;
 
-            const result = await res.json();
+            for (let i = 0; i < uniqueOrderIds.length; i += MAX_ORDER_IDS_PER_REQUEST) {
+                const chunk = uniqueOrderIds.slice(i, i + MAX_ORDER_IDS_PER_REQUEST);
+                const res = await fetch("/api/orders/delete", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ ids: chunk }),
+                });
+
+                const result = await res.json();
+                if (!result.success) {
+                    chunkError = result.error || "Failed to delete orders";
+                    break;
+                }
+                for (const id of (result.deletedIds || []) as string[]) deletedIds.add(id);
+            }
+
             const t2 = performance.now();
             console.log(`[Perf] Frontend fetch to /api/orders/delete took: ${(t2 - t1).toFixed(2)}ms`);
 
-            if (!result.success) {
-                throw new Error(result.error || "Failed to delete orders");
+            // Only fail outright if nothing at all was deleted; otherwise report
+            // the partial result so the UI can show what actually happened.
+            if (chunkError && deletedIds.size === 0) {
+                throw new Error(chunkError);
             }
-
-            const deletedIds = new Set(result.deletedIds || []);
 
             if (deletedIds.size === 0) {
                 throw new Error("No orders were deleted.");
@@ -1216,73 +1241,32 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: false, error: "One or both orders not found" };
             }
 
-            const combinedItems = [...(keepOrder.items || [])];
-            for (const archiveItem of archiveOrder.items || []) {
-                const existingItem = combinedItems.find((i) => i.name === archiveItem.name);
-                if (existingItem) {
-                    existingItem.quantity = (existingItem.quantity || 1) + (archiveItem.quantity || 1);
-                } else {
-                    combinedItems.push(archiveItem);
-                }
-            }
-
-            const combinedPrice = (Number(keepOrder.price) || 0) + (Number(archiveOrder.price) || 0);
-            const combinedNotes = [keepOrder.notes, archiveOrder.notes].filter(Boolean).join(' | ');
-
-            const { error: updateError } = await supabase
-                .from("orders")
-                .update({
-                    items: combinedItems,
-                    price: combinedPrice,
-                    notes: combinedNotes || keepOrder.notes,
-                })
-                .eq("id", keepOrderId);
-
-            if (updateError) throw updateError;
-
-            const { error: archiveError } = await supabase
-                .from("orders")
-                .update({
-                    is_archived: true,
-                    notes: `[مدمج مع #${keepOrder.order_id}] ${archiveOrder.notes || ''} `.trim(),
-                    status: "rejected" as Order["status"],
-                    rejection_reason: "duplicate_merged",
-                })
-                .eq("id", archiveOrderId);
-
-            if (archiveError) throw archiveError;
-
-            // Record history for both orders
+            // Single atomic RPC: combining items/money, archiving the duplicate
+            // and writing both history rows now happen in ONE transaction. The
+            // previous three sequential client writes could leave the kept order
+            // holding the combined revenue while the duplicate stayed active.
             const { profile: currentProfile, user: currentUser } = authRef.current;
             const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
 
-            await supabase
-                .from("order_status_history")
-                .insert([
-                    {
-                        order_id: keepOrderId,
-                        changed_by: changedBy,
-                        from_status: keepOrder.status,
-                        to_status: keepOrder.status,
-                        notes: `Merged with #${archiveOrder.order_id}`,
-                        tenant_id: tenantId,
-                    },
-                    {
-                        order_id: archiveOrderId,
-                        changed_by: changedBy,
-                        from_status: archiveOrder.status,
-                        to_status: "rejected",
-                        notes: `Merged into #${keepOrder.order_id}`,
-                        tenant_id: tenantId,
-                    }
-                ]);
+            const { data: mergedOrder, error: mergeError } = await supabase
+                .rpc("merge_orders_atomic", {
+                    _keep_order_id: keepOrderId,
+                    _archive_order_id: archiveOrderId,
+                    _tenant_id: tenantId,
+                    _changed_by: changedBy,
+                });
+
+            if (mergeError) throw mergeError;
+
+            const merged = mergedOrder as Order | null;
 
             // Update React Query cache
             optimisticUpdate((prev) =>
                 prev
                     .map((order) => {
                         if (order.id === keepOrderId) {
-                            return { ...order, items: combinedItems, price: combinedPrice, notes: combinedNotes || order.notes };
+                            // Prefer the authoritative row the RPC returned.
+                            return merged ? { ...order, ...merged } : order;
                         }
                         return order;
                     })
