@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, createSupabaseServiceClient } from '@/lib/supabase-server';
+import { orderIdsBodySchema, toOrderUuids } from '@/lib/order-api-schemas';
+
+/** Roles allowed to delete orders. Anything else — including `viewer` and a
+ *  user with no profile row — is denied. */
+const DELETE_ALLOWED_ROLES = ['admin', 'super_admin', 'employee'];
 
 /**
  * POST /api/orders/delete
@@ -38,24 +43,51 @@ export async function POST(request: NextRequest) {
         const t3 = performance.now();
         const { data: profile } = await supabaseAdmin
             .from('user_profiles')
-            .select('role')
+            .select('role, current_tenant_id, is_active')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
         const t4 = performance.now();
         console.log(`[Perf] Admin role check took: ${(t4 - t3).toFixed(2)}ms`);
 
-        if (profile?.role === 'viewer') {
+        // Deactivating a user does not revoke their session, so check it here.
+        if (profile?.is_active === false) {
             return NextResponse.json(
-                { success: false, error: 'Viewers cannot delete orders' },
+                { success: false, error: 'Account deactivated' },
                 { status: 403 }
             );
         }
 
-        const { ids } = await request.json();
-
-        if (!Array.isArray(ids) || ids.length === 0) {
+        // Positive allow-list: a missing profile (role === undefined) must not
+        // fall through the gate the way a `!== 'viewer'` check would.
+        if (!DELETE_ALLOWED_ROLES.includes(profile?.role ?? '')) {
             return NextResponse.json(
-                { success: false, error: 'No order IDs provided' },
+                { success: false, error: 'You do not have permission to delete orders' },
+                { status: 403 }
+            );
+        }
+
+        // Tenant comes from the caller's session, never from the request body.
+        const tenantId = profile?.current_tenant_id as string | undefined;
+        if (!tenantId) {
+            return NextResponse.json(
+                { success: false, error: 'No active tenant' },
+                { status: 400 }
+            );
+        }
+
+        const parsedBody = orderIdsBodySchema.safeParse(await request.json());
+        if (!parsedBody.success) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid request: `ids` must be 1-500 order ids' },
+                { status: 400 }
+            );
+        }
+        // Narrow to real UUIDs: optimistic `temp-*` rows have no server row and
+        // must not fail the rest of the batch.
+        const ids = toOrderUuids(parsedBody.data.ids);
+        if (ids.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'No valid order ids provided' },
                 { status: 400 }
             );
         }
@@ -65,7 +97,8 @@ export async function POST(request: NextRequest) {
         const { data: orderSnapshots } = await supabaseAdmin
             .from('orders')
             .select('id, order_id, customer_name, phone, status, price, items')
-            .in('id', ids);
+            .in('id', ids)
+            .eq('tenant_id', tenantId);
         const t6 = performance.now();
         console.log(`[Perf] Snapshot fetch took: ${(t6 - t5).toFixed(2)}ms`);
 
@@ -80,7 +113,8 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin
             .from('orders')
             .update({ original_order_id: null })
-            .in('original_order_id', ids);
+            .in('original_order_id', ids)
+            .eq('tenant_id', tenantId);
         const t10 = performance.now();
         console.log(`[Perf] FK unlink update took: ${(t10 - t9).toFixed(2)}ms`);
 
@@ -90,6 +124,7 @@ export async function POST(request: NextRequest) {
             .from('orders')
             .update({ deleted_at: new Date().toISOString() })
             .in('id', ids)
+            .eq('tenant_id', tenantId)
             .select('id');
         const t12 = performance.now();
         console.log(`[Perf] Actual delete took: ${(t12 - t11).toFixed(2)}ms`);
