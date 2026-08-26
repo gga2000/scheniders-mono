@@ -321,10 +321,12 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
         }
 
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const { success, error } = await toggleUserOverrideAction(
-                user.id, 
-                permission, 
-                existing ? null : newValue
+                user.id,
+                permission,
+                existing ? null : newValue,
+                session?.access_token ?? "",
             );
             
             if (!success) {
@@ -682,7 +684,8 @@ export function TeamSettings() {
         }
 
         try {
-            const { success, error } = await toggleRolePermissionAction(role, permission, checked);
+            const { data: { session } } = await supabase.auth.getSession();
+            const { success, error } = await toggleRolePermissionAction(role, permission, checked, session?.access_token ?? "");
             if (!success) {
                 toast.error(error || "Failed to update role permission");
                 fetchDbPermissions(); // Sync back on error
