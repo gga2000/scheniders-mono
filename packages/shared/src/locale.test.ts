@@ -35,9 +35,19 @@ describe("resolveVisitorLocale (EC13)", () => {
     ).toBe("ar"); // falls through to default
   });
 
-  it("falls back to Accept-Language when no cookie", () => {
+  it("store default beats Accept-Language (merchant choice wins)", () => {
     expect(
       resolveVisitorLocale({ ...base, acceptLanguage: "en-US,en;q=0.9" }),
+    ).toBe("ar");
+  });
+
+  it("falls back to Accept-Language when the store has no usable default", () => {
+    expect(
+      resolveVisitorLocale({
+        enabledLocales: ["ar", "en"] as const,
+        defaultLocale: undefined,
+        acceptLanguage: "en-US,en;q=0.9",
+      }),
     ).toBe("en");
   });
 

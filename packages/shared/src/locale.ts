@@ -42,8 +42,12 @@ export function parseAcceptLanguage(header: string | null | undefined): string[]
  * Resolve the locale to render for a visitor, constrained to the store's
  * enabled locales. Priority:
  *   1. explicit cookie choice (the switcher)
- *   2. Accept-Language preference (first enabled match)
- *   3. store default_locale
+ *   2. store default_locale — the merchant's configured default wins over
+ *      the browser heuristic: an Iraqi store set to Arabic must open in
+ *      Arabic for everyone, including en-configured browsers. Visitors who
+ *      want another enabled locale pick it once via the switcher (cookie).
+ *   3. Accept-Language preference (first enabled match) — only reached
+ *      when the store has no usable default_locale
  *   4. first enabled locale (else "ar")
  */
 export function resolveVisitorLocale(opts: {
@@ -62,14 +66,14 @@ export function resolveVisitorLocale(opts: {
   // 1. explicit cookie choice
   if (opts.cookieLocale && isEnabled(opts.cookieLocale)) return opts.cookieLocale;
 
-  // 2. Accept-Language
-  for (const lang of parseAcceptLanguage(opts.acceptLanguage)) {
-    if (isEnabled(lang)) return lang;
-  }
-
-  // 3. store default
+  // 2. store default — the merchant's choice outranks the browser heuristic
   if (opts.defaultLocale && isEnabled(opts.defaultLocale)) {
     return opts.defaultLocale;
+  }
+
+  // 3. Accept-Language (stores without a configured default only)
+  for (const lang of parseAcceptLanguage(opts.acceptLanguage)) {
+    if (isEnabled(lang)) return lang;
   }
 
   // 4. first enabled, else Arabic (the Iraq-market default)
