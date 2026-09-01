@@ -1,0 +1,29 @@
+-- PERF-1 Stage 2 / Prerequisite B3 — duplicate flag + previous order, per card.
+--
+-- WHY
+-- Each order card derives two things by scanning the whole in-memory array:
+--   * `hasDuplicates(order.id)` -> the duplicate warning ring on the card
+--   * `previousOrder`           -> the "merge with previous" affordance
+-- Both silently degrade once the list fetch is windowed: a duplicate sitting
+-- outside the loaded window stops being flagged, on the screen whose job is
+-- catching duplicates.
+--
+-- FAITHFUL PORT of getDuplicatesForOrder (now lib/order-duplicates.ts
+-- findOrderDuplicates): a candidate counts as a duplicate when it is a DIFFERENT
+-- order, not a return, shares the normalized phone, and either
+--   * falls within +/- 72 HOURS of the target's created_at, or
+--   * falls within +/- 7 DAYS and shares an item name, where "shares" means
+--     either name contains the other (case-insensitive, bidirectional).
+-- `previous_order` mirrors findPreviousOrderForCustomer: the most recent OTHER
+-- non-return order for the same phone (which may be NEWER than the target — the
+-- client sorts desc and takes the first that is not itself), null for returns.
+--
+-- NOTE: superseded twice below (a failed optimisation and its revert). The
+-- effective body is the one in 20260901222619.
+--
+-- DOWN MIGRATION:
+--   DROP FUNCTION IF EXISTS public.get_order_duplicate_flags(uuid, uuid[]);
+--
+-- Body: see 20260901222619_get_order_duplicate_flags_revert_to_combined.sql,
+-- which restores exactly this definition after the optimisation was measured
+-- and rejected.

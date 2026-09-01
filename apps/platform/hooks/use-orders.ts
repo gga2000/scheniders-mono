@@ -153,7 +153,6 @@ export function useOrders() {
         createReplacementOrder: crudHook.createReplacementOrder,
 
         // Detection & history
-        checkDuplicateOrder: auxiliaryHook.checkDuplicateOrder,
         getDuplicatesForOrder: auxiliaryHook.getDuplicatesForOrder,
         hasDuplicates: auxiliaryHook.hasDuplicates,
         getCustomerHistory: auxiliaryHook.getCustomerHistory,
