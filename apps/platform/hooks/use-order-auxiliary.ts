@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } fr
 import { supabase, type Order, type RejectionReason, type MessageTemplate } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useAuth } from "@/components/auth/auth-provider";
+import { computeCustomerOrderCounts } from "@/lib/order-duplicates";
 
 // =============================================
 // ORDER AUXILIARY HOOK
@@ -117,35 +118,14 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
-    // Precomputed map for O(1) lookups
-    const customerOrderCountsMap = useMemo(() => {
-        const counts = new Map<string, number>();
-        const processedBaseIds = new Set<string>();
-
-        const getBaseId = (orderId: string | undefined | null): string => {
-            if (!orderId) return '';
-            const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-            if (lfMatch) return lfMatch[1];
-            if (orderId.startsWith('DLV-')) return orderId.replace('DLV-', '');
-            const digits = orderId.match(/\d+/);
-            return digits ? digits[0] : orderId;
-        };
-
-        orders.forEach((order) => {
-            if (order.is_archived || order.is_return) return;
-
-            const normalizedPhone = normalizePhoneForSearch(order.phone);
-            const baseId = getBaseId(order.order_id);
-            const orderDedupKey = `${normalizedPhone}-${baseId}`;
-
-            if (!processedBaseIds.has(orderDedupKey)) {
-                processedBaseIds.add(orderDedupKey);
-                counts.set(normalizedPhone, (counts.get(normalizedPhone) || 0) + 1);
-            }
-        });
-
-        return counts;
-    }, [orders]);
+    // Precomputed map for O(1) lookups. The algorithm lives in
+    // lib/order-duplicates.ts as a pure function so it can be unit-tested and
+    // proven equivalent to the SQL side (public.get_customer_order_counts),
+    // which takes over once the order fetch is windowed.
+    const customerOrderCountsMap = useMemo(
+        () => computeCustomerOrderCounts(orders),
+        [orders],
+    );
 
     const getCustomerOrderCount = useCallback((phone: string, _currentOrderId?: string): number => {
         const normalizedPhone = normalizePhoneForSearch(phone);
