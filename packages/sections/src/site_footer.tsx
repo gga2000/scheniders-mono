@@ -17,6 +17,7 @@ import { cn } from "./helpers/utils";
 import { BrandMark, MaterialIcon, TrustPill } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
+import { resolveTenantPhone } from "./helpers/whatsapp";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
@@ -52,6 +53,8 @@ const newsletterSchema = z.object({
   copy_i18n: i18nStringOptional,
   placeholder_i18n: i18nStringOptional,
   button_i18n: i18nStringOptional,
+  /** Success line — the place to surface a promised coupon code. */
+  success_i18n: i18nStringOptional,
 });
 
 const schema = z.object({
@@ -166,11 +169,17 @@ function InfoPanelNewsletterForm({
   copy,
   placeholder,
   buttonLabel,
+  successMessage,
+  tenantId,
 }: {
   locale: "ar" | "en" | "ku";
   copy: string | null;
   placeholder: string;
   buttonLabel: string;
+  /** Custom success line (e.g. carrying a coupon code); falls back to the
+   *  generic localized confirmation. */
+  successMessage: string | null;
+  tenantId: string;
 }) {
   const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
     "idle",
@@ -197,7 +206,7 @@ function InfoPanelNewsletterForm({
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), locale }),
+        body: JSON.stringify({ tenant_id: tenantId, email: email.trim(), locale }),
       });
       setStatus(res.ok ? "ok" : "error");
       if (res.ok) {
@@ -279,8 +288,12 @@ function InfoPanelNewsletterForm({
         </button>
       </form>
       {status === "ok" && (
-        <p className="mt-2 font-label text-sm font-bold">
-          {locale !== "en" ? "تم! تحقق من بريدك." : "You're in — check your inbox."}
+        <p
+          className="mt-2 font-label text-sm font-bold"
+          data-i18n-field="newsletter.success_i18n"
+        >
+          {successMessage ??
+            (locale !== "en" ? "تم! تحقق من بريدك." : "You're in — check your inbox.")}
         </p>
       )}
       {status === "error" && (
@@ -423,22 +436,28 @@ function SiteFooterRender({
               </ul>
             </div>
 
-            {/* Contact + legal — small muted lines */}
-            {(props.contact?.phone ||
-              addressLines.length > 0 ||
-              props.legal?.company_name ||
-              props.legal?.business_license) && (
+            {/* Contact + legal — small muted lines. The phone resolves
+                through the canonical tenant contact helper so a merchant
+                updating their number in store settings is never shadowed
+                by a stale per-section override. */}
+            {(() => {
+              const phone = resolveTenantPhone(ctx.tenant, props.contact?.phone);
+              return (
+                (phone ||
+                  addressLines.length > 0 ||
+                  props.legal?.company_name ||
+                  props.legal?.business_license) && (
               <div className="space-y-2 font-body text-sm opacity-70">
-                {props.contact?.phone && (
+                {phone && (
                   <p>
                     <span className="font-bold">
                       {t ? "رقم الهاتف:" : "Phone:"}
                     </span>{" "}
                     <a
-                      href={`tel:${props.contact.phone}`}
+                      href={`tel:${phone}`}
                       className="underline-offset-4 hover:underline"
                     >
-                      {props.contact.phone}
+                      {phone}
                     </a>
                   </p>
                 )}
@@ -471,7 +490,9 @@ function SiteFooterRender({
                   </p>
                 )}
               </div>
-            )}
+                )
+              );
+            })()}
           </div>
 
           {/* Newsletter email capture — above the rights line */}
@@ -497,6 +518,12 @@ function SiteFooterRender({
                     ? "اشترك"
                     : "Subscribe"
               }
+              successMessage={
+                newsletter.success_i18n
+                  ? resolveI18n(newsletter.success_i18n, locale) || null
+                  : null
+              }
+              tenantId={ctx.tenant.id}
             />
           )}
 

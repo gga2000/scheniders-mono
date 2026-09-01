@@ -297,6 +297,13 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                     en: "Enter your email here",
                 },
                 button_i18n: { ar: "اشترك", en: "Subscribe" },
+                // Delivers the promised coupon — the WELCOME15 discount code
+                // exists in the store's commerce config, so the 15% claim is
+                // backed by a real redemption path at checkout.
+                success_i18n: {
+                    ar: "تم الاشتراك! كود الخصم مالتك: WELCOME15",
+                    en: "You're in! Your discount code: WELCOME15",
+                },
             },
         }),
         promo_bar: s("countdown_announcement", {
@@ -347,7 +354,10 @@ export const schenidersSignatureTemplate: StoreTemplate = {
             }),
             s("product_grid", {
                 mode: "auto",
-                query: { sort: "newest", limit: 8 },
+                // "bestsellers" ranks by the merchant's display_order — the
+                // heading claims best sellers, so the sort must not be
+                // "newest" (heading/data truth mismatch).
+                query: { sort: "bestsellers", limit: 8 },
                 card_style: "price_pill",
                 eyebrow_i18n: { ar: "الأكثر مبيعا", en: "Best sellers" },
                 heading_i18n: { ar: "اكثر العطور مبيعاً", en: "Our best-selling perfumes" },
@@ -468,9 +478,11 @@ export const schenidersSignatureTemplate: StoreTemplate = {
         ],
         product: [
             s("pdp_direct_order", {
+                // {count} resolves to the product's REAL approved-review
+                // count at render time; the chip hides when there are none.
                 rating_chip_i18n: {
-                    ar: "أكثر من 134 تقييم إيجابي",
-                    en: "Over 134 positive reviews",
+                    ar: "{count} تقييم من زبائننا",
+                    en: "{count} customer reviews",
                 },
                 stock_urgency_i18n: {
                     ar: "هذا العطر عليه طلب كبير ✨ سارع بالطلب — باقي {count} قطع فقط",

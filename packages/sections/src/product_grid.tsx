@@ -58,9 +58,10 @@ const schema = z.object({
   /** "See all" pill under the header (price_pill only) — hidden without a href. */
   see_all_label_i18n: i18nStringOptional,
   see_all_href: z.string().optional(),
-  /** Decorative static 5-star row under each product name (price_pill only).
-   *  Off by default — there is no per-product rating field on `Product`, so
-   *  the row is purely visual and must be an explicit merchant opt-in. */
+  /** Star row under each product name (price_pill only). Off by default.
+   *  When on, it renders the product's REAL approved-review average rating
+   *  plus a small "(N)" count — and only for products that actually have
+   *  reviews (products without `review_count` show no stars at all). */
   show_stars: z.boolean().optional(),
 });
 
@@ -133,24 +134,36 @@ function selectProducts(props: Props, ctx: SectionRenderContext): Product[] {
 
 const FIVE_STARS = [0, 1, 2, 3, 4] as const;
 
-/** Decorative static 5-star row (no rating data exists on `Product`). */
-function StarRow() {
+/** Real per-product rating row: stars filled to the rounded average of the
+ *  product's approved reviews (whole-star rounding, matching the
+ *  product_reviews section) + a small "(N)" review count. Callers only
+ *  render it when `review_count > 0` — never as decoration. */
+function StarRow({ rating, count }: { rating: number; count: number }) {
+  const filled = Math.min(5, Math.max(0, Math.round(rating)));
   return (
     <div
-      aria-hidden="true"
+      aria-label={`${rating.toFixed(1)} / 5`}
       className="mt-1 flex items-center justify-center gap-0.5"
       style={{ color: "var(--bk-ink, #1a1a1a)" }}
     >
       {FIVE_STARS.map((i) => (
         <svg
           key={i}
+          aria-hidden="true"
           viewBox="0 0 20 20"
           fill="currentColor"
           className="h-3 w-3"
+          style={i >= filled ? { opacity: 0.25 } : undefined}
         >
           <path d="M10 1.7l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.32 5.06 16.91 6 11.41 2 7.51l5.53-.8L10 1.7z" />
         </svg>
       ))}
+      <span
+        className="ms-0.5 text-[11px] font-medium"
+        style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.55))" }}
+      >
+        ({count})
+      </span>
     </div>
   );
 }
@@ -257,7 +270,12 @@ function PricePillCard({
       >
         {product.name}
       </h3>
-      {showStars && <StarRow />}
+      {showStars && (product.review_count ?? 0) > 0 && (
+        <StarRow
+          rating={product.avg_rating ?? 0}
+          count={product.review_count ?? 0}
+        />
+      )}
     </StoreLink>
   );
 }

@@ -50,9 +50,11 @@ import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
 const schema = z.object({
-  /** Optional social-proof chip above the title (e.g. "أكثر من ١٣٤ تقييم
-   *  إيجابي"). Renders with a static 5-star row only when set — never
-   *  fabricates a default review count. */
+  /** Optional social-proof chip above the title. A `{count}` token in the
+   *  text is replaced with the product's REAL approved-review count, and the
+   *  star row beside it renders the real average rating. The chip only
+   *  renders when the product has at least one approved review — it never
+   *  fabricates a claim. */
   rating_chip_i18n: i18nStringOptional,
   show_price_row: z.boolean(),
   /** Step ٠١ heading. */
@@ -75,6 +77,18 @@ const schema = z.object({
    *  order card on large screens (the classic two-column funnel PDP).
    *  Off by default so existing single-column stacks are unchanged. */
   show_gallery: z.boolean().optional(),
+  /** Trust chips under the card. Merchant-editable — "original products" /
+   *  "quality guarantee" are business claims the section must not force on
+   *  every tenant. Icon is a Material Symbols name. */
+  trust_chips: z
+    .array(
+      z.object({
+        icon: z.string(),
+        label_i18n: i18nStringSchema,
+      }),
+    )
+    .max(6)
+    .optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -102,6 +116,24 @@ const defaultProps: Props = {
   },
   show_description: true,
   max_qty: 10,
+  trust_chips: [
+    {
+      icon: "payments",
+      label_i18n: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
+    },
+    {
+      icon: "verified",
+      label_i18n: { en: "Original products", ar: "منتجات أصلية" },
+    },
+    {
+      icon: "workspace_premium",
+      label_i18n: { en: "Quality guarantee", ar: "ضمان الجودة" },
+    },
+    {
+      icon: "support_agent",
+      label_i18n: { en: "Customer service", ar: "خدمة عملاء" },
+    },
+  ],
 };
 
 /** A collision-free idempotency key for one order submission — same
@@ -222,7 +254,18 @@ function PdpDirectOrderRender({
   });
   const total = subtotal + delivery;
 
-  const ratingChip = resolveI18n(props.rating_chip_i18n, locale);
+  // Honest social proof: the chip renders ONLY when the product actually has
+  // approved reviews. `{count}` in the template becomes the real count, and
+  // the stars reflect the real average (rounded to the nearest whole star,
+  // matching how product_reviews renders its summary stars).
+  const reviewCount = product.review_count ?? 0;
+  const avgRating = product.avg_rating ?? 0;
+  const ratingChipRaw = resolveI18n(props.rating_chip_i18n, locale);
+  const ratingChip =
+    ratingChipRaw && reviewCount > 0
+      ? ratingChipRaw.replace("{count}", String(reviewCount))
+      : null;
+  const filledStars = Math.min(5, Math.max(0, Math.round(avgRating)));
   const formTitle = resolveI18n(props.form_title_i18n, locale);
   const qtyTitle = resolveI18n(props.qty_title_i18n, locale);
   const paymentTitle = resolveI18n(props.payment_title_i18n, locale);
@@ -445,12 +488,10 @@ function PdpDirectOrderRender({
     </span>
   );
 
-  const trustChips = [
-    { icon: "payments", en: "Cash on delivery", ar: "الدفع عند الاستلام" },
-    { icon: "verified", en: "Original products", ar: "منتجات أصلية" },
-    { icon: "workspace_premium", en: "Quality guarantee", ar: "ضمان الجودة" },
-    { icon: "support_agent", en: "Customer service", ar: "خدمة عملاء" },
-  ] as const;
+  // Merchant-editable via props ("original products" / "quality guarantee"
+  // are business claims a section must not force on every tenant); the
+  // defaults carry the classic funnel quartet.
+  const trustChips = props.trust_chips ?? [];
 
   const withGallery = !!props.show_gallery && !!product.image_url;
 
@@ -500,11 +541,17 @@ function PdpDirectOrderRender({
                 border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.14))",
               }}
             >
-              <span
-                aria-hidden="true"
-                style={{ color: "var(--bk-accent, #ffd84a)" }}
-              >
-                ★★★★★
+              {/* Real average-rating stars (filled = rounded avg_rating),
+                  mirroring product_reviews' whole-star rounding. */}
+              <span aria-hidden="true">
+                <span style={{ color: "var(--bk-accent, #ffd84a)" }}>
+                  {"★".repeat(filledStars)}
+                </span>
+                {filledStars < 5 && (
+                  <span style={{ color: "rgb(26 26 26 / 0.25)" }}>
+                    {"★".repeat(5 - filledStars)}
+                  </span>
+                )}
               </span>
               {ratingChip}
             </div>
@@ -841,24 +888,29 @@ function PdpDirectOrderRender({
         )}
 
         {/* ── Trust chips ── */}
-        <div className="flex flex-wrap items-start justify-center gap-bk-md border-t border-bk-divider pt-bk-md">
-          {trustChips.map((c) => (
-            <div
-              key={c.icon}
-              className="flex w-20 flex-col items-center gap-1 text-center"
-            >
-              <span
-                aria-hidden="true"
-                style={{ color: "var(--bk-primary, #ff5a8a)" }}
+        {trustChips.length > 0 && (
+          <div className="flex flex-wrap items-start justify-center gap-bk-md border-t border-bk-divider pt-bk-md">
+            {trustChips.map((c, i) => (
+              <div
+                key={`${c.icon}-${i}`}
+                className="flex w-20 flex-col items-center gap-1 text-center"
               >
-                <MaterialIcon name={c.icon} className="text-2xl" />
-              </span>
-              <span className="font-label font-bold text-[11px] leading-tight text-bk-ink-soft">
-                {t ? c.ar : c.en}
-              </span>
-            </div>
-          ))}
-        </div>
+                <span
+                  aria-hidden="true"
+                  style={{ color: "var(--bk-primary, #ff5a8a)" }}
+                >
+                  <MaterialIcon name={c.icon} className="text-2xl" />
+                </span>
+                <span
+                  className="font-label font-bold text-[11px] leading-tight text-bk-ink-soft"
+                  data-i18n-field="trust_chips.label_i18n"
+                >
+                  {resolveI18n(c.label_i18n, locale)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         </BentoCard>
       </div>
     </section>

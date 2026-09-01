@@ -27,6 +27,57 @@ function publicCache<R>(
   )();
 }
 
+/**
+ * Honest review stats: aggregate APPROVED reviews for a batch of products in
+ * ONE extra indexed query (no N+1) and merge `review_count` + `avg_rating`
+ * onto each product. Runs on the anon client — the `reviews_public_read` RLS
+ * policy already confines it to approved reviews of live tenants — and always
+ * inside `publicCache`, so the aggregate shares the catalog's 60s TTL.
+ * PostgREST aggregate functions are not enabled on Supabase by default, so we
+ * fetch the (product_id, rating) pairs (served by the partial index
+ * `idx_product_reviews_product_approved`) and group in JS. On any error the
+ * products pass through without stats — sections hide rating UI when absent.
+ */
+async function withReviewStats(
+  supabase: PublicClient,
+  products: Product[],
+): Promise<Product[]> {
+  if (products.length === 0) return products;
+
+  const { data, error } = await supabase
+    .from("product_reviews")
+    .select("product_id, rating")
+    .eq("status", "approved")
+    .in(
+      "product_id",
+      products.map((p) => p.id),
+    );
+
+  if (error) {
+    console.error("[queries.withReviewStats]", error);
+    return products;
+  }
+
+  const sums = new Map<string, { count: number; total: number }>();
+  for (const row of data ?? []) {
+    const acc = sums.get(row.product_id) ?? { count: 0, total: 0 };
+    acc.count += 1;
+    acc.total += row.rating;
+    sums.set(row.product_id, acc);
+  }
+  if (sums.size === 0) return products;
+
+  return products.map((p) => {
+    const acc = sums.get(p.id);
+    if (!acc) return p;
+    return {
+      ...p,
+      review_count: acc.count,
+      avg_rating: acc.total / acc.count,
+    };
+  });
+}
+
 export const listProducts = cache(
   (
     tenantId: string,
@@ -55,7 +106,7 @@ export const listProducts = cache(
         console.error("[queries.listProducts]", error);
         return [];
       }
-      return (data ?? []).map(normalizeProduct);
+      return withReviewStats(supabase, (data ?? []).map(normalizeProduct));
     }),
 );
 
@@ -95,12 +146,15 @@ export const getProductBySlug = cache(
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
+      const withStats = async (row: Record<string, unknown>) =>
+        (await withReviewStats(supabase, [normalizeProduct(row)]))[0] ?? null;
+
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
-      if (bySlug) return normalizeProduct(bySlug);
+      if (bySlug) return withStats(bySlug);
 
       if (UUID_RE.test(key)) {
         const { data: byId } = await baseQuery().eq("id", key).maybeSingle();
-        if (byId) return normalizeProduct(byId);
+        if (byId) return withStats(byId);
       }
 
       return null;
@@ -199,10 +253,13 @@ export const listProductsInCategory = cache(
 
         type Row = { products: Record<string, unknown> | null };
         const rows = (data ?? []) as Row[];
-        return rows
-          .map((r) => r.products)
-          .filter((p): p is Record<string, unknown> => p !== null)
-          .map(normalizeProduct);
+        return withReviewStats(
+          supabase,
+          rows
+            .map((r) => r.products)
+            .filter((p): p is Record<string, unknown> => p !== null)
+            .map(normalizeProduct),
+        );
       },
     ),
 );

@@ -29,6 +29,9 @@ export interface Product extends BaseProduct {
   category_id?: string | null;
   display_order?: number;
   images?: string[];
+  /** Approved-review aggregates, merged in by lib/queries (real data only). */
+  review_count?: number;
+  avg_rating?: number;
 }
 
 export interface ProductVariant extends BaseProductVariant {
