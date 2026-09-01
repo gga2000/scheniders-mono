@@ -3002,7 +3002,6 @@ export default function OrdersPage() {
                         onClose={() => setIsExportModalOpen(false)}
                         filteredOrders={filteredOrders}
                         selectedOrderIds={selectedOrders}
-                        allOrders={orders}
                         currentDateFrom={filters.dateFrom}
                         currentDateTo={filters.dateTo}
                     />
