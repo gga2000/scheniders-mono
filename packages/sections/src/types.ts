@@ -37,6 +37,11 @@ export interface Product extends BaseProduct {
   is_bestseller?: boolean;
   /** Optional variant list — populated on the PDP. */
   variants?: ProductVariant[];
+  /** Approved-review aggregates (real data, storefront-populated). Sections
+   *  must hide rating UI entirely when these are absent or zero — never
+   *  fabricate a rating. */
+  review_count?: number;
+  avg_rating?: number;
 }
 
 export interface ProductVariant extends BaseProductVariant {

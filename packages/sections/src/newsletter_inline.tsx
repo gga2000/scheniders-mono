@@ -2,8 +2,8 @@
 // Section — newsletter_inline
 // =====================================================================
 // Inline newsletter signup (not a modal). Posts to `/api/newsletter`
-// with the visitor's locale + email. The endpoint is owned elsewhere;
-// this section only renders the form.
+// with the tenant id, visitor's locale + email. The endpoint is owned
+// by the storefront app; this section only renders the form.
 // =====================================================================
 
 "use client";
@@ -21,7 +21,7 @@ import {
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
-import type { SectionDefinition } from "./_types";
+import type { SectionDefinition, SectionRenderContext } from "./_types";
 
 const tint = z.enum(["white", "mint", "butter", "lilac", "sky", "pink"]);
 
@@ -56,7 +56,7 @@ function NewsletterInlineRender({
   ctx,
 }: {
   props: Props;
-  ctx: { runtime: { locale: "ar" | "en" | "ku" } };
+  ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
   const heading = resolveI18n(props.heading_i18n, locale);
@@ -89,7 +89,11 @@ function NewsletterInlineRender({
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), locale }),
+        body: JSON.stringify({
+          tenant_id: ctx.tenant.id,
+          email: email.trim(),
+          locale,
+        }),
       });
       setStatus(res.ok ? "ok" : "error");
       if (res.ok) {
