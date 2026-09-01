@@ -55,6 +55,20 @@ const LIST_VIEW_COLUMNS = `
   last_status_changed_by_avatar
 `.trim();
 
+/**
+ * Columns needed to build an export file. The list view deliberately omits some
+ * of these to keep the page payload down, but `lib/export-utils.ts` reads them:
+ * without `validated_governorate_code` and `is_replacement` they arrive
+ * `undefined`, so every export silently fell back to the raw governorate code
+ * and marked replacement orders as NOT containing returned goods.
+ */
+const EXPORT_VIEW_COLUMNS = `
+${LIST_VIEW_COLUMNS},
+  validated_governorate_code,
+  is_replacement,
+  delivery_order_id
+`.trim();
+
 export const orderRepository = {
     /** Fetch all active (non-archived) orders, newest first.
      *  Uses a count query + parallel page fetches to cut latency in half. */
@@ -113,6 +127,78 @@ export const orderRepository = {
         const result = allData.map(row => normalizeOrder(row as unknown as Order));
         diag.log(`[Diag:Repo] findAll OK rows=${allData.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
         return result;
+    },
+
+    /**
+     * Fetch orders for an export file, straight from the server.
+     *
+     * Exports must never be limited to whatever the page happens to have
+     * loaded: "this month" or "all orders" has to mean what it says, even once
+     * the list fetch is windowed. Tenant scoping comes from RLS on
+     * `v_orders_with_risk` (security_invoker), same as every other read here.
+     */
+    async findForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<Order[]> {
+        const _t = performance.now();
+        const step = 1000;
+        const fromTs = opts.dateFrom ? `${opts.dateFrom}T00:00:00.000Z` : null;
+        const toTs = opts.dateTo ? `${opts.dateTo}T23:59:59.999Z` : null;
+
+        let countQuery = supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false);
+        if (fromTs) countQuery = countQuery.gte("created_at", fromTs);
+        if (toTs) countQuery = countQuery.lte("created_at", toTs);
+
+        const { count, error: countErr } = await countQuery;
+        if (countErr) throw countErr;
+
+        const totalRows = count ?? 0;
+        if (totalRows === 0) return [];
+
+        const pageCount = Math.ceil(totalRows / step);
+        const pages = await Promise.all(
+            Array.from({ length: pageCount }, (_, i) => {
+                let q = supabase
+                    .from("v_orders_with_risk")
+                    .select(EXPORT_VIEW_COLUMNS)
+                    .eq("is_archived", false);
+                if (fromTs) q = q.gte("created_at", fromTs);
+                if (toTs) q = q.lte("created_at", toTs);
+                return q
+                    .order("created_at", { ascending: false })
+                    .range(i * step, i * step + step - 1);
+            }),
+        );
+
+        let rows: unknown[] = [];
+        for (const { data, error } of pages) {
+            if (error) throw error;
+            if (data) rows = rows.concat(data);
+        }
+
+        diag.log(`[Diag:Repo] findForExport rows=${rows.length} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return rows.map(row => normalizeOrder(row as Order));
+    },
+
+    /**
+     * Row count for an export scope, without transferring any rows.
+     *
+     * The export scope picker advertises "this month — N orders" before the
+     * merchant commits. Those numbers have to describe the server's data, not
+     * the window the page happens to hold, or the picker promises one thing and
+     * the file delivers another.
+     */
+    async countForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<number> {
+        let q = supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false);
+        if (opts.dateFrom) q = q.gte("created_at", `${opts.dateFrom}T00:00:00.000Z`);
+        if (opts.dateTo) q = q.lte("created_at", `${opts.dateTo}T23:59:59.999Z`);
+        const { count, error } = await q;
+        if (error) throw error;
+        return count ?? 0;
     },
 
     /**
