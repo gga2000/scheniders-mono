@@ -80,3 +80,78 @@ describe("computeCustomerOrderCounts — mirrored by public.get_customer_order_c
         expect(computeCustomerOrderCounts([]).size).toBe(0);
     });
 });
+
+import { findOrderDuplicates, findPreviousOrderForCustomer } from "./order-duplicates";
+
+type Cand = {
+    id: string; phone: string; created_at: string; is_return: boolean;
+    items: { name: string; quantity: number; price: number }[];
+};
+const cand = (
+    c: Omit<Cand, "is_return" | "items"> & { is_return?: boolean; items?: { name: string }[] },
+): Cand => ({
+    is_return: false,
+    ...c,
+    items: (c.items ?? []).map(i => ({ quantity: 1, price: 0, ...i })),
+});
+const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3600_000).toISOString();
+
+describe("findOrderDuplicates — mirrored by public.get_order_duplicate_flags", () => {
+    const target = cand({ id: "T", phone: "07701234567", created_at: at(0), items: [{ name: "Kebab" }] });
+
+    it("flags the same phone inside the 72h window regardless of items", () => {
+        const found = findOrderDuplicates(target, [cand({ id: "A", phone: "07701234567", created_at: at(48), items: [{ name: "Tea" }] })]);
+        expect(found.map(o => o.id)).toEqual(["A"]);
+    });
+
+    it("does not flag the same phone outside 72h when items differ", () => {
+        const found = findOrderDuplicates(target, [cand({ id: "B", phone: "07701234567", created_at: at(24 * 5), items: [{ name: "Tea" }] })]);
+        expect(found).toHaveLength(0);
+    });
+
+    it("flags 3-7 days out when an item name overlaps", () => {
+        const found = findOrderDuplicates(target, [cand({ id: "C", phone: "07701234567", created_at: at(24 * 5), items: [{ name: "Kebab Mashwi" }] })]);
+        expect(found.map(o => o.id)).toEqual(["C"]);
+    });
+
+    it("matches item names in either direction", () => {
+        const broad = cand({ id: "T2", phone: "07701234567", created_at: at(0), items: [{ name: "Kebab Mashwi" }] });
+        const found = findOrderDuplicates(broad, [cand({ id: "D", phone: "07701234567", created_at: at(24 * 5), items: [{ name: "Kebab" }] })]);
+        expect(found.map(o => o.id)).toEqual(["D"]);
+    });
+
+    it("ignores a different customer, itself, and return orders", () => {
+        const found = findOrderDuplicates(target, [
+            cand({ id: "E", phone: "07709998888", created_at: at(1) }),
+            cand({ id: "T", phone: "07701234567", created_at: at(0) }),
+            cand({ id: "F", phone: "07701234567", created_at: at(1), is_return: true }),
+        ]);
+        expect(found).toHaveLength(0);
+    });
+
+    it("treats differently formatted phones as the same customer", () => {
+        const found = findOrderDuplicates(target, [cand({ id: "G", phone: "+9647701234567", created_at: at(1) })]);
+        expect(found.map(o => o.id)).toEqual(["G"]);
+    });
+});
+
+describe("findPreviousOrderForCustomer", () => {
+    const target = cand({ id: "T", phone: "07701234567", created_at: at(24) });
+
+    it("returns the most recent other order for that customer", () => {
+        const prev = findPreviousOrderForCustomer(target, [
+            cand({ id: "OLD", phone: "07701234567", created_at: at(100) }),
+            cand({ id: "NEW", phone: "07701234567", created_at: at(2) }),
+        ]);
+        expect(prev?.id).toBe("NEW");
+    });
+
+    it("is null for a return order", () => {
+        const ret = cand({ id: "R", phone: "07701234567", created_at: at(1), is_return: true });
+        expect(findPreviousOrderForCustomer(ret, [cand({ id: "X", phone: "07701234567", created_at: at(5) })])).toBeNull();
+    });
+
+    it("is null when the customer has no other order", () => {
+        expect(findPreviousOrderForCustomer(target, [cand({ id: "T", phone: "07701234567", created_at: at(24) })])).toBeNull();
+    });
+});
