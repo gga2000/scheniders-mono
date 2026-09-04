@@ -157,6 +157,7 @@ import {
 import { extractScannedOrderId } from "@/lib/scan-utils";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
+import { canShipWithoutSelection, canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { notificationService } from "@/lib/notification-service";
 import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
@@ -394,6 +395,7 @@ export default function OrdersPage() {
         getCustomerOrders,
         dismissDuplicate,
         statusCounts,
+        ordersAreComplete,
         // Message templates
         messageTemplates,
     } = useOrdersContext();
@@ -995,6 +997,18 @@ export default function OrdersPage() {
     };
 
     const handleShipExport = async (company: 'prime' | 'waseet') => {
+        // Shipping with nothing selected means "everything matching my filter".
+        // That is only true while the cached list IS the complete filtered set;
+        // against a windowed list it would hand the courier whichever orders
+        // happened to be loaded. Refuse rather than dispatch the wrong set.
+        if (!canShipWithoutSelection({ selectedCount: selectedOrders.size, ordersAreComplete })) {
+            toast.warning(
+                "Select the orders to ship",
+                "Only part of this filter is loaded, so \"all visible\" would not be all of them.",
+            );
+            return;
+        }
+
         const ids = selectedOrders.size > 0
             ? Array.from(selectedOrders)
             : filteredOrders.map(o => o.id);
@@ -2521,7 +2535,12 @@ export default function OrdersPage() {
                                                         )}
                                                     >
                                                         <span className="font-semibold">{selectedOrders.size} orders selected</span>
-                                                        {selectedOrders.size < filteredOrders.length && filteredOrders.length > PAGE_SELECT_LIMIT && (
+                                                        {canOfferSelectAll({
+                                                            selectedCount: selectedOrders.size,
+                                                            loadedCount: filteredOrders.length,
+                                                            pageSelectLimit: PAGE_SELECT_LIMIT,
+                                                            ordersAreComplete,
+                                                        }) && (
                                                             <button
                                                                 onClick={() => {
                                                                     useOrderStore.getState().selectAll(filteredOrders.map(o => o.id));
@@ -3110,6 +3129,7 @@ export default function OrdersPage() {
                         }
                         currentTab={filters.status || 'all'}
                         hasSelection={selectedOrders.size > 0}
+                        ordersAreComplete={ordersAreComplete}
                         onConfirmExport={() => handleShipExport(shipConfirmCompany)}
                     />
 
