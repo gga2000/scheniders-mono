@@ -15,6 +15,7 @@ import { useRealtimeHeartbeat } from "@/hooks/use-realtime-heartbeat";
 // React Query hooks for caching
 import {
     useOrdersQuery,
+    ORDERS_CACHE_IS_COMPLETE_SET,
     useArchivedOrdersQuery,
     syncOrdersDelta,
     orderKeys,
@@ -151,6 +152,9 @@ export function useOrders() {
         // Return orders
         createReturnOrder: crudHook.createReturnOrder,
         createReplacementOrder: crudHook.createReplacementOrder,
+
+        /** True while the cached list is the complete filtered set (see ORDERS_CACHE_IS_COMPLETE_SET). */
+        ordersAreComplete: ORDERS_CACHE_IS_COMPLETE_SET,
 
         // Detection & history
         getDuplicatesForOrder: auxiliaryHook.getDuplicatesForOrder,

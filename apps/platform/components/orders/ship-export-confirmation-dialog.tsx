@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { getBaseOrderId } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import type { Order } from "@/types/order";
+import { canShipWithoutSelection } from "@/lib/order-bulk-scope";
 
 const SAFE_EXPORT_TABS = ["confirmed", "in_transit", "return_pending", "refund_delivered", "refund_failed"] as const;
 
@@ -34,6 +35,12 @@ interface ShipExportConfirmationDialogProps {
     orders: Order[];
     currentTab: string;
     hasSelection: boolean;
+    /**
+     * Whether `orders` is the complete set matching the merchant's filter. When
+     * false, "all visible orders" is only the loaded window, so the no-selection
+     * path must not claim to be shipping everything.
+     */
+    ordersAreComplete?: boolean;
     onConfirmExport: () => void;
 }
 
@@ -44,6 +51,7 @@ export function ShipExportConfirmationDialog({
     orders,
     currentTab,
     hasSelection,
+    ordersAreComplete = true,
     onConfirmExport,
 }: ShipExportConfirmationDialogProps) {
     const isUnsafeTab = !(SAFE_EXPORT_TABS as readonly string[]).includes(currentTab);
@@ -80,7 +88,14 @@ export function ShipExportConfirmationDialog({
         return Object.entries(counts).sort((a, b) => b[1] - a[1]);
     }, [orders]);
 
+    // "Ship everything visible" is only meaningful when everything IS visible.
+    const cannotShipWholeFilter = !canShipWithoutSelection({
+        selectedCount: hasSelection ? 1 : 0,
+        ordersAreComplete,
+    });
+
     const handleConfirm = async () => {
+        if (cannotShipWholeFilter) return;
         setIsExporting(true);
         onConfirmExport();
         setTimeout(() => onOpenChange(false), 300);
@@ -136,10 +151,17 @@ export function ShipExportConfirmationDialog({
                             </span>
                         </div>
                         {!hasSelection && (
-                            <div className="flex flex-row-reverse items-center gap-1.5 text-xs text-amber-700 bg-amber-100/80 px-2.5 py-1.5 rounded-lg text-right">
-                                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                                No orders selected — exporting all {orders.length} visible orders
-                            </div>
+                            ordersAreComplete ? (
+                                <div className="flex flex-row-reverse items-center gap-1.5 text-xs text-amber-700 bg-amber-100/80 px-2.5 py-1.5 rounded-lg text-right">
+                                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                                    No orders selected — exporting all {orders.length} orders in this filter
+                                </div>
+                            ) : (
+                                <div className="flex flex-row-reverse items-center gap-1.5 text-xs text-rose-700 bg-rose-100/80 px-2.5 py-1.5 rounded-lg text-right">
+                                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                                    Only {orders.length} of this filter are loaded — select the orders you want to ship
+                                </div>
+                            )
                         )}
                         {/* Status breakdown for mixed statuses */}
                         {statusBreakdown.length > 1 && (
@@ -249,10 +271,10 @@ export function ShipExportConfirmationDialog({
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={countdown > 0 || isExporting}
+                        disabled={countdown > 0 || isExporting || cannotShipWholeFilter}
                         className={cn(
                             "px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 min-w-[180px]",
-                            countdown > 0
+                            (countdown > 0 || cannotShipWholeFilter)
                                 ? isUnsafeTab
                                     ? "bg-red-200 text-red-400 cursor-not-allowed"
                                     : "bg-slate-200 text-slate-400 cursor-not-allowed"
@@ -262,7 +284,9 @@ export function ShipExportConfirmationDialog({
                         )}
                     >
                         <Truck className="h-4 w-4" />
-                        {countdown > 0
+                        {cannotShipWholeFilter
+                            ? "Select orders first"
+                            : countdown > 0
                             ? `Wait ${countdown}s...`
                             : isExporting
                                 ? "Exporting..."

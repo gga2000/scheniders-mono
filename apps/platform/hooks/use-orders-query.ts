@@ -130,6 +130,18 @@ function readSwrCache(): Order[] | null {
     }
 }
 
+/**
+ * Whether the cached order list is the COMPLETE set matching the user's filters,
+ * or only a window of it.
+ *
+ * `findAll()` currently fetches every non-archived order, so this is true. When
+ * PERF-1 stage C replaces it with a windowed fetch this becomes false whenever
+ * the window is narrower than the filter — and the actions that mean "act on
+ * everything I can see" (ship-with-no-selection, select-all) must refuse rather
+ * than silently operate on whichever subset happens to be loaded.
+ */
+export const ORDERS_CACHE_IS_COMPLETE_SET = true;
+
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(): Promise<Order[]> {
     const _tFetch = performance.now();
