@@ -26,8 +26,8 @@ That is the correction, not a regression. It must be communicated to the user be
 ## Task 1: The migration (write only — DO NOT APPLY)
 
 **Files:**
-- Create: `packages/supabase/migrations/20260902120000_customer_aggregates_tenant_scoped_view.sql` (**Part 1 — safe to apply any time**: creates + grants the view, changes no existing privilege)
-- Create: `packages/supabase/migrations/20260902120100_customer_aggregates_revoke_matview_grants.sql` (**Part 2 — DEPLOY-COUPLED**: the revokes; applying before the code deploy breaks the currently-deployed Customers page with 42501)
+- Create: `packages/supabase/migrations/20260905153132_customer_aggregates_tenant_scoped_view.sql` (**Part 1 — safe to apply any time**: creates + grants the view, changes no existing privilege)
+- Create: `packages/supabase/migrations/20260905153138_customer_aggregates_revoke_matview_grants.sql` (**Part 2 — DEPLOY-COUPLED**: the revokes; applying before the code deploy breaks the currently-deployed Customers page with 42501)
 
 - [ ] **Step 1: Write the migration file**
 
@@ -98,7 +98,7 @@ COMMENT ON MATERIALIZED VIEW public.mv_customer_aggregates IS
     'NOT tenant-safe on its own: materialized views cannot enforce RLS. Never GRANT to '
     'anon or authenticated. Clients read public.customer_aggregates instead. If you '
     'DROP+CREATE this matview, re-run the REVOKEs in '
-    '20260902120000_customer_aggregates_tenant_scoped_view.sql -- default grants come back.';
+    '20260905153132_customer_aggregates_tenant_scoped_view.sql -- default grants come back.';
 ```
 
 - [ ] **Step 2: STOP. Do not apply.**
@@ -159,7 +159,7 @@ import path from "node:path";
  * RLS: any client that queries it directly reads every tenant's customer book.
  * Clients must go through the tenant-scoped view `customer_aggregates` (or a
  * SECURITY DEFINER RPC). This has regressed once already -- see
- * packages/supabase/migrations/20260902120000_customer_aggregates_tenant_scoped_view.sql
+ * packages/supabase/migrations/20260905153132_customer_aggregates_tenant_scoped_view.sql
  */
 describe("customer aggregates access path", () => {
     it("no client module queries mv_customer_aggregates directly", () => {

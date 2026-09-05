@@ -43,7 +43,7 @@
 -- PART 1 of 2 — SAFE TO APPLY ANY TIME. Creates the tenant-scoped read path.
 -- Adds a new object and grants it; changes no existing privilege and breaks no
 -- deployed code. The privilege revokes live in the sibling migration
--- 20260902120100_customer_aggregates_revoke_matview_grants.sql, which is
+-- 20260905153138_customer_aggregates_revoke_matview_grants.sql, which is
 -- DEPLOY-COUPLED (see its header).
 
 -- Step 1: tenant-scoped read path for clients.

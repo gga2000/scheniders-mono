@@ -32,6 +32,9 @@ export interface Product extends BaseProduct {
   /** Ordered gallery photo URLs from products.gallery_urls (jsonb, coerced to
    *  a clean string[] by lib/queries — never trust raw jsonb shape). */
   gallery_urls?: string[];
+  /** Per-product feature cards (products.feature_cards jsonb, coerced to
+   *  well-shaped entries). Rendered as note-highlight cards on the PDP. */
+  feature_cards?: { image_url?: string; title: string; body: string }[];
   /** Approved-review aggregates, merged in by lib/queries (real data only). */
   review_count?: number;
   avg_rating?: number;

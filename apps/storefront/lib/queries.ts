@@ -87,7 +87,7 @@ export const listProducts = cache(
       let q = supabase
         .from("products")
         .select(
-          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at",
+          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at",
         )
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
@@ -128,7 +128,7 @@ export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
     publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
       const columns =
-        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at";
+        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at";
 
       // The dynamic route param can arrive still percent-encoded, so a non-ASCII
       // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
@@ -233,7 +233,7 @@ export const listProductsInCategory = cache(
         let q = supabase
           .from("product_categories")
           .select(
-            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at)",
+            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at)",
           )
           .eq("category_id", categoryId)
           .eq("tenant_id", tenantId)
@@ -274,6 +274,28 @@ function coerceGalleryUrls(value: unknown): string[] {
   );
 }
 
+/** `feature_cards` is jsonb — keep only well-shaped {title, body, image_url?}
+ *  entries so a malformed row degrades to no cards, never a render crash. */
+function coerceFeatureCards(
+  value: unknown,
+): { image_url?: string; title: string; body: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((v) => {
+    if (typeof v !== "object" || v === null) return [];
+    const o = v as Record<string, unknown>;
+    if (typeof o.title !== "string" || typeof o.body !== "string") return [];
+    return [
+      {
+        title: o.title,
+        body: o.body,
+        ...(typeof o.image_url === "string" && o.image_url.length > 0
+          ? { image_url: o.image_url }
+          : {}),
+      },
+    ];
+  });
+}
+
 function normalizeProduct(row: Record<string, unknown>): Product {
   const r = row as unknown as Product & { website_price?: number | null };
   return {
@@ -281,5 +303,6 @@ function normalizeProduct(row: Record<string, unknown>): Product {
     // Use website_price if set, else fall back to internal price
     price: r.website_price ?? r.price,
     gallery_urls: coerceGalleryUrls(row.gallery_urls),
+    feature_cards: coerceFeatureCards(row.feature_cards),
   };
 }
