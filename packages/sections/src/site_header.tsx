@@ -62,7 +62,7 @@ const defaultProps: Props = {
 
 /** Circular white bento control (menu / back). 44px touch target. */
 const circleBtn =
-  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white " +
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bk-surface-alt " +
   "transition-transform hover:scale-105 active:scale-95";
 const circleBtnStyle = {
   border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -391,7 +391,7 @@ function SiteHeaderRender({
                 <StoreLink
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="block py-3 font-label font-bold text-sm uppercase tracking-wide border-b border-candy-ink/10 last:border-0"
+                  className="block py-3 font-label font-bold text-sm uppercase tracking-wide border-b border-bk-ink/10 last:border-0"
                   style={{ color: "var(--bk-ink, #1a1a1a)" }}
                 >
                   {l.label}

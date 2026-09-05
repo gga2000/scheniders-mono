@@ -114,7 +114,7 @@ function PromoBanner({
               {heading}
             </h2>
             {body && (
-              <p className="mt-bk-2xs font-body text-sm sm:text-base text-bk-ink-soft">
+              <p className="mt-bk-2xs font-body text-sm sm:text-base opacity-75">
                 {body}
               </p>
             )}
@@ -128,7 +128,7 @@ function PromoBanner({
                 ].map((seg, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-baseline gap-1 bg-white/80 border-[3px] border-candy-ink rounded-lg px-2 py-1 text-bk-ink"
+                    className="inline-flex items-baseline gap-1 bg-bk-surface-alt/80 border-bk-bold border-bk-ink rounded-lg px-2 py-1 text-bk-ink"
                   >
                     <span className="font-display font-black text-base sm:text-lg">
                       {String(seg.v).padStart(2, "0")}

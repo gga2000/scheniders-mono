@@ -67,7 +67,7 @@ export function SchneidersNewsletterPopup({ config }: { config: NewsletterPopupC
         type="button"
         aria-label="Close newsletter popup"
         onClick={dismiss}
-        className="absolute inset-0 bg-candy-ink/50 backdrop-blur-sm cursor-pointer"
+        className="absolute inset-0 bg-bk-ink/50 backdrop-blur-sm cursor-pointer text-bk-surface"
       />
 
       <BentoCard
@@ -82,7 +82,7 @@ export function SchneidersNewsletterPopup({ config }: { config: NewsletterPopupC
           type="button"
           onClick={dismiss}
           aria-label="Close"
-          className="absolute -top-3 -right-3 w-9 h-9 rounded-full bento-card-sm bg-candy-butter flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+          className="absolute -top-3 -right-3 w-9 h-9 rounded-full bento-card-sm bg-bk-accent flex items-center justify-center hover:scale-105 active:scale-95 transition-transform text-bk-on-accent"
         >
           <MaterialIcon name="close" className="text-lg" />
         </button>
@@ -91,7 +91,7 @@ export function SchneidersNewsletterPopup({ config }: { config: NewsletterPopupC
           <div className="text-center py-4">
             <div className="text-5xl mb-3" style={{ transform: "rotate(-6deg)" }}>🎉</div>
             <h3 className="font-display font-black text-2xl uppercase mb-2">You're in!</h3>
-            <p className="font-body text-sm text-candy-ink/80">
+            <p className="font-body text-sm text-bk-ink/80">
               Check your inbox in a sec for the code.
             </p>
           </div>
@@ -101,7 +101,7 @@ export function SchneidersNewsletterPopup({ config }: { config: NewsletterPopupC
               ✨ Exclusive
             </Sticker>
             <h3 className="font-display font-black text-2xl uppercase leading-tight">{label}</h3>
-            <p className="font-body text-sm text-candy-ink/80 mt-2 mb-4">
+            <p className="font-body text-sm text-bk-ink/80 mt-2 mb-4">
               Drop your email and we'll send you the code.
             </p>
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -111,7 +111,7 @@ export function SchneidersNewsletterPopup({ config }: { config: NewsletterPopupC
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full bento-card-sm bg-candy-cream rounded-xl px-4 py-3 font-body font-bold text-base focus:outline-none placeholder:opacity-50"
+                className="w-full bento-card-sm bg-bk-surface rounded-xl px-4 py-3 font-body font-bold text-base focus:outline-none placeholder:opacity-50"
               />
               <ChunkyButton type="submit" bg="pink" fullWidth>
                 Send me the code <MaterialIcon name="arrow_forward" />
@@ -120,7 +120,7 @@ export function SchneidersNewsletterPopup({ config }: { config: NewsletterPopupC
             <button
               type="button"
               onClick={dismiss}
-              className="mt-3 w-full text-center text-xs font-display font-bold uppercase text-candy-ink/60 hover:text-candy-ink"
+              className="mt-3 w-full text-center text-xs font-display font-bold uppercase text-bk-ink/60 hover:text-bk-ink"
             >
               No thanks
             </button>

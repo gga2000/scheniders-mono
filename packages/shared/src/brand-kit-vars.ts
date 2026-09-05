@@ -87,6 +87,17 @@ function mix(a: Rgb, b: Rgb, t: number): Rgb {
   };
 }
 
+/** WCAG contrast ratio between two colours, 1:1 … 21:1. */
+function contrastRatio(a: Rgb, b: Rgb): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Space-separated `r g b` channels, for `rgb(var(--x) / <alpha-value>)`. */
+function channels({ r, g, b }: Rgb): string {
+  return `${Math.round(r)} ${Math.round(g)} ${Math.round(b)}`;
+}
+
 /** `rgb(r g b / a)` string with `a` clamped to [0, 1]. */
 function rgba(rgb: Rgb, alpha: number): string {
   const a = Math.max(0, Math.min(1, alpha));
@@ -97,11 +108,20 @@ function rgba(rgb: Rgb, alpha: number): string {
 /* Token tables                                                         */
 /* ─────────────────────────────────────────────────────────────────── */
 
+/**
+ * Card radius per shape setting.
+ *
+ * `pill` is deliberately NOT 9999 here. A fully-round radius is right for a
+ * button or a chip, but applying it to a card-sized box turns a hero section
+ * into a lozenge — Kinetic Ink and Sunbleach both rendered their hero as a
+ * giant orange blob. Pills that really should be fully round read
+ * `--bk-radius-pill`, which stays 9999.
+ */
 const RADIUS_CARD_PX: Record<BrandShape["radius"], number> = {
   none: 0,
   soft: 8,
   round: 16,
-  pill: 9999,
+  pill: 28,
 };
 
 const RADIUS_INPUT_PX: Record<BrandShape["radius"], number> = {
@@ -195,7 +215,7 @@ export function fontStack(name: string | undefined, fallback: string, kind: "dis
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
-/* The 40 emitted variable names — exported for tests & debugging       */
+/* The emitted variable names — exported for tests & debugging          */
 /* ─────────────────────────────────────────────────────────────────── */
 
 export const BK_VAR_NAMES = [
@@ -208,10 +228,28 @@ export const BK_VAR_NAMES = [
   "--bk-ink",
   "--bk-success",
   "--bk-danger",
-  // Colors — fixed candy-accent surfaces (3)
+  // Colors — decorative tint surfaces (3)
   "--bk-mint",
   "--bk-lilac",
   "--bk-sky",
+  // Colors — space-separated `r g b` channels (11).
+  //
+  // Tailwind cannot apply an opacity modifier to a colour whose value is a
+  // bare `var(...)`: `border-bk-ink/10` compiled to nothing at all. The
+  // channel form lets the config declare the colours as
+  // `rgb(var(--bk-ink-rgb) / <alpha-value>)`, so `/10` works. The plain hex
+  // vars above stay for raw CSS and inline styles.
+  "--bk-primary-rgb",
+  "--bk-secondary-rgb",
+  "--bk-accent-rgb",
+  "--bk-surface-rgb",
+  "--bk-surface-alt-rgb",
+  "--bk-ink-rgb",
+  "--bk-success-rgb",
+  "--bk-danger-rgb",
+  "--bk-mint-rgb",
+  "--bk-lilac-rgb",
+  "--bk-sky-rgb",
   // Colors — derived (11)
   "--bk-on-primary",
   "--bk-on-secondary",
@@ -293,8 +331,22 @@ export function buildBrandKitVars(
   const secondary = parseHex(secondaryHex)!;
   const accent = parseHex(accentHex)!;
   const ink = parseHex(inkHex)!;
+  const surface = parseHex(surfaceHex)!;
+  const surfaceAlt = parseHex(surfaceAltHex)!;
+  const success = parseHex(successHex)!;
+  const danger = parseHex(dangerHex)!;
 
-  const onColor = (c: Rgb): string => (luminance(c) < 0.5 ? "#ffffff" : inkHex);
+  /**
+   * Foreground for a filled swatch: whichever of the kit's own ink and
+   * surface contrasts better against it.
+   *
+   * The old rule was "white on dark colours, ink on light ones", which
+   * silently assumed ink is dark. On a dark kit ink is LIGHT, so a light
+   * primary (Chrome Night's #d6dce4) got light text on it — about 1.1:1.
+   * Choosing by measured contrast holds for both kinds of kit.
+   */
+  const onColor = (c: Rgb): string =>
+    contrastRatio(c, ink) >= contrastRatio(c, surface) ? inkHex : surfaceHex;
 
   const primaryHoverHex = toHex(mix(primary, ink, 0.1));
   const primaryActiveHex = toHex(mix(primary, ink, 0.18));
@@ -307,6 +359,17 @@ export function buildBrandKitVars(
   const inkSoft = rgba(ink, 0.7);
   const inkFaint = rgba(ink, 0.38);
   const divider = rgba(ink, 0.1);
+
+  /**
+   * A decorative tint: the hue pulled 72% of the way toward the page
+   * surface. On a light kit that lands in pastel territory; on a dark kit it
+   * lands just above the ground, which is what keeps a "mint panel" from
+   * becoming a pastel hole punched in a near-black page.
+   */
+  const tintHex = (c: Rgb): string => toHex(mix(c, surface, 0.72));
+  const mintHex = tintHex(success);
+  const lilacHex = tintHex(secondary);
+  const skyHex = tintHex(accent);
 
   // Typography
   const latinDisplay = fontStack(kit.typography?.display, "Bricolage Grotesque", "display");
@@ -353,15 +416,30 @@ export function buildBrandKitVars(
     "--bk-ink": inkHex,
     "--bk-success": successHex,
     "--bk-danger": dangerHex,
-    // Colors — fixed Candy Bento accent surfaces. The design references
-    // mint / lilac / sky as named decorative surfaces, but the brand kit has
-    // no field for them. Emit them as literals so these surfaces stay
-    // on-palette even when a tenant overrides `success` or `secondary`
-    // (which previously made every mint surface emerald and every lilac
-    // surface collapse to mint). Themeable tokens stay primary/secondary/accent.
-    "--bk-mint": "#7cf0bd",
-    "--bk-lilac": "#c5b6ff",
-    "--bk-sky": "#9ad8ff",
+    // Colors — decorative tint surfaces. The names are historical (they come
+    // from the original Candy Bento palette) but the values are not: each is
+    // its source hue pulled most of the way toward the page surface, so a
+    // tinted panel stays legible on a dark ground instead of dropping a pastel
+    // block onto near-black.
+    //
+    // Three DIFFERENT source hues on purpose. Deriving them all from one field
+    // is what previously collapsed lilac into mint whenever a tenant set
+    // `secondary` equal to `success`.
+    "--bk-mint": mintHex,
+    "--bk-lilac": lilacHex,
+    "--bk-sky": skyHex,
+    // Colors — channels, so Tailwind opacity modifiers resolve.
+    "--bk-primary-rgb": channels(primary),
+    "--bk-secondary-rgb": channels(secondary),
+    "--bk-accent-rgb": channels(accent),
+    "--bk-surface-rgb": channels(surface),
+    "--bk-surface-alt-rgb": channels(surfaceAlt),
+    "--bk-ink-rgb": channels(ink),
+    "--bk-success-rgb": channels(success),
+    "--bk-danger-rgb": channels(danger),
+    "--bk-mint-rgb": channels(parseHex(mintHex)!),
+    "--bk-lilac-rgb": channels(parseHex(lilacHex)!),
+    "--bk-sky-rgb": channels(parseHex(skyHex)!),
     // Colors — derived
     "--bk-on-primary": onColor(primary),
     "--bk-on-secondary": onColor(secondary),

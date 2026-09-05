@@ -401,6 +401,19 @@ export default async function PreviewPage({
   const brandKit: BrandKit = v2?.brand_kit ?? EMPTY_BRAND_KIT;
   // Locale-aware: previewing in ar/ku applies the Arabic font pairing.
   const bkVars = buildBrandKitVars(brandKit, { locale });
+  /**
+   * Brand vars PLUS the page ground. `bkVars` only declares the custom
+   * properties — nothing consumes them for the page background, and
+   * globals.css sets a font on `body` but no colour. A dark kit therefore
+   * rendered its sections onto the browser's white, so every gap between
+   * sections stayed white in the editor canvas and the preview iframe.
+   */
+  const bkSurface: React.CSSProperties = {
+    ...bkVars,
+    backgroundColor: "var(--bk-surface, #fff7ed)",
+    color: "var(--bk-ink, #1a1a1a)",
+    minHeight: "100vh",
+  };
   const bkFontsUrl = buildBrandKitFontsUrl(brandKit);
   const bkMotion: "auto" | "reduce" =
     brandKit.motion?.enabled === false ? "reduce" : "auto";
@@ -420,7 +433,7 @@ export default async function PreviewPage({
           <div
             data-preview="true"
             data-bk-motion={bkMotion}
-            style={bkVars}
+            style={bkSurface}
           >
             <LegacyTemplate
               tenant={tenant}
@@ -474,7 +487,7 @@ export default async function PreviewPage({
         data-page-id={pageId}
         data-breakpoint={breakpoint}
         data-locale={locale}
-        style={bkVars}
+        style={bkSurface}
       >
         <SchneidersPreviewLiveRenderer
           initialPageConfig={pageConfig}

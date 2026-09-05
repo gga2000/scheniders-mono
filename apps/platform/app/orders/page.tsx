@@ -157,6 +157,7 @@ import {
 import { extractScannedOrderId } from "@/lib/scan-utils";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
+import { canShipWithoutSelection, canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { notificationService } from "@/lib/notification-service";
 import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
@@ -394,6 +395,7 @@ export default function OrdersPage() {
         getCustomerOrders,
         dismissDuplicate,
         statusCounts,
+        ordersAreComplete,
         // Message templates
         messageTemplates,
     } = useOrdersContext();
@@ -995,6 +997,18 @@ export default function OrdersPage() {
     };
 
     const handleShipExport = async (company: 'prime' | 'waseet') => {
+        // Shipping with nothing selected means "everything matching my filter".
+        // That is only true while the cached list IS the complete filtered set;
+        // against a windowed list it would hand the courier whichever orders
+        // happened to be loaded. Refuse rather than dispatch the wrong set.
+        if (!canShipWithoutSelection({ selectedCount: selectedOrders.size, ordersAreComplete })) {
+            toast.warning(
+                "Select the orders to ship",
+                "Only part of this filter is loaded, so \"all visible\" would not be all of them.",
+            );
+            return;
+        }
+
         const ids = selectedOrders.size > 0
             ? Array.from(selectedOrders)
             : filteredOrders.map(o => o.id);
@@ -1102,6 +1116,31 @@ export default function OrdersPage() {
     // Switch between regular and archived orders
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
     const deferredDisplayedOrders = React.useDeferredValue(displayedOrders);
+
+    // Risk data by phone, built once. These lookups are called once per rendered
+    // row, and each used to be a `.find()` over the whole list — O(rows x visible)
+    // on every render. Mirrors the O(1) map `getCustomerOrderCount` already uses.
+    const riskByPhone = useMemo(() => {
+        const map = new Map<string, Order["risk_data"]>();
+        for (const o of deferredDisplayedOrders) {
+            if (o.phone && !map.has(o.phone)) map.set(o.phone, o.risk_data);
+        }
+        return map;
+    }, [deferredDisplayedOrders]);
+
+    const getRiskAssessmentByPhone = useCallback(
+        (phone: string) => riskByPhone.get(phone),
+        [riskByPhone],
+    );
+
+    const getRiskLevelByPhone = useCallback(
+        (phone: string): "low" | "medium" | "high" | "blocked" => {
+            const level = riskByPhone.get(phone)?.level || "low";
+            return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
+        },
+        [riskByPhone],
+    );
+
 
     const groupedOrders = useMemo(() => {
         if (groupBy === 'none') {
@@ -2521,7 +2560,12 @@ export default function OrdersPage() {
                                                         )}
                                                     >
                                                         <span className="font-semibold">{selectedOrders.size} orders selected</span>
-                                                        {selectedOrders.size < filteredOrders.length && filteredOrders.length > PAGE_SELECT_LIMIT && (
+                                                        {canOfferSelectAll({
+                                                            selectedCount: selectedOrders.size,
+                                                            loadedCount: filteredOrders.length,
+                                                            pageSelectLimit: PAGE_SELECT_LIMIT,
+                                                            ordersAreComplete,
+                                                        }) && (
                                                             <button
                                                                 onClick={() => {
                                                                     useOrderStore.getState().selectAll(filteredOrders.map(o => o.id));
@@ -2656,10 +2700,7 @@ export default function OrdersPage() {
                                                             getBlacklistEntry={getBlacklistEntry}
                                                             onAddToBlacklist={addToBlacklist}
                                                             onRemoveFromBlacklist={removeFromBlacklist}
-                                                            getRiskAssessment={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                return order?.risk_data;
-                                                            }}
+                                                            getRiskAssessment={getRiskAssessmentByPhone}
                                                             getCustomerOrderCount={getCustomerOrderCount}
                                                             getCustomerArchivedCount={getCustomerArchivedCount}
                                                             getCustomerHistory={getCustomerHistory}
@@ -2667,11 +2708,7 @@ export default function OrdersPage() {
                                                             getOriginalOrderInfo={getOriginalOrderInfo}
                                                             compactView={compactView}
                                                             actionDock={actionDock}
-                                                            getRiskLevel={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                const level = order?.risk_data?.level || "low";
-                                                                return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                            }}
+                                                            getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                             assignments={assignments}
@@ -2763,11 +2800,7 @@ export default function OrdersPage() {
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
                                                     updateOrderStatus={updateOrderStatus}
-                                                    getRiskLevel={(phone) => {
-                                                        const order = displayedOrders.find(o => o.phone === phone);
-                                                        const level = order?.risk_data?.level || "low";
-                                                        return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                    }}
+                                                    getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
                                                     setColumnFilters={setColumnFilters}
                                                     openFilterColumn={openFilterColumn}
@@ -3002,7 +3035,6 @@ export default function OrdersPage() {
                         onClose={() => setIsExportModalOpen(false)}
                         filteredOrders={filteredOrders}
                         selectedOrderIds={selectedOrders}
-                        allOrders={orders}
                         currentDateFrom={filters.dateFrom}
                         currentDateTo={filters.dateTo}
                     />
@@ -3111,6 +3143,7 @@ export default function OrdersPage() {
                         }
                         currentTab={filters.status || 'all'}
                         hasSelection={selectedOrders.size > 0}
+                        ordersAreComplete={ordersAreComplete}
                         onConfirmExport={() => handleShipExport(shipConfirmCompany)}
                     />
 

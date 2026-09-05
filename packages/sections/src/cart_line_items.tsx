@@ -86,7 +86,7 @@ function CartLineItemsRender({
           return (
             <li
               key={`${item.product_id}-${item.variant_id ?? "default"}`}
-              className="bg-white p-bk-sm flex gap-bk-sm items-center"
+              className="bg-bk-surface-alt p-bk-sm flex gap-bk-sm items-center"
               style={{
                 border:
                   "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -96,7 +96,7 @@ function CartLineItemsRender({
             >
               {props.show_thumbnails && (
                 <div
-                  className="relative w-16 h-16 bg-candy-cream overflow-hidden shrink-0"
+                  className="relative w-16 h-16 bg-bk-surface overflow-hidden shrink-0"
                   style={{
                     border:
                       "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -138,7 +138,7 @@ function CartLineItemsRender({
               </div>
               <div className="flex flex-col items-end gap-bk-xs">
                 <div
-                  className="flex items-center bg-white"
+                  className="flex items-center bg-bk-surface-alt"
                   style={{
                     border:
                       "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",

@@ -10,11 +10,11 @@ interface Props {
 }
 
 const SAMPLE_TIMELINE = [
-  { state: "✅", label: "Order placed", time: "Today 10:42 AM", bg: "bg-candy-mint" },
-  { state: "✅", label: "Confirmed", time: "Today 11:08 AM", bg: "bg-candy-mint" },
-  { state: "🚚", label: "Dispatched from warehouse", time: "Today 1:30 PM", bg: "bg-candy-butter" },
-  { state: "⏳", label: "Out for delivery", time: "Estimated 3:30–4:30 PM", bg: "bg-candy-pink text-white" },
-  { state: "⚪", label: "Delivered — pay cash on arrival", time: "", bg: "bg-candy-lilac" },
+  { state: "✅", label: "Order placed", time: "Today 10:42 AM", bg: "bg-bk-mint" },
+  { state: "✅", label: "Confirmed", time: "Today 11:08 AM", bg: "bg-bk-mint" },
+  { state: "🚚", label: "Dispatched from warehouse", time: "Today 1:30 PM", bg: "bg-bk-accent" },
+  { state: "⏳", label: "Out for delivery", time: "Estimated 3:30–4:30 PM", bg: "bg-bk-primary text-white" },
+  { state: "⚪", label: "Delivered — pay cash on arrival", time: "", bg: "bg-bk-lilac" },
 ];
 
 export function SchneidersTrackForm({ whatsappNumber, initialOrder }: Props) {
@@ -36,8 +36,8 @@ export function SchneidersTrackForm({ whatsappNumber, initialOrder }: Props) {
           <div>
             <SectionEyebrow className="mb-1">Phone number</SectionEyebrow>
             <div className="flex gap-2">
-              <span className="bento-card-sm bg-candy-butter rounded-xl px-3 py-3 font-display font-black text-base">+964</span>
-              <div className="flex-1 bento-card-sm bg-candy-cream rounded-xl px-4 py-3">
+              <span className="bento-card-sm bg-bk-accent rounded-xl px-3 py-3 font-display font-black text-base text-bk-on-accent">+964</span>
+              <div className="flex-1 bento-card-sm bg-bk-surface rounded-xl px-4 py-3">
                 <input
                   type="tel"
                   required
@@ -51,7 +51,7 @@ export function SchneidersTrackForm({ whatsappNumber, initialOrder }: Props) {
           </div>
           <div>
             <SectionEyebrow className="mb-1">Order number (optional)</SectionEyebrow>
-            <div className="bento-card-sm bg-candy-cream rounded-xl px-4 py-3">
+            <div className="bento-card-sm bg-bk-surface rounded-xl px-4 py-3">
               <input
                 type="text"
                 value={order}
@@ -80,15 +80,15 @@ export function SchneidersTrackForm({ whatsappNumber, initialOrder }: Props) {
           </BentoCard>
 
           <div className="relative space-y-3 pl-6">
-            <div className="absolute top-2 bottom-2 left-3 border-l-[3px] border-dashed border-candy-ink/30" aria-hidden />
+            <div className="absolute top-2 bottom-2 left-3 border-l-[3px] border-dashed border-bk-ink/30" aria-hidden />
             {SAMPLE_TIMELINE.map((step) => (
               <div key={step.label} className="flex items-start gap-3">
-                <div className={cn("w-8 h-8 rounded-full border-[3px] border-candy-ink flex items-center justify-center font-display font-black text-sm shadow-bento-sm relative", step.bg)}>
+                <div className={cn("w-8 h-8 rounded-full border-bk-bold border-bk-ink flex items-center justify-center font-display font-black text-sm shadow-bk-card relative", step.bg)}>
                   {step.state}
                 </div>
                 <div className="flex-1 pt-1">
                   <p className="font-display font-bold text-sm uppercase">{step.label}</p>
-                  {step.time && <p className="font-body text-xs text-candy-ink/60">{step.time}</p>}
+                  {step.time && <p className="font-body text-xs text-bk-ink/60">{step.time}</p>}
                 </div>
               </div>
             ))}
@@ -101,9 +101,9 @@ export function SchneidersTrackForm({ whatsappNumber, initialOrder }: Props) {
                 href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}`}
                 target="_blank"
                 rel="noreferrer"
-                className="bento-card bg-white text-candy-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all rounded-xl uppercase tracking-tight"
+                className="bento-card bg-bk-surface-alt text-bk-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all rounded-xl uppercase tracking-tight"
               >
-                <WhatsAppIcon className="w-5 h-5 text-candy-mint" />
+                <WhatsAppIcon className="w-5 h-5 text-bk-mint" />
                 Get help
               </a>
             </BentoCard>

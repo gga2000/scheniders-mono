@@ -59,6 +59,13 @@ export interface Order {
     id: string;
     created_at: string;
     updated_at?: string;
+    /**
+     * Server-assigned revision counter, incremented by the
+     * `increment_orders_version` BEFORE UPDATE trigger. Used as the
+     * optimistic-concurrency token (see order-repository.update) and for
+     * realtime dedup — a client must never set this itself.
+     */
+    version?: number;
     order_id: string;
     customer_name: string;
     phone: string;

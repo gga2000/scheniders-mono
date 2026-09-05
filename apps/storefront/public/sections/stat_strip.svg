@@ -13,5 +13,4 @@
     <line x1="100" y1="40" x2="100" y2="120" stroke="#1a1a1a" stroke-dasharray="3 3" opacity="0.3"/>
     <line x1="198" y1="40" x2="198" y2="120" stroke="#1a1a1a" stroke-dasharray="3 3" opacity="0.3"/>
   </g>
-  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">stat_strip</text>
 </svg>

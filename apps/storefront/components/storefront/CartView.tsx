@@ -42,7 +42,7 @@ export function CartView() {
         {items.map((item) => (
           <div
             key={`${item.product_id}-${item.variant_id ?? "default"}`}
-            className="bg-white rounded-lg border border-zinc-200 p-4 flex gap-4"
+            className="bg-bk-surface-alt rounded-lg border border-zinc-200 p-4 flex gap-4"
           >
             <div className="relative w-20 h-20 bg-zinc-100 rounded shrink-0">
               {item.image_url && (
@@ -93,7 +93,7 @@ export function CartView() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg border border-zinc-200 p-6 h-fit">
+      <div className="bg-bk-surface-alt rounded-lg border border-zinc-200 p-6 h-fit">
         <h2 className="font-bold text-lg mb-4">ملخص الطلب</h2>
         <div className="flex justify-between mb-2 text-sm">
           <span className="text-zinc-600">المجموع الفرعي</span>

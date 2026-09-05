@@ -5,6 +5,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { emptyStoreConfigV2, runHealthChecks, HEALTH_CHECKS } from "@scheniders/shared";
+import { EditorModeProvider } from "@/lib/editor-mode-context";
 import { HealthChecklistScreen } from "./health-checklist-screen";
 
 afterEach(() => {
@@ -180,6 +181,127 @@ describe("HealthChecklistScreen", () => {
         const banner = screen.getByTestId("health-blocks-publish");
         expect(banner).toBeTruthy();
         expect(banner.textContent ?? "").toMatch(/Blocks publish/);
+    });
+
+    it("WhatsApp launch step captures the number inline (S3-01)", () => {
+        const cfg = freshEmpty();
+        const onSetWhatsappNumber = vi.fn();
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetWhatsappNumber={onSetWhatsappNumber}
+            />,
+        );
+        // The fix button opens the inline input instead of navigating.
+        fireEvent.click(screen.getByTestId("health-launch-fix-whatsapp"));
+        const inline = screen.getByTestId("health-launch-whatsapp-inline");
+        const input = inline.querySelector("input") as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "0770 123-4567" } });
+        fireEvent.click(screen.getByTestId("health-launch-whatsapp-save"));
+        // Saved digits-only; spaces/dashes stripped.
+        expect(onSetWhatsappNumber).toHaveBeenCalledWith("07701234567");
+    });
+
+    it("WhatsApp inline capture rejects an implausible number", () => {
+        const cfg = freshEmpty();
+        const onSetWhatsappNumber = vi.fn();
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetWhatsappNumber={onSetWhatsappNumber}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("health-launch-fix-whatsapp"));
+        const inline = screen.getByTestId("health-launch-whatsapp-inline");
+        const input = inline.querySelector("input") as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "123" } });
+        fireEvent.click(screen.getByTestId("health-launch-whatsapp-save"));
+        expect(onSetWhatsappNumber).not.toHaveBeenCalled();
+        expect(inline.querySelector('[role="alert"]')).toBeTruthy();
+    });
+
+    it("WhatsApp step is born completed when the config carries a number", () => {
+        const cfg = freshEmpty();
+        cfg.commerce = { whatsapp_number: "07701234567" };
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetWhatsappNumber={() => {}}
+            />,
+        );
+        const step = screen.getByTestId("health-launch-step-whatsapp");
+        expect((step as HTMLElement).dataset.done).toBe("true");
+    });
+
+    it("delivery-fee step appears while unset and captures inline (S3-09)", () => {
+        const cfg = freshEmpty();
+        const onSetDeliveryFee = vi.fn();
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetDeliveryFee={onSetDeliveryFee}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("health-launch-fix-delivery"));
+        const inline = screen.getByTestId("health-launch-delivery-inline");
+        const input = inline.querySelector("input") as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "5000" } });
+        fireEvent.click(screen.getByTestId("health-launch-delivery-save"));
+        expect(onSetDeliveryFee).toHaveBeenCalledWith(5000);
+    });
+
+    it("delivery-fee step is absent when the fee is already configured (S3-09)", () => {
+        const cfg = freshEmpty();
+        cfg.commerce = { shipping: { default_rate: { fee_iqd: 5000 } } };
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={() => {}}
+                hasPublished={false}
+                onSetDeliveryFee={() => {}}
+            />,
+        );
+        expect(screen.queryByTestId("health-launch-step-delivery")).toBeNull();
+    });
+
+    it("Simple mode shows the launch checklist only — no donut/filters/check list (S3-03)", () => {
+        const cfg = freshEmpty();
+        render(
+            <EditorModeProvider value={{ mode: "simple", setMode: () => {} }}>
+                <HealthChecklistScreen
+                    config={cfg}
+                    tenantName="Test"
+                    onSelectSetting={() => {}}
+                    onSelectPage={() => {}}
+                    hasPublished={false}
+                />
+            </EditorModeProvider>,
+        );
+        expect(screen.getByTestId("health-launch-steps")).toBeTruthy();
+        expect(screen.queryByTestId("health-score-donut")).toBeNull();
+        expect(screen.queryByTestId("health-filter-all")).toBeNull();
+        expect(screen.queryByTestId("health-check-list")).toBeNull();
+        // Publish blockers stay actionable, and the Advanced hatch exists.
+        expect(screen.getByTestId("health-simple-blocking-list")).toBeTruthy();
+        expect(screen.getByTestId("health-simple-advanced-hatch")).toBeTruthy();
     });
 
     it("'Blocks publish' banner is absent when no blocking failures exist", () => {

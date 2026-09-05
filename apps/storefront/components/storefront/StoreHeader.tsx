@@ -18,7 +18,7 @@ export function StoreHeader({ tenant, categories = [], variant = "default" }: Pr
   const showNav = variant !== "minimal" && categories.length > 0;
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-zinc-200">
+    <header className="sticky top-0 z-40 w-full bg-bk-surface-alt/80 backdrop-blur-md border-b border-zinc-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export function StoreHeader({ tenant, categories = [], variant = "default" }: Pr
 
       {/* Mobile nav drawer */}
       {showNav && mobileOpen && (
-        <div className="md:hidden border-t border-zinc-200 bg-white">
+        <div className="md:hidden border-t border-zinc-200 bg-bk-surface-alt">
           <nav className="max-w-7xl mx-auto px-4 py-3 space-y-1">
             <StoreLink
               href="/"

@@ -15,12 +15,12 @@ import { useCart } from "./cart-store";
 type Tint = "mint" | "lilac" | "butter" | "sky" | "pink" | "cream";
 
 const TINT_BG: Record<Tint, string> = {
-  mint: "bg-candy-mint/30",
-  lilac: "bg-candy-lilac/30",
-  butter: "bg-candy-butter/30",
-  sky: "bg-candy-sky/30",
-  pink: "bg-candy-pink/15",
-  cream: "bg-candy-cream",
+  mint: "bg-bk-mint/30",
+  lilac: "bg-bk-lilac/30",
+  butter: "bg-bk-accent/30",
+  sky: "bg-bk-sky/30",
+  pink: "bg-bk-primary/15",
+  cream: "bg-bk-surface",
 };
 
 interface Props {
@@ -110,7 +110,7 @@ export function SchneidersProductCard({
   }
 
   return (
-    <article className={cn("bento-card bg-white p-4 relative flex flex-col", className)}>
+    <article className={cn("bento-card bg-bk-surface-alt p-4 relative flex flex-col", className)}>
       {/* One rotated corner badge: Save (on sale) → Bestseller → New. */}
       {onSale ? (
         <div className="absolute -top-3 -left-2 z-10">
@@ -158,7 +158,7 @@ export function SchneidersProductCard({
             )}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-bk-ink-faint font-display font-bold text-sm uppercase">
+          <div className="absolute inset-0 flex items-center justify-center opacity-75 font-display font-bold text-sm uppercase">
             {t ? "لا توجد صورة" : "No image"}
           </div>
         )}
@@ -180,7 +180,7 @@ export function SchneidersProductCard({
       <div className="flex items-end justify-between mb-3 mt-auto">
         <div>
           {onSale && (
-            <div className="font-body font-medium text-xs text-bk-ink-soft line-through">
+            <div className="font-body font-medium text-xs opacity-75 line-through">
               <bdi>{formatPrice(product.compare_at_price!, locale)}</bdi>
             </div>
           )}
@@ -219,7 +219,7 @@ export function SchneidersProductCard({
                 ? "أضف إلى السلة"
                 : "Add to cart"
           }
-          className="bento-card-sm bg-white p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="bento-card-sm bg-bk-surface-alt p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           style={{
             color: justAdded ? "var(--bk-success, #16a34a)" : "var(--bk-ink, #1a1a1a)",
             border:

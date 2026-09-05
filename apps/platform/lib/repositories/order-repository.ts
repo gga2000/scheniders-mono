@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
+import type { OrderWindow } from "@/lib/order-window";
 
 /**
  * OrderRepository — Centralized data access for orders.
@@ -20,6 +21,7 @@ const LIST_VIEW_COLUMNS = `
   id,
   created_at,
   updated_at,
+  version,
   original_created_at,
   order_id,
   customer_name,
@@ -52,6 +54,20 @@ const LIST_VIEW_COLUMNS = `
   attention_reasons,
   last_status_changed_by_name,
   last_status_changed_by_avatar
+`.trim();
+
+/**
+ * Columns needed to build an export file. The list view deliberately omits some
+ * of these to keep the page payload down, but `lib/export-utils.ts` reads them:
+ * without `validated_governorate_code` and `is_replacement` they arrive
+ * `undefined`, so every export silently fell back to the raw governorate code
+ * and marked replacement orders as NOT containing returned goods.
+ */
+const EXPORT_VIEW_COLUMNS = `
+${LIST_VIEW_COLUMNS},
+  validated_governorate_code,
+  is_replacement,
+  delivery_order_id
 `.trim();
 
 export const orderRepository = {
@@ -115,6 +131,139 @@ export const orderRepository = {
     },
 
     /**
+     * Fetch orders for an export file, straight from the server.
+     *
+     * Exports must never be limited to whatever the page happens to have
+     * loaded: "this month" or "all orders" has to mean what it says, even once
+     * the list fetch is windowed. Tenant scoping comes from RLS on
+     * `v_orders_with_risk` (security_invoker), same as every other read here.
+     */
+    async findForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<Order[]> {
+        const _t = performance.now();
+        const step = 1000;
+        const fromTs = opts.dateFrom ? `${opts.dateFrom}T00:00:00.000Z` : null;
+        const toTs = opts.dateTo ? `${opts.dateTo}T23:59:59.999Z` : null;
+
+        let countQuery = supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false);
+        if (fromTs) countQuery = countQuery.gte("created_at", fromTs);
+        if (toTs) countQuery = countQuery.lte("created_at", toTs);
+
+        const { count, error: countErr } = await countQuery;
+        if (countErr) throw countErr;
+
+        const totalRows = count ?? 0;
+        if (totalRows === 0) return [];
+
+        const pageCount = Math.ceil(totalRows / step);
+        const pages = await Promise.all(
+            Array.from({ length: pageCount }, (_, i) => {
+                let q = supabase
+                    .from("v_orders_with_risk")
+                    .select(EXPORT_VIEW_COLUMNS)
+                    .eq("is_archived", false);
+                if (fromTs) q = q.gte("created_at", fromTs);
+                if (toTs) q = q.lte("created_at", toTs);
+                return q
+                    .order("created_at", { ascending: false })
+                    .range(i * step, i * step + step - 1);
+            }),
+        );
+
+        let rows: unknown[] = [];
+        for (const { data, error } of pages) {
+            if (error) throw error;
+            if (data) rows = rows.concat(data);
+        }
+
+        diag.log(`[Diag:Repo] findForExport rows=${rows.length} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return rows.map(row => normalizeOrder(row as Order));
+    },
+
+    /**
+     * Fetch only the orders inside the active window.
+     *
+     * Replaces `findAll()`'s whole-book download for the common case. Takes the
+     * same `OrderWindow` the realtime predicate uses (lib/order-window.ts), so
+     * the rows fetched and the rows realtime is willing to add can never drift
+     * apart. A null window means "no date filter" and falls back to findAll().
+     *
+     * Rides idx_orders_tenant_active_created — measured 0.388 ms / 47 buffers for
+     * 50 rows, against 4,019 kB for the full book.
+     */
+    async findWindow(window: OrderWindow): Promise<Order[]> {
+        if (!window) return this.findAll();
+
+        const _t = performance.now();
+        const step = 1000;
+        const fromIso = new Date(window.fromInstant).toISOString();
+        const toIso = new Date(window.toInstant).toISOString();
+
+        // Count first, then page through ALL of them.
+        //
+        // Deliberately NOT a bare `.limit(n)`: truncating would leave the list
+        // showing 1,000 rows while the server-computed status chips report the
+        // real total, i.e. the list silently disagreeing with its own counts.
+        // The payload win comes from the window being narrow (the default view
+        // is a single day), never from dropping rows the merchant filtered for.
+        const { count, error: countErr } = await supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false)
+            .gte("created_at", fromIso)
+            .lte("created_at", toIso);
+        if (countErr) throw countErr;
+
+        const totalRows = count ?? 0;
+        if (totalRows === 0) return [];
+
+        const pageCount = Math.ceil(totalRows / step);
+        const pages = await Promise.all(
+            Array.from({ length: pageCount }, (_, i) =>
+                supabase
+                    .from("v_orders_with_risk")
+                    .select(LIST_VIEW_COLUMNS)
+                    .eq("is_archived", false)
+                    .gte("created_at", fromIso)
+                    .lte("created_at", toIso)
+                    .order("created_at", { ascending: false })
+                    .range(i * step, i * step + step - 1),
+            ),
+        );
+
+        let rows: unknown[] = [];
+        for (const { data, error } of pages) {
+            if (error) throw error;
+            if (data) rows = rows.concat(data);
+        }
+
+        diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return rows.map(row => normalizeOrder(row as Order));
+    },
+
+    /**
+     * Row count for an export scope, without transferring any rows.
+     *
+     * The export scope picker advertises "this month — N orders" before the
+     * merchant commits. Those numbers have to describe the server's data, not
+     * the window the page happens to hold, or the picker promises one thing and
+     * the file delivers another.
+     */
+    async countForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<number> {
+        let q = supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false);
+        if (opts.dateFrom) q = q.gte("created_at", `${opts.dateFrom}T00:00:00.000Z`);
+        if (opts.dateTo) q = q.lte("created_at", `${opts.dateTo}T23:59:59.999Z`);
+        const { count, error } = await q;
+        if (error) throw error;
+        return count ?? 0;
+    },
+
+    /**
      * Incremental sync: fetch only orders modified after a given timestamp.
      * Returns both active and newly-archived orders so the client can
      * update its cache accordingly.
@@ -123,7 +272,7 @@ export const orderRepository = {
         const { data, error } = await supabase
             .from("v_orders_with_risk")
             .select(LIST_VIEW_COLUMNS)
-            .gt("updated_at", sinceTimestamp)
+            .gte("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
         if (error) throw error;
@@ -232,18 +381,25 @@ export const orderRepository = {
         return data ? normalizeOrder(data as unknown as Order) : null;
     },
 
-    /** Update an order by ID. Verifies the write actually affected a row. Supports conflict detection via expectedUpdatedAt. */
-    async update(id: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<Order> {
+    /**
+     * Update an order by ID. Verifies the write actually affected a row.
+     *
+     * Conflict detection uses `version`, not `updated_at`: `version` is
+     * incremented server-side by the `increment_orders_version` trigger on every
+     * UPDATE, so it always moves. `updated_at` was not maintained on platform
+     * writes, which silently disabled this guard entirely (CON-1).
+     */
+    async update(id: string, updates: Partial<Order>, expectedVersion?: number): Promise<Order> {
         const _t = performance.now();
-        diag.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')} expectedUpdatedAt=${expectedUpdatedAt}`);
-        
+        diag.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')} expectedVersion=${expectedVersion}`);
+
         let query = supabase
             .from("orders")
             .update(updates)
             .eq("id", id);
-            
-        if (expectedUpdatedAt) {
-            query = query.eq("updated_at", expectedUpdatedAt);
+
+        if (typeof expectedVersion === "number") {
+            query = query.eq("version", expectedVersion);
         }
 
         const { data, error } = await query
@@ -251,7 +407,7 @@ export const orderRepository = {
             .maybeSingle();
 
         if (error) {
-            if (expectedUpdatedAt && error.code === 'PGRST116') {
+            if (typeof expectedVersion === "number" && error.code === 'PGRST116') {
                 diag.log(`[Diag:Repo] update CONFLICT orderId=${id} (PGRST116) took=${(performance.now() - _t).toFixed(1)}ms`);
                 throw new Error("CONFLICT_DETECTED");
             }
@@ -260,7 +416,7 @@ export const orderRepository = {
         }
         
         if (!data) {
-            if (expectedUpdatedAt) {
+            if (typeof expectedVersion === "number") {
                 diag.log(`[Diag:Repo] update CONFLICT orderId=${id} took=${(performance.now() - _t).toFixed(1)}ms`);
                 throw new Error("CONFLICT_DETECTED");
             }
@@ -282,7 +438,7 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAt?: string,
+        expectedVersion?: number,
         rejectionReasonId?: string
     ): Promise<Order> {
         const updateData: Partial<Order> = { status };
@@ -311,7 +467,7 @@ export const orderRepository = {
         const MAX_RETRIES = 2;
         let lastError: unknown;
 
-        diag.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status} expectedUpdatedAt=${expectedUpdatedAt}`);
+        diag.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status} expectedVersion=${expectedVersion}`);
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
                 const t0 = performance.now();
@@ -322,8 +478,8 @@ export const orderRepository = {
                     .update(updateData)
                     .eq("id", id);
                     
-                if (expectedUpdatedAt) {
-                    query = query.eq("updated_at", expectedUpdatedAt);
+                if (typeof expectedVersion === "number") {
+                    query = query.eq("version", expectedVersion);
                 }
                 
                 const supabasePromise = query
@@ -338,7 +494,7 @@ export const orderRepository = {
                 const elapsed = Math.round(performance.now() - t0);
 
                 if (error) {
-                    if (expectedUpdatedAt && error.code === 'PGRST116') {
+                    if (typeof expectedVersion === "number" && error.code === 'PGRST116') {
                         diag.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms (PGRST116)`);
                         throw new Error("CONFLICT_DETECTED");
                     }
@@ -346,7 +502,7 @@ export const orderRepository = {
                     throw error;
                 }
                 if (!data) {
-                    if (expectedUpdatedAt) {
+                    if (typeof expectedVersion === "number") {
                         diag.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms`);
                         throw new Error("CONFLICT_DETECTED");
                     }
@@ -358,7 +514,24 @@ export const orderRepository = {
             } catch (err) {
                 lastError = err;
                 diag.warn(`[updateStatus] attempt ${attempt + 1} error for ${id}:`, err instanceof Error ? err.message : err);
-                
+
+                // A CONFLICT after a retry is usually OUR OWN earlier attempt that
+                // committed before its response arrived (network timeout). Re-read
+                // the row: if it already carries the status we were setting, the
+                // write landed and this is a false conflict. Anything else is a
+                // genuine concurrent edit and must still surface.
+                if (err instanceof Error && err.message === "CONFLICT_DETECTED" && attempt > 0) {
+                    const { data: current } = await supabase
+                        .from("orders")
+                        .select("*")
+                        .eq("id", id)
+                        .maybeSingle();
+                    if (current && current.status === status) {
+                        diag.log(`[updateStatus] CONFLICT resolved: our own write had already landed for ${id}`);
+                        return normalizeOrder(current);
+                    }
+                }
+
                 // Do not retry on intentional application errors or data conflicts
                 if (err instanceof Error && (err.message === "CONFLICT_DETECTED" || err.message.includes("row not found"))) {
                     throw err;
@@ -376,7 +549,7 @@ export const orderRepository = {
 
     /**
      * Update order status in bulk. Includes retry mechanism per-order
-     * and conflict detection if expectedUpdatedAts is provided.
+     * and conflict detection if expectedVersions is provided.
      * Keeps track of successful and failed operations.
      */
     async bulkUpdateStatus(
@@ -385,7 +558,7 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAts?: Record<string, string>
+        expectedVersions?: Record<string, number>
     ): Promise<{
         successfulOperations: { id: string, order: Order }[],
         failedOperations: { id: string, error: unknown }[]
@@ -394,7 +567,7 @@ export const orderRepository = {
         
         const results = await Promise.allSettled(
             orderIds.map(async id => {
-                const expectedAt = expectedUpdatedAts ? expectedUpdatedAts[id] : undefined;
+                const expectedAt = expectedVersions ? expectedVersions[id] : undefined;
                 const order = await this.updateStatus(
                     id, 
                     status, 

@@ -14,5 +14,4 @@
     <rect x="158" y="92" width="114" height="34" rx="6" fill="#ff5a8a" opacity="0.4"/>
     <rect x="158" y="132" width="60" height="12" rx="3" fill="#1a1a1a"/>
   </g>
-  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">product_grid</text>
 </svg>

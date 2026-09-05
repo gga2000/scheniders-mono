@@ -94,19 +94,15 @@ describe("SectionEditPanel", () => {
         expect(next.label).toBe("Hero — Summer Sale");
     });
 
-    it("toggling enabled calls onChange with `enabled: !enabled`", () => {
-        const onChange = vi.fn();
+    it("does not render an enabled switch — the row eye owns visibility (S3-12)", () => {
         render(
             <SectionEditPanel
                 instance={heroInstance({ enabled: true })}
-                onChange={onChange}
+                onChange={() => {}}
                 onClose={() => {}}
             />,
         );
-        fireEvent.click(screen.getByTestId("section-edit-panel-enabled"));
-        expect(onChange).toHaveBeenCalledTimes(1);
-        const next = onChange.mock.calls[0][0] as SectionInstance;
-        expect(next.enabled).toBe(false);
+        expect(screen.queryByTestId("section-edit-panel-enabled")).toBeNull();
     });
 
     it("closing fires onClose", () => {

@@ -32,6 +32,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorMode } from "@/lib/editor-mode-context";
 import {
     resolveEnumValueLabel,
     resolveFieldHelp,
@@ -92,6 +93,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
     // TODO(SECTION_FIELD_META): thread sectionType down for per-section
     // label overrides once the override map gains entries.
     const fieldLocale = useResolvedEditorLocale(activeLocale);
+    const { mode } = useEditorMode();
     const label = resolveFieldLabel(undefined, fieldKey, fieldLocale);
     const help = resolveFieldHelp(undefined, fieldKey, fieldLocale);
     const path = labelPath.concat(fieldKey);
@@ -164,7 +166,21 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
     let control: ReactElement;
     switch (field.kind) {
         case "string":
-            control = (
+            // S3-06: in Simple, link fields become a destination picker —
+            // Fatima chooses "Products page", not a raw path.
+            control =
+                mode === "simple" &&
+                (fieldKey.endsWith("_href") || field.isUrl) &&
+                field.hint !== "image" ? (
+                    <DestinationControl
+                        label={label}
+                        value={(value as string | undefined) ?? ""}
+                        onChange={(v) => onChange(v === "" && optional ? undefined : v)}
+                        onClear={optional ? () => onChange(undefined) : undefined}
+                        locale={fieldLocale}
+                        testIdBase={testIdBase}
+                    />
+                ) : (
                 <StringControl
                     label={label}
                     value={(value as string | undefined) ?? ""}
@@ -393,6 +409,89 @@ export function StringControl(p: StringControlProps): ReactElement {
                     "transition-colors",
                 )}
             />
+        </div>
+    );
+}
+
+/* ── Destination picker (S3-06) ────────────────────────────────────
+ * Simple-mode replacement for raw href inputs: a select of the store's
+ * real destinations, with a "another link…" escape into free text.
+ * Advanced keeps the raw input (power users paste anything).
+ */
+
+const KNOWN_DESTINATIONS = [
+    { value: "/products", labelKey: "dest_products" },
+    { value: "/", labelKey: "dest_home" },
+    { value: "/about", labelKey: "dest_about" },
+    { value: "/contact", labelKey: "dest_contact" },
+    { value: "/faq", labelKey: "dest_faq" },
+    { value: "/track", labelKey: "dest_track" },
+] as const;
+
+const CUSTOM_DESTINATION = "__custom__";
+
+interface DestinationControlProps {
+    label: string;
+    value: string;
+    onChange: (next: string) => void;
+    onClear?: () => void;
+    locale: LocaleCode;
+    testIdBase: string;
+}
+
+export function DestinationControl(p: DestinationControlProps): ReactElement {
+    const isKnown = KNOWN_DESTINATIONS.some((d) => d.value === p.value);
+    // A pre-existing custom path (e.g. /category/lipstick) stays editable
+    // as free text; picking a known destination folds the input away.
+    const [customOpen, setCustomOpen] = useState<boolean>(
+        p.value !== "" && !isKnown,
+    );
+    const selectValue = customOpen || !isKnown ? CUSTOM_DESTINATION : p.value;
+    return (
+        <div className="space-y-1.5">
+            <FieldHeader label={p.label} onClear={p.onClear} testIdBase={p.testIdBase} />
+            <select
+                data-testid={`${p.testIdBase}-destination`}
+                value={selectValue}
+                onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === CUSTOM_DESTINATION) {
+                        setCustomOpen(true);
+                        return;
+                    }
+                    setCustomOpen(false);
+                    p.onChange(v);
+                }}
+                className={cn(
+                    "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
+                    "transition-colors",
+                )}
+            >
+                {KNOWN_DESTINATIONS.map((d) => (
+                    <option key={d.value} value={d.value}>
+                        {tx(STRINGS.auto_form[d.labelKey], p.locale)}
+                    </option>
+                ))}
+                <option value={CUSTOM_DESTINATION}>
+                    {tx(STRINGS.auto_form.dest_custom, p.locale)}
+                </option>
+            </select>
+            {(customOpen || !isKnown) && (
+                <input
+                    type="text"
+                    dir="ltr"
+                    data-testid={`${p.testIdBase}-destination-custom`}
+                    value={p.value}
+                    onChange={(e) => p.onChange(e.target.value)}
+                    placeholder="/products"
+                    className={cn(
+                        "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
+                        "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
+                        "transition-colors",
+                    )}
+                />
+            )}
         </div>
     );
 }

@@ -18,6 +18,7 @@ import { useViewport } from "@/hooks/use-viewport";
 import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
+import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
@@ -195,6 +196,9 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* S3-02c: store-less tenants get one visible route to the builder */}
+        <BuildStoreBanner />
 
         {/* Today at a Glance */}
         <TodayStrip metrics={dashboardMetrics.todayStrip} />

@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } fr
 import { supabase, type Order, type RejectionReason, type MessageTemplate } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useAuth } from "@/components/auth/auth-provider";
+import { computeCustomerOrderCounts, findOrderDuplicates } from "@/lib/order-duplicates";
 
 // =============================================
 // ORDER AUXILIARY HOOK
@@ -117,102 +118,27 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
-    // Precomputed map for O(1) lookups
-    const customerOrderCountsMap = useMemo(() => {
-        const counts = new Map<string, number>();
-        const processedBaseIds = new Set<string>();
-
-        const getBaseId = (orderId: string | undefined | null): string => {
-            if (!orderId) return '';
-            const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-            if (lfMatch) return lfMatch[1];
-            if (orderId.startsWith('DLV-')) return orderId.replace('DLV-', '');
-            const digits = orderId.match(/\d+/);
-            return digits ? digits[0] : orderId;
-        };
-
-        orders.forEach((order) => {
-            if (order.is_archived || order.is_return) return;
-
-            const normalizedPhone = normalizePhoneForSearch(order.phone);
-            const baseId = getBaseId(order.order_id);
-            const orderDedupKey = `${normalizedPhone}-${baseId}`;
-
-            if (!processedBaseIds.has(orderDedupKey)) {
-                processedBaseIds.add(orderDedupKey);
-                counts.set(normalizedPhone, (counts.get(normalizedPhone) || 0) + 1);
-            }
-        });
-
-        return counts;
-    }, [orders]);
+    // Precomputed map for O(1) lookups. The algorithm lives in
+    // lib/order-duplicates.ts as a pure function so it can be unit-tested and
+    // proven equivalent to the SQL side (public.get_customer_order_counts),
+    // which takes over once the order fetch is windowed.
+    const customerOrderCountsMap = useMemo(
+        () => computeCustomerOrderCounts(orders),
+        [orders],
+    );
 
     const getCustomerOrderCount = useCallback((phone: string, _currentOrderId?: string): number => {
         const normalizedPhone = normalizePhoneForSearch(phone);
         return customerOrderCountsMap.get(normalizedPhone) || 0;
     }, [customerOrderCountsMap]);
 
-    function checkDuplicateOrder(phone: string, items: string[]): Order[] {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const normalizedPhone = normalizePhoneForSearch(phone);
-
-        return orders.filter((order) => {
-            if (normalizePhoneForSearch(order.phone) !== normalizedPhone) return false;
-            if (order.is_return) return false;
-            if (new Date(order.created_at) < sevenDaysAgo) return false;
-
-            const orderItemNames = order.items?.map((i) => i.name.toLowerCase()) || [];
-            const hasSimilarItems = items.some((item) =>
-                orderItemNames.some((oiName) => oiName.includes(item.toLowerCase()))
-            );
-
-            return hasSimilarItems;
-        });
-    }
-
     function getDuplicatesForOrder(orderId: string): Order[] {
         const order = orders.find((o) => o.id === orderId);
         if (!order) return [];
-
-        const PHONE_WINDOW_HOURS = 72;
-        const PRODUCT_WINDOW_DAYS = 7;
-
-        const phoneWindowStart = new Date(order.created_at);
-        phoneWindowStart.setHours(phoneWindowStart.getHours() - PHONE_WINDOW_HOURS);
-
-        const phoneWindowEnd = new Date(order.created_at);
-        phoneWindowEnd.setHours(phoneWindowEnd.getHours() + PHONE_WINDOW_HOURS);
-
-        const productWindowStart = new Date(order.created_at);
-        productWindowStart.setDate(productWindowStart.getDate() - PRODUCT_WINDOW_DAYS);
-
-        const productWindowEnd = new Date(order.created_at);
-        productWindowEnd.setDate(productWindowEnd.getDate() + PRODUCT_WINDOW_DAYS);
-
-        const normalizedOrderPhone = normalizePhoneForSearch(order.phone);
-        const orderItemNames = order.items?.map((i) => i.name.toLowerCase()) || [];
-
-        return orders.filter((o) => {
-            if (o.id === orderId || o.is_return) return false;
-            if (normalizePhoneForSearch(o.phone) !== normalizedOrderPhone) return false;
-
-            const orderDate = new Date(o.created_at);
-
-            if (orderDate >= phoneWindowStart && orderDate <= phoneWindowEnd) {
-                return true;
-            }
-
-            if (orderDate >= productWindowStart && orderDate <= productWindowEnd && orderItemNames.length > 0) {
-                const otherItemNames = o.items?.map((i) => i.name.toLowerCase()) || [];
-                const hasOverlap = orderItemNames.some((item) =>
-                    otherItemNames.some((other) => other.includes(item) || item.includes(other))
-                );
-                if (hasOverlap) return true;
-            }
-
-            return false;
-        });
+        // Algorithm lives in lib/order-duplicates.ts so it is unit-testable and
+        // provably equivalent to public.get_order_duplicate_flags, which takes
+        // over once the order fetch is windowed.
+        return findOrderDuplicates(order, orders) as Order[];
     }
 
     function hasDuplicates(orderId: string): boolean {
@@ -334,7 +260,6 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         getCustomerHistory,
         getCustomerOrderCount,
         getCustomerArchivedCount,
-        checkDuplicateOrder,
         getDuplicatesForOrder,
         hasDuplicates,
         getCustomerOrders,

@@ -65,7 +65,20 @@ function AnnouncementBar({
   const durationSec =
     props.speed === "slow" ? 32 : props.speed === "fast" ? 14 : 20;
   // Pink and ink backgrounds want light text; the pastels stay on ink.
-  const onDark = props.bg === "ink" || props.bg === "pink";
+  /**
+   * Foreground per background, by token rather than by guessing which fills
+   * are "dark". The old rule hardcoded white for ink/pink and ink for the
+   * rest, which broke on both ends of a dark kit: ink IS light there, and the
+   * accent fill got light text at 1.87:1.
+   */
+  const BAR_FG: Record<z.infer<typeof barBg>, string> = {
+    butter: "var(--bk-on-accent, #1a1a1a)",
+    mint: "var(--bk-ink, #1a1a1a)",
+    pink: "var(--bk-on-primary, #ffffff)",
+    lilac: "var(--bk-ink, #1a1a1a)",
+    sky: "var(--bk-ink, #1a1a1a)",
+    ink: "var(--bk-surface, #fff7ed)",
+  };
 
   // Render the message list twice so the translateX(-50%) marquee loop
   // (see tailwind keyframes.marquee) seams invisibly at any viewport width.
@@ -89,7 +102,7 @@ function AnnouncementBar({
       className="overflow-hidden relative z-30 py-1.5"
       style={{
         backgroundColor: BAR_BG[props.bg],
-        color: onDark ? "#ffffff" : "var(--bk-ink, #1a1a1a)",
+        color: BAR_FG[props.bg],
         borderBottom:
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
       }}

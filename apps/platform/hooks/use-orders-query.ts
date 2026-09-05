@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { diag } from "@/lib/diag";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
+import type { OrderWindow } from "@/lib/order-window";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -130,12 +132,25 @@ function readSwrCache(): Order[] | null {
     }
 }
 
+/**
+ * Whether a cache holding `window` is the COMPLETE set matching the merchant's
+ * filters, or only a slice of it.
+ *
+ * A null window means no date filter is active, so the fetch loaded everything.
+ * Any other window is by definition a subset — and the actions that mean "act on
+ * everything I can see" (ship-with-no-selection, select-all) must refuse rather
+ * than silently operate on whichever rows happened to load.
+ */
+export function ordersCacheIsCompleteSet(window: OrderWindow): boolean {
+    return window === null;
+}
+
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
-async function fetchOrders(): Promise<Order[]> {
+async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
-    const result = await orderRepository.findAll();
+    const result = await orderRepository.findWindow(window);
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
@@ -165,9 +180,29 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  *
  * @param refetchTrigger - Optional trigger to force refetch
  */
-export function useOrdersQuery(refetchTrigger?: string) {
+export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: string) {
     const queryClient = useQueryClient();
     const { session, clientReady } = useAuth();
+    const pathname = usePathname();
+
+    // Perf: the store-builder editor renders in DashboardLayout's IMMERSIVE
+    // branch — no TopBar (global-search), no chat drawer — so nothing on
+    // `/store/edit` reads the orders context. OrdersProvider still lives at
+    // the root, though, so without this gate the editor pays a ~5.5MB
+    // findAll() (13 paged requests) that competes with the editor's own
+    // loads on Iraqi 3G. Skip the fetch there; SWR initialData still serves
+    // any cached rows for free, and the fetch resumes on the next
+    // orders-consuming route.
+    const skipForImmersiveEditor = pathname?.startsWith("/store/edit") ?? false;
+
+    // The query key deliberately does NOT include the window. Realtime, every
+    // mutation, delta sync and the sessionStorage SWR cache all read and write
+    // `orderKeys.lists()`; keying per window would scatter those across caches.
+    // The cache holds one window at a time and a change invalidates it.
+    const windowKey = window ? `${window.fromInstant}-${window.toInstant}` : "all";
+    useEffect(() => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    }, [windowKey, queryClient]);
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -179,10 +214,11 @@ export function useOrdersQuery(refetchTrigger?: string) {
 
     return useQuery({
         queryKey: orderKeys.lists(),
-        queryFn: fetchOrders,
+        queryFn: () => fetchOrders(window),
         // CRITICAL: Wait for Supabase client's internal session to be ready
-        // Not just React state - the client must have completed _initialize()
-        enabled: !!session && clientReady,
+        // Not just React state - the client must have completed _initialize().
+        // Also skipped on the immersive store editor (no orders consumer there).
+        enabled: !!session && clientReady && !skipForImmersiveEditor,
         // SWR: Hydrate from sessionStorage immediately (shows data in <5ms).
         // React Query knows the real age via initialDataUpdatedAt, so it will
         // refetch in the background if the cached data is stale (>30s old).
@@ -238,8 +274,8 @@ export function useUpdateOrderMutation() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, updates, expectedUpdatedAt }: { orderId: string; updates: Partial<Order>; expectedUpdatedAt?: string }) => {
-            const data = await orderRepository.update(orderId, updates, expectedUpdatedAt);
+        mutationFn: async ({ orderId, updates, expectedVersion }: { orderId: string; updates: Partial<Order>; expectedVersion?: number }) => {
+            const data = await orderRepository.update(orderId, updates, expectedVersion);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
@@ -306,7 +342,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId,
             last_status_changed_by_name,
             last_status_changed_by_avatar,
-            expectedUpdatedAt,
+            expectedVersion,
         }: {
             orderId: string;
             status: Order["status"];
@@ -314,7 +350,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId?: string;
             last_status_changed_by_name?: string;
             last_status_changed_by_avatar?: string;
-            expectedUpdatedAt?: string;
+            expectedVersion?: number;
         }) => {
             const data = await orderRepository.updateStatus(
                 orderId,
@@ -322,7 +358,7 @@ export function useUpdateStatusMutation() {
                 rejectionReason,
                 last_status_changed_by_name,
                 last_status_changed_by_avatar,
-                expectedUpdatedAt,
+                expectedVersion,
                 rejectionReasonId
             );
             return { orderId, status, data };
@@ -351,7 +387,11 @@ export function useUpdateStatusMutation() {
                                     ? order.rejection_reason
                                     : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
-                            updated_at: new Date().toISOString(),
+                            // Deliberately NOT stamping `updated_at` here: a
+                            // client-clock value would be compared against real
+                            // server timestamps by the realtime dedup and could
+                            // suppress genuine incoming events. onSuccess writes
+                            // the authoritative server row moments later.
                             last_status_changed_by_name,
                             last_status_changed_by_avatar,
                         } as Order)
@@ -418,7 +458,9 @@ export function usePrefetchOrders() {
     return () => {
         queryClient.prefetchQuery({
             queryKey: orderKeys.lists(),
-            queryFn: fetchOrders,
+            // Prefetch on hover has no filter context; it warms the unwindowed
+            // list and the real query replaces it with the active window.
+            queryFn: () => fetchOrders(null),
             // Match staleTime from useOrdersQuery
             staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });
@@ -461,12 +503,15 @@ export function useDeleteOrderMutation() {
 /**
  * useCreateOrderMutation - Optimistic create
  */
-export function useCreateOrderMutation(tenantId: string | null) {
+export function useCreateOrderMutation() {
     const queryClient = useQueryClient();
+    // The server action derives the tenant from this token — the client no
+    // longer tells the server which tenant to write into.
+    const { session } = useAuth();
 
     return useMutation({
         mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            const result = await createOrderAction(orderData, tenantId);
+            const result = await createOrderAction(orderData, session?.access_token ?? "");
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 throw new Error(result.error || "Failed to create order");

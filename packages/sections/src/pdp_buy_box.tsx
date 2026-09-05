@@ -369,7 +369,7 @@ function PdpBuyBoxRender({
                   {t ? "الكمية" : "Quantity"}
                 </h3>
                 <div
-                  className="inline-flex items-center bg-white"
+                  className="inline-flex items-center bg-bk-surface-alt"
                   style={{
                     border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                     borderRadius: "var(--bk-radius-input, 0.75rem)",

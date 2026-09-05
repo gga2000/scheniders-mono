@@ -48,6 +48,26 @@ function reviews(
     }));
 }
 
+/* ── Hero copy (S3-14) ─────────────────────────────────────────────
+ * The hero is the first line a merchant reads on her seeded store —
+ * industry adaptation must cover it, not just the story sections.
+ * Templates ship different hero flavors, so the same copy targets all
+ * four types; the merge only touches types the template actually uses.
+ */
+
+function heroCopy(o: {
+    title: { en: string; ar: string };
+    subtitle: { en: string; ar: string };
+}): SectionOverrides {
+    const props = { title_i18n: o.title, subtitle_i18n: o.subtitle };
+    return {
+        hero_image: props,
+        hero_split: props,
+        hero_marquee: props,
+        hero_video: props,
+    };
+}
+
 /* ── Packs ─────────────────────────────────────────────────────────── */
 
 const DEFAULT_PACK: SectionOverrides = {
@@ -104,6 +124,13 @@ const DEFAULT_PACK: SectionOverrides = {
 
 const PACKS: Record<string, SectionOverrides> = {
     beauty: {
+        ...heroCopy({
+            title: { en: "Original beauty, at your door", ar: "جمالكِ يبدأ من منتجات أصلية" },
+            subtitle: {
+                en: "Skincare, makeup and fragrance from official distributors — cash on delivery across Iraq.",
+                ar: "عناية ومكياج وعطور أصلية من موزّعين معتمدين — توصيل لكل العراق والدفع عند الاستلام.",
+            },
+        }),
         brand_story: {
             title_i18n: {
                 en: "Beauty you can trust, delivered to your door.",
@@ -156,6 +183,13 @@ const PACKS: Record<string, SectionOverrides> = {
     },
 
     fashion: {
+        ...heroCopy({
+            title: { en: "Your new look just landed", ar: "إطلالتك الجديدة وصلت" },
+            subtitle: {
+                en: "Hand-picked pieces, fast delivery to every governorate — pay cash on arrival.",
+                ar: "قطع مختارة بعناية، وتوصيل سريع لكل المحافظات — والدفع عند الاستلام.",
+            },
+        }),
         brand_story: {
             title_i18n: {
                 en: "A small studio with big ideas.",
@@ -207,6 +241,13 @@ const PACKS: Record<string, SectionOverrides> = {
     },
 
     electronics: {
+        ...heroCopy({
+            title: { en: "Tech you can trust", ar: "تكنولوجيا أصلية بضمان" },
+            subtitle: {
+                en: "Checked devices with a real warranty — delivered across Iraq, cash on delivery.",
+                ar: "أجهزة مفحوصة وبضمان حقيقي — توصيل لكل العراق والدفع عند الاستلام.",
+            },
+        }),
         brand_story: {
             title_i18n: {
                 en: "Real specs. Real warranty. Real prices.",
@@ -259,6 +300,13 @@ const PACKS: Record<string, SectionOverrides> = {
     },
 
     food: {
+        ...heroCopy({
+            title: { en: "Fresh picks, straight to your door", ar: "طعم البيت يوصل لبابك" },
+            subtitle: {
+                en: "Hand-picked pantry staples, delivered fast — pay cash when it arrives.",
+                ar: "مؤونة طازجة ومختارة بعناية، توصيل سريع — والدفع عند الاستلام.",
+            },
+        }),
         brand_story: {
             title_i18n: {
                 en: "Fresh to your door, same day.",

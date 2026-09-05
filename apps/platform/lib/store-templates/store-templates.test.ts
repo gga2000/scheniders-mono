@@ -18,6 +18,40 @@ const SPEED = ["slow", "normal", "snappy"];
 const FORMALITY = ["formal", "casual", "playful", "luxe"];
 const HEX = /^#[0-9a-f]{6}$/;
 
+/**
+ * Google Fonts families confirmed to serve all four weights the loader asks
+ * for (`wght@400;500;600;700`), checked against the live css2 endpoint on
+ * 2026-08-08 with a browser user-agent. Arabic entries were additionally
+ * confirmed to ship a U+0600 subset.
+ *
+ * A family that only ships some of those weights still returns HTTP 200, so
+ * nothing fails loudly — the browser just synthesises the missing weight, and
+ * faux-bold Arabic looks broken. Almarai (400/700 only) and Tajawal (no 600)
+ * were both caught this way and replaced. Anything added here should be
+ * verified the same way first.
+ */
+const WEIGHT_COMPLETE_FONTS = new Set([
+    // Latin
+    "Bricolage Grotesque",
+    "DM Sans",
+    "Inter Tight",
+    "Jost",
+    "Manrope",
+    "Outfit",
+    "Playfair Display",
+    "Space Grotesk",
+    // Arabic
+    "Alexandria",
+    "Baloo Bhaijaan 2",
+    "Cairo",
+    "El Messiri",
+    "IBM Plex Sans Arabic",
+    "Noto Kufi Arabic",
+    "Noto Sans Arabic",
+    "Readex Pro",
+    "Reem Kufi",
+]);
+
 describe("store templates", () => {
     it("ships exactly six directions with unique ids", () => {
         expect(STORE_TEMPLATES).toHaveLength(6);
@@ -73,6 +107,19 @@ describe("store templates", () => {
             expect(FORMALITY).toContain(bk.voice.formality);
             expect(bk.typography.display_ar, `${tpl.id} arabic display`).toBeTruthy();
             expect(bk.typography.body_ar, `${tpl.id} arabic body`).toBeTruthy();
+        }
+    });
+
+    it("only uses fonts that ship every requested weight", () => {
+        for (const tpl of STORE_TEMPLATES) {
+            const { display, body, display_ar, body_ar } = tpl.brand_kit.typography;
+            for (const family of [display, body, display_ar, body_ar]) {
+                if (!family) continue;
+                expect(
+                    WEIGHT_COMPLETE_FONTS.has(family),
+                    `${tpl.id}: "${family}" is not a verified weight-complete family`,
+                ).toBe(true);
+            }
         }
     });
 

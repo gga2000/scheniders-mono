@@ -52,7 +52,7 @@ export default function FAQSection({ data }: FAQSectionProps) {
         <h2 className="text-2xl font-bold mb-8 text-center text-zinc-900">
           الأسئلة الشائعة
         </h2>
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 px-6 divide-y divide-zinc-200">
+        <div className="bg-bk-surface-alt rounded-2xl shadow-sm border border-zinc-100 px-6 divide-y divide-zinc-200">
           {visibleItems.map((item, index) => (
             <AccordionItem
               key={index}

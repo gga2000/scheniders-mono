@@ -98,7 +98,7 @@ function PdpAddToCartRender({
             {locale !== "en" ? "الكمية" : "Qty"}
           </span>
           <div
-            className="flex items-center bg-white"
+            className="flex items-center bg-bk-surface-alt"
             style={{
               border:
                 "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -164,7 +164,7 @@ function PdpAddToCartRender({
       <section className="px-4 py-4">{ctaCluster}</section>
       {props.sticky_on_mobile && (
         <div
-          className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur p-bk-sm shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+          className="fixed bottom-0 inset-x-0 z-40 bg-bk-surface-alt/95 backdrop-blur p-bk-sm shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
           style={{
             borderTop:
               "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",

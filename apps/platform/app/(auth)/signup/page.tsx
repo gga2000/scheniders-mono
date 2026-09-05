@@ -20,12 +20,8 @@ import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 
-const PLANS = [
-    { value: "starter", labelKey: "signup.plan.starter", orders: "500", price: "10K" },
-    { value: "growth", labelKey: "signup.plan.growth", orders: "2,000", price: "30K" },
-    { value: "professional", labelKey: "signup.plan.professional", orders: "10,000", price: "70K" },
-    { value: "enterprise", labelKey: "signup.plan.enterprise", orders: null, price: "100K" },
-];
+/** Every signup starts on the trial with this plan — chosen later in-app (S3-02a). */
+const DEFAULT_PLAN = "growth";
 
 function SignupForm() {
     const { t } = useLanguage();
@@ -36,7 +32,6 @@ function SignupForm() {
     const [businessName, setBusinessName] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [city, setCity] = useState("");
-    const [plan, setPlan] = useState("growth");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -63,7 +58,7 @@ function SignupForm() {
                     business_name: businessName.trim(),
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
-                    plan,
+                    plan: DEFAULT_PLAN,
                 }),
             });
 
@@ -75,20 +70,28 @@ function SignupForm() {
                 return;
             }
 
-            setSuccess(data.message || "Account created! Redirecting to login...");
-            // UX2-18: the API creates the account server-side and we send the
-            // merchant to /login. If this browser still holds a session for a
-            // DIFFERENT account, /login bounces straight back into that old
-            // tenant and the new store silently disappears. Clear it first so
-            // the login screen is actually reachable.
+            setSuccess(data.message || t("signup.success"));
+            // UX2-18: if this browser still holds a session for a DIFFERENT
+            // account, it must be cleared before signing in as the new one.
             try {
                 await supabase.auth.signOut();
             } catch {
-                /* no session to clear — proceed to login */
+                /* no session to clear */
             }
-            setTimeout(() => {
+            // S3-02: the account is auto-confirmed server-side, so sign the
+            // merchant straight in and land them on the store builder — no
+            // silent bounce through an empty /login form.
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password,
+            });
+            if (signInError) {
+                // Extremely unlikely (account was just created) — fall back to
+                // the login screen rather than stranding them here.
                 router.push("/login");
-            }, 2000);
+                return;
+            }
+            router.push("/store");
         } catch {
             setError("Network error. Please check your connection and try again.");
             setIsLoading(false);
@@ -259,33 +262,9 @@ function SignupForm() {
                     </motion.div>
 
                     {/* Plan Selection */}
-                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 }}>
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">{t("signup.selectPlan")}</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {PLANS.map((p) => (
-                                <button
-                                    key={p.value}
-                                    type="button"
-                                    onClick={() => setPlan(p.value)}
-                                    className={`p-3 rounded-xl border-2 text-left transition-all ${
-                                        plan === p.value
-                                            ? "border-[#1E1E1E] bg-[#1E1E1E]/5"
-                                            : "border-transparent bg-white/80 hover:bg-white"
-                                    }`}
-                                >
-                                    <p className="text-sm font-semibold text-[#1E1E1E]">{t(p.labelKey)}</p>
-                                    <p className="text-xs text-[#6B6B6B]">
-                                        {p.orders
-                                            ? t("signup.plan.ordersPerMo").replace("{n}", p.orders)
-                                            : t("signup.plan.unlimited")}
-                                    </p>
-                                    <p className="text-xs font-medium text-[#1E1E1E] mt-0.5">
-                                        {t("signup.plan.pricePerMo").replace("{price}", p.price)}
-                                    </p>
-                                </button>
-                            ))}
-                        </div>
-                    </motion.div>
+                    {/* S3-02a: no plan matrix at signup — everyone starts on
+                        the free trial (default plan) and picks a paid plan
+                        later from the in-app billing banner. */}
 
                     {/* Submit */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>

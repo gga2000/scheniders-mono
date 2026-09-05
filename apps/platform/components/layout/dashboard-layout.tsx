@@ -68,6 +68,27 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         );
     }
 
+    // UX-21: the store-builder editor gets the full viewport — no OMS
+    // sidebar/top bar double-chrome around a screen that has its own
+    // toolbar and back-navigation. Billing banners stay: they gate
+    // whether the store can operate at all.
+    const isImmersivePage = pathname?.startsWith("/store/edit");
+    if (isImmersivePage) {
+        return (
+            <PageGuard>
+                <div className="flex h-screen flex-col bg-background text-foreground">
+                    <div className="shrink-0">
+                        <TrialBanner />
+                        <TenantPausedBanner />
+                    </div>
+                    <div key={pathname} className="min-h-0 flex-1">
+                        {children}
+                    </div>
+                </div>
+            </PageGuard>
+        );
+    }
+
     const getMainMargin = () => {
         if (!mounted) return "0px";
         if (isMobile) return "0px";

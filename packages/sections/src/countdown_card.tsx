@@ -98,12 +98,12 @@ function CountdownCard({
             {segments.map((value, i) => (
               <div
                 key={i}
-                className="bg-white border-[3px] border-candy-ink rounded-xl shadow-bento-sm p-bk-sm sm:p-bk-md text-center"
+                className="bg-bk-surface-alt border-bk-bold border-bk-ink rounded-xl shadow-bk-card p-bk-sm sm:p-bk-md text-center"
               >
                 <div className="font-display font-black text-3xl sm:text-5xl leading-none tabular-nums">
                   {String(value).padStart(2, "0")}
                 </div>
-                <div className="mt-bk-2xs font-label font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
+                <div className="mt-bk-2xs font-label font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] opacity-75">
                   {labels[i]}
                 </div>
               </div>

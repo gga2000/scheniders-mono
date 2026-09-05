@@ -80,6 +80,12 @@ export function isPlausiblePhone(phone: string | null | undefined): boolean {
  * `BaseTenant` (no `store_config`), so we read defensively via `unknown`.
  */
 interface TenantContactShape {
+  /** V2 config — the store builder's single source of truth (S3-01). */
+  store_config_v2?: {
+    commerce?: {
+      whatsapp_number?: string | null;
+    } | null;
+  } | null;
   store_config?: {
     contact?: {
       whatsapp_number?: string | null;
@@ -106,6 +112,7 @@ export function resolveTenantWhatsapp(
   if (override && isPlausiblePhone(override)) return override;
   const t = (tenant ?? {}) as TenantContactShape;
   const candidate =
+    t.store_config_v2?.commerce?.whatsapp_number ??
     t.store_config?.contact?.whatsapp_number ??
     t.store_config?.contact?.phone_number ??
     t.contact_phone ??
@@ -128,6 +135,7 @@ export function resolveTenantPhone(
     t.contact_phone ??
     t.store_config?.contact?.phone_number ??
     t.store_config?.contact?.whatsapp_number ??
+    t.store_config_v2?.commerce?.whatsapp_number ??
     null;
   return isPlausiblePhone(candidate) ? candidate : null;
 }

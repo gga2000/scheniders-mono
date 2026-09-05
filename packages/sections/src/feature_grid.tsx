@@ -99,13 +99,13 @@ function FeatureGridRender({
               rotate={i % 2 === 0 ? -0.5 : 0.5}
               className="p-5 sm:p-6"
             >
-              <div className="w-12 h-12 rounded-xl border-[3px] border-candy-ink bg-white flex items-center justify-center mb-bk-sm">
+              <div className="w-12 h-12 rounded-xl border-bk-bold border-bk-ink bg-bk-surface-alt flex items-center justify-center mb-bk-sm">
                 <MaterialIcon name={item.icon} className="text-2xl" />
               </div>
               <h3 className="font-display font-black text-lg uppercase leading-tight">
                 {title}
               </h3>
-              <p className="mt-bk-xs font-body text-sm text-bk-ink-soft leading-relaxed">
+              <p className="mt-bk-xs font-body text-sm opacity-75 leading-relaxed">
                 {body}
               </p>
             </BentoCard>

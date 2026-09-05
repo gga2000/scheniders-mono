@@ -43,10 +43,10 @@ const defaultProps: Props = {
 };
 
 const FALLBACK_TINTS = [
-  "from-candy-mint/40 via-candy-sky/40 to-candy-lilac/40",
-  "from-candy-butter/50 via-candy-pink/30 to-candy-mint/30",
-  "from-candy-lilac/40 via-candy-pink/40 to-candy-butter/40",
-  "from-candy-sky/40 via-candy-mint/40 to-candy-butter/40",
+  "from-bk-mint/40 via-bk-sky/40 to-bk-lilac/40",
+  "from-bk-accent/50 via-bk-primary/30 to-bk-mint/30",
+  "from-bk-lilac/40 via-bk-primary/40 to-bk-accent/40",
+  "from-bk-sky/40 via-bk-mint/40 to-bk-accent/40",
 ];
 
 function ImageGallery({
@@ -75,7 +75,7 @@ function ImageGallery({
     const body = (
       <div
         className={
-          "relative overflow-hidden rounded-2xl border-[3px] border-candy-ink shadow-bento-sm " +
+          "relative overflow-hidden rounded-2xl border-bk-bold border-bk-ink shadow-bk-card " +
           aspect
         }
       >
@@ -95,9 +95,9 @@ function ImageGallery({
         {caption && (
           <>
             {/* Gradient scrim keeps caption text legible over any image. */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-candy-ink/70 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-bk-ink/70 to-transparent" />
             <div className="absolute bottom-2 left-2 right-2">
-              <span className="inline-block font-label font-bold text-[11px] uppercase tracking-[0.2em] text-white drop-shadow">
+              <span className="inline-block font-label font-bold text-[11px] uppercase tracking-[0.2em] text-bk-surface drop-shadow">
                 {caption}
               </span>
             </div>

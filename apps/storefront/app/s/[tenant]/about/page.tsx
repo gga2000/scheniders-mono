@@ -166,9 +166,9 @@ export default async function AboutPage({ params }: { params: Promise<{ tenant: 
             href={`https://wa.me/${wa.replace(/\D/g, "")}`}
             target="_blank"
             rel="noreferrer"
-            className="bento-card bg-white text-candy-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all rounded-xl uppercase tracking-tight"
+            className="bento-card bg-bk-surface-alt text-bk-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all rounded-xl uppercase tracking-tight"
           >
-            <WhatsAppIcon className="w-5 h-5 text-candy-mint" />
+            <WhatsAppIcon className="w-5 h-5 text-bk-mint" />
             WhatsApp us
           </a>
         )}

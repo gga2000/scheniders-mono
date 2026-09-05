@@ -47,7 +47,7 @@ export default function TestimonialsSection({ data }: TestimonialsSectionProps) 
           {visibleItems.map((item, index) => (
             <div
               key={index}
-              className="bg-white rounded-2xl p-6 shadow-sm border border-zinc-100"
+              className="bg-bk-surface-alt rounded-2xl p-6 shadow-sm border border-zinc-100"
             >
               <div className="flex items-center gap-3 mb-4">
                 {item.photo ? (

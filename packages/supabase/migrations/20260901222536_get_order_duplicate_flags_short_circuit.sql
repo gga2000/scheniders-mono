@@ -1,0 +1,12 @@
+-- Attempted optimisation of get_order_duplicate_flags: split the duplicate test
+-- into two EXISTS clauses so the cheap +/- 72 hour phone rule could
+-- short-circuit the expensive +/- 7 day product rule.
+--
+-- REJECTED — it was slower. Measured on a 50-card page:
+--   combined single EXISTS : 51.98 ms / 2,824 buffers
+--   split into two EXISTS  : 59.97 ms / 3,517 buffers
+-- Splitting made Postgres walk the phone index twice instead of once, which
+-- costs more than the product rule saves.
+--
+-- Kept as a file so the applied history is reproducible; immediately superseded
+-- by 20260901222619, which restores the combined form.

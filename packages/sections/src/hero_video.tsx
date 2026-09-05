@@ -79,7 +79,7 @@ function HeroVideo({
             preload="metadata"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-candy-ink via-candy-lilac/60 to-candy-pink/60" />
+          <div className="absolute inset-0 bg-gradient-to-br from-bk-ink via-bk-lilac/60 to-bk-primary/60" />
         )}
         <div
           className="absolute inset-0"
@@ -87,11 +87,11 @@ function HeroVideo({
           aria-hidden="true"
         />
         <div className="relative z-10 px-6 sm:px-10 py-12 sm:py-20 flex flex-col items-start max-w-xl">
-          <h1 className="font-display font-black text-bk-hero uppercase leading-[0.95] tracking-tight text-white drop-shadow-[2px_2px_0_#1a1a1a] max-w-[14ch] sm:max-w-2xl">
+          <h1 className="font-display font-black text-bk-hero uppercase leading-[0.95] tracking-tight text-bk-surface drop-shadow-[2px_2px_0_#1a1a1a] max-w-[14ch] sm:max-w-2xl">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-bk-sm font-body text-base sm:text-lg text-white/90 max-w-md">
+            <p className="mt-bk-sm font-body text-base sm:text-lg text-bk-surface/90 max-w-md">
               {subtitle}
             </p>
           )}

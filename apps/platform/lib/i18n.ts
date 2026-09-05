@@ -49,6 +49,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.greeting.afternoon": "Good afternoon",
         "dashboard.greeting.evening": "Good evening",
         "dashboard.subtitle": "Command Center & Real-time Intelligence",
+        "dashboard.buildStore.title": "Your store is waiting — let's build it",
+        "dashboard.buildStore.subtitle": "A few steps and your online store is live, ready for orders.",
         "dashboard.newOrder": "New Order",
         "dashboard.errorTitle": "Error Loading Dashboard",
 
@@ -3034,6 +3036,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.plan.ordersPerMo": "{n} orders/mo",
         "signup.plan.unlimited": "Unlimited",
         "signup.plan.pricePerMo": "{price} IQD/mo",
+        "signup.success": "Account created! Taking you to your store…",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
         "login.subtitle": "Sign in to Schenider Order Management",
@@ -3104,6 +3107,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.greeting.afternoon": "مساء الخير",
         "dashboard.greeting.evening": "مساء الخير",
         "dashboard.subtitle": "مركز القيادة والمعلومات الفورية",
+        "dashboard.buildStore.title": "متجرك ينتظرك — يلا نبنيه",
+        "dashboard.buildStore.subtitle": "خطوات قليلة ويصير متجرك الإلكتروني جاهزاً لاستقبال الطلبات.",
         "dashboard.newOrder": "طلب جديد",
         "dashboard.errorTitle": "خطأ في تحميل لوحة التحكم",
 
@@ -6086,6 +6091,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.plan.ordersPerMo": "{n} طلب/شهر",
         "signup.plan.unlimited": "غير محدود",
         "signup.plan.pricePerMo": "{price} د.ع/شهر",
+        "signup.success": "تم إنشاء حسابك! جاري نقلك إلى متجرك…",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "أهلاً بعودتك",
         "login.subtitle": "سجّل الدخول إلى نظام شنايدر لإدارة الطلبات",
