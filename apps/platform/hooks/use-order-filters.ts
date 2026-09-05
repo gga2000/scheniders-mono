@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue, useLayoutEffect } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useRef, useLayoutEffect } from "react";
 import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
-    getDefaultFilters,
     loadFilterPresetsFromStorage,
     saveFilterPresetsToStorage,
     createFilterPreset,
 } from "@/lib/order-filter-utils";
-import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
-import { useOrderStore } from "@/store/use-order-store";
 
 // Normalize Arabic text for fuzzy search:
 // - Remove diacritics (tashkeel)
@@ -35,44 +32,15 @@ function normalizeArabicText(text: string): string {
 // =============================================
 
 interface UseOrderFiltersOptions {
+    /** Filter state is owned by useOrderFilterState so the fetch can read it first. */
+    filters: OrderFilters;
+    setFilters: (f: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => void;
+    clearFilters: () => void;
     orders: Order[];
     archivedOrders: Order[];
 }
 
-export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptions) {
-    const { getPreference, setPreference, userId } = useUserPreferences();
-    const hasLoadedUserPrefs = useRef(false);
-
-    // =============================================
-    // FILTER STATE
-    // =============================================
-
-    const [filters, setFiltersState] = useState<OrderFilters>(() => {
-        if (typeof window !== "undefined") {
-            try {
-                const stored = localStorage.getItem(`schneiders_prefs_anonymous_orderFilters`);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    // Strip riskLevel — it should not persist across sessions
-                    delete parsed.riskLevel;
-                    return parsed;
-                }
-            } catch {
-                // Fall through to default
-            }
-        }
-        return getDefaultFilters();
-    });
-
-    const setActiveDateRange = useOrderStore(s => s.setActiveDateRange);
-
-    // Sync local date filters to global store for shared context (e.g. Activity Feed)
-    useEffect(() => {
-        setActiveDateRange({
-            startDate: filters.dateFrom || null,
-            endDate: filters.dateTo || null
-        });
-    }, [filters.dateFrom, filters.dateTo, setActiveDateRange]);
+export function useOrderFilters({ orders, archivedOrders, filters, setFilters, clearFilters }: UseOrderFiltersOptions) {
 
     const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
         if (typeof window !== "undefined") {
@@ -80,31 +48,6 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         }
         return [];
     });
-
-    // Reload filters when user auth resolves (goes from null to actual userId)
-    useEffect(() => {
-        if (userId && !hasLoadedUserPrefs.current) {
-            const saved = getPreference<OrderFilters>(PREFERENCE_KEYS.ORDER_FILTERS);
-            if (saved) {
-                delete saved.riskLevel;
-                setFiltersState(saved);
-            }
-            hasLoadedUserPrefs.current = true;
-        } else if (!userId) {
-            hasLoadedUserPrefs.current = false;
-        }
-    }, [userId, getPreference]);
-
-    // Wrapper to persist filters when they change
-    const setFilters = useCallback((newFilters: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => {
-        setFiltersState(prev => {
-            const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
-            // Strip riskLevel from persistence
-            const { riskLevel: _riskLevel, ...persistableFilters } = updated;
-            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
-            return updated;
-        });
-    }, [setPreference]);
 
     const deferredOrders = useDeferredValue(orders);
     const deferredArchivedOrders = useDeferredValue(archivedOrders);
@@ -377,9 +320,6 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         saveFilterPresetsToStorage(updated);
     }
 
-    function clearFilters() {
-        setFilters({ status: "all" });
-    }
 
     const latestFn = {
         setFilters,
