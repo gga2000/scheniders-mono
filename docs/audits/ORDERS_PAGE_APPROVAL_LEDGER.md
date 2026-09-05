@@ -48,8 +48,8 @@ Single source of truth for what may and may not be touched. A finding becomes `A
 | I18N-4 | 3 money renderers bypass `formatIQD` | P2 | P3 | PENDING | — | — |
 | I18N-5 | Dates en-US (wrong M/D/Y for Iraq); EN relative time | P2 | P7 | PENDING | — | — |
 | I18N-6 | Governorate list non-canonical; free-text city | P2 | P5/P7 | PENDING | — | — |
-| INT-1 | Bulk-image Gemini path sends no auth → dead feature | P1 | P6 | PENDING | — | — |
-| INT-2 | Waseet concurrent double-submit → duplicate shipments | P1 | P6 | PENDING | — | — |
+| INT-1 | Bulk-image Gemini path sends no auth → dead feature | P1 | P6 | **SHIPPED** | 2026-09-06 | `bulk-upload-modal` now sends the bearer token the route requires. It was reachable (rendered from `create-order-modal:1273`), so this was a live feature that returned 401 on every image and showed «فشل التحليل» — not dead code. |
+| INT-2 | Waseet concurrent double-submit → duplicate shipments | P1 | P6 | **SHIPPED** | 2026-09-06 | Atomic claim via `waseet_submit_started_at`: the check and the reservation are now one UPDATE, so a second concurrent caller gets zero rows and stops before touching the courier. Claim released on mapping/API failure; 2-minute staleness window prevents a crashed submit wedging an order. Verified: first caller claims, second blocked. |
 | INT-3 | Waseet XLSX under-collects delivery fee + governorate arg-slot bug | P1 | P7 | **PARTIALLY SHIPPED** | 2026-08-22 | R1 closed the **COD money** half (same root cause as MONEY-1). The **governorate arg-slot bug remains PENDING**. |
 | INT-4 | Gemini route: no size/MIME/rate limit; PII to Google | P2 | P6 | PENDING | — | — |
 | INT-5 | Cron cleanup DELETE unbounded (no limit) | P2 | P6 | PENDING | — | — |

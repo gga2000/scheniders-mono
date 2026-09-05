@@ -163,9 +163,50 @@ async function processOrder(
         };
     }
 
+    // Atomically CLAIM the submission before calling the courier.
+    //
+    // The check above reads a row fetched earlier, so on its own it does not stop
+    // two overlapping requests (a double click, a retry, two staff shipping the
+    // same batch) from both creating a real shipment — the merchant pays twice and
+    // only one qr_id survives in our row, hiding the duplicate. This UPDATE is the
+    // check and the reservation in one statement: whoever updates the row owns the
+    // submission. A stale claim (>2 minutes, i.e. a crashed or timed-out attempt)
+    // can be taken over so an order never wedges.
+    const STALE_CLAIM_MS = 2 * 60 * 1000;
+    const staleBefore = new Date(Date.now() - STALE_CLAIM_MS).toISOString();
+    const { data: claimed, error: claimError } = await supabaseAdmin
+        .from("orders")
+        .update({ waseet_submit_started_at: new Date().toISOString() })
+        .eq("id", order.id)
+        .is("waseet_qr_id", null)
+        .or(`waseet_submit_started_at.is.null,waseet_submit_started_at.lt.${staleBefore}`)
+        .select("id")
+        .maybeSingle();
+
+    if (claimError) {
+        return { ...baseResult, success: false, error: `Could not claim order for submission: ${claimError.message}` };
+    }
+    if (!claimed) {
+        return {
+            ...baseResult,
+            success: false,
+            error: "Another submission for this order is already in progress",
+        };
+    }
+
+    /** Release the claim so a failed attempt can be retried immediately. */
+    const releaseClaim = async () => {
+        await supabaseAdmin
+            .from("orders")
+            .update({ waseet_submit_started_at: null })
+            .eq("id", order.id)
+            .is("waseet_qr_id", null);
+    };
+
     // Map our order to Al-Waseet format
     const mapping = mapOrderToWaseet(order, cityMappings, defaultPackageSizeId);
     if (!mapping.success || !mapping.data) {
+        await releaseClaim();
         return {
             ...baseResult,
             success: false,
@@ -177,6 +218,8 @@ async function processOrder(
     const apiResult = await createWaseetOrder(mapping.data, order.id);
 
     if (!apiResult.success || !apiResult.data) {
+        // The courier did not create a shipment, so free the order for a retry.
+        await releaseClaim();
         return {
             ...baseResult,
             success: false,
