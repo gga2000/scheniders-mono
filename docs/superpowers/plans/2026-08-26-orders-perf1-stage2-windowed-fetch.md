@@ -155,3 +155,56 @@ The batcher assumes the cache is the complete set.
 ## Sequencing
 A → B1 → B2/B3 → B4 → C → D. Each prerequisite is independently shippable and
 leaves the page working; **C must not merge before A, B1, B2 and B4 are green.**
+
+---
+
+## STAGE C BLOCKER — filter-state ownership must be hoisted first (found 2026-09-02)
+
+All prerequisites (A, B1, B2, B3, B4) and stage D are done, committed and pushed.
+Starting C surfaced a structural problem the plan did not account for.
+
+**The dependency runs the wrong way.** Today:
+
+```
+useOrdersQuery()            ->  orders            (hooks/use-orders.ts:53)
+useOrderFilters({ orders }) ->  filters           (hooks/use-orders.ts:70)
+```
+
+Filters are derived *from* orders. A windowed fetch needs the opposite: the query
+must know the active date range before it can fetch. Wiring it as-is is circular.
+
+**It is not just a read-from-localStorage problem.** `useOrderFilters` owns the
+filter state in three stages (`hooks/use-order-filters.ts:50-105`):
+
+1. synchronous seed from `localStorage schneiders_prefs_anonymous_orderFilters`;
+2. an **asynchronous replacement** once `userId` resolves, from server-side user
+   preferences (`getPreference(PREFERENCE_KEYS.ORDER_FILTERS)`);
+3. persistence back through `setPreference` on every change.
+
+So the active window is not knowable at first fetch, and it legitimately changes
+after auth resolves. A naive key on the date range would refetch mid-session and
+still leave the circular dependency.
+
+**What C actually requires — do this first, as its own change:**
+
+- [ ] Extract filter *state* (the three stages above) into `useOrderFilterState`,
+      which takes no `orders` argument. This is the ARCH-6 finding from the audit
+      ("the same truth stored in three places") and is worth doing on its own
+      merits.
+- [ ] `useOrders` calls it first, derives the window via `windowFromDateFilter`,
+      and passes that to `useOrdersQuery(window)`.
+- [ ] `useOrderFilters` keeps only the derived lists and receives the state as an
+      argument rather than owning it.
+- [ ] Decide the pre-auth window: the seeded localStorage filter is used for the
+      first fetch, and the post-auth preference may differ. Either fetch once
+      auth settles, or accept one narrow refetch — but choose deliberately, and
+      make sure `ORDERS_CACHE_IS_COMPLETE_SET` is false for both.
+
+Only then does C proper (findWindow + flipping the completeness flag + the C.5
+parity assertions) become a contained change. Everything it needs on the server
+and in realtime is already in place and tested.
+
+**Why this was stopped rather than pushed through:** it restructures state
+ownership on the busiest screen in the product, and no populated-tenant login is
+available in this environment for a live before/after pass. Half-landing it is
+exactly the silent regression the prerequisites were built to prevent.
