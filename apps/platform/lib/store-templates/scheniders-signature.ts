@@ -62,7 +62,9 @@ const TRUST_TOP = [
 
 /** Bottom (pre-footer) trust badges — the original swaps the first two labels. */
 const TRUST_BOTTOM = [
-    { icon_url: ASSETS.trustFast, label_i18n: { ar: "توصيل مجاني", en: "Free delivery" } },
+    // "توصيل مجاني" (the original label) contradicted the per-governorate
+    // delivery fee the checkout actually charges — kept truthful instead.
+    { icon_url: ASSETS.trustFast, label_i18n: { ar: "توصيل لكل المحافظات", en: "Delivery to every governorate" } },
     { icon_url: ASSETS.trustQuality, label_i18n: { ar: "خدمة العملاء", en: "Customer care" } },
     { icon_url: ASSETS.trustIraq, label_i18n: { ar: "متوفر بالعراق", en: "Available in Iraq" } },
     { icon_url: ASSETS.trustCod, label_i18n: { ar: "الدفع عند الاستلام", en: "Cash on delivery" } },
@@ -661,8 +663,11 @@ export const schenidersSignatureTemplate: StoreTemplate = {
             }),
             s("policy_content", {
                 body_md_i18n: {
-                    ar: "## معلومات التواصل\n\nرقم الهاتف: 0777 970 3832\n\nانستغرام: @schneider.iraq\n\nالعنوان: العراق - بغداد - زيونة",
-                    en: "## Contact information\n\nPhone: 0777 970 3832\n\nInstagram: @schneider.iraq\n\nAddress: Iraq - Baghdad - Zayouna",
+                    // Instagram matches the footer's actual linked account
+                    // (the original site's contact page typed a different
+                    // handle than its own footer links — self-consistency won).
+                    ar: "## معلومات التواصل\n\nرقم الهاتف: 0777 970 3832\n\nانستغرام: @kawkab.brand\n\nالعنوان: العراق - بغداد - زيونة",
+                    en: "## Contact information\n\nPhone: 0777 970 3832\n\nInstagram: @kawkab.brand\n\nAddress: Iraq - Baghdad - Zayouna",
                 },
             }),
             s("trust_badge_row", { items: TRUST_BOTTOM, band_style: "plain" }),
