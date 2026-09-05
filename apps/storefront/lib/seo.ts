@@ -116,15 +116,31 @@ export function productJsonLd(opts: {
   price: number;
   inStock: boolean;
   brand: string;
+  /** Real approved-review aggregates — emitted only when count > 0. */
+  ratingAverage?: number | null;
+  ratingCount?: number | null;
 }): JsonLdObject {
   const hasImage =
     opts.image && (Array.isArray(opts.image) ? opts.image.length > 0 : true);
+  const hasRating =
+    typeof opts.ratingCount === "number" &&
+    opts.ratingCount > 0 &&
+    typeof opts.ratingAverage === "number";
   return {
     "@context": "https://schema.org",
     "@type": "Product",
     name: opts.name,
     ...(hasImage ? { image: opts.image } : {}),
     ...(opts.description ? { description: opts.description } : {}),
+    ...(hasRating
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: Number(opts.ratingAverage!.toFixed(2)),
+            reviewCount: opts.ratingCount,
+          },
+        }
+      : {}),
     brand: { "@type": "Brand", name: opts.brand },
     offers: {
       "@type": "Offer",

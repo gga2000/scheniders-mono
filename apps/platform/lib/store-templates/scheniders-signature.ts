@@ -536,8 +536,8 @@ export const schenidersSignatureTemplate: StoreTemplate = {
             s("hero_card_float", {
                 headline_i18n: { ar: "مرحبا بك في متجرنا", en: "Welcome to our store" },
                 sub_i18n: {
-                    ar: "نقدم لك أفضل المنتجات التي تلبي احتياجاتك. نحن ملتزمون بتوفير خدمة عملاء ممتازة من خلال فريقنا المدرب والودود.",
-                    en: "The best products for your needs, backed by a friendly, trained team committed to excellent service.",
+                    ar: "نقدم لك أفضل المنتجات التي تلبي احتياجاتك. نحن ملتزمون بتوفير خدمة عملاء ممتازة من خلال فريقنا المدرب والودود الذي يساعدك في تحقيق أهدافك الجمالية. تصفح موقعنا الآن واستمتع بتجربة تسوق سهلة ومريحة مع توصيل سريع وموثوق. اكتشف الجمال الحقيقي معنا!",
+                    en: "The best products for your needs, backed by a friendly, trained team helping you reach your beauty goals. Browse now and enjoy easy shopping with fast, reliable delivery — discover true beauty with us!",
                 },
                 cta_label_i18n: { ar: "منتجاتنا", en: "Our products" },
                 cta_href: "/products",
@@ -658,6 +658,12 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 row_icon_url: ASSETS.faqRow,
                 items: FAQ_ITEMS_HOME,
                 contact: FAQ_CONTACT_HOME,
+            }),
+            s("policy_content", {
+                body_md_i18n: {
+                    ar: "## معلومات التواصل\n\nرقم الهاتف: 0777 970 3832\n\nانستغرام: @schneider.iraq\n\nالعنوان: العراق - بغداد - زيونة",
+                    en: "## Contact information\n\nPhone: 0777 970 3832\n\nInstagram: @schneider.iraq\n\nAddress: Iraq - Baghdad - Zayouna",
+                },
             }),
             s("trust_badge_row", { items: TRUST_BOTTOM, band_style: "plain" }),
         ],

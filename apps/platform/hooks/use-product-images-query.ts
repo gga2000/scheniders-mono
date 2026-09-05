@@ -19,7 +19,78 @@ export const productImageKeys = {
     all: ["product_images"] as const,
     lists: () => [...productImageKeys.all, "list"] as const,
     list: (productId: string) => [...productImageKeys.lists(), productId] as const,
+    galleryUrls: (productId: string) => [...productImageKeys.all, "gallery_urls", productId] as const,
 };
+
+/** products.gallery_urls is jsonb — coerce defensively to a clean array of
+ *  non-empty strings (anything else becomes an empty gallery). */
+export function coerceGalleryUrls(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+        (v): v is string => typeof v === "string" && v.trim().length > 0,
+    );
+}
+
+/** The import-time gallery on the product row itself (products.gallery_urls),
+ *  distinct from the merchant-managed product_images rows above. */
+export function useProductGalleryUrlsQuery(productId?: string) {
+    const { session, clientReady } = useAuth();
+
+    return useQuery({
+        queryKey: productImageKeys.galleryUrls(productId as string),
+        queryFn: async () => {
+            if (!productId) return [];
+            const { data, error } = await supabase
+                .from("products")
+                .select("gallery_urls")
+                .eq("id", productId)
+                .single();
+
+            if (error) throw error;
+            return coerceGalleryUrls((data as { gallery_urls?: unknown } | null)?.gallery_urls);
+        },
+        enabled: !!session && clientReady && !!productId,
+        staleTime: CACHE_PRESETS.STANDARD.staleTime,
+        gcTime: CACHE_PRESETS.STANDARD.gcTime,
+    });
+}
+
+/** Remove one URL from products.gallery_urls (read-modify-write on the live
+ *  row so a stale cache can't resurrect a removed photo). Tenant scoping is
+ *  enforced by the products RLS update policy. */
+export function useRemoveProductGalleryUrlMutation() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ productId, url }: { productId: string; url: string }) => {
+            const { data: row, error: getError } = await supabase
+                .from("products")
+                .select("gallery_urls")
+                .eq("id", productId)
+                .single();
+
+            if (getError) throw getError;
+
+            const next = coerceGalleryUrls(
+                (row as { gallery_urls?: unknown } | null)?.gallery_urls,
+            ).filter((u) => u !== url);
+
+            const { error } = await supabase
+                .from("products")
+                .update({ gallery_urls: next })
+                .eq("id", productId);
+
+            if (error) throw error;
+            return { productId, gallery_urls: next };
+        },
+        onSuccess: (data) => {
+            queryClient.setQueryData(
+                productImageKeys.galleryUrls(data.productId),
+                data.gallery_urls,
+            );
+        },
+    });
+}
 
 export function useProductImagesQuery(productId?: string) {
     const { session, clientReady } = useAuth();

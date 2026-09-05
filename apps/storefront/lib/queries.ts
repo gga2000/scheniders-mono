@@ -87,7 +87,7 @@ export const listProducts = cache(
       let q = supabase
         .from("products")
         .select(
-          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at",
+          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at",
         )
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
@@ -128,7 +128,7 @@ export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
     publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
       const columns =
-        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at";
+        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at";
 
       // The dynamic route param can arrive still percent-encoded, so a non-ASCII
       // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
@@ -233,7 +233,7 @@ export const listProductsInCategory = cache(
         let q = supabase
           .from("product_categories")
           .select(
-            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at)",
+            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at)",
           )
           .eq("category_id", categoryId)
           .eq("tenant_id", tenantId)
@@ -264,11 +264,22 @@ export const listProductsInCategory = cache(
     ),
 );
 
+/** `gallery_urls` is jsonb, so it arrives as unknown-shaped Json — coerce
+ *  defensively to a clean array of non-empty strings (anything else, or a
+ *  non-array value, becomes an empty gallery rather than a runtime surprise). */
+function coerceGalleryUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0,
+  );
+}
+
 function normalizeProduct(row: Record<string, unknown>): Product {
   const r = row as unknown as Product & { website_price?: number | null };
   return {
     ...r,
     // Use website_price if set, else fall back to internal price
     price: r.website_price ?? r.price,
+    gallery_urls: coerceGalleryUrls(row.gallery_urls),
   };
 }

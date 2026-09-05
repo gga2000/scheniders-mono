@@ -96,7 +96,18 @@ function ProductReviewsRender({
   const productId = product?.id;
 
   const [reviews, setReviews] = React.useState<ProductReview[]>([]);
-  const [summary, setSummary] = React.useState<RatingSummary>(EMPTY_SUMMARY);
+  // SSR seed: the product row already carries approved-review aggregates, so
+  // the first paint shows the real average/count instead of a "0.0 / 0"
+  // flash (the fetch below then fills the list + true distribution).
+  const [summary, setSummary] = React.useState<RatingSummary>(() =>
+    product?.review_count && product.review_count > 0
+      ? {
+          average: product.avg_rating ?? 0,
+          count: product.review_count,
+          distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        }
+      : EMPTY_SUMMARY,
+  );
 
   // Form state.
   const [rating, setRating] = React.useState(0);

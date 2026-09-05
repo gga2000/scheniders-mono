@@ -4525,6 +4525,7 @@ export type Database = {
           download_url: string | null
           duration_minutes: number | null
           file_size: string | null
+          gallery_urls: Json
           id: string
           image_url: string | null
           is_archived: boolean | null
@@ -4564,6 +4565,7 @@ export type Database = {
           download_url?: string | null
           duration_minutes?: number | null
           file_size?: string | null
+          gallery_urls?: Json
           id?: string
           image_url?: string | null
           is_archived?: boolean | null
@@ -4603,6 +4605,7 @@ export type Database = {
           download_url?: string | null
           duration_minutes?: number | null
           file_size?: string | null
+          gallery_urls?: Json
           id?: string
           image_url?: string | null
           is_archived?: boolean | null

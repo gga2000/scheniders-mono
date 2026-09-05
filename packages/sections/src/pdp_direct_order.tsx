@@ -74,9 +74,15 @@ const schema = z.object({
   /** Upper bound for the quantity stepper (live stock still caps it). */
   max_qty: z.number().int().min(1).max(20),
   /** Funnel layout: render the product image as a sticky column beside the
-   *  order card on large screens (the classic two-column funnel PDP).
+   *  order card on large screens (the classic two-column funnel PDP). When
+   *  the product carries `gallery_urls` photos, the column becomes a real
+   *  gallery: main image + tappable thumbnail strip.
    *  Off by default so existing single-column stacks are unchanged. */
   show_gallery: z.boolean().optional(),
+  /** Per-product promo notice chip under the price row, sourced from the
+   *  product's short_description (dynamic — hidden when the merchant sets
+   *  none). Defaults on. */
+  show_notice: z.boolean().optional(),
   /** Trust chips under the card. Merchant-editable — "original products" /
    *  "quality guarantee" are business claims the section must not force on
    *  every tenant. Icon is a Material Symbols name. */
@@ -175,6 +181,8 @@ function PdpDirectOrderRender({
     "idle",
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Gallery column: the thumb the shopper tapped (null = cover image).
+  const [activeImage, setActiveImage] = useState<string | null>(null);
   // EC17: one stable idempotency key per submission, reused across retries
   // so the server dedupes; cleared on success (same as checkout_form).
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -493,7 +501,36 @@ function PdpDirectOrderRender({
   // defaults carry the classic funnel quartet.
   const trustChips = props.trust_chips ?? [];
 
-  const withGallery = !!props.show_gallery && !!product.image_url;
+  // Import-time gallery photos (products.gallery_urls). Typed string[], but
+  // guard element shape — builder previews can feed looser data.
+  const galleryUrls = Array.isArray(product.gallery_urls)
+    ? product.gallery_urls.filter(
+        (u): u is string => typeof u === "string" && u.length > 0,
+      )
+    : [];
+  // Merchant-managed gallery rows (product_images, resolved upstream into
+  // product.images) join the import-time list — same merge as pdp_gallery.
+  const managedImages = Array.isArray(product.images)
+    ? product.images.filter(
+        (u): u is string => typeof u === "string" && u.length > 0,
+      )
+    : [];
+  // Cover-first, dedup'd image list for the gallery column. With no
+  // gallery sources this collapses to [image_url] (or []), so the
+  // single-image rendering below stays exactly as before.
+  const seenGallery = new Set<string>();
+  const galleryImages: string[] = [];
+  for (const url of [product.image_url, ...managedImages, ...galleryUrls]) {
+    if (!url || seenGallery.has(url)) continue;
+    seenGallery.add(url);
+    galleryImages.push(url);
+  }
+  const withGallery = !!props.show_gallery && galleryImages.length > 0;
+  // Main image = tapped thumb (if still in the list) ?? cover ?? first photo.
+  const mainImage =
+    activeImage && galleryImages.includes(activeImage)
+      ? activeImage
+      : (product.image_url ?? galleryImages[0]);
 
   return (
     <section className="px-4 py-4">
@@ -516,11 +553,48 @@ function PdpDirectOrderRender({
               {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary
                   tenant-hosted product art; parity with pdp_gallery */}
               <img
-                src={product.image_url ?? undefined}
+                src={mainImage ?? undefined}
                 alt={product.name}
                 className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
+            {/* Thumbnail strip — only when the product actually has extra
+                gallery photos; tapping a thumb swaps the main image. */}
+            {galleryImages.length > 1 && (
+              <div className="mt-bk-xs flex gap-bk-xs overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {galleryImages.map((src, i) => (
+                  <button
+                    key={`${i}-${src}`}
+                    type="button"
+                    onClick={() => setActiveImage(src)}
+                    aria-label={
+                      t ? `عرض الصورة ${i + 1}` : `View image ${i + 1}`
+                    }
+                    aria-pressed={src === mainImage}
+                    className="relative h-16 w-16 shrink-0 overflow-hidden"
+                    style={{
+                      borderRadius: "var(--bk-radius-input, 0.75rem)",
+                      border:
+                        src === mainImage
+                          ? "2px solid var(--bk-primary, #ff5a8a)"
+                          : "1px solid var(--bk-divider, rgb(26 26 26 / 0.14))",
+                      boxShadow:
+                        src === mainImage
+                          ? "0 0 0 3px color-mix(in srgb, var(--bk-primary, #ff5a8a) 30%, transparent)"
+                          : undefined,
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- parity
+                        with the main image above */}
+                    <img
+                      src={src}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <BentoCard
@@ -590,6 +664,24 @@ function PdpDirectOrderRender({
                   {`-${discountPct}%`}
                 </span>
               )}
+            </div>
+          )}
+          {/* Per-product promo notice — the merchant's short_description
+              (e.g. "خصم 10% اليوم فقط"), dynamic from the product row and
+              absent when the merchant sets none. */}
+          {props.show_notice !== false && product.short_description && (
+            <div
+              className="mx-auto inline-flex max-w-full items-center gap-1.5 px-3 py-1.5 font-label font-bold text-xs"
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 30%, #ffffff)",
+                color: "var(--bk-ink, #1a1a1a)",
+                borderRadius: "var(--bk-radius-pill, 9999px)",
+                border: "1px dashed var(--bk-accent, #ffd84a)",
+              }}
+            >
+              <MaterialIcon name="local_offer" className="text-sm" />
+              <span className="truncate">{product.short_description}</span>
             </div>
           )}
         </div>
