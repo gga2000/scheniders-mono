@@ -26,9 +26,9 @@ Single source of truth for what may and may not be touched. A finding becomes `A
 | COR-5 | Detail modal renders stale list-row over full fetch | P2 | P1 | PENDING | — | — |
 | COR-6 | Incomplete audit trail (silent status-change paths) | P2 | P1 | PENDING | — | — |
 | COR-7 | Non-integer IQD accepted | P3 | P1 | PENDING | — | — |
-| PERF-1 | Whole-book 4MB cold fetch, client-side date filter | P1 | P2 | PENDING | — | — |
-| PERF-2 | Compact-grid path renders all rows unvirtualized | P1 | P2 | PENDING | — | — |
-| PERF-3 | O(n) `.find()` per virtualized row (risk lookups) | P1 | P2 | PENDING | — | — |
+| PERF-1 | Whole-book 4MB cold fetch, client-side date filter | P1 | P2 | **SHIPPED** | 2026-09-06 | Windowed fetch (stage C) + server aggregates. List and chips verified equal on real data at both a 1-day and a 1-year window. **Browser payload measurement still outstanding.** |
+| PERF-2 | Compact-grid path renders all rows unvirtualized | **P2** (was P1) | P2 | PENDING — **severity reduced** | 2026-09-06 | Stage C shrank the exposure: the grid now renders the active *window*, so the default (one day) is small. It only bites on a deliberately wide filter. Not attempted, because virtualizing a RESPONSIVE grid needs lane/column awareness plus a resize observer, and layout changes cannot be verified without a browser here. `@tanstack/react-virtual` `lanes` is the right tool when someone can see the result. |
+| PERF-3 | O(n) `.find()` per virtualized row (risk lookups) | P1 | P2 | **SHIPPED** | 2026-09-06 | Replaced with a phone→risk Map built once per list change, mirroring the O(1) map `getCustomerOrderCount` already used. |
 | PERF-4 | Whole-page re-render per keystroke (no-selector store) | P1 | P2 | PENDING | — | — |
 | PERF-5 | 5–6 full-array passes per filter change | P2 | P2 | PENDING | — | — |
 | PERF-6 | framer-motion in main chunk | P2 | P2 | PENDING | — | — |
