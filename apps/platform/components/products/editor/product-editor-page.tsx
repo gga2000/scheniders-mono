@@ -265,6 +265,9 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                         <ProductCMSTabs
                             features={editor.formData.features}
                             onFeaturesChange={(features) => editor.updateField("features", features)}
+                            noteCards={editor.formData.feature_cards}
+                            onNoteCardsChange={(noteCards) => editor.updateField("feature_cards", noteCards)}
+                            productId={product?.id}
                             faqs={editor.formData.faqs}
                             onFaqsChange={(faqs) => editor.updateField("faqs", faqs)}
                             testimonials={editor.formData.testimonials}

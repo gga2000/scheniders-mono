@@ -1,30 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, HelpCircle, Quote, MessageSquare } from "lucide-react";
+import { Sparkles, HelpCircle, Quote, MessageSquare, StickyNote } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FeaturesTab } from "./features-tab";
 import { FaqsTab } from "./faqs-tab";
 import { TestimonialsTab } from "./testimonials-tab";
 import { ReviewsTab } from "./reviews-tab";
+import { NoteCardsTab } from "./note-cards-tab";
 import type { FeatureFormData } from "./features-tab";
 import type { FaqFormData } from "./faqs-tab";
 import type { TestimonialFormData } from "./testimonials-tab";
 import type { ReviewFormData } from "./reviews-tab";
+import type { NoteCardFormData } from "./note-cards-tab";
 
 interface ProductCMSTabsProps {
     features: FeatureFormData[];
     onFeaturesChange: (features: FeatureFormData[]) => void;
+    noteCards: NoteCardFormData[];
+    onNoteCardsChange: (noteCards: NoteCardFormData[]) => void;
     faqs: FaqFormData[];
     onFaqsChange: (faqs: FaqFormData[]) => void;
     testimonials: TestimonialFormData[];
     onTestimonialsChange: (testimonials: TestimonialFormData[]) => void;
     reviews: ReviewFormData[];
     onReviewsChange: (reviews: ReviewFormData[]) => void;
+    /** Needed for note-card image uploads; undefined in create mode. */
+    productId?: string;
 }
 
 const tabs = [
     { id: "features", label: "Features", icon: Sparkles },
+    { id: "note_cards", label: "Note cards", icon: StickyNote },
     { id: "faqs", label: "FAQs", icon: HelpCircle },
     { id: "testimonials", label: "Testimonials", icon: Quote },
     { id: "reviews", label: "Reviews", icon: MessageSquare },
@@ -35,17 +42,21 @@ type TabId = (typeof tabs)[number]["id"];
 export function ProductCMSTabs({
     features,
     onFeaturesChange,
+    noteCards,
+    onNoteCardsChange,
     faqs,
     onFaqsChange,
     testimonials,
     onTestimonialsChange,
     reviews,
     onReviewsChange,
+    productId,
 }: ProductCMSTabsProps) {
     const [activeTab, setActiveTab] = useState<TabId>("features");
 
     const counts: Record<TabId, number> = {
         features: features.length,
+        note_cards: noteCards.length,
         faqs: faqs.length,
         testimonials: testimonials.length,
         reviews: reviews.length,
@@ -94,6 +105,21 @@ export function ProductCMSTabs({
                             <FeaturesTab
                                 features={features}
                                 onChange={onFeaturesChange}
+                            />
+                        </motion.div>
+                    )}
+                    {activeTab === "note_cards" && (
+                        <motion.div
+                            key="note_cards"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.15 }}
+                        >
+                            <NoteCardsTab
+                                noteCards={noteCards}
+                                onChange={onNoteCardsChange}
+                                productId={productId}
                             />
                         </motion.div>
                     )}

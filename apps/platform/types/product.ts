@@ -5,6 +5,13 @@
 
 import type { Order } from './order';
 
+/** One note-highlight card on the storefront funnel PDP (products.feature_cards jsonb). */
+export interface ProductFeatureCard {
+    image_url?: string;
+    title: string;
+    body: string;
+}
+
 export interface Product {
     id: string;
     created_at: string;
@@ -48,6 +55,9 @@ export interface Product {
     category_id?: string | null;
     website_price?: number | null;
     short_description?: string | null;
+    // Funnel PDP note-highlight cards (products.feature_cards jsonb).
+    // Rendered by the storefront pdp_direct_order section; empty/null = feature off.
+    feature_cards?: ProductFeatureCard[] | null;
     // Computed fields (not in DB)
     variants?: ProductVariant[];
     times_sold?: number;

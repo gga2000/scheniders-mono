@@ -92,6 +92,9 @@ export interface ProductEditorFormData {
     testimonials: TestimonialFormData[];
     reviews: ReviewFormData[];
 
+    // Funnel PDP note cards (products.feature_cards jsonb column)
+    feature_cards: NoteCardFormData[];
+
     // Inventory & supply chain
     inventory_history: InventoryHistoryFormData[];
     suppliers: SupplierFormData[];
@@ -133,6 +136,42 @@ export interface FeatureFormData {
     title: string;
     description: string;
     display_order: number;
+}
+
+/** Form row for one funnel-PDP note card (products.feature_cards jsonb).
+ *  `image_url` is "" while unset — serialized to an absent key on save. */
+export interface NoteCardFormData {
+    image_url: string;
+    title: string;
+    body: string;
+}
+
+/** Coerce the raw jsonb value into well-shaped form rows; malformed entries
+ *  are dropped (mirrors the storefront's coerceFeatureCards in queries.ts). */
+function coerceFeatureCards(value: unknown): NoteCardFormData[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((v) => {
+        if (typeof v !== "object" || v === null) return [];
+        const o = v as Record<string, unknown>;
+        if (typeof o.title !== "string" || typeof o.body !== "string") return [];
+        return [{
+            title: o.title,
+            body: o.body,
+            image_url: typeof o.image_url === "string" ? o.image_url : "",
+        }];
+    });
+}
+
+/** Serialize form rows to the persisted [{image_url?, title, body}] shape.
+ *  Empty-title cards are stripped; empty image_url is omitted entirely. */
+function serializeFeatureCards(cards: NoteCardFormData[]): { image_url?: string; title: string; body: string }[] {
+    return cards
+        .filter((c) => c.title.trim().length > 0)
+        .map((c) => ({
+            title: c.title.trim(),
+            body: c.body,
+            ...(c.image_url.trim() ? { image_url: c.image_url.trim() } : {}),
+        }));
 }
 
 export interface FaqFormData {
@@ -265,6 +304,7 @@ const DEFAULT_FORM_DATA: ProductEditorFormData = {
     faqs: [],
     testimonials: [],
     reviews: [],
+    feature_cards: [],
     inventory_history: [],
     suppliers: [],
     activity_log: [],
@@ -473,6 +513,7 @@ function productToFormData(product: Product): ProductEditorFormData {
         order_bumps: [], // loaded separately from product_order_bumps table
         related_products: [], // loaded separately from product_related table
         features: [], // loaded separately from product_features table
+        feature_cards: coerceFeatureCards(product.feature_cards), // jsonb column on products
         faqs: [], // loaded separately from product_faqs table
         testimonials: [], // loaded separately from product_testimonials table
         reviews: [], // loaded separately from product_reviews table
@@ -1038,6 +1079,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     license_key_pattern: formData.license_key_pattern || undefined,
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
+                    feature_cards: serializeFeatureCards(formData.feature_cards),
                 } as any);
 
                 if (newProduct) {
@@ -1112,6 +1154,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     license_key_pattern: formData.license_key_pattern || undefined,
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
+                    feature_cards: serializeFeatureCards(formData.feature_cards),
                 } as any);
 
                 // Handle variants
@@ -1249,6 +1292,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 license_key_pattern: formData.license_key_pattern || undefined,
                 duration_minutes: formData.duration_minutes,
                 booking_enabled: formData.booking_enabled,
+                feature_cards: serializeFeatureCards(formData.feature_cards),
             } as any);
 
             if (newProduct && formData.variants.length > 0) {
