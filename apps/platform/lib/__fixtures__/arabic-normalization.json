@@ -1,0 +1,16 @@
+{
+  "_comment": "Shared expectations for Arabic text normalization used by ORDER SEARCH. The TypeScript (lib/order-filter-utils.ts normalizeArabicText) and the SQL (public.normalize_arabic_text_for_search) must BOTH satisfy every case. NOTE: lib/address-validator.ts has a DIFFERENT normalizeArabicText that folds Kurdish/Farsi ی ک ە and collapses whitespace but does not fold ى. That divergence is real (1,647 live names contain ى) and deliberately NOT reconciled here — these cases pin the search variant only.",
+  "cases": [
+    { "input": "مُحَمَّدْ",      "expected": "محمد",       "why": "tashkeel/diacritics stripped" },
+    { "input": "آدم",          "expected": "ادم",        "why": "alef madda folds to plain alef" },
+    { "input": "أحمد",         "expected": "احمد",       "why": "alef hamza above folds" },
+    { "input": "إبراهيم",      "expected": "ابراهيم",    "why": "alef hamza below folds" },
+    { "input": "فاطمة",        "expected": "فاطمه",      "why": "teh marbuta folds to ha" },
+    { "input": "مصطفى",        "expected": "مصطفي",      "why": "alef maqsura folds to ya - 1,647 live rows" },
+    { "input": "محمد ٠١٢٣",    "expected": "محمد ٠١٢٣",  "why": "Arabic-Indic digits survive: they sit immediately after the diacritic range and a sloppy character class eats them" },
+    { "input": "  بغداد  ",     "expected": "بغداد",      "why": "trimmed" },
+    { "input": "BAGHDAD",      "expected": "baghdad",    "why": "lowercased" },
+    { "input": "علي",          "expected": "علي",        "why": "already normal, unchanged" },
+    { "input": "",             "expected": "",           "why": "empty" }
+  ]
+}
