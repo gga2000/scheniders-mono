@@ -485,3 +485,25 @@ Approved scope: **SEC-D1 only** (COR-D8 was discovered while fixing it and share
 3. **Deploy gap:** `main` and this branch's HEAD still contain `.from("mv_customer_aggregates")` in the *deployed* build, so the Customers surface returns `42501` until `db5caff2` ships. The user approved this trade-off knowingly; the interim mitigation, if wanted, is `GRANT SELECT ON public.mv_customer_aggregates TO authenticated` (keeps the anonymous exposure closed).
 
 **Audit-conduct note.** Zero unintended database writes this engagement. Every role-impersonation probe and the full pre-apply rehearsal of both migrations ran inside `BEGIN … ROLLBACK`; the only persistent changes are the two approved migrations.
+
+---
+
+## ROUND 2 OUTCOME — 2026-09-02 (REL-D1 shipped)
+
+Approved scope: **REL-D1 only.** Commits `3a72b5cc` and `01c76999` on `fix/storefront-followups`. **No database or schema change** — the RLS policy was always right; the client was sending an invalid row.
+
+**Proven live** (rolled-back transactions, nothing persisted):
+
+| Payload | Result |
+|---|---|
+| old — `{content, created_by_name}` | `ERROR 42501: new row violates row-level security policy for table "announcements"` |
+| new — `{tenant_id, content, created_by_name}` | INSERT succeeds, row returned |
+
+**Changes.** `buildAnnouncementInsert()` extracted as a pure function and pinned by 5 unit tests (following the `use-salaries` convention of testing a pure function rather than mocking the Supabase client) — `tenant_id` cannot silently fall out of the payload again. Create / pin / delete now read their returned error and toast it. A failed *read* renders a dedicated error state instead of the empty state, with new i18n keys in both locales. Writes refetch on success rather than trusting the realtime echo.
+
+**Caught by self-review, in the same defect class this round targets.** `handleSubmit` cleared the composer unconditionally after awaiting the create, which resolves normally on failure — a rejected or offline post destroyed the admin's typed text while appearing to succeed. `createAnnouncement` now reports whether the row was written, and the draft survives failure (`01c76999`).
+
+**Gates:** `tsc` 0 errors · `vitest` **681/681 across 82 files** (5 new) · `lint` 0 errors, **1164 warnings vs the 1163 baseline** — disclosed: the file's pre-existing "setState within an effect" pattern now has one more setState in the same already-flagged callback; restructuring that fetch is outside REL-D1's scope.
+
+**New finding raised, deliberately NOT fixed:** **SEC-D4 (P2)** — announcement writes are admin-gated client-side only; the live `tenant_isolation_*` policies on `announcements` carry no role predicate (the original admin policies were dropped by the 2026-04-06 migrations), so any authenticated tenant member can post, unpin or soft-delete via PostgREST. Same class as SEC-D2. Needs a policy migration and its own approval.
+
