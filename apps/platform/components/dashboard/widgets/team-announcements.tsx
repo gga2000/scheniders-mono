@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Announcement } from "@/hooks/use-announcements";
-import { Pin, PinOff, Trash2, Plus, Megaphone, X, Send } from "lucide-react";
+import { Pin, PinOff, Trash2, Plus, Megaphone, X, Send, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 function useTimeAgoAnnouncements() {
@@ -20,6 +20,8 @@ interface TeamAnnouncementsProps {
     announcements: Announcement[];
     isAdmin: boolean;
     loading: boolean;
+    /** Read failed. Rendered instead of the empty state — a failure is not "no announcements". */
+    error?: string | null;
     onCreate: (content: string) => Promise<void>;
     onTogglePin: (id: string, currentlyPinned: boolean) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
@@ -29,6 +31,7 @@ export function TeamAnnouncements({
     announcements,
     isAdmin,
     loading,
+    error,
     onCreate,
     onTogglePin,
     onDelete,
@@ -125,7 +128,14 @@ export function TeamAnnouncements({
                     </div>
                 )}
 
-                {!loading && announcements.length === 0 && (
+                {!loading && error && (
+                    <div className="flex flex-col items-center justify-center h-24 gap-2 text-rose-700/70">
+                        <AlertTriangle className="w-6 h-6" />
+                        <p className="text-xs font-semibold">{t("dashboard.announcements.loadFailed")}</p>
+                    </div>
+                )}
+
+                {!loading && !error && announcements.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-24 gap-2 text-green-900/30">
                         <Megaphone className="w-6 h-6" />
                         <p className="text-xs">{t("dashboard.announcements.noAnnouncements")}</p>
