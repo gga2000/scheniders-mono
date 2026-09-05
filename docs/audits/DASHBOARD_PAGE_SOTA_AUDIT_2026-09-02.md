@@ -424,6 +424,8 @@ This audit ran on `feat/oldsite-fidelity-round2`. The Orders audit's fix rounds 
 1. An early hypothesis that the week's displayed revenue came from a *soft-deleted* order was **disproved** by recomputation (the 34,750 order is live; deleted rows inflate all-time counts, not this week's) — COR-D1 and COR-D5 are stated on the corrected basis.
 2. A subagent (reading migration files) reported the server delivery-rate window as `created_at`-based; the **live** function body uses `updated_at` (`u_local`) — live DB won, COR-D4 states the live behavior. (Side-finding: migration files and the live function have drifted; the live body is the only truth.)
 3. `order-card.tsx` — the prompt's "prime suspect" — turned out not to render on this page at all (ARCH-D2).
+4. **A SEC-1 "regression" I reported was my own bad query.** While checking PROC-D1 I ran a `pg_get_functiondef … LIMIT 1` against `create_order_atomic` and concluded the Orders audit's tenant guard had been reverted in production. It had not. `create_order_atomic` has **two overloads**; `LIMIT 1` returned the deprecated 1-arg shim. The real `create_order_atomic(jsonb, uuid)` carries the SEC-1 guard intact (`RAISE … 'Unauthorized: tenant membership required'`), and the 1-arg shim itself rejects non-service-role callers. **Production's database-level tenant isolation on order creation is sound.**
+5. **My PROC-D1 warning was backwards.** I first told the user that deploying this branch could silently drop the Orders line's security fixes. Verified: those fixes are pushed to `origin/feat/store-builder-preview-iframe` but are **not in `origin/main`**, so they were never deployed. Deploying the dashboard line regresses nothing. The true exposure is the inverse — see the corrected PROC-D1 entry in the ledger.
 
 ## Appendix — verification command output
 
@@ -451,3 +453,35 @@ Per-route JS byte sizes: **[U]** — this Turbopack build emits no per-route siz
 ---
 
 *End of report. See `DASHBOARD_PAGE_APPROVAL_LEDGER.md` for per-finding status. No remediation plan exists and no change will be made until specific findings are approved with the exact sentence `I'm Ali and I approve these changes`.*
+
+---
+
+## ROUND 1 OUTCOME — 2026-09-02 (SEC-D1 + COR-D8 shipped)
+
+Approved scope: **SEC-D1 only** (COR-D8 was discovered while fixing it and shares the root cause and the fix). Everything else in the ledger remains PENDING and untouched.
+
+**Shipped:** commit `db5caff2` (+ `fa9c2045`, a follow-up naming fix) on branch `fix/storefront-followups`. Migrations `20260905153132_customer_aggregates_tenant_scoped_view` and `20260905153138_customer_aggregates_revoke_matview_grants` are **applied to the live database**.
+
+**The fix.** Clients now read `public.customer_aggregates` — a `security_barrier` view filtering `tenant_id IN (SELECT get_user_tenant_ids())` — and both `anon` and `authenticated` lost all privileges on the underlying matview. It is a *plain* view deliberately: `security_invoker = true` would check the caller's privileges on the matview, which is exactly what the change revokes. The barrier matters because two call sites push user-supplied `ILIKE` predicates into the view; `EXPLAIN` confirms the ILIKE now evaluates **above** the tenant join (4,162 rows removed after scoping).
+
+**Verified live (read-only, after apply):**
+
+| Check | Result |
+|---|---|
+| `mv_customer_aggregates` ACL | `{postgres, service_role}` — anon and authenticated removed |
+| anon → matview / view | `42501` / `42501` |
+| authenticated → matview | `42501` |
+| tenant member → `customer_aggregates` | **4,169 rows · 1 tenant · 174,599,650 IQD** (was 5,875 · 12 · 718,616,650) |
+| session with no tenant membership | **0 rows** |
+| `get_customer_dashboard_stats()` | still returns (SECURITY DEFINER path intact) |
+| advisors | `materialized_view_in_api` **cleared**; new ERROR-level `security_definer_view` on the new view (inherent to the pattern — the matview had no RLS to bypass; the view *adds* the tenant filter) |
+| `tsc` (platform, storefront, admin) · `lint` · `vitest` | 0 errors · 0 errors / 1163 warnings (= baseline) · **676/676 across 81 files** (1 new pinning test) |
+
+**Regression guard.** `apps/platform/lib/customer-aggregates-access.test.ts` fails if any client module queries the matview directly. This bug had already recurred once: migration `20260518000002` performed the same revoke, and `20260629140000`/`20260629170000` undid it by `DROP … CREATE MATERIALIZED VIEW`, which restores Supabase's default grants. Both objects now carry `COMMENT`s stating this.
+
+**Known residuals (not fixed — outside approved scope):**
+1. The new view inherited Supabase's default `authenticated=arwdDxtm` rather than the SELECT-only its migration documents. Verified inert — `pg_relation_is_updatable` = 0, a view over a matview is not auto-updatable — but it wants a tightening migration.
+2. The `COMMENT` stored on the matview cites the pre-rename filename.
+3. **Deploy gap:** `main` and this branch's HEAD still contain `.from("mv_customer_aggregates")` in the *deployed* build, so the Customers surface returns `42501` until `db5caff2` ships. The user approved this trade-off knowingly; the interim mitigation, if wanted, is `GRANT SELECT ON public.mv_customer_aggregates TO authenticated` (keeps the anonymous exposure closed).
+
+**Audit-conduct note.** Zero unintended database writes this engagement. Every role-impersonation probe and the full pre-apply rehearsal of both migrations ran inside `BEGIN … ROLLBACK`; the only persistent changes are the two approved migrations.
