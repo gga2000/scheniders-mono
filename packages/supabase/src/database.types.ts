@@ -4525,6 +4525,7 @@ export type Database = {
           download_url: string | null
           duration_minutes: number | null
           file_size: string | null
+          feature_cards: Json
           gallery_urls: Json
           id: string
           image_url: string | null
@@ -4565,6 +4566,7 @@ export type Database = {
           download_url?: string | null
           duration_minutes?: number | null
           file_size?: string | null
+          feature_cards?: Json
           gallery_urls?: Json
           id?: string
           image_url?: string | null
@@ -4605,6 +4607,7 @@ export type Database = {
           download_url?: string | null
           duration_minutes?: number | null
           file_size?: string | null
+          feature_cards?: Json
           gallery_urls?: Json
           id?: string
           image_url?: string | null

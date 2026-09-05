@@ -83,6 +83,9 @@ const schema = z.object({
    *  product's short_description (dynamic — hidden when the merchant sets
    *  none). Defaults on. */
   show_notice: z.boolean().optional(),
+  /** Heading over the per-product feature cards (products.feature_cards);
+   *  the block only renders for products that carry cards. */
+  feature_cards_title_i18n: i18nStringOptional,
   /** Trust chips under the card. Merchant-editable — "original products" /
    *  "quality guarantee" are business claims the section must not force on
    *  every tenant. Icon is a Material Symbols name. */
@@ -500,6 +503,17 @@ function PdpDirectOrderRender({
   // are business claims a section must not force on every tenant); the
   // defaults carry the classic funnel quartet.
   const trustChips = props.trust_chips ?? [];
+
+  // Per-product feature cards (typed upstream; guard shape defensively for
+  // builder previews feeding looser data).
+  const featureCards = Array.isArray(product.feature_cards)
+    ? product.feature_cards.filter(
+        (c) => c && typeof c.title === "string" && typeof c.body === "string",
+      )
+    : [];
+  const featureCardsTitle =
+    resolveI18n(props.feature_cards_title_i18n, locale) ||
+    (t ? "شنو يميز هاي العطر عن غيره؟" : "What makes this scent special?");
 
   // Import-time gallery photos (products.gallery_urls). Typed string[], but
   // guard element shape — builder previews can feed looser data.
@@ -976,6 +990,48 @@ function PdpDirectOrderRender({
             <p className="whitespace-pre-line font-body text-sm leading-relaxed text-bk-ink-soft">
               {product.description}
             </p>
+          </div>
+        )}
+
+        {/* ── Per-product feature cards (fragrance-note highlights) —
+            data-driven from the product row, absent when none. ── */}
+        {featureCards.length > 0 && (
+          <div className="space-y-bk-sm border-t border-bk-divider pt-bk-md">
+            <h2 className="text-center font-display font-black text-lg sm:text-xl">
+              {featureCardsTitle}
+            </h2>
+            <div className="grid grid-cols-1 gap-bk-sm sm:grid-cols-2">
+              {featureCards.map((c, i) => (
+                <div
+                  key={`${c.title}-${i}`}
+                  className="flex items-start gap-3 p-3"
+                  style={{
+                    backgroundColor:
+                      "color-mix(in srgb, var(--bk-accent, #ffd84a) 8%, #ffffff)",
+                    borderRadius: "var(--bk-radius-card, 1rem)",
+                    border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.1))",
+                  }}
+                >
+                  {c.image_url && (
+                    // eslint-disable-next-line @next/next/no-img-element -- arbitrary tenant-hosted note art, small fixed size
+                    <img
+                      src={c.image_url}
+                      alt=""
+                      className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-label font-bold text-sm text-bk-ink">
+                      {c.title}
+                    </p>
+                    <p className="font-body text-xs leading-relaxed text-bk-ink-soft">
+                      {c.body}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

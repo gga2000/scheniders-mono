@@ -36,6 +36,8 @@ export interface Product extends BaseProduct {
   /** Ordered gallery photo URLs (products.gallery_urls jsonb, coerced to a
    *  clean string[] by the consuming app before it reaches sections). */
   gallery_urls?: string[];
+  /** Per-product feature cards (note highlights) — hidden when absent. */
+  feature_cards?: { image_url?: string; title: string; body: string }[];
   /** Optional ISO date — used for "newest" sort fallbacks + the "New" card badge. */
   created_at?: string;
   /** Optional merchandising flag — drives the "Bestseller" card badge when set. */
