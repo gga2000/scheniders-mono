@@ -63,7 +63,7 @@ export default function Home() {
   const { revealed: showFinancials, canReveal } = useFinancialVisibility();
   const isAdmin = role === 'admin';
 
-  const { announcements, loading: announcementsLoading, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
+  const { announcements, loading: announcementsLoading, error: announcementsError, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
 
   const [dateRange, setDateRange] = useState<DateRangeKey>('7d');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -280,6 +280,7 @@ export default function Home() {
               announcements={announcements}
               isAdmin={isAdmin}
               loading={announcementsLoading}
+              error={announcementsError}
               onCreate={createAnnouncement}
               onTogglePin={togglePin}
               onDelete={deleteAnnouncement}
