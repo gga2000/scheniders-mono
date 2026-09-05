@@ -263,17 +263,9 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                         {/* === CMS TABS === */}
                         <div id="section-cms">
                         <ProductCMSTabs
-                            features={editor.formData.features}
-                            onFeaturesChange={(features) => editor.updateField("features", features)}
                             noteCards={editor.formData.feature_cards}
                             onNoteCardsChange={(noteCards) => editor.updateField("feature_cards", noteCards)}
                             productId={product?.id}
-                            faqs={editor.formData.faqs}
-                            onFaqsChange={(faqs) => editor.updateField("faqs", faqs)}
-                            testimonials={editor.formData.testimonials}
-                            onTestimonialsChange={(testimonials) => editor.updateField("testimonials", testimonials)}
-                            reviews={editor.formData.reviews}
-                            onReviewsChange={(reviews) => editor.updateField("reviews", reviews)}
                         />
                         </div>
 
@@ -287,10 +279,6 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                 price={editor.formData.price}
                                 compareAtPrice={editor.formData.compare_at_price}
                                 imageUrl={editor.formData.image_url}
-                                features={editor.formData.features}
-                                faqs={editor.formData.faqs}
-                                testimonials={editor.formData.testimonials}
-                                reviews={editor.formData.reviews.filter(r => r.status === "approved" || r.status === "featured")}
                                 slug={editor.formData.slug}
                                 variantOptions={editor.formData.variant_options.filter(o => o.name.trim() && o.values.length > 0)}
                             />

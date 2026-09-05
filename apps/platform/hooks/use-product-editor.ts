@@ -86,12 +86,6 @@ export interface ProductEditorFormData {
     order_bumps: OrderBumpFormData[];
     related_products: RelatedProductFormData[];
 
-    // CMS
-    features: FeatureFormData[];
-    faqs: FaqFormData[];
-    testimonials: TestimonialFormData[];
-    reviews: ReviewFormData[];
-
     // Funnel PDP note cards (products.feature_cards jsonb column)
     feature_cards: NoteCardFormData[];
 
@@ -131,13 +125,6 @@ export interface RelatedProductFormData {
     image_url?: string;
 }
 
-export interface FeatureFormData {
-    icon: string;
-    title: string;
-    description: string;
-    display_order: number;
-}
-
 /** Form row for one funnel-PDP note card (products.feature_cards jsonb).
  *  `image_url` is "" while unset — serialized to an absent key on save. */
 export interface NoteCardFormData {
@@ -172,36 +159,6 @@ function serializeFeatureCards(cards: NoteCardFormData[]): { image_url?: string;
             body: c.body,
             ...(c.image_url.trim() ? { image_url: c.image_url.trim() } : {}),
         }));
-}
-
-export interface FaqFormData {
-    question: string;
-    answer: string;
-    display_order: number;
-}
-
-export interface TestimonialFormData {
-    customer_name: string;
-    customer_photo_url: string;
-    rating: number;
-    quote: string;
-    is_featured: boolean;
-    display_order: number;
-}
-
-export interface ReviewFormData {
-    id?: string;
-    reviewer_name: string;
-    reviewer_email: string;
-    rating: number;
-    title: string;
-    body: string;
-    status: 'pending' | 'approved' | 'rejected' | 'featured';
-    is_verified_purchase: boolean;
-    is_manual: boolean;
-    admin_response: string;
-    helpful_count: number;
-    created_at?: string;
 }
 
 export interface InventoryHistoryFormData {
@@ -300,10 +257,6 @@ const DEFAULT_FORM_DATA: ProductEditorFormData = {
     tiered_prices: [],
     order_bumps: [],
     related_products: [],
-    features: [],
-    faqs: [],
-    testimonials: [],
-    reviews: [],
     feature_cards: [],
     inventory_history: [],
     suppliers: [],
@@ -512,11 +465,7 @@ function productToFormData(product: Product): ProductEditorFormData {
         tiered_prices: [], // loaded separately from product_tiered_pricing table
         order_bumps: [], // loaded separately from product_order_bumps table
         related_products: [], // loaded separately from product_related table
-        features: [], // loaded separately from product_features table
         feature_cards: coerceFeatureCards(product.feature_cards), // jsonb column on products
-        faqs: [], // loaded separately from product_faqs table
-        testimonials: [], // loaded separately from product_testimonials table
-        reviews: [], // loaded separately from product_reviews table
         inventory_history: [], // loaded separately from inventory_history table
         suppliers: [], // loaded separately from product_suppliers table
         activity_log: [], // loaded separately from product_activity_log table
@@ -571,10 +520,6 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     tieredPrices,
                     orderBumps,
                     relatedProducts,
-                    features,
-                    faqs,
-                    testimonials,
-                    reviews,
                     inventoryHistory,
                     suppliers,
                     activityLog,
@@ -585,10 +530,6 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     productRepository.getTieredPrices(product!.id),
                     productRepository.getOrderBumps(product!.id),
                     productRepository.getRelatedProducts(product!.id),
-                    productRepository.getFeatures(product!.id),
-                    productRepository.getFaqs(product!.id),
-                    productRepository.getTestimonials(product!.id),
-                    productRepository.getReviews(product!.id),
                     productRepository.getInventoryHistory(product!.id),
                     productRepository.getSuppliers(product!.id),
                     productRepository.getActivityLog(product!.id),
@@ -623,39 +564,6 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                         related_product_id: r.related_product_id,
                         relation_type: r.relation_type,
                         display_order: r.display_order,
-                    })),
-                    features: features.map((f: any) => ({
-                        icon: f.icon || "Sparkles",
-                        title: f.title,
-                        description: f.description || "",
-                        display_order: f.display_order,
-                    })),
-                    faqs: faqs.map((f: any) => ({
-                        question: f.question,
-                        answer: f.answer,
-                        display_order: f.display_order,
-                    })),
-                    testimonials: testimonials.map((t: any) => ({
-                        customer_name: t.customer_name,
-                        customer_photo_url: t.customer_photo_url || "",
-                        rating: t.rating,
-                        quote: t.quote,
-                        is_featured: t.is_featured,
-                        display_order: t.display_order,
-                    })),
-                    reviews: reviews.map((r: any) => ({
-                        id: r.id,
-                        reviewer_name: r.reviewer_name,
-                        reviewer_email: r.reviewer_email || "",
-                        rating: r.rating,
-                        title: r.title || "",
-                        body: r.body || "",
-                        status: r.status,
-                        is_verified_purchase: r.is_verified_purchase,
-                        is_manual: r.is_manual,
-                        admin_response: r.admin_response || "",
-                        helpful_count: r.helpful_count || 0,
-                        created_at: r.created_at,
                     })),
                     inventory_history: inventoryHistory.map((h: any) => ({
                         change_type: h.change_type,
@@ -948,28 +856,6 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 related_product_id: r.related_product_id,
                 relation_type: r.relation_type,
                 display_order: r.display_order,
-            })), tenantId),
-            productRepository.saveFeatures(productId, formData.features, tenantId),
-            productRepository.saveFaqs(productId, formData.faqs, tenantId),
-            productRepository.saveTestimonials(productId, formData.testimonials.map((t) => ({
-                customer_name: t.customer_name,
-                customer_photo_url: t.customer_photo_url || null,
-                rating: t.rating,
-                quote: t.quote,
-                is_featured: t.is_featured,
-                display_order: t.display_order,
-            })), tenantId),
-            productRepository.saveReviews(productId, formData.reviews.map((r) => ({
-                reviewer_name: r.reviewer_name,
-                reviewer_email: r.reviewer_email,
-                rating: r.rating,
-                title: r.title,
-                body: r.body,
-                status: r.status,
-                is_verified_purchase: r.is_verified_purchase,
-                is_manual: r.is_manual,
-                admin_response: r.admin_response || null,
-                helpful_count: r.helpful_count,
             })), tenantId),
             productRepository.saveSuppliers(productId, formData.suppliers.map((s) => ({
                 supplier_name: s.supplier_name,

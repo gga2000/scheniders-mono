@@ -5,8 +5,7 @@ import { StickyNote, Plus, Trash2, ArrowUp, ArrowDown, Upload, X, Loader2 } from
 import { supabase } from "@/lib/supabase";
 import type { NoteCardFormData } from "@/hooks/use-product-editor";
 
-// Re-exported so ProductCMSTabs can import the row type from its tab file,
-// matching the FeatureFormData / FaqFormData sibling convention.
+// Re-exported so ProductCMSTabs can import the row type from its tab file.
 export type { NoteCardFormData } from "@/hooks/use-product-editor";
 
 interface NoteCardsTabProps {
