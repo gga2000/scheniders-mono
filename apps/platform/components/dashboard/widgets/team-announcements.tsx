@@ -22,7 +22,8 @@ interface TeamAnnouncementsProps {
     loading: boolean;
     /** Read failed. Rendered instead of the empty state — a failure is not "no announcements". */
     error?: string | null;
-    onCreate: (content: string) => Promise<void>;
+    /** Resolves false when the post failed — the draft is kept so nothing is lost. */
+    onCreate: (content: string) => Promise<boolean | void>;
     onTogglePin: (id: string, currentlyPinned: boolean) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
 }
@@ -47,10 +48,13 @@ export function TeamAnnouncements({
     const handleSubmit = async () => {
         if (!draft.trim() || submitting) return;
         setSubmitting(true);
-        await onCreate(draft);
+        const posted = await onCreate(draft);
+        setSubmitting(false);
+        // Keep the draft (and the composer open) when the write failed, so a
+        // failed post never silently destroys what the admin typed.
+        if (posted === false) return;
         setDraft('');
         setIsComposing(false);
-        setSubmitting(false);
     };
 
     const handleDelete = async (id: string) => {

@@ -88,19 +88,22 @@ export function useAnnouncements() {
         return () => { subscription.unsubscribe(); };
     }, [fetchAnnouncements, instanceId]);
 
-    const createAnnouncement = useCallback(async (content: string) => {
-        if (!isAdmin) return;
+    /** Returns true only when the row was actually written — callers keep the
+     *  admin's typed draft on false rather than clearing it (REL-D1). */
+    const createAnnouncement = useCallback(async (content: string): Promise<boolean> => {
+        if (!isAdmin) return false;
         const row = buildAnnouncementInsert(content, tenantId, profile?.display_name);
         if (!row) {
             if (content.trim()) toast.error("No active store selected");
-            return;
+            return false;
         }
         const { error: insertError } = await supabase.from('announcements').insert(row);
         if (insertError) {
             toast.error(`Could not post announcement: ${insertError.message}`);
-            return;
+            return false;
         }
         await fetchAnnouncements();
+        return true;
     }, [isAdmin, profile?.display_name, tenantId, fetchAnnouncements]);
 
     const togglePin = useCallback(async (id: string, currentlyPinned: boolean) => {
