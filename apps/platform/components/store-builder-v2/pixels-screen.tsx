@@ -34,7 +34,11 @@ type Field = { key: keyof AnalyticsConfig; label: string; secret?: boolean; plac
 
 const ID_FIELDS: Field[] = [
     { key: "meta_pixel_id", label: "Meta Pixel ID", placeholder: "15–16 digit ID" },
-    { key: "tiktok_pixel_id", label: "TikTok Pixel ID" },
+    {
+        key: "tiktok_pixel_id",
+        label: "TikTok Pixel ID",
+        placeholder: "one or more IDs, comma-separated",
+    },
     { key: "google_analytics_id", label: "Google Analytics ID", placeholder: "G-XXXXXXX" },
     { key: "snapchat_pixel_id", label: "Snapchat Pixel ID" },
     { key: "gtm_container_id", label: "Google Tag Manager ID", placeholder: "GTM-XXXXX" },
