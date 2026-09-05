@@ -84,7 +84,7 @@ export function useSearchSimilarCustomers(phone: string | undefined) {
             if (!phone) return [];
             // Find customers with shared addresses or similar phones
             const { data, error } = await supabase
-                .from("mv_customer_aggregates")
+                .from("customer_aggregates")
                 .select("customer_phone, latest_name, latest_city, total_orders, latest_address_details")
                 .neq("customer_phone", phone)
                 .limit(20);

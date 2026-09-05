@@ -9,7 +9,7 @@ export function useCustomerGrowth(days: number = 365) {
         queryFn: async (): Promise<CustomerGrowthData[]> => {
             // Get all customers
             const { data: customers, error } = await supabase
-                .from("mv_customer_aggregates")
+                .from("customer_aggregates")
                 .select("first_order_date")
                 .order("first_order_date", { ascending: true });
 

@@ -935,6 +935,13 @@ export type Database = {
             foreignKeyName: "chat_conversations_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "mv_customer_aggregates"
             referencedColumns: ["last_order_id"]
           },
@@ -2491,6 +2498,13 @@ export type Database = {
             foreignKeyName: "follow_up_reminders_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "follow_up_reminders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "mv_customer_aggregates"
             referencedColumns: ["last_order_id"]
           },
@@ -2648,6 +2662,13 @@ export type Database = {
           variant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_ledger_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
           {
             foreignKeyName: "inventory_ledger_order_id_fkey"
             columns: ["order_id"]
@@ -3230,6 +3251,13 @@ export type Database = {
             foreignKeyName: "order_notes_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "order_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "mv_customer_aggregates"
             referencedColumns: ["last_order_id"]
           },
@@ -3400,6 +3428,13 @@ export type Database = {
           to_status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
           {
             foreignKeyName: "order_status_history_order_id_fkey"
             columns: ["order_id"]
@@ -4802,6 +4837,13 @@ export type Database = {
             foreignKeyName: "qc_quarantine_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "qc_quarantine_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "mv_customer_aggregates"
             referencedColumns: ["last_order_id"]
           },
@@ -6011,6 +6053,13 @@ export type Database = {
             foreignKeyName: "telegram_pending_orders_confirmed_order_id_fkey"
             columns: ["confirmed_order_id"]
             isOneToOne: false
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "telegram_pending_orders_confirmed_order_id_fkey"
+            columns: ["confirmed_order_id"]
+            isOneToOne: false
             referencedRelation: "mv_customer_aggregates"
             referencedColumns: ["last_order_id"]
           },
@@ -6171,6 +6220,32 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_slug_history: {
+        Row: {
+          created_at: string
+          old_slug: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_slug: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          old_slug?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_slug_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -6675,6 +6750,33 @@ export type Database = {
       }
     }
     Views: {
+      customer_aggregates: {
+        Row: {
+          customer_phone: string | null
+          first_order_date: string | null
+          last_order_date: string | null
+          last_order_id: string | null
+          last_order_status: string | null
+          latest_address_details: string | null
+          latest_city: string | null
+          latest_governorate: string | null
+          latest_name: string | null
+          latest_secondary_phone: string | null
+          tenant_id: string | null
+          total_items: number | null
+          total_orders: number | null
+          total_spent: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mv_customer_aggregates: {
         Row: {
           customer_phone: string | null
@@ -7004,6 +7106,13 @@ export type Database = {
           vips_quiet_count: number
         }[]
       }
+      get_customer_order_counts: {
+        Args: { _phones: string[]; _tenant_id: string }
+        Returns: {
+          normalized_phone: string
+          order_count: number
+        }[]
+      }
       get_customer_percentile: {
         Args: { target_city?: string; target_phone: string }
         Returns: {
@@ -7061,6 +7170,28 @@ export type Database = {
         }[]
       }
       get_dashboard_metrics: { Args: { p_range?: string }; Returns: Json }
+      get_order_duplicate_flags: {
+        Args: { _order_ids: string[]; _tenant_id: string }
+        Returns: {
+          has_duplicates: boolean
+          order_id: string
+          previous_order: Json
+        }[]
+      }
+      get_orders_aggregates: {
+        Args: {
+          _city?: string
+          _date_from?: string
+          _date_to?: string
+          _is_return?: boolean
+          _order_type?: string
+          _payment_status?: string
+          _priority?: string
+          _product?: string
+          _tenant_id: string
+        }
+        Returns: Json
+      }
       get_paginated_customers: {
         Args: {
           city_filter?: string
@@ -7149,7 +7280,18 @@ export type Database = {
           status: string
         }[]
       }
+      merge_orders_atomic: {
+        Args: {
+          _archive_order_id: string
+          _changed_by?: string
+          _keep_order_id: string
+          _tenant_id?: string
+        }
+        Returns: Json
+      }
       normalize_phone: { Args: { input_phone: string }; Returns: string }
+      normalize_phone_for_search: { Args: { _phone: string }; Returns: string }
+      order_base_id: { Args: { _order_id: string }; Returns: string }
       process_return: {
         Args: {
           _changed_by_avatar: string
@@ -7310,12 +7452,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7339,11 +7481,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7364,11 +7506,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7389,11 +7531,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7406,11 +7548,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
