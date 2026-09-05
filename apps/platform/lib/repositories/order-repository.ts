@@ -193,23 +193,54 @@ export const orderRepository = {
      * Rides idx_orders_tenant_active_created — measured 0.388 ms / 47 buffers for
      * 50 rows, against 4,019 kB for the full book.
      */
-    async findWindow(window: OrderWindow, limit = 1000): Promise<Order[]> {
+    async findWindow(window: OrderWindow): Promise<Order[]> {
         if (!window) return this.findAll();
 
         const _t = performance.now();
-        const { data, error } = await supabase
-            .from("v_orders_with_risk")
-            .select(LIST_VIEW_COLUMNS)
-            .eq("is_archived", false)
-            .gte("created_at", new Date(window.fromInstant).toISOString())
-            .lte("created_at", new Date(window.toInstant).toISOString())
-            .order("created_at", { ascending: false })
-            .limit(limit);
+        const step = 1000;
+        const fromIso = new Date(window.fromInstant).toISOString();
+        const toIso = new Date(window.toInstant).toISOString();
 
-        if (error) throw error;
-        const rows = (data ?? []) as unknown as Order[];
-        diag.log(`[Diag:Repo] findWindow rows=${rows.length} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return rows.map(row => normalizeOrder(row));
+        // Count first, then page through ALL of them.
+        //
+        // Deliberately NOT a bare `.limit(n)`: truncating would leave the list
+        // showing 1,000 rows while the server-computed status chips report the
+        // real total, i.e. the list silently disagreeing with its own counts.
+        // The payload win comes from the window being narrow (the default view
+        // is a single day), never from dropping rows the merchant filtered for.
+        const { count, error: countErr } = await supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false)
+            .gte("created_at", fromIso)
+            .lte("created_at", toIso);
+        if (countErr) throw countErr;
+
+        const totalRows = count ?? 0;
+        if (totalRows === 0) return [];
+
+        const pageCount = Math.ceil(totalRows / step);
+        const pages = await Promise.all(
+            Array.from({ length: pageCount }, (_, i) =>
+                supabase
+                    .from("v_orders_with_risk")
+                    .select(LIST_VIEW_COLUMNS)
+                    .eq("is_archived", false)
+                    .gte("created_at", fromIso)
+                    .lte("created_at", toIso)
+                    .order("created_at", { ascending: false })
+                    .range(i * step, i * step + step - 1),
+            ),
+        );
+
+        let rows: unknown[] = [];
+        for (const { data, error } of pages) {
+            if (error) throw error;
+            if (data) rows = rows.concat(data);
+        }
+
+        diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return rows.map(row => normalizeOrder(row as Order));
     },
 
     /**
