@@ -1117,6 +1117,31 @@ export default function OrdersPage() {
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
     const deferredDisplayedOrders = React.useDeferredValue(displayedOrders);
 
+    // Risk data by phone, built once. These lookups are called once per rendered
+    // row, and each used to be a `.find()` over the whole list — O(rows x visible)
+    // on every render. Mirrors the O(1) map `getCustomerOrderCount` already uses.
+    const riskByPhone = useMemo(() => {
+        const map = new Map<string, Order["risk_data"]>();
+        for (const o of deferredDisplayedOrders) {
+            if (o.phone && !map.has(o.phone)) map.set(o.phone, o.risk_data);
+        }
+        return map;
+    }, [deferredDisplayedOrders]);
+
+    const getRiskAssessmentByPhone = useCallback(
+        (phone: string) => riskByPhone.get(phone),
+        [riskByPhone],
+    );
+
+    const getRiskLevelByPhone = useCallback(
+        (phone: string): "low" | "medium" | "high" | "blocked" => {
+            const level = riskByPhone.get(phone)?.level || "low";
+            return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
+        },
+        [riskByPhone],
+    );
+
+
     const groupedOrders = useMemo(() => {
         if (groupBy === 'none') {
             return {};
@@ -2675,10 +2700,7 @@ export default function OrdersPage() {
                                                             getBlacklistEntry={getBlacklistEntry}
                                                             onAddToBlacklist={addToBlacklist}
                                                             onRemoveFromBlacklist={removeFromBlacklist}
-                                                            getRiskAssessment={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                return order?.risk_data;
-                                                            }}
+                                                            getRiskAssessment={getRiskAssessmentByPhone}
                                                             getCustomerOrderCount={getCustomerOrderCount}
                                                             getCustomerArchivedCount={getCustomerArchivedCount}
                                                             getCustomerHistory={getCustomerHistory}
@@ -2686,11 +2708,7 @@ export default function OrdersPage() {
                                                             getOriginalOrderInfo={getOriginalOrderInfo}
                                                             compactView={compactView}
                                                             actionDock={actionDock}
-                                                            getRiskLevel={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                const level = order?.risk_data?.level || "low";
-                                                                return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                            }}
+                                                            getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                             assignments={assignments}
@@ -2782,11 +2800,7 @@ export default function OrdersPage() {
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
                                                     updateOrderStatus={updateOrderStatus}
-                                                    getRiskLevel={(phone) => {
-                                                        const order = displayedOrders.find(o => o.phone === phone);
-                                                        const level = order?.risk_data?.level || "low";
-                                                        return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                    }}
+                                                    getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
                                                     setColumnFilters={setColumnFilters}
                                                     openFilterColumn={openFilterColumn}
