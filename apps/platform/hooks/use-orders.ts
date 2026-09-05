@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
 
@@ -15,7 +15,7 @@ import { useRealtimeHeartbeat } from "@/hooks/use-realtime-heartbeat";
 // React Query hooks for caching
 import {
     useOrdersQuery,
-    ORDERS_CACHE_IS_COMPLETE_SET,
+    ordersCacheIsCompleteSet,
     useArchivedOrdersQuery,
     syncOrdersDelta,
     orderKeys,
@@ -26,6 +26,7 @@ import { useEffect } from "react";
 import { useOrderFilterState } from "@/hooks/use-order-filter-state";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { assertAggregateParity } from "@/lib/order-aggregate-parity";
+import { windowFromDateFilter } from "@/lib/order-window";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -58,7 +59,18 @@ export function useOrders() {
     // fetch depends on — that was circular, and it is what blocked windowing.
     const { filters, setFilters, clearFilters } = useOrderFilterState();
 
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery();
+    // The window the fetch will load, derived from the merchant's date filter.
+    // Realtime and the bulk-scope guards read the same value, so what is fetched,
+    // what realtime will add, and what "all visible" means can never disagree.
+    const ordersWindow = useMemo(
+        () => windowFromDateFilter(filters.dateFrom, filters.dateTo),
+        [filters.dateFrom, filters.dateTo],
+    );
+    const ordersAreComplete = ordersCacheIsCompleteSet(ordersWindow);
+    const ordersWindowRef = useRef(ordersWindow);
+    ordersWindowRef.current = ordersWindow;
+
+    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery(ordersWindow);
 
     // Single source of truth: React Query cache
     const orders = cachedOrders ?? [];
@@ -78,6 +90,7 @@ export function useOrders() {
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
+        getWindow: () => ordersWindowRef.current,
         onReconnect: () => {
             // Reconnect: flush any missed events via an incremental delta sync,
             // not a full-table refetch.
@@ -181,7 +194,7 @@ export function useOrders() {
         createReplacementOrder: crudHook.createReplacementOrder,
 
         /** True while the cached list is the complete filtered set (see ORDERS_CACHE_IS_COMPLETE_SET). */
-        ordersAreComplete: ORDERS_CACHE_IS_COMPLETE_SET,
+        ordersAreComplete,
 
         // Detection & history
         getDuplicatesForOrder: auxiliaryHook.getDuplicatesForOrder,

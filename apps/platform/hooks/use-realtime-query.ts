@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { diag } from "@/lib/diag";
+import type { OrderWindow } from "@/lib/order-window";
 
 // =============================================
 // GENERIC REALTIME QUERY HOOK
@@ -46,6 +47,8 @@ interface UseRealtimeQueryOptions<T> {
 
     /** Batch delay in ms (default: 200) */
     batchDelayMs?: number;
+    /** Current cache window, read fresh on each flush (see lib/order-window.ts). */
+    getWindow?: () => OrderWindow;
 
     /** Whether the subscription is enabled (default: true) */
     enabled?: boolean;
@@ -59,6 +62,7 @@ export function useRealtimeQuery<T extends { id: string }>({
     onReconnect,
     onInsert,
     batchDelayMs = 200,
+    getWindow,
     enabled = true,
 }: UseRealtimeQueryOptions<T>) {
     const queryClient = useQueryClient();
@@ -78,6 +82,8 @@ export function useRealtimeQuery<T extends { id: string }>({
     // Use refs for callbacks to avoid re-subscribing on callback changes
     const onReconnectRef = useRef(onReconnect);
     const onInsertRef = useRef(onInsert);
+    const getWindowRef = useRef(getWindow);
+    getWindowRef.current = getWindow;
     const normalizerRef = useRef(normalizer);
 
     useEffect(() => {
@@ -107,6 +113,8 @@ export function useRealtimeQuery<T extends { id: string }>({
             normalizer: (raw: unknown) => normalizerRef.current(raw),
             flushDelayMs: batchDelayMs,
             onNewOrder: (order) => onInsertRef.current?.(order as unknown as T),
+            // Read through a ref so changing the filter never re-subscribes.
+            getWindow: () => getWindowRef.current?.() ?? null,
         });
 
         // Expose to mutations via ref

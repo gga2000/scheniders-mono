@@ -8,6 +8,7 @@ import { useRealtimeQuery } from "@/hooks/use-realtime-query";
 import type { Order } from "@/lib/supabase";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import type { MutableRefObject } from "react";
+import type { OrderWindow } from "@/lib/order-window";
 
 // =============================================
 // ORDER REALTIME HOOK
@@ -18,6 +19,8 @@ import type { MutableRefObject } from "react";
 // =============================================
 
 interface UseOrderRealtimeOptions {
+    /** Current cache window, so realtime never adds rows outside it. */
+    getWindow?: () => OrderWindow;
     onReconnect?: () => void;
 }
 
@@ -25,7 +28,7 @@ interface UseOrderRealtimeReturn {
     batcherRef: MutableRefObject<RealtimeBatcher | null>;
 }
 
-export function useOrderRealtime({ onReconnect }: UseOrderRealtimeOptions): UseOrderRealtimeReturn {
+export function useOrderRealtime({ onReconnect, getWindow }: UseOrderRealtimeOptions): UseOrderRealtimeReturn {
     const handleInsert = useCallback((order: Order) => {
         notificationService.showNewOrderNotification(
             order.customer_name,
@@ -35,6 +38,7 @@ export function useOrderRealtime({ onReconnect }: UseOrderRealtimeOptions): UseO
     }, []);
 
     const { batcherRef } = useRealtimeQuery<Order>({
+        getWindow,
         table: "orders",
         queryKey: orderKeys.lists(),
         filter: { column: "is_archived", value: false },

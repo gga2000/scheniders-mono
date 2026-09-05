@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
+import type { OrderWindow } from "@/lib/order-window";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -131,23 +132,24 @@ function readSwrCache(): Order[] | null {
 }
 
 /**
- * Whether the cached order list is the COMPLETE set matching the user's filters,
- * or only a window of it.
+ * Whether a cache holding `window` is the COMPLETE set matching the merchant's
+ * filters, or only a slice of it.
  *
- * `findAll()` currently fetches every non-archived order, so this is true. When
- * PERF-1 stage C replaces it with a windowed fetch this becomes false whenever
- * the window is narrower than the filter — and the actions that mean "act on
+ * A null window means no date filter is active, so the fetch loaded everything.
+ * Any other window is by definition a subset — and the actions that mean "act on
  * everything I can see" (ship-with-no-selection, select-all) must refuse rather
- * than silently operate on whichever subset happens to be loaded.
+ * than silently operate on whichever rows happened to load.
  */
-export const ORDERS_CACHE_IS_COMPLETE_SET = true;
+export function ordersCacheIsCompleteSet(window: OrderWindow): boolean {
+    return window === null;
+}
 
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
-async function fetchOrders(): Promise<Order[]> {
+async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
-    const result = await orderRepository.findAll();
+    const result = await orderRepository.findWindow(window);
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
@@ -177,9 +179,18 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  *
  * @param refetchTrigger - Optional trigger to force refetch
  */
-export function useOrdersQuery(refetchTrigger?: string) {
+export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: string) {
     const queryClient = useQueryClient();
     const { session, clientReady } = useAuth();
+
+    // The query key deliberately does NOT include the window. Realtime, every
+    // mutation, delta sync and the sessionStorage SWR cache all read and write
+    // `orderKeys.lists()`; keying per window would scatter those across caches.
+    // The cache holds one window at a time and a change invalidates it.
+    const windowKey = window ? `${window.fromInstant}-${window.toInstant}` : "all";
+    useEffect(() => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    }, [windowKey, queryClient]);
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -191,7 +202,7 @@ export function useOrdersQuery(refetchTrigger?: string) {
 
     return useQuery({
         queryKey: orderKeys.lists(),
-        queryFn: fetchOrders,
+        queryFn: () => fetchOrders(window),
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
         enabled: !!session && clientReady,
@@ -434,7 +445,9 @@ export function usePrefetchOrders() {
     return () => {
         queryClient.prefetchQuery({
             queryKey: orderKeys.lists(),
-            queryFn: fetchOrders,
+            // Prefetch on hover has no filter context; it warms the unwindowed
+            // list and the real query replaces it with the active window.
+            queryFn: () => fetchOrders(null),
             // Match staleTime from useOrdersQuery
             staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });
