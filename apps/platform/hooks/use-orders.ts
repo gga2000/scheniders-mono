@@ -23,6 +23,7 @@ import {
 } from "@/hooks/use-orders-query";
 
 import { useEffect } from "react";
+import { useOrderFilterState } from "@/hooks/use-order-filter-state";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -50,6 +51,11 @@ export function useOrders() {
         }
     });
 
+    // Filter state is resolved BEFORE the fetch. `useOrderFilters` derives its
+    // lists from the orders that come back, so it cannot also own the filter the
+    // fetch depends on — that was circular, and it is what blocked windowing.
+    const { filters, setFilters, clearFilters } = useOrderFilterState();
+
     const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery();
 
     // Single source of truth: React Query cache
@@ -66,7 +72,7 @@ export function useOrders() {
     const archivedOrders = cachedArchivedOrders ?? [];
 
     // 1. Filters — filter state, presets, persistence, derived lists
-    const filterHook = useOrderFilters({ orders, archivedOrders });
+    const filterHook = useOrderFilters({ orders, archivedOrders, filters, setFilters, clearFilters });
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
