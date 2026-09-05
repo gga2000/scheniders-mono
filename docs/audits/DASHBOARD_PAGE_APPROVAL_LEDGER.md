@@ -45,7 +45,8 @@ Live proof after apply:
 | SEC-D3 | `get_dashboard_metrics` EXECUTE re-granted to PUBLIC (revoke didn't survive CREATE OR REPLACE) | P3 | P4 | PENDING | — | — |
 | ENG-D1 | Dual engines diverge by construction (tz + deleted rows); fallback between them is silent | P1 | P1/P6 | PENDING | — | — |
 | ENG-D2 | No cache invalidation on realtime/mutations; "Live" dot on a 2-min-stale feed; no last-updated | P1 | P6 | PENDING | — | — |
-| REL-D1 | Announcements create/pin/delete silently fail (tenant-less insert vs RLS; errors swallowed) | P1 | P6 | PENDING | — | — |
+| REL-D1 | Announcements create/pin/delete silently fail (tenant-less insert vs RLS; errors swallowed) | P1 | P6 | **APPROVED** | 2026-09-02 | **R2 — shipped** (`3a72b5cc` + draft-preservation follow-up). Proven live in rolled-back txns: old payload → `42501`, corrected payload inserts. 5 pinning tests; 681/681 green. |
+| **SEC-D4** | *(found by code review during R2)* Announcement writes are admin-gated **client-side only**. Live policies `tenant_isolation_insert/update/delete` on `public.announcements` carry no role predicate (the original admin policies were dropped by the 2026-04-06 migrations), so **any authenticated tenant member can post, unpin or soft-delete announcements** straight through PostgREST. Same class as SEC-D2: authorization at the render layer, not the data layer. | P2 | P4 | PENDING — *not fixed; needs a policy migration, outside REL-D1's approved scope* | — | — |
 | REL-D2 | No widget error states; silent catches; zero Sentry on surface | P2 | P6 | PENDING | — | — |
 | PERF-D1 | Whole-book fetch still fired on mount (3 widgets + useStats); CreateOrderModal in entry chunk | P1 | P3 | PENDING | — | — |
 | TMP-D1 | Client engine browser-clock boundaries; hourly current-hour highlight wrong off-Baghdad | P2 | P2 | PENDING | — | — |
