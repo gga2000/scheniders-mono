@@ -12,9 +12,9 @@ Single source of truth for what may and may not be touched. A finding becomes `A
 | SEC-1 | `create_order_atomic` no tenant guard → cross-tenant insert | P0 | P5 | **APPROVED** | 2026-08-22 | **R1 — migration APPLIED + verified live** (foreign tenant → 42501; own tenant → OK) |
 | SEC-2 | Server actions: service-role, no auth, client-supplied tenant | P0 | P5 | **APPROVED** | 2026-08-22 | **R1 — shipped (code)** |
 | SEC-3 | delete + waseet submit mutate orders by UUID, no tenant filter | P0 | P5 | **APPROVED** | 2026-08-22 | **R1 — shipped (code)** |
-| SEC-4 | Anon-executable order/inventory RPCs (process_return/undo_return/inv_apply) | P1 | P5 | PENDING | — | — |
-| SEC-5 | `viewer` role unenforced at action layer (read-write) | P1 | P5/P7 | PENDING | — | — |
-| SEC-6 | Commercial guards bypassable via `tenantId:null` | P1 | P7 | PENDING | — | — |
+| SEC-4 | Anon-executable order/inventory RPCs (process_return/undo_return/inv_apply) | P1 | P5 | **SHIPPED** | 2026-09-06 | `anon` (and PUBLIC on `inv_apply`) revoked, plus real `get_user_tenant_ids()` membership guards on `process_return`/`undo_return` — the old check compared the *passed* tenant to the order's, which is consistency not authorization. Verified as role `authenticated` against a foreign tenant: both **BLOCKED 42501**. `lookup_order` deliberately left anon (storefront order tracking uses the anon client). `inv_apply` guarded by revoke only — no app caller, reached via the inv_order_changed trigger on every order write, so a body guard there is risk without benefit. |
+| SEC-5 | `viewer` role unenforced at action layer (read-write) | P1 | P5/P7 | **PARTIALLY SHIPPED** | 2026-09-06 | Landed with SEC-2/SEC-3: `is_active` revocation check, deny-by-default on an absent role, positive allow-lists on order delete and Waseet shipping, and role checks in the order server actions. A **systematic sweep of every remaining mutation path** is still PENDING. |
+| SEC-6 | Commercial guards bypassable via `tenantId:null` | P1 | P7 | **SHIPPED** | 2026-09-06 | Closed as a consequence of SEC-2: `createOrderAction` derives the tenant from the verified session, so a null/client-supplied tenant can no longer skip the pause guard, plan limit or wallet charge. |
 | CON-1 | Silent lost writes between two staff (updated_at never bumped) | P1 | P1 | **APPROVED** | 2026-08-22 | **R2 — shipped (code).** Conflict token moved to server-maintained `version`. Trigger migration written, **HELD for deploy** (see note). |
 | CON-2 | Realtime edits don't propagate; delta/heartbeat miss them | P1 | P6 | **APPROVED** | 2026-08-22 | **R2 — code shipped** (version-first dedup + `.gte` watermark + no client-clock stamp). Full fix needs the held trigger applied at deploy. |
 | CON-3 | `undoLastAction` no concurrency guard | P2 | P1 | PENDING | — | — |
@@ -64,7 +64,7 @@ Single source of truth for what may and may not be touched. A finding becomes `A
 | ARCH-3 | Banned patterns (any/eslint-disable/non-null/no-op handler) | P2 | P1 | PENDING | — | — |
 | ARCH-4 | Duplicated logic (4 phone-normalize, 10 status maps) | P2 | P1 | PENDING | — | — |
 | ARCH-5 | ~1,340 lines dead code (6 unimported files) | P2 | P1 | PENDING | — | — |
-| ARCH-6 | Duplicated sources of truth; modal state survives navigation | P2 | P1 | PENDING | — | — |
+| ARCH-6 | Duplicated sources of truth; modal state survives navigation | P2 | P1 | **PARTIALLY SHIPPED** | 2026-09-06 | Filter-state ownership hoisted out of `useOrderFilters` into `useOrderFilterState` (commit `00c4d367`), which also unblocked the windowed fetch. The **modal-state-survives-navigation** half remains PENDING. |
 
 **Round 1 (2026-08-22) — shipped, uncommitted, verified:** `tsc` 0 errors · `lint` 0 errors (1161 warnings, 3 fewer than baseline) · vitest 20/20 · live: unauthenticated + bad-token calls to both routes return 401, `/orders` renders 200.
 Partly-in-scope hardening added during self-review of the same gate (SEC-5/SEC-6 territory, disclosed not claimed): `is_active` revocation check, deny-by-default role, and a role gate on Waseet shipping. SEC-5/SEC-6 remain PENDING overall.

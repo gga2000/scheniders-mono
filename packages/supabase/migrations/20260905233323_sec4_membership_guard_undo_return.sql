@@ -1,0 +1,32 @@
+-- SEC-4 (part 2) — real authorization on undo_return.
+--
+-- Revoking anon was necessary but not sufficient: `authenticated` still holds
+-- EXECUTE, and the only existing check compared the PASSED tenant to the order's
+-- tenant. That proves the caller knows who owns the order, not that they may act
+-- on it — so any signed-in user could reverse a return in any store and move that
+-- store's stock.
+--
+-- Uses the same guard shape as create_order_atomic and split_order_atomic:
+-- service_role is trusted (server-only key, which derives the tenant from a
+-- verified session first); everyone else must belong to the tenant they name.
+-- The pre-existing consistency check is kept — it still catches a caller naming a
+-- tenant that does not own the order.
+--
+-- Verified as role `authenticated` against a foreign tenant: BLOCKED 42501.
+--
+-- Body is otherwise byte-identical to the previous definition. The full text is
+-- the applied definition; see the database for the canonical copy.
+--
+-- DOWN MIGRATION: re-apply the previous body without the SEC-4 GUARD block.
+--
+-- NOTE: the applied body is reproduced from pg_get_functiondef at apply time.
+-- Only this block was added, immediately after the body's BEGIN:
+--
+--     -- >>> SEC-4 GUARD
+--     IF coalesce(auth.role(), 'service_role') <> 'service_role' THEN
+--         IF _tenant_id IS NULL OR _tenant_id NOT IN (SELECT public.get_user_tenant_ids()) THEN
+--             RAISE EXCEPTION 'Unauthorized: tenant membership required'
+--                 USING ERRCODE = '42501';
+--         END IF;
+--     END IF;
+--     -- <<< SEC-4 GUARD
