@@ -26,7 +26,9 @@ Live proof after apply:
 - COR-D4 pairs with the Orders-ledger **CON-1** trigger (`20260822150000`, still deliberately HELD for the Orders R2 code deploy).
 - COR-D1 is a cross-surface definition decision (orders / reports / finance / payroll share it) — approve the *definition* before any code.
 - ENG-D1, TMP-D1, and COR-D5 are one coherent change set (align or retire the client engine).
-- PROC-D1 (branch merge) gates any deploy of this branch, independent of dashboard fixes.
+- PROC-D1 (branch merge): **re-analysed 2026-09-02 — it does NOT gate deploying `db5caff2`.** Verified live: `create_order_atomic(jsonb,uuid)` still carries the SEC-1 guard, `merge_orders_atomic` exists, and the deploy-coupled `updated_at` trigger is correctly still unapplied. So the DB is ahead of main's code, safely. What IS live in production, because the Orders code never merged: **SEC-3** (`/api/orders/delete` and `/api/waseet/submit-orders` mutate by UUID with no tenant filter — verified 0 `current_tenant_id` references at HEAD) and the **export money bug** (`export-utils.ts` writes bare `order.price` under the header `السعر مع التوصيل`, i.e. the Al-Waseet XLSX keeps under-collecting the delivery fee on every exported order — the 20.8M IQD item from the Orders audit).
+
+  **Current exposure measured 2026-09-02 (live, read-only):** 5,495 still-shippable non-return orders carry a delivery fee, totalling **34,208,000 IQD** that the XLSX path would under-collect if exported today. Of those, 516 (3,227,000 IQD) were created after the fix was written on 2026-08-22. 28 orders with fees totalling **168,000 IQD** have already been delivered since then, none carrying a `waseet_qr_id` (i.e. not shipped through the corrected API path). *Attribution caveat: the DB does not record which orders were exported via XLSX vs the API, so 34.2M is exposure on the open book, not realized loss; 168,000 IQD is the closest measurable realized figure and is small only because recent order volume is low.*
 
 | ID | Title | Severity | Pillar | Status | Date | Round shipped |
 |----|-------|:--:|:--:|:--:|--|--|
@@ -63,7 +65,7 @@ Live proof after apply:
 | ARCH-D4 | Mock traps: dead live-feed mock stream; fake source-employees live on Reports (pointer) | P3 | P1 | PENDING | — | — |
 | OBS-D1 | Zero Sentry + zero business events on the surface | P1 | P7 | PENDING | — | — |
 | COM-D1 | No plan gating, no export; staff-board role gate is client composition | P2 | P7 | PENDING | — | — |
-| PROC-D1 | Branch divergence: Orders R1–R4 fix code absent from this branch; shared DB carries both lines' migrations | P1 | — | PENDING | — | — |
+| PROC-D1 | **RESOLVED as an analysis 2026-09-02 — and it points the other way.** Orders R1–R4 app code is pushed to `origin/feat/store-builder-preview-iframe` but is **NOT in `origin/main`**, so it has never been deployed. The main line (incl. this branch) still carries the pre-fix code. Deploying `db5caff2` therefore regresses **nothing** — it is main's baseline plus the SEC-D1 fix. The real exposure is the inverse: **the approved Orders fixes are stranded on an unmerged branch while production keeps running the bugs they fixed.** | P1 | — | **ANALYSIS DONE — action is a merge decision, not a code change** | 2026-09-02 | — |
 
 **[U] items requiring one authenticated login to close:** populated-UI visual sweep (contrast, content stress, CLS/LCP/INP, breakpoints, memory), first-run live capture, re-render profiling, exact route bundle bytes.
 

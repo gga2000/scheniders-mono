@@ -7,7 +7,7 @@ import path from "node:path";
  * RLS: any client that queries it directly reads every tenant's customer book.
  * Clients must go through the tenant-scoped view `customer_aggregates` (or a
  * SECURITY DEFINER RPC). This has regressed once already — see
- * packages/supabase/migrations/20260902120000_customer_aggregates_tenant_scoped_view.sql
+ * packages/supabase/migrations/20260905153132_customer_aggregates_tenant_scoped_view.sql
  */
 describe("customer aggregates access path", () => {
     it("no client module queries mv_customer_aggregates directly", () => {
