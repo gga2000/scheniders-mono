@@ -24,6 +24,8 @@ import {
 
 import { useEffect } from "react";
 import { useOrderFilterState } from "@/hooks/use-order-filter-state";
+import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
+import { assertAggregateParity } from "@/lib/order-aggregate-parity";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -89,8 +91,25 @@ export function useOrders() {
         return () => setOrderBatcher(null);
     }, [batcherRef]);
 
+    // Server-computed aggregates. These describe the whole filter, not the rows
+    // that happen to be loaded, which is what lets the fetch narrow to a window
+    // without the status chips and stat cards quietly reporting the window's
+    // numbers as if they were the filter's.
+    const { data: serverAggregates } = useOrdersAggregates(filters);
+
+
     // 3. Auxiliary — reference data, customer helpers, stats
     const auxiliaryHook = useOrderAuxiliary({ orders, archivedOrders });
+
+    // While the cache still holds the complete set, both sides are computable —
+    // so verify they agree before the windowed fetch makes the client's version
+    // impossible to check. Dev-only; compiles to nothing in production.
+    useEffect(() => {
+        if (!serverAggregates) return;
+        assertAggregateParity("status counts", filterHook.statusCounts, serverAggregates.status_counts);
+        assertAggregateParity("stats", auxiliaryHook.stats as unknown as Record<string, number>, serverAggregates.stats);
+    });
+
 
     // 4. CRUD — all order mutations, undo, notes, timeline, etc.
     const crudHook = useOrderCrud({ orders });
@@ -106,21 +125,23 @@ export function useOrders() {
     const contextValue = useMemo(() => ({
         // Core data
         orders,
-        statusCounts: filterHook.statusCounts,
+        statusCounts: serverAggregates?.status_counts ?? filterHook.statusCounts,
         // Archive
         archivedOrders,
         fetchArchivedOrders: crudHook.fetchArchivedOrders,
         filteredOrders: filterHook.filteredOrders,
         loading,
         error,
-        stats: auxiliaryHook.stats,
+        // Server supplies the headline numbers; the client keeps the parts it
+        // still derives locally (velocity, peak hour, revenue trends).
+        stats: serverAggregates ? { ...auxiliaryHook.stats, ...serverAggregates.stats } : auxiliaryHook.stats,
 
         // Reference data
         rejectionReasons: auxiliaryHook.rejectionReasons,
         messageTemplates: auxiliaryHook.messageTemplates,
         filterPresets: filterHook.filterPresets,
-        availableCities: filterHook.availableCities,
-        availableProducts: filterHook.availableProducts,
+        availableCities: serverAggregates?.cities ?? filterHook.availableCities,
+        availableProducts: serverAggregates?.products ?? filterHook.availableProducts,
         availableProductsInView: filterHook.availableProductsInView,
 
         // Filters
