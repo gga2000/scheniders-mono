@@ -122,6 +122,8 @@ export default async function ProductPage({ params }: Props) {
               price: product.price,
               inStock,
               brand: tenant.business_name,
+              ratingAverage: product.avg_rating ?? null,
+              ratingCount: product.review_count ?? null,
             }),
             breadcrumbJsonLd([
               { name: ar ? "الرئيسية" : "Home", url: baseUrl || "/" },

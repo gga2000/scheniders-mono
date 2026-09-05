@@ -4,7 +4,7 @@
 // Product image gallery for the PDP. Renders the main image plus
 // thumbnails / carousel / grid depending on the chosen layout. Supports
 // click-to-zoom on the main image. Pulls images from
-// `ctx.product.image_url` + `ctx.product.images`.
+// `ctx.product.image_url` + `ctx.product.images` + `ctx.product.gallery_urls`.
 // =====================================================================
 
 "use client";
@@ -37,10 +37,15 @@ function gatherImages(
   if (!product) return [];
   const primary = product.image_url ? [product.image_url] : [];
   const rest = Array.isArray(product.images) ? product.images : [];
+  // products.gallery_urls (jsonb import-time gallery) — typed string[], but
+  // guard element shape anyway: builder previews may feed looser data.
+  const gallery = Array.isArray(product.gallery_urls)
+    ? product.gallery_urls.filter((u): u is string => typeof u === "string")
+    : [];
   // Dedupe while preserving order.
   const seen = new Set<string>();
   const all: string[] = [];
-  for (const url of [...primary, ...rest]) {
+  for (const url of [...primary, ...rest, ...gallery]) {
     if (!url || seen.has(url)) continue;
     seen.add(url);
     all.push(url);

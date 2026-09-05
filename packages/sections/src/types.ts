@@ -31,6 +31,11 @@ export interface Product extends BaseProduct {
   category_id?: string | null;
   display_order?: number;
   images?: string[];
+  /** Short marketing line (per-product promo notice on the funnel PDP). */
+  short_description?: string | null;
+  /** Ordered gallery photo URLs (products.gallery_urls jsonb, coerced to a
+   *  clean string[] by the consuming app before it reaches sections). */
+  gallery_urls?: string[];
   /** Optional ISO date — used for "newest" sort fallbacks + the "New" card badge. */
   created_at?: string;
   /** Optional merchandising flag — drives the "Bestseller" card badge when set. */

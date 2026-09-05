@@ -21,12 +21,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/lib/supabase";
-import { 
-    useProductImagesQuery, 
-    useAddProductImageMutation, 
-    useUpdateProductImageMutation, 
-    useDeleteProductImageMutation, 
+import {
+    useProductImagesQuery,
+    useAddProductImageMutation,
+    useUpdateProductImageMutation,
+    useDeleteProductImageMutation,
     useReorderProductImagesMutation,
+    useProductGalleryUrlsQuery,
+    useRemoveProductGalleryUrlMutation,
     ProductImage
 } from "@/hooks/use-product-images-query";
 
@@ -36,10 +38,12 @@ interface ProductGallerySectionProps {
 
 export function ProductGallerySection({ productId }: ProductGallerySectionProps) {
     const { data: images = [], isLoading } = useProductImagesQuery(productId);
+    const { data: galleryUrls = [] } = useProductGalleryUrlsQuery(productId);
     const addImageMutation = useAddProductImageMutation();
     const updateImageMutation = useUpdateProductImageMutation();
     const deleteImageMutation = useDeleteProductImageMutation();
     const reorderMutation = useReorderProductImagesMutation();
+    const removeGalleryUrlMutation = useRemoveProductGalleryUrlMutation();
 
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,6 +198,58 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                         </div>
                     </SortableContext>
                 </DndContext>
+            )}
+
+            {/* Imported gallery (products.gallery_urls) — photos migrated with
+                the product (old-site catalog). They render in the storefront
+                gallery after the managed images above. External URLs we don't
+                host, so removal only edits the list — no storage delete. */}
+            {galleryUrls.length > 0 && (
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-semibold text-muted uppercase tracking-wider">Imported photos</h4>
+                        <span className="text-xs text-muted">({galleryUrls.length})</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {galleryUrls.map((url, i) => (
+                            <div
+                                key={`${i}-${url}`}
+                                className="group relative p-2 bg-[var(--background)] rounded-xl border border-[var(--card-border)]"
+                            >
+                                <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/20">
+                                    <img
+                                        src={url}
+                                        alt="Imported gallery image"
+                                        loading="lazy"
+                                        className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute inset-x-0 top-0 p-2 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-b from-black/50 to-transparent">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!productId) return;
+                                                removeGalleryUrlMutation.mutate(
+                                                    { productId, url },
+                                                    {
+                                                        onSuccess: () => toast.success("Photo removed"),
+                                                        onError: (err) => {
+                                                            console.error("Failed to remove imported photo", err);
+                                                            toast.error("Failed to remove photo");
+                                                        },
+                                                    },
+                                                );
+                                            }}
+                                            disabled={removeGalleryUrlMutation.isPending}
+                                            className="p-1.5 text-rose-300 hover:bg-rose-500/20 hover:text-rose-100 rounded-lg backdrop-blur-sm transition-colors disabled:opacity-50"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             )}
         </div>
     );

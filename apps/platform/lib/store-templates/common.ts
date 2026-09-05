@@ -63,7 +63,9 @@ export function commercePages(
             s("trust_strip"),
         ],
         checkout_success: [s("order_tracker"), s("product_grid")],
-        track: [s("track_order_lookup"), s("order_tracker")],
+        // order_tracker ships its own lookup form — seeding
+        // track_order_lookup beside it rendered two lookup forms on /track.
+        track: [s("order_tracker")],
         policy_shipping: [s("policy_content")],
         policy_returns: [s("policy_content")],
         policy_privacy: [s("policy_content")],

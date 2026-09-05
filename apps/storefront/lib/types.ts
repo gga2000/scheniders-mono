@@ -29,6 +29,9 @@ export interface Product extends BaseProduct {
   category_id?: string | null;
   display_order?: number;
   images?: string[];
+  /** Ordered gallery photo URLs from products.gallery_urls (jsonb, coerced to
+   *  a clean string[] by lib/queries — never trust raw jsonb shape). */
+  gallery_urls?: string[];
   /** Approved-review aggregates, merged in by lib/queries (real data only). */
   review_count?: number;
   avg_rating?: number;
