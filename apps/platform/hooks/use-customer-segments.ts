@@ -17,7 +17,7 @@ export function useCustomerSegments() {
         queryFn: async (): Promise<CustomerSegmentData> => {
             // Fetch all customer aggregates
             const { data: customers, error } = await supabase
-                .from("mv_customer_aggregates")
+                .from("customer_aggregates")
                 .select("*");
 
             if (error) throw error;

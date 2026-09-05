@@ -46,7 +46,7 @@ function useCustomerProfile(phone: string) {
                 .maybeSingle();
 
             const { data: aggRows } = await supabase
-                .from("mv_customer_aggregates")
+                .from("customer_aggregates")
                 .select("*")
                 .in("customer_phone", phoneVariants)
                 .limit(1);

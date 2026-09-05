@@ -1,0 +1,70 @@
+# Dashboard Page — Approval Ledger
+
+Single source of truth for what may and may not be touched. A finding becomes `APPROVED` **only** when the user names it (or the round it's in) in a message containing the exact sentence `I'm Ali and I approve these changes`. `DENIED` is permanent and never revisited. Default is `PENDING`.
+
+**Audit report:** [DASHBOARD_PAGE_SOTA_AUDIT_2026-09-02.md](DASHBOARD_PAGE_SOTA_AUDIT_2026-09-02.md) · **Verdict:** NO-GO (52/100) · **As of:** 2026-09-02.
+**Plan:** [2026-09-02-dashboard-page-launch-fixes.md](../superpowers/plans/2026-09-02-dashboard-page-launch-fixes.md) (R1 only).
+
+**Round 1 (2026-09-02) — code written (UNCOMMITTED), both migrations APPLIED to the live DB, verified:** `tsc` 0 errors (platform + storefront + admin) · `lint` 0 errors / 1163 warnings (= baseline) · **vitest 676/676 across 81 files** (1 new pinning test) · types regenerated.
+
+Live proof after apply:
+- `mv_customer_aggregates` relacl now `{postgres, service_role}` — **anon and authenticated removed**
+- anon → matview: `42501` · authenticated → matview: `42501` · anon → `customer_aggregates`: `42501`
+- authenticated member → `customer_aggregates`: **4,169 rows / 1 tenant / 174,599,650 IQD** (was 5,875 / 12 / 718,616,650)
+- session with no tenant membership → **0 rows** (deny by default)
+- `get_customer_dashboard_stats()` still returns after the revokes (SECURITY DEFINER path intact)
+- `EXPLAIN` confirms `security_barrier` keeps the user-supplied `ILIKE` above the tenant join (4,162 rows removed *after* scoping)
+- advisors: `materialized_view_in_api` on the matview **cleared**; a new ERROR-level `security_definer_view` advisory now names `public.customer_aggregates` (inherent to the pattern — see report)
+
+⚠️ **OPEN — deploy gap.** `main` and this branch's HEAD still contain `.from("mv_customer_aggregates")`; only the uncommitted working tree is repointed. Until this code is committed and deployed, the deployed Customers surface (KPI strip, segments, growth chart, customer search, customer detail) returns `42501`. Options: deploy this code, or temporarily `GRANT SELECT ON public.mv_customer_aggregates TO authenticated` (keeps the anonymous P0 closed) as an interim.
+
+⚠️ **OPEN — least privilege.** The new view carries Supabase's default `authenticated=arwdDxtm` rather than the documented SELECT-only. Not exploitable (`pg_relation_is_updatable` = 0, a view over a matview is not auto-updatable) but it does not match the migration's own comment. Needs a follow-up `REVOKE ALL … FROM authenticated; GRANT SELECT …` migration.
+
+**Dependency notes for the fix campaign:**
+- SEC-D1 is independent of everything else — it can (and should) ship alone, first.
+- COR-D3's full fix depends on the Orders-ledger **COR-8** migration (`delivered_at` → timestamptz); the RPC-side arithmetic correction can land without it.
+- COR-D4 pairs with the Orders-ledger **CON-1** trigger (`20260822150000`, still deliberately HELD for the Orders R2 code deploy).
+- COR-D1 is a cross-surface definition decision (orders / reports / finance / payroll share it) — approve the *definition* before any code.
+- ENG-D1, TMP-D1, and COR-D5 are one coherent change set (align or retire the client engine).
+- PROC-D1 (branch merge) gates any deploy of this branch, independent of dashboard fixes.
+
+| ID | Title | Severity | Pillar | Status | Date | Round shipped |
+|----|-------|:--:|:--:|:--:|--|--|
+| **SEC-D1** | `mv_customer_aggregates` world-readable (anon, full ACL) — all 12 tenants' customer books | **P0** | P4 | **APPROVED** | 2026-09-02 | **R1 — code shipped; migration WRITTEN + REHEARSED, NOT APPLIED** (awaiting migration-specific approval per Phase 3 §8) |
+| **COR-D8** | *(discovered during R1)* All 6 client call sites read the matview with **no tenant filter** → Customers-page KPIs blended across 12 tenants (5,875 vs 4,169 customers; 718.6M vs 174.6M IQD) | **P0** | P1/P4 | **APPROVED** | 2026-09-02 | **R1 — same fix as SEC-D1** (call sites repointed to the tenant-scoped view) |
+| COR-D1 | "Revenue" counts unrealized `confirmed` orders; ≥6 revenue definitions app-wide | P1 | P1 | PENDING | — | — |
+| COR-D2 | Product revenue = equal split of order price; line prices ignored (−3.8…−7.1% measured) | P1 | P1 | PENDING | — | — |
+| COR-D3 | Cycle times −3 h (naive-UTC `delivered_at` − Baghdad local); sub-3 h deliveries dropped | P1 | P1/P2 | PENDING | — | — |
+| COR-D4 | `updated_at`-windowed metrics on a frozen column (15% of delivered rows) | P1 | P1 | PENDING | — | — |
+| COR-D5 | Soft-deleted (9), `pending_checkout` (62), `suspended` (126) counted in dashboard aggregates | P2 | P1 | PENDING | — | — |
+| COR-D6 | Staff leaderboard: last-toucher, name-keyed, bots ranked (#1 = "WhatsApp Bot" live) | P2 | P1/P5 | PENDING | — | — |
+| COR-D7 | Rate honesty: 0% for no-data, raw unmasked delta fallback, "pp" on counts, no small-n label | P2 | P6 | PENDING | — | — |
+| SEC-D2 | Financial masking is DOM-only; RPC ships cost/profit to all roles; mobile fully unmasked | P1 | P4/P7 | PENDING | — | — |
+| SEC-D3 | `get_dashboard_metrics` EXECUTE re-granted to PUBLIC (revoke didn't survive CREATE OR REPLACE) | P3 | P4 | PENDING | — | — |
+| ENG-D1 | Dual engines diverge by construction (tz + deleted rows); fallback between them is silent | P1 | P1/P6 | PENDING | — | — |
+| ENG-D2 | No cache invalidation on realtime/mutations; "Live" dot on a 2-min-stale feed; no last-updated | P1 | P6 | PENDING | — | — |
+| REL-D1 | Announcements create/pin/delete silently fail (tenant-less insert vs RLS; errors swallowed) | P1 | P6 | PENDING | — | — |
+| REL-D2 | No widget error states; silent catches; zero Sentry on surface | P2 | P6 | PENDING | — | — |
+| PERF-D1 | Whole-book fetch still fired on mount (3 widgets + useStats); CreateOrderModal in entry chunk | P1 | P3 | PENDING | — | — |
+| TMP-D1 | Client engine browser-clock boundaries; hourly current-hour highlight wrong off-Baghdad | P2 | P2 | PENDING | — | — |
+| TMP-D2 | "This week" label on rolling-168h windows | P3 | P2 | PENDING | — | — |
+| DV-D1 | Date-range filter scopes only the pipeline widget (placebo) | P1 | P5 | PENDING | — | — |
+| DV-D2 | Dead Search + Bell header buttons (desktop + mobile); feed rows not clickable | P2 | P5 | PENDING | — | — |
+| MOB-D1 | Mobile shows 3 of 23 widgets; different (and unmasked) revenue definition | P1 | P4/P5 | PENDING | — | — |
+| MOB-D2 | Mobile hardcoded English; `paste-card` typo; no safe-area insets | P2 | P3/P7 | PENDING | — | — |
+| VIS-D1 | Dual-axis revenue/orders chart + non-zero line baseline | P1 | P6 | PENDING | — | — |
+| VIS-D2 | Pipeline proportional bar min-width distorts proportions | P2 | P6 | PENDING | — | — |
+| I18N-D1 | `dir="rtl"` ×3 in order-card.tsx (orders-rendered file) | P2 | P7 | PENDING | — | — |
+| I18N-D2 | Hardcoded strings: mobile cards, urgency triad, header toggles, map headers, EN-only axes | P2 | P7 | PENDING | — | — |
+| I18N-D3 | en-US date axes ×4; iraq-map money bypasses formatIQD + masking | P2 | P7 | PENDING | — | — |
+| ARCH-D1 | ~1,860 dead lines / 13 files, each encoding divergent metric definitions | P2 | P1 | PENDING | — | — |
+| ARCH-D2 | order-card.tsx (2,437) is an Orders component mislocated in dashboard/; decomposition plan in report | P2 | P1 | PENDING | — | — |
+| ARCH-D3 | Banned patterns: untyped RPC return (as unknown as), any ×5, purity eslint-disable, unused param | P2 | P1 | PENDING | — | — |
+| ARCH-D4 | Mock traps: dead live-feed mock stream; fake source-employees live on Reports (pointer) | P3 | P1 | PENDING | — | — |
+| OBS-D1 | Zero Sentry + zero business events on the surface | P1 | P7 | PENDING | — | — |
+| COM-D1 | No plan gating, no export; staff-board role gate is client composition | P2 | P7 | PENDING | — | — |
+| PROC-D1 | Branch divergence: Orders R1–R4 fix code absent from this branch; shared DB carries both lines' migrations | P1 | — | PENDING | — | — |
+
+**[U] items requiring one authenticated login to close:** populated-UI visual sweep (contrast, content stress, CLS/LCP/INP, breakpoints, memory), first-run live capture, re-render profiling, exact route bundle bytes.
+
+**Legend:** PENDING = not yet reviewed/approved · APPROVED = user approved with the exact sentence (record date + round) · DENIED = permanently closed, never revisited.

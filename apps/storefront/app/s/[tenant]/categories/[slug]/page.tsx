@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { enforceRedirect } from "@/lib/redirects";
@@ -17,6 +18,21 @@ import { V2Page } from "@/components/v2-page";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { tenant: tenantParam, slug } = await params;
+  const tenant = tenantParam.startsWith("__domain__")
+    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
+    : await getTenantBySlug(tenantParam);
+  if (!tenant) return { title: "Store not found" };
+
+  const category = await getCategoryBySlug(tenant.id, slug);
+  if (!category) return {}; // let the layout title apply; the page renders notFound()
+
+  // Same lockup as the PDP: "<name> — <business name>", localized by the
+  // category's own (merchant-authored) name.
+  return { title: `${category.name} — ${tenant.business_name}` };
 }
 
 export default async function CategoryPage({ params }: Props) {

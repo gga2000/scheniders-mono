@@ -34,7 +34,7 @@ export function useBusinessMetrics() {
 
             // Fetch all customer aggregates in one query
             const { data: customers, error } = await supabase
-                .from("mv_customer_aggregates")
+                .from("customer_aggregates")
                 .select("*");
 
             if (error) throw error;

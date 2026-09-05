@@ -34,7 +34,7 @@ export function LinkCustomersModal() {
         if (!searchQuery.trim()) return;
         setIsSearching(true);
         const { data } = await supabase
-            .from("mv_customer_aggregates")
+            .from("customer_aggregates")
             .select("customer_phone, latest_name, latest_city, total_orders")
             .or(`customer_phone.ilike.%${searchQuery}%,latest_name.ilike.%${searchQuery}%`)
             .neq("customer_phone", linkCustomersPhone || "")
