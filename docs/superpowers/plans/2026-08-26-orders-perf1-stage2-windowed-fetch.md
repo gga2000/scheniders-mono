@@ -208,3 +208,46 @@ and in realtime is already in place and tested.
 ownership on the busiest screen in the product, and no populated-tenant login is
 available in this environment for a live before/after pass. Half-landing it is
 exactly the silent regression the prerequisites were built to prevent.
+
+---
+
+## STAGE 4 (server-side search) — MEASURED AND REJECTED AS DESIGNED (2026-09-06)
+
+Stages A–D and C are done: the page now fetches only the active date window.
+The one remaining full-book path is search — typing a query clears the date
+filter, so the window goes null and the whole book is downloaded again.
+
+Moving search to the server was attempted and **measured as unusable**:
+
+| approach | result |
+|---|---|
+| `order_search_matches(...)` in the WHERE clause | **949 ms** to filter ~3.5k orders for ONE tenant |
+| the same predicate inlined | **did not return** before the client timed out |
+
+Cause: `normalize_arabic_text_for_search()` does regexp/translate work per row
+per column, and `LIKE '%term%'` cannot use a btree index. Today's client-side
+search is instant because the rows are already in memory. Shipping this would
+trade a 4 MB download for a ~1 s query — a regression in the thing the merchant
+actually feels, in exchange for one they mostly do not.
+
+**What was kept** (both applied, both correct, neither wired to a hot path):
+- `normalize_arabic_text_for_search` — 11/11 against a shared fixture with the
+  TypeScript. Also documents a real divergence: the codebase has TWO
+  `normalizeArabicText` implementations that disagree (search folds `ى`, the
+  address validator folds Kurdish `ی ک ە` and collapses whitespace). 1,647 live
+  names contain `ى`, so a name search and a governorate match normalize the same
+  customer differently today. Filed, not silently reconciled.
+- `order_search_matches` — verified 13/13, carrying the performance verdict in
+  its own COMMENT so nobody wires it by accident.
+
+**What a working version actually needs:**
+1. `CREATE EXTENSION pg_trgm` (not installed);
+2. GIN trigram indexes on each normalized expression (name, city, address, notes);
+3. the predicate **inline** — wrapping it in a function defeats those indexes;
+4. so, to keep one definition, a function returning **matching order ids** that
+   both the list fetch and `get_orders_aggregates` consume, rather than a
+   row-level boolean shared by two queries.
+
+Until then search keeps its current behaviour, which is correct and fast — it
+just costs a full fetch. That is a deliberate, measured trade rather than an
+oversight.
