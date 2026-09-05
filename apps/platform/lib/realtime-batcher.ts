@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
 import { diag } from "@/lib/diag";
+import { belongsInWindow, type OrderWindow } from "@/lib/order-window";
 
 
 // =============================================
@@ -23,6 +24,12 @@ interface RealtimeBatcherOptions {
     normalizer?: (raw: unknown) => unknown;
     flushDelayMs?: number; // Default: 200ms
     onNewOrder?: (order: Order) => void;
+    /**
+     * The window the cache currently holds, or null while it holds every
+     * non-archived order. Rows outside it must never be prepended — see
+     * lib/order-window.ts.
+     */
+    getWindow?: () => OrderWindow;
 }
 
 /**
@@ -66,6 +73,7 @@ export class RealtimeBatcher {
     private normalizer: (raw: unknown) => unknown;
     private flushDelayMs: number;
     private onNewOrder?: (order: Order) => void;
+    private getWindow?: () => OrderWindow;
 
     // Mutation guard: track recently-mutated order IDs to prevent
     // stale realtime broadcasts from overwriting optimistic updates
@@ -78,6 +86,7 @@ export class RealtimeBatcher {
         this.normalizer = options.normalizer ?? ((x: unknown) => x);
         this.flushDelayMs = options.flushDelayMs ?? 200;
         this.onNewOrder = options.onNewOrder;
+        this.getWindow = options.getWindow;
     }
 
     /**
@@ -177,6 +186,8 @@ export class RealtimeBatcher {
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
 
+            const win = this.getWindow?.() ?? null;
+
             const result = old
                 // Remove deleted orders
                 .filter((o) => {
@@ -188,6 +199,9 @@ export class RealtimeBatcher {
                     if (updated) {
                         updates.delete(o.id); // Mark as applied
                         if (updated.is_archived) return null; // Remove archived from active list
+                        // Edited out of the loaded window (e.g. its date moved):
+                        // drop it rather than leave a row that no longer matches.
+                        if (!belongsInWindow(updated, win)) return null;
 
                         // Version-first dedup (see shouldApplyRealtimeUpdate).
                         if (!shouldApplyRealtimeUpdate(o, updated)) {
@@ -199,15 +213,19 @@ export class RealtimeBatcher {
                 })
                 .filter((o): o is Order => o !== null);
 
-            // Add new inserts + any updates for orders not in the current list
+            // Add new inserts + any updates for orders not in the current list.
+            // Only rows that belong in the loaded window: with a windowed cache,
+            // prepending anything else invents a row the merchant can act on.
             const newOrders: Order[] = [];
             for (const [, order] of inserts) {
+                if (!belongsInWindow(order, win)) continue;
                 if (!result.some((o) => o.id === order.id)) {
                     newOrders.push(order);
                 }
             }
             // Updates for orders that weren't in the list (e.g., un-archived)
             for (const [, order] of updates) {
+                if (!belongsInWindow(order, win)) continue;
                 if (!order.is_archived && !result.some((o) => o.id === order.id)) {
                     newOrders.push(order);
                 }
@@ -263,9 +281,12 @@ export class RealtimeBatcher {
                     return updated;
                 });
 
-            // Genuinely-new rows (not already in the list) → prepend (newest-first).
+            // Genuinely-new rows (not already in the list) → prepend (newest-first),
+            // but only those belonging to the loaded window.
+            const win = this.getWindow?.() ?? null;
             const newOnes: Order[] = [];
             for (const [, order] of updates) {
+                if (!belongsInWindow(order, win)) continue;
                 if (!result.some((o) => o.id === order.id)) { newOnes.push(order); applied++; }
             }
 
