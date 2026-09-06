@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
@@ -22,8 +23,39 @@ import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
  * RLS-scoped per tenant via SECURITY INVOKER (the function runs as the caller),
  * so each tenant only ever aggregates its own orders.
  */
+/** How long to wait after the orders cache settles before refreshing metrics. */
+const METRICS_REFRESH_DEBOUNCE_MS = 1_500;
+
 export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
     const { session, clientReady } = useAuth();
+    const queryClient = useQueryClient();
+
+    // ENG-D2: nothing used to invalidate these metrics, so the dashboard could sit
+    // on a 2-minute-stale cache while the feed pulsed "Live" — including for the
+    // user who had just changed the order. Watch the orders cache instead of
+    // wiring into one specific writer: this covers realtime, optimistic mutations
+    // and delta-sync alike, debounced so a burst of events costs one refetch.
+    useEffect(() => {
+        const cache = queryClient.getQueryCache();
+        let timer: ReturnType<typeof setTimeout> | null = null;
+
+        const unsubscribe = cache.subscribe((event) => {
+            if (event.type !== "updated") return;
+            const key = event.query.queryKey;
+            if (!Array.isArray(key) || key[0] !== "orders" || key[1] !== "list") return;
+
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                diag.log("[Diag:RQ:Metrics] orders changed — refreshing dashboard metrics");
+                queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+            }, METRICS_REFRESH_DEBOUNCE_MS);
+        });
+
+        return () => {
+            unsubscribe();
+            if (timer) clearTimeout(timer);
+        };
+    }, [queryClient]);
 
     return useQuery<DashboardMetrics>({
         queryKey: ["dashboard-metrics", range],
