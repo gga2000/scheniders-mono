@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useShallow } from "zustand/react/shallow";
 import { useSidebar } from "@/components/layout/dashboard-layout";
 import { MobileOrdersList } from "./MobileOrdersList";
 import { MobileSearchModal } from "./MobileSearchModal";
@@ -38,6 +39,8 @@ export function MobileOrdersPage() {
         exportOrders,
     } = useOrdersContext();
 
+    // Selected through `useShallow`; a bare `useOrderStore()` subscribes to the
+    // whole store and re-renders this screen on every unrelated store change.
     const {
         localSearchQuery,
         setLocalSearchQuery,
@@ -49,7 +52,20 @@ export function MobileOrdersPage() {
         groupBy,
         setGroupBy,
         setFilterDuplicatesOnly,
-    } = useOrderStore();
+    } = useOrderStore(
+        useShallow((state) => ({
+            localSearchQuery: state.localSearchQuery,
+            setLocalSearchQuery: state.setLocalSearchQuery,
+            columnFilters: state.columnFilters,
+            filterDuplicatesOnly: state.filterDuplicatesOnly,
+            sortConfig: state.sortConfig,
+            setIsCreateModalOpen: state.setIsCreateModalOpen,
+            selectAll: state.selectAll,
+            groupBy: state.groupBy,
+            setGroupBy: state.setGroupBy,
+            setFilterDuplicatesOnly: state.setFilterDuplicatesOnly,
+        })),
+    );
 
     const { setMobileMenuOpen } = useSidebar();
 

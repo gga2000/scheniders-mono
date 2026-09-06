@@ -8,7 +8,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 import type { ChatReference } from "@/types/chat";
 
 export function ReferenceCard({ reference }: { reference: ChatReference }) {
-    const { openOrderDetails } = useOrderStore();
+    const openOrderDetails = useOrderStore((state) => state.openOrderDetails);
     const { t } = useLanguage();
     const s = reference.snapshot as Record<string, string | number | undefined>;
 

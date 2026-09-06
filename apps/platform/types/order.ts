@@ -66,6 +66,12 @@ export interface Order {
      * realtime dedup — a client must never set this itself.
      */
     version?: number;
+    /**
+     * Soft-delete timestamp. Rows keep it until the cleanup cron removes them
+     * 30 days later (app/api/cron/cleanup-deleted-orders). `null`/absent means
+     * the order is live.
+     */
+    deleted_at?: string | null;
     order_id: string;
     customer_name: string;
     phone: string;

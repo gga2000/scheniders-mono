@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
@@ -451,6 +452,10 @@ export default function OrdersPage() {
     const { t } = useLanguage();
 
     // ── Zustand Store (replaces ~35 useState calls) ──
+    // Selected through `useShallow` rather than destructured off the bare store:
+    // a no-selector `useOrderStore()` compares whole-state identity, so every
+    // keystroke re-rendered this entire component and defeated the memo on
+    // GlobalSearchField.
     const {
         // View preferences
         viewMode, setViewMode,
@@ -498,7 +503,90 @@ export default function OrdersPage() {
         isFilterPanelAnimating, setIsFilterPanelAnimating,
         isHeaderAnimating, setIsHeaderAnimating,
         notificationsEnabled, setNotificationsEnabled,
-    } = useOrderStore();
+    } = useOrderStore(
+        useShallow((s) => ({
+            viewMode: s.viewMode,
+            setViewMode: s.setViewMode,
+            compactView: s.compactView,
+            setCompactView: s.setCompactView,
+            compactGrid: s.compactGrid,
+            setCompactGrid: s.setCompactGrid,
+            actionDock: s.actionDock,
+            showSearchBar: s.showSearchBar,
+            setShowSearchBar: s.setShowSearchBar,
+            analyticsLevel: s.analyticsLevel,
+            setAnalyticsLevel: s.setAnalyticsLevel,
+            toolbarCollapsed: s.toolbarCollapsed,
+            toggleToolbarCollapse: s.toggleToolbarCollapse,
+            workflowMode: s.workflowMode,
+            toggleWorkflowMode: s.toggleWorkflowMode,
+            setSoundEnabled: s.setSoundEnabled,
+            showFilters: s.showFilters,
+            setShowFilters: s.setShowFilters,
+            showPresets: s.showPresets,
+            setShowPresets: s.setShowPresets,
+            newPresetName: s.newPresetName,
+            setNewPresetName: s.setNewPresetName,
+            groupBy: s.groupBy,
+            setGroupBy: s.setGroupBy,
+            filterDuplicatesOnly: s.filterDuplicatesOnly,
+            setFilterDuplicatesOnly: s.setFilterDuplicatesOnly,
+            sortConfig: s.sortConfig,
+            sortConfigs: s.sortConfigs,
+            toggleSort: s.toggleSort,
+            columnFilters: s.columnFilters,
+            setColumnFilters: s.setColumnFilters,
+            openFilterColumn: s.openFilterColumn,
+            setOpenFilterColumn: s.setOpenFilterColumn,
+            activePresetId: s.activePresetId,
+            setActivePresetId: s.setActivePresetId,
+            isModalOpen: s.isModalOpen,
+            setIsModalOpen: s.setIsModalOpen,
+            selectedOrder: s.selectedOrder,
+            setSelectedOrder: s.setSelectedOrder,
+            isCreateModalOpen: s.isCreateModalOpen,
+            setIsCreateModalOpen: s.setIsCreateModalOpen,
+            showDuplicateModal: s.showDuplicateModal,
+            setShowDuplicateModal: s.setShowDuplicateModal,
+            duplicateOrder: s.duplicateOrder,
+            setDuplicateOrder: s.setDuplicateOrder,
+            cancelDialogOpen: s.cancelDialogOpen,
+            setCancelDialogOpen: s.setCancelDialogOpen,
+            orderToCancel: s.orderToCancel,
+            setOrderToCancel: s.setOrderToCancel,
+            rejectDialogOpen: s.rejectDialogOpen,
+            setRejectDialogOpen: s.setRejectDialogOpen,
+            orderToReject: s.orderToReject,
+            setOrderToReject: s.setOrderToReject,
+            templatePanelOpen: s.templatePanelOpen,
+            setTemplatePanelOpen: s.setTemplatePanelOpen,
+            orderForTemplate: s.orderForTemplate,
+            setOrderForTemplate: s.setOrderForTemplate,
+            setIsImportModalOpen: s.setIsImportModalOpen,
+            isExportModalOpen: s.isExportModalOpen,
+            setIsExportModalOpen: s.setIsExportModalOpen,
+            splitOrderDialog: s.splitOrderDialog,
+            setSplitOrderDialog: s.setSplitOrderDialog,
+            screenshotOrder: s.screenshotOrder,
+            setScreenshotOrder: s.setScreenshotOrder,
+            showDatePicker: s.showDatePicker,
+            setShowDatePicker: s.setShowDatePicker,
+            datePickerPos: s.datePickerPos,
+            setDatePickerPos: s.setDatePickerPos,
+            selectedOrders: s.selectedOrders,
+            setSelectedOrders: s.setSelectedOrders,
+            showArchived: s.showArchived,
+            setShowArchived: s.setShowArchived,
+            loadingId: s.loadingId,
+            setLoadingId: s.setLoadingId,
+            isFilterPanelAnimating: s.isFilterPanelAnimating,
+            setIsFilterPanelAnimating: s.setIsFilterPanelAnimating,
+            isHeaderAnimating: s.isHeaderAnimating,
+            setIsHeaderAnimating: s.setIsHeaderAnimating,
+            notificationsEnabled: s.notificationsEnabled,
+            setNotificationsEnabled: s.setNotificationsEnabled,
+        })),
+    );
 
     // Sync local search input when filters.searchQuery is cleared externally (e.g. "clear filters" button)
     useEffect(() => {
