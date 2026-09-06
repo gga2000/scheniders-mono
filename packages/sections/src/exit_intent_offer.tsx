@@ -201,6 +201,7 @@ function ExitIntentOfferRender({
 
 const definition: SectionDefinition<Props> = {
   type: "exit_intent_offer",
+  overlay: true,
   category: "conversion",
   name: { en: "Exit-intent offer", ar: "عرض عند المغادرة" },
   description: {

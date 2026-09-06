@@ -60,6 +60,12 @@ export interface SectionDefinition<Props> {
   schema: z.ZodType<Props>;
   defaultProps: Props;
   render: ComponentType<{ props: Props; ctx: SectionRenderContext }>;
+  /** The section paints a viewport-anchored overlay (`position: fixed`
+   *  sticky bar, exit-intent modal). RenderPage must NOT wrap it in the
+   *  `content-visibility: auto` lazy boundary or the scroll-reveal
+   *  transform — both create a containing block that re-anchors `fixed`
+   *  descendants to the section box (the bar then renders off-screen). */
+  overlay?: boolean;
 }
 
 /** Convenience alias for the registry — props are erased to `unknown`. */

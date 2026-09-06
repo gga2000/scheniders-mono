@@ -25,6 +25,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { z } from "zod";
 import {
   resolveI18n,
@@ -45,9 +46,12 @@ import {
 import { useStoreBase } from "./helpers/store-context";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
 import { formatPrice } from "./helpers/format";
+import { isOptimizableImageHost } from "./helpers/image";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
+
+const DEFAULT_URGENCY_MAX_STOCK = 10;
 
 const schema = z.object({
   /** Optional social-proof chip above the title. A `{count}` token in the
@@ -73,6 +77,10 @@ const schema = z.object({
   show_description: z.boolean(),
   /** Upper bound for the quantity stepper (live stock still caps it). */
   max_qty: z.number().int().min(1).max(20),
+  /** The `{count}` urgency line only renders while remaining stock is at
+   *  or below this number — "hurry, only 51 left" is the opposite of
+   *  urgency. `0` never shows it. Omitted = 10. */
+  urgency_max_stock: z.number().int().min(0).max(1000).optional(),
   /** Funnel layout: render the product image as a sticky column beside the
    *  order card on large screens (the classic two-column funnel PDP). When
    *  the product carries `gallery_urls` photos, the column becomes a real
@@ -125,6 +133,7 @@ const defaultProps: Props = {
   },
   show_description: true,
   max_qty: 10,
+  urgency_max_stock: DEFAULT_URGENCY_MAX_STOCK,
   trust_chips: [
     {
       icon: "payments",
@@ -149,6 +158,53 @@ const defaultProps: Props = {
  *  strategy as `checkout_form` (crypto.randomUUID with a timestamp+random
  *  fallback). Kept local: importing checkout_form would re-trigger its
  *  registerSection side effect. */
+/** Anchor for the in-page order form; sticky_cta_bar's "scroll_to_form"
+ *  kind targets it. */
+export const DIRECT_ORDER_FORM_ID = "direct-order";
+
+/** Rounded input with a trailing icon (the funnel-form lockup).
+ *  Module-level on purpose: declared inside the render function it was a
+ *  NEW component type on every render, so React unmounted and remounted
+ *  the wrapped <input> on each keystroke and focus was lost after one
+ *  character. */
+function IconField({
+  icon,
+  children,
+}: {
+  icon: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      {children}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
+        style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.38))" }}
+      >
+        <MaterialIcon name={icon} className="text-xl" />
+      </span>
+    </div>
+  );
+}
+
+function StepChip({ n, t }: { n: 1 | 2; t: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center font-display font-black text-sm"
+      style={{
+        backgroundColor: "var(--bk-primary, #ff5a8a)",
+        color: "var(--bk-on-primary, #fff)",
+        borderRadius: "var(--bk-radius-pill, 9999px)",
+        fontFamily: "var(--bk-font-display, inherit)",
+      }}
+    >
+      {n === 1 ? (t ? "٠١" : "01") : t ? "٠٢" : "02"}
+    </span>
+  );
+}
+
 function newIdempotencyKey(): string {
   const c = globalThis.crypto;
   if (c && typeof c.randomUUID === "function") return c.randomUUID();
@@ -283,9 +339,11 @@ function PdpDirectOrderRender({
   const submitLabel = resolveI18n(props.submit_label_i18n, locale);
   const whatsappLabel = resolveI18n(props.whatsapp_label_i18n, locale);
   const urgencyRaw = resolveI18n(props.stock_urgency_i18n, locale);
+  const urgencyMaxStock =
+    props.urgency_max_stock ?? DEFAULT_URGENCY_MAX_STOCK;
   const urgency = urgencyRaw
     ? urgencyRaw.includes("{count}")
-      ? stockLeft > 0
+      ? stockLeft > 0 && stockLeft <= urgencyMaxStock
         ? urgencyRaw.replace("{count}", String(stockLeft))
         : null
       : urgencyRaw
@@ -464,41 +522,6 @@ function PdpDirectOrderRender({
     fontFamily: "var(--bk-font-body, inherit)",
   };
 
-  /** Rounded input with a trailing icon (the funnel-form lockup). */
-  const IconField = ({
-    icon,
-    children,
-  }: {
-    icon: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="relative">
-      {children}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2"
-        style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.38))" }}
-      >
-        <MaterialIcon name={icon} className="text-xl" />
-      </span>
-    </div>
-  );
-
-  const StepChip = ({ n }: { n: 1 | 2 }) => (
-    <span
-      aria-hidden="true"
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center font-display font-black text-sm"
-      style={{
-        backgroundColor: "var(--bk-primary, #ff5a8a)",
-        color: "var(--bk-on-primary, #fff)",
-        borderRadius: "var(--bk-radius-pill, 9999px)",
-        fontFamily: "var(--bk-font-display, inherit)",
-      }}
-    >
-      {n === 1 ? (t ? "٠١" : "01") : t ? "٠٢" : "02"}
-    </span>
-  );
-
   // Merchant-editable via props ("original products" / "quality guarantee"
   // are business claims a section must not force on every tenant); the
   // defaults carry the classic funnel quartet.
@@ -550,13 +573,17 @@ function PdpDirectOrderRender({
     <section className="px-4 py-4">
       <div
         className={
+          // minmax(0,1fr) + min-w-0: grid tracks default to
+          // minmax(auto, 1fr), and the thumbnail strip's intrinsic width
+          // (n × 64px) was sizing the column — with 12 photos the page
+          // rendered 1016px wide at 390px and the buy box sat off-screen.
           withGallery
-            ? "mx-auto grid max-w-6xl items-start gap-bk-md lg:grid-cols-2"
+            ? "mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-start gap-bk-md lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
             : undefined
         }
       >
         {withGallery && (
-          <div className="lg:sticky lg:top-4 lg:order-2">
+          <div className="min-w-0 lg:sticky lg:top-4 lg:order-2">
             <div
               className="relative aspect-square overflow-hidden"
               style={{
@@ -564,18 +591,24 @@ function PdpDirectOrderRender({
                 backgroundColor: "var(--bk-surface-alt, #f6f1e7)",
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary
-                  tenant-hosted product art; parity with pdp_gallery */}
-              <img
-                src={mainImage ?? undefined}
-                alt={product.name}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
+              {mainImage && (
+                // The LCP element on the funnel PDP: optimised (AVIF/WebP,
+                // srcset) for allow-listed hosts and fetched at high priority.
+                <Image
+                  src={mainImage}
+                  alt={product.name}
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 50vw, 100vw"
+                  unoptimized={!isOptimizableImageHost(mainImage)}
+                  className="object-cover"
+                />
+              )}
             </div>
             {/* Thumbnail strip — only when the product actually has extra
                 gallery photos; tapping a thumb swaps the main image. */}
             {galleryImages.length > 1 && (
-              <div className="mt-bk-xs flex gap-bk-xs overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="mt-bk-xs flex w-full min-w-0 gap-bk-xs overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {galleryImages.map((src, i) => (
                   <button
                     key={`${i}-${src}`}
@@ -598,12 +631,13 @@ function PdpDirectOrderRender({
                           : undefined,
                     }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- parity
-                        with the main image above */}
-                    <img
+                    <Image
                       src={src}
                       alt=""
-                      className="absolute inset-0 h-full w-full object-cover"
+                      fill
+                      sizes="64px"
+                      unoptimized={!isOptimizableImageHost(src)}
+                      className="object-cover"
                     />
                   </button>
                 ))}
@@ -614,7 +648,7 @@ function PdpDirectOrderRender({
         <BentoCard
           bg="white"
           size="md"
-          className={`p-bk-lg sm:p-bk-xl space-y-bk-md ${withGallery ? "lg:order-1" : "mx-auto max-w-2xl"}`}
+          className={`min-w-0 p-bk-lg sm:p-bk-xl space-y-bk-md ${withGallery ? "lg:order-1" : "mx-auto max-w-2xl"}`}
         >
         {/* ── Rating chip + title + price ── */}
         <div className="space-y-bk-xs text-center">
@@ -700,11 +734,15 @@ function PdpDirectOrderRender({
           )}
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-bk-md">
+        <form
+          id={DIRECT_ORDER_FORM_ID}
+          onSubmit={onSubmit}
+          className="scroll-mt-24 space-y-bk-md"
+        >
           {/* ── Step ٠١ — delivery details ── */}
           <div className="space-y-bk-sm" data-layer="form" data-layer-label="Order form">
             <div className="flex items-center gap-bk-xs">
-              <StepChip n={1} />
+              <StepChip n={1} t={t} />
               <h2 className="font-display font-black text-base sm:text-lg">
                 {formTitle}
               </h2>
@@ -811,7 +849,7 @@ function PdpDirectOrderRender({
           {/* ── Step ٠٢ — quantity ── */}
           <div className="space-y-bk-xs" data-layer="qty" data-layer-label="Quantity stepper">
             <div className="flex items-center gap-bk-xs">
-              <StepChip n={2} />
+              <StepChip n={2} t={t} />
               <h2 className="font-display font-black text-base sm:text-lg">
                 {qtyTitle}
               </h2>
