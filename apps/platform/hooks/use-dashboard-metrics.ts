@@ -17,6 +17,7 @@ import {
     calculateEnhancedLeaderboard,
     calculateStaffLeaderboard,
     getRecentOrders,
+    onlyDashboardOrders,
     UrgencyMetrics,
     FunnelStep,
     LeaderboardMetrics,
@@ -53,21 +54,28 @@ export function useDashboardMetrics(orders: Order[], products: Product[] = []) {
     return useMemo(() => {
         if (!orders.length) return null;
 
+        // COR-D5: abandoned checkouts and soft-deleted rows are not orders. The
+        // server RPC filters them in its `ws` CTE; this keeps the fallback engine
+        // computing over the same set instead of quietly disagreeing.
+        const dashboardOrders = onlyDashboardOrders(orders);
+        if (!dashboardOrders.length) return null;
+        const orders_ = dashboardOrders;
+
         return {
-            urgency: calculateUrgencyMetrics(orders),
-            funnel: calculateFunnelMetrics(orders),
-            leaderboard: calculateLeaderboard(orders),
-            todayStrip: calculateTodayStrip(orders),
-            pipeline: calculatePipeline(orders),
-            ordersPerHour: calculateOrdersPerHourToday(orders),
-            peakHeatmap: calculatePeakHoursHeatmap(orders),
-            deliveryRate: calculateDeliverySuccessRate(orders),
-            avgTimePerStage: calculateAvgTimePerStage(orders),
-            weekOverWeek: calculateWeekOverWeek(orders),
-            monthForecast: calculateMonthForecast(orders),
-            enhancedLeaderboard: calculateEnhancedLeaderboard(orders),
-            staffLeaderboard: calculateStaffLeaderboard(orders),
-            recentOrders: getRecentOrders(orders, 12),
+            urgency: calculateUrgencyMetrics(orders_),
+            funnel: calculateFunnelMetrics(orders_),
+            leaderboard: calculateLeaderboard(orders_),
+            todayStrip: calculateTodayStrip(orders_),
+            pipeline: calculatePipeline(orders_),
+            ordersPerHour: calculateOrdersPerHourToday(orders_),
+            peakHeatmap: calculatePeakHoursHeatmap(orders_),
+            deliveryRate: calculateDeliverySuccessRate(orders_),
+            avgTimePerStage: calculateAvgTimePerStage(orders_),
+            weekOverWeek: calculateWeekOverWeek(orders_),
+            monthForecast: calculateMonthForecast(orders_),
+            enhancedLeaderboard: calculateEnhancedLeaderboard(orders_),
+            staffLeaderboard: calculateStaffLeaderboard(orders_),
+            recentOrders: getRecentOrders(orders_, 12),
         };
     }, [orders]);
 }

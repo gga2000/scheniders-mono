@@ -1,6 +1,29 @@
 import { Order, Product } from "@/lib/supabase";
 
 // =============================================
+// What counts as an order (COR-D5)
+// =============================================
+/**
+ * Mirrors the `ws` CTE in `get_dashboard_metrics`. Two kinds of row live in
+ * `orders` but are not orders a merchant has taken:
+ *   - `pending_checkout` — a storefront checkout that was never completed (an
+ *     abandoned cart). Counting them inflated order counts, the funnel's first
+ *     stage, the heatmap and the city/product leaderboards.
+ *   - soft-deleted rows (`deleted_at`) — hidden everywhere else in the product.
+ * `suspended` rows ARE orders and are kept.
+ */
+export function isDashboardOrder(o: Order): boolean {
+    if (o.status === 'pending_checkout') return false;
+    if ((o as { deleted_at?: string | null }).deleted_at) return false;
+    return true;
+}
+
+/** Apply the order/non-order rule to a list. */
+export function onlyDashboardOrders(orders: Order[]): Order[] {
+    return orders.filter(isDashboardOrder);
+}
+
+// =============================================
 // Urgency Metrics
 // =============================================
 export interface UrgencyMetrics {
@@ -574,10 +597,21 @@ export function calculateEnhancedLeaderboard(orders: Order[]): EnhancedLeaderboa
             cityStats[o.city] = (cityStats[o.city] || 0) + 1;
         }
 
-        o.items.forEach(item => {
+        // COR-D2: attribute revenue by each line's value, scaled so the shares
+        // still sum to the order's real price (discount-safe). The old code split
+        // `price` equally across lines, crediting a 5,000 accessory the same as a
+        // 40,000 perfume. Equal split remains only as the no-line-price fallback.
+        const lineGross = o.items.map(item =>
+            Number((item as { price?: number }).price ?? 0) * (item.quantity || 1)
+        );
+        const linesTotal = lineGross.reduce((s, v) => s + v, 0);
+
+        o.items.forEach((item, i) => {
             if (!productStats[item.name]) productStats[item.name] = { count: 0, revenue: 0 };
             productStats[item.name].count += (item.quantity || 1);
-            productStats[item.name].revenue += Number(o.price) / o.items.length;
+            productStats[item.name].revenue += linesTotal > 0
+                ? Number(o.price) * (lineGross[i] / linesTotal)
+                : Number(o.price) / o.items.length;
         });
     });
 
