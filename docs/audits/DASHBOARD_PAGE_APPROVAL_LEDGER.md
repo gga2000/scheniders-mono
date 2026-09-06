@@ -35,12 +35,12 @@ Live proof after apply:
 | **SEC-D1** | `mv_customer_aggregates` world-readable (anon, full ACL) — all 12 tenants' customer books | **P0** | P4 | **APPROVED** | 2026-09-02 | **R1 — code shipped; migration WRITTEN + REHEARSED, NOT APPLIED** (awaiting migration-specific approval per Phase 3 §8) |
 | **COR-D8** | *(discovered during R1)* All 6 client call sites read the matview with **no tenant filter** → Customers-page KPIs blended across 12 tenants (5,875 vs 4,169 customers; 718.6M vs 174.6M IQD) | **P0** | P1/P4 | **APPROVED** | 2026-09-02 | **R1 — same fix as SEC-D1** (call sites repointed to the tenant-scoped view) |
 | COR-D1 | "Revenue" counts unrealized `confirmed` orders; ≥6 revenue definitions app-wide | P1 | P1 | PENDING | — | — |
-| COR-D2 | Product revenue = equal split of order price; line prices ignored (−3.8…−7.1% measured) | P1 | P1 | PENDING | — | — |
+| COR-D2 | Product revenue = equal split of order price; line prices ignored (−3.8…−7.1% measured) | P1 | P1 | **APPROVED** | 2026-09-06 | **R3 — shipped** (`aa353cb6`, migration 20260906000350 applied). Line-value weighting scaled to the order's real price; 8/3,575 orders use the equal-split fallback. |
 | COR-D3 | Cycle times −3 h (naive-UTC `delivered_at` − Baghdad local); sub-3 h deliveries dropped | P1 | P1/P2 | PENDING | — | — |
 | COR-D4 | `updated_at`-windowed metrics on a frozen column (15% of delivered rows) | P1 | P1 | PENDING | — | — |
-| COR-D5 | Soft-deleted (9), `pending_checkout` (62), `suspended` (126) counted in dashboard aggregates | P2 | P1 | PENDING | — | — |
-| COR-D6 | Staff leaderboard: last-toucher, name-keyed, bots ranked (#1 = "WhatsApp Bot" live) | P2 | P1/P5 | PENDING | — | — |
-| COR-D7 | Rate honesty: 0% for no-data, raw unmasked delta fallback, "pp" on counts, no small-n label | P2 | P6 | PENDING | — | — |
+| COR-D5 | Soft-deleted (9), `pending_checkout` (62), `suspended` (126) counted in dashboard aggregates | P2 | P1 | **APPROVED** | 2026-09-06 | **R3 — shipped** (`aa353cb6`). Soft-deleted + `pending_checkout` excluded from both engines; `suspended` deliberately kept. Funnel 4,687 → 4,614. |
+| COR-D6 | Staff leaderboard: last-toucher, name-keyed, bots ranked (#1 = "WhatsApp Bot" live) | P2 | P1/P5 | **APPROVED** | 2026-09-06 | **R4 — shipped** (`a32d8666`, migration 20260906003717). Now counts `order.status_change` events from activity_logs by user_id; bots gone. |
+| COR-D7 | Rate honesty: 0% for no-data, raw unmasked delta fallback, "pp" on counts, no small-n label | P2 | P6 | **APPROVED** | 2026-09-06 | **R4 — shipped** (`a32d8666`). Rates return null + no-data state; `pp` only on percentages; money delta no longer printed raw. *Small-n labelling not done — see note.* |
 | SEC-D2 | Financial masking is DOM-only; RPC ships cost/profit to all roles; mobile fully unmasked | P1 | P4/P7 | PENDING | — | — |
 | SEC-D3 | `get_dashboard_metrics` EXECUTE re-granted to PUBLIC (revoke didn't survive CREATE OR REPLACE) | P3 | P4 | PENDING | — | — |
 | ENG-D1 | Dual engines diverge by construction (tz + deleted rows); fallback between them is silent | P1 | P1/P6 | PENDING | — | — |
@@ -71,3 +71,11 @@ Live proof after apply:
 **[U] items requiring one authenticated login to close:** populated-UI visual sweep (contrast, content stress, CLS/LCP/INP, breakpoints, memory), first-run live capture, re-render profiling, exact route bundle bytes.
 
 **Legend:** PENDING = not yet reviewed/approved · APPROVED = user approved with the exact sentence (record date + round) · DENIED = permanently closed, never revisited.
+
+**Round 3 (2026-09-06) — COR-D2 + COR-D5 shipped.** `aa353cb6`; migration `20260906000350` applied. `tsc` 0 · `lint` 0 errors / 1151 warnings · **vitest 689/689**. Live before → after on tenant b5c4f2d4: funnel 4,687→4,614, pipeline confirmed 14→13, orders today 14→12, فيوجن 74,933,950→73,721,144, بيرسيفيرون 26,927,917→26,269,712. Every figure re-derived independently in SQL, matching to the last decimal including the fallback branch.
+
+**Round 4 (2026-09-06) — COR-D7 + COR-D6 shipped.** `a32d8666`; migration `20260906003717` applied. `tsc` 0 · `lint` 0 errors / 1152 warnings · **vitest 696/696**. Live after: `deliveryRate.currentRate` = null (was 0), sparkline all null, WoW rate row null, staff board = "Ali 1/1" (was "WhatsApp Bot" #1). Migration file and live function verified logically identical (normalised md5 `e123868cb3e17d41b96c774a17196c44`).
+
+**Carried forward from COR-D7, not done:** small-n suppression/labelling (a 100% rate from one order still reads like a 100% rate from a hundred). The no-data case is fixed; the small-sample case needs a display decision — flag it, suppress it, or show n — and is worth its own round.
+
+**New during R3/R4:** `i18n-completeness.test.ts` never reads `lib/i18n.ts` — it exercises the completeness utility against synthetic configs, so a key added to `en` and missed in `ar` ships silently. A real parity test (`lib/i18n-parity.test.ts`) was added in R4; the whole dictionary currently passes.
