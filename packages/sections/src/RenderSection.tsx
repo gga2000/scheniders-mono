@@ -180,6 +180,7 @@ function RenderSectionImpl({
       data-section-id={instance.id}
       data-section-type={instance.type}
       data-section-enabled={instance.enabled ? "true" : "false"}
+      data-section-overlay={def.overlay ? "true" : undefined}
       style={wrapperStyle}
     >
       <SectionErrorBoundary
@@ -259,7 +260,11 @@ export function RenderPage({ page, runtime, renderCtx }: RenderPageProps) {
         // their layout/paint cost until they near the viewport. SSR
         // emits the full HTML either way — this is purely a paint-side
         // optimization and keeps SEO crawlers happy.
-        if (idx < EAGER_SECTION_COUNT) {
+        // Overlay sections (fixed bars, modals) are never lazy-wrapped:
+        // `content-visibility: auto` implies containment, which would turn
+        // the wrapper into the containing block for `position: fixed` and
+        // pin the overlay inside the section box instead of the viewport.
+        if (idx < EAGER_SECTION_COUNT || getSection(s.type)?.overlay) {
           return <div key={s.id}>{node}</div>;
         }
         return (

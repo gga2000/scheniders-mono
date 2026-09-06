@@ -155,3 +155,69 @@ describe("product_grid price_pill stars (honest numbers)", () => {
     expect(html).toContain("Test product");
   });
 });
+
+// ── Phase 0 (signature audit): PDP layout + honest urgency ──
+
+describe("pdp_direct_order gallery layout (P0-1)", () => {
+  it("clamps both grid columns so a long thumbnail strip cannot widen the page", () => {
+    const Render = pdp_direct_order.render;
+    const html = renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(Render, {
+          props: { ...pdp_direct_order.defaultProps, show_gallery: true },
+          ctx: {
+            ...renderCtx,
+            product: {
+              ...baseProduct,
+              image_url: "https://example.com/main.jpg",
+              gallery_urls: Array.from(
+                { length: 12 },
+                (_, i) => `https://example.com/g${i}.jpg`,
+              ),
+            },
+          },
+        } as never),
+      ),
+    );
+    expect(html).toContain("grid-cols-[minmax(0,1fr)]");
+    expect(html).toContain("lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]");
+    // Gallery column, thumbnail strip and order card all opt out of the
+    // min-width:auto grid default.
+    expect(html.match(/min-w-0/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    // The form is addressable by the sticky bar's scroll_to_form kind.
+    expect(html).toContain('id="direct-order"');
+  });
+});
+
+describe("pdp_direct_order stock urgency threshold (P1-4)", () => {
+  const urgencyProps = {
+    ...pdp_direct_order.defaultProps,
+    stock_urgency_i18n: { en: "Only {count} left", ar: "باقي {count}" },
+  };
+  function renderUrgency(stock: number, max?: number): string {
+    const Render = pdp_direct_order.render;
+    return renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(Render, {
+          props: max === undefined ? urgencyProps : { ...urgencyProps, urgency_max_stock: max },
+          ctx: { ...renderCtx, product: { ...baseProduct, stock_quantity: stock } },
+        } as never),
+      ),
+    );
+  }
+  it("shows the line at or below the threshold", () => {
+    expect(renderUrgency(5)).toContain("Only 5 left");
+    expect(renderUrgency(10)).toContain("Only 10 left");
+  });
+  it("hides the line above the threshold (51 units is not scarcity)", () => {
+    expect(renderUrgency(51)).not.toContain("left");
+  });
+  it("honours a custom threshold and 0 = never", () => {
+    expect(renderUrgency(51, 100)).toContain("Only 51 left");
+    expect(renderUrgency(1, 0)).not.toContain("left");
+  });
+});

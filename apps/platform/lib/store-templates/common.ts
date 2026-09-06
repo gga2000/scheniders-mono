@@ -50,9 +50,12 @@ export function commercePages(
 ): Partial<Record<PageId, SectionInstance[]>> {
     return {
         search: [s("search_results_grid")],
+        // No free_gift_strip by default: it promises "spend X to unlock a
+        // gift" that nothing in commerce config backs, so a fresh store made
+        // a false offer to every COD shopper. Merchants who run a real gift
+        // threshold add the section deliberately.
         cart: [
             s("cart_line_items"),
-            s("free_gift_strip"),
             s("cart_summary"),
             s("trust_strip"),
             s("sticky_cta_bar"),

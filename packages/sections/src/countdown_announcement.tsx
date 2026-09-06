@@ -148,13 +148,14 @@ function CountdownAnnouncement({
     return () => clearInterval(id);
   }, [props.mode, props.ends_at, props.duration_minutes]);
 
-  // Seconds first in DOM: with the centered flex row the group nearest the
-  // label ends up being the LAST entry, and the reference design reads
-  // hours → minutes → seconds outward from the label.
+  // The document is LTR in every locale (platform invariant), so the row
+  // must read hours → minutes → seconds left to right. The previous
+  // seconds-first order assumed an RTL flex row that never renders here and
+  // produced "56 Secs : 01 Mins : 02 Hours".
   const units: { value: number; label: string }[] = [
-    { value: tick.seconds, label: t ? "ثواني" : "Secs" },
-    { value: tick.minutes, label: t ? "دقائق" : "Mins" },
     { value: tick.hours, label: t ? "ساعات" : "Hours" },
+    { value: tick.minutes, label: t ? "دقائق" : "Mins" },
+    { value: tick.seconds, label: t ? "ثواني" : "Secs" },
   ];
 
   return (

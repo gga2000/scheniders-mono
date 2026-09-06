@@ -532,7 +532,16 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 see_all_href: "/products",
                 show_stars: true,
             }),
-            s("sticky_cta_bar"),
+            // The only purchase path on this PDP is the inline COD form, so
+            // the mobile bar scrolls to it instead of sending shoppers to an
+            // empty /checkout.
+            s("sticky_cta_bar", {
+                primary_kind: "scroll_to_form",
+                primary_label_i18n: { ar: "اطلب الآن", en: "Order now" },
+                secondary_label_i18n: { ar: "واتساب", en: "WhatsApp" },
+                secondary_kind: "whatsapp",
+                show_total: false,
+            }),
         ],
         about: [
             s("hero_card_float", {

@@ -13,10 +13,11 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   ChunkyButton,
+  ChunkyLink,
   MaterialIcon,
   WhatsAppIcon,
 } from "./helpers/primitives";
-import { StoreLink } from "./helpers/store-context";
+import { useStoreBase } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
 import {
@@ -37,7 +38,17 @@ const schema = z.object({
   /** Point this bar's WhatsApp/call button at a different number than the
    *  store-wide one (store_config.contact.whatsapp_number). Empty = inherit. */
   whatsapp_override: z.string().optional(),
+  /** "link" (default) navigates to `primary_href`. "scroll_to_form" scrolls
+   *  to the in-page order form instead — the right choice on a funnel PDP
+   *  whose only purchase path is the inline COD form (a link to /checkout
+   *  there is a dead end into an empty cart). */
+  primary_kind: z.enum(["link", "scroll_to_form"]).optional(),
+  /** Element id targeted by `scroll_to_form`. Omitted = "direct-order"
+   *  (the id pdp_direct_order gives its form). */
+  scroll_target_id: z.string().optional(),
 });
+
+const DEFAULT_SCROLL_TARGET_ID = "direct-order";
 
 type Props = z.infer<typeof schema>;
 
@@ -57,6 +68,7 @@ function StickyCtaBarRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
+  const base = useStoreBase();
   const primaryLabel = resolveI18n(props.primary_label_i18n, locale);
   const secondaryLabel = resolveI18n(props.secondary_label_i18n, locale);
   const subtotal = useCart((s) => s.getTotal());
@@ -78,14 +90,43 @@ function StickyCtaBarRender({
     return null;
   })();
 
-  if (!primaryLabel || !props.primary_href) return null;
+  const primaryKind = props.primary_kind ?? "link";
+  if (!primaryLabel) return null;
+  if (primaryKind === "link" && !props.primary_href) return null;
+
+  const primaryHref =
+    props.primary_href.startsWith("/")
+      ? `${base}${props.primary_href}`
+      : props.primary_href;
+
+  const scrollToForm = () => {
+    const target = document.getElementById(
+      props.scroll_target_id || DEFAULT_SCROLL_TARGET_ID,
+    );
+    if (!target) return;
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    target
+      .querySelector<HTMLElement>("input, select, textarea")
+      ?.focus({ preventScroll: true });
+  };
 
   return (
+    <>
+      {/* In-flow spacer so the fixed bar never covers the last section. */}
+      <div aria-hidden="true" className="h-20 sm:hidden" />
     <div
-      className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur p-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+      className="fixed bottom-0 inset-x-0 z-40 sm:hidden backdrop-blur px-bk-xs pt-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
       style={{
+        backgroundColor:
+          "color-mix(in srgb, var(--bk-surface, #ffffff) 95%, transparent)",
         borderTop:
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+        // Clear the iPhone home indicator.
+        paddingBottom:
+          "max(var(--bk-space-xs, 0.5rem), env(safe-area-inset-bottom))",
       }}
       role="region"
       aria-label={locale !== "en" ? "إجراءات سريعة" : "Quick actions"}
@@ -103,7 +144,9 @@ function StickyCtaBarRender({
         </div>
       )}
       {secondaryHref && (
-        <a
+        // A styled anchor — not a <button> nested in an <a> (invalid HTML,
+        // double tab stop).
+        <ChunkyLink
           href={secondaryHref}
           target={props.secondary_kind === "whatsapp" ? "_blank" : undefined}
           rel={
@@ -111,29 +154,50 @@ function StickyCtaBarRender({
               ? "noopener noreferrer"
               : undefined
           }
-          aria-label={secondaryLabel || props.secondary_kind || "secondary"}
+          aria-label={
+            secondaryLabel ||
+            (props.secondary_kind === "call"
+              ? locale !== "en"
+                ? "اتصال"
+                : "Call"
+              : locale !== "en"
+                ? "واتساب"
+                : "WhatsApp")
+          }
+          bg="mint"
+          size="md"
         >
-          <ChunkyButton type="button" bg="mint" size="md">
-            {props.secondary_kind === "whatsapp" ? (
-              <WhatsAppIcon className="w-5 h-5" />
-            ) : (
-              <MaterialIcon name="call" />
-            )}
-            {secondaryLabel}
-          </ChunkyButton>
-        </a>
+          {props.secondary_kind === "whatsapp" ? (
+            <WhatsAppIcon className="w-5 h-5" />
+          ) : (
+            <MaterialIcon name="call" />
+          )}
+          {secondaryLabel}
+        </ChunkyLink>
       )}
-      <StoreLink href={props.primary_href} className="flex-1">
-        <ChunkyButton bg="pink" size="md" fullWidth>
+      {primaryKind === "scroll_to_form" ? (
+        <ChunkyButton
+          type="button"
+          bg="pink"
+          size="md"
+          className="flex-1"
+          onClick={scrollToForm}
+        >
           {primaryLabel}
         </ChunkyButton>
-      </StoreLink>
+      ) : (
+        <ChunkyLink href={primaryHref} bg="pink" size="md" className="flex-1">
+          {primaryLabel}
+        </ChunkyLink>
+      )}
     </div>
+    </>
   );
 }
 
 const definition: SectionDefinition<Props> = {
   type: "sticky_cta_bar",
+  overlay: true,
   category: "conversion",
   name: { en: "Sticky CTA bar", ar: "شريط زر سفلي" },
   description: {

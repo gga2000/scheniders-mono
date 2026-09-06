@@ -236,12 +236,6 @@ export default async function TenantLayout({ params, children }: Props) {
         ) : null;
       })()}
       <HtmlLang lang={htmlLangFor(currentLocale)} />
-      {v2 && (v2.enabled_locales?.length ?? 0) > 1 && (
-        <LocaleSwitcher
-          locales={v2.enabled_locales}
-          current={currentLocale}
-        />
-      )}
       <SchneidersAnalyticsPixels
         analytics={{
           // V2 takes precedence — the globals.analytics_pixels section is
@@ -272,6 +266,15 @@ export default async function TenantLayout({ params, children }: Props) {
         }}
       >
         {children}
+        {/* Inside the brand wrapper on purpose: the switcher reads --bk-*
+            tokens, and outside the subtree they are unset, so it rendered in
+            the Candy Bento fallback pink on every non-Candy store. */}
+        {v2 && (v2.enabled_locales?.length ?? 0) > 1 && (
+          <LocaleSwitcher
+            locales={v2.enabled_locales}
+            current={currentLocale}
+          />
+        )}
       </div>
       <SchneidersNewsletterPopup config={schn.newsletter_popup} />
     </StoreBaseProvider>

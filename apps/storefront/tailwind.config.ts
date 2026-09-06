@@ -85,10 +85,18 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--brand-font, system-ui)", "sans-serif"],
-        display: ["var(--font-bricolage)", "'Bricolage Grotesque'", "sans-serif"],
-        headline: ["var(--font-bricolage)", "'Bricolage Grotesque'", "sans-serif"],
-        body: ["var(--font-dm-sans)", "'DM Sans'", "sans-serif"],
-        label: ["var(--font-dm-sans)", "'DM Sans'", "sans-serif"],
+        // The four utilities used by section markup MUST agree with the brand
+        // kit: an explicit `font-body` class beats the inherited
+        // `--bk-font-body` cascade, so without the token here every element
+        // carrying the class rendered Arabic in the OS fallback serif (Cairo
+        // stores lost their font on descriptions, footers, nav, policies…).
+        // `--bk-font-*` already expands to a full stack (tenant face → Latin
+        // brand face → 'Noto Sans Arabic'); the fallbacks below only apply
+        // outside the tenant wrapper where the token is unset.
+        display: ["var(--bk-font-display, var(--font-bricolage))", "'Bricolage Grotesque'", "'Noto Sans Arabic'", "sans-serif"],
+        headline: ["var(--bk-font-display, var(--font-bricolage))", "'Bricolage Grotesque'", "'Noto Sans Arabic'", "sans-serif"],
+        body: ["var(--bk-font-body, var(--font-dm-sans))", "'DM Sans'", "'Noto Sans Arabic'", "sans-serif"],
+        label: ["var(--bk-font-body, var(--font-dm-sans))", "'DM Sans'", "'Noto Sans Arabic'", "sans-serif"],
         // Brand-kit v2 fonts — driven by `--bk-font-*`.
         "bk-display": ["var(--bk-font-display)", "sans-serif"],
         "bk-body": ["var(--bk-font-body)", "sans-serif"],
