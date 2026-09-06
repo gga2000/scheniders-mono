@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
     calculateEnhancedLeaderboard,
+    calculateAvgTimePerStage,
+    parseUtcNaiveTimestamp,
     calculateDeliverySuccessRate,
     calculateWeekOverWeek,
     calculateStaffLeaderboard,
@@ -138,5 +140,43 @@ describe("COR-D6 — the fallback engine does not guess at staff performance", (
             order({ id: "o2", last_status_changed_by_name: "System", updated_at: new Date().toISOString() }),
         ];
         expect(calculateStaffLeaderboard(orders)).toEqual([]);
+    });
+});
+
+describe("COR-D3 — delivered_at is UTC-naive, so cycle times were 3 hours short", () => {
+    it("THE BUG: a zoneless timestamp is read as UTC, not as browser-local", () => {
+        // Postgrest serialises `timestamp WITHOUT time zone` with no designator.
+        // new Date() would treat this as local; it is really 22:00 UTC.
+        expect(parseUtcNaiveTimestamp("2026-09-01 22:00:00.344756").toISOString())
+            .toBe("2026-09-01T22:00:00.344Z");
+    });
+
+    it("leaves a value that already carries a zone alone", () => {
+        expect(parseUtcNaiveTimestamp("2026-09-01T22:00:00.000Z").toISOString())
+            .toBe("2026-09-01T22:00:00.000Z");
+        expect(parseUtcNaiveTimestamp("2026-09-01T22:00:00.000+00:00").toISOString())
+            .toBe("2026-09-01T22:00:00.000Z");
+    });
+
+    it("measures a 5-hour cycle as 5 hours, not 2", () => {
+        const [cycle] = calculateAvgTimePerStage([order({
+            status: "delivered",
+            created_at: "2026-09-01T09:00:00.000Z",
+            delivered_at: "2026-09-01 14:00:00.000000",   // zoneless = 14:00 UTC
+        })]);
+        expect(cycle.avgHours).toBeCloseTo(5, 6);
+        expect(cycle.sampleSize).toBe(1);
+    });
+
+    it("counts a sub-3-hour delivery instead of discarding it", () => {
+        // Under the old arithmetic this computed as -2h and the `h > 0` guard
+        // deleted it, so the fastest deliveries never reached the average.
+        const [cycle] = calculateAvgTimePerStage([order({
+            status: "delivered",
+            created_at: "2026-09-01T09:00:00.000Z",
+            delivered_at: "2026-09-01 10:00:00.000000",
+        })]);
+        expect(cycle.sampleSize).toBe(1);
+        expect(cycle.avgHours).toBeCloseTo(1, 6);
     });
 });
