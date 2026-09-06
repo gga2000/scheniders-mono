@@ -59,9 +59,11 @@ export function MobileDashboardPage() {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-background pb-24">
+        <div className="flex flex-col min-h-screen bg-background pb-[calc(6rem+var(--safe-area-bottom))]">
             {/* Header */}
-            <div className="px-4 py-6 bg-background sticky top-0 z-30 bg-opacity-90 backdrop-blur-md">
+            {/* MOB-D2: without the inset the sticky header sits under the notch and the FAB
+                under the home indicator. globals.css already defines these vars. */}
+            <div className="px-4 py-6 pt-[calc(1.5rem+var(--safe-area-top))] bg-background sticky top-0 z-30 bg-opacity-90 backdrop-blur-md">
                 <div className="flex items-center justify-between mb-2">
                     <h1 className="text-2xl font-bold text-foreground tracking-tight">
                         {getGreeting()}{profile?.display_name ? `, ${profile.display_name}` : ''}
@@ -99,7 +101,7 @@ export function MobileDashboardPage() {
             {/* Create Order FAB */}
             <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[var(--button-success)] text-white shadow-lg shadow-green-500/30 flex items-center justify-center z-40 hover:scale-105 active:scale-95 transition-all"
+                className="fixed bottom-[calc(6rem+var(--safe-area-bottom))] right-[calc(1rem+var(--safe-area-right))] w-14 h-14 rounded-full bg-[var(--button-success)] text-white shadow-lg shadow-green-500/30 flex items-center justify-center z-40 hover:scale-105 active:scale-95 transition-all"
             >
                 <Plus className="w-6 h-6" />
             </button>
