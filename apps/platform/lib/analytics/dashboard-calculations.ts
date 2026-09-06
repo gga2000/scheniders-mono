@@ -348,6 +348,28 @@ export function calculatePipeline(orders: Order[]): PipelineStage[] {
     return stages.map(s => ({ ...s, count: counts[s.status] || 0 }));
 }
 
+/**
+ * I18N-D3. Axis labels were hardcoded `en-US`, which renders English weekday names
+ * inside an Arabic UI and orders dates month-first — wrong for Iraq. Formatting is
+ * pinned to the Baghdad timezone so a label always names the day the bucket
+ * actually covers, whatever the viewer's device is set to.
+ */
+export type ChartLocale = "en" | "ar";
+
+const CHART_LOCALE_TAG: Record<ChartLocale, string> = { en: "en-GB", ar: "ar-IQ" };
+
+export function formatChartWeekday(d: Date, locale: ChartLocale = "en"): string {
+    return d.toLocaleDateString(CHART_LOCALE_TAG[locale], {
+        weekday: "short", timeZone: "Asia/Baghdad",
+    });
+}
+
+export function formatChartDayMonth(d: Date, locale: ChartLocale = "en"): string {
+    return d.toLocaleDateString(CHART_LOCALE_TAG[locale], {
+        day: "numeric", month: "short", timeZone: "Asia/Baghdad",
+    });
+}
+
 // =============================================
 // Revenue Trend (7 / 14 / 30 days)
 // =============================================
@@ -357,7 +379,7 @@ export interface RevenueTrendPoint {
     revenue: number;
 }
 
-export function calculateRevenueTrend(orders: Order[], days: 7 | 14 | 30): RevenueTrendPoint[] {
+export function calculateRevenueTrend(orders: Order[], days: 7 | 14 | 30, locale: ChartLocale = "en"): RevenueTrendPoint[] {
     const now = new Date();
     const points: RevenueTrendPoint[] = [];
 
@@ -377,9 +399,9 @@ export function calculateRevenueTrend(orders: Order[], days: 7 | 14 | 30): Reven
 
         let label: string;
         if (days === 7) {
-            label = day.toLocaleDateString('en-US', { weekday: 'short' });
+            label = formatChartWeekday(day, locale);
         } else {
-            label = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            label = formatChartDayMonth(day, locale);
         }
 
         points.push({ date: label, orders: dayOrders.length, revenue });
@@ -455,7 +477,7 @@ export interface DeliveryRateMetrics {
     trend: number | null;
 }
 
-export function calculateDeliverySuccessRate(orders: Order[]): DeliveryRateMetrics {
+export function calculateDeliverySuccessRate(orders: Order[], locale: ChartLocale = "en"): DeliveryRateMetrics {
     const now = new Date();
 
     // COR-D7: an empty window has no rate. Returning 0 rendered a catastrophic
@@ -476,7 +498,7 @@ export function calculateDeliverySuccessRate(orders: Order[]): DeliveryRateMetri
         const day = new Date(sparkStart.getTime() - (6 - i) * 24 * 60 * 60 * 1000);
         const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
         return {
-            day: day.toLocaleDateString('en-US', { weekday: 'short' }),
+            day: formatChartWeekday(day, locale),
             rate: rateForWindow(day, next),
         };
     });

@@ -59,7 +59,17 @@ export function WeekOverWeek({ metrics }: WeekOverWeekProps) {
                     return (
                         <div key={m.label} className="flex items-center justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-bold text-blue-900/60 uppercase tracking-wider mb-0.5">{translatedLabel}</p>
+                                <p
+                                    className="text-[10px] font-bold text-blue-900/60 uppercase tracking-wider mb-0.5"
+                                    title={m.isFinancial ? t("dashboard.revenue.definition") : undefined}
+                                >
+                                    {translatedLabel}
+                                    {m.isFinancial && (
+                                        <span className="ml-1 normal-case font-normal text-blue-900/40">
+                                            {t("dashboard.revenue.short")}
+                                        </span>
+                                    )}
+                                </p>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {m.isFinancial && m.current !== null
                                         ? <FinancialValue amount={m.current} className="text-xl font-bold text-blue-950 leading-none" iconSize={14} />

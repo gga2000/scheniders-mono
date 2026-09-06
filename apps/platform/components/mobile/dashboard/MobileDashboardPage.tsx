@@ -98,7 +98,7 @@ export function MobileDashboardPage() {
 
                 {/* 2. Urgency Triad */}
                 <div className="space-y-3">
-                    <h2 className="text-sm font-bold tracking-wider text-muted-foreground uppercase px-1">Attention Required</h2>
+                    <h2 className="text-sm font-bold tracking-wider text-muted-foreground uppercase px-1">{t("dashboard.mobile.attentionRequired")}</h2>
                     <UrgencyTriad
                         metrics={dashboardMetrics.urgency}
                         onAction={() => { }}
