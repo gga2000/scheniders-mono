@@ -65,7 +65,7 @@ Live proof after apply:
 | ARCH-D2 | order-card.tsx (2,437) is an Orders component mislocated in dashboard/; decomposition plan in report | P2 | P1 | PENDING | — | — |
 | ARCH-D3 | Banned patterns: untyped RPC return (as unknown as), any ×5, purity eslint-disable, unused param | P2 | P1 | PENDING | — | — |
 | ARCH-D4 | Mock traps: dead live-feed mock stream; fake source-employees live on Reports (pointer) | P3 | P1 | PENDING | — | — |
-| OBS-D1 | Zero Sentry + zero business events on the surface | P1 | P7 | PENDING | — | — |
+| OBS-D1 | Zero Sentry + zero business events on the surface | P1 | P7 | **PARTIALLY SHIPPED** | 2026-09-06 | **R9** (`4ffe1680`). Error half done and broader than the dashboard: the ROOT `app/error.tsx` was swallowing every unhandled render crash in the whole app and now reports; identity (user + `tenant_id` + `user_role`) is set once in auth-provider so every report is attributable; the metrics-RPC failure and all four announcement ops report. **Business events deliberately not implemented** — no analytics sink exists in the repo; a no-op tracker would be theatre and picking a vendor is a product decision (cost/DPA/PII). Event schema + exact fire points specified in the report. |
 | COM-D1 | No plan gating, no export; staff-board role gate is client composition | P2 | P7 | PENDING | — | — |
 | PROC-D1 | **RESOLVED as an analysis 2026-09-02 — and it points the other way.** Orders R1–R4 app code is pushed to `origin/feat/store-builder-preview-iframe` but is **NOT in `origin/main`**, so it has never been deployed. The main line (incl. this branch) still carries the pre-fix code. Deploying `db5caff2` therefore regresses **nothing** — it is main's baseline plus the SEC-D1 fix. The real exposure is the inverse: **the approved Orders fixes are stranded on an unmerged branch while production keeps running the bugs they fixed.** | P1 | — | **ANALYSIS DONE — action is a merge decision, not a code change** | 2026-09-02 | — |
 
@@ -93,3 +93,5 @@ Entitlement verified live against real accounts: as employee `noor` every money 
 **SEC-D2 stays PARTIAL for the same reason PERF-D1 was re-scoped:** the app-wide order-book fetch still delivers prices to unentitled roles on every route. That is now understood to be an app-wide issue, not a dashboard one — the dashboard's own RPC payload is clean.
 
 **Round 8 (2026-09-06) — DV-D1 + VIS-D1 shipped.** `8b484fe6`. `tsc` 0 · `lint` 0 errors / 1153 warnings · **vitest 703/703 across 84 files**. No migration — the RPC already supported `p_range`; the ranged result was being fetched and discarded.
+
+**Round 9 (2026-09-06) — OBS-D1 (error half).** `4ffe1680`. `tsc` 0 · `lint` 0 errors / 1153 warnings · **vitest 703/703**. No migration. Scope note: the root error-boundary and identity-context fixes are app-wide, not dashboard-only — they were found while closing a dashboard finding and were too consequential to leave (every render crash in the platform was invisible in production).

@@ -544,3 +544,26 @@ Each migration was verified identical to its repo file by normalised md5: `e1238
 - **COR-D7 remainder** — small-n suppression/labelling (a 100% rate from one order still reads like 100% from a hundred) needs a display decision.
 - **Test gap** — `i18n-completeness.test.ts` never reads `lib/i18n.ts`; a real parity test was added in R4.
 
+---
+
+## OBS-D1 — business event schema (specified, not implemented)
+
+The error half of OBS-D1 shipped in R9 (`4ffe1680`). The **business-event** half is
+specified here rather than coded, because **no analytics sink exists anywhere in
+this repo** — no PostHog, Mixpanel, Amplitude or Segment. Wiring a no-op tracker
+would be instrumentation theatre, and choosing a vendor is a product decision with
+cost, DPA and customer-PII implications that matter in this market. When a sink is
+chosen, these are the events and their exact fire points.
+
+| Event | Fires where | Properties | The question it answers |
+|---|---|---|---|
+| `dashboard_opened` | `app/page.tsx`, once per mount after metrics resolve | `tenant_id`, `role`, `is_mobile`, `ms_to_first_paint` (from `perfTrace`) | How often is the dashboard actually used, by whom, and how slow is it in the field rather than on our machines? |
+| `dashboard_range_changed` | `DateRangeFilter.onChange` | `from`, `to` (range keys) | Is the date filter used at all? Had this existed, DV-D1 — the filter that scoped one widget — would have surfaced from the data instead of an audit. |
+| `dashboard_metrics_failed` | the RPC error path in `use-dashboard-metrics-query.ts`, beside the existing `captureException` | `range`, `error_code`, `fell_back_to_local` | How often do merchants see the local fallback? Sentry counts errors; this counts *affected sessions*. |
+| `dashboard_drilldown_clicked` | `handleStatCardClick` and `handlePipelineStageClick` | `source_widget`, `status` | Which numbers drive action? A widget nobody ever clicks through from is a candidate for removal (D6). |
+| `dashboard_widget_errored` | a per-widget error boundary (does not exist yet — see REL-D2) | `widget`, `error_code` | Which widget breaks for real merchants, rather than only in our testing? |
+
+Two properties should be on every event: `tenant_id` and `role`. Neither customer
+PII nor money figures belong in an event payload — the same entitlement boundary
+SEC-D2 established server-side applies to anything leaving the app.
+
