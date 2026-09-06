@@ -239,12 +239,13 @@ export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): O
 // =============================================
 export interface TodayStripMetrics {
     ordersToday: number;
-    revenueToday: number;
     ordersYesterday: number;
-    revenueYesterday: number;
     ordersDelta: number;
-    revenueDelta: number;
     ordersDeltaPct: number | null;
+    /** Money fields are null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    revenueToday: number | null;
+    revenueYesterday: number | null;
+    revenueDelta: number | null;
     revenueDeltaPct: number | null;
 }
 
@@ -571,11 +572,13 @@ export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
 // =============================================
 export interface MonthForecast {
     projectedOrders: number;
-    projectedRevenue: number;
+    /** null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    projectedRevenue: number | null;
     daysElapsed: number;
     daysInMonth: number;
     ordersThisMonth: number;
-    revenueThisMonth: number;
+    /** null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    revenueThisMonth: number | null;
     ordersPerDay: number;
 }
 
@@ -603,7 +606,8 @@ export function calculateMonthForecast(orders: Order[]): MonthForecast {
 // Enhanced Leaderboard (Product Revenue)
 // =============================================
 export interface EnhancedProductItem extends LeaderboardItem {
-    revenue: number;
+    /** null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    revenue: number | null;
 }
 
 export interface EnhancedLeaderboardMetrics extends LeaderboardMetrics {
