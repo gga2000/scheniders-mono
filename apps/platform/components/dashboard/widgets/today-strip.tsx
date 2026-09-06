@@ -8,9 +8,11 @@ import { useLanguage } from "@/hooks/use-language";
 interface DeltaBadgeProps {
     delta: number;
     pct: number | null;
+    /** Money deltas must never be printed raw — they bypass the reveal gate (COR-D7). */
+    isFinancial?: boolean;
 }
 
-function DeltaBadge({ delta, pct }: DeltaBadgeProps) {
+function DeltaBadge({ delta, pct, isFinancial }: DeltaBadgeProps) {
     const { t } = useLanguage();
     if (delta === 0) {
         return (
@@ -26,7 +28,11 @@ function DeltaBadge({ delta, pct }: DeltaBadgeProps) {
             isUp ? "bg-green-100 text-green-700" : "bg-rose-100 text-rose-700"
         }`}>
             {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            {pct !== null ? `${pct > 0 ? '+' : ''}${pct}%` : `${isUp ? '+' : ''}${delta}`}
+            {pct !== null
+                ? `${pct > 0 ? '+' : ''}${pct}%`
+                : isFinancial
+                    ? t("dashboard.today.noComparison")
+                    : `${isUp ? '+' : ''}${delta}`}
         </span>
     );
 }
@@ -71,7 +77,7 @@ export function TodayStrip({ metrics }: TodayStripProps) {
                             iconSize={15}
                         />
                     </div>
-                    <DeltaBadge delta={metrics.revenueDelta} pct={metrics.revenueDeltaPct} />
+                    <DeltaBadge delta={metrics.revenueDelta} pct={metrics.revenueDeltaPct} isFinancial />
                 </div>
 
                 <div className="ml-auto hidden md:flex items-center gap-1.5 text-xs text-muted">

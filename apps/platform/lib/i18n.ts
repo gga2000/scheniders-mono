@@ -72,6 +72,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.today": "Today",
         "dashboard.today.orders": "Orders",
         "dashboard.today.revenue": "Revenue",
+        "dashboard.today.noComparison": "No comparison",
         "dashboard.today.sameAsYesterday": "Same as yesterday",
         "dashboard.today.vsYesterday": "vs yesterday:",
         "dashboard.today.ordersCount": "orders",
@@ -103,6 +104,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.deliveryRate.vsLastWeek": "vs last week",
         "dashboard.deliveryRate.stable": "Stable",
         "dashboard.deliveryRate.formula": "Last 7 days · delivered ÷ (delivered + rejected)",
+        "dashboard.deliveryRate.noData": "No deliveries in the last 7 days",
 
         // Orders Per Hour
         "dashboard.hourly.title": "Hourly (Today)",
@@ -3128,6 +3130,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.today": "اليوم",
         "dashboard.today.orders": "الطلبات",
         "dashboard.today.revenue": "الإيرادات",
+        "dashboard.today.noComparison": "لا توجد مقارنة",
         "dashboard.today.sameAsYesterday": "نفس الأمس",
         "dashboard.today.vsYesterday": "مقارنة بالأمس:",
         "dashboard.today.ordersCount": "طلبات",
@@ -3159,6 +3162,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.deliveryRate.vsLastWeek": "مقارنة بالأسبوع الماضي",
         "dashboard.deliveryRate.stable": "مستقر",
         "dashboard.deliveryRate.formula": "آخر ٧ أيام · تم التوصيل ÷ (تم التوصيل + مرفوض)",
+        "dashboard.deliveryRate.noData": "لا توجد عمليات توصيل في آخر ٧ أيام",
 
         // طلبات في الساعة
         "dashboard.hourly.title": "بالساعة (اليوم)",
