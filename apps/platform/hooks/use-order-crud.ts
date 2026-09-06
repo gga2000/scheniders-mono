@@ -29,6 +29,12 @@ import {
     orderKeys
 } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { useOrderStore } from "@/store/use-order-store";
+import {
+    summarizeBulkFailures,
+    formatFailedOrderList,
+    findUnaffectedIds,
+} from "@/lib/order-bulk-result";
 
 // =============================================
 // ORDER CRUD HOOK
@@ -832,8 +838,19 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 // If everything failed, throw the first error to be caught by the outer catch block
                 throw failedOperations[0].error || new Error("Bulk status update failed completely");
             } else if (failedOperations.length > 0) {
-                console.warn(`[bulkUpdateStatus] ${failedOperations.length} orders failed to update, possibly due to conflicts:`, failedOperations);
-                toast.warning(`${failedOperations.length} orders could not be updated (they may have been modified by someone else)`);
+                // Report what actually happened per order. Blaming every failure
+                // on a concurrent edit hid permission and transport errors, and
+                // naming no orders left no way to know what to retry.
+                const summary = summarizeBulkFailures(
+                    failedOperations,
+                    previousOrders,
+                    orderIds.length,
+                    "updated",
+                );
+                console.warn(`[bulkUpdateStatus] ${summary.title}`, failedOperations);
+                toast.warning(summary.title, { description: summary.description });
+                // Keep the failures selected so a retry does not need reselecting.
+                useOrderStore.getState().setSelectedOrders(new Set(summary.failedIds));
             }
 
             const successfulIds = successfulOperations.map((op: { id: string }) => op.id);
@@ -900,16 +917,27 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
     async function bulkArchive(orderIds: string[]) {
         try {
-            const { error: updateError } = await supabase
+            // `.in()` succeeds even when RLS filters rows out, so ask which rows
+            // were actually written rather than assuming the whole selection was.
+            const { data: archived, error: updateError } = await supabase
                 .from("orders")
                 .update({ is_archived: true })
-                .in("id", orderIds);
+                .in("id", orderIds)
+                .select("id");
 
             if (updateError) throw updateError;
 
+            const archivedIds = (archived ?? []).map((row) => row.id);
+            const skipped = findUnaffectedIds(orderIds, archivedIds);
+            if (skipped.length > 0) {
+                toast.warning(`${skipped.length} of ${orderIds.length} orders were not archived`, {
+                    description: `Not archived: ${formatFailedOrderList(skipped, orders)}`,
+                });
+            }
+
             // Remove archived orders from active list in cache
-            optimisticUpdate((prev) => prev.filter((order) => !orderIds.includes(order.id)));
-            return { success: true, count: orderIds.length };
+            optimisticUpdate((prev) => prev.filter((order) => !archivedIds.includes(order.id)));
+            return { success: true, count: archivedIds.length };
         } catch (err) {
             console.error("Error archiving orders:", err);
             return {
@@ -921,15 +949,24 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
     async function bulkUnarchive(orderIds: string[]) {
         try {
-            const { error: updateError } = await supabase
+            const { data: unarchived, error: updateError } = await supabase
                 .from("orders")
                 .update({ is_archived: false })
-                .in("id", orderIds);
+                .in("id", orderIds)
+                .select("id");
 
             if (updateError) throw updateError;
 
+            const unarchivedIds = (unarchived ?? []).map((row) => row.id);
+            const skipped = findUnaffectedIds(orderIds, unarchivedIds);
+            if (skipped.length > 0) {
+                toast.warning(`${skipped.length} of ${orderIds.length} orders were not unarchived`, {
+                    description: `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
+                });
+            }
+
             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-            return { success: true, count: orderIds.length };
+            return { success: true, count: unarchivedIds.length };
         } catch (err) {
             console.error("Error unarchiving orders:", err);
             return {
