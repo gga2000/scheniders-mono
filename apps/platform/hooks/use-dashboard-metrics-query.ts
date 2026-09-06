@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
+import * as Sentry from "@sentry/nextjs";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
 import type { DashboardMetrics } from "@/hooks/use-dashboard-metrics";
@@ -70,6 +71,12 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
 
             if (error) {
                 diag.error(`[Diag:RQ:Metrics] get_dashboard_metrics ERR err=${error.message}`);
+                // OBS-D1: when this fails the dashboard silently falls back to the
+                // local engine (ENG-D1). Without a report, nobody would ever learn
+                // the aggregate query was broken for real merchants.
+                Sentry.captureException(error, {
+                    tags: { area: "dashboard", rpc: "get_dashboard_metrics", range },
+                });
                 throw error;
             }
 

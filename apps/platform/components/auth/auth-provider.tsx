@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
@@ -321,6 +322,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { error: err };
         }
     }, [fetchProfile]);
+
+    // OBS-D1: attach identity to Sentry once, here, so EVERY captured error across
+    // the app is attributable to a user and a tenant. Doing it per-call site meant
+    // it was never done at all. Cleared on sign-out so a shared machine does not
+    // mis-attribute the next session's errors.
+    useEffect(() => {
+        if (user) {
+            Sentry.setUser({ id: user.id, email: user.email ?? undefined });
+            Sentry.setTag("tenant_id", tenantId ?? "none");
+            Sentry.setTag("user_role", role ?? "unknown");
+        } else {
+            Sentry.setUser(null);
+            Sentry.setTag("tenant_id", undefined);
+            Sentry.setTag("user_role", undefined);
+        }
+    }, [user, tenantId, role]);
 
     // Whether the current user already has a Google identity linked.
     const googleLinked = !!user?.identities?.some((i) => i.provider === 'google');

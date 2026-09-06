@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 export default function Error({
   error,
@@ -10,6 +11,13 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // OBS-D1: this boundary catches every unhandled render crash in the app and
+    // used to only console.error — so in production nobody ever learned about one.
+    // User and tenant come from the context set in auth-provider.
+    Sentry.captureException(error, {
+      tags: { area: "platform-root" },
+      extra: { digest: error.digest },
+    });
     console.error("[platform error]", error);
   }, [error]);
 
