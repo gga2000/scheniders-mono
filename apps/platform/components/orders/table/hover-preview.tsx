@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import type { Order } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { getStatusLabel } from "@/lib/utils";
@@ -64,7 +64,7 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
                     <span>{new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <span className={cn("font-mono font-bold text-sm", order.is_return ? "text-red-600" : "text-emerald-600")}>
-                    {order.is_return && "-"}{Math.abs(Number(order.price)).toLocaleString()} IQD
+                    {order.is_return && "-"}{formatIQD(Math.abs(Number(order.price)))}
                 </span>
             </div>
 

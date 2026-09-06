@@ -307,13 +307,13 @@ export const MobileOrderCard = memo(function MobileOrderCard({
             </div>
 
             {/* Bottom Row: WhatsApp, Items & Price */}
-            <div className="flex items-end justify-between gap-3 mt-1 pt-2 border-t border-(--card-border)/40 w-full" dir="rtl">
+            <div className="flex flex-row-reverse items-end justify-between gap-3 mt-1 pt-2 border-t border-(--card-border)/40 w-full">
 
                 {/* Right Side Group: WhatsApp then Items */}
-                <div className="flex flex-1 min-w-0 items-end justify-start gap-4 text-right">
+                <div className="flex flex-row-reverse flex-1 min-w-0 items-end justify-start gap-4 text-right">
 
                     {/* Touch-optimized Actions (Far Right in RTL) */}
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex flex-row-reverse items-center gap-1.5 shrink-0">
                         {/* Follow-up cue badge */}
                         {needsFollowUp && (
                             <div className={cn(
@@ -403,11 +403,11 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                     </div>
 
                     {/* Items Description (Left of WhatsApp in RTL) */}
-                    <div className="flex flex-wrap justify-start gap-1.5 w-full pb-px" dir="rtl">
+                    <div className="flex flex-row-reverse flex-wrap justify-start gap-1.5 w-full pb-px text-right">
                         {order.items?.map((item, index) => (
                             <div
                                 key={index}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background rounded-lg text-[11px] font-medium border border-(--card-border)/60 shadow-sm"
+                                className="flex flex-row-reverse items-center gap-1.5 px-2.5 py-1.5 bg-background rounded-lg text-[11px] font-medium border border-(--card-border)/60 shadow-sm"
                             >
                                 <span className="text-foreground line-clamp-1">{item.name}</span>
                                 {item.quantity > 1 && (

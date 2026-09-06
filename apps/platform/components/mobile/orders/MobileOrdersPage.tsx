@@ -138,7 +138,7 @@ export function MobileOrdersPage() {
             <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-[var(--card-border)] px-4 py-3 flex flex-col gap-3">
 
                 {/* Unified Search Bar */}
-                <div className="flex items-center w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden h-12 relative" dir="rtl">
+                <div className="flex flex-row-reverse items-center w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden h-12 relative">
 
                     {/* Create Order Button */}
                     <button
@@ -174,7 +174,7 @@ export function MobileOrdersPage() {
 
                     {/* Search Segment (Middle/Right) */}
                     <div
-                        className="flex-1 h-full px-3 flex items-center gap-2 cursor-pointer text-muted-foreground hover:bg-muted/30 transition-colors"
+                        className="flex-1 h-full px-3 flex flex-row-reverse items-center gap-2 cursor-pointer text-muted-foreground hover:bg-muted/30 transition-colors text-right"
                         onClick={() => setSearchModalOpen(true)}
                     >
                         <Search className="w-4 h-4 shrink-0" />

@@ -1638,7 +1638,7 @@ export const OrderCard = memo(function OrderCard({
                                             </span>
                                         )}
                                         <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                                        <span className="truncate text-right" dir="rtl" title={fullAddress}><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
+                                        <span className="truncate text-right" title={fullAddress}><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
                                         {/* Show governorate code - computed from stored value or extracted from city */}
                                         {governorateCode && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold flex-shrink-0">
@@ -1856,7 +1856,7 @@ export const OrderCard = memo(function OrderCard({
                         {fullAddress && (
                             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 dark:bg-[#1A1A1A] dark:border-white/5">
                                 <MapPin className="w-4 h-4 text-gray-400 dark:text-[var(--foreground-subtle)] flex-shrink-0" />
-                                <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1" dir="rtl"><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
+                                <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1 text-right"><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
                                 {governorateCode && (
                                     <span className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-[11px] font-bold flex-shrink-0 shadow-sm">
                                         {governorateCode}
@@ -1904,11 +1904,11 @@ export const OrderCard = memo(function OrderCard({
                         {/* Follow-up cue badge */}
                         {needsFollowUp && (
                             <div className={cn(
-                                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold animate-pulse border shadow-sm ml-1",
+                                "flex flex-row-reverse items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold animate-pulse border shadow-sm ml-1 text-right",
                                 needsDiscount
                                     ? "bg-red-50 text-red-700 border-red-300 dark:bg-red-500/10 dark:text-rose-400 dark:border-red-500/30"
                                     : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
-                            )} dir="rtl">
+                            )}>
                                 {needsDiscount ? <Gift className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
                                 <span>{needsDiscount ? `مرت ${Math.floor(hoursSinceCreated)} ساعة (خصم)` : `مرت ${Math.floor(hoursSinceCreated)} ساعة (تذكير)`}</span>
                             </div>

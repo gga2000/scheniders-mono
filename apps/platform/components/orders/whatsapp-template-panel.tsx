@@ -416,7 +416,7 @@ export function WhatsAppTemplatePanel({
                                         )} />
                                     </div>
 
-                                    <h3 className="font-bold text-foreground text-sm" dir="rtl">
+                                    <h3 className="font-bold text-foreground text-sm text-right">
                                         {config.label}
                                     </h3>
                                     <p className="text-[11px] text-muted mt-0.5">
@@ -439,18 +439,18 @@ export function WhatsAppTemplatePanel({
                                 <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-gray-900 truncate" dir="rtl">
+                                            <h3 className="font-semibold text-gray-900 truncate text-right">
                                                 {isBulkMode ? `إرسال تعميم ${currentConfig.label}` : `رسالة ${currentConfig.label}`}
                                             </h3>
                                             {!isBulkMode ? (
-                                                <div className="flex items-center gap-1.5 mt-0.5" dir="rtl">
+                                                <div className="flex flex-row-reverse items-center gap-1.5 mt-0.5 text-right">
                                                     <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                                     <p className="text-sm text-gray-500 font-medium truncate">
                                                         {formatPhoneForDisplay(previewOrder?.phone || "")}
                                                     </p>
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center gap-1.5 mt-0.5" dir="rtl">
+                                                <div className="flex flex-row-reverse items-center gap-1.5 mt-0.5 text-right">
                                                     <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                                     <p className="text-sm text-gray-500 font-medium truncate">
                                                         يرسل إلى {targetOrders.length} عملاء
@@ -560,8 +560,7 @@ export function WhatsAppTemplatePanel({
                                     <div className="bg-[#e5ddd5] rounded-xl p-4 border border-gray-200">
                                         <div className="bg-[#dcf8c6] rounded-lg p-3 max-w-[90%] ml-auto shadow-sm">
                                             <p
-                                                className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed"
-                                                dir="rtl"
+                                                className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed text-right"
                                             >
                                                 {processedContent}
                                             </p>
@@ -592,7 +591,6 @@ export function WhatsAppTemplatePanel({
                                         ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                         : "bg-red-50 text-red-700 border border-red-200"
                                 )}
-                                dir="rtl"
                             >
                                 {sendResult.message}
                             </motion.div>

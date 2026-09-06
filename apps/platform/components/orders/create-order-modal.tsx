@@ -808,7 +808,7 @@ export function CreateOrderModal({
                                             const entry = normalizedPhone && getBlacklistEntry ? getBlacklistEntry(normalizedPhone) : null;
                                             if (!entry) return null;
                                             return (
-                                                <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-lg px-3 py-2.5 mt-1" dir="rtl">
+                                                <div className="flex flex-row-reverse items-start gap-2 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-lg px-3 py-2.5 mt-1 text-right">
                                                     <Ban className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                                                     <div className="text-xs space-y-0.5">
                                                         <p className="font-bold text-red-700 dark:text-red-400">⛔ هذا الرقم في القائمة السوداء</p>

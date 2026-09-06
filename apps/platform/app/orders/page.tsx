@@ -15,22 +15,35 @@ import { getBaseOrderId } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
 
-const OrderDetailsModal = dynamic(
-    () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
-    { loading: () => null, ssr: false }
+const OrderDetailsModal = withOrderModalBoundary(
+    "OrderDetailsModal",
+    dynamic(
+        () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const CreateOrderModal = dynamic(
-    () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
-    { loading: () => null, ssr: false }
+const CreateOrderModal = withOrderModalBoundary(
+    "CreateOrderModal",
+    dynamic(
+        () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const ReturnsCockpitModal = dynamic(
-    () => import("@/components/returns/returns-cockpit-modal").then(mod => ({ default: mod.ReturnsCockpitModal })),
-    { loading: () => null, ssr: false }
+const ReturnsCockpitModal = withOrderModalBoundary(
+    "ReturnsCockpitModal",
+    dynamic(
+        () => import("@/components/returns/returns-cockpit-modal").then(mod => ({ default: mod.ReturnsCockpitModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const BarcodeScanner = dynamic(
-    () => import("@/components/products/barcode-scanner").then(mod => ({ default: mod.BarcodeScanner })),
-    { loading: () => null, ssr: false }
+const BarcodeScanner = withOrderModalBoundary(
+    "BarcodeScanner",
+    dynamic(
+        () => import("@/components/products/barcode-scanner").then(mod => ({ default: mod.BarcodeScanner })),
+        { loading: () => null, ssr: false }
+    )
 );
 // Dynamic imports for other heavy components
 const FloatingActionBar = dynamic(
@@ -41,21 +54,33 @@ const WorkflowTabs = dynamic(
     () => import("@/components/orders/workflow-tabs").then(mod => ({ default: mod.WorkflowTabs })),
     { ssr: false, loading: () => <div className="w-full h-96 animate-pulse bg-muted/20 rounded-2xl" /> }
 );
-const DuplicateComparisonModal = dynamic(
-    () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
-    { loading: () => null, ssr: false }
+const DuplicateComparisonModal = withOrderModalBoundary(
+    "DuplicateComparisonModal",
+    dynamic(
+        () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const ExportReportModal = dynamic(
-    () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
-    { loading: () => null, ssr: false }
+const ExportReportModal = withOrderModalBoundary(
+    "ExportReportModal",
+    dynamic(
+        () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const WhatsAppTemplatePanel = dynamic(
-    () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
-    { loading: () => null, ssr: false }
+const WhatsAppTemplatePanel = withOrderModalBoundary(
+    "WhatsAppTemplatePanel",
+    dynamic(
+        () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
+        { loading: () => null, ssr: false }
+    )
 );
-const SplitOrderDialog = dynamic(
-    () => import("@/components/orders/split-order-dialog").then(mod => ({ default: mod.SplitOrderDialog })),
-    { loading: () => null, ssr: false }
+const SplitOrderDialog = withOrderModalBoundary(
+    "SplitOrderDialog",
+    dynamic(
+        () => import("@/components/orders/split-order-dialog").then(mod => ({ default: mod.SplitOrderDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
 const VirtualizedOrderList = dynamic(
     () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
@@ -76,17 +101,26 @@ const OrderConfirmationCard = dynamic(
     () => import("@/components/orders/order-confirmation-card").then(mod => ({ default: mod.OrderConfirmationCard })),
     { ssr: false, loading: () => <div className="hidden" /> }
 );
-const CancellationReasonDialog = dynamic(
-    () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
-    { loading: () => null, ssr: false }
+const CancellationReasonDialog = withOrderModalBoundary(
+    "CancellationReasonDialog",
+    dynamic(
+        () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
-const ShipExportConfirmationDialog = dynamic(
-    () => import("@/components/orders/ship-export-confirmation-dialog").then(mod => ({ default: mod.ShipExportConfirmationDialog })),
-    { loading: () => null, ssr: false }
+const ShipExportConfirmationDialog = withOrderModalBoundary(
+    "ShipExportConfirmationDialog",
+    dynamic(
+        () => import("@/components/orders/ship-export-confirmation-dialog").then(mod => ({ default: mod.ShipExportConfirmationDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
-const MoveToTransitDialog = dynamic(
-    () => import("@/components/orders/move-to-transit-dialog").then(mod => ({ default: mod.MoveToTransitDialog })),
-    { loading: () => null, ssr: false }
+const MoveToTransitDialog = withOrderModalBoundary(
+    "MoveToTransitDialog",
+    dynamic(
+        () => import("@/components/orders/move-to-transit-dialog").then(mod => ({ default: mod.MoveToTransitDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
 const StickyFilterBar = dynamic(
     () => import("@/components/orders/sticky-filter-bar").then(mod => ({ default: mod.StickyFilterBar })),
@@ -584,6 +618,11 @@ export default function OrdersPage() {
 
         return () => worker.terminate();
     }, [orders, assignments]);
+
+    // A tenant with no orders at all must not be told its filters matched nothing.
+    // `hasFilters` counts the date range, so "no filters" here means the full window.
+    const emptyStateHasFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
+    const isFirstRun = (orders?.length ?? 0) === 0 && !filters.searchQuery && !emptyStateHasFilters;
 
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
@@ -2590,9 +2629,9 @@ export default function OrdersPage() {
                                                 <>
                                                     {displayedOrders.length === 0 ? (
                                                         <EmptyState
-                                                            type={(filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
+                                                            type={isFirstRun ? "no-orders" : (filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
                                                             searchQuery={filters.searchQuery}
-                                                            hasFilters={!!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority)}
+                                                            hasFilters={emptyStateHasFilters}
                                                         />
                                                     ) : compactView >= 1 && compactGrid ? (
                                                         /* Grid layout for compact views */

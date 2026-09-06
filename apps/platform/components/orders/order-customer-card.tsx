@@ -144,7 +144,6 @@ export function OrderCustomerCard({
                                         }
                                     }}
                                     className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] text-right"
-                                    dir="rtl"
                                 >
                                     <option value="" disabled>{t("orderDetail.selectProvince")}</option>
                                     {governorates.map((gov, index) => (
