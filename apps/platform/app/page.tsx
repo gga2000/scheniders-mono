@@ -17,6 +17,7 @@ import { RevealToggle } from "@/components/ui/reveal-toggle";
 import { useViewport } from "@/hooks/use-viewport";
 import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
+import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
@@ -211,61 +212,65 @@ export default function Home() {
         )}
 
         {/* Today at a Glance */}
-        <TodayStrip metrics={dashboardMetrics.todayStrip} />
+        <WidgetBoundary label="today-strip"><TodayStrip metrics={dashboardMetrics.todayStrip} /></WidgetBoundary>
 
         {/* Stats Grid */}
-        <StatsGrid stats={stats} onCardClick={handleStatCardClick} />
+        <WidgetBoundary label="stats-grid"><StatsGrid stats={stats} onCardClick={handleStatCardClick} /></WidgetBoundary>
 
         {/* Order Pipeline */}
-        <OrderPipeline
+        <WidgetBoundary label="order-pipeline">
+          <OrderPipeline
           stages={rangeMetrics?.pipeline ?? dashboardMetrics.pipeline}
           onStageClick={handlePipelineStageClick}
         />
+        </WidgetBoundary>
 
         {/* Charts Row: Trend (7col) | Delivery Rate + Hourly (5col) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-7 min-h-[320px]">
-            <RevenueTrendChart orders={orders} showRevenue={showFinancials} />
+            <WidgetBoundary label="revenue-trend"><RevenueTrendChart orders={orders} showRevenue={showFinancials} /></WidgetBoundary>
           </div>
           <div className="xl:col-span-5 flex flex-col gap-6">
-            <DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} />
-            <OrdersPerHour data={dashboardMetrics.ordersPerHour} />
+            <WidgetBoundary label="delivery-rate"><DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} /></WidgetBoundary>
+            <WidgetBoundary label="orders-per-hour"><OrdersPerHour data={dashboardMetrics.ordersPerHour} /></WidgetBoundary>
           </div>
         </div>
 
         {/* Heatmap Row: Peak Hours (8col) | Avg Time Per Stage (4col) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 min-h-[280px]">
-            <PeakHoursHeatmap data={rangeScoped.peakHeatmap} />
+            <WidgetBoundary label="peak-heatmap"><PeakHoursHeatmap data={rangeScoped.peakHeatmap} /></WidgetBoundary>
           </div>
           <div className="xl:col-span-4 min-h-[280px]">
-            <AvgTimePerStage metrics={rangeScoped.avgTimePerStage} />
+            <WidgetBoundary label="avg-time-per-stage"><AvgTimePerStage metrics={rangeScoped.avgTimePerStage} /></WidgetBoundary>
           </div>
         </div>
 
         {/* Intelligence Row: WoW | Forecast | Rejection */}
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-12 gap-6">
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <WeekOverWeek metrics={dashboardMetrics.weekOverWeek} />
+            <WidgetBoundary label="week-over-week"><WeekOverWeek metrics={dashboardMetrics.weekOverWeek} /></WidgetBoundary>
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <MonthForecast forecast={dashboardMetrics.monthForecast} />
+            <WidgetBoundary label="month-forecast"><MonthForecast forecast={dashboardMetrics.monthForecast} /></WidgetBoundary>
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <RejectionBreakdown cityRejectionStats={rangeScoped.urgency.cityRejectionStats} />
+            <WidgetBoundary label="rejection-breakdown"><RejectionBreakdown cityRejectionStats={rangeScoped.urgency.cityRejectionStats} /></WidgetBoundary>
           </div>
         </div>
 
         {/* Map | Top Cities + Top Products (two tall columns to the right of the map) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-6 h-[400px] xl:h-[460px]">
-            <IraqMap orders={orders} />
+            <WidgetBoundary label="iraq-map"><IraqMap orders={orders} /></WidgetBoundary>
           </div>
           <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 xl:h-[460px]">
-            <Leaderboard cities={rangeScoped.enhancedLeaderboard.topCities} />
-            <ProductLeaderboard
+            <WidgetBoundary label="city-leaderboard"><Leaderboard cities={rangeScoped.enhancedLeaderboard.topCities} /></WidgetBoundary>
+            <WidgetBoundary label="product-leaderboard">
+              <ProductLeaderboard
               products={rangeScoped.enhancedLeaderboard.topProductsEnhanced}
             />
+            </WidgetBoundary>
           </div>
         </div>
 
@@ -273,16 +278,18 @@ export default function Home() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           {/* Recent Orders Feed */}
           <div className={`xl:col-span-5 h-[440px]`}>
-            <RecentOrdersFeed
+            <WidgetBoundary label="recent-orders-feed">
+              <RecentOrdersFeed
               orders={dashboardMetrics.recentOrders}
               updatedAt={serverMetrics ? metricsUpdatedAt : undefined}
             />
+            </WidgetBoundary>
           </div>
 
           {/* Staff Leaderboard — admin only */}
           {isAdmin ? (
             <div className="xl:col-span-4 h-[440px]">
-              <StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} />
+              <WidgetBoundary label="staff-leaderboard"><StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} /></WidgetBoundary>
             </div>
           ) : (
             /* Non-admins: announcements takes more space */
@@ -291,7 +298,8 @@ export default function Home() {
 
           {/* Team Announcements */}
           <div className={`${isAdmin ? 'xl:col-span-3' : 'xl:col-span-7'} h-[440px]`}>
-            <TeamAnnouncements
+            <WidgetBoundary label="team-announcements">
+              <TeamAnnouncements
               announcements={announcements}
               isAdmin={isAdmin}
               loading={announcementsLoading}
@@ -300,6 +308,7 @@ export default function Home() {
               onTogglePin={togglePin}
               onDelete={deleteAnnouncement}
             />
+            </WidgetBoundary>
           </div>
         </div>
 
