@@ -24,6 +24,24 @@ export function onlyDashboardOrders(orders: Order[]): Order[] {
 }
 
 // =============================================
+// delivered_at is UTC-naive (COR-D3 / Orders COR-8)
+// =============================================
+/**
+ * `orders.delivered_at` is `timestamp WITHOUT time zone` holding a UTC instant,
+ * unlike every sibling timestamp. Postgrest serialises it with no zone
+ * designator ("2026-09-01 22:00:00.344756"), and `new Date()` then parses that as
+ * BROWSER-LOCAL time — so on a Baghdad machine (UTC+3) every delivery looked 3
+ * hours earlier than it was, understating each cycle by 3h and pushing sub-3h
+ * deliveries negative, where a `> 0` filter silently discarded them.
+ *
+ * Parse it explicitly as UTC. Values that already carry a zone are left alone.
+ */
+export function parseUtcNaiveTimestamp(value: string): Date {
+    const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim());
+    return new Date(hasZone ? value : `${value.trim().replace(' ', 'T')}Z`);
+}
+
+// =============================================
 // Urgency Metrics
 // =============================================
 export interface UrgencyMetrics {
@@ -440,8 +458,8 @@ export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
         ['delivered', 'completed'].includes(o.status) && o.delivered_at
     );
     const cycleTimes = delivered.map(o =>
-        (new Date(o.delivered_at!).getTime() - new Date(o.created_at).getTime()) / (1000 * 60 * 60)
-    ).filter(h => h > 0 && h < 24 * 30); // exclude outliers > 30 days
+        (parseUtcNaiveTimestamp(o.delivered_at!).getTime() - new Date(o.created_at).getTime()) / (1000 * 60 * 60)
+    ).filter(h => h >= 0 && h < 24 * 30); // exclude outliers > 30 days; h>=0 admits same-instant cycles
 
     const avgCycle = cycleTimes.length > 0
         ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length
