@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
+import { FinancialValue } from "@/components/ui/financial-value";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Expand, ArrowUpDown, X, AlertTriangle, TrendingUp } from "lucide-react";
 import { Order } from "@/types/order";
@@ -470,7 +471,10 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted">{t("map.revenue")}</span>
                           <span className="font-bold text-green-600">
-                            {new Intl.NumberFormat("en-IQ").format(selectedStats.revenue)} IQD
+                            {/* SEC-D2/I18N-D3: this printed governorate revenue raw,
+                                outside the reveal gate that masks every other money
+                                figure, and bypassed formatIQD. */}
+                            <FinancialValue amount={selectedStats.revenue} className="font-bold text-green-600" iconSize={12} />
                           </span>
                         </div>
                       </div>
@@ -489,9 +493,9 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                       </th>
                       {[
                         { key: "total" as SortKey, label: t("map.filter.total") },
-                        { key: "delivered" as SortKey, label: "Del." },
-                        { key: "rejected" as SortKey, label: "Rej." },
-                        { key: "confirmed" as SortKey, label: "Conf." },
+                        { key: "delivered" as SortKey, label: t("map.col.delivered") },
+                        { key: "rejected" as SortKey, label: t("map.col.rejected") },
+                        { key: "confirmed" as SortKey, label: t("map.col.confirmed") },
                       ].map(col => (
                         <th
                           key={col.key}

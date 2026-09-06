@@ -177,10 +177,10 @@ export default function Home() {
 
           <div className="flex items-center gap-3 flex-wrap">
             {canReveal && (
-              <div className="inline-flex items-center gap-1.5 px-3 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm" title={showFinancials ? "Hide financial data" : "Show financial data"}>
+              <div className="inline-flex items-center gap-1.5 px-3 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm" title={showFinancials ? t("dashboard.financials.hideTitle") : t("dashboard.financials.showTitle")}>
                 <RevealToggle size={18} />
                 <span className="text-xs font-semibold text-muted-foreground select-none">
-                  {showFinancials ? "Hide" : "Show"}
+                  {showFinancials ? t("dashboard.financials.hide") : t("dashboard.financials.show")}
                 </span>
               </div>
             )}
