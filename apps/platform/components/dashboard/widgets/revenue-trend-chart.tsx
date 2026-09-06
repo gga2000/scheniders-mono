@@ -5,6 +5,20 @@ import {
     ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer,
 } from "recharts";
+
+/**
+ * VIS-D1. This chart used to plot orders (bars, left axis) and revenue (line,
+ * right axis) together on two independent y-scales. Two scales in one plot
+ * manufacture the correlation the reader sees: where the line crosses the bars is
+ * an artefact of the scaling, not a fact about the business. Recharts also
+ * auto-domains a line axis, so the revenue baseline was not zero and its slope was
+ * exaggerated on top.
+ *
+ * One measure at a time, always from a zero baseline. The comparison the merchant
+ * wanted (are orders and revenue moving together?) is still available by toggling,
+ * and is now honest because both are read against their own full-height axis.
+ */
+type Measure = 'orders' | 'revenue';
 import { RevenueTrendPoint, calculateRevenueTrend } from "@/lib/analytics/dashboard-calculations";
 import { formatIQD } from "@/lib/utils";
 import { Order } from "@/lib/supabase";
@@ -45,7 +59,10 @@ const CustomTooltip = ({ active, payload, label, showRevenue, ordersLabel, reven
 
 export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProps) {
     const [days, setDays] = useState<Days>(7);
+    const [measure, setMeasure] = useState<Measure>('orders');
     const { t } = useLanguage();
+    // Never leave the chart on a measure this viewer is not entitled to see.
+    const activeMeasure: Measure = showRevenue ? measure : 'orders';
 
     const data = useMemo(() => calculateRevenueTrend(orders, days), [orders, days]);
 
@@ -69,6 +86,25 @@ export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProp
                     </div>
                 </div>
 
+                <div className="flex items-center gap-2">
+                {showRevenue && (
+                    <div className="flex items-center gap-1 bg-[var(--background)] rounded-xl p-1 border border-[var(--card-border)]">
+                        {(['orders', 'revenue'] as Measure[]).map(m => (
+                            <button
+                                key={m}
+                                onClick={() => setMeasure(m)}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                    activeMeasure === m
+                                        ? 'bg-[var(--card-bg)] text-foreground shadow-sm'
+                                        : 'text-muted hover:text-foreground'
+                                }`}
+                            >
+                                {m === 'orders' ? t("dashboard.trend.ordersLabel") : t("dashboard.trend.revenueLabel")}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {/* Day toggle */}
                 <div className="flex items-center gap-1 bg-[var(--background)] rounded-xl p-1 border border-[var(--card-border)]">
                     {([7, 14, 30] as Days[]).map(d => (
@@ -84,6 +120,7 @@ export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProp
                             {d}D
                         </button>
                     ))}
+                </div>
                 </div>
             </div>
 
@@ -104,35 +141,27 @@ export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProp
                             axisLine={false}
                             tickLine={false}
                         />
+                        {/* One axis, always anchored at zero — a truncated baseline
+                            exaggerates the slope of whatever is plotted against it. */}
                         <YAxis
-                            yAxisId="orders"
+                            domain={[0, 'auto']}
                             tick={{ fontSize: 11, fill: 'var(--foreground-subtle)' }}
                             axisLine={false}
                             tickLine={false}
                             allowDecimals={false}
+                            tickFormatter={activeMeasure === 'revenue' ? (v) => `${(v / 1000).toFixed(0)}K` : undefined}
                         />
-                        {showRevenue && (
-                            <YAxis
-                                yAxisId="revenue"
-                                orientation="right"
-                                tick={{ fontSize: 11, fill: 'var(--foreground-subtle)' }}
-                                axisLine={false}
-                                tickLine={false}
-                                tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
-                            />
-                        )}
                         <Tooltip content={<CustomTooltip showRevenue={showRevenue} ordersLabel={t("dashboard.trend.ordersLabel")} revenueLabel={t("dashboard.trend.revenueLabel")} />} />
-                        <Bar
-                            yAxisId="orders"
-                            dataKey="orders"
-                            name="Orders"
-                            fill="url(#barGrad)"
-                            radius={[4, 4, 0, 0]}
-                            maxBarSize={40}
-                        />
-                        {showRevenue && (
+                        {activeMeasure === 'orders' ? (
+                            <Bar
+                                dataKey="orders"
+                                name="Orders"
+                                fill="url(#barGrad)"
+                                radius={[4, 4, 0, 0]}
+                                maxBarSize={40}
+                            />
+                        ) : (
                             <Line
-                                yAxisId="revenue"
                                 type="monotone"
                                 dataKey="revenue"
                                 name="Revenue"
@@ -142,7 +171,7 @@ export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProp
                                 activeDot={{ r: 5, fill: '#FBE38E' }}
                             />
                         )}
-                    </ComposedChart>
+                </ComposedChart>
                 </ResponsiveContainer>
             </div>
         </div>

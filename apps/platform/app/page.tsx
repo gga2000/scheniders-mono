@@ -143,6 +143,14 @@ export default function Home() {
     return t("dashboard.greeting.evening");
   };
 
+  // DV-D1: the header's Today/7d/30d control used to re-scope exactly ONE widget
+  // (the pipeline bar) while everything else silently kept showing all-time data.
+  // Every widget whose question is range-dependent now reads from the ranged
+  // query. Widgets with an inherent window — today's strip, the hourly bars, the
+  // 7-day delivery rate, week-over-week, the month forecast, the live feed — keep
+  // their own, and the work-queue counters stay current-state by design.
+  const rangeScoped = rangeMetrics ?? dashboardMetrics;
+
   const handleStatCardClick = (status: 'new' | 'confirmed' | 'rejected') => {
     router.push(`/orders?status=${status}`);
   };
@@ -235,10 +243,10 @@ export default function Home() {
         {/* Heatmap Row: Peak Hours (8col) | Avg Time Per Stage (4col) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 min-h-[280px]">
-            <PeakHoursHeatmap data={dashboardMetrics.peakHeatmap} />
+            <PeakHoursHeatmap data={rangeScoped.peakHeatmap} />
           </div>
           <div className="xl:col-span-4 min-h-[280px]">
-            <AvgTimePerStage metrics={dashboardMetrics.avgTimePerStage} />
+            <AvgTimePerStage metrics={rangeScoped.avgTimePerStage} />
           </div>
         </div>
 
@@ -251,7 +259,7 @@ export default function Home() {
             <MonthForecast forecast={dashboardMetrics.monthForecast} />
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <RejectionBreakdown cityRejectionStats={dashboardMetrics.urgency.cityRejectionStats} />
+            <RejectionBreakdown cityRejectionStats={rangeScoped.urgency.cityRejectionStats} />
           </div>
         </div>
 
@@ -261,9 +269,9 @@ export default function Home() {
             <IraqMap orders={orders} />
           </div>
           <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 xl:h-[460px]">
-            <Leaderboard cities={dashboardMetrics.enhancedLeaderboard.topCities} />
+            <Leaderboard cities={rangeScoped.enhancedLeaderboard.topCities} />
             <ProductLeaderboard
-              products={dashboardMetrics.enhancedLeaderboard.topProductsEnhanced}
+              products={rangeScoped.enhancedLeaderboard.topProductsEnhanced}
             />
           </div>
         </div>
