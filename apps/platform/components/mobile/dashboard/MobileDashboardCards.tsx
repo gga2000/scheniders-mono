@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { formatIQD } from "@/lib/utils";
+import { FinancialValue } from "@/components/ui/financial-value";
 import { Clock, AlertTriangle, DollarSign, ShoppingBag } from "lucide-react";
 
 interface MobileDashboardCardsProps {
@@ -29,7 +29,14 @@ export function MobileDashboardCards({ stats }: MobileDashboardCardsProps) {
                     <div className="p-1.5 bg-blue-100 rounded-xl text-blue-600 shadow-sm"><DollarSign className="w-4 h-4" /></div>
                 </div>
                 <div className="mt-2 text-right">
-                    <div className="text-xl font-extrabold text-blue-950 tracking-tight" dir="ltr">{formatIQD(stats.confirmedRevenue)}</div>
+                    {/* SEC-D2: mobile rendered this in plain text with no permission gate
+                        at all — an employee opening the dashboard on a phone saw total
+                        revenue outright. Route it through the same masking as desktop. */}
+                    <FinancialValue
+                        amount={stats.confirmedRevenue}
+                        className="text-xl font-extrabold text-blue-950 tracking-tight"
+                        iconSize={14}
+                    />
                     <div className="text-[10px] text-blue-800/70 font-medium uppercase tracking-wider mt-0.5">Total Available</div>
                 </div>
             </div>

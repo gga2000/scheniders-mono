@@ -7,8 +7,12 @@ import { useLanguage } from "@/hooks/use-language";
 import { formatIQD, FINANCIAL_MASK, cn } from "@/lib/utils";
 
 interface FinancialValueProps {
-    /** Raw amount to display. */
-    amount: number;
+    /**
+     * Raw amount to display. `null`/`undefined` means the server withheld it
+     * because the viewer lacks VIEW_FINANCIALS (SEC-D2) — render the mask, never
+     * a zero, which would read as "you earned nothing".
+     */
+    amount: number | null | undefined;
     /** Formatter for the revealed value. Defaults to IQD currency. */
     format?: (n: number) => string;
     /** Classes for the value text. */
@@ -51,7 +55,8 @@ export function FinancialValue({
         setOverride(null);
     }
 
-    const shown = canReveal && (override ?? revealed);
+    const hasAmount = typeof amount === "number" && Number.isFinite(amount);
+    const shown = hasAmount && canReveal && (override ?? revealed);
 
     const handleClick = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -67,7 +72,7 @@ export function FinancialValue({
     return (
         <span className="inline-flex items-center gap-1">
             <span className={cn("tabular-nums", className)}>
-                {shown ? format(amount) : FINANCIAL_MASK}
+                {shown ? format(amount as number) : FINANCIAL_MASK}
             </span>
             {hideToggle ? null : denied ? (
                 <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-rose-600 whitespace-nowrap">

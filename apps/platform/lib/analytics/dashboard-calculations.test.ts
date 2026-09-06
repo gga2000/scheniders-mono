@@ -52,7 +52,7 @@ describe("COR-D2 — product revenue is attributed by line value, not split equa
             ],
         })];
         const { topProductsEnhanced } = calculateEnhancedLeaderboard(orders);
-        const total = topProductsEnhanced.reduce((s, p) => s + p.revenue, 0);
+        const total = topProductsEnhanced.reduce((s, p) => s + (p.revenue ?? 0), 0);
         expect(total).toBeCloseTo(36000, 6);
     });
 

@@ -6,7 +6,8 @@ import { FinancialValue } from "@/components/ui/financial-value";
 import { useLanguage } from "@/hooks/use-language";
 
 interface DeltaBadgeProps {
-    delta: number;
+    /** null when the viewer is not entitled to the underlying figure (SEC-D2). */
+    delta: number | null;
     pct: number | null;
     /** Money deltas must never be printed raw — they bypass the reveal gate (COR-D7). */
     isFinancial?: boolean;
@@ -14,6 +15,8 @@ interface DeltaBadgeProps {
 
 function DeltaBadge({ delta, pct, isFinancial }: DeltaBadgeProps) {
     const { t } = useLanguage();
+    // Withheld from this viewer — show no comparison rather than inventing one.
+    if (delta === null) return null;
     if (delta === 0) {
         return (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
