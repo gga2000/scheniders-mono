@@ -2,6 +2,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { Order } from "@/lib/supabase";
 import { canCreateOrder, getCurrentUsage, getPlanLimits, getWallet } from "@/lib/tenant";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
+import { reportOrderError } from "@/lib/order-telemetry";
 
 /**
  * Trusted, server-side order creation.
@@ -72,7 +73,9 @@ export async function createOrderForTenant(
 
         // ── 3. Post-creation: charge wallet + increment usage (fire-and-forget) ──
         chargeAndTrack(tenantId, supabase).catch((err) => {
-            console.error('[createOrderForTenant] Post-creation charge/track failed:', err);
+            // Fire-and-forget, but a failure here means the order exists and was
+            // never billed — silent revenue drift. Report it.
+            reportOrderError(err, { operation: "chargeAndTrack", tenantId });
         });
 
         // ── 4. Staff WhatsApp alerts (fire-and-forget, tenant-scoped) ──
@@ -159,11 +162,21 @@ async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
             });
 
         if (chargeError) {
-            console.error('[chargeAndTrack] Wallet charge RPC error:', chargeError.message);
+            reportOrderError(chargeError, {
+                operation: "chargeWallet",
+                tenantId,
+                extra: { amount: chargeAmount, isOverLimit },
+            });
         } else if (chargeResult && !chargeResult.success) {
-            console.warn('[chargeAndTrack] Wallet charge failed:', chargeResult.error);
+            // The RPC ran but declined the charge (e.g. insufficient balance).
+            // Not an exception, but the tenant is now un-billed for this order.
+            reportOrderError(new Error(`Wallet charge declined: ${chargeResult.error}`), {
+                operation: "chargeWallet",
+                tenantId,
+                extra: { amount: chargeAmount, isOverLimit },
+            });
         }
     } catch (err) {
-        console.error('[chargeAndTrack] Wallet charge exception:', err);
+        reportOrderError(err, { operation: "chargeWallet", tenantId, extra: { amount: chargeAmount } });
     }
 }

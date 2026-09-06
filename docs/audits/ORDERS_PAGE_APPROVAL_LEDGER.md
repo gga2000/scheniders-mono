@@ -56,7 +56,7 @@ Single source of truth for what may and may not be touched. A finding becomes `A
 | INT-6 | `handleShipExport` orphan batch row on failure | P3 | P6 | PENDING | — | — |
 | RES-1 | No modal-level ErrorBoundary | P2 | P6 | PENDING | — | — |
 | RES-2 | Silent stale-data fallback on detail fetch failure | P2 | P6 | PENDING | — | — |
-| OBS-1 | Zero Sentry on the orders surface | P1 | P7 | PENDING | — | — |
+| OBS-1 | Zero Sentry on the orders surface | P1 | P7 | **SHIPPED** | 2026-09-06 | `lib/order-telemetry.ts` is the single reporting path, tagging every report with area/operation/tenant/order so it is actionable on a multi-tenant surface. Wired into the segment boundary and the four mutation failure paths (previously toast + console only), plus the silent server-side wallet-charge failures, where a failure meant an order existed and was never billed. Expected outcomes (`CONFLICT_DETECTED`) are filtered so routine concurrency does not bury real faults. |
 | OBS-2 | No queryable deletion audit trail (deletion_log absent) | P2 | P7 | PENDING | — | — |
 | OBS-3 | No business-metric events (can't answer per-agent/time-to-confirm) | P1 | P7 | PENDING | — | — |
 | ARCH-1 | `page.tsx` 3,129 lines — central liability | P1 | P1 | PENDING | — | — |

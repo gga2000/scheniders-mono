@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { reportOrderError } from "@/lib/order-telemetry";
 
 export default function OrdersError({
     error,
@@ -11,7 +12,12 @@ export default function OrdersError({
     reset: () => void;
 }) {
     useEffect(() => {
-        console.error("Orders segment error:", error);
+        // Previously console-only, so a crash on the busiest screen in the product
+        // left no trace anyone could act on.
+        reportOrderError(error, {
+            operation: "orders-segment-render",
+            extra: { digest: error.digest },
+        });
     }, [error]);
 
     return (

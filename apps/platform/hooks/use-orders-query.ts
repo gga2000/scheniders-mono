@@ -11,6 +11,7 @@ import { createOrderAction } from "@/app/actions/orders";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
 import type { OrderWindow } from "@/lib/order-window";
+import { reportOrderError } from "@/lib/order-telemetry";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -298,7 +299,11 @@ export function useUpdateOrderMutation() {
         },
         onError: (err, variables, context) => {
             diag.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
-            console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
+            reportOrderError(err, {
+                operation: "updateOrder",
+                orderId: variables.orderId,
+                extra: { fields: Object.keys(variables.updates ?? {}) },
+            });
 
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
@@ -411,6 +416,8 @@ export function useUpdateStatusMutation() {
             // don't rollback — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) return;
 
+            reportOrderError(err, { operation: "updateOrderStatus", orderId: variables.orderId, extra: { status: variables.status } });
+
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
@@ -479,6 +486,7 @@ export function useDeleteOrderMutation() {
             return { previousOrders };
         },
         onError: (err, variables, context) => {
+            reportOrderError(err, { operation: "deleteOrder", orderId: variables });
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
@@ -539,6 +547,7 @@ export function useCreateOrderMutation() {
             }
         },
         onError: (err, _variables, context) => {
+            reportOrderError(err, { operation: "createOrder" });
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
