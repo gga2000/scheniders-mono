@@ -507,3 +507,40 @@ Approved scope: **REL-D1 only.** Commits `3a72b5cc` and `01c76999` on `fix/store
 
 **New finding raised, deliberately NOT fixed:** **SEC-D4 (P2)** — announcement writes are admin-gated client-side only; the live `tenant_isolation_*` policies on `announcements` carry no role predicate (the original admin policies were dropped by the 2026-04-06 migrations), so any authenticated tenant member can post, unpin or soft-delete via PostgREST. Same class as SEC-D2. Needs a policy migration and its own approval.
 
+> **COR-D3 correction (R5):** this report predicted the cycle-time average would rise from 252.99 h to 255.99 h. Measured after the fix it is **253.51 h over n=1,858** (was n=1,840): every row does gain exactly 3 h, but the same fix readmits 18 sub-3-hour deliveries that the `h > 0` guard had been discarding, and the two effects partly cancel.
+
+---
+
+## ROUND 3–5 OUTCOME — 2026-09-06
+
+Shipped under the user's standing approval (given 2026-09-06, superseding the per-round gate of §0.5).
+
+| Round | Findings | Commit | Migration |
+|---|---|---|---|
+| R3 | COR-D2, COR-D5 | `aa353cb6` | `20260906000350` |
+| R4 | COR-D7, COR-D6 | `a32d8666` | `20260906003717` |
+| R5 | COR-D3 | `a808c30f` | `20260906141619` |
+
+**Measured before → after** (tenant b5c4f2d4, every figure re-derived independently in SQL):
+
+| Metric | Before | After |
+|---|---|---|
+| Funnel "All Orders" | 4,687 | 4,614 |
+| Pipeline confirmed | 14 | 13 |
+| Orders today | 14 | 12 |
+| فيوجن revenue | 74,933,950 | 73,721,144 |
+| بيرسيفيرون revenue | 26,927,917 | 26,269,712 |
+| Delivery rate (quiet week) | `0%` | `null` → "no deliveries" state |
+| Staff leaderboard #1 | "WhatsApp Bot" | "Ali" (event-attributed) |
+| Cycle time | 252.99 h · n=1,840 | 253.51 h · n=1,858 |
+
+Each migration was verified identical to its repo file by normalised md5: `e123868c…` (R4), `946aa40c…` (R5).
+
+**Gates at R5:** `tsc` 0 errors · `lint` 0 errors / 1,152 warnings · **vitest 700/700 across 86 files**.
+
+**New items raised by this work (all PENDING):**
+- **SEC-D4** — announcement writes are admin-gated client-side only; live policies carry no role predicate.
+- **DQ-D1** — 16 orders on the audited tenant have `delivered_at` earlier than `created_at`. Not a timezone artefact; excluded from the cycle average rather than silently averaged in.
+- **COR-D7 remainder** — small-n suppression/labelling (a 100% rate from one order still reads like 100% from a hundred) needs a display decision.
+- **Test gap** — `i18n-completeness.test.ts` never reads `lib/i18n.ts`; a real parity test was added in R4.
+
