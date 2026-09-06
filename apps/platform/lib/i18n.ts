@@ -178,6 +178,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         // Recent Orders Feed
         "dashboard.recent.title": "Recent Orders",
         "dashboard.recent.lastOrders": "Last {count} orders",
+        "dashboard.fallback.title": "Approximate figures",
+        "dashboard.fallback.detail": "Live totals are unavailable, so these were calculated on this device.",
         "dashboard.recent.live": "Live",
         "dashboard.recent.updated": "updated",
         "dashboard.recent.noOrders": "No orders yet",
@@ -3351,6 +3353,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         // آخر الطلبات
         "dashboard.recent.title": "آخر الطلبات",
         "dashboard.recent.lastOrders": "آخر {count} طلبات",
+        "dashboard.fallback.title": "أرقام تقريبية",
+        "dashboard.fallback.detail": "تعذّر جلب الإجماليات المباشرة، لذا تم احتسابها على هذا الجهاز.",
         "dashboard.recent.live": "مباشر",
         "dashboard.recent.updated": "آخر تحديث قبل",
         "dashboard.recent.noOrders": "لا توجد طلبات بعد",
