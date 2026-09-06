@@ -48,6 +48,12 @@ interface UndoEntry {
     previousState: Partial<Order>;
     action: string;
     timestamp: Date;
+    /**
+     * The status this action set. Undo only applies while the order is still
+     * on it — otherwise someone else has moved the order on and reverting
+     * would clobber their write.
+     */
+    expectedStatus?: Order["status"];
 }
 
 interface UseOrderCrudOptions {
@@ -153,6 +159,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 },
                 action: `Changed status to ${status}`,
                 timestamp: new Date(),
+                expectedStatus: status,
             }, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
         }
 
@@ -1519,12 +1526,32 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         const lastAction = undoStack[0];
 
         try {
-            const { error: updateError } = await supabase
+            // Undo used to write blind on `id` alone, so it would happily revert
+            // a newer change made by someone else. Make it a compare-and-set:
+            // only apply while the order still holds the status this action set.
+            let undoQuery = supabase
                 .from("orders")
                 .update(lastAction.previousState)
                 .eq("id", lastAction.orderId);
 
+            if (lastAction.expectedStatus) {
+                undoQuery = undoQuery.eq("status", lastAction.expectedStatus);
+            }
+
+            const { data: undone, error: updateError } = await undoQuery.select("id");
+
             if (updateError) throw updateError;
+
+            if (!undone || undone.length === 0) {
+                // Nothing matched: the order moved on, or is no longer visible to
+                // this user. Drop the entry so the stack does not keep offering
+                // an undo that can never apply.
+                setUndoStack(prev => prev.slice(1));
+                return {
+                    success: false,
+                    error: "This order has changed since then, so it was not reverted.",
+                };
+            }
 
             // Update React Query cache
             optimisticUpdate((prev) =>

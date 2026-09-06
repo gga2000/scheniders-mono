@@ -2011,7 +2011,16 @@ export default function OrdersPage() {
                                                                         initial={{ opacity: 0, scale: 0.8 }}
                                                                         animate={{ opacity: 1, scale: 1 }}
                                                                         exit={{ opacity: 0, scale: 0.8 }}
-                                                                        onClick={async () => { await undoLastAction(); }}
+                                                                        onClick={async () => {
+                                                                            // The result was discarded, so a refused undo looked
+                                                                            // identical to a successful one.
+                                                                            const result = await undoLastAction();
+                                                                            if (result.success) {
+                                                                                toast.success("Undone", result.undoneAction);
+                                                                            } else if (result.error) {
+                                                                                toast.warning("Nothing was undone", result.error);
+                                                                            }
+                                                                        }}
                                                                         className="p-2.5 rounded-xl bg-lime-100/50 text-lime-700 hover:bg-lime-100 transition-all shadow-sm"
                                                                         title="Undo Last Action"
                                                                     >
@@ -3000,8 +3009,17 @@ export default function OrdersPage() {
                     </div>
 
                     {/* Modals */}
+                    {/*
+                        Merge, do not replace. `selectedOrder` is the full row fetched by
+                        handleViewDetails; the list row carries fewer columns but fresher
+                        values, so layering it on top keeps both. Replacing dropped fields
+                        the list view never selects — scheduled_date, is_replacement,
+                        delivered_at, refund_status and others — and wasted the full fetch.
+                    */}
                     <OrderDetailsModal
-                        order={selectedOrder ? (orders.find((o: Order) => o.id === selectedOrder.id) ?? selectedOrder) : null}
+                        order={selectedOrder
+                            ? { ...selectedOrder, ...(orders.find((o: Order) => o.id === selectedOrder.id) ?? {}) }
+                            : null}
                         open={isModalOpen}
                         onClose={() => {
                             setIsModalOpen(false);
