@@ -1,11 +1,14 @@
 "use client";
 
 import React, { Component, ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 interface Props {
     children: ReactNode;
     fallback?: ReactNode;
+    /** Names the boundary in Sentry so a report says WHICH widget broke. */
+    label?: string;
 }
 
 interface State {
@@ -37,12 +40,16 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-        // Log error to console in development
+        // REL-D2/OBS-D1: this used to say "you could send this to Sentry" and then
+        // not, so anything this boundary caught died in the console — invisible in
+        // production, which is the only place it matters. User and tenant come from
+        // the context set in auth-provider.
+        Sentry.captureException(error, {
+            tags: { area: "error-boundary", boundary: this.props.label ?? "unlabelled" },
+            extra: { componentStack: errorInfo.componentStack },
+        });
         console.error("ErrorBoundary caught an error:", error);
         console.error("Component stack:", errorInfo.componentStack);
-
-        // In production, you could send this to an error tracking service
-        // like Sentry, LogRocket, etc.
     }
 
     handleReload = (): void => {
