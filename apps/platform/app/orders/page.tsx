@@ -852,6 +852,15 @@ export default function OrdersPage() {
         // 2. Sort
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
 
+        // Same reason as in use-order-filters: the comparator ran `new Date()`
+        // twice per comparison. Resolve each order's timestamp once up front.
+        const createdAtMs = new Map<string, number>();
+        for (const order of result) {
+            const parsed = Date.parse(order.created_at);
+            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
+        }
+        const createdAt = (order: Order) => createdAtMs.get(order.id) ?? 0;
+
         result.sort((a, b) => {
             // Priority: Pinned first
             if (a.is_pinned && !b.is_pinned) return -1;
@@ -864,7 +873,7 @@ export default function OrdersPage() {
 
                 if (sc.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
                 if (sc.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
-                if (sc.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
+                if (sc.key === 'created_at') { aVal = createdAt(a); bVal = createdAt(b); }
 
                 if (aVal != null && bVal != null && aVal < bVal) return sc.direction === 'asc' ? -1 : 1;
                 if (aVal != null && bVal != null && aVal > bVal) return sc.direction === 'asc' ? 1 : -1;
@@ -873,7 +882,7 @@ export default function OrdersPage() {
             if (activeSorts.length > 0) return 0;
 
             // Default sort: Newest first
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return createdAt(b) - createdAt(a);
         });
         return result;
     }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel]);

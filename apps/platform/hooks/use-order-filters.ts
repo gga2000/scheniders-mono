@@ -215,10 +215,21 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
             ? [...deferredOrders, ...deferredArchivedOrders]
             : deferredOrders;
 
-        return applyFilters(ordersToFilter, deferredFilters).sort((a, b) => {
+        const filtered = applyFilters(ordersToFilter, deferredFilters);
+
+        // Parsing `created_at` inside the comparator allocated two Date objects
+        // per comparison — on a few thousand orders that is tens of thousands of
+        // allocations for every filter change. Resolve each timestamp once.
+        const createdAtMs = new Map<string, number>();
+        for (const order of filtered) {
+            const parsed = Date.parse(order.created_at);
+            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
+        }
+
+        return filtered.sort((a, b) => {
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0);
         });
     }, [deferredOrders, deferredArchivedOrders, deferredFilters, applyFilters]);
 
