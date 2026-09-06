@@ -50,7 +50,7 @@ export default function Home() {
   // 12k-row orders fetch. The client computation is kept as a fallback (if the
   // RPC errors) and as a dev-only parallel-run drift check.
   const clientMetrics = useDashboardMetrics(orders, products || []);
-  const { data: serverMetrics } = useDashboardMetricsQuery('all');
+  const { data: serverMetrics, dataUpdatedAt: metricsUpdatedAt } = useDashboardMetricsQuery('all');
   const dashboardMetrics = serverMetrics ?? clientMetrics;
   const { t } = useLanguage();
   const { profile, role } = useAuth();
@@ -261,6 +261,7 @@ export default function Home() {
           <div className={`xl:col-span-5 h-[440px]`}>
             <RecentOrdersFeed
               orders={dashboardMetrics.recentOrders}
+              updatedAt={serverMetrics ? metricsUpdatedAt : undefined}
             />
           </div>
 

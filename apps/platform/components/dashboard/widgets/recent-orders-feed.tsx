@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Order } from "@/lib/supabase";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { Activity } from "lucide-react";
@@ -33,13 +34,27 @@ function useTimeAgo() {
 
 interface RecentOrdersFeedProps {
     orders: Order[];
+    /**
+     * When the metrics behind this feed were last fetched (TanStack `dataUpdatedAt`).
+     * The header used to show an unconditional pulsing "Live" on data that refreshes
+     * at most every couple of minutes (ENG-D2) — undated numbers on a dashboard are
+     * an honesty failure, so show the real age instead.
+     */
+    updatedAt?: number;
     onOrderClick?: (order: Order) => void;
 }
 
-export function RecentOrdersFeed({ orders, onOrderClick }: RecentOrdersFeedProps) {
+export function RecentOrdersFeed({ orders, updatedAt, onOrderClick }: RecentOrdersFeedProps) {
     const { t } = useLanguage();
     const STATUS_STYLES = useStatusStyles();
     const timeAgo = useTimeAgo();
+    // Re-render on a timer so the stamp ages visibly rather than freezing.
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => setTick(n => n + 1), 15_000);
+        return () => clearInterval(id);
+    }, []);
+    const freshness = updatedAt ? timeAgo(new Date(updatedAt).toISOString()) : null;
 
     return (
         <div className="pastel-card p-5 md:p-6 h-full flex flex-col">
@@ -51,9 +66,13 @@ export function RecentOrdersFeed({ orders, onOrderClick }: RecentOrdersFeedProps
                     <h3 className="text-sm font-bold text-foreground">{t("dashboard.recent.title")}</h3>
                     <p className="text-xs text-muted">{t("dashboard.recent.lastOrders").replace('{count}', String(orders.length))}</p>
                 </div>
-                <div className="ml-auto flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-[10px] text-muted">{t("dashboard.recent.live")}</span>
+                <div className="ml-auto flex items-center gap-1.5" title={updatedAt ? new Date(updatedAt).toLocaleString() : undefined}>
+                    <span className="w-2 h-2 rounded-full bg-green-400" />
+                    <span className="text-[10px] text-muted">
+                        {freshness
+                            ? `${t("dashboard.recent.updated")} ${freshness}`
+                            : t("dashboard.recent.live")}
+                    </span>
                 </div>
             </div>
 
