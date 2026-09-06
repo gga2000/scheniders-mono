@@ -9,6 +9,7 @@ import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
 import type { DashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
+import { dashboardMetricsSchema } from "@/lib/analytics/dashboard-metrics-schema";
 
 /**
  * Server-side dashboard metrics.
@@ -76,8 +77,30 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
             perfTrace.mark("dashboard-metrics:fetch-done", { range });
             diag.log(`[Diag:RQ:Metrics] get_dashboard_metrics OK range=${range} took=${(performance.now() - _t).toFixed(1)}ms`);
 
-            // The function returns a single jsonb object matching DashboardMetrics.
-            return data as unknown as DashboardMetrics;
+            // ARCH-D3: parse, do not assert. This used to be
+            // `data as unknown as DashboardMetrics` — a double cast over a shape
+            // nobody checked, so any drift between the SQL function and the TS type
+            // would arrive as `undefined` inside widgets and render as blanks or
+            // NaN. Failing here instead routes through the same path as any other
+            // RPC error: reported to Sentry, and the page falls back to the local
+            // engine, which announces itself (ENG-D1).
+            const parsed = dashboardMetricsSchema.safeParse(data);
+            if (!parsed.success) {
+                const contractError = new Error(
+                    `get_dashboard_metrics returned an unexpected shape: ${parsed.error.issues
+                        .slice(0, 5)
+                        .map((i) => `${i.path.join(".")} ${i.message}`)
+                        .join("; ")}`,
+                );
+                diag.error(`[Diag:RQ:Metrics] contract mismatch — ${contractError.message}`);
+                Sentry.captureException(contractError, {
+                    tags: { area: "dashboard", rpc: "get_dashboard_metrics", range, kind: "contract" },
+                    extra: { issues: parsed.error.issues.slice(0, 20) },
+                });
+                throw contractError;
+            }
+
+            return parsed.data as unknown as DashboardMetrics;
         },
         // Same auth gate as orders: wait for the client's session to be ready.
         enabled: !!session && clientReady,
