@@ -17,6 +17,7 @@ import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card"
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
+import { reportOrderError } from "@/lib/order-telemetry";
 
 const OrderDetailsModal = withOrderModalBoundary(
     "OrderDetailsModal",
@@ -641,8 +642,15 @@ export default function OrdersPage() {
                 // Order was deleted or doesn't exist
                 toast.error("Order not found", "This order may have been deleted.");
             }
-        } catch {
-            // Network or DB error — open modal with the data we already have
+        } catch (err) {
+            // Falling back to the list row is better than refusing to open, but
+            // it was previously silent: the operator edited a possibly-stale
+            // record with no idea the refresh had failed.
+            reportOrderError(err, { operation: "orders-view-details-fetch", orderId: order.id });
+            toast.warning(
+                "Showing the last known details",
+                "This order could not be refreshed, so it may be out of date.",
+            );
             setSelectedOrder(order);
             setIsModalOpen(true);
         }
@@ -660,7 +668,13 @@ export default function OrdersPage() {
             } else {
                 setSelectedOrder(order);
             }
-        } catch {
+        } catch (err) {
+            // Same silent-stale path as handleViewDetails, reached from the table.
+            reportOrderError(err, { operation: "orders-select-order-fetch", orderId: order.id });
+            toast.warning(
+                "Showing the last known details",
+                "This order could not be refreshed, so it may be out of date.",
+            );
             setSelectedOrder(order);
         }
     }, [setSelectedOrder]);
@@ -1155,6 +1169,15 @@ export default function OrdersPage() {
         const companyLabel = company === 'prime' ? 'Prime' : 'Al-Waseet';
 
         try {
+            // Generate the file before recording the batch. The batch row used to
+            // be inserted first, so an export that threw left a committed row
+            // claiming a shipment that never left.
+            if (company === 'prime') {
+                await exportOrdersToPrimeCSV(ids, ordersToExport);
+            } else {
+                await exportOrdersToWaseetXLSX(ids, ordersToExport);
+            }
+
             const batchName = `${companyLabel} Export ${new Date().toLocaleDateString('en-GB')}`;
             const { success: batchSuccess, error: batchError } = await createBatch(
                 batchName,
@@ -1163,29 +1186,32 @@ export default function OrdersPage() {
                 "invoice"
             );
 
+            // Capture previous statuses for undo capability
+            const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
+            setSelectedOrders(new Set());
+
             if (batchSuccess) {
-                if (company === 'prime') {
-                    await exportOrdersToPrimeCSV(ids, ordersToExport);
-                } else {
-                    await exportOrdersToWaseetXLSX(ids, ordersToExport);
-                }
-
-                // Capture previous statuses for undo capability
-                const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
-                setSelectedOrders(new Set());
-
                 toast.success(
                     "Export successful",
                     `${ids.length} orders exported via ${companyLabel}`,
                 );
-
-                // Prompt to move the exported orders to In Transit
-                setPendingTransitIds(ids);
-                setPendingTransitPrevStatuses(previousStatuses);
-                setMoveTransitOpen(true);
             } else {
-                throw new Error(batchError || "Failed to create export batch");
+                // The file is already in the operator's hands, so this is not an
+                // export failure — say exactly what did and did not happen.
+                reportOrderError(new Error(batchError || "Failed to create export batch"), {
+                    operation: "orders-ship-export-batch-record",
+                    extra: { company, orderCount: ids.length },
+                });
+                toast.warning(
+                    "Exported, but not recorded",
+                    `${ids.length} orders were exported via ${companyLabel}. The batch record could not be saved.`,
+                );
             }
+
+            // Prompt to move the exported orders to In Transit
+            setPendingTransitIds(ids);
+            setPendingTransitPrevStatuses(previousStatuses);
+            setMoveTransitOpen(true);
         } catch (err) {
             toast.error(
                 "Export failed",

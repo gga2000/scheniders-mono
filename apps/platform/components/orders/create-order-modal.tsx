@@ -12,6 +12,7 @@ import { Input } from "@scheniders/ui/input";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Label } from "@scheniders/ui/label";
 import { formatIQD, cn } from "@/lib/utils";
+import { toWholeIqd } from "@/lib/order-money";
 import { getAllGovernorateCodes } from "@/lib/address-validator";
 import {
     calculateTotal,
@@ -1041,7 +1042,7 @@ export function CreateOrderModal({
                                                             <Input
                                                                 type="number"
                                                                 value={item.price}
-                                                                onChange={(e) => updateItem(index, "price", parseFloat(e.target.value) || 0)}
+                                                                onChange={(e) => updateItem(index, "price", toWholeIqd(e.target.value))}
                                                                 className="w-20 h-5 text-[10px] px-1.5 rounded border-green-300"
                                                                 autoFocus
                                                                 onBlur={() => setEditingPriceIndex(null)}
@@ -1122,7 +1123,7 @@ export function CreateOrderModal({
                                                 type="number"
                                                 min="0"
                                                 value={discount}
-                                                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                                onChange={(e) => setDiscount(toWholeIqd(e.target.value))}
                                                 className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right"
                                                 placeholder="0"
                                             />
@@ -1146,7 +1147,7 @@ export function CreateOrderModal({
                                                         type="number"
                                                         min="0"
                                                         value={deliveryFee}
-                                                        onChange={(e) => setDeliveryFee(parseFloat(e.target.value) || 0)}
+                                                        onChange={(e) => setDeliveryFee(toWholeIqd(e.target.value))}
                                                         className="w-20 h-6 rounded border-blue-200 bg-white text-[10px] font-mono text-right"
                                                     />
                                                 )}
@@ -1162,8 +1163,8 @@ export function CreateOrderModal({
                                                     min="0"
                                                     value={total}
                                                     onChange={(e) => {
-                                                        const newTotal = parseFloat(e.target.value) || 0;
-                                                        const newDiscount = Math.max(0, subtotal + actualDeliveryFee - newTotal);
+                                                        const newTotal = toWholeIqd(e.target.value);
+                                                        const newDiscount = Math.max(0, Math.round(subtotal + actualDeliveryFee - newTotal));
                                                         setDiscount(newDiscount);
                                                     }}
                                                     className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right font-bold text-green-700"

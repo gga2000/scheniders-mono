@@ -43,3 +43,18 @@ export function computeCodAmount(order: OrderMoneyFields): number {
     // here would deduct it twice.
     return Math.max(0, Math.round(price + deliveryFee));
 }
+
+/**
+ * Round a money input to a whole IQD amount.
+ *
+ * The dinar has no circulating subunit, so a fractional amount is never a real
+ * price — it is a mistyped or pasted value. Rounding at the input boundary keeps
+ * fractions out of the database rather than letting them propagate into totals,
+ * exports and the courier payload. Non-numeric or negative input becomes 0,
+ * matching what the `parseFloat(...) || 0` at these inputs already did.
+ */
+export function toWholeIqd(value: unknown): number {
+    const parsed = typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
+    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+    return Math.round(parsed);
+}

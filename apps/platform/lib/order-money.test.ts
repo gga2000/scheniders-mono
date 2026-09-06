@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeCodAmount } from "./order-money";
+import { computeCodAmount, toWholeIqd } from "./order-money";
 
 // Canonical convention, established from live data (2026-08-22):
 //   orders.price = line-item subtotal MINUS discount  (delivery NOT included)
@@ -43,5 +43,31 @@ describe("computeCodAmount", () => {
 
     it("never returns a negative amount", () => {
         expect(computeCodAmount({ price: -5000, delivery_fee: 0 })).toBe(0);
+    });
+});
+
+describe("toWholeIqd", () => {
+    it("rounds a fractional amount to whole dinars", () => {
+        expect(toWholeIqd(1000.4)).toBe(1000);
+        expect(toWholeIqd(1000.5)).toBe(1001);
+        expect(toWholeIqd("12500.75")).toBe(12501);
+    });
+
+    it("leaves a whole amount untouched", () => {
+        expect(toWholeIqd(25000)).toBe(25000);
+        expect(toWholeIqd("25000")).toBe(25000);
+    });
+
+    it("treats empty, non-numeric and negative input as zero, as the inputs did before", () => {
+        expect(toWholeIqd("")).toBe(0);
+        expect(toWholeIqd("abc")).toBe(0);
+        expect(toWholeIqd(null)).toBe(0);
+        expect(toWholeIqd(undefined)).toBe(0);
+        expect(toWholeIqd(Number.NaN)).toBe(0);
+        expect(toWholeIqd(-5)).toBe(0);
+    });
+
+    it("ignores a value that cannot be a price", () => {
+        expect(toWholeIqd(Number.POSITIVE_INFINITY)).toBe(0);
     });
 });
