@@ -10,7 +10,7 @@ import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/hooks/use-auth";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
-import { Plus, Bell, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { MobileDashboardCards } from "./MobileDashboardCards";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
@@ -66,19 +66,7 @@ export function MobileDashboardPage() {
                     <h1 className="text-2xl font-bold text-foreground tracking-tight">
                         {getGreeting()}{profile?.display_name ? `, ${profile.display_name}` : ''}
                     </h1>
-                    <div className="flex gap-2">
-                        <button className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
-                            <Search className="w-4 h-4" />
-                        </button>
-                        <button className="relative w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
-                            <Bell className="w-4 h-4" />
-                            {stats.newOrders > 0 && (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--pastel-pink)] text-[8px] font-bold text-rose-900 flex items-center justify-center">
-                                    {stats.newOrders > 99 ? '99+' : stats.newOrders}
-                                </span>
-                            )}
-                        </button>
-                    </div>
+                    {/* DV-D2: dead Search/Bell duplicates removed — see app/page.tsx. */}
                 </div>
                 <p className="text-muted text-sm border-l-2 border-[var(--primary)] pl-2">
                     {t("dashboard.subtitle")}

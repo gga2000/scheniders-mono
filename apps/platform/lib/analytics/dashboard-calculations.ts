@@ -204,8 +204,9 @@ export function calculateFunnelMetrics(orders: Order[]): FunnelStep[] {
 // Customer Cohort Retention - REMOVED (no longer used)
 // This feature has been removed per user request
 
-// Profit Pulse - MOVED to /lib/analytics/profit-calculations.ts
-// Use calculateProfitPulse from profit-calculations.ts for accurate net profit calculations
+// Profit Pulse - REMOVED along with profit-calculations.ts (ARCH-D1): the file had
+// no importer, and its cost model (2000 delivery / 1000 packaging / 500 vials flat)
+// contradicted the live one in use-order-profits.ts.
 
 // =============================================
 // Leaderboard Metrics
