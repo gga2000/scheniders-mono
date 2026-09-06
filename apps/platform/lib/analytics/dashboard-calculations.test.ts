@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
     calculateEnhancedLeaderboard,
+    calculateDeliverySuccessRate,
+    calculateWeekOverWeek,
+    calculateStaffLeaderboard,
     isDashboardOrder,
 } from "./dashboard-calculations";
 import type { Order } from "@/lib/supabase";
@@ -98,5 +101,42 @@ describe("COR-D5 — abandoned checkouts and soft-deleted rows are not orders", 
     it("keeps ordinary orders", () => {
         expect(isDashboardOrder(order({ status: "delivered" }))).toBe(true);
         expect(isDashboardOrder(order({ status: "new" }))).toBe(true);
+    });
+});
+
+describe("COR-D7 — a rate with nothing behind it is not 0%", () => {
+    const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString();
+
+    it("THE BUG: a quiet week reports no data, not a catastrophic 0%", () => {
+        // A long delivery history, but nothing terminal inside the 7-day window.
+        const orders = [order({ status: "delivered", updated_at: daysAgo(60), created_at: daysAgo(60) })];
+        const { currentRate, trend } = calculateDeliverySuccessRate(orders);
+        expect(currentRate).toBeNull();
+        expect(trend).toBeNull();
+    });
+
+    it("still reports a real rate when the window has terminal orders", () => {
+        const orders = [
+            order({ status: "delivered", updated_at: daysAgo(1), created_at: daysAgo(2) }),
+            order({ id: "o2", status: "rejected", updated_at: daysAgo(1), created_at: daysAgo(2) }),
+        ];
+        expect(calculateDeliverySuccessRate(orders).currentRate).toBe(50);
+    });
+
+    it("week-over-week delivery rate is null rather than 0 when nothing is terminal", () => {
+        const orders = [order({ status: "new", created_at: daysAgo(1), updated_at: daysAgo(1) })];
+        const rate = calculateWeekOverWeek(orders).find(m => m.label === "Delivery Rate")!;
+        expect(rate.current).toBeNull();
+        expect(rate.delta).toBeNull();
+    });
+});
+
+describe("COR-D6 — the fallback engine does not guess at staff performance", () => {
+    it("returns nothing rather than ranking people by last-toucher (bots included)", () => {
+        const orders = [
+            order({ last_status_changed_by_name: "WhatsApp Bot", updated_at: new Date().toISOString() }),
+            order({ id: "o2", last_status_changed_by_name: "System", updated_at: new Date().toISOString() }),
+        ];
+        expect(calculateStaffLeaderboard(orders)).toEqual([]);
     });
 });

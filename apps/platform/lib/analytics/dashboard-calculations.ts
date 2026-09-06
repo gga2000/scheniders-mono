@@ -383,20 +383,24 @@ export function calculatePeakHoursHeatmap(orders: Order[]): HeatmapCell[] {
 // Delivery Success Rate
 // =============================================
 export interface DeliveryRateMetrics {
-    currentRate: number;
-    sparkline: { day: string; rate: number }[];
-    trend: number;       // delta vs previous 7d (percentage points)
+    /** null when no terminal orders fell in the window — "no data", not 0%. (COR-D7) */
+    currentRate: number | null;
+    sparkline: { day: string; rate: number | null }[];
+    /** null when either side of the comparison has no data. */
+    trend: number | null;
 }
 
 export function calculateDeliverySuccessRate(orders: Order[]): DeliveryRateMetrics {
     const now = new Date();
 
-    const rateForWindow = (start: Date, end: Date): number => {
+    // COR-D7: an empty window has no rate. Returning 0 rendered a catastrophic
+    // "0% delivery rate" for a merchant who simply had a quiet week.
+    const rateForWindow = (start: Date, end: Date): number | null => {
         const window = orders.filter(o => {
             const d = new Date(o.updated_at || o.created_at);
             return d >= start && d < end && ['delivered', 'completed', 'rejected'].includes(o.status);
         });
-        if (!window.length) return 0;
+        if (!window.length) return null;
         const success = window.filter(o => ['delivered', 'completed'].includes(o.status)).length;
         return Math.round((success / window.length) * 100);
     };
@@ -417,7 +421,8 @@ export function calculateDeliverySuccessRate(orders: Order[]): DeliveryRateMetri
     const currentRate = rateForWindow(currentPeriodStart, now);
     const prevRate = rateForWindow(prevPeriodStart, currentPeriodStart);
 
-    return { currentRate, sparkline, trend: currentRate - prevRate };
+    const trend = currentRate === null || prevRate === null ? null : currentRate - prevRate;
+    return { currentRate, sparkline, trend };
 }
 
 // =============================================
@@ -475,9 +480,10 @@ export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
 // =============================================
 export interface WowMetric {
     label: string;
-    current: number;
-    previous: number;
-    delta: number;
+    /** null when the metric has no data for the window (COR-D7). */
+    current: number | null;
+    previous: number | null;
+    delta: number | null;
     deltaPct: number | null;
     isFinancial: boolean;
     unit?: string;
@@ -494,9 +500,9 @@ export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
         return d >= twoWeeksAgo && d < weekAgo;
     });
 
-    const deliveryRate = (set: Order[]) => {
+    const deliveryRate = (set: Order[]): number | null => {
         const terminal = set.filter(o => ['delivered', 'completed', 'rejected'].includes(o.status));
-        if (!terminal.length) return 0;
+        if (!terminal.length) return null;   // COR-D7
         return Math.round((terminal.filter(o => ['delivered', 'completed'].includes(o.status)).length / terminal.length) * 100);
     };
 
@@ -526,7 +532,7 @@ export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
             label: 'Delivery Rate',
             current: currRate,
             previous: prevRate,
-            delta: currRate - prevRate,
+            delta: currRate === null || prevRate === null ? null : currRate - prevRate,
             deltaPct: null,
             isFinancial: false,
             unit: '%',
@@ -651,27 +657,18 @@ export interface StaffEntry {
     rank: number;
 }
 
-export function calculateStaffLeaderboard(orders: Order[]): StaffEntry[] {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const stats: Record<string, { today: number; week: number }> = {};
-
-    orders.forEach(o => {
-        const name = o.last_status_changed_by_name;
-        if (!name || name.trim() === '') return;
-        if (!stats[name]) stats[name] = { today: 0, week: 0 };
-
-        const updated = new Date(o.updated_at || o.created_at);
-        if (updated >= todayStart) stats[name].today++;
-        if (updated >= weekStart) stats[name].week++;
-    });
-
-    return Object.entries(stats)
-        .map(([name, s]) => ({ name, ordersToday: s.today, ordersThisWeek: s.week, rank: 0 }))
-        .filter(e => e.ordersThisWeek > 0)
-        .sort((a, b) => b.ordersToday - a.ordersToday || b.ordersThisWeek - a.ordersThisWeek)
-        .slice(0, 8)
-        .map((e, i) => ({ ...e, rank: i + 1 }));
+/**
+ * COR-D6. Staff performance is attributed from `activity_logs` (`order.status_change`
+ * grouped by user_id) in `get_dashboard_metrics` — the same source payroll uses.
+ *
+ * This client fallback deliberately returns nothing. It only has the orders list,
+ * whose `last_status_changed_by_name` is free text that (a) credits solely the
+ * LATEST toucher, (b) merges/splits people on a rename, (c) includes non-human
+ * actors — the audited tenant's board was topped by "WhatsApp Bot", with "System"
+ * on 1,397 orders — and (d) windows on `updated_at`, which platform writes never
+ * bump (COR-D4). Ranking real people by that is worse than showing nothing, so
+ * when the server metrics are unavailable the widget shows its no-activity state.
+ */
+export function calculateStaffLeaderboard(_orders: Order[]): StaffEntry[] {
+    return [];
 }

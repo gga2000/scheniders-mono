@@ -95,7 +95,7 @@ export default function Home() {
   // the SQL function matches before fully retiring the client path.
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development' || !serverMetrics || !clientMetrics) return;
-    const cmp: Array<[string, number, number]> = [
+    const cmp: Array<[string, number | null, number | null]> = [
       ['pipeline.new', serverMetrics.pipeline.find(p => p.status === 'new')?.count ?? -1, clientMetrics.pipeline.find(p => p.status === 'new')?.count ?? -1],
       ['todayStrip.ordersToday', serverMetrics.todayStrip.ordersToday, clientMetrics.todayStrip.ordersToday],
       ['funnel.total', serverMetrics.funnel[0]?.value ?? -1, clientMetrics.funnel[0]?.value ?? -1],
