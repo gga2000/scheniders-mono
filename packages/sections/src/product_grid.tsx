@@ -13,16 +13,19 @@ import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import {
   BentoCard,
+  CenteredSectionHeader,
   MaterialIcon,
+  PRESSABLE,
   Section,
   SectionHeader,
+  Stars,
   Sticker,
 } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { SchneidersProductCard } from "./helpers/product-card";
 import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
-import { formatPrice } from "./helpers/format";
+import { formatPrice, formatCount } from "./helpers/format";
 import { cn } from "./helpers/utils";
 import type { Product } from "./types";
 import { i18nStringOptional } from "./_schema";
@@ -48,14 +51,14 @@ const schema = z.object({
   // pre-existing stored config keeps parsing — and keeps rendering — exactly
   // as before) -----------------------------------------------------------
   /** "standard" = the original bento card grid (default, zero visual change).
-   *  "price_pill" = soft rounded photo card, white price pill overlaid at the
-   *  photo bottom, product name centered below the card. */
+   *  "price_pill" = soft rounded photo card, surface price pill overlaid at
+   *  the photo bottom, product name centered below the card. */
   card_style: z.enum(["standard", "price_pill"]).default("standard"),
   /** Small rounded chip rendered above the heading (price_pill header only). */
   eyebrow_i18n: i18nStringOptional,
   /** Muted line under the heading (price_pill header only). */
   subheading_i18n: i18nStringOptional,
-  /** "See all" pill under the header (price_pill only) — hidden without a href. */
+  /** "See all" pill after the grid (price_pill only) — hidden without a href. */
   see_all_label_i18n: i18nStringOptional,
   see_all_href: z.string().optional(),
   /** Star row under each product name (price_pill only). Off by default.
@@ -130,36 +133,29 @@ function selectProducts(props: Props, ctx: SectionRenderContext): Product[] {
   return selectAuto(ctx.products, props.query);
 }
 
+/** Localised "N products" for the category hero count sticker. */
+function productCountLabel(count: number, locale: LocaleCode): string {
+  return formatCount(count, locale, {
+    one: locale === "en" ? "1 product" : "منتج واحد",
+    two: "منتجان",
+    few: "{count} منتجات",
+    many: "{count} منتجاً",
+    other: locale === "en" ? "{count} products" : "{count} منتج",
+  });
+}
+
 /* ---- price_pill card --------------------------------------------------- */
 
-const FIVE_STARS = [0, 1, 2, 3, 4] as const;
-
-/** Real per-product rating row: stars filled to the rounded average of the
- *  product's approved reviews (whole-star rounding, matching the
- *  product_reviews section) + a small "(N)" review count. Callers only
- *  render it when `review_count > 0` — never as decoration. */
+/** Real per-product rating row: the shared `Stars` primitive filled to the
+ *  rounded average of the product's approved reviews + a small "(N)" review
+ *  count. Callers only render it when `review_count > 0` — never as
+ *  decoration. */
 function StarRow({ rating, count }: { rating: number; count: number }) {
-  const filled = Math.min(5, Math.max(0, Math.round(rating)));
   return (
-    <div
-      aria-label={`${rating.toFixed(1)} / 5`}
-      className="mt-1 flex items-center justify-center gap-0.5"
-      style={{ color: "var(--bk-ink, #1a1a1a)" }}
-    >
-      {FIVE_STARS.map((i) => (
-        <svg
-          key={i}
-          aria-hidden="true"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          className="h-3 w-3"
-          style={i >= filled ? { opacity: 0.25 } : undefined}
-        >
-          <path d="M10 1.7l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.32 5.06 16.91 6 11.41 2 7.51l5.53-.8L10 1.7z" />
-        </svg>
-      ))}
+    <div className="mt-1 flex items-center justify-center gap-1">
+      <Stars value={rating} size={12} label={`${rating.toFixed(1)} / 5`} />
       <span
-        className="ms-0.5 text-[11px] font-medium"
+        className="text-[11px] font-medium tabular-nums"
         style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.55))" }}
       >
         ({count})
@@ -169,12 +165,12 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
 }
 
 /**
- * Soft rounded product card ("price_pill" style): the photo fills a white
- * rounded card, a white pill overlays the photo bottom (bold sale price +
+ * Soft rounded product card ("price_pill" style): the photo fills a surface
+ * rounded card, a surface pill overlays the photo bottom (bold sale price +
  * smaller struck compare-at), and the name sits centered BELOW the card.
  * Entirely brand-kit-token driven — no candy/bento chrome.
  */
-function PricePillCard({
+export function PricePillCard({
   product,
   locale,
   priority = false,
@@ -194,7 +190,7 @@ function PricePillCard({
   return (
     <StoreLink
       href={`/products/${product.slug ?? product.id}`}
-      className="group block"
+      className={cn("group block", PRESSABLE)}
     >
       <div
         className="p-2"
@@ -219,14 +215,28 @@ function PricePillCard({
               priority={priority}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className={cn(
-                "object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]",
+                "object-cover transition-transform duration-300 ease-out motion-reduce:transition-none group-hover:scale-[1.04]",
                 !inStock && "opacity-60 grayscale",
               )}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center font-bold text-sm uppercase text-bk-ink-faint">
+            <div className="absolute inset-0 flex items-center justify-center font-bold text-sm bk-caps text-bk-ink-faint">
               {t ? "لا توجد صورة" : "No image"}
             </div>
+          )}
+          {/* Sold-out chip — greying the photo alone was too subtle. */}
+          {!inStock && (
+            <span
+              className="absolute start-2 top-2 inline-flex items-center px-2.5 py-1 font-label text-[11px] font-bold"
+              style={{
+                backgroundColor: "var(--bk-ink, #1a1a1a)",
+                color: "var(--bk-surface, #ffffff)",
+                borderRadius: "var(--bk-radius-pill, 9999px)",
+                fontFamily: "var(--bk-font-body, inherit)",
+              }}
+            >
+              {t ? "نفد المخزون" : "Sold out"}
+            </span>
           )}
           {/* Price pill — bold sale price + smaller struck compare-at. */}
           <div className="absolute inset-x-0 bottom-2 flex justify-center px-2">
@@ -234,11 +244,12 @@ function PricePillCard({
               className="inline-flex max-w-full items-baseline gap-1.5 rounded-full px-3 py-1.5"
               style={{
                 backgroundColor: "var(--bk-surface, #ffffff)",
-                boxShadow: "0 2px 8px rgb(26 26 26 / 0.12)",
+                boxShadow:
+                  "var(--bk-shadow-button, 0 2px 8px rgb(26 26 26 / 0.12))",
               }}
             >
               <span
-                className="whitespace-nowrap text-sm font-black"
+                className="whitespace-nowrap text-sm font-black tabular-nums"
                 style={{
                   color: "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-display, inherit)",
@@ -248,7 +259,7 @@ function PricePillCard({
               </span>
               {onSale && (
                 <span
-                  className="whitespace-nowrap text-[11px] font-medium line-through"
+                  className="whitespace-nowrap text-[11px] font-medium line-through tabular-nums"
                   style={{
                     color: "var(--bk-ink-soft, rgb(26 26 26 / 0.55))",
                     fontFamily: "var(--bk-font-body, inherit)",
@@ -262,7 +273,7 @@ function PricePillCard({
         </div>
       </div>
       <h3
-        className="mt-bk-sm px-1 text-center text-sm font-bold leading-tight line-clamp-2 sm:text-base"
+        className="mt-bk-sm px-1 text-center text-sm font-bold leading-tight line-clamp-2 text-balance sm:text-base"
         style={{
           color: "var(--bk-ink, #1a1a1a)",
           fontFamily: "var(--bk-font-body, inherit)",
@@ -298,6 +309,14 @@ function ProductGridRender({
   const category = ctx.category;
   const catCount = category ? ctx.products.length : 0;
 
+  // `priority` preloads an image and competes with the hero for bandwidth
+  // (the home page was preloading 7). Only the first two cards get it, and
+  // only where the grid is the page's lead content — category and search
+  // pages open on the grid; home / PDP / thank-you have a hero or buy box
+  // above it. (Sections don't receive their index from RenderPage.)
+  const leadSection = Boolean(category) || ctx.runtime.page_id === "search";
+  const cardPriority = (i: number) => leadSection && i < 2;
+
   // On a category page the grid is the full category catalogue (filterable +
   // paginated client-side); on the home/curated case it's the limited query.
   if ((category ? ctx.products.length : items.length) === 0) return null;
@@ -317,8 +336,11 @@ function ProductGridRender({
       <Section>
         {category ? (
           <div className="mb-bk-lg">
-            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
-              <StoreLink href="/" className="hover:text-bk-primary">
+            <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
+              <StoreLink
+                href="/"
+                className="inline-flex min-h-11 items-center hover:text-bk-primary active:opacity-60"
+              >
                 {t ? "الرئيسية" : "Home"}
               </StoreLink>
               <span className="text-bk-primary mx-1">›</span>
@@ -332,7 +354,7 @@ function ProductGridRender({
               }}
             >
               <h1
-                className="text-3xl font-black leading-tight sm:text-4xl"
+                className="text-bk-h1 font-black text-balance"
                 style={{
                   color: "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-display, inherit)",
@@ -342,7 +364,7 @@ function ProductGridRender({
               </h1>
               {category.description && (
                 <p
-                  className="mt-bk-xs max-w-prose text-sm"
+                  className="mt-bk-xs max-w-prose text-sm text-pretty"
                   style={{
                     color: "var(--bk-ink-soft, rgb(26 26 26 / 0.6))",
                     fontFamily: "var(--bk-font-body, inherit)",
@@ -354,66 +376,16 @@ function ProductGridRender({
             </div>
           </div>
         ) : (
-          (eyebrow || heading || subheading || props.see_all_href) && (
-            <div className="mb-bk-lg flex flex-col items-center gap-bk-sm text-center">
-              {eyebrow && (
-                <span
-                  data-i18n-field="eyebrow_i18n"
-                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold"
-                  style={{
-                    backgroundColor:
-                      "color-mix(in srgb, var(--bk-accent, #ffd84a) 12%, transparent)",
-                    color: "var(--bk-ink, #1a1a1a)",
-                    fontFamily: "var(--bk-font-body, inherit)",
-                  }}
-                >
-                  {eyebrow}
-                </span>
-              )}
-              {heading && (
-                <h2
-                  data-i18n-field="heading_i18n"
-                  className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl"
-                  style={{
-                    color: "var(--bk-ink, #1a1a1a)",
-                    fontFamily: "var(--bk-font-display, inherit)",
-                  }}
-                >
-                  {heading}
-                </h2>
-              )}
-              {subheading && (
-                <p
-                  data-i18n-field="subheading_i18n"
-                  className="max-w-prose text-sm sm:text-base"
-                  style={{
-                    color: "var(--bk-ink-soft, rgb(26 26 26 / 0.6))",
-                    fontFamily: "var(--bk-font-body, inherit)",
-                  }}
-                >
-                  {subheading}
-                </p>
-              )}
-              {props.see_all_href && (
-                <StoreLink
-                  href={props.see_all_href}
-                  data-i18n-field="see_all_label_i18n"
-                  className="mt-bk-xs inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-shadow hover:shadow-md"
-                  style={{
-                    backgroundColor: "var(--bk-surface, #ffffff)",
-                    color: "var(--bk-ink, #1a1a1a)",
-                    fontFamily: "var(--bk-font-body, inherit)",
-                    boxShadow:
-                      "var(--bk-shadow-card, 0 4px 16px rgb(26 26 26 / 0.08))",
-                  }}
-                >
-                  <span className="underline underline-offset-4">
-                    {seeAllLabel ?? (t ? "شوفهم كلهم" : "See all")}
-                  </span>
-                  <MaterialIcon name="arrow_forward" className="text-base" />
-                </StoreLink>
-              )}
-            </div>
+          (eyebrow || heading || subheading) && (
+            <CenteredSectionHeader
+              eyebrow={eyebrow}
+              title={heading}
+              subtitle={subheading}
+              glyph="sparkle"
+              eyebrowField="eyebrow_i18n"
+              titleField="heading_i18n"
+              subtitleField="subheading_i18n"
+            />
           )
         )}
         <div
@@ -426,11 +398,37 @@ function ProductGridRender({
               key={product.id}
               product={product}
               locale={locale}
-              priority={i < 4}
+              priority={cardPriority(i)}
               showStars={props.show_stars === true}
             />
           ))}
         </div>
+        {/* "See all" lands after the cards: the natural next step once the
+            shopper has scanned the curated set. */}
+        {!category && props.see_all_href && (
+          <div className="mt-bk-lg flex justify-center">
+            <StoreLink
+              href={props.see_all_href}
+              data-i18n-field="see_all_label_i18n"
+              className={cn(
+                "inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2 text-sm font-bold",
+                PRESSABLE,
+              )}
+              style={{
+                backgroundColor: "var(--bk-surface, #ffffff)",
+                color: "var(--bk-ink, #1a1a1a)",
+                fontFamily: "var(--bk-font-body, inherit)",
+                boxShadow:
+                  "var(--bk-shadow-card, 0 4px 16px rgb(26 26 26 / 0.08))",
+              }}
+            >
+              <span className="underline underline-offset-4">
+                {seeAllLabel ?? (t ? "شوفهم كلهم" : "See all")}
+              </span>
+              <MaterialIcon name="arrow_forward" className="text-base" />
+            </StoreLink>
+          </div>
+        )}
       </Section>
     );
   }
@@ -440,28 +438,41 @@ function ProductGridRender({
       {category ? (
         <>
           <div className="mb-bk-lg">
-            <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
-              <StoreLink href="/" className="hover:text-bk-primary">
+            <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
+              <StoreLink
+                href="/"
+                className="inline-flex min-h-11 items-center hover:text-bk-primary active:opacity-60"
+              >
                 {t ? "الرئيسية" : "Home"}
               </StoreLink>
               <span className="text-bk-primary mx-1">›</span>
               {category.name}
             </p>
-            <BentoCard bg="mint" size="md" rotate={1} className="p-bk-lg sm:p-bk-xl">
+            <BentoCard
+              bg="mint"
+              size="md"
+              rotate={1}
+              className="p-bk-lg sm:p-bk-xl"
+            >
               <Sticker bg="pink" rotate={-4} size="xs" className="mb-bk-sm">
                 {t ? "اكتشف المجموعة" : "Step into color"}
               </Sticker>
-              <h1 className="font-display font-black text-3xl sm:text-4xl uppercase leading-tight">
+              <h1 className="font-display font-black text-bk-h1 bk-caps text-balance">
                 {category.name}
               </h1>
               {category.description && (
-                <p className="font-body font-bold text-sm mt-bk-xs max-w-[85%]">
+                <p className="font-body font-bold text-sm mt-bk-xs max-w-[85%] text-pretty">
                   {category.description}
                 </p>
               )}
               <div className="mt-bk-md">
-                <Sticker bg="butter" rotate={3} size="xs">
-                  {t ? `${catCount} منتج` : `${catCount} product${catCount === 1 ? "" : "s"}`}
+                <Sticker
+                  bg="butter"
+                  rotate={3}
+                  size="xs"
+                  className="tabular-nums"
+                >
+                  {productCountLabel(catCount, locale)}
                 </Sticker>
               </div>
             </BentoCard>
@@ -475,7 +486,10 @@ function ProductGridRender({
       ) : (
         <>
           {heading && (
-            <SectionHeader title={heading} color={props.scribble_color ?? "butter"} />
+            <SectionHeader
+              title={heading}
+              color={props.scribble_color ?? "butter"}
+            />
           )}
           <div
             data-layer="cards"
@@ -487,7 +501,7 @@ function ProductGridRender({
                 key={product.id}
                 product={product}
                 index={i}
-                priority={i < 4}
+                priority={cardPriority(i)}
                 whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
                 locale={ctx.runtime.locale}
               />

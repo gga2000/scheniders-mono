@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import {
@@ -85,14 +86,6 @@ export default async function TenantLayout({ params, children }: Props) {
     ["--brand-spacing" as string]: spacingMap[dt?.spacing || "comfortable"],
     ["--brand-shadow" as string]: shadowMap[dt?.shadows || "subtle"],
   };
-
-  // Build Google Fonts URL if custom fonts are set
-  const fontFamilies: string[] = [];
-  if (dt?.fonts?.heading) fontFamilies.push(dt.fonts.heading);
-  if (dt?.fonts?.body && dt.fonts.body !== dt.fonts.heading) fontFamilies.push(dt.fonts.body);
-  const googleFontsUrl = fontFamilies.length > 0
-    ? `https://fonts.googleapis.com/css2?${fontFamilies.map((f) => `family=${f.replace(/\s/g, "+")}:wght@400;500;600;700`).join("&")}&display=swap`
-    : null;
 
   const schn = resolveSchneidersConfig(tenant.store_config?.schneiders);
 
@@ -185,6 +178,9 @@ export default async function TenantLayout({ params, children }: Props) {
   // pairing as the MAIN font vars ([D3]).
   const bkVars = buildBrandKitVars(brandKit, { locale: currentLocale });
   const bkMotion: "auto" | "reduce" = brandKit.motion?.enabled === false ? "reduce" : "auto";
+  // Calm kits (no rotation) drop the Candy uppercase treatment — see
+  // `.bk-caps` in globals.css.
+  const bkExpressive = brandKit.shape?.rotation_intensity !== "none";
   const bkFontsUrl = buildBrandKitFontsUrl(brandKit);
 
   // Schneiders-specific CSS vars (accent pair + wedge intensity) emitted on
@@ -221,14 +217,12 @@ export default async function TenantLayout({ params, children }: Props) {
   return (
     <StoreBaseProvider base={storeBase}>
       <CartHydrator />
-      {googleFontsUrl && (
-         
-        <link rel="stylesheet" href={googleFontsUrl} />
-      )}
-      {bkFontsUrl && (
-         
-        <link rel="stylesheet" href={bkFontsUrl} />
-      )}
+      {/* Single Google Fonts request for the kit's non-self-hosted faces.
+          The legacy design_tokens fonts already flow into the derived kit
+          (typography.display/body), so a second URL for them was a duplicate
+          render-blocking stylesheet (RC3). Cairo / Noto Sans Arabic /
+          Bricolage / DM Sans come from next/font in the root layout. */}
+      {bkFontsUrl && <link rel="stylesheet" href={bkFontsUrl} />}
       {(() => {
         const rawCustomCss = v2?.custom_css ?? tenant.store_config?.custom_css;
         return rawCustomCss ? (
@@ -250,6 +244,7 @@ export default async function TenantLayout({ params, children }: Props) {
       />
       <div
         data-bk-motion={bkMotion}
+        data-bk-expressive={bkExpressive ? "true" : "false"}
         style={{
           ...brandVars,
           ...schnVars,
@@ -279,6 +274,36 @@ export default async function TenantLayout({ params, children }: Props) {
       <SchneidersNewsletterPopup config={schn.newsletter_popup} />
     </StoreBaseProvider>
   );
+}
+
+/**
+ * P2-28: without a viewport export Next emits the bare default, so
+ * `env(safe-area-inset-*)` resolves to 0 (no `viewport-fit=cover`) and the
+ * browser chrome never picks up the brand surface. Zoom stays enabled.
+ * The tenant resolver is React-`cache`d, so this shares the layout's lookup.
+ */
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Viewport> {
+  const { tenant: tenantParam } = await params;
+  const tenant = await resolveTenant(tenantParam);
+  // Same precedence as the layout's brand-kit fallback chain: V2 kit surface,
+  // then the legacy design_tokens background, then the neutral kit default.
+  const v2Surface = (
+    tenant as (Tenant & { store_config_v2?: StoreConfigV2 | null }) | null
+  )?.store_config_v2?.brand_kit?.colors?.surface;
+  const themeColor =
+    v2Surface ??
+    tenant?.store_config?.design_tokens?.colors?.background ??
+    EMPTY_BRAND_KIT.colors.surface;
+  return {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+    themeColor,
+  };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ tenant: string }> }) {

@@ -47,9 +47,18 @@ export const WHATSAPP_CTA = {
  */
 export function commercePages(
     s: SectionFactory,
+    opts: {
+        /** Product card style for the search + thank-you grids, so a
+         *  template that uses `price_pill` on its own grids doesn't fall
+         *  back to the Candy Bento card on these two pages. */
+        productCardStyle?: "price_pill";
+    } = {},
 ): Partial<Record<PageId, SectionInstance[]>> {
+    const cardStyle = opts.productCardStyle
+        ? { card_style: opts.productCardStyle }
+        : undefined;
     return {
-        search: [s("search_results_grid")],
+        search: [s("search_results_grid", cardStyle)],
         // No free_gift_strip by default: it promises "spend X to unlock a
         // gift" that nothing in commerce config backs, so a fresh store made
         // a false offer to every COD shopper. Merchants who run a real gift
@@ -65,7 +74,7 @@ export function commercePages(
             s("checkout_order_summary"),
             s("trust_strip"),
         ],
-        checkout_success: [s("order_tracker"), s("product_grid")],
+        checkout_success: [s("order_tracker"), s("product_grid", cardStyle)],
         // order_tracker ships its own lookup form — seeding
         // track_order_lookup beside it rendered two lookup forms on /track.
         track: [s("order_tracker")],

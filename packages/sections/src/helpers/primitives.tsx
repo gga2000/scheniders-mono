@@ -246,7 +246,7 @@ export function Sticker({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 font-display font-black uppercase whitespace-nowrap",
+        "inline-flex items-center gap-1 font-display font-black bk-caps whitespace-nowrap",
         BG_MAP[bg],
         sizeClass,
         className,
@@ -280,10 +280,18 @@ const BTN_SIZE: Record<NonNullable<ChunkyButtonProps["size"]>, string> = {
   lg: "px-6 py-4 text-lg",
 };
 
+/** Explicit transition list (never `transition-all`), OS reduced-motion
+ *  respected, and `bk-caps` instead of `uppercase` so calm brand kits
+ *  (`data-bk-expressive="false"`) get sentence-case CTAs. */
 const baseBtn =
-  "inline-flex items-center justify-center gap-2 font-display font-black uppercase tracking-tight " +
+  "inline-flex items-center justify-center gap-2 font-display font-black bk-caps tracking-tight " +
   "hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] " +
-  "transition-all";
+  "transition-[transform,box-shadow,background-color,color,opacity] duration-150 motion-reduce:transition-none";
+
+/** Press/hover feedback for tappable cards and links. Touch has no hover,
+ *  so the `active:` step is what makes the primary device feel alive. */
+export const PRESSABLE =
+  "transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]";
 
 function buttonStyle(bg: CardBg): CSSProperties {
   return {
@@ -351,7 +359,7 @@ export function TrustPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 font-label font-bold text-xs sm:text-sm uppercase whitespace-nowrap px-4 py-2 shrink-0",
+        "inline-flex items-center gap-2 font-label font-bold text-xs sm:text-sm bk-caps whitespace-nowrap px-4 py-2 shrink-0",
         BG_MAP[bg],
         className,
       )}
@@ -394,7 +402,7 @@ export function CodCard({
         className="text-2xl shrink-0"
       />
       <div className="min-w-0">
-        <p className="font-display font-black uppercase text-sm leading-tight">
+        <p className="font-display font-black bk-caps text-sm leading-tight">
           {title}
         </p>
         <p className="font-body text-xs leading-snug" style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}>
@@ -448,14 +456,25 @@ export function MaterialIcon({
 }
 
 /* WhatsApp glyph — used in CTAs across the site */
-export function WhatsAppIcon({ className }: { className?: string }) {
+export function WhatsAppIcon({
+  className,
+  shadow = true,
+  style,
+}: {
+  className?: string;
+  /** The Candy Bento hard drop shadow. Off inside the token-driven
+   *  `WhatsAppButton`. */
+  shadow?: boolean;
+  style?: CSSProperties;
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
       width="24"
       height="24"
       fill="currentColor"
-      className={cn("drop-shadow-[1px_1px_0px_#1a1a1a]", className)}
+      className={cn(shadow && "drop-shadow-[1px_1px_0px_#1a1a1a]", className)}
+      style={style}
       aria-hidden="true"
     >
       <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.1.824zm-3.423-14.416c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm.029 18.88c-1.161 0-2.305-.292-3.318-.844l-3.677.964.984-3.595c-.607-1.052-.927-2.246-.926-3.468.001-3.825 3.113-6.937 6.937-6.937 3.825.001 6.938 3.113 6.938 6.938-.001 3.825-3.113 6.938-6.938 6.938z" />
@@ -514,7 +533,7 @@ export function BrandMark({
     return (
       <span
         className={cn(
-          "inline-flex items-center -rotate-2 px-3 py-1 font-display font-black uppercase tracking-tight truncate",
+          "inline-flex items-center -rotate-2 px-3 py-1 font-display font-black bk-caps tracking-tight truncate",
           size === "sm" ? "text-lg" : "text-xl sm:text-2xl",
           className,
         )}
@@ -547,7 +566,7 @@ export function BrandMark({
       />
       <span
         className={cn(
-          "font-display font-black uppercase tracking-tight truncate",
+          "font-display font-black bk-caps tracking-tight truncate",
           size === "sm" ? "text-xl" : "text-lg sm:text-xl",
         )}
         style={{
@@ -637,7 +656,7 @@ export function SectionEyebrow({
   return (
     <p
       className={cn(
-        "font-label font-bold text-[11px] uppercase tracking-[0.25em]",
+        "font-label font-bold text-[11px] bk-caps tracking-[0.25em]",
         className,
       )}
       style={{
@@ -647,5 +666,238 @@ export function SectionEyebrow({
     >
       {children}
     </p>
+  );
+}
+
+/* ============================================================
+   Token-driven primitives (signature / calm kits)
+   These carry no Candy chrome: every colour, radius and shadow
+   comes from --bk-*, so any brand kit renders them as its own.
+   ============================================================ */
+
+/** Small tinted pill above a section title ("الفئات", "ضمانات"). One
+ *  implementation replaces the six near-copies the sections used to carry
+ *  (three chip fills, two radius sources, two sparkle glyphs). */
+export function EyebrowChip({
+  children,
+  glyph = "none",
+  className,
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & {
+  children: ReactNode;
+  glyph?: "none" | "sparkle";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 px-3 py-1 font-label text-xs font-bold leading-none",
+        className,
+      )}
+      style={{
+        backgroundColor:
+          "color-mix(in srgb, var(--bk-accent, #ffd84a) 16%, transparent)",
+        color: "var(--bk-ink, #1a1a1a)",
+        borderRadius: "var(--bk-radius-pill, 9999px)",
+        fontFamily: "var(--bk-font-body, inherit)",
+      }}
+      {...props}
+    >
+      {glyph === "sparkle" && (
+        <svg
+          viewBox="0 0 16 16"
+          width="12"
+          height="12"
+          fill="var(--bk-accent, #ffd84a)"
+          aria-hidden="true"
+        >
+          <path d="M8 0l1.8 5.2L15 7l-5.2 1.8L8 14l-1.8-5.2L1 7l5.2-1.8z" />
+        </svg>
+      )}
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Section heading lockup: eyebrow chip → title → optional subtitle. Uses the
+ * fluid `--bk-text-h*` scale and `text-balance`, so every section on a page
+ * shares one rhythm instead of ad-hoc `text-3xl sm:text-5xl`.
+ */
+export function CenteredSectionHeader({
+  eyebrow,
+  title,
+  subtitle,
+  as: As = "h2",
+  align = "center",
+  glyph = "none",
+  eyebrowField,
+  titleField,
+  subtitleField,
+  className,
+}: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  as?: "h1" | "h2";
+  align?: "center" | "start";
+  glyph?: "none" | "sparkle";
+  /** `data-i18n-field` hooks for the editor's inline text editing. */
+  eyebrowField?: string;
+  titleField?: string;
+  subtitleField?: string;
+  className?: string;
+}) {
+  const centered = align === "center";
+  return (
+    <div
+      className={cn(
+        "mb-bk-lg flex flex-col gap-bk-xs",
+        centered ? "items-center text-center" : "items-start text-start",
+        className,
+      )}
+    >
+      {eyebrow ? (
+        <EyebrowChip glyph={glyph} data-i18n-field={eyebrowField}>
+          {eyebrow}
+        </EyebrowChip>
+      ) : null}
+      <As
+        data-i18n-field={titleField}
+        className={cn(
+          "font-display font-black text-balance",
+          As === "h1" ? "text-bk-h1" : "text-bk-h2",
+        )}
+        style={{
+          color: "var(--bk-ink, #1a1a1a)",
+          fontFamily: "var(--bk-font-display, inherit)",
+        }}
+      >
+        {title}
+      </As>
+      {subtitle ? (
+        <p
+          data-i18n-field={subtitleField}
+          className={cn(
+            "max-w-prose font-body text-base text-pretty",
+            centered && "mx-auto",
+          )}
+          style={{
+            color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+            fontFamily: "var(--bk-font-body, inherit)",
+          }}
+        >
+          {subtitle}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Five-star rating glyph row. One implementation for every rating surface
+ * (rating chip, review cards, product cards) — previously `★` text glyphs,
+ * Material `star` ligatures and two hand-rolled loops disagreed on shape,
+ * size and colour. Filled stars use `--bk-accent`, empty use `--bk-ink-faint`.
+ */
+export function Stars({
+  value,
+  max = 5,
+  size = 16,
+  label,
+  className,
+}: {
+  /** Rating 0..max; rounded to the nearest whole star. */
+  value: number;
+  max?: number;
+  /** Glyph size in px. */
+  size?: number;
+  /** Accessible label; defaults to "{value} / {max}". */
+  label?: string;
+  className?: string;
+}) {
+  const filled = Math.min(max, Math.max(0, Math.round(value)));
+  return (
+    <span
+      role="img"
+      aria-label={label ?? `${value} / ${max}`}
+      className={cn("inline-flex items-center gap-0.5", className)}
+    >
+      {Array.from({ length: max }, (_, i) => (
+        <svg
+          key={i}
+          viewBox="0 0 20 20"
+          width={size}
+          height={size}
+          aria-hidden="true"
+          fill={
+            i < filled
+              ? "var(--bk-accent, #ffd84a)"
+              : "var(--bk-ink-faint, rgb(26 26 26 / 0.25))"
+          }
+        >
+          <path d="M10 1.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L10 14.9l-5.3 2.8 1.1-5.9L1.5 7.7l5.9-.8z" />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * The one WhatsApp call-to-action. `outline` (default) is a surface pill with
+ * an ink border and the glyph in `--bk-success`; `solid` fills with
+ * `--bk-success`. Replaces the mint Candy button in faq_contact_split and the
+ * plain white button in hero_card_float — two styles, neither branded.
+ */
+export function WhatsAppButton({
+  href,
+  children,
+  tone = "outline",
+  size = "md",
+  fullWidth,
+  className,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement> & {
+  href: string;
+  children: ReactNode;
+  tone?: "outline" | "solid";
+  size?: "sm" | "md" | "lg";
+  fullWidth?: boolean;
+}) {
+  const solid = tone === "solid";
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "inline-flex items-center justify-center gap-2 font-display font-bold",
+        "transition-[transform,box-shadow,background-color,opacity] duration-150 motion-reduce:transition-none",
+        "hover:opacity-90 active:scale-[0.98]",
+        BTN_SIZE[size],
+        fullWidth && "w-full",
+        className,
+      )}
+      style={{
+        backgroundColor: solid
+          ? "var(--bk-success, #7cf0bd)"
+          : "var(--bk-surface, #ffffff)",
+        color: "var(--bk-ink, #1a1a1a)",
+        border: `var(--bk-border-thickness, 3px) solid ${
+          solid ? "var(--bk-success, #7cf0bd)" : "var(--bk-ink, #1a1a1a)"
+        }`,
+        borderRadius: "var(--bk-radius-pill, 9999px)",
+        boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+        fontFamily: "var(--bk-font-display, inherit)",
+      }}
+      {...props}
+    >
+      <WhatsAppIcon
+        shadow={false}
+        className="h-5 w-5"
+        // Glyph carries the WhatsApp affordance colour on the outline tone.
+        {...(solid ? {} : { style: { color: "var(--bk-success, #25d366)" } })}
+      />
+      {children}
+    </a>
   );
 }

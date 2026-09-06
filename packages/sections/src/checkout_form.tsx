@@ -1,22 +1,24 @@
 // =====================================================================
 // Section — checkout_form
 // =====================================================================
-// Cash-on-delivery checkout in the Candy Bento lockup:
+// Cash-on-delivery checkout:
 //   • Cart › Details › Confirm step indicator
-//   • butter "we'll call you in 30 minutes" reassurance card
+//   • "we'll call to confirm" reassurance callout (copy is a prop — no
+//     hardcoded minutes the merchant can't keep)
 //   • delivery-details form (name, +964 phone, governorate, area, address,
-//     notes)
-//   • glorified COD payment block — mint "Cash on Delivery" selected card
-//     + disabled "Coming Soon" card/wallet options
-//   • scattered trust pills
+//     notes) with autocomplete + Iraqi-mobile validation
+//   • COD payment block — the only method a COD store has; no "coming
+//     soon" placeholders
+//   • trust pills (returns window read from the tenant's commerce config)
 //   • totaled primary CTA + cash-on-delivery fine print
 //   • "Place order via WhatsApp instead" alternative
-// Submits to `/api/checkout/orders`.
+// Submits to `/api/checkout/orders`. Every fill/border/radius/shadow is a
+// `--bk-*` token so any brand kit renders it as its own.
 // =====================================================================
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import {
   resolveI18n,
@@ -27,27 +29,32 @@ import {
   computeBundleDiscounts,
   computePointsRedemption,
   pixelContentsFromItems,
+  isValidIraqiMobile,
   normalizeIraqiMobile,
 } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
-import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
+import type {
+  StoreConfigV2,
+  GovernorateCode,
+  LocaleCode,
+} from "@scheniders/shared";
 import {
-  BentoCard,
+  CenteredSectionHeader,
   ChunkyButton,
   MaterialIcon,
-  ScribbleHeading,
-  Sticker,
-  TrustPill,
-  WhatsAppIcon,
+  WhatsAppButton,
 } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
 import { useStoreBase } from "./helpers/store-context";
 import { isPlausiblePhone, whatsappCartLink } from "./helpers/whatsapp";
-import { formatPrice } from "./helpers/format";
-import { i18nStringOptional } from "./_schema";
+import { formatCount, formatPrice } from "./helpers/format";
+import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
+// "card" / "fastpay" stay in the enum so stored configs parse; the form
+// never renders them — a COD store has one payment method, and a disabled
+// "coming soon" option is dead UI that promises what the merchant can't do.
 const paymentMethod = z.enum(["cod", "card", "fastpay"]);
 
 const schema = z.object({
@@ -55,6 +62,18 @@ const schema = z.object({
   require_notes: z.boolean(),
   payment_methods: z.array(paymentMethod),
   reassurance_text_i18n: i18nStringOptional,
+  /** Headline of the callout above the form. Neutral by default — no
+   *  "within 30 minutes" the merchant hasn't committed to. */
+  call_promise_i18n: i18nStringOptional,
+  /** Second line of the callout. */
+  call_promise_note_i18n: i18nStringOptional,
+  /** Trust pills under the payment block (icon = Material Symbols name). The
+   *  returns pill is added automatically from `commerce.returns_policy`. */
+  trust_pills: z
+    .array(
+      z.object({ label_i18n: i18nStringSchema, icon: z.string().optional() }),
+    )
+    .optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -67,7 +86,93 @@ const defaultProps: Props = {
     en: "Free inspection on delivery — pay only if you're happy.",
     ar: "فحص مجاني عند الاستلام — لا تدفع إلا إذا أعجبتك القطعة.",
   },
+  call_promise_i18n: {
+    en: "We'll call to confirm your order",
+    ar: "سنتصل بك لتأكيد الطلب",
+  },
+  call_promise_note_i18n: {
+    en: "No upfront payment needed.",
+    ar: "لا حاجة لأي دفع مسبق.",
+  },
+  trust_pills: [
+    {
+      label_i18n: { en: "Secure order", ar: "طلب آمن" },
+      icon: "verified_user",
+    },
+    {
+      label_i18n: { en: "Verified seller", ar: "بائع موثّق" },
+      icon: "storefront",
+    },
+  ],
 };
+
+/** Chrome strings (Kurdish resolves through the ar fallback chain). */
+const STRINGS = {
+  stepCart: { en: "Cart", ar: "السلة" },
+  stepDetails: { en: "Details", ar: "التفاصيل" },
+  stepConfirm: { en: "Confirm", ar: "التأكيد" },
+  deliveryDetails: { en: "Delivery details", ar: "تفاصيل التوصيل" },
+  fullName: { en: "Full name", ar: "الاسم الكامل" },
+  phone: { en: "Phone number", ar: "رقم الهاتف" },
+  phoneInvalid: {
+    en: "Enter a valid Iraqi mobile number, e.g. 0770 123 4567.",
+    ar: "أدخل رقم هاتف عراقي صحيح، مثال: 0770 123 4567.",
+  },
+  email: { en: "Email", ar: "البريد الإلكتروني" },
+  governorate: { en: "Governorate", ar: "المحافظة" },
+  governoratePlaceholder: { en: "Choose a governorate", ar: "اختر المحافظة" },
+  area: { en: "Area / District", ar: "المنطقة" },
+  address: { en: "Full address", ar: "العنوان بالتفصيل" },
+  addressPlaceholder: {
+    en: "Street, sector, house number…",
+    ar: "الشارع، المحلة، رقم الدار…",
+  },
+  notes: { en: "Delivery notes", ar: "ملاحظات" },
+  optional: { en: "(optional)", ar: "(اختياري)" },
+  paymentMethod: { en: "Payment method", ar: "طريقة الدفع" },
+  cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
+  useAll: { en: "Use all", ar: "استخدم الكل" },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
+  placeOrder: { en: "Place order", ar: "أكّد الطلب" },
+  placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…" },
+  finePrint: {
+    en: "By placing this order, you agree to pay cash on delivery. No hidden fees.",
+    ar: "بتأكيدك الطلب، توافق على الدفع نقداً عند الاستلام. لا رسوم خفية.",
+  },
+  or: { en: "Or", ar: "أو" },
+  whatsappInstead: {
+    en: "Place order via WhatsApp instead",
+    ar: "أكمل الطلب عبر واتساب",
+  },
+  orderReceived: { en: "Order received!", ar: "تم استلام طلبك!" },
+  errGeneric: {
+    en: "Something went wrong. Please try again.",
+    ar: "حدث خطأ. حاول مرة أخرى.",
+  },
+  errNetwork: {
+    en: "We couldn't reach the server — check your connection and try again.",
+    ar: "تعذّر الاتصال بالخادم — تحقّق من الإنترنت وحاول مرة أخرى.",
+  },
+  errReview: {
+    en: "Your cart was updated. Please review it and confirm again.",
+    ar: "تم تحديث سلتك. راجعها ثم أكّد الطلب مرة أخرى.",
+  },
+} as const;
+
+function returnsPill(days: number, locale: LocaleCode): string {
+  return locale === "en"
+    ? formatCount(days, locale, {
+        one: "{count}-day returns",
+        other: "{count}-day returns",
+      })
+    : formatCount(days, locale, {
+        one: "إرجاع خلال يوم واحد",
+        two: "إرجاع خلال يومين",
+        few: "إرجاع خلال {count} أيام",
+        many: "إرجاع خلال {count} يوماً",
+        other: "إرجاع خلال {count} يوم",
+      });
+}
 
 /** A collision-free idempotency key for one checkout submission. Prefers
  *  crypto.randomUUID (available in the storefront's secure contexts, incl.
@@ -86,6 +191,45 @@ interface CheckoutIssue {
   new_price?: number;
 }
 
+/** One human sentence per server issue, using the cart's own line names
+ *  (the server only echoes ids) and the old → new price where it moved. */
+function describeIssue(
+  issue: CheckoutIssue,
+  line:
+    | { name: string; variant_name: string | null; price: number }
+    | undefined,
+  locale: LocaleCode,
+): string {
+  const en = locale === "en";
+  const name = line
+    ? line.variant_name
+      ? `${line.name} (${line.variant_name})`
+      : line.name
+    : en
+      ? "An item"
+      : "أحد المنتجات";
+  if (issue.reason === "price_changed" && typeof issue.new_price === "number") {
+    const from = line ? formatPrice(line.price, locale) : null;
+    const to = formatPrice(issue.new_price, locale);
+    return en
+      ? `${name}: price changed${from ? ` from ${from}` : ""} to ${to}.`
+      : `${name}: تغيّر السعر${from ? ` من ${from}` : ""} إلى ${to}.`;
+  }
+  if (issue.reason === "invalid_quantity") {
+    return en
+      ? `${name}: that quantity isn't available — it was removed from your cart.`
+      : `${name}: الكمية غير متاحة — تمت إزالته من السلة.`;
+  }
+  return en
+    ? `${name} is no longer available — it was removed from your cart.`
+    : `${name} لم يعد متوفراً — تمت إزالته من السلة.`;
+}
+
+const INK_BORDER =
+  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
+const ACCENT_TINT =
+  "color-mix(in srgb, var(--bk-accent, #ffd84a) 16%, transparent)";
+
 function CheckoutFormRender({
   props,
   ctx,
@@ -93,22 +237,28 @@ function CheckoutFormRender({
   props: Props;
   ctx: SectionRenderContext;
 }) {
-  const locale = ctx.runtime.locale;
+  const locale: LocaleCode = ctx.runtime.locale;
   const t = locale !== "en";
-  const items = useCart((s) => s.items);
-  const subtotal = useCart((s) => s.getTotal());
-  const clearCart = useCart((s) => s.clearCart);
-  const removeItem = useCart((s) => s.removeItem);
-  const updatePrice = useCart((s) => s.updatePrice);
-  const setGovernorate = useCart((s) => s.setGovernorate);
-  const couponCode = useCart((s) => s.couponCode);
+  const s = (key: keyof typeof STRINGS) => resolveI18n(STRINGS[key], locale);
+  const items = useCart((st) => st.items);
+  const subtotal = useCart((st) => st.getTotal());
+  const clearCart = useCart((st) => st.clearCart);
+  const removeItem = useCart((st) => st.removeItem);
+  const updatePrice = useCart((st) => st.updatePrice);
+  const setGovernorate = useCart((st) => st.setGovernorate);
+  const couponCode = useCart((st) => st.couponCode);
   const base = useStoreBase();
+  const phoneErrorId = useId();
+  const submitErrorId = useId();
   const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
     "idle",
   );
-  // EC24: a specific, actionable error message (which items changed) instead of
-  // a generic "something went wrong" dead-end.
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // EC24: specific, actionable error lines (which items changed and how)
+  // instead of a generic "something went wrong" dead-end.
+  const [errorLines, setErrorLines] = useState<string[]>([]);
+  // Phone is validated on blur (not with an HTML `pattern`) so the shopper
+  // gets a readable, localised message instead of the browser's tooltip.
+  const [phoneError, setPhoneError] = useState(false);
   // EC17: one stable idempotency key per cart submission — reused across retries
   // (flaky-3G re-tap where the first response was lost) so the server dedupes,
   // then cleared on success so the next order gets a fresh key.
@@ -123,18 +273,23 @@ function CheckoutFormRender({
     customer_name: "",
     phone: "",
     email: "",
-    governorate_code: IRAQ_GOVERNORATES[0].code as string,
+    // Empty until chosen: a pre-selected Baghdad silently shipped orders to
+    // the wrong governorate (and priced the wrong fee) when shoppers skipped
+    // the field.
+    governorate_code: "",
     city: "",
     address_details: "",
     notes: "",
-    payment_method: props.payment_methods[0] ?? "cod",
+    payment_method: "cod" as const,
   });
   const reassurance = resolveI18n(props.reassurance_text_i18n, locale);
+  const callPromise = resolveI18n(props.call_promise_i18n, locale);
+  const callPromiseNote = resolveI18n(props.call_promise_note_i18n, locale);
 
   // R2b: broadcast the chosen governorate to the cart store so the order-summary
   // section (rendered separately) shows the SAME per-governorate fee as this CTA.
   useEffect(() => {
-    setGovernorate(form.governorate_code);
+    setGovernorate(form.governorate_code || null);
   }, [form.governorate_code, setGovernorate]);
 
   // Abandoned-cart capture: once the shopper has items + a plausible Iraqi
@@ -187,7 +342,9 @@ function CheckoutFormRender({
   )?.store_config_v2?.commerce;
   const delivery = computeDeliveryFee(subtotal, items.length, {
     shipping: commerce?.shipping,
-    governorate: form.governorate_code as GovernorateCode,
+    governorate: (form.governorate_code || undefined) as
+      | GovernorateCode
+      | undefined,
   });
   // Discount: preview the applied coupon (server re-validates + records it).
   const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
@@ -208,6 +365,7 @@ function CheckoutFormRender({
   const pointsDiscount = pointsRedemption.discount_iqd;
   const discountAmount = couponAmount + bundleAmount + pointsDiscount;
   const total = subtotal - discountAmount + delivery;
+  const returnsDays = commerce?.returns_policy?.window_days;
 
   // Fetch the customer's points balance once they've entered a valid phone
   // (debounced). Resets the chosen redemption when the phone changes.
@@ -227,7 +385,8 @@ function CheckoutFormRender({
       fetch(`/api/loyalty/balance?${params.toString()}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { balance?: number } | null) => {
-          if (active) setPointsBalance(typeof d?.balance === "number" ? d.balance : 0);
+          if (active)
+            setPointsBalance(typeof d?.balance === "number" ? d.balance : 0);
         })
         .catch(() => {
           /* balance just won't show */
@@ -239,8 +398,9 @@ function CheckoutFormRender({
     };
   }, [loyaltyCfg?.enabled, form.phone, tenantId]);
 
-  const phone = (ctx.tenant as { contact_phone?: string | null } | undefined)
-    ?.contact_phone ?? null;
+  const phone =
+    (ctx.tenant as { contact_phone?: string | null } | undefined)
+      ?.contact_phone ?? null;
   const waEnabled = isPlausiblePhone(phone);
   // EC26: the "order via WhatsApp instead" CTA now carries the WHOLE order —
   // every line (with variant + qty), the delivery details the shopper has
@@ -272,14 +432,21 @@ function CheckoutFormRender({
     ) ?? "#";
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
-    setForm((s) => ({ ...s, [k]: v }));
+    setForm((st) => ({ ...st, [k]: v }));
+  }
+
+  function validatePhone(): boolean {
+    const ok = isValidIraqiMobile(form.phone);
+    setPhoneError(!ok);
+    return ok;
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (items.length === 0 || status === "submitting") return;
+    if (!validatePhone()) return;
     setStatus("submitting");
-    setErrorMsg(null);
+    setErrorLines([]);
     // Reuse the existing key on a retry; mint one on the first attempt.
     if (!idempotencyKeyRef.current) {
       idempotencyKeyRef.current = newIdempotencyKey();
@@ -311,9 +478,10 @@ function CheckoutFormRender({
         }),
       });
       if (res.ok) {
-        const data = (await res.json().catch(() => null)) as
-          | { orderNumber?: string; total?: number }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          orderNumber?: string;
+          total?: number;
+        } | null;
         const orderNumber = data?.orderNumber ?? "";
         // Stash the just-placed order for the thank-you recap. This is the
         // privacy-safe path (only the buyer's browser holds it) — never fetch
@@ -358,62 +526,92 @@ function CheckoutFormRender({
         // cart (remove unavailable lines, re-price changed ones) so the shopper
         // can review + re-confirm instead of looping on a generic error. A new
         // idempotency key marks the corrected cart as a fresh order.
-        const data = (await res.json().catch(() => null)) as
-          | { error?: string; issues?: CheckoutIssue[] }
-          | null;
-        const issues = Array.isArray(data?.issues) ? data!.issues : [];
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          issues?: CheckoutIssue[];
+        } | null;
+        const reported = data?.issues;
+        const issues = Array.isArray(reported) ? reported : [];
+        // Describe before mutating: once a line is removed its name is gone.
+        const lines = issues.map((it) =>
+          describeIssue(
+            it,
+            items.find(
+              (i) =>
+                i.product_id === it.product_id &&
+                (i.variant_id ?? null) === (it.variant_id ?? null),
+            ),
+            locale,
+          ),
+        );
         for (const it of issues) {
-          if (it.reason === "price_changed" && typeof it.new_price === "number") {
+          if (
+            it.reason === "price_changed" &&
+            typeof it.new_price === "number"
+          ) {
             updatePrice(it.product_id, it.variant_id, it.new_price);
           } else {
             removeItem(it.product_id, it.variant_id);
           }
         }
-        if (issues.length > 0) idempotencyKeyRef.current = null;
-        setErrorMsg(
-          data?.error ??
-            (t ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."),
-        );
+        if (issues.length > 0) {
+          idempotencyKeyRef.current = null;
+          setErrorLines([s("errReview"), ...lines]);
+        } else {
+          // The server's own messages are Arabic; show them to Arabic-script
+          // locales and the localised generic line to English readers.
+          setErrorLines([(t && data?.error) || s("errGeneric")]);
+        }
         setStatus("error");
       }
     } catch {
+      // fetch() only throws on network failure — nothing was submitted.
+      setErrorLines([s("errNetwork")]);
       setStatus("error");
     }
   }
 
   const inputCls =
-    "w-full bg-white px-3 py-3 font-body text-base focus:outline-none";
+    "w-full px-3 py-3 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
   const inputStyle: React.CSSProperties = {
-    border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+    backgroundColor: "var(--bk-surface, #ffffff)",
+    border: INK_BORDER,
     borderRadius: "var(--bk-radius-input, 0.75rem)",
     color: "var(--bk-ink, #1a1a1a)",
-    fontFamily: "var(--bk-font-body, inherit)",
   };
   const labelCls =
-    "block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
+    "block font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
 
-  const steps = t
-    ? ["السلة", "التفاصيل", "التأكيد"]
-    : ["Cart", "Details", "Confirm"];
+  const steps = [s("stepCart"), s("stepDetails"), s("stepConfirm")];
+  const submitting = status === "submitting";
+  const pills = [
+    ...(props.trust_pills ?? []).map((p) => ({
+      label: resolveI18n(p.label_i18n, locale),
+      icon: p.icon,
+    })),
+    ...(returnsDays && returnsDays > 0
+      ? [{ label: returnsPill(returnsDays, locale), icon: "cached" }]
+      : []),
+  ];
 
   return (
     <section className="px-4 py-bk-section-dense">
       <div className="mx-auto max-w-2xl space-y-bk-md">
         {/* Step indicator */}
-        <ol className="flex items-center justify-center gap-bk-xs font-label font-bold text-[11px] uppercase tracking-[0.15em]">
+        <ol className="flex items-center justify-center gap-bk-xs font-label font-bold text-[11px] bk-caps tracking-[0.15em]">
           {steps.map((label, i) => {
             const active = i === 1; // "Details" is the current step
             return (
               <li key={label} className="flex items-center gap-bk-xs">
                 <span
                   className="px-2.5 py-1"
+                  aria-current={active ? "step" : undefined}
                   style={
                     active
                       ? {
                           backgroundColor: "var(--bk-accent, #ffd84a)",
-                          color: "var(--bk-ink, #1a1a1a)",
-                          border:
-                            "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                          color: "var(--bk-on-accent, #1a1a1a)",
+                          border: INK_BORDER,
                           borderRadius: "var(--bk-radius-pill, 9999px)",
                         }
                       : { color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }
@@ -431,35 +629,60 @@ function CheckoutFormRender({
           })}
         </ol>
 
-        {/* "We'll call you in 30 minutes" reassurance */}
-        <BentoCard bg="butter" size="md" rotate={1} className="p-bk-md">
-          <div className="flex items-start gap-3">
+        {/* "We'll call to confirm" reassurance callout */}
+        {callPromise && (
+          <div
+            className="flex items-start gap-3 p-bk-md"
+            style={{
+              backgroundColor: ACCENT_TINT,
+              color: "var(--bk-ink, #1a1a1a)",
+              borderRadius: "var(--bk-radius-card, 1rem)",
+            }}
+          >
             <MaterialIcon name="call" className="text-2xl shrink-0" />
             <div>
-              <p className="font-display font-black text-base uppercase leading-tight">
-                {t ? "سنتصل بك خلال ٣٠ دقيقة" : "We'll call you within 30 minutes"}
-              </p>
               <p
-                className="font-body text-sm leading-snug"
-                style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}
+                className="font-display font-black text-base leading-tight"
+                data-i18n-field="call_promise_i18n"
               >
-                {t
-                  ? "لتأكيد طلبك. لا حاجة لأي دفع مسبق."
-                  : "To confirm your order. No upfront payment needed."}
+                {callPromise}
               </p>
+              {callPromiseNote && (
+                <p
+                  className="font-body text-sm leading-snug text-bk-ink-soft"
+                  data-i18n-field="call_promise_note_i18n"
+                >
+                  {callPromiseNote}
+                </p>
+              )}
             </div>
           </div>
-        </BentoCard>
+        )}
 
-        <BentoCard bg="cream" size="md" className="p-bk-lg sm:p-bk-xl">
-          <ScribbleHeading color="pink" className="mb-bk-md">
-            {t ? "تفاصيل التوصيل" : "Delivery Details"}
-          </ScribbleHeading>
+        <div
+          className="p-bk-lg sm:p-bk-xl"
+          style={{
+            backgroundColor: "var(--bk-surface, #ffffff)",
+            color: "var(--bk-ink, #1a1a1a)",
+            border: INK_BORDER,
+            borderRadius: "var(--bk-radius-card, 1rem)",
+            boxShadow: "var(--bk-shadow-card, 4px 4px 0px 0px #1a1a1a)",
+          }}
+        >
+          <CenteredSectionHeader
+            // The checkout page has no other heading, so this is its h1.
+            as="h1"
+            align="start"
+            title={s("deliveryDetails")}
+            className="mb-bk-md"
+          />
           <form onSubmit={onSubmit} className="space-y-bk-sm">
             <label className="block">
-              <span className={labelCls}>{t ? "الاسم الكامل" : "Full name"}</span>
+              <span className={labelCls}>{s("fullName")}</span>
               <input
                 type="text"
+                name="name"
+                autoComplete="name"
                 required
                 value={form.customer_name}
                 onChange={(e) => set("customer_name", e.target.value)}
@@ -469,54 +692,71 @@ function CheckoutFormRender({
             </label>
 
             {/* Phone with +964 prefix */}
-            <label className="block">
-              <span className={labelCls}>{t ? "رقم الهاتف" : "Phone number"}</span>
-              <div className="flex" dir="ltr">
-                <span
-                  className="inline-flex items-center px-3 font-display font-black text-base shrink-0"
-                  style={{
-                    backgroundColor: "var(--bk-accent, #ffd84a)",
-                    color: "var(--bk-ink, #1a1a1a)",
-                    border:
-                      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-                    borderRight: "none",
-                    borderRadius:
-                      "var(--bk-radius-input, 0.75rem) 0 0 var(--bk-radius-input, 0.75rem)",
-                  }}
+            <div>
+              <label className="block">
+                <span className={labelCls}>{s("phone")}</span>
+                <div className="flex" dir="ltr">
+                  <span
+                    className="inline-flex items-center px-3 font-display font-black text-base shrink-0"
+                    style={{
+                      backgroundColor: ACCENT_TINT,
+                      color: "var(--bk-ink, #1a1a1a)",
+                      border: INK_BORDER,
+                      borderRight: "none",
+                      borderRadius:
+                        "var(--bk-radius-input, 0.75rem) 0 0 var(--bk-radius-input, 0.75rem)",
+                    }}
+                  >
+                    +964
+                  </span>
+                  <input
+                    type="tel"
+                    name="phone"
+                    required
+                    inputMode="tel"
+                    autoComplete="tel-national"
+                    placeholder="770 000 0000"
+                    value={form.phone}
+                    onChange={(e) => {
+                      set("phone", e.target.value);
+                      if (phoneError) setPhoneError(false);
+                    }}
+                    onBlur={() => {
+                      if (form.phone.trim() !== "") validatePhone();
+                    }}
+                    aria-invalid={phoneError || undefined}
+                    aria-describedby={phoneError ? phoneErrorId : undefined}
+                    className={inputCls}
+                    style={{
+                      ...inputStyle,
+                      borderRadius:
+                        "0 var(--bk-radius-input, 0.75rem) var(--bk-radius-input, 0.75rem) 0",
+                      ...(phoneError
+                        ? { borderColor: "var(--bk-danger, #dc2626)" }
+                        : {}),
+                    }}
+                  />
+                </div>
+              </label>
+              {phoneError && (
+                <p
+                  id={phoneErrorId}
+                  role="alert"
+                  className="mt-bk-2xs font-label font-bold text-xs text-bk-danger"
                 >
-                  +964
-                </span>
-                <input
-                  type="tel"
-                  required
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="770 000 0000"
-                  pattern="0?7[0-9]{9}"
-                  title={
-                    t
-                      ? "رقم هاتف عراقي صحيح، مثال: 07701234567"
-                      : "A valid Iraqi mobile number, e.g. 07701234567"
-                  }
-                  value={form.phone}
-                  onChange={(e) => set("phone", e.target.value)}
-                  className="w-full bg-white px-3 py-3 font-body text-base focus:outline-none"
-                  style={{
-                    ...inputStyle,
-                    borderRadius:
-                      "0 var(--bk-radius-input, 0.75rem) var(--bk-radius-input, 0.75rem) 0",
-                  }}
-                />
-              </div>
-            </label>
+                  {s("phoneInvalid")}
+                </p>
+              )}
+            </div>
 
             {props.require_email && (
               <label className="block">
-                <span className={labelCls}>
-                  {t ? "البريد الإلكتروني" : "Email"}
-                </span>
+                <span className={labelCls}>{s("email")}</span>
                 <input
                   type="email"
+                  name="email"
+                  inputMode="email"
+                  autoComplete="email"
                   required={props.require_email}
                   value={form.email}
                   onChange={(e) => set("email", e.target.value)}
@@ -528,14 +768,19 @@ function CheckoutFormRender({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-bk-sm">
               <label className="block">
-                <span className={labelCls}>{t ? "المحافظة" : "Governorate"}</span>
+                <span className={labelCls}>{s("governorate")}</span>
                 <select
+                  name="governorate"
+                  autoComplete="address-level1"
                   required
                   value={form.governorate_code}
                   onChange={(e) => set("governorate_code", e.target.value)}
                   className={inputCls}
                   style={inputStyle}
                 >
+                  <option value="" disabled>
+                    {s("governoratePlaceholder")}
+                  </option>
                   {IRAQ_GOVERNORATES.map((g) => (
                     <option key={g.code} value={g.code}>
                       {governorateLabel(g.code, locale)}
@@ -544,9 +789,11 @@ function CheckoutFormRender({
                 </select>
               </label>
               <label className="block">
-                <span className={labelCls}>{t ? "المنطقة" : "Area / District"}</span>
+                <span className={labelCls}>{s("area")}</span>
                 <input
                   type="text"
+                  name="city"
+                  autoComplete="address-level2"
                   required
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
@@ -557,15 +804,13 @@ function CheckoutFormRender({
             </div>
 
             <label className="block">
-              <span className={labelCls}>
-                {t ? "العنوان بالتفصيل" : "Full address"}
-              </span>
+              <span className={labelCls}>{s("address")}</span>
               <textarea
+                name="address"
+                autoComplete="street-address"
                 required
                 rows={3}
-                placeholder={
-                  t ? "الشارع، المحلة، رقم الدار…" : "Street, sector, house number…"
-                }
+                placeholder={s("addressPlaceholder")}
                 value={form.address_details}
                 onChange={(e) => set("address_details", e.target.value)}
                 className={inputCls + " resize-y"}
@@ -576,14 +821,15 @@ function CheckoutFormRender({
             {(props.require_notes || form.notes) && (
               <label className="block">
                 <span className={labelCls}>
-                  {t ? "ملاحظات" : "Delivery notes"}{" "}
+                  {s("notes")}{" "}
                   {!props.require_notes && (
                     <span className="text-bk-ink-faint normal-case">
-                      {t ? "(اختياري)" : "(optional)"}
+                      {s("optional")}
                     </span>
                   )}
                 </span>
                 <textarea
+                  name="notes"
                   rows={2}
                   required={props.require_notes}
                   value={form.notes}
@@ -594,79 +840,66 @@ function CheckoutFormRender({
               </label>
             )}
 
-            {/* Glorified payment method block */}
+            {/* Payment method — COD is the only option on a COD store, shown
+                as the selected state so the shopper sees what happens next. */}
             <fieldset className="space-y-bk-xs pt-bk-2xs">
-              <legend className="font-display font-black text-base uppercase mb-bk-xs scribble-underline inline-block">
-                {t ? "طريقة الدفع" : "Payment Method"}
+              <legend className="font-display font-black text-base bk-caps mb-bk-xs">
+                {s("paymentMethod")}
               </legend>
-              {/* COD — always selected hero */}
               <div
                 className="flex items-center gap-3 px-4 py-3"
                 style={{
-                  backgroundColor: "var(--bk-mint, #7cf0bd)",
+                  backgroundColor:
+                    "color-mix(in srgb, var(--bk-success, #7cf0bd) 18%, transparent)",
                   color: "var(--bk-ink, #1a1a1a)",
-                  border:
-                    "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                  border: INK_BORDER,
                   borderRadius: "var(--bk-radius-input, 0.75rem)",
                   boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
                 }}
               >
                 <MaterialIcon name="payments" className="text-2xl" />
-                <span className="font-display font-black text-base uppercase flex-1">
-                  {t ? "الدفع عند الاستلام" : "Cash on Delivery"}
+                <span className="font-display font-black text-base bk-caps flex-1">
+                  {s("cod")}
                 </span>
-                <MaterialIcon name="check_circle" className="text-2xl" />
+                <MaterialIcon
+                  name="check_circle"
+                  className="text-2xl text-bk-success"
+                />
               </div>
-              {/* Coming-soon options */}
-              {(
-                [
-                  { icon: "credit_card", en: "Credit / Debit Card", ar: "بطاقة" },
-                  { icon: "account_balance_wallet", en: "FastPay Wallet", ar: "محفظة FastPay" },
-                ] as const
-              ).map((opt) => (
-                <div
-                  key={opt.icon}
-                  className="relative flex items-center gap-3 px-4 py-3 opacity-60"
-                  style={{
-                    backgroundColor: "#ffffff",
-                    color: "var(--bk-ink, #1a1a1a)",
-                    border:
-                      "var(--bk-border-thickness, 3px) dashed var(--bk-ink, #1a1a1a)",
-                    borderRadius: "var(--bk-radius-input, 0.75rem)",
-                  }}
-                >
-                  <MaterialIcon name={opt.icon} className="text-2xl" />
-                  <span className="font-display font-black text-base uppercase">
-                    {t ? opt.ar : opt.en}
-                  </span>
-                  <span className="absolute -top-2 -right-2">
-                    <Sticker bg="butter" rotate={6} size="xs">
-                      {t ? "قريباً" : "Coming Soon"}
-                    </Sticker>
-                  </span>
-                </div>
-              ))}
             </fieldset>
 
             {/* Trust pills */}
-            <div className="-mx-1 flex flex-wrap gap-bk-xs pt-bk-2xs">
-              <TrustPill bg="mint" rotate={-1} icon={<MaterialIcon name="verified_user" className="text-base" />}>
-                {t ? "طلب آمن" : "Secure Order"}
-              </TrustPill>
-              <TrustPill bg="butter" rotate={1} icon={<MaterialIcon name="cached" className="text-base" />}>
-                {t ? "إرجاع خلال ٧ أيام" : "7-day Returns"}
-              </TrustPill>
-              <TrustPill bg="sky" rotate={-1} icon={<MaterialIcon name="storefront" className="text-base" />}>
-                {t ? "بائع موثّق" : "Verified Seller"}
-              </TrustPill>
-              <TrustPill bg="lilac" rotate={1} icon={<MaterialIcon name="support_agent" className="text-base" />}>
-                {t ? "دعم واتساب ٢٤/٧" : "24/7 WhatsApp"}
-              </TrustPill>
-            </div>
+            {pills.length > 0 && (
+              <ul className="-mx-1 flex flex-wrap gap-bk-xs pt-bk-2xs">
+                {pills.map((pill) => (
+                  <li
+                    key={pill.label}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 font-label font-bold text-xs bk-caps"
+                    style={{
+                      backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+                      color: "var(--bk-ink, #1a1a1a)",
+                      border: INK_BORDER,
+                      borderRadius: "var(--bk-radius-pill, 9999px)",
+                    }}
+                  >
+                    {pill.icon && (
+                      <MaterialIcon name={pill.icon} className="text-base" />
+                    )}
+                    {pill.label}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {reassurance && (
-              <p className="font-body text-sm text-bk-ink-soft inline-flex items-center gap-2">
-                <MaterialIcon name="visibility" className="text-xl text-bk-primary" />
+              <p
+                className="font-body text-sm text-bk-ink-soft inline-flex items-center gap-2"
+                data-i18n-field="reassurance_text_i18n"
+              >
+                <MaterialIcon
+                  name="visibility"
+                  className="text-xl text-bk-primary"
+                />
                 {reassurance}
               </p>
             )}
@@ -676,14 +909,13 @@ function CheckoutFormRender({
               <div
                 className="space-y-bk-xs p-bk-sm"
                 style={{
-                  backgroundColor: "var(--bk-accent, #ffd84a)",
-                  border:
-                    "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                  backgroundColor: ACCENT_TINT,
+                  border: INK_BORDER,
                   borderRadius: "var(--bk-radius-input, 0.75rem)",
                 }}
               >
                 <div className="flex items-center justify-between gap-bk-sm">
-                  <span className="font-display font-black text-sm uppercase inline-flex items-center gap-2">
+                  <span className="font-display font-black text-sm bk-caps inline-flex items-center gap-2 tabular-nums">
                     <MaterialIcon name="loyalty" className="text-xl" />
                     {t
                       ? `لديك ${pointsBalance} نقطة`
@@ -692,9 +924,9 @@ function CheckoutFormRender({
                   <button
                     type="button"
                     onClick={() => setRedeemPoints(pointsBalance ?? 0)}
-                    className="font-label font-bold text-xs uppercase tracking-wide underline"
+                    className="min-h-11 font-label font-bold text-xs bk-caps underline"
                   >
-                    {t ? "استخدم الكل" : "Use all"}
+                    {s("useAll")}
                   </button>
                 </div>
                 <div className="flex items-center gap-bk-sm" dir="ltr">
@@ -706,46 +938,59 @@ function CheckoutFormRender({
                     value={redeemPoints || ""}
                     placeholder="0"
                     onChange={(e) => {
-                      const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                      const n = Math.max(
+                        0,
+                        Math.floor(Number(e.target.value) || 0),
+                      );
                       setRedeemPoints(Math.min(n, pointsBalance ?? 0));
                     }}
-                    className="w-24 bg-white px-3 py-2 font-body text-base focus:outline-none"
-                    style={{
-                      border:
-                        "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-                      borderRadius: "var(--bk-radius-input, 0.75rem)",
-                    }}
+                    className="w-24 px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                    style={inputStyle}
                   />
-                  <span className="font-label font-bold text-sm">
+                  <span className="font-label font-bold text-sm tabular-nums">
                     {pointsDiscount > 0
                       ? t
                         ? `خصم −${formatPrice(pointsDiscount, locale)}`
                         : `−${formatPrice(pointsDiscount, locale)} off`
-                      : t
-                        ? "أدخل عدد النقاط"
-                        : "Enter points to redeem"}
+                      : s("enterPoints")}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Primary CTA with running total */}
+            {/* Primary CTA with running total. Stays focusable while pending
+                (aria-busy/aria-disabled) so focus isn't dropped mid-submit. */}
             <ChunkyButton
               type="submit"
               bg="pink"
               size="lg"
               fullWidth
-              disabled={items.length === 0 || status === "submitting"}
+              disabled={items.length === 0}
+              aria-busy={submitting || undefined}
+              aria-disabled={submitting || undefined}
+              aria-describedby={
+                status === "error" && errorLines.length > 0
+                  ? submitErrorId
+                  : undefined
+              }
             >
-              {status === "submitting" ? (
-                <MaterialIcon name="progress_activity" className="animate-spin" />
+              {submitting ? (
+                <>
+                  <MaterialIcon
+                    name="progress_activity"
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                  {s("placingOrder")}
+                </>
               ) : (
                 <>
-                  {t ? "أكّد الطلب" : "Place Order"}
+                  {s("placeOrder")}
                   {items.length > 0 && (
                     <>
                       {" — "}
-                      <bdi>{formatPrice(total, locale)}</bdi>
+                      <bdi className="tabular-nums">
+                        {formatPrice(total, locale)}
+                      </bdi>
                     </>
                   )}
                   <MaterialIcon name="arrow_forward" />
@@ -753,56 +998,59 @@ function CheckoutFormRender({
               )}
             </ChunkyButton>
             <p className="text-center font-body text-xs text-bk-ink-soft">
-              {t
-                ? "بتأكيدك الطلب، توافق على الدفع نقداً عند الاستلام. لا رسوم خفية."
-                : "By placing this order, you agree to pay cash on delivery. No hidden fees."}
+              {s("finePrint")}
             </p>
 
             {/* WhatsApp alternative */}
             {waEnabled && (
               <>
                 <div className="my-bk-2xs flex items-center gap-bk-sm">
-                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
-                  <span className="font-display font-black text-sm uppercase text-bk-ink-soft">
-                    {t ? "أو" : "Or"}
+                  <span
+                    aria-hidden="true"
+                    className="flex-1"
+                    style={{
+                      height: "var(--bk-border-thickness, 3px)",
+                      backgroundColor:
+                        "var(--bk-divider, rgb(26 26 26 / 0.15))",
+                    }}
+                  />
+                  <span className="font-display font-black text-sm bk-caps text-bk-ink-soft">
+                    {s("or")}
                   </span>
-                  <span className="h-[3px] flex-1 bg-candy-ink/20" />
+                  <span
+                    aria-hidden="true"
+                    className="flex-1"
+                    style={{
+                      height: "var(--bk-border-thickness, 3px)",
+                      backgroundColor:
+                        "var(--bk-divider, rgb(26 26 26 / 0.15))",
+                    }}
+                  />
                 </div>
-                <a
-                  href={waHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex w-full items-center justify-center gap-2 px-5 py-3 font-display font-black text-sm uppercase tracking-tight"
-                  style={{
-                    backgroundColor: "#ffffff",
-                    color: "var(--bk-ink, #1a1a1a)",
-                    border:
-                      "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-                    borderRadius: "var(--bk-radius-input, 0.75rem)",
-                    boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
-                  }}
-                >
-                  <WhatsAppIcon className="h-5 w-5" />
-                  {t ? "أكمل الطلب عبر واتساب" : "Place order via WhatsApp instead"}
-                </a>
+                <WhatsAppButton href={waHref} tone="outline" fullWidth>
+                  {s("whatsappInstead")}
+                </WhatsAppButton>
               </>
             )}
 
             {status === "ok" && (
               <p className="font-label font-bold text-sm text-bk-success">
-                {t ? "تم استلام طلبك!" : "Order received!"}
+                {s("orderReceived")}
               </p>
             )}
-            {status === "error" && (
-              <p className="font-label font-bold text-sm text-bk-danger">
-                {errorMsg ??
-                  (t
-                    ? "حدث خطأ. حاول مرة أخرى."
-                    : "Something went wrong. Try again.")}
-              </p>
+            {status === "error" && errorLines.length > 0 && (
+              <div
+                id={submitErrorId}
+                role="alert"
+                className="space-y-bk-2xs font-label font-bold text-sm text-bk-danger"
+              >
+                {errorLines.map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
+              </div>
             )}
           </form>
-        </BentoCard>
+        </div>
       </div>
     </section>
   );
@@ -813,7 +1061,7 @@ const definition: SectionDefinition<Props> = {
   category: "page",
   name: { en: "Checkout form", ar: "نموذج الدفع" },
   description: {
-    en: "Cash-on-delivery checkout: details form, glorified COD, trust pills, totaled CTA.",
+    en: "Cash-on-delivery checkout: details form, COD block, trust pills, totaled CTA.",
     ar: "نموذج الدفع عند الاستلام: تفاصيل التوصيل، الدفع عند الاستلام، شارات الثقة، زر التأكيد بالمجموع.",
   },
   thumbnail: "/sections/checkout_form.svg",

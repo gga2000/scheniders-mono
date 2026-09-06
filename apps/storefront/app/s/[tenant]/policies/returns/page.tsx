@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { resolveSchneidersConfig } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listCategories } from "@/lib/queries";
-import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
+import {
+  pickV2Page,
+  buildRuntimeContext,
+  resolveV2PageMetadata,
+} from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPolicyPage } from "@/components/schneiders/policy-page";
 
@@ -17,10 +21,25 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return { title: "Returns & Exchanges — Schneiders", ...resolveV2PageMetadata(v2, "policy_returns", v2?.default_locale ?? "ar") };
+  const locale = v2?.default_locale ?? "ar";
+  // Fallback title mirrors cart/checkout: localised page name + the
+  // tenant's own name — never the platform brand.
+  const pageName =
+    locale === "en" ? "Returns & exchanges" : "الإرجاع والاستبدال";
+  const fallbackTitle = tenant
+    ? `${pageName} — ${tenant.business_name}`
+    : pageName;
+  return {
+    title: fallbackTitle,
+    ...resolveV2PageMetadata(v2, "policy_returns", locale),
+  };
 }
 
-export default async function ReturnsPolicy({ params }: { params: Promise<{ tenant: string }> }) {
+export default async function ReturnsPolicy({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}) {
   const { tenant: tenantParam } = await params;
   const tenant = tenantParam.startsWith("__domain__")
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
@@ -31,8 +50,19 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
   const v2Page = pickV2Page(v2, "policy_returns");
   if (v2 && v2Page) {
     const categories = await listCategories(tenant.id);
-    const runtime = buildRuntimeContext({ pageId: "policy_returns", locale: v2.default_locale ?? "ar", now: new Date() });
-    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+    const runtime = buildRuntimeContext({
+      pageId: "policy_returns",
+      locale: v2.default_locale ?? "ar",
+      now: new Date(),
+    });
+    return (
+      <V2Page
+        v2={v2}
+        page={v2Page}
+        runtime={runtime}
+        renderCtx={{ tenant, products: [], categories }}
+      />
+    );
   }
 
   const categories = await listCategories(tenant.id);
@@ -64,9 +94,17 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
           heading: "How it works",
           body: (
             <ol className="space-y-2 list-decimal list-inside">
-              <li>Message us on WhatsApp within {windowDays} days with your order number and photos.</li>
-              <li>Our delivery hero picks up the item from your address — FREE.</li>
-              <li>Choose: cash refund in 3 days, or instant exchange for a different size/color/product.</li>
+              <li>
+                Message us on WhatsApp within {windowDays} days with your order
+                number and photos.
+              </li>
+              <li>
+                Our delivery hero picks up the item from your address — FREE.
+              </li>
+              <li>
+                Choose: cash refund in 3 days, or instant exchange for a
+                different size/color/product.
+              </li>
             </ol>
           ),
         },
@@ -76,7 +114,9 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
           body: (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="font-display font-bold uppercase text-sm text-candy-mint mb-1">✓ Yes</p>
+                <p className="font-display font-bold uppercase text-sm text-candy-mint mb-1">
+                  ✓ Yes
+                </p>
                 <ul className="space-y-1 list-disc list-inside text-xs">
                   <li>Clothing &amp; shoes (unworn, tags on)</li>
                   <li>Electronics (sealed, unopened)</li>
@@ -84,7 +124,9 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
                 </ul>
               </div>
               <div>
-                <p className="font-display font-bold uppercase text-sm text-candy-pink mb-1">✗ No</p>
+                <p className="font-display font-bold uppercase text-sm text-candy-pink mb-1">
+                  ✗ No
+                </p>
                 <ul className="space-y-1 list-disc list-inside text-xs">
                   <li>Underwear &amp; swimwear</li>
                   <li>Personalized gifts</li>
@@ -99,7 +141,9 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
           heading: "Got something defective?",
           body: (
             <p>
-              We replace it for free — even past the {windowDays}-day window. Just message us with photos. Manufacturer warranty applies for electronics.
+              We replace it for free — even past the {windowDays}-day window.
+              Just message us with photos. Manufacturer warranty applies for
+              electronics.
             </p>
           ),
         },
@@ -108,7 +152,9 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
           heading: "How fast is the refund?",
           body: (
             <p>
-              Cash refunds are delivered in 3 days max after we collect the item. We hand it to you personally on delivery — same way you paid.
+              Cash refunds are delivered in 3 days max after we collect the
+              item. We hand it to you personally on delivery — same way you
+              paid.
             </p>
           ),
         },
@@ -117,7 +163,9 @@ export default async function ReturnsPolicy({ params }: { params: Promise<{ tena
           heading: "Prefer to exchange?",
           body: (
             <p>
-              Choose a different size, color, or a totally different product. Pay or get refunded the difference. Instant — no waiting on refunds.
+              Choose a different size, color, or a totally different product.
+              Pay or get refunded the difference. Instant — no waiting on
+              refunds.
             </p>
           ),
         },

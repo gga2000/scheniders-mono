@@ -1,25 +1,31 @@
 // =====================================================================
 // Section — hero_card_float
 // =====================================================================
-// Full-bleed background-image hero with a floating card anchored to one
-// side (start / center / end). The card sits on `--bk-surface`, carries
-// the headline + sub + a pill-shaped primary CTA (shopping-bag icon),
-// and an optional badge chip overlapping its top corner. Carries the
-// same secondary-CTA contract as `hero_image` (WhatsApp / call /
-// category link) so the WhatsApp-orderable-hero template invariant
-// holds. Everything is brand-kit-token driven — no hardcoded content.
+// Photo hero with a floating card anchored to one side (start / center /
+// end) on desktop. On mobile the photo stacks ABOVE the card (4:5) and
+// the card overlaps its bottom edge, so the LCP image is a real picture
+// instead of a 40px sliver behind a full-width card. The card sits on
+// `--bk-surface`, carries the headline + sub + a pill-shaped primary CTA
+// (shopping-bag icon), and an optional badge chip overlapping its top
+// corner. Carries the same secondary-CTA contract as `hero_image`
+// (WhatsApp / call / category link) so the WhatsApp-orderable-hero
+// template invariant holds. Every CTA is a real link — no `<button>`
+// nested inside an `<a>`.
 // =====================================================================
 
 import Image from "next/image";
+import type { CSSProperties } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { StoreLink } from "./helpers/store-context";
 import {
-  ChunkyButton,
-  Section,
-  WhatsAppIcon,
+  ChunkyLink,
   MaterialIcon,
+  PRESSABLE,
+  Section,
+  WhatsAppButton,
 } from "./helpers/primitives";
+import { cn } from "./helpers/utils";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import {
   isPlausiblePhone,
@@ -89,6 +95,33 @@ function ShoppingBagIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Store-internal pill CTA as a real `StoreLink` (next/link with the store
+ * base path). Mirrors `ChunkyButton`'s token styling; folds into a
+ * link-capable `ChunkyLink` once the primitive can wrap next/link.
+ */
+const PILL_LINK_CLASS = cn(
+  "inline-flex items-center justify-center gap-2 px-6 py-4 text-lg font-display font-black bk-caps tracking-tight",
+  PRESSABLE,
+);
+
+function pillLinkStyle(tone: "primary" | "surface"): CSSProperties {
+  return {
+    backgroundColor:
+      tone === "primary"
+        ? "var(--bk-primary, #ff5a8a)"
+        : "var(--bk-surface, #ffffff)",
+    color:
+      tone === "primary"
+        ? "var(--bk-on-primary, #fff)"
+        : "var(--bk-ink, #1a1a1a)",
+    border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+    borderRadius: "var(--bk-radius-pill, 9999px)",
+    boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+    fontFamily: "var(--bk-font-display, inherit)",
+  };
+}
+
 const ALIGN_CLASS: Record<Props["card_align"], string> = {
   start: "sm:justify-start",
   center: "sm:justify-center",
@@ -109,23 +142,20 @@ function HeroCardFloatRender({
   const badge = resolveI18n(props.badge_i18n, locale);
   const secondaryLabel = resolveI18n(props.secondary_cta_label_i18n, locale);
 
-  const secondaryHref = (() => {
-    if (props.secondary_cta_kind === "whatsapp") {
-      // Per-section override first, then the tenant's canonical number —
-      // templates seed an empty value on purpose so the store-wide number
-      // applies without per-template wiring (parity with hero_image).
-      // `whatsappDigits` normalizes the local 07xx format to 9647xx.
-      const number = resolveTenantWhatsapp(ctx.tenant, props.secondary_cta_value);
-      return number ? `https://wa.me/${whatsappDigits(number)}` : null;
-    }
-    if (
-      props.secondary_cta_kind === "call" &&
-      isPlausiblePhone(props.secondary_cta_value)
-    ) {
-      return `tel:${props.secondary_cta_value}`;
-    }
-    return null;
+  const whatsappHref = (() => {
+    if (props.secondary_cta_kind !== "whatsapp") return null;
+    // Per-section override first, then the tenant's canonical number —
+    // templates seed an empty value on purpose so the store-wide number
+    // applies without per-template wiring (parity with hero_image).
+    // `whatsappDigits` normalizes the local 07xx format to 9647xx.
+    const number = resolveTenantWhatsapp(ctx.tenant, props.secondary_cta_value);
+    return number ? `https://wa.me/${whatsappDigits(number)}` : null;
   })();
+  const callHref =
+    props.secondary_cta_kind === "call" &&
+    isPlausiblePhone(props.secondary_cta_value)
+      ? `tel:${props.secondary_cta_value}`
+      : null;
   // Category links are store-internal: rendered through StoreLink so the
   // store base path (`/s/{slug}` when not on a subdomain) is preserved.
   const secondaryCategoryHref =
@@ -133,34 +163,35 @@ function HeroCardFloatRender({
       ? `/categories/${props.secondary_cta_value}`
       : null;
 
-  const hasImage = !!props.bg_image_url;
+  const bgImage = props.bg_image_url;
 
   return (
     <Section bleed className="px-0 sm:px-4 py-0 sm:py-6">
       <div
-        className="relative overflow-hidden min-h-[420px] sm:min-h-[520px] flex items-center"
-        style={{
-          borderRadius: "var(--bk-radius-card, 1.5rem)",
-          backgroundColor: "var(--bk-ink, #1a1a1a)",
-        }}
+        className={cn(
+          "relative overflow-hidden sm:flex sm:min-h-[520px] sm:items-center sm:bg-bk-ink",
+          !bgImage && "flex min-h-[420px] items-center bg-bk-ink",
+        )}
+        style={{ borderRadius: "var(--bk-radius-card, 1.5rem)" }}
       >
-        {/* Background — full-bleed photo (LCP element) or brand fallback. */}
-        {hasImage ? (
+        {/* Photo (LCP element): stacked 4:5 on mobile, full-bleed behind
+            the card from `sm` up. Brand gradient when no photo is set. */}
+        {bgImage ? (
           <div
             data-layer="bg_image"
             data-layer-label="Background image"
             data-layer-kind="image"
-            className="absolute inset-0"
+            className="relative aspect-[4/5] w-full sm:absolute sm:inset-0 sm:aspect-auto"
             style={{ backgroundColor: "var(--bk-surface, #fff7ed)" }}
           >
             <Image
-              src={props.bg_image_url!}
+              src={bgImage}
               alt=""
               fill
               priority
               // Optimize (AVIF/WebP + srcset) when the host is allowlisted —
               // the hero is the LCP element. Off-allowlist URLs stay raw.
-              unoptimized={!isOptimizableImageHost(props.bg_image_url)}
+              unoptimized={!isOptimizableImageHost(bgImage)}
               sizes="100vw"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -177,12 +208,14 @@ function HeroCardFloatRender({
           />
         )}
 
-        {/* Floating card, anchored per `card_align` on desktop. */}
+        {/* Floating card: overlaps the photo's bottom edge on mobile,
+            anchored per `card_align` on desktop. */}
         <div
-          className={
-            "relative z-10 w-full flex justify-center px-4 sm:px-10 py-14 sm:py-20 " +
-            ALIGN_CLASS[props.card_align]
-          }
+          className={cn(
+            "relative z-10 flex w-full justify-center px-4 sm:px-10 sm:py-20",
+            bgImage ? "-mt-6 pb-6" : "py-14",
+            ALIGN_CLASS[props.card_align],
+          )}
         >
           <div
             className="relative w-full max-w-xl p-6 sm:p-10"
@@ -210,7 +243,7 @@ function HeroCardFloatRender({
             )}
             <h1
               data-i18n-field="headline_i18n"
-              className="font-display font-black text-3xl sm:text-5xl leading-tight tracking-tight"
+              className="font-display font-black text-bk-h1 text-balance tracking-tight"
               style={{
                 color: "var(--bk-ink, #1a1a1a)",
                 fontFamily: "var(--bk-font-display, inherit)",
@@ -220,7 +253,7 @@ function HeroCardFloatRender({
             </h1>
             <p
               data-i18n-field="sub_i18n"
-              className="mt-4 font-body text-base sm:text-lg"
+              className="mt-4 font-body text-base sm:text-lg text-pretty"
               style={{
                 color: "var(--bk-ink-soft, rgba(26,26,26,0.8))",
                 fontFamily: "var(--bk-font-body, inherit)",
@@ -234,66 +267,45 @@ function HeroCardFloatRender({
               data-layer-kind="button"
               className="mt-6 sm:mt-8 flex flex-wrap gap-bk-xs sm:gap-bk-sm items-center"
             >
+              {/* Primary CTA pill wears the tenant's brand primary. */}
               <StoreLink
                 href={props.cta_href}
-                aria-label={ctaLabel}
-                className="flex-grow sm:flex-grow-0"
                 data-i18n-field="cta_label_i18n"
+                className={cn(PILL_LINK_CLASS, "w-full sm:w-auto")}
+                style={pillLinkStyle("primary")}
               >
-                {/* Primary CTA pill wears the tenant's brand primary. */}
-                <ChunkyButton
-                  bg="pink"
+                {ctaLabel}
+                <ShoppingBagIcon />
+              </StoreLink>
+              {whatsappHref && (
+                <WhatsAppButton href={whatsappHref} tone="outline" size="lg">
+                  <span data-i18n-field="secondary_cta_label_i18n">
+                    {secondaryLabel}
+                  </span>
+                </WhatsAppButton>
+              )}
+              {callHref && (
+                <ChunkyLink
+                  href={callHref}
+                  bg="white"
                   size="lg"
-                  fullWidth
                   style={{ borderRadius: "var(--bk-radius-pill, 9999px)" }}
                 >
-                  {ctaLabel}
-                  <ShoppingBagIcon />
-                </ChunkyButton>
-              </StoreLink>
-              {secondaryHref && (
-                <a
-                  href={secondaryHref}
-                  target={
-                    props.secondary_cta_kind === "whatsapp" ? "_blank" : undefined
-                  }
-                  rel={
-                    props.secondary_cta_kind === "whatsapp"
-                      ? "noopener noreferrer"
-                      : undefined
-                  }
-                  aria-label={secondaryLabel}
-                >
-                  <ChunkyButton
-                    bg="white"
-                    size="lg"
-                    style={{ borderRadius: "var(--bk-radius-pill, 9999px)" }}
-                  >
-                    {props.secondary_cta_kind === "whatsapp" ? (
-                      <WhatsAppIcon className="w-5 h-5" />
-                    ) : props.secondary_cta_kind === "call" ? (
-                      <MaterialIcon name="call" />
-                    ) : null}
-                    <span data-i18n-field="secondary_cta_label_i18n">
-                      {secondaryLabel}
-                    </span>
-                  </ChunkyButton>
-                </a>
+                  <MaterialIcon name="call" />
+                  <span data-i18n-field="secondary_cta_label_i18n">
+                    {secondaryLabel}
+                  </span>
+                </ChunkyLink>
               )}
               {secondaryCategoryHref && (
                 <StoreLink
                   href={secondaryCategoryHref}
-                  aria-label={secondaryLabel}
+                  className={PILL_LINK_CLASS}
+                  style={pillLinkStyle("surface")}
                 >
-                  <ChunkyButton
-                    bg="white"
-                    size="lg"
-                    style={{ borderRadius: "var(--bk-radius-pill, 9999px)" }}
-                  >
-                    <span data-i18n-field="secondary_cta_label_i18n">
-                      {secondaryLabel}
-                    </span>
-                  </ChunkyButton>
+                  <span data-i18n-field="secondary_cta_label_i18n">
+                    {secondaryLabel}
+                  </span>
                 </StoreLink>
               )}
             </div>
@@ -309,8 +321,8 @@ const definition: SectionDefinition<Props> = {
   category: "hero",
   name: { en: "Floating-card hero", ar: "غلاف ببطاقة عائمة" },
   description: {
-    en: "Full-bleed photo hero with a floating card: headline, sub, pill CTA, and an optional corner badge.",
-    ar: "غلاف بصورة كاملة العرض وبطاقة عائمة تحتوي عنواناً ووصفاً وزراً رئيسياً وشارة اختيارية.",
+    en: "Photo hero with a floating card: headline, sub, pill CTA, and an optional corner badge. Photo stacks above the card on mobile.",
+    ar: "غلاف بصورة وبطاقة عائمة تحتوي عنواناً ووصفاً وزراً رئيسياً وشارة اختيارية. الصورة فوق البطاقة على الجوال.",
   },
   thumbnail: "/sections/hero_card_float.svg",
   valid_on: ["home", "about"],

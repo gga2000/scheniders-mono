@@ -253,8 +253,9 @@ function InfoPanelNewsletterForm({
           }}
           onBlur={() => setTouched(true)}
           aria-invalid={inputErrored || undefined}
-          className="min-w-0 flex-1 rounded-full bg-white px-5 py-2.5 font-body text-sm focus:outline-none"
+          className="min-w-0 flex-1 rounded-full px-5 py-2.5 font-body text-sm focus-visible:outline-none focus-visible:ring-2 ring-bk-focus focus-visible:ring-offset-2"
           style={{
+            backgroundColor: "var(--bk-surface, #ffffff)",
             border: `1px solid ${
               inputErrored
                 ? "var(--bk-danger, #e5484d)"
@@ -269,14 +270,17 @@ function InfoPanelNewsletterForm({
           type="submit"
           disabled={submitting}
           aria-busy={submitting || undefined}
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-6 py-2.5 font-label text-sm font-bold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-6 py-2.5 font-label text-sm font-bold transition-opacity duration-150 motion-reduce:transition-none hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-70"
           style={{
             backgroundColor: "var(--bk-primary, #ff5a8a)",
             color: "var(--bk-on-primary, #fff)",
           }}
         >
           {submitting ? (
-            <MaterialIcon name="progress_activity" className="animate-spin" />
+            <MaterialIcon
+              name="progress_activity"
+              className="animate-spin motion-reduce:animate-none"
+            />
           ) : status === "ok" ? (
             <>
               <MaterialIcon name="check" />
@@ -287,23 +291,28 @@ function InfoPanelNewsletterForm({
           )}
         </button>
       </form>
-      {status === "ok" && (
-        <p
-          className="mt-2 font-label text-sm font-bold"
-          data-i18n-field="newsletter.success_i18n"
-        >
-          {successMessage ??
-            (locale !== "en" ? "تم! تحقق من بريدك." : "You're in — check your inbox.")}
-        </p>
-      )}
-      {status === "error" && (
-        <p
-          className="mt-2 font-label text-sm font-bold"
-          style={{ color: "var(--bk-danger, #e5484d)" }}
-        >
-          {locale !== "en" ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
-        </p>
-      )}
+      {/* Always-mounted live region so screen readers announce the outcome
+          when it appears (a region inserted together with its text is not
+          reliably announced). */}
+      <div role="status" aria-live="polite">
+        {status === "ok" && (
+          <p
+            className="mt-2 font-label text-sm font-bold"
+            data-i18n-field="newsletter.success_i18n"
+          >
+            {successMessage ??
+              (locale !== "en" ? "تم! تحقق من بريدك." : "You're in — check your inbox.")}
+          </p>
+        )}
+        {status === "error" && (
+          <p
+            className="mt-2 font-label text-sm font-bold"
+            style={{ color: "var(--bk-danger, #e5484d)" }}
+          >
+            {locale !== "en" ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -362,8 +371,9 @@ function SiteFooterRender({
     return (
       <footer className="px-3 pb-6 pt-2 sm:px-6">
         <div
-          className="mx-auto max-w-6xl rounded-[24px] px-6 py-10 sm:px-10"
+          className="mx-auto max-w-6xl px-6 py-10 sm:px-10"
           style={{
+            borderRadius: "var(--bk-radius-card, 24px)",
             backgroundColor: "var(--bk-surface-alt, #f4ede1)",
             color: "var(--bk-ink, #1a1a1a)",
           }}
@@ -393,7 +403,7 @@ function SiteFooterRender({
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={label}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full transition-opacity hover:opacity-70"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full transition-opacity duration-150 motion-reduce:transition-none hover:opacity-70 active:opacity-60"
                       style={{
                         backgroundColor:
                           "color-mix(in srgb, var(--bk-ink, #1a1a1a) 8%, transparent)",
@@ -427,7 +437,7 @@ function SiteFooterRender({
                   <li key={`${l.href}-${i}`}>
                     <StoreLink
                       href={l.href}
-                      className="inline-flex min-h-9 items-center font-body text-sm opacity-75 transition-opacity underline-offset-4 hover:opacity-100 hover:underline"
+                      className="inline-flex min-h-11 items-center font-body text-sm opacity-75 transition-opacity duration-150 motion-reduce:transition-none underline-offset-4 hover:opacity-100 hover:underline active:opacity-60"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>
@@ -455,7 +465,7 @@ function SiteFooterRender({
                     </span>{" "}
                     <a
                       href={`tel:${phone}`}
-                      className="underline-offset-4 hover:underline"
+                      className="inline-flex min-h-11 items-center underline-offset-4 hover:underline active:opacity-60 tabular-nums"
                     >
                       {phone}
                     </a>
@@ -546,7 +556,7 @@ function SiteFooterRender({
     <footer
       style={{
         backgroundColor: "var(--bk-ink, #1a1a1a)",
-        color: "#ffffff",
+        color: "var(--bk-surface, #ffffff)",
         borderTop: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
       }}
     >
@@ -562,7 +572,7 @@ function SiteFooterRender({
               logoUrl={logo}
               name={name}
               size="sm"
-              className="[--bm-ink:#ffffff] [--bm-mark-border:#ffffff]"
+              className="[--bm-ink:var(--bk-surface,#ffffff)] [--bm-mark-border:var(--bk-surface,#ffffff)]"
             />
             {tagline && (
               <p className="font-body text-sm text-white/70 max-w-xs">{tagline}</p>
@@ -587,7 +597,7 @@ function SiteFooterRender({
               )}
             >
               <h3
-                className="font-label font-bold text-xs uppercase tracking-[0.2em]"
+                className="font-label font-bold text-xs bk-caps tracking-[0.2em]"
                 style={{ color: "var(--bk-accent, #ffd84a)" }}
               >
                 {resolveI18n(col.heading_i18n, locale)}
@@ -597,7 +607,7 @@ function SiteFooterRender({
                   <li key={`${l.href}-ci${ci}`}>
                     <StoreLink
                       href={l.href}
-                      className="inline-flex min-h-[44px] items-center font-body text-sm text-white/75 transition-colors hover:text-white hover:underline underline-offset-4"
+                      className="inline-flex min-h-[44px] items-center font-body text-sm text-white/75 transition-colors duration-150 motion-reduce:transition-none hover:text-white hover:underline underline-offset-4 active:opacity-60"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>
@@ -612,7 +622,7 @@ function SiteFooterRender({
           <p className="font-body text-xs text-white/60">
             © {year} {name}
           </p>
-          <p className="font-label font-bold text-[11px] uppercase tracking-[0.2em] text-white/60">
+          <p className="font-label font-bold text-[11px] bk-caps tracking-[0.2em] text-white/60">
             {t ? "صُنع بحب في العراق 🇮🇶" : "Made with love in Iraq 🇮🇶"}
           </p>
         </div>

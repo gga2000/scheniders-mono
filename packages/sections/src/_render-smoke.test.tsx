@@ -12,6 +12,8 @@ import trust_strip from "./trust_strip";
 import hero_image from "./hero_image";
 import pdp_direct_order from "./pdp_direct_order";
 import product_grid from "./product_grid";
+import policy_content from "./policy_content";
+import search_results_grid from "./search_results_grid";
 import type { Product } from "./types";
 
 const runtime = {
@@ -44,7 +46,9 @@ describe("section render smoke", () => {
       ),
     );
     expect(html).toContain("Cash on delivery");
-    expect(html).toMatch(/bg-candy-mint/);
+    // Phase 1C: pills read semantic tokens, never the Candy palette.
+    expect(html).toContain("var(--bk-success");
+    expect(html).not.toMatch(/bg-candy-/);
   });
 
   it("hero_image renders title + CTA", () => {
@@ -105,9 +109,11 @@ describe("pdp_direct_order rating chip (honest numbers)", () => {
       avg_rating: 3.4,
     });
     expect(html).toContain("Over 134 positive reviews");
-    // 3.4 rounds to 3 filled stars + 2 faded — never a blanket ★★★★★.
-    expect(html).toContain("★★★");
-    expect(html).not.toContain("★★★★★");
+    // 3.4 rounds to 3 filled stars + 2 faded — never a blanket 5/5. The
+    // `Stars` primitive draws SVGs: filled = accent fill, empty = faint ink.
+    expect(html).toContain('aria-label="3.4 / 5"');
+    expect(html.match(/fill="var\(--bk-accent/g)?.length).toBe(3);
+    expect(html.match(/fill="var\(--bk-ink-faint/g)?.length).toBe(2);
   });
 
   it("hides the chip entirely when the product has no reviews", () => {
@@ -203,8 +209,14 @@ describe("pdp_direct_order stock urgency threshold (P1-4)", () => {
         StoreBaseProvider,
         { base: "", children: null },
         React.createElement(Render, {
-          props: max === undefined ? urgencyProps : { ...urgencyProps, urgency_max_stock: max },
-          ctx: { ...renderCtx, product: { ...baseProduct, stock_quantity: stock } },
+          props:
+            max === undefined
+              ? urgencyProps
+              : { ...urgencyProps, urgency_max_stock: max },
+          ctx: {
+            ...renderCtx,
+            product: { ...baseProduct, stock_quantity: stock },
+          },
         } as never),
       ),
     );
@@ -219,5 +231,78 @@ describe("pdp_direct_order stock urgency threshold (P1-4)", () => {
   it("honours a custom threshold and 0 = never", () => {
     expect(renderUrgency(51, 100)).toContain("Only 51 left");
     expect(renderUrgency(1, 0)).not.toContain("left");
+  });
+});
+
+// ── Phase 1C (signature audit): commerce sections tokenised ──
+
+describe("policy_content (P1-9, P3-11)", () => {
+  function renderPolicy(
+    extra: Partial<typeof policy_content.defaultProps>,
+  ): string {
+    const Render = policy_content.render;
+    return renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(Render, {
+          props: { ...policy_content.defaultProps, ...extra },
+          ctx: renderCtx,
+        } as never),
+      ),
+    );
+  }
+
+  it("renders the policy title as the page h1 with an eyebrow", () => {
+    const html = renderPolicy({});
+    expect(html).toMatch(/<h1[^>]*>Our policy<\/h1>/);
+    expect(html).toContain("Policies");
+    expect(html).not.toContain("scribble-underline");
+  });
+
+  it("hides the last-updated line without a date, and formats it when set", () => {
+    expect(renderPolicy({})).not.toContain("Last updated");
+    const html = renderPolicy({ last_updated: "2026-09-01" });
+    expect(html).toContain("Last updated");
+    // React keeps the camelCase attribute name in static markup.
+    expect(html).toContain('dateTime="2026-09-01"');
+    expect(html).toContain("September 1, 2026");
+  });
+
+  it("renders [text](url) links for safe schemes only", () => {
+    const html = renderPolicy({
+      body_md_i18n: {
+        en: "Call [us](tel:+9647700000000) or [visit](https://example.com). Never [this](javascript:alert(1)).",
+      },
+    });
+    expect(html).toContain('href="tel:+9647700000000"');
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).not.toContain("javascript:");
+    expect(html).toContain("this");
+  });
+});
+
+describe("search_results_grid (P0-7 partial)", () => {
+  it("renders a GET search form and localised card copy", () => {
+    const Render = search_results_grid.render;
+    const html = renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "/s/demo", children: null },
+        React.createElement(Render, {
+          props: search_results_grid.defaultProps,
+          ctx: {
+            ...renderCtx,
+            runtime: { ...runtime, locale: "ar" },
+            products: [baseProduct],
+          },
+        } as never),
+      ),
+    );
+    expect(html).toContain('action="/s/demo/search"');
+    expect(html).toContain('name="q"');
+    expect(html).toContain("اشترِ الآن");
+    expect(html).not.toContain("Buy Now");
   });
 });

@@ -3,21 +3,24 @@
 // =====================================================================
 // Two-column FAQ band: an accordion of questions (60%) beside a contact
 // card with a WhatsApp CTA (40%); stacked on mobile. Centered eyebrow
-// chip + title + optional sub line above. Accordion behavior mirrors
-// `faq_accordion` (client component, single-open useState). The
-// WhatsApp number resolves through the canonical tenant contact helper
-// with an optional per-section override, and the CTA follows the
-// site-wide WhatsApp button convention (`--bk-mint` + WhatsAppIcon).
+// chip + title + optional sub line above. The accordion is native
+// `<details name="…">` — closed answers stay in the DOM (FAQ rich
+// results, find-in-page), the shared `name` gives exclusive-open, and
+// the section needs no client JS. The WhatsApp number resolves through
+// the canonical tenant contact helper with an optional per-section
+// override; the CTA is the shared `WhatsAppButton` primitive.
 // =====================================================================
 
-"use client";
-
 import Image from "next/image";
-import { useState } from "react";
+import { useId } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { cn } from "./helpers/utils";
-import { MaterialIcon, Section, WhatsAppIcon } from "./helpers/primitives";
+import {
+  CenteredSectionHeader,
+  MaterialIcon,
+  Section,
+  WhatsAppButton,
+} from "./helpers/primitives";
 import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -120,7 +123,9 @@ function FaqContactSplit({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const [openIdx, setOpenIdx] = useState<number | null>(0);
+  // One `name` per section instance so two FAQ blocks on a page don't
+  // collapse each other's rows.
+  const groupName = `faq-${useId()}`;
 
   const eyebrow = resolveI18n(props.eyebrow_i18n, locale);
   const title = resolveI18n(props.title_i18n, locale);
@@ -142,57 +147,37 @@ function FaqContactSplit({
 
   return (
     <Section>
-      {/* Centered header — eyebrow chip + title + sub. */}
-      <div className="mb-bk-lg flex flex-col items-center gap-3 text-center">
-        {eyebrow && (
-          <span
-            data-i18n-field="eyebrow_i18n"
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 font-label font-bold text-xs sm:text-sm"
-            style={{
-              backgroundColor: "var(--bk-surface-alt, #fff1d6)",
-              color: "var(--bk-ink, #1a1a1a)",
-              borderRadius: "9999px",
-              fontFamily: "var(--bk-font-body, inherit)",
-            }}
-          >
-            {props.eyebrow_icon_url && (
-              <Image
-                src={props.eyebrow_icon_url}
-                alt=""
-                width={16}
-                height={16}
-                unoptimized
-                className="h-4 w-4 object-contain"
-              />
-            )}
-            {eyebrow}
-          </span>
-        )}
-        {title && (
-          <h2
-            data-i18n-field="title_i18n"
-            className="font-display font-black text-3xl leading-tight tracking-tight sm:text-4xl"
-            style={{
-              color: "var(--bk-ink, #1a1a1a)",
-              fontFamily: "var(--bk-font-display, inherit)",
-            }}
-          >
-            {title}
-          </h2>
-        )}
-        {sub && (
-          <p
-            data-i18n-field="sub_i18n"
-            className="font-body text-sm sm:text-base"
-            style={{
-              color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
-              fontFamily: "var(--bk-font-body, inherit)",
-            }}
-          >
-            {sub}
-          </p>
-        )}
-      </div>
+      <CenteredSectionHeader
+        eyebrow={
+          eyebrow ? (
+            <>
+              {props.eyebrow_icon_url && (
+                <Image
+                  src={props.eyebrow_icon_url}
+                  alt=""
+                  width={16}
+                  height={16}
+                  unoptimized
+                  className="h-4 w-4 object-contain"
+                />
+              )}
+              {eyebrow}
+            </>
+          ) : undefined
+        }
+        glyph={props.eyebrow_icon_url ? "none" : "sparkle"}
+        // On /faq and /contact this section leads the page and owns its h1.
+        as={
+          ctx.runtime.page_id === "faq" || ctx.runtime.page_id === "contact"
+            ? "h1"
+            : "h2"
+        }
+        title={title}
+        subtitle={sub}
+        eyebrowField="eyebrow_i18n"
+        titleField="title_i18n"
+        subtitleField="sub_i18n"
+      />
 
       {/* 60/40 split on desktop, stacked on mobile. */}
       <div className="mx-auto grid max-w-5xl grid-cols-1 items-start gap-bk-md lg:grid-cols-5 lg:gap-bk-lg">
@@ -201,23 +186,19 @@ function FaqContactSplit({
           {props.items.map((item, i) => {
             const q = resolveI18n(item.q_i18n, locale);
             const a = resolveI18n(item.a_i18n, locale);
-            const open = openIdx === i;
             return (
-              <div
+              <details
                 key={`${i}-${q}`}
-                className="overflow-hidden"
+                name={groupName}
+                open={i === 0}
+                className="group overflow-hidden"
                 style={{
                   backgroundColor: "var(--bk-surface, #ffffff)",
                   borderRadius: "var(--bk-radius-card, 1rem)",
                   boxShadow: CARD_SHADOW,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setOpenIdx(open ? null : i)}
-                  aria-expanded={open}
-                  className="flex w-full items-center gap-3 px-5 py-4 text-start"
-                >
+                <summary className="flex w-full cursor-pointer list-none items-center gap-3 px-5 py-4 text-start transition-opacity duration-150 motion-reduce:transition-none active:opacity-70 [&::-webkit-details-marker]:hidden">
                   {props.row_icon_url ? (
                     <Image
                       src={props.row_icon_url}
@@ -238,7 +219,7 @@ function FaqContactSplit({
                   )}
                   <span
                     data-i18n-field={`items[${i}].q_i18n`}
-                    className="flex-1 font-display text-base font-bold leading-tight"
+                    className="flex-1 font-display text-base font-bold leading-tight text-balance"
                     style={{
                       color: "var(--bk-ink, #1a1a1a)",
                       fontFamily: "var(--bk-font-display, inherit)",
@@ -248,25 +229,20 @@ function FaqContactSplit({
                   </span>
                   <MaterialIcon
                     name="expand_more"
-                    className={cn(
-                      "shrink-0 text-xl transition-transform",
-                      open && "rotate-180",
-                    )}
+                    className="shrink-0 text-xl transition-transform duration-200 motion-reduce:transition-none group-open:rotate-180"
                   />
-                </button>
-                {open && (
-                  <div
-                    data-i18n-field={`items[${i}].a_i18n`}
-                    className="px-5 pb-5 font-body text-sm leading-relaxed sm:text-base"
-                    style={{
-                      color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
-                      fontFamily: "var(--bk-font-body, inherit)",
-                    }}
-                  >
-                    {a}
-                  </div>
-                )}
-              </div>
+                </summary>
+                <div
+                  data-i18n-field={`items[${i}].a_i18n`}
+                  className="px-5 pb-5 font-body text-sm leading-relaxed text-pretty sm:text-base"
+                  style={{
+                    color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
+                    fontFamily: "var(--bk-font-body, inherit)",
+                  }}
+                >
+                  {a}
+                </div>
+              </details>
             );
           })}
         </div>
@@ -298,21 +274,21 @@ function FaqContactSplit({
               />
             )}
             {contactTitle && (
-              <div
+              <h3
                 data-i18n-field="contact.title_i18n"
-                className="font-display text-2xl font-black"
+                className="font-display text-bk-h3 font-black text-balance"
                 style={{
                   color: "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-display, inherit)",
                 }}
               >
                 {contactTitle}
-              </div>
+              </h3>
             )}
             {contactSub && (
               <p
                 data-i18n-field="contact.sub_i18n"
-                className="font-body text-sm leading-relaxed sm:text-base"
+                className="font-body text-sm leading-relaxed text-pretty sm:text-base"
                 style={{
                   color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
                   fontFamily: "var(--bk-font-body, inherit)",
@@ -322,26 +298,14 @@ function FaqContactSplit({
               </p>
             )}
             {waHref && ctaLabel && (
-              <a
+              <WhatsAppButton
                 href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
+                tone="solid"
+                className="mt-2"
                 data-i18n-field="contact.cta_label_i18n"
-                className="mt-2 inline-flex items-center justify-center gap-2 px-6 py-3 font-display text-sm font-black uppercase tracking-wide sm:text-base"
-                style={{
-                  backgroundColor: "var(--bk-mint, #7cf0bd)",
-                  color: "var(--bk-ink, #1a1a1a)",
-                  border:
-                    "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-                  borderRadius: "9999px",
-                  boxShadow:
-                    "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
-                  fontFamily: "var(--bk-font-display, inherit)",
-                }}
               >
-                <WhatsAppIcon className="h-5 w-5" />
                 {ctaLabel}
-              </a>
+              </WhatsAppButton>
             )}
           </div>
         </div>

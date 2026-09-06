@@ -3,7 +3,7 @@
 // =====================================================================
 // Band with an eyebrow chip + big title, optionally flanked by two small
 // decorative side images (hidden on mobile), then large photo link-cards
-// (default 2) side by side. Each card is a rounded photo with a white
+// (default 2) side by side. Each card is a rounded photo with a surface
 // pill label (label + chevron) overlaid bottom-centre; the whole card
 // links to a category / collection page.
 // =====================================================================
@@ -11,8 +11,13 @@
 import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { Section } from "./helpers/primitives";
+import {
+  CenteredSectionHeader,
+  PRESSABLE,
+  Section,
+} from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
+import { cn } from "./helpers/utils";
 import { i18nStringOptional, i18nStringSchema } from "./_schema";
 import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
@@ -55,22 +60,6 @@ const defaultProps: Props = {
     },
   ],
 };
-
-/** Four-point sparkle glyph — eyebrow chip fallback when no icon image. */
-function SparkleGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M12 2c.6 3.8 1.6 5.6 3.4 7 1.3 1 3 1.7 6.6 2.3v1.4c-3.6.6-5.3 1.3-6.6 2.3-1.8 1.4-2.8 3.2-3.4 7h-1.4c-.6-3.8-1.6-5.6-3.4-7-1.3-1-3-1.7-6.6-2.3v-1.4c3.6-.6 5.3-1.3 6.6-2.3 1.8-1.4 2.8-3.2 3.4-7H12Z" />
-    </svg>
-  );
-}
 
 function ChevronGlyph({ className }: { className?: string }) {
   return (
@@ -115,49 +104,31 @@ function CategorySpotlightPair({
 
   return (
     <Section>
-      {/* Centred header: eyebrow chip + big title */}
       {(eyebrow || title) && (
-        <div className="mb-bk-lg flex flex-col items-center gap-3 text-center">
-          {eyebrow && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 font-label font-bold text-xs sm:text-sm"
-              style={{
-                backgroundColor:
-                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 18%, var(--bk-surface, #ffffff))",
-                color: "var(--bk-ink, #1a1a1a)",
-                borderRadius: "var(--bk-radius-pill, 9999px)",
-                fontFamily: "var(--bk-font-body, inherit)",
-              }}
-            >
-              {props.eyebrow_icon_url ? (
-                <Image
-                  src={props.eyebrow_icon_url}
-                  alt=""
-                  width={16}
-                  height={16}
-                  unoptimized
-                  sizes="16px"
-                  className="h-4 w-4 object-contain"
-                />
-              ) : (
-                <SparkleGlyph className="opacity-80" />
-              )}
-              <span data-i18n-field="eyebrow_i18n">{eyebrow}</span>
-            </span>
-          )}
-          {title && (
-            <h2
-              data-i18n-field="title_i18n"
-              className="font-display font-black text-3xl sm:text-4xl tracking-tight"
-              style={{
-                color: "var(--bk-ink, #1a1a1a)",
-                fontFamily: "var(--bk-font-display, inherit)",
-              }}
-            >
-              {title}
-            </h2>
-          )}
-        </div>
+        <CenteredSectionHeader
+          eyebrow={
+            eyebrow ? (
+              <>
+                {props.eyebrow_icon_url && (
+                  <Image
+                    src={props.eyebrow_icon_url}
+                    alt=""
+                    width={16}
+                    height={16}
+                    unoptimized
+                    sizes="16px"
+                    className="h-4 w-4 object-contain"
+                  />
+                )}
+                {eyebrow}
+              </>
+            ) : undefined
+          }
+          glyph={props.eyebrow_icon_url ? "none" : "sparkle"}
+          title={title}
+          eyebrowField="eyebrow_i18n"
+          titleField="title_i18n"
+        />
       )}
 
       {/* Card band, flanked by decorative side art on wide screens */}
@@ -191,23 +162,29 @@ function CategorySpotlightPair({
           {props.items.map((item, i) => {
             const label = resolveI18n(item.label_i18n, locale);
             return (
-              <StoreLink key={i} href={item.href} className="block group">
+              <StoreLink
+                key={i}
+                href={item.href}
+                className={cn("group block", PRESSABLE)}
+              >
                 <div
                   className="relative aspect-[4/3] overflow-hidden"
                   style={{
                     borderRadius: "var(--bk-radius-card, 1.25rem)",
-                    boxShadow: "var(--bk-shadow-card, 0 8px 24px rgb(0 0 0 / 0.08))",
+                    boxShadow:
+                      "var(--bk-shadow-card, 0 8px 24px rgb(0 0 0 / 0.08))",
                   }}
                 >
                   {item.image_url ? (
+                    // Never `priority`: the hero owns the LCP preload budget;
+                    // these cards sit below it on every page they appear on.
                     <Image
                       src={item.image_url}
                       alt={label}
                       fill
-                      priority={i < 2}
                       unoptimized={!isOptimizableImageHost(item.image_url)}
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105"
                     />
                   ) : (
                     /* No image yet: tinted placeholder so the card still
@@ -224,7 +201,7 @@ function CategorySpotlightPair({
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent" />
                   {label && (
                     <span
-                      className="absolute bottom-4 left-1/2 inline-flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform group-hover:-translate-y-0.5"
+                      className="absolute bottom-4 left-1/2 inline-flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-0.5"
                       style={{
                         backgroundColor: "var(--bk-surface, #ffffff)",
                         color: "var(--bk-ink, #1a1a1a)",
@@ -237,7 +214,7 @@ function CategorySpotlightPair({
                       <span className="truncate" data-i18n-field="label_i18n">
                         {label}
                       </span>
-                      <ChevronGlyph className="shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
+                      <ChevronGlyph className="shrink-0 opacity-70 transition-transform duration-150 motion-reduce:transition-none group-hover:translate-x-0.5" />
                     </span>
                   )}
                 </div>

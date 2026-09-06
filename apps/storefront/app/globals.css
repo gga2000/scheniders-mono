@@ -184,6 +184,22 @@ body {
 }
 
 /* ===========================
+   Casing token
+   Candy Bento shouts (uppercase CTAs, eyebrows, stickers). Calm kits —
+   rotation_intensity "none" → data-bk-expressive="false" on the tenant
+   wrapper — get sentence case and normal tracking. Primitives and sections
+   use `bk-caps` instead of the raw `uppercase` utility so this one switch
+   governs every surface.
+   =========================== */
+.bk-caps {
+  text-transform: uppercase;
+}
+[data-bk-expressive="false"] .bk-caps {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ===========================
    Brand-kit motion override
    When the merchant disables motion in the brand kit, the layout sets
    `data-bk-motion="reduce"` on the root container. We honor that the
@@ -197,6 +213,19 @@ body {
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
+}
+/* The visitor's OS preference gets the same treatment as the tenant toggle —
+   previously only the scroll-reveal honoured it, so hover scales, marquees and
+   button transitions kept moving for people who asked them not to. */
+@media (prefers-reduced-motion: reduce) {
+  [data-bk-motion] *,
+  [data-bk-motion] *::before,
+  [data-bk-motion] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ===========================

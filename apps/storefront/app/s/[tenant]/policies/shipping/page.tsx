@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { resolveSchneidersConfig } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listCategories } from "@/lib/queries";
-import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
+import {
+  pickV2Page,
+  buildRuntimeContext,
+  resolveV2PageMetadata,
+} from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPolicyPage } from "@/components/schneiders/policy-page";
 import { formatPrice } from "@/components/schneiders/format";
@@ -18,10 +22,24 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return { title: "Shipping & Delivery — Schneiders", ...resolveV2PageMetadata(v2, "policy_shipping", v2?.default_locale ?? "ar") };
+  const locale = v2?.default_locale ?? "ar";
+  // Fallback title mirrors cart/checkout: localised page name + the
+  // tenant's own name — never the platform brand.
+  const pageName = locale === "en" ? "Shipping & delivery" : "الشحن والتوصيل";
+  const fallbackTitle = tenant
+    ? `${pageName} — ${tenant.business_name}`
+    : pageName;
+  return {
+    title: fallbackTitle,
+    ...resolveV2PageMetadata(v2, "policy_shipping", locale),
+  };
 }
 
-export default async function ShippingPolicy({ params }: { params: Promise<{ tenant: string }> }) {
+export default async function ShippingPolicy({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}) {
   const { tenant: tenantParam } = await params;
   const tenant = tenantParam.startsWith("__domain__")
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
@@ -32,8 +50,19 @@ export default async function ShippingPolicy({ params }: { params: Promise<{ ten
   const v2Page = pickV2Page(v2, "policy_shipping");
   if (v2 && v2Page) {
     const categories = await listCategories(tenant.id);
-    const runtime = buildRuntimeContext({ pageId: "policy_shipping", locale: v2.default_locale ?? "ar", now: new Date() });
-    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+    const runtime = buildRuntimeContext({
+      pageId: "policy_shipping",
+      locale: v2.default_locale ?? "ar",
+      now: new Date(),
+    });
+    return (
+      <V2Page
+        v2={v2}
+        page={v2Page}
+        runtime={runtime}
+        renderCtx={{ tenant, products: [], categories }}
+      />
+    );
   }
 
   const categories = await listCategories(tenant.id);
@@ -74,13 +103,16 @@ export default async function ShippingPolicy({ params }: { params: Promise<{ ten
           body: (
             <>
               <p>
-                <strong>Baghdad:</strong> Same-day or next-day delivery ({baghdadHours}h max).
+                <strong>Baghdad:</strong> Same-day or next-day delivery (
+                {baghdadHours}h max).
               </p>
               <p>
-                <strong>Other governorates:</strong> {provincesHours}–{provincesHours + 24} hours.
+                <strong>Other governorates:</strong> {provincesHours}–
+                {provincesHours + 24} hours.
               </p>
               <p>
-                Express same-day delivery is available in Baghdad for {formatPrice(expressFee)} extra at checkout.
+                Express same-day delivery is available in Baghdad for{" "}
+                {formatPrice(expressFee)} extra at checkout.
               </p>
             </>
           ),
@@ -90,7 +122,8 @@ export default async function ShippingPolicy({ params }: { params: Promise<{ ten
           heading: "Where we deliver",
           body: (
             <p>
-              All {schn.delivery_promise.governorates_covered?.length ?? 18} Iraqi governorates: {govList}.
+              All {schn.delivery_promise.governorates_covered?.length ?? 18}{" "}
+              Iraqi governorates: {govList}.
             </p>
           ),
         },
@@ -99,9 +132,19 @@ export default async function ShippingPolicy({ params }: { params: Promise<{ ten
           heading: "Shipping fees",
           body: (
             <ul className="space-y-2 list-disc list-inside">
-              <li>Baghdad: FREE on orders {formatPrice(baghdadThreshold)}+; otherwise {formatPrice(baghdadFee)}.</li>
-              <li>Other governorates: FREE on orders {formatPrice(provincesThreshold)}+; otherwise {formatPrice(provincesFee)}.</li>
-              <li>Express (Baghdad only): +{formatPrice(expressFee)} for same-day delivery.</li>
+              <li>
+                Baghdad: FREE on orders {formatPrice(baghdadThreshold)}+;
+                otherwise {formatPrice(baghdadFee)}.
+              </li>
+              <li>
+                Other governorates: FREE on orders{" "}
+                {formatPrice(provincesThreshold)}+; otherwise{" "}
+                {formatPrice(provincesFee)}.
+              </li>
+              <li>
+                Express (Baghdad only): +{formatPrice(expressFee)} for same-day
+                delivery.
+              </li>
             </ul>
           ),
         },
@@ -110,7 +153,8 @@ export default async function ShippingPolicy({ params }: { params: Promise<{ ten
           heading: "When do we ship?",
           body: (
             <p>
-              Orders placed before 6pm Saturday–Thursday ship the same day. After 6pm they ship the next morning. Friday orders ship Saturday.
+              Orders placed before 6pm Saturday–Thursday ship the same day.
+              After 6pm they ship the next morning. Friday orders ship Saturday.
             </p>
           ),
         },
@@ -119,7 +163,8 @@ export default async function ShippingPolicy({ params }: { params: Promise<{ ten
           heading: "How we pack",
           body: (
             <p className="text-white">
-              Sturdy boxes, secure packaging, recyclable materials. Free gift wrap available — just leave a note at checkout.
+              Sturdy boxes, secure packaging, recyclable materials. Free gift
+              wrap available — just leave a note at checkout.
             </p>
           ),
         },
@@ -128,7 +173,8 @@ export default async function ShippingPolicy({ params }: { params: Promise<{ ten
           heading: "Track your order",
           body: (
             <p>
-              Once your order is placed, we&apos;ll call you within {callMin} minutes to confirm. After that, you can{" "}
+              Once your order is placed, we&apos;ll call you within {callMin}{" "}
+              minutes to confirm. After that, you can{" "}
               <a href="../../track" className="font-bold underline">
                 track it here
               </a>{" "}
