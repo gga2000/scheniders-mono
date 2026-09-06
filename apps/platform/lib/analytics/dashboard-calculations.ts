@@ -1,6 +1,52 @@
 import { Order, Product } from "@/lib/supabase";
 
 // =============================================
+// Baghdad calendar boundaries (TMP-D1)
+// =============================================
+/**
+ * Iraq is UTC+3 all year and does not observe DST, so a fixed offset is both
+ * correct and cheaper than an Intl round-trip.
+ *
+ * The server function computes every boundary in `Asia/Baghdad`; this engine used
+ * to derive them from the BROWSER clock, so the same dashboard produced different
+ * "today"/"this month" numbers depending on the viewer's device timezone — and a
+ * merchant travelling, or with a wrong clock, saw different figures from their
+ * colleague. These helpers make both engines agree.
+ */
+const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** The instant at which the current Baghdad day began. */
+export function baghdadDayStart(now: Date = new Date()): Date {
+    const shifted = new Date(now.getTime() + BAGHDAD_OFFSET_MS);
+    return new Date(Date.UTC(
+        shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(),
+    ) - BAGHDAD_OFFSET_MS);
+}
+
+/** The instant at which the current Baghdad month began. */
+export function baghdadMonthStart(now: Date = new Date()): Date {
+    const shifted = new Date(now.getTime() + BAGHDAD_OFFSET_MS);
+    return new Date(Date.UTC(
+        shifted.getUTCFullYear(), shifted.getUTCMonth(), 1,
+    ) - BAGHDAD_OFFSET_MS);
+}
+
+/** Hour of day (0-23) in Baghdad for an instant. */
+export function baghdadHour(d: Date): number {
+    return new Date(d.getTime() + BAGHDAD_OFFSET_MS).getUTCHours();
+}
+
+/** Day of week (0 = Sunday) in Baghdad for an instant. */
+export function baghdadDayOfWeek(d: Date): number {
+    return new Date(d.getTime() + BAGHDAD_OFFSET_MS).getUTCDay();
+}
+
+/** Day of the month in Baghdad — used for "days elapsed" in the forecast. */
+export function baghdadDayOfMonth(d: Date): number {
+    return new Date(d.getTime() + BAGHDAD_OFFSET_MS).getUTCDate();
+}
+
+// =============================================
 // What counts as an order (COR-D5)
 // =============================================
 /**
@@ -225,7 +271,7 @@ export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): O
     const now = new Date();
     let cutoff: Date;
     if (range === 'today') {
-        cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        cutoff = baghdadDayStart(now);
     } else if (range === '7d') {
         cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     } else {
@@ -251,7 +297,7 @@ export interface TodayStripMetrics {
 
 export function calculateTodayStrip(orders: Order[]): TodayStripMetrics {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = baghdadDayStart(now);
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
 
     const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart);
@@ -315,8 +361,9 @@ export function calculateRevenueTrend(orders: Order[], days: 7 | 14 | 30): Reven
     const now = new Date();
     const points: RevenueTrendPoint[] = [];
 
+    const todayStart = baghdadDayStart(now);
     for (let i = days - 1; i >= 0; i--) {
-        const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const day = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
         const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
 
         const dayOrders = orders.filter(o => {
@@ -352,13 +399,12 @@ export interface HourlyCount {
 
 export function calculateOrdersPerHourToday(orders: Order[]): HourlyCount[] {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = baghdadDayStart(now);
 
     const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart);
     const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
     todayOrders.forEach(o => {
-        const h = new Date(o.created_at).getHours();
-        buckets[h].count++;
+        buckets[baghdadHour(new Date(o.created_at))].count++;
     });
 
     return buckets.map(b => ({
@@ -383,7 +429,7 @@ export function calculatePeakHoursHeatmap(orders: Order[]): HeatmapCell[] {
 
     orders.forEach(o => {
         const d = new Date(o.created_at);
-        grid[d.getDay()][d.getHours()]++;
+        grid[baghdadDayOfWeek(d)][baghdadHour(d)]++;
     });
 
     const max = Math.max(1, ...grid.flat());
@@ -425,8 +471,9 @@ export function calculateDeliverySuccessRate(orders: Order[]): DeliveryRateMetri
     };
 
     // 7-day sparkline
+    const sparkStart = baghdadDayStart(now);
     const sparkline = Array.from({ length: 7 }, (_, i) => {
-        const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
+        const day = new Date(sparkStart.getTime() - (6 - i) * 24 * 60 * 60 * 1000);
         const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
         return {
             day: day.toLocaleDateString('en-US', { weekday: 'short' }),
@@ -584,9 +631,11 @@ export interface MonthForecast {
 
 export function calculateMonthForecast(orders: Order[]): MonthForecast {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysElapsed = Math.max(1, now.getDate());
+    const monthStart = baghdadMonthStart(now);
+    const daysInMonth = new Date(Date.UTC(
+        monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 0,
+    )).getUTCDate();
+    const daysElapsed = Math.max(1, baghdadDayOfMonth(now));
 
     const monthOrders = orders.filter(o => new Date(o.created_at) >= monthStart);
     const ordersThisMonth = monthOrders.length;

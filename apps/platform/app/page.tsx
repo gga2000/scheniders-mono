@@ -50,8 +50,12 @@ export default function Home() {
   // 12k-row orders fetch. The client computation is kept as a fallback (if the
   // RPC errors) and as a dev-only parallel-run drift check.
   const clientMetrics = useDashboardMetrics(orders, products || []);
-  const { data: serverMetrics, dataUpdatedAt: metricsUpdatedAt } = useDashboardMetricsQuery('all');
+  const { data: serverMetrics, dataUpdatedAt: metricsUpdatedAt, isError: metricsFailed } = useDashboardMetricsQuery('all');
   const dashboardMetrics = serverMetrics ?? clientMetrics;
+  // ENG-D1: the two engines can disagree (the client derives boundaries from the
+  // browser clock). Falling back is fine — doing it silently is not, because the
+  // numbers change with no way for the merchant to tell. Surface it.
+  const usingLocalFallback = !serverMetrics && !!clientMetrics;
   const { t } = useLanguage();
   const { profile, role } = useAuth();
   const { isMobile } = useViewport();
@@ -195,6 +199,15 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* ENG-D1: say so when these figures were computed locally. */}
+        {usingLocalFallback && (
+          <div className="pastel-card pastel-card-yellow px-4 py-3 flex items-center gap-2 text-sm text-amber-900">
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <span className="font-semibold">{t("dashboard.fallback.title")}</span>
+            <span className="text-amber-900/70">{t("dashboard.fallback.detail")}</span>
+          </div>
+        )}
 
         {/* Today at a Glance */}
         <TodayStrip metrics={dashboardMetrics.todayStrip} />

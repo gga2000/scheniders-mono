@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+    baghdadDayStart,
+    baghdadHour,
+    baghdadDayOfWeek,
     calculateEnhancedLeaderboard,
     calculateAvgTimePerStage,
     parseUtcNaiveTimestamp,
@@ -178,5 +181,33 @@ describe("COR-D3 — delivered_at is UTC-naive, so cycle times were 3 hours shor
         })]);
         expect(cycle.sampleSize).toBe(1);
         expect(cycle.avgHours).toBeCloseTo(1, 6);
+    });
+});
+
+describe("TMP-D1 — boundaries resolve in Baghdad, not the browser's timezone", () => {
+    it("THE BUG: an order at 01:00 Baghdad belongs to that Baghdad day", () => {
+        // 2026-09-05 22:05Z is 2026-09-06 01:05 in Baghdad (UTC+3), so the Baghdad
+        // day containing it starts at 2026-09-05T21:00Z. A browser in UTC would
+        // have put it in the previous day.
+        const instant = new Date("2026-09-05T22:05:00.000Z");
+        expect(baghdadDayStart(instant).toISOString()).toBe("2026-09-05T21:00:00.000Z");
+    });
+
+    it("day start is the same instant regardless of where the browser is", () => {
+        // Two instants inside the same Baghdad day resolve to one boundary.
+        const morning = new Date("2026-09-06T05:00:00.000Z");   // 08:00 Baghdad
+        const evening = new Date("2026-09-06T20:00:00.000Z");   // 23:00 Baghdad
+        expect(baghdadDayStart(morning).toISOString())
+            .toBe(baghdadDayStart(evening).toISOString());
+    });
+
+    it("buckets the hour and weekday in Baghdad, which can be the NEXT day", () => {
+        // 22:05Z on Saturday the 5th is already 01:05 on Sunday the 6th in Baghdad.
+        // Bucketing on the browser's UTC weekday put this order on the wrong day of
+        // the peak-hours heatmap entirely.
+        const instant = new Date("2026-09-05T22:05:00.000Z");
+        expect(baghdadHour(instant)).toBe(1);
+        expect(baghdadDayOfWeek(instant)).toBe(0);              // Sunday
+        expect(instant.getUTCDay()).toBe(6);                    // ...but Saturday in UTC
     });
 });

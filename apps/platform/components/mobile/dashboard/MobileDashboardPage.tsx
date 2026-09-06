@@ -26,6 +26,7 @@ export function MobileDashboardPage() {
     const clientMetrics = useDashboardMetrics(orders, products || []);
     const { data: serverMetrics } = useDashboardMetricsQuery('all');
     const dashboardMetrics = serverMetrics ?? clientMetrics;
+    const usingLocalFallback = !serverMetrics && !!clientMetrics;   // ENG-D1
     const { t } = useLanguage();
     const { profile } = useAuth();
 
@@ -85,6 +86,13 @@ export function MobileDashboardPage() {
             </div>
 
             <div className="px-4 flex-1 space-y-6">
+                {usingLocalFallback && (
+                    <div className="pastel-card pastel-card-yellow px-3 py-2 text-xs text-amber-900">
+                        <span className="font-semibold">{t("dashboard.fallback.title")}</span>{' '}
+                        <span className="text-amber-900/70">{t("dashboard.fallback.detail")}</span>
+                    </div>
+                )}
+
                 {/* 1. Mobile Cards */}
                 <MobileDashboardCards stats={stats} />
 
