@@ -60,11 +60,14 @@ const CustomTooltip = ({ active, payload, label, showRevenue, ordersLabel, reven
 export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProps) {
     const [days, setDays] = useState<Days>(7);
     const [measure, setMeasure] = useState<Measure>('orders');
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     // Never leave the chart on a measure this viewer is not entitled to see.
     const activeMeasure: Measure = showRevenue ? measure : 'orders';
 
-    const data = useMemo(() => calculateRevenueTrend(orders, days), [orders, days]);
+    const data = useMemo(
+        () => calculateRevenueTrend(orders, days, language === "ar" ? "ar" : "en"),
+        [orders, days, language],
+    );
 
     const totalOrders = data.reduce((s, d) => s + d.orders, 0);
     const totalRevenue = data.reduce((s, d) => s + d.revenue, 0);

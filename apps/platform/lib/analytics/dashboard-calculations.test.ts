@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+    formatChartWeekday,
+    formatChartDayMonth,
     baghdadDayStart,
     baghdadHour,
     baghdadDayOfWeek,
@@ -209,5 +211,24 @@ describe("TMP-D1 — boundaries resolve in Baghdad, not the browser's timezone",
         expect(baghdadHour(instant)).toBe(1);
         expect(baghdadDayOfWeek(instant)).toBe(0);              // Sunday
         expect(instant.getUTCDay()).toBe(6);                    // ...but Saturday in UTC
+    });
+});
+
+describe("I18N-D3 — chart axis labels follow the locale and Baghdad's day", () => {
+    it("THE BUG: labels were en-US, so an Arabic UI showed English weekdays", () => {
+        const d = new Date("2026-09-06T09:00:00.000Z");
+        expect(formatChartWeekday(d, "en")).toBe("Sun");
+        expect(formatChartWeekday(d, "ar")).not.toBe("Sun");   // renders in Arabic
+    });
+
+    it("orders the day before the month — en-US put the month first, wrong for Iraq", () => {
+        const label = formatChartDayMonth(new Date("2026-09-06T09:00:00.000Z"), "en");
+        expect(label).toMatch(/^6\s/);        // "6 Sep", not "Sep 6"
+    });
+
+    it("names the Baghdad day, not the viewer's", () => {
+        // 22:05Z Saturday is already Sunday in Baghdad; the label must say Sunday
+        // whatever timezone the browser is in.
+        expect(formatChartWeekday(new Date("2026-09-05T22:05:00.000Z"), "en")).toBe("Sun");
     });
 });

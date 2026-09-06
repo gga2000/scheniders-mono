@@ -73,7 +73,16 @@ export function TodayStrip({ metrics }: TodayStripProps) {
                         <DollarSign className="w-4 h-4 text-green-700" />
                     </div>
                     <div>
-                        <p className="text-xs text-muted font-medium">{t("dashboard.today.revenue")}</p>
+                        {/* COR-D1: this figure counts `confirmed` orders that have not
+                            been delivered, so it is money promised rather than collected.
+                            The definition is stated rather than left implicit; which
+                            definition SHOULD be canonical is an open business decision. */}
+                        <p className="text-xs text-muted font-medium" title={t("dashboard.revenue.definition")}>
+                            {t("dashboard.today.revenue")}
+                            <span className="ml-1 text-[10px] text-muted/70 font-normal">
+                                {t("dashboard.revenue.short")}
+                            </span>
+                        </p>
                         <FinancialValue
                             amount={metrics.revenueToday}
                             className="text-2xl font-bold text-foreground leading-none"
