@@ -567,3 +567,67 @@ Two properties should be on every event: `tenant_id` and `role`. Neither custome
 PII nor money figures belong in an event payload — the same entitlement boundary
 SEC-D2 established server-side applies to anything leaving the app.
 
+---
+
+# CLOSING RE-SCORE — 2026-09-07
+
+Fifteen rounds shipped: 27 findings closed, 5 partial, 1 re-scoped, across 17 code
+commits and 8 applied migrations. Every number below was re-derived from the live
+database after the change, not asserted. This section re-grades the pillars against
+what actually shipped and revises the verdict.
+
+## Pillar scorecard — opening vs now
+
+| Pillar | Was | Now | What moved it |
+|---|:--:|:--:|---|
+| **P1 Metric truth** | 45 | **72** | Product revenue attributed by line value, not split equally (top product was understated 3.8–7.1%). Soft-deleted rows and abandoned checkouts out of every aggregate. Cycle times no longer 3h short, and sub-3h deliveries no longer silently discarded. Staff ranked by events they caused, not by who touched an order last — the board was topped by "WhatsApp Bot". The RPC contract is now parsed, so drift fails loudly instead of arriving as `undefined`. **Held back by COR-D1:** the headline "Revenue" still counts undelivered orders, and ≥6 definitions still disagree across orders/reports/finance/payroll. Honestly labelled now, but not resolved. |
+| **P2 Temporal integrity** | 55 | **80** | Client boundaries moved to Asia/Baghdad, so the same dashboard no longer changes with the viewer's device timezone. `delivered_at`'s UTC-naive arithmetic corrected in both engines. "This week" relabelled to what it actually measures. **Held back by COR-D4** (`updated_at`-windowed metrics on a column platform writes never bump — 15% of delivered rows) and by the column type itself, which is the Orders ledger's COR-8. |
+| **P3 Performance** | 68 | **68** | **No change, honestly.** PERF-D1 turned out not to be a dashboard fix at all: `OrdersProvider` is mounted in the ROOT layout, so the whole-book fetch fires on every route and is consumed by six of them. Removing the dashboard's use would have saved nothing. Re-scoped as an app-wide item rather than faked. |
+| **P4 Trust & safety** | 25 | **72** | The P0 is closed: `mv_customer_aggregates` was readable by the anonymous internet — 5,875 customers across all 12 tenants, with phones and addresses — and the same hole blended tenants inside the app, inflating the Customers KPI 4.1×. Financial entitlement now enforced server-side; `product_cost`, `net_profit` and customer PII removed from the payload for every role; announcement writes gated in the database; grants tightened. **Held back by SEC-D2's remainder:** the app-wide order book still carries prices to unentitled roles on every route. |
+| **P5 Decision value** | 65 | **68** | The date filter now actually filters (it re-scoped one widget of seventeen). Dead Search/Bell removed rather than left as furniture. The staff board is honest. **Held back by MOB-D1** (mobile still shows 3 of 23 widgets), the absence of drill-down from most widgets, no alerting, and the fact that a COD merchant's first question — *how much cash is out with couriers* — still has no home on this page. |
+| **P6 Honesty under failure** | 40 | **88** | The biggest movement, and the audit's central thesis. A rate with nothing behind it reads "no data", not 0%. The fallback engine announces itself instead of silently swapping the numbers. Figures carry their age rather than a permanent "Live" chip. Announcements report failures instead of evaporating. Seventeen widgets are individually contained, so one bad row costs one card rather than the page. The dual-axis chart no longer manufactures a correlation, and the pipeline bar is actually proportional. |
+| **P7 Commercial readiness** | 40 | **60** | Sentry finally reports — the ROOT error boundary had been swallowing every render crash in the whole app — with user and tenant attached. Arabic is complete on this surface. **Held back by:** no business events (no analytics sink exists; schema specified, vendor is a product decision), no export, no plan gating, and no designed first-run. |
+
+**Overall: 52 → 73.**
+
+## Revised verdict: still NO-GO — but the list is now short and specific
+
+By this audit's own bar (a pillar below 85 blocks launch), four pillars still fall
+short. What blocks launch is no longer a long tail of defects; it is five named
+items, and **four of the five need a decision or another team's work, not more
+engineering on this page**:
+
+1. **COR-D1 — decide what "revenue" means.** The dashboard's headline number counts
+   money not yet collected, and six surfaces disagree. This is a business
+   definition, not a bug, and it is the single largest remaining risk to a merchant
+   acting on a wrong number.
+2. **SEC-D2 + PERF-D1 — the app-wide order book.** One change closes both: prices
+   reach unentitled roles on every route, and the fetch is the page's largest
+   performance cost. It touches the Orders surface and needs its own engagement.
+3. **COR-D4 — deploy the held `updated_at` trigger** (Orders ledger, deliberately
+   held for that deploy) and move the affected windows onto event timestamps.
+4. **MOB-D1 — decide what a phone should show.** Mobile is 3 of 23 widgets; which
+   of the 20 belong there is a product call.
+5. **The `[U]` visual sweep.** Contrast, content stress, CLS/LCP, first-run and
+   breakpoints remain unverified for want of one test-tenant login. This is the
+   last real gap in the audit's *evidence*, not in the code.
+
+## What this engagement actually changed
+
+The page began as one that did not crash — it lied. A public customer database. A
+revenue figure counting orders that had not shipped. A 0% delivery rate on a quiet
+week. A bot topping the staff leaderboard. A date filter that moved one widget of
+seventeen. A chart whose two axes manufactured a correlation. A team-announcements
+feature dead since March that reported nothing, on a surface where nothing was
+reported at all.
+
+Every one of those is closed. What remains is either a decision that belongs to the
+business, work that belongs to another surface, or evidence that needs a login —
+and each is named above rather than left as a gap.
+
+*Method note: every metric fix shipped with a pinning test (710 tests across 85
+files at close, from 675 at open), each migration was verified against the live
+database and, where patched in place, checksum-matched to its repo file. Three of
+my own claims were wrong and are corrected in the record above: the SEC-1 "guard
+regression", the PROC-D1 branch warning, and the COR-D3 cycle-time prediction.*
+
