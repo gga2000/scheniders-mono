@@ -7,7 +7,7 @@ import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useStats } from "@/hooks/use-stats";
-import { Plus, Search, Bell } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { filterOrdersByDateRange, DateRangeKey } from "@/lib/analytics/dashboard-calculations";
@@ -50,7 +50,7 @@ export default function Home() {
   // 12k-row orders fetch. The client computation is kept as a fallback (if the
   // RPC errors) and as a dev-only parallel-run drift check.
   const clientMetrics = useDashboardMetrics(orders, products || []);
-  const { data: serverMetrics, dataUpdatedAt: metricsUpdatedAt, isError: metricsFailed } = useDashboardMetricsQuery('all');
+  const { data: serverMetrics, dataUpdatedAt: metricsUpdatedAt } = useDashboardMetricsQuery('all');
   const dashboardMetrics = serverMetrics ?? clientMetrics;
   // ENG-D1: the two engines can disagree (the client derives boundaries from the
   // browser clock). Falling back is fine — doing it silently is not, because the
@@ -185,18 +185,11 @@ export default function Home() {
             )}
             <DateRangeFilter value={dateRange} onChange={setDateRange} />
 
-            <button className="w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
-              <Search className="w-5 h-5" />
-            </button>
-
-            <button className="relative w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
-              <Bell className="w-5 h-5" />
-              {stats.newOrders > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--pastel-pink)] text-[10px] font-bold text-rose-900 flex items-center justify-center">
-                  {stats.newOrders > 99 ? '99+' : stats.newOrders}
-                </span>
-              )}
-            </button>
+            {/* DV-D2: the Search and Bell buttons that used to sit here had no
+                onClick at all — dead controls in the page's prime real estate,
+                duplicating the working GlobalSearch and NotificationsDropdown in
+                the app shell's top bar. Removed rather than wired, so there is one
+                search and one bell in the product, not two. */}
 
             <button
               onClick={() => setIsCreateModalOpen(true)}
