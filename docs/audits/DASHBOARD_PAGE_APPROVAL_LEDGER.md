@@ -52,11 +52,11 @@ Live proof after apply:
 | PERF-D1 | Whole-book fetch still fired on mount (3 widgets + useStats); CreateOrderModal in entry chunk | P1 | P3 | **RE-SCOPED — not a dashboard fix** | 2026-09-06 | **Investigated R7, deliberately not attempted.** `OrdersProvider` is mounted in the ROOT layout (`app/layout.tsx:101`), so the whole-book fetch fires on **every route**, and is consumed by 6 routes plus layout-level `global-search` and chat `conversation-list`. Removing the dashboard's usage would save nothing. The real fix is an app-wide lazy/route-aware provider — it touches the Orders surface (sibling audit) and cannot be validated without a live UI pass. Needs its own engagement. The `CreateOrderModal` static import remains a genuine dashboard-local item. |
 | TMP-D1 | Client engine browser-clock boundaries; hourly current-hour highlight wrong off-Baghdad | P2 | P2 | **APPROVED** | 2026-09-06 | **R7 — shipped** (`c82cce99`). 7 boundary computations moved to Baghdad via fixed-offset helpers (no DST in Iraq). Verified: server 27/27/day-6 matches independent Baghdad SQL, which the client helpers reproduce. *The orders-per-hour current-hour HIGHLIGHT still uses the browser clock — trivial, folded into the DV-D2 widget sweep.* |
 | TMP-D2 | "This week" label on rolling-168h windows | P3 | P2 | PENDING | — | — |
-| DV-D1 | Date-range filter scopes only the pipeline widget (placebo) | P1 | P5 | PENDING | — | — |
+| DV-D1 | Date-range filter scopes only the pipeline widget (placebo) | P1 | P5 | **APPROVED** | 2026-09-06 | **R8 — shipped** (`8b484fe6`). 5 more widgets wired to the ranged query (heatmap, stage timings, rejection breakdown, city + product leaderboards). Verified live: top city 1,600 → 9, rejection cities 115 → 15 between 'all' and 'today'. Inherent-window widgets keep their own. |
 | DV-D2 | Dead Search + Bell header buttons (desktop + mobile); feed rows not clickable | P2 | P5 | PENDING | — | — |
 | MOB-D1 | Mobile shows 3 of 23 widgets; different (and unmasked) revenue definition | P1 | P4/P5 | PENDING | — | — |
 | MOB-D2 | Mobile hardcoded English; `paste-card` typo; no safe-area insets | P2 | P3/P7 | PENDING | — | — |
-| VIS-D1 | Dual-axis revenue/orders chart + non-zero line baseline | P1 | P6 | PENDING | — | — |
+| VIS-D1 | Dual-axis revenue/orders chart + non-zero line baseline | P1 | P6 | **APPROVED** | 2026-09-06 | **R8 — shipped** (`8b484fe6`). Single measure at a time, toggled, zero baseline (`domain={[0,'auto']}`); revenue toggle only for entitled viewers. Card height ruled out stacked panels — the other form `dataviz` sanctions. |
 | VIS-D2 | Pipeline proportional bar min-width distorts proportions | P2 | P6 | PENDING | — | — |
 | I18N-D1 | `dir="rtl"` ×3 in order-card.tsx (orders-rendered file) | P2 | P7 | PENDING | — | — |
 | I18N-D2 | Hardcoded strings: mobile cards, urgency triad, header toggles, map headers, EN-only axes | P2 | P7 | PENDING | — | — |
@@ -91,3 +91,5 @@ Entitlement verified live against real accounts: as employee `noor` every money 
 **Round 7 (2026-09-06) — ENG-D1 + TMP-D1 shipped; PERF-D1 re-scoped.** `c82cce99`. `tsc` 0 · `lint` 0 errors / 1153 warnings · **vitest 703/703 across 84 files**. No migration.
 
 **SEC-D2 stays PARTIAL for the same reason PERF-D1 was re-scoped:** the app-wide order-book fetch still delivers prices to unentitled roles on every route. That is now understood to be an app-wide issue, not a dashboard one — the dashboard's own RPC payload is clean.
+
+**Round 8 (2026-09-06) — DV-D1 + VIS-D1 shipped.** `8b484fe6`. `tsc` 0 · `lint` 0 errors / 1153 warnings · **vitest 703/703 across 84 files**. No migration — the RPC already supported `p_range`; the ranged result was being fetched and discarded.
