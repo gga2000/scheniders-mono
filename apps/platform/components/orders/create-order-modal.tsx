@@ -365,7 +365,7 @@ export function CreateOrderModal({
                     toast.warning('لم يتم العثور على بيانات في الصورة. الرجاء التحقق من الصورة والمحاولة مرة أخرى.');
                 }
             } else {
-                console.error("Failed to analyze image:", result.error, result.details);
+                console.error("Failed to analyze image:", result.error);
                 toast.error(`حدث خطأ أثناء تحليل الصورة: ${result.error || 'خطأ غير معروف'}`);
             }
         } catch (error) {
