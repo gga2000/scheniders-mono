@@ -183,15 +183,36 @@ function buttonShadow(style: BrandShape["shadow_style"]): string {
 /* Font-stack builder                                                   */
 /* ─────────────────────────────────────────────────────────────────── */
 
+/**
+ * Families the storefront root layout self-hosts through `next/font/google`
+ * and exposes as CSS variables (RC3). The generated face gets a hashed
+ * family name, so a stack must reference the variable to use it; the plain
+ * name stays as the `var()` fallback for surfaces that do not mount the
+ * root layout (platform live-preview, tests) — those resolve exactly as
+ * before. Keep in sync with `apps/storefront/app/layout.tsx`.
+ */
+export const SELF_HOSTED_FONT_VARS: Readonly<Record<string, string>> = {
+  "Bricolage Grotesque": "--font-bricolage",
+  "DM Sans": "--font-dm-sans",
+  Cairo: "--font-cairo",
+  "Noto Sans Arabic": "--font-noto-arabic",
+};
+
+/** A single font-family entry: the self-hosted `var()` when available, else the quoted name. */
+export function fontFamilyRef(name: string): string {
+  const cssVar = SELF_HOSTED_FONT_VARS[name];
+  return cssVar ? `var(${cssVar}, '${name}')` : `'${name}'`;
+}
+
 /** Build a CSS font-family stack from a Google-Font display name. */
 export function fontStack(name: string | undefined, fallback: string, kind: "display" | "body"): string {
   const generic = kind === "display" ? "sans-serif" : "sans-serif";
   const cleaned = (name && name.trim()) || fallback;
   // EC14: 'Noto Sans Arabic' covers the Arabic/Kurdish glyphs that the Latin
   // brand faces (Bricolage / DM Sans / most Google display fonts) lack — without
-  // it, Arabic text drops to the system font. The browser only fetches it for
-  // glyphs in the Arabic unicode-range, so Latin-only stores never download it.
-  return `'${cleaned}', '${fallback}', 'Noto Sans Arabic', ${generic}`;
+  // it, Arabic text drops to the system font. It is subset to the Arabic
+  // unicode-range, so Latin-only stores never download it.
+  return `${fontFamilyRef(cleaned)}, ${fontFamilyRef(fallback)}, ${fontFamilyRef("Noto Sans Arabic")}, ${generic}`;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -315,8 +336,8 @@ export function buildBrandKitVars(
   // Latin brand names inside Arabic copy still render in the brand face.
   const arDisplayName = kit.typography?.display_ar?.trim();
   const arBodyName = kit.typography?.body_ar?.trim();
-  const fontDisplayAr = arDisplayName ? `'${arDisplayName}', ${latinDisplay}` : latinDisplay;
-  const fontBodyAr = arBodyName ? `'${arBodyName}', ${latinBody}` : latinBody;
+  const fontDisplayAr = arDisplayName ? `${fontFamilyRef(arDisplayName)}, ${latinDisplay}` : latinDisplay;
+  const fontBodyAr = arBodyName ? `${fontFamilyRef(arBodyName)}, ${latinBody}` : latinBody;
   const isArabicScript = opts?.locale === "ar" || opts?.locale === "ku";
   const fontDisplay = isArabicScript ? fontDisplayAr : latinDisplay;
   const fontBody = isArabicScript ? fontBodyAr : latinBody;
@@ -407,13 +428,22 @@ export function buildBrandKitVars(
 /* ─────────────────────────────────────────────────────────────────── */
 
 /**
+ * Weights requested for every Google-hosted kit font. Section headings use
+ * `font-black` (900); the previous 400-700 request made Google serve 700 and
+ * the browser synthesised the rest (P2-2). Families that do not carry a
+ * weight are simply omitted by the Google CSS endpoint.
+ */
+export const BRAND_KIT_FONT_WEIGHTS = "400;500;600;700;800;900";
+
+/**
  * Build a Google Fonts CSS2 URL for the kit's display + body fonts,
- * skipping any name in `skip` (already loaded in the root layout) and
- * deduping repeats. Returns `null` if nothing remains to fetch.
+ * skipping any name in `skip` (self-hosted by the root layout, see
+ * SELF_HOSTED_FONT_VARS) and deduping repeats. Returns `null` if nothing
+ * remains to fetch.
  */
 export function buildBrandKitFontsUrl(
   kit: BrandKit,
-  skip: ReadonlySet<string> = new Set(["Bricolage Grotesque", "DM Sans"]),
+  skip: ReadonlySet<string> = new Set(Object.keys(SELF_HOSTED_FONT_VARS)),
 ): string | null {
   const names = new Set<string>();
   const add = (n: string | undefined) => {
@@ -429,7 +459,7 @@ export function buildBrandKitFontsUrl(
   add(kit.typography?.body_ar);
   if (names.size === 0) return null;
   const families = Array.from(names)
-    .map((f) => `family=${f.replace(/\s+/g, "+")}:wght@400;500;600;700`)
+    .map((f) => `family=${f.replace(/\s+/g, "+")}:wght@${BRAND_KIT_FONT_WEIGHTS}`)
     .join("&");
   return `https://fonts.googleapis.com/css2?${families}&display=swap`;
 }

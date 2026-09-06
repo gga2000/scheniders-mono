@@ -60,11 +60,12 @@ const defaultProps: Props = {
   sticky: true,
 };
 
-/** Circular white bento control (menu / back). 44px touch target. */
+/** Circular surface bento control (menu / back). 44px touch target. */
 const circleBtn =
-  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white " +
-  "transition-transform hover:scale-105 active:scale-95";
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full " +
+  "transition-transform duration-150 motion-reduce:transition-none hover:scale-105 active:scale-95";
 const circleBtnStyle = {
+  backgroundColor: "var(--bk-surface, #ffffff)",
   border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
   boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
   color: "var(--bk-ink, #1a1a1a)",
@@ -115,7 +116,7 @@ function SiteHeaderRender({
     const pillLogo = props.logo_image_url || logo;
     const pillIconBtn =
       "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full " +
-      "transition-opacity hover:opacity-70 active:opacity-60";
+      "transition-opacity duration-150 motion-reduce:transition-none hover:opacity-70 active:opacity-60";
 
     return (
       <header
@@ -129,7 +130,7 @@ function SiteHeaderRender({
           style={{
             backgroundColor: "var(--bk-surface, #ffffff)",
             color: "var(--bk-ink, #1a1a1a)",
-            boxShadow: "0 14px 40px -18px rgb(0 0 0 / 0.35)",
+            boxShadow: "var(--bk-shadow-card, 0 14px 40px -18px rgb(0 0 0 / 0.35))",
           }}
         >
           {/* Inline-start: mobile menu toggle + desktop nav links */}
@@ -154,7 +155,7 @@ function SiteHeaderRender({
                 <StoreLink
                   key={`${l.href}-${l.label}`}
                   href={l.href}
-                  className="font-body text-sm font-bold transition-opacity hover:opacity-70"
+                  className="font-body text-sm font-bold transition-opacity duration-150 motion-reduce:transition-none hover:opacity-70 active:opacity-60"
                   style={{ color: "var(--bk-ink, #1a1a1a)" }}
                 >
                   {l.label}
@@ -229,11 +230,12 @@ function SiteHeaderRender({
         {/* Mobile nav sheet — a rounded card floating under the pill */}
         {open && navLinks.length > 0 && (
           <nav
-            className="mx-auto mt-2 max-w-6xl rounded-3xl px-5 py-1 sm:hidden"
+            className="mx-auto mt-2 max-w-6xl px-5 py-1 sm:hidden"
             style={{
+              borderRadius: "var(--bk-radius-card, 1.5rem)",
               backgroundColor: "var(--bk-surface, #ffffff)",
               color: "var(--bk-ink, #1a1a1a)",
-              boxShadow: "0 14px 40px -18px rgb(0 0 0 / 0.35)",
+              boxShadow: "var(--bk-shadow-card, 0 14px 40px -18px rgb(0 0 0 / 0.35))",
             }}
           >
             <ul>
@@ -245,7 +247,7 @@ function SiteHeaderRender({
                   <StoreLink
                     href={l.href}
                     onClick={() => setOpen(false)}
-                    className="block py-3 font-body text-sm font-bold"
+                    className="block py-3 font-body text-sm font-bold transition-opacity duration-150 motion-reduce:transition-none active:opacity-60"
                     style={{ color: "var(--bk-ink, #1a1a1a)" }}
                   >
                     {l.label}
@@ -266,7 +268,7 @@ function SiteHeaderRender({
         backgroundColor: "var(--bk-surface, #fff7ed)",
         borderBottom:
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-        boxShadow: "0 3px 0 0 rgb(26 26 26 / 0.06)",
+        boxShadow: "var(--bk-shadow-card, 0 3px 0 0 rgb(26 26 26 / 0.06))",
       }}
     >
       <div className="mx-auto max-w-6xl px-4 min-h-16 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -310,13 +312,13 @@ function SiteHeaderRender({
               <StoreLink
                 key={`${l.href}-${l.label}`}
                 href={l.href}
-                className="group relative font-label font-bold text-sm uppercase tracking-wide transition-colors hover:text-[var(--bk-primary,#ff5a8a)]"
+                className="group relative font-label font-bold text-sm bk-caps tracking-wide transition-colors duration-150 motion-reduce:transition-none hover:text-[var(--bk-primary,#ff5a8a)]"
                 style={{ color: "var(--bk-ink, #1a1a1a)" }}
               >
                 {l.label}
                 <span
                   aria-hidden="true"
-                  className="absolute -bottom-1 left-0 h-[var(--bk-border-thickness,3px)] w-0 transition-all duration-200 group-hover:w-full"
+                  className="absolute -bottom-1 left-0 h-[var(--bk-border-thickness,3px)] w-0 transition-[width] duration-200 motion-reduce:transition-none group-hover:w-full"
                   style={{ backgroundColor: "var(--bk-primary, #ff5a8a)" }}
                 />
               </StoreLink>
@@ -357,7 +359,7 @@ function SiteHeaderRender({
               aria-label={
                 t ? `سلة التسوّق (${count})` : `Cart (${count})`
               }
-              className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 transition-transform hover:scale-105 active:scale-95"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 transition-transform duration-150 motion-reduce:transition-none hover:scale-105 active:scale-95"
               style={{
                 backgroundColor: "var(--bk-mint, #7cf0bd)",
                 color: "var(--bk-ink, #1a1a1a)",
@@ -391,7 +393,7 @@ function SiteHeaderRender({
                 <StoreLink
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="block py-3 font-label font-bold text-sm uppercase tracking-wide border-b border-candy-ink/10 last:border-0"
+                  className="block py-3 font-label font-bold text-sm bk-caps tracking-wide border-b border-bk-ink/10 last:border-0 transition-opacity duration-150 motion-reduce:transition-none active:opacity-60"
                   style={{ color: "var(--bk-ink, #1a1a1a)" }}
                 >
                   {l.label}

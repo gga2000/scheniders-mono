@@ -14,11 +14,13 @@ import { z } from "zod";
 import { resolveI18n, computeRatingSummary } from "@scheniders/shared";
 import type { ProductReview, RatingSummary } from "@scheniders/shared";
 import {
-  Section,
-  SectionHeader,
-  MaterialIcon,
+  CenteredSectionHeader,
   ChunkyButton,
+  MaterialIcon,
+  Section,
+  Stars,
 } from "./helpers/primitives";
+import { formatCount } from "./helpers/format";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -41,41 +43,26 @@ const EMPTY_SUMMARY: RatingSummary = {
   distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
 };
 
-/** Single star. The Material Symbols font fills via the `FILL` axis, not a
- *  separate glyph name — so an empty star is the same "star" glyph at FILL 0. */
-function Star({ filled }: { filled: boolean }): React.ReactElement {
-  return (
-    <span
-      className="material-symbols-outlined"
-      aria-hidden="true"
-      style={{
-        fontVariationSettings: filled ? "'FILL' 1" : "'FILL' 0",
-        color: filled ? undefined : "rgb(26 26 26 / 0.25)",
-      }}
-    >
-      star
-    </span>
-  );
+function reviewCountLabel(count: number, locale: "ar" | "en" | "ku"): string {
+  return formatCount(count, locale, {
+    one: locale === "en" ? "1 review" : "تقييم واحد",
+    two: "تقييمان",
+    few: "{count} تقييمات",
+    many: "{count} تقييماً",
+    other: locale === "en" ? "{count} reviews" : "{count} تقييم",
+  });
 }
 
-function Stars({
-  value,
-  className,
-}: {
-  value: number;
-  className?: string;
-}): React.ReactElement {
-  const filled = Math.round(value);
-  return (
-    <span
-      className={`inline-flex items-center text-bk-primary ${className ?? ""}`}
-      aria-label={`${value} / 5`}
-    >
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} filled={n <= filled} />
-      ))}
-    </span>
-  );
+function photosAttachedLabel(
+  count: number,
+  locale: "ar" | "en" | "ku",
+): string {
+  return formatCount(count, locale, {
+    one: locale === "en" ? "1 photo attached" : "صورة واحدة مرفقة",
+    two: "صورتان مرفقتان",
+    few: "{count} صور مرفقة",
+    other: locale === "en" ? "{count} photos attached" : "{count} صورة مرفقة",
+  });
 }
 
 function ProductReviewsRender({
@@ -128,11 +115,13 @@ function ProductReviewsRender({
     });
     fetch(`/api/reviews?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { reviews: ProductReview[]; summary: RatingSummary } | null) => {
-        if (!active || !data) return;
-        setReviews(data.reviews ?? []);
-        setSummary(data.summary ?? computeRatingSummary(data.reviews ?? []));
-      })
+      .then(
+        (data: { reviews: ProductReview[]; summary: RatingSummary } | null) => {
+          if (!active || !data) return;
+          setReviews(data.reviews ?? []);
+          setSummary(data.summary ?? computeRatingSummary(data.reviews ?? []));
+        },
+      )
       .catch(() => {
         /* network blip — section just shows the empty/CTA state */
       });
@@ -142,8 +131,14 @@ function ProductReviewsRender({
   }, [tenantId, productId]);
 
   if (!product || !tenantId || !productId) return null;
+  // Narrowed copies for the submit closure below (a hoisted function
+  // declaration would not see the guard above).
+  const tid = tenantId;
+  const pid = productId;
 
-  const heading = resolveI18n(props.heading_i18n, locale) || t("Customer reviews", "آراء العملاء");
+  const heading =
+    resolveI18n(props.heading_i18n, locale) ||
+    t("Customer reviews", "آراء العملاء");
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -155,8 +150,8 @@ function ProductReviewsRender({
     setError(null);
     try {
       const fd = new FormData();
-      fd.set("tenant_id", tenantId!);
-      fd.set("product_id", productId!);
+      fd.set("tenant_id", tid);
+      fd.set("product_id", pid);
       fd.set("rating", String(rating));
       if (name.trim()) fd.set("author_name", name.trim());
       if (title.trim()) fd.set("title", title.trim());
@@ -165,7 +160,9 @@ function ProductReviewsRender({
 
       const res = await fetch("/api/reviews", { method: "POST", body: fd });
       if (!res.ok) {
-        setError(t("Could not submit. Try again.", "تعذّر الإرسال. حاول مجددًا."));
+        setError(
+          t("Could not submit. Try again.", "تعذّر الإرسال. حاول مجددًا."),
+        );
         return;
       }
       setSubmitted(true);
@@ -175,7 +172,9 @@ function ProductReviewsRender({
       setBody("");
       setFiles([]);
     } catch {
-      setError(t("Could not submit. Try again.", "تعذّر الإرسال. حاول مجددًا."));
+      setError(
+        t("Could not submit. Try again.", "تعذّر الإرسال. حاول مجددًا."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -183,48 +182,62 @@ function ProductReviewsRender({
 
   const distRows = [5, 4, 3, 2, 1] as const;
   const maxBar = Math.max(1, summary.count);
+  const hasReviews = summary.count > 0;
   const inputCls =
-    "w-full rounded-xl border-2 border-bk-ink/15 bg-white px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus:outline-none";
+    "w-full rounded-xl border-2 border-bk-ink/15 bg-bk-surface px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus-visible:outline-none focus-visible:ring-2 ring-bk-focus focus-visible:ring-offset-2";
 
   return (
     <Section>
-      <SectionHeader title={heading} />
+      <CenteredSectionHeader
+        title={heading}
+        align="start"
+        titleField="heading_i18n"
+      />
 
-      {/* Summary */}
-      <div className="mt-bk-md flex flex-col gap-bk-md sm:flex-row sm:items-center sm:gap-bk-lg">
-        <div className="flex flex-col items-center sm:items-start">
-          <span className="font-display text-5xl font-black text-bk-ink">
-            <bdi>{summary.average.toFixed(1)}</bdi>
-          </span>
-          <Stars value={summary.average} className="text-2xl" />
-          <span className="font-label mt-1 text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-            {summary.count === 1
-              ? t("1 review", "تقييم واحد")
-              : t(`${summary.count} reviews`, `${summary.count} تقييم`)}
-          </span>
+      {/* Summary — only when there is something real to summarise. A
+          zero-review product gets one honest line, never "0.0" + empty bars. */}
+      {hasReviews ? (
+        <div className="mt-bk-md flex flex-col gap-bk-md sm:flex-row sm:items-center sm:gap-bk-lg">
+          <div className="flex flex-col items-center sm:items-start">
+            <span className="font-display text-5xl font-black text-bk-ink tabular-nums">
+              <bdi>{summary.average.toFixed(1)}</bdi>
+            </span>
+            <Stars
+              value={summary.average}
+              size={24}
+              label={`${summary.average.toFixed(1)} / 5`}
+            />
+            <span className="font-label mt-1 text-xs bk-caps tracking-[0.2em] text-bk-ink-soft tabular-nums">
+              {reviewCountLabel(summary.count, locale)}
+            </span>
+          </div>
+          <div className="flex-1 space-y-1">
+            {distRows.map((star) => (
+              <div key={star} className="flex items-center gap-bk-xs">
+                <span className="w-6 text-right font-label text-xs text-bk-ink-soft tabular-nums">
+                  {star}
+                </span>
+                <Stars value={1} max={1} size={14} label={`${star} / 5`} />
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-bk-ink/10">
+                  <span
+                    className="block h-full rounded-full bg-bk-primary"
+                    style={{
+                      width: `${(summary.distribution[star] / maxBar) * 100}%`,
+                    }}
+                  />
+                </span>
+                <span className="w-6 font-label text-xs text-bk-ink-soft tabular-nums">
+                  {summary.distribution[star]}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex-1 space-y-1">
-          {distRows.map((star) => (
-            <div key={star} className="flex items-center gap-bk-xs">
-              <span className="w-6 text-right font-label text-xs text-bk-ink-soft tabular-nums">
-                {star}
-              </span>
-              <MaterialIcon name="star" className="text-sm text-bk-primary" />
-              <span className="h-2 flex-1 overflow-hidden rounded-full bg-bk-ink/10">
-                <span
-                  className="block h-full rounded-full bg-bk-primary"
-                  style={{
-                    width: `${(summary.distribution[star] / maxBar) * 100}%`,
-                  }}
-                />
-              </span>
-              <span className="w-6 font-label text-xs text-bk-ink-soft tabular-nums">
-                {summary.distribution[star]}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      ) : (
+        <p className="mt-bk-md font-body text-base text-bk-ink-soft text-pretty">
+          {t("Be the first to review", "كن أول من يقيّم هذا المنتج")}
+        </p>
+      )}
 
       {/* Review list */}
       {reviews.length > 0 && (
@@ -232,24 +245,28 @@ function ProductReviewsRender({
           {reviews.map((r) => (
             <li
               key={r.id}
-              className="rounded-2xl border-2 border-bk-ink/10 bg-white p-bk-md"
+              className="rounded-2xl border-2 border-bk-ink/10 bg-bk-surface p-bk-md"
             >
               <div className="flex items-center justify-between gap-bk-sm">
                 <span className="font-label font-bold text-bk-ink">
                   {r.author_name?.trim() || t("Verified buyer", "مشترٍ موثّق")}
                 </span>
-                <Stars value={r.rating} />
+                <Stars value={r.rating} size={16} label={`${r.rating} / 5`} />
               </div>
               {r.title && (
-                <p className="mt-1 font-display font-bold text-bk-ink">{r.title}</p>
+                <p className="mt-1 font-display font-bold text-bk-ink">
+                  {r.title}
+                </p>
               )}
               {r.body && (
-                <p className="mt-1 font-body text-bk-ink-soft">{r.body}</p>
+                <p className="mt-1 font-body text-bk-ink-soft text-pretty">
+                  {r.body}
+                </p>
               )}
               {r.photo_urls.length > 0 && (
                 <div className="mt-bk-sm flex flex-wrap gap-bk-xs">
                   {r.photo_urls.map((url, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
+                    // eslint-disable-next-line @next/next/no-img-element -- shopper uploads live on arbitrary storage hosts outside the next/image allowlist
                     <img
                       key={i}
                       src={url}
@@ -269,7 +286,11 @@ function ProductReviewsRender({
       {props.show_form && (
         <div className="mt-bk-lg rounded-2xl border-2 border-bk-ink/10 bg-bk-surface p-bk-md">
           {submitted ? (
-            <p className="font-label font-bold text-bk-ink">
+            <p
+              role="status"
+              aria-live="polite"
+              className="font-label font-bold text-bk-ink"
+            >
               {t(
                 "Thanks! Your review is pending approval.",
                 "شكرًا! تقييمك قيد المراجعة.",
@@ -289,12 +310,16 @@ function ProductReviewsRender({
                   <button
                     key={n}
                     type="button"
-                    aria-label={`${n}`}
                     aria-pressed={rating >= n}
                     onClick={() => setRating(n)}
-                    className="text-3xl text-bk-primary"
+                    className="inline-flex h-11 w-11 items-center justify-center transition-transform duration-150 motion-reduce:transition-none active:scale-[0.9]"
                   >
-                    <Star filled={rating >= n} />
+                    <Stars
+                      value={rating >= n ? 1 : 0}
+                      max={1}
+                      size={28}
+                      label={`${n}`}
+                    />
                   </button>
                 ))}
               </div>
@@ -332,12 +357,14 @@ function ProductReviewsRender({
                 className="block w-full font-body text-sm text-bk-ink-soft"
               />
               {files.length > 0 && (
-                <p className="font-label text-xs text-bk-ink-soft">
-                  {t(`${files.length} photo(s) attached`, `${files.length} صورة مرفقة`)}
+                <p className="font-label text-xs text-bk-ink-soft tabular-nums">
+                  {photosAttachedLabel(files.length, locale)}
                 </p>
               )}
               {error && (
-                <p className="font-label text-sm text-red-600">{error}</p>
+                <p role="alert" className="font-label text-sm text-bk-danger">
+                  {error}
+                </p>
               )}
               <ChunkyButton type="submit" disabled={submitting}>
                 {submitting

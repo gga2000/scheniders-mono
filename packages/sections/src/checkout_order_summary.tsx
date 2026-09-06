@@ -17,11 +17,7 @@ import {
   computeBundleDiscounts,
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
-import {
-  BentoCard,
-  MaterialIcon,
-  ScribbleHeading,
-} from "./helpers/primitives";
+import { CenteredSectionHeader, MaterialIcon } from "./helpers/primitives";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
@@ -46,6 +42,11 @@ const defaultProps: Props = {
   sticky: true,
   show_thumbnails: true,
 };
+
+const INK_BORDER =
+  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
+const DASHED_DIVIDER =
+  "var(--bk-border-thickness, 3px) dashed var(--bk-divider, rgb(26 26 26 / 0.15))";
 
 function CheckoutOrderSummaryRender({
   props,
@@ -85,10 +86,24 @@ function CheckoutOrderSummaryRender({
   return (
     <section className="px-4 py-bk-section-dense">
       <div className={props.sticky ? "lg:sticky lg:top-24" : undefined}>
-        <BentoCard bg="cream" size="md" className="p-bk-lg sm:p-bk-xl">
-          <ScribbleHeading color="pink" className="mb-bk-md">
-            {heading}
-          </ScribbleHeading>
+        {/* The recap sits on the alt surface so the form card beside it reads
+            as the raised, primary element on the checkout page. */}
+        <div
+          className="p-bk-lg sm:p-bk-xl"
+          style={{
+            backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+            color: "var(--bk-ink, #1a1a1a)",
+            border: INK_BORDER,
+            borderRadius: "var(--bk-radius-card, 1rem)",
+          }}
+        >
+          <CenteredSectionHeader
+            as="h2"
+            align="start"
+            title={heading}
+            titleField="heading_i18n"
+            className="mb-bk-md"
+          />
 
           {items.length === 0 ? (
             <p className="font-body text-sm text-bk-ink-soft">
@@ -103,10 +118,10 @@ function CheckoutOrderSummaryRender({
                 >
                   {props.show_thumbnails && (
                     <div
-                      className="relative w-12 h-12 bg-white overflow-hidden shrink-0"
+                      className="relative w-12 h-12 overflow-hidden shrink-0"
                       style={{
-                        border:
-                          "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                        backgroundColor: "var(--bk-surface, #ffffff)",
+                        border: INK_BORDER,
                         borderRadius: "var(--bk-radius-input, 0.75rem)",
                       }}
                     >
@@ -128,15 +143,15 @@ function CheckoutOrderSummaryRender({
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-display font-black text-xs uppercase truncate text-bk-ink">
+                    <p className="font-display font-black text-xs truncate text-bk-ink">
                       {item.name}
                     </p>
-                    <p className="font-label text-[11px] uppercase tracking-[0.15em] text-bk-ink-soft">
-                      {t ? "كمية" : "Qty"} {item.quantity}
+                    <p className="font-label text-[11px] tabular-nums text-bk-ink-soft">
+                      {t ? "الكمية" : "Qty"} {item.quantity}
                       {item.variant_name ? ` · ${item.variant_name}` : ""}
                     </p>
                   </div>
-                  <span className="font-display font-black text-sm shrink-0 text-bk-ink">
+                  <span className="font-display font-black text-sm tabular-nums shrink-0 text-bk-ink">
                     <bdi>{formatPrice(item.price * item.quantity, locale)}</bdi>
                   </span>
                 </li>
@@ -144,7 +159,10 @@ function CheckoutOrderSummaryRender({
             </ul>
           )}
 
-          <dl className="space-y-bk-xs font-body text-sm border-t-[3px] border-dashed border-bk-divider pt-bk-sm">
+          <dl
+            className="space-y-bk-xs font-body text-sm tabular-nums pt-bk-sm"
+            style={{ borderTop: DASHED_DIVIDER }}
+          >
             <div className="flex justify-between">
               <dt className="text-bk-ink-soft">
                 {t ? "المجموع الفرعي" : "Subtotal"}
@@ -154,15 +172,17 @@ function CheckoutOrderSummaryRender({
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-bk-ink-soft">
-                {t ? "التوصيل" : "Delivery"}
-              </dt>
+              <dt className="text-bk-ink-soft">{t ? "التوصيل" : "Delivery"}</dt>
               <dd className="font-display font-black text-bk-ink">
-                {delivery === 0
-                  ? t
-                    ? "مجاني"
-                    : "Free"
-                  : <bdi>{formatPrice(delivery, locale)}</bdi>}
+                {delivery === 0 ? (
+                  t ? (
+                    "مجاني"
+                  ) : (
+                    "Free"
+                  )
+                ) : (
+                  <bdi>{formatPrice(delivery, locale)}</bdi>
+                )}
               </dd>
             </div>
             {discountAmount > 0 && (
@@ -176,29 +196,32 @@ function CheckoutOrderSummaryRender({
                 </dd>
               </div>
             )}
-            <div className="flex justify-between pt-bk-xs border-t-[3px] border-dashed border-bk-divider">
-              <dt className="font-display font-black uppercase text-bk-ink">
+            <div
+              className="flex justify-between pt-bk-xs"
+              style={{ borderTop: DASHED_DIVIDER }}
+            >
+              <dt className="font-display font-black bk-caps text-bk-ink">
                 {t ? "المجموع" : "Total"}
               </dt>
-              <dd
-                className="font-display font-black text-xl"
-                style={{ color: "var(--bk-primary, #ff4081)" }}
-              >
+              <dd className="font-display font-black text-xl text-bk-primary">
                 <bdi>{formatPrice(total, locale)}</bdi>
               </dd>
             </div>
           </dl>
 
           {codNote && (
-            <p className="mt-bk-md font-body text-xs text-bk-ink-soft inline-flex items-center gap-2">
+            <p
+              className="mt-bk-md font-body text-xs text-bk-ink-soft inline-flex items-center gap-2"
+              data-i18n-field="cod_note_i18n"
+            >
               <MaterialIcon
                 name="verified"
-                className="text-lg text-bk-primary"
+                className="text-lg text-bk-success"
               />
               {codNote}
             </p>
           )}
-        </BentoCard>
+        </div>
       </div>
     </section>
   );

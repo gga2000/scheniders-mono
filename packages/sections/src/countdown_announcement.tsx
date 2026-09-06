@@ -3,15 +3,16 @@
 // =====================================================================
 // Slim dark countdown bar for the promo_bar slot: flame glyph + short
 // label + ticking HH:MM:SS digits in small rounded boxes with tiny unit
-// labels beneath. Two modes:
-//   - "daily_reset"  — evergreen; counts down to the next LOCAL midnight
-//     and restarts every day (never expires).
-//   - "fixed_end"    — counts down to an explicit ISO datetime, clamping
-//     at 00:00:00 once it passes.
-// Hydration-safe the same way countdown_card is: the server renders a
-// deterministic placeholder (zeros) and the real clock only starts
-// ticking client-side after mount, so SSR and the first client render
-// always agree regardless of server/client timezone skew.
+// labels beneath. Three modes:
+//   - "daily_reset"       — evergreen; counts down to the next LOCAL
+//     midnight and restarts every day (never expires).
+//   - "fixed_end"         — counts down to an explicit ISO datetime,
+//     clamping at 00:00:00 once it passes.
+//   - "evergreen_minutes" — loops on a fixed wall-clock cycle.
+// Hydration-safe: the server and the first client render both show
+// "--" placeholders; the real clock only starts ticking after mount, so
+// SSR and hydration always agree regardless of server/client timezone
+// skew — and nobody sees a fake "00:00:00" before the first tick.
 // =====================================================================
 
 "use client";
@@ -50,10 +51,17 @@ const defaultProps: Props = {
   show_flame: true,
 };
 
-/** Band colour reads the brand-kit tokens so the bar stays on-palette. */
-const BAR_BG: Record<z.infer<typeof barBg>, string> = {
-  secondary: "var(--bk-secondary, #3e3129)",
-  ink: "var(--bk-ink, #1a1a1a)",
+/** Band colour + its contrast text read the brand-kit tokens so the bar
+ *  stays on-palette (no hardcoded white). */
+const BAR: Record<z.infer<typeof barBg>, { bg: string; fg: string }> = {
+  secondary: {
+    bg: "var(--bk-secondary, #3e3129)",
+    fg: "var(--bk-on-secondary, #ffffff)",
+  },
+  ink: {
+    bg: "var(--bk-ink, #1a1a1a)",
+    fg: "var(--bk-surface, #ffffff)",
+  },
 };
 
 interface Tick {
@@ -61,9 +69,6 @@ interface Tick {
   minutes: number;
   seconds: number;
 }
-
-/** Deterministic SSR placeholder — replaced on the first client tick. */
-const ZERO_TICK: Tick = { hours: 0, minutes: 0, seconds: 0 };
 
 /**
  * Milliseconds until the countdown target.
@@ -124,6 +129,9 @@ function FlameIcon({ className }: { className?: string }) {
   );
 }
 
+/** SSR / pre-mount placeholder for a digit pair. */
+const PLACEHOLDER = "--";
+
 function CountdownAnnouncement({
   props,
   ctx,
@@ -135,9 +143,9 @@ function CountdownAnnouncement({
   const t = locale !== "en";
   const label = resolveI18n(props.label_i18n, locale);
 
-  // Server renders zeros (deterministic); the interval only starts after
-  // mount so hydration never sees mismatched digits (mirrors countdown_card).
-  const [tick, setTick] = useState<Tick>(ZERO_TICK);
+  // `null` until mounted: the server and the hydrating client both render
+  // "--" so the digits never mismatch; the interval fills real values.
+  const [tick, setTick] = useState<Tick | null>(null);
   useEffect(() => {
     const update = () =>
       setTick(
@@ -149,29 +157,23 @@ function CountdownAnnouncement({
   }, [props.mode, props.ends_at, props.duration_minutes]);
 
   // The document is LTR in every locale (platform invariant), so the row
-  // must read hours → minutes → seconds left to right. The previous
-  // seconds-first order assumed an RTL flex row that never renders here and
-  // produced "56 Secs : 01 Mins : 02 Hours".
-  const units: { value: number; label: string }[] = [
-    { value: tick.hours, label: t ? "ساعات" : "Hours" },
-    { value: tick.minutes, label: t ? "دقائق" : "Mins" },
-    { value: tick.seconds, label: t ? "ثواني" : "Secs" },
+  // must read hours → minutes → seconds left to right.
+  const units: { value: number | null; label: string }[] = [
+    { value: tick?.hours ?? null, label: t ? "ساعات" : "Hours" },
+    { value: tick?.minutes ?? null, label: t ? "دقائق" : "Mins" },
+    { value: tick?.seconds ?? null, label: t ? "ثواني" : "Secs" },
   ];
+  const band = BAR[props.bg];
 
   return (
     <div
       className="relative z-30 py-1.5"
-      style={{
-        backgroundColor: BAR_BG[props.bg],
-        color: "#ffffff",
-      }}
+      style={{ backgroundColor: band.bg, color: band.fg }}
       role="region"
       aria-label={t ? "إعلان" : "Announcement"}
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4">
-        {props.show_flame && (
-          <FlameIcon className="shrink-0" />
-        )}
+        {props.show_flame && <FlameIcon className="shrink-0" />}
         {label && (
           <span
             data-i18n-field="label_i18n"
@@ -180,7 +182,8 @@ function CountdownAnnouncement({
             {label}
           </span>
         )}
-        <span className="inline-flex items-start gap-1.5">
+        {/* A ticking clock must not be announced every second. */}
+        <span className="inline-flex items-start gap-1.5" aria-live="off">
           {units.map((u, i) => (
             <span key={u.label} className="inline-flex items-start gap-1.5">
               {i > 0 && (
@@ -199,9 +202,11 @@ function CountdownAnnouncement({
                       "color-mix(in srgb, var(--bk-surface, #ffffff) 14%, transparent)",
                   }}
                 >
-                  {String(u.value).padStart(2, "0")}
+                  {u.value === null
+                    ? PLACEHOLDER
+                    : String(u.value).padStart(2, "0")}
                 </span>
-                <span className="mt-0.5 text-[9px] font-semibold leading-none opacity-70">
+                <span className="mt-0.5 text-[11px] font-semibold leading-none opacity-70">
                   {u.label}
                 </span>
               </span>
@@ -218,8 +223,8 @@ const definition: SectionDefinition<Props> = {
   category: "conversion",
   name: { en: "Countdown announcement", ar: "شريط عدّاد تنازلي" },
   description: {
-    en: "Slim dark top bar with a live HH:MM:SS offer countdown (daily reset or fixed end).",
-    ar: "شريط علوي داكن رفيع مع عدّاد تنازلي مباشر للعرض (يتجدد يومياً أو بتاريخ محدد).",
+    en: "Slim dark top bar with a live HH:MM:SS offer countdown (daily reset, fixed end, or evergreen loop).",
+    ar: "شريط علوي داكن رفيع مع عدّاد تنازلي مباشر للعرض (يتجدد يومياً أو بتاريخ محدد أو دورة متكررة).",
   },
   thumbnail: "/sections/countdown_card.svg",
   valid_on: ["home", "category", "product", "cart", "checkout", "about", "faq"],

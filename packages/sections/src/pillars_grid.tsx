@@ -10,7 +10,7 @@
 
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { Section } from "./helpers/primitives";
+import { CenteredSectionHeader, Section } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional, urlString } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -27,7 +27,8 @@ const schema = z.object({
         body_i18n: i18nStringSchema,
       }),
     )
-    .min(2)
+    // A merchant trimming to one pillar must not lose the whole section.
+    .min(1)
     .max(6),
 });
 
@@ -80,42 +81,27 @@ function PillarsGridRender({
   return (
     <Section className="text-bk-ink">
       <div className="mx-auto max-w-6xl">
-        {/* Centered header: eyebrow chip + display title */}
-        <div className="mb-bk-lg flex flex-col items-center gap-bk-sm text-center">
-          {eyebrow && (
-            <span
-              data-i18n-field="eyebrow_i18n"
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
-              style={{
-                backgroundColor:
-                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 12%, transparent)",
-                color: "var(--bk-ink, #1a1a1a)",
-                fontFamily: "var(--bk-font-body, inherit)",
-              }}
-            >
-              {props.eyebrow_icon_url && (
-                /* eslint-disable-next-line @next/next/no-img-element -- merchant-supplied icon URLs (usually SVG) aren't next/image remote-pattern candidates */
-                <img
-                  src={props.eyebrow_icon_url}
-                  alt=""
-                  loading="lazy"
-                  className="h-4 w-4 object-contain"
-                />
-              )}
-              {eyebrow}
-            </span>
-          )}
-          <h2
-            data-i18n-field="title_i18n"
-            className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl"
-            style={{
-              color: "var(--bk-ink, #1a1a1a)",
-              fontFamily: "var(--bk-font-display, inherit)",
-            }}
-          >
-            {title}
-          </h2>
-        </div>
+        <CenteredSectionHeader
+          eyebrow={
+            eyebrow ? (
+              <>
+                {props.eyebrow_icon_url && (
+                  /* eslint-disable-next-line @next/next/no-img-element -- merchant-supplied icon URLs (usually SVG) aren't next/image remote-pattern candidates */
+                  <img
+                    src={props.eyebrow_icon_url}
+                    alt=""
+                    className="h-4 w-4 object-contain"
+                  />
+                )}
+                {eyebrow}
+              </>
+            ) : undefined
+          }
+          glyph={props.eyebrow_icon_url ? "none" : "sparkle"}
+          title={title}
+          eyebrowField="eyebrow_i18n"
+          titleField="title_i18n"
+        />
 
         {/* Pillar cards — 3-up desktop, 1-up mobile */}
         <div className="grid grid-cols-1 gap-bk-md md:grid-cols-3">
@@ -154,7 +140,7 @@ function PillarsGridRender({
                 )}
                 <h3
                   data-i18n-field={`items[${i}].title_i18n`}
-                  className="text-lg font-bold leading-snug"
+                  className="text-bk-h3 font-bold text-balance"
                   style={{
                     color: "var(--bk-ink, #1a1a1a)",
                     fontFamily: "var(--bk-font-display, inherit)",
@@ -164,7 +150,7 @@ function PillarsGridRender({
                 </h3>
                 <p
                   data-i18n-field={`items[${i}].body_i18n`}
-                  className="font-body text-sm leading-relaxed"
+                  className="font-body text-sm leading-relaxed text-pretty"
                   style={{
                     color: "var(--bk-ink-soft, rgb(26 26 26 / 0.6))",
                     fontFamily: "var(--bk-font-body, inherit)",

@@ -10,8 +10,9 @@
 import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { ChunkyButton, Section } from "./helpers/primitives";
+import { PRESSABLE, Section } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
+import { cn } from "./helpers/utils";
 import { i18nStringSchema } from "./_schema";
 import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
@@ -54,7 +55,7 @@ function AboutSpotlightRender({
   const body = resolveI18n(props.body_i18n, locale);
   const ctaLabel = resolveI18n(props.cta_label_i18n, locale);
 
-  const hasImage = !!props.bg_image_url;
+  const bgImage = props.bg_image_url;
   const overlay = props.overlay_opacity ?? 0.2;
 
   return (
@@ -67,7 +68,7 @@ function AboutSpotlightRender({
         }}
       >
         {/* Photo band — full-bleed image or accent fallback. */}
-        {hasImage ? (
+        {bgImage ? (
           <div
             data-layer="bg_image"
             data-layer-label="Background image"
@@ -76,10 +77,10 @@ function AboutSpotlightRender({
             style={{ backgroundColor: "var(--bk-surface, #fff7ed)" }}
           >
             <Image
-              src={props.bg_image_url!}
+              src={bgImage}
               alt=""
               fill
-              unoptimized={!isOptimizableImageHost(props.bg_image_url)}
+              unoptimized={!isOptimizableImageHost(bgImage)}
               sizes="100vw"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -114,7 +115,7 @@ function AboutSpotlightRender({
           >
             <h2
               data-i18n-field="title_i18n"
-              className="font-display font-black text-2xl sm:text-4xl leading-tight tracking-tight"
+              className="font-display font-black text-bk-h2 text-balance tracking-tight"
               style={{
                 color: "var(--bk-ink, #1a1a1a)",
                 fontFamily: "var(--bk-font-display, inherit)",
@@ -124,7 +125,7 @@ function AboutSpotlightRender({
             </h2>
             <p
               data-i18n-field="body_i18n"
-              className="mt-4 font-body text-base sm:text-lg whitespace-pre-line"
+              className="mt-4 font-body text-base sm:text-lg whitespace-pre-line text-pretty"
               style={{
                 color: "var(--bk-ink-soft, rgba(26,26,26,0.8))",
                 fontFamily: "var(--bk-font-body, inherit)",
@@ -138,18 +139,26 @@ function AboutSpotlightRender({
               data-layer-kind="button"
               className="mt-6 sm:mt-8 flex justify-center"
             >
+              {/* Real link, not a button nested in an anchor. Mirrors
+                  ChunkyButton's token styling on the brand primary. */}
               <StoreLink
                 href={props.cta_href}
-                aria-label={ctaLabel}
                 data-i18n-field="cta_label_i18n"
+                className={cn(
+                  "inline-flex items-center justify-center gap-2 px-6 py-4 text-lg font-display font-black bk-caps tracking-tight",
+                  PRESSABLE,
+                )}
+                style={{
+                  backgroundColor: "var(--bk-primary, #ff5a8a)",
+                  color: "var(--bk-on-primary, #fff)",
+                  border:
+                    "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                  borderRadius: "var(--bk-radius-pill, 9999px)",
+                  boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                  fontFamily: "var(--bk-font-display, inherit)",
+                }}
               >
-                <ChunkyButton
-                  bg="pink"
-                  size="lg"
-                  style={{ borderRadius: "var(--bk-radius-pill, 9999px)" }}
-                >
-                  {ctaLabel}
-                </ChunkyButton>
+                {ctaLabel}
               </StoreLink>
             </div>
           </div>

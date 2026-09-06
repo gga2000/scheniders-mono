@@ -2,7 +2,7 @@
 // Section — collection_trio
 // =====================================================================
 // Warm tinted band (accent at 12% over the surface, large radius) with
-// an eyebrow chip + title, then white cards (default 3): photo on top
+// an eyebrow chip + title, then surface cards (default 3): photo on top
 // (rounded), centred bold title, one-line sub, and a small primary pill
 // CTA with a sparkle glyph. Each card links to a collection / category.
 // =====================================================================
@@ -10,8 +10,13 @@
 import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { Section } from "./helpers/primitives";
+import {
+  CenteredSectionHeader,
+  PRESSABLE,
+  Section,
+} from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
+import { cn } from "./helpers/utils";
 import { i18nStringOptional, i18nStringSchema } from "./_schema";
 import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
@@ -44,7 +49,10 @@ const defaultProps: Props = {
     {
       image_url: "",
       title_i18n: { en: "Everyday", ar: "للاستخدام اليومي" },
-      sub_i18n: { en: "Easy choices for every day", ar: "خيارات مريحة لكل يوم" },
+      sub_i18n: {
+        en: "Easy choices for every day",
+        ar: "خيارات مريحة لكل يوم",
+      },
       cta_label_i18n: { en: "Browse", ar: "شوفهم" },
       href: "/categories",
     },
@@ -65,7 +73,8 @@ const defaultProps: Props = {
   ],
 };
 
-/** Four-point sparkle glyph — used in the eyebrow chip and card CTAs. */
+/** Four-point sparkle glyph for the card CTAs (the header chip uses the
+ *  shared `EyebrowChip` glyph). */
 function SparkleGlyph({
   size = 14,
   className,
@@ -111,52 +120,34 @@ function CollectionTrio({
 
   return (
     <Section>
-      {/* Centred header: eyebrow chip + big title */}
       {(eyebrow || title) && (
-        <div className="mb-bk-lg flex flex-col items-center gap-3 text-center">
-          {eyebrow && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 font-label font-bold text-xs sm:text-sm"
-              style={{
-                backgroundColor:
-                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 18%, var(--bk-surface, #ffffff))",
-                color: "var(--bk-ink, #1a1a1a)",
-                borderRadius: "var(--bk-radius-pill, 9999px)",
-                fontFamily: "var(--bk-font-body, inherit)",
-              }}
-            >
-              {props.eyebrow_icon_url ? (
-                <Image
-                  src={props.eyebrow_icon_url}
-                  alt=""
-                  width={16}
-                  height={16}
-                  unoptimized
-                  sizes="16px"
-                  className="h-4 w-4 object-contain"
-                />
-              ) : (
-                <SparkleGlyph className="opacity-80" />
-              )}
-              <span data-i18n-field="eyebrow_i18n">{eyebrow}</span>
-            </span>
-          )}
-          {title && (
-            <h2
-              data-i18n-field="title_i18n"
-              className="font-display font-black text-3xl sm:text-4xl tracking-tight"
-              style={{
-                color: "var(--bk-ink, #1a1a1a)",
-                fontFamily: "var(--bk-font-display, inherit)",
-              }}
-            >
-              {title}
-            </h2>
-          )}
-        </div>
+        <CenteredSectionHeader
+          eyebrow={
+            eyebrow ? (
+              <>
+                {props.eyebrow_icon_url && (
+                  <Image
+                    src={props.eyebrow_icon_url}
+                    alt=""
+                    width={16}
+                    height={16}
+                    unoptimized
+                    sizes="16px"
+                    className="h-4 w-4 object-contain"
+                  />
+                )}
+                {eyebrow}
+              </>
+            ) : undefined
+          }
+          glyph={props.eyebrow_icon_url ? "none" : "sparkle"}
+          title={title}
+          eyebrowField="eyebrow_i18n"
+          titleField="title_i18n"
+        />
       )}
 
-      {/* Tinted band — accent at 12% over white, big rounded corners */}
+      {/* Tinted band — accent at 12% over the surface, big rounded corners */}
       <div
         className="px-4 py-bk-lg sm:px-8"
         style={{
@@ -171,19 +162,25 @@ function CollectionTrio({
             const sub = resolveI18n(item.sub_i18n, locale);
             const ctaLabel = resolveI18n(item.cta_label_i18n, locale);
             return (
-              <StoreLink key={i} href={item.href} className="block group">
+              <StoreLink
+                key={i}
+                href={item.href}
+                className={cn("group block", PRESSABLE)}
+              >
                 <div
-                  className="flex h-full flex-col overflow-hidden p-3 text-center transition-transform group-hover:-translate-y-1"
+                  className="flex h-full flex-col overflow-hidden p-3 text-center transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-1"
                   style={{
                     backgroundColor: "var(--bk-surface, #ffffff)",
                     borderRadius: "var(--bk-radius-card, 1.25rem)",
-                    boxShadow: "var(--bk-shadow-card, 0 8px 24px rgb(0 0 0 / 0.08))",
+                    boxShadow:
+                      "var(--bk-shadow-card, 0 8px 24px rgb(0 0 0 / 0.08))",
                   }}
                 >
                   <div
                     className="relative aspect-[4/3] overflow-hidden"
                     style={{
-                      borderRadius: "calc(var(--bk-radius-card, 1.25rem) * 0.75)",
+                      borderRadius:
+                        "calc(var(--bk-radius-card, 1.25rem) * 0.75)",
                     }}
                   >
                     {item.image_url ? (
@@ -193,7 +190,7 @@ function CollectionTrio({
                         fill
                         unoptimized={!isOptimizableImageHost(item.image_url)}
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105"
                       />
                     ) : (
                       /* No image yet: tinted placeholder keeps the card a
@@ -210,7 +207,7 @@ function CollectionTrio({
                   <div className="flex flex-1 flex-col items-center gap-1.5 px-2 pb-3 pt-4">
                     {cardTitle && (
                       <h3
-                        className="font-display font-bold text-lg leading-tight"
+                        className="font-display font-bold text-bk-h3 text-balance"
                         style={{
                           color: "var(--bk-ink, #1a1a1a)",
                           fontFamily: "var(--bk-font-display, inherit)",
@@ -233,7 +230,7 @@ function CollectionTrio({
                     )}
                     {ctaLabel && (
                       <span
-                        className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 font-semibold text-sm transition-transform group-hover:scale-105"
+                        className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 font-semibold text-sm transition-transform duration-150 motion-reduce:transition-none group-hover:scale-105"
                         style={{
                           backgroundColor: "var(--bk-primary, #ff5a8a)",
                           color: "var(--bk-on-primary, #ffffff)",

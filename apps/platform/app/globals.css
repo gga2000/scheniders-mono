@@ -3187,6 +3187,20 @@ body {
 }
 
 /* ===========================
+   Casing token (mirror of apps/storefront/app/globals.css)
+   `bk-caps` is uppercase for expressive kits and sentence case when the
+   brand wrapper carries data-bk-expressive="false" (rotation "none").
+   Kept here so the editor preview + storybook render sections the same way.
+   =========================== */
+.bk-caps {
+  text-transform: uppercase;
+}
+[data-bk-expressive="false"] .bk-caps {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ===========================
    Scroll-reveal motion (mirror of apps/storefront/app/globals.css)
    Sections fade + rise as they scroll into view. Pure CSS scroll-driven
    animation: degrades to "always visible" where unsupported, respects OS

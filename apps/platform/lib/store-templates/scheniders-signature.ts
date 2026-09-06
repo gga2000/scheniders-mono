@@ -694,6 +694,6 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 contact: FAQ_CONTACT_HOME,
             }),
         ],
-        ...commercePages(s),
+        ...commercePages(s, { productCardStyle: "price_pill" }),
     },
 };

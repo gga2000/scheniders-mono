@@ -42,6 +42,7 @@ import {
   ChunkyLink,
   MaterialIcon,
   WhatsAppIcon,
+  Stars,
 } from "./helpers/primitives";
 import { useStoreBase } from "./helpers/store-context";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
@@ -297,13 +298,12 @@ function PdpDirectOrderRender({
   // cart-store `updatePrice` self-heal).
   const price = livePrice ?? product.price;
 
-  const onSale =
-    product.compare_at_price != null && product.compare_at_price > price;
-  const discountPct = onSale
-    ? Math.round(
-        ((product.compare_at_price! - price) / product.compare_at_price!) * 100,
-      )
-    : 0;
+  const compareAt = product.compare_at_price;
+  const onSale = compareAt != null && compareAt > price;
+  const discountPct =
+    compareAt != null && onSale
+      ? Math.round(((compareAt - price) / compareAt) * 100)
+      : 0;
   const stockLeft =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
   const oos = stockLeft <= 0;
@@ -332,7 +332,6 @@ function PdpDirectOrderRender({
     ratingChipRaw && reviewCount > 0
       ? ratingChipRaw.replace("{count}", String(reviewCount))
       : null;
-  const filledStars = Math.min(5, Math.max(0, Math.round(avgRating)));
   const formTitle = resolveI18n(props.form_title_i18n, locale);
   const qtyTitle = resolveI18n(props.qty_title_i18n, locale);
   const paymentTitle = resolveI18n(props.payment_title_i18n, locale);
@@ -491,17 +490,14 @@ function PdpDirectOrderRender({
         const data = (await res.json().catch(() => null)) as
           | { error?: string; issues?: CheckoutIssue[] }
           | null;
-        const issues = Array.isArray(data?.issues) ? data!.issues : [];
+        const issues = data && Array.isArray(data.issues) ? data.issues : [];
         if (issues.length > 0) idempotencyKeyRef.current = null;
         // Self-heal a price drift: adopt the server's verified price so the
         // shopper's retry submits (and displays) the correct number.
-        const priceIssue = issues.find(
-          (i) =>
-            i.reason === "price_changed" &&
-            i.product_id === product.id &&
-            typeof i.new_price === "number",
-        );
-        if (priceIssue) setLivePrice(priceIssue.new_price!);
+        const newPrice = issues.find(
+          (i) => i.reason === "price_changed" && i.product_id === product.id,
+        )?.new_price;
+        if (typeof newPrice === "number") setLivePrice(newPrice);
         setErrorMsg(
           data?.error ??
             (t ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."),
@@ -657,29 +653,28 @@ function PdpDirectOrderRender({
               className="inline-flex items-center gap-2 px-3 py-1.5 font-label font-bold text-xs"
               style={{
                 backgroundColor:
-                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 22%, #ffffff)",
+                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 22%, var(--bk-surface, #ffffff))",
                 color: "var(--bk-ink, #1a1a1a)",
                 borderRadius: "var(--bk-radius-pill, 9999px)",
                 border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.14))",
               }}
             >
-              {/* Real average-rating stars (filled = rounded avg_rating),
-                  mirroring product_reviews' whole-star rounding. */}
-              <span aria-hidden="true">
-                <span style={{ color: "var(--bk-accent, #ffd84a)" }}>
-                  {"★".repeat(filledStars)}
-                </span>
-                {filledStars < 5 && (
-                  <span style={{ color: "rgb(26 26 26 / 0.25)" }}>
-                    {"★".repeat(5 - filledStars)}
-                  </span>
-                )}
-              </span>
-              {ratingChip}
+              {/* Real average-rating stars (filled = rounded avg_rating) —
+                  the shared primitive, so the PDP and the reviews block
+                  draw the same star. */}
+              <Stars
+                value={avgRating}
+                size={14}
+                label={`${avgRating.toFixed(1)} / 5`}
+              />
+              <span className="tabular-nums">{ratingChip}</span>
             </div>
           )}
           <h1
-            className="font-display font-black text-2xl sm:text-3xl leading-tight"
+            // h1 semantics on the h2 step: product names run long ("عطر ويفر
+            // انتنس الفاخر من باريس كورنر للرجال") and the h1 step wraps to
+            // three heavy lines at 390px.
+            className="font-display font-black text-bk-h2 text-balance"
             style={{ color: "var(--bk-ink, #1a1a1a)" }}
           >
             {product.name}
@@ -690,13 +685,13 @@ function PdpDirectOrderRender({
                 {t ? "السعر:" : "Price:"}
               </span>
               <span
-                className="font-display font-black text-3xl"
+                className="font-display font-black text-3xl tabular-nums"
                 style={{ color: "var(--bk-primary, #ff5a8a)" }}
               >
                 <bdi>{formatPrice(price, locale)}</bdi>
               </span>
               {onSale && product.compare_at_price != null && (
-                <span className="font-body text-lg text-bk-ink-soft line-through">
+                <span className="font-body text-lg text-bk-ink-soft line-through tabular-nums">
                   <bdi>{formatPrice(product.compare_at_price, locale)}</bdi>
                 </span>
               )}
@@ -722,7 +717,7 @@ function PdpDirectOrderRender({
               className="mx-auto inline-flex max-w-full items-center gap-1.5 px-3 py-1.5 font-label font-bold text-xs"
               style={{
                 backgroundColor:
-                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 30%, #ffffff)",
+                  "color-mix(in srgb, var(--bk-accent, #ffd84a) 30%, var(--bk-surface, #ffffff))",
                 color: "var(--bk-ink, #1a1a1a)",
                 borderRadius: "var(--bk-radius-pill, 9999px)",
                 border: "1px dashed var(--bk-accent, #ffd84a)",
@@ -910,7 +905,7 @@ function PdpDirectOrderRender({
               className="flex items-center gap-3 px-4 py-3"
               style={{
                 backgroundColor:
-                  "color-mix(in srgb, var(--bk-primary, #ff5a8a) 7%, #ffffff)",
+                  "color-mix(in srgb, var(--bk-primary, #ff5a8a) 7%, var(--bk-surface, #ffffff))",
                 border: "2px solid var(--bk-primary, #ff5a8a)",
                 borderRadius: "var(--bk-radius-input, 0.75rem)",
               }}
@@ -972,7 +967,10 @@ function PdpDirectOrderRender({
               disabled={oos || status === "submitting"}
             >
               {status === "submitting" ? (
-                <MaterialIcon name="progress_activity" className="animate-spin" />
+                <MaterialIcon
+                  name="progress_activity"
+                  className="animate-spin motion-reduce:animate-none"
+                />
               ) : oos ? (
                 t ? "نفد المخزون" : "Out of stock"
               ) : (
@@ -1045,7 +1043,7 @@ function PdpDirectOrderRender({
                   className="flex items-start gap-3 p-3"
                   style={{
                     backgroundColor:
-                      "color-mix(in srgb, var(--bk-accent, #ffd84a) 8%, #ffffff)",
+                      "color-mix(in srgb, var(--bk-accent, #ffd84a) 8%, var(--bk-surface, #ffffff))",
                     borderRadius: "var(--bk-radius-card, 1rem)",
                     border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.1))",
                   }}

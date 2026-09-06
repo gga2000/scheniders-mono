@@ -276,3 +276,12 @@ Optimistic lock: every publish reads `store_config_rev`, writes `rev+1`, aborts 
 ## 6. Scope guard
 
 Not touched by this plan: DNS/domains, WhatsApp/Interakt dispatch, other tenants' data, migrations from other sessions, the `/api/checkout/orders` contract (only an additive optional `alt_phone`). No hardcoded copy, price, image or phone is introduced in section code; everything new is a template prop with a safe default or tenant data.
+
+---
+
+## 7. Ledger
+
+| Date | Round | Outcome |
+|---|---|---|
+| 2026-09-06 | Phase 0 hotfix | PR #72 merged (f0dc2c67). P0-1/2/5/6, P1-4/6/7/30 shipped. Config rev 20 published (cart `free_gift_strip` removed, PDP sticky bar → `scroll_to_form` "اطلب الآن"). Live-verified @390: width 1016 → 390, typing retained, Cairo on sampled text, sticky bar pinned, urgency hidden at 51, countdown H:M:S. |
+| 2026-09-07 | Phase 1 design system | Cairo + Noto Sans Arabic self-hosted via `next/font` (RC3), icon font `display=block`, duplicate legacy font link removed, `generateViewport` (viewport-fit=cover + brand theme-color). Tailwind font utilities → `--bk-font-*`. New primitives `EyebrowChip`, `CenteredSectionHeader`, `Stars`, `WhatsAppButton`, `PRESSABLE`; `bk-caps` casing token driven by `data-bk-expressive` (rotation "none" → sentence case); OS `prefers-reduced-motion` honoured tenant-wide; explicit transitions. 15 signature sections on the fluid `text-bk-h*` scale with `text-balance`, `tabular-nums`, press states, `<details>` accordions, `<figure>` testimonials, shared stars, zero-review state, hero photo stacked above the card on mobile, valid anchors (no `<button>` in `<a>`). Commerce sections (checkout, cart, order summary, tracker, trust strip, policy, search) tokenised: card "coming soon" removed, checkout phone validated inline, governorate required, per-issue 422 messages, policy pages get h1 + dated "last updated" + links, search page gets a search form + `card_style`. h1 on checkout / track / faq / contact. Verified: type-check + lint green, sections 77/77, shared 317/317, storefront 71/71, templates 16/16; 15-route sweep @390/1440: 0 overflow, 0 nested interactives, 0 missing alt, 0 console errors. Config rev 21 (search `card_style`) after deploy. |

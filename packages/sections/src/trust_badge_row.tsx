@@ -25,7 +25,8 @@ const schema = z.object({
         label_i18n: i18nStringSchema,
       }),
     )
-    .min(2)
+    // A merchant trimming to one badge must not lose the whole section.
+    .min(1)
     .max(6),
   /** "tinted" lays the band on the brand accent at 12% opacity. */
   band_style: z.enum(["plain", "tinted"]).optional(),
@@ -92,10 +93,10 @@ function TrustBadgeRowRender({
               >
                 {item.icon_url ? (
                   /* eslint-disable-next-line @next/next/no-img-element -- merchant-supplied icon URLs (usually SVG) aren't next/image remote-pattern candidates */
+                  /* Eager: this row sits under the hero, above the fold. */
                   <img
                     src={item.icon_url}
                     alt=""
-                    loading="lazy"
                     className="h-10 w-10 shrink-0 object-contain"
                   />
                 ) : (

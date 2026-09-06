@@ -11,7 +11,7 @@
 import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { Section } from "./helpers/primitives";
+import { CenteredSectionHeader, Section } from "./helpers/primitives";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -75,38 +75,6 @@ const defaultProps: Props = {
 const CARD_SHADOW =
   "var(--bk-shadow-card, 0 16px 40px -20px rgb(26 26 26 / 0.18))";
 
-function EyebrowChip({
-  icon_url,
-  children,
-}: {
-  icon_url?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 px-4 py-1.5 font-label font-bold text-xs sm:text-sm"
-      style={{
-        backgroundColor: "var(--bk-surface-alt, #fff1d6)",
-        color: "var(--bk-ink, #1a1a1a)",
-        borderRadius: "9999px",
-        fontFamily: "var(--bk-font-body, inherit)",
-      }}
-    >
-      {icon_url && (
-        <Image
-          src={icon_url}
-          alt=""
-          width={16}
-          height={16}
-          unoptimized
-          className="h-4 w-4 object-contain"
-        />
-      )}
-      {children}
-    </span>
-  );
-}
-
 function TestimonialCards({
   props,
   ctx,
@@ -146,28 +114,29 @@ function TestimonialCards({
         />
       )}
 
-      {/* Centered header — eyebrow chip + title. */}
-      <div className="mb-bk-lg flex flex-col items-center gap-3 text-center">
-        {eyebrow && (
-          <span data-i18n-field="eyebrow_i18n">
-            <EyebrowChip icon_url={props.eyebrow_icon_url}>
+      <CenteredSectionHeader
+        eyebrow={
+          eyebrow ? (
+            <>
+              {props.eyebrow_icon_url && (
+                <Image
+                  src={props.eyebrow_icon_url}
+                  alt=""
+                  width={16}
+                  height={16}
+                  unoptimized
+                  className="h-4 w-4 object-contain"
+                />
+              )}
               {eyebrow}
-            </EyebrowChip>
-          </span>
-        )}
-        {title && (
-          <h2
-            data-i18n-field="title_i18n"
-            className="font-display font-black text-3xl leading-tight tracking-tight sm:text-4xl"
-            style={{
-              color: "var(--bk-ink, #1a1a1a)",
-              fontFamily: "var(--bk-font-display, inherit)",
-            }}
-          >
-            {title}
-          </h2>
-        )}
-      </div>
+            </>
+          ) : undefined
+        }
+        glyph={props.eyebrow_icon_url ? "none" : "sparkle"}
+        title={title}
+        eyebrowField="eyebrow_i18n"
+        titleField="title_i18n"
+      />
 
       {/* Cards — 3-up desktop, stacked mobile. `pt` clears the pins. */}
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-bk-md pt-5 md:grid-cols-3 md:gap-bk-lg">
@@ -175,7 +144,7 @@ function TestimonialCards({
           const name = resolveI18n(item.name_i18n, locale);
           const quote = resolveI18n(item.quote_i18n, locale);
           return (
-            <div
+            <figure
               key={`${i}-${name}`}
               className="relative flex flex-col items-center gap-2 px-6 pb-8 pt-9 text-center"
               style={{
@@ -190,7 +159,7 @@ function TestimonialCards({
                 className="absolute -top-4 left-1/2 h-10 w-4 -translate-x-1/2 rounded-full"
                 style={{ backgroundColor: "var(--bk-accent, #ffd84a)" }}
               />
-              <div
+              <figcaption
                 data-i18n-field={`items[${i}].name_i18n`}
                 className="font-display text-lg font-black"
                 style={{
@@ -199,18 +168,18 @@ function TestimonialCards({
                 }}
               >
                 {name}
-              </div>
-              <p
+              </figcaption>
+              <blockquote
                 data-i18n-field={`items[${i}].quote_i18n`}
-                className="font-body text-sm leading-relaxed sm:text-base"
+                className="font-body text-sm leading-relaxed text-pretty sm:text-base"
                 style={{
                   color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
                   fontFamily: "var(--bk-font-body, inherit)",
                 }}
               >
                 {quote}
-              </p>
-            </div>
+              </blockquote>
+            </figure>
           );
         })}
       </div>

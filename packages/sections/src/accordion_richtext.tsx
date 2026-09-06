@@ -4,20 +4,20 @@
 // Generic accordion for long-form rich-text content — shipping, terms,
 // privacy, returns, sizing, etc. Different from `faq_accordion` which
 // is Q&A; here each panel is a titled section with a multi-paragraph
-// body. Renders paragraphs split on blank lines.
+// body. Renders paragraphs split on blank lines. Panels are native
+// `<details>` so closed bodies stay in the DOM (crawlable, find-in-page)
+// and the section ships no client JS; `allow_multiple: false` uses a
+// shared `name` for exclusive-open.
 // =====================================================================
 
-"use client";
-
-import { useState } from "react";
+import { useId } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { cn } from "./helpers/utils";
 import {
   BentoCard,
+  CenteredSectionHeader,
   MaterialIcon,
   Section,
-  SectionHeader,
 } from "./helpers/primitives";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -57,9 +57,24 @@ const defaultProps: Props = {
   ],
 };
 
+/** Icon-box tint rotation. Token-bound (the decorative candy surfaces read
+ *  the fixed `--bk-mint/--bk-sky/--bk-lilac`, matching the primitives'
+ *  SCRIBBLE map) — a dynamic `bg-candy-${tint}` class was purged by
+ *  Tailwind and rendered nothing. */
+const ICON_TINTS = [
+  "var(--bk-mint, #7cf0bd)",
+  "var(--bk-accent, #ffd84a)",
+  "var(--bk-sky, #9ad8ff)",
+  "var(--bk-lilac, #c5b6ff)",
+  "var(--bk-surface-alt, #fff7ed)",
+] as const;
+
 function renderParagraphs(text: string): React.ReactNode {
   return text.split(/\n{2,}/).map((p, i) => (
-    <p key={i} className="mb-3 last:mb-0 font-body text-sm leading-relaxed">
+    <p
+      key={i}
+      className="mb-3 last:mb-0 font-body text-sm leading-relaxed text-pretty"
+    >
       {p.split(/\n/).map((line, j, arr) => (
         <span key={j}>
           {line}
@@ -78,68 +93,66 @@ function AccordionRichtextRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const [openSet, setOpenSet] = useState<Set<number>>(new Set([0]));
+  // Exclusive-open group per section instance (only when one-at-a-time).
+  const groupName = `accordion-${useId()}`;
 
   if (props.items.length === 0) return null;
 
   const heading = resolveI18n(props.heading_i18n, locale);
 
-  function toggle(i: number) {
-    setOpenSet((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) {
-        next.delete(i);
-      } else {
-        if (!props.allow_multiple) next.clear();
-        next.add(i);
-      }
-      return next;
-    });
-  }
-
-  const tints = ["mint", "butter", "sky", "lilac", "cream"] as const;
-
   return (
     <Section>
-      {heading && <SectionHeader title={heading} color="butter" />}
+      {heading && (
+        <CenteredSectionHeader
+          title={heading}
+          align="start"
+          titleField="heading_i18n"
+        />
+      )}
       <div className="space-y-bk-sm">
         {props.items.map((item, i) => {
           const title = resolveI18n(item.title_i18n, locale);
           const body = resolveI18n(item.body_i18n, locale);
-          const open = openSet.has(i);
-          const tint = tints[i % tints.length];
+          const tint = ICON_TINTS[i % ICON_TINTS.length];
           return (
             <BentoCard
               key={`${i}-${title}`}
               bg="white"
-              rotate={open ? 0 : i % 2 === 0 ? 0.5 : -0.5}
               className="p-0 overflow-hidden"
               style={{ borderRadius: "var(--bk-radius-card, 1.25rem)" }}
             >
-              <button
-                type="button"
-                onClick={() => toggle(i)}
-                aria-expanded={open}
-                className="w-full px-4 py-4 flex items-center justify-between gap-3 text-left"
+              <details
+                className="group"
+                name={props.allow_multiple ? undefined : groupName}
+                open={i === 0}
               >
-                <span className="font-display font-black text-base sm:text-lg uppercase leading-tight flex-1">
-                  {title}
-                </span>
-                <span
-                  className={cn(
-                    "w-9 h-9 rounded-xl border-[3px] border-candy-ink flex items-center justify-center shrink-0 transition-transform",
-                    `bg-candy-${tint}`,
-                    open && "rotate-45",
-                  )}
+                <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-start transition-opacity duration-150 motion-reduce:transition-none active:opacity-70 [&::-webkit-details-marker]:hidden">
+                  <span className="flex-1 font-display font-black text-base sm:text-lg bk-caps leading-tight text-balance">
+                    {title}
+                  </span>
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center transition-transform duration-200 motion-reduce:transition-none group-open:rotate-45"
+                    style={{
+                      backgroundColor: tint,
+                      color: "var(--bk-ink, #1a1a1a)",
+                      border:
+                        "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+                      borderRadius: "var(--bk-radius-input, 0.75rem)",
+                    }}
+                  >
+                    <MaterialIcon name="add" className="text-xl" />
+                  </span>
+                </summary>
+                <div
+                  className="px-4 pb-4 pt-3 text-bk-ink-soft"
+                  style={{
+                    borderTop:
+                      "var(--bk-border-thickness, 3px) dashed color-mix(in srgb, var(--bk-ink, #1a1a1a) 10%, transparent)",
+                  }}
                 >
-                  <MaterialIcon name="add" className="text-xl" />
-                </span>
-              </button>
-              {open && (
-                <div className="px-4 pb-4 text-bk-ink-soft border-t-[3px] border-dashed border-candy-ink/10 pt-3">
                   {renderParagraphs(body)}
                 </div>
-              )}
+              </details>
             </BentoCard>
           );
         })}
