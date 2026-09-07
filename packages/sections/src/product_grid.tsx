@@ -26,6 +26,7 @@ import { SchneidersProductCard } from "./helpers/product-card";
 import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { RevealMore } from "./helpers/reveal-more";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
+import { chromeString } from "./helpers/chrome-strings";
 import { formatPrice, formatCount } from "./helpers/format";
 import { cn } from "./helpers/utils";
 import type { Product } from "./types";
@@ -365,9 +366,13 @@ function ProductGridRender({
             <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
               <StoreLink
                 href="/"
-                className="inline-flex min-h-11 items-center hover:text-bk-primary active:opacity-60"
+                // P3-12: 44px-tall hit area via padding, not font size.
+                className={cn(
+                  "inline-flex min-h-11 items-center px-1 -mx-1 hover:text-bk-primary",
+                  PRESSABLE,
+                )}
               >
-                {t ? "الرئيسية" : "Home"}
+                {chromeString("home", locale)}
               </StoreLink>
               <span className="text-bk-primary mx-1">›</span>
               {category.name}
@@ -453,7 +458,7 @@ function ProductGridRender({
               }}
             >
               <span className="underline underline-offset-4">
-                {seeAllLabel ?? (t ? "شوفهم كلهم" : "See all")}
+                {seeAllLabel ?? chromeString("see_all", locale)}
               </span>
               <MaterialIcon name="arrow_forward" className="text-base" />
             </StoreLink>
@@ -471,9 +476,13 @@ function ProductGridRender({
             <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
               <StoreLink
                 href="/"
-                className="inline-flex min-h-11 items-center hover:text-bk-primary active:opacity-60"
+                // P3-12: 44px-tall hit area via padding, not font size.
+                className={cn(
+                  "inline-flex min-h-11 items-center px-1 -mx-1 hover:text-bk-primary",
+                  PRESSABLE,
+                )}
               >
-                {t ? "الرئيسية" : "Home"}
+                {chromeString("home", locale)}
               </StoreLink>
               <span className="text-bk-primary mx-1">›</span>
               {category.name}

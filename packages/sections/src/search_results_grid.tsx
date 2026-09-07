@@ -1,16 +1,17 @@
 // =====================================================================
 // Section — search_results_grid
 // =====================================================================
-// Renders product search results. Reads `?q=` from `window.location` on
-// the client; on the server we fall back to the full product list so
-// SSR has something to paint. Matches against product `name`, `sku`,
-// and (when present) `description`. A plain GET search form sits at the
-// top so the page works without a header search (and without JS).
+// Renders product search results. The query arrives server-side as
+// `ctx.runtime.search_query` (the storefront /search route copies `?q=`
+// into the runtime), so the SSR pass already paints the filtered list —
+// no flash of the full catalogue, no layout shift after hydration
+// (P0-7 / P2-27). Matches every whitespace-separated token against
+// product `name`, `sku` and (when present) `description`. A plain GET
+// search form sits at the top so the page works without a header search
+// (and without JS); it is prefilled with the current query.
 // =====================================================================
 
-"use client";
-
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -28,6 +29,7 @@ import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
+import type { Product } from "./types";
 
 const STRINGS = {
   searchLabel: { en: "Search products", ar: "ابحث عن منتج" },
@@ -46,6 +48,25 @@ const STRINGS = {
 
 const INK_BORDER =
   "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
+
+/**
+ * Server-safe product search: every token of `query` must appear in the
+ * product's name, SKU or description (case-insensitive). An empty query
+ * returns the full list unchanged.
+ */
+export function filterProductsByQuery(
+  products: Product[],
+  query: string,
+): Product[] {
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return products;
+  return products.filter((p) => {
+    const hay = [p.name, p.sku ?? "", p.description ?? ""]
+      .join(" ")
+      .toLowerCase();
+    return tokens.every((tok) => hay.includes(tok));
+  });
+}
 
 function resultsLine(count: number, query: string, locale: LocaleCode): string {
   const line =
@@ -131,39 +152,12 @@ function SearchResultsGridRender({
   const locale = ctx.runtime.locale;
   const base = useStoreBase();
   const searchId = useId();
-  const [query, setQuery] = useState("");
-  const [draft, setDraft] = useState("");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const update = () => {
-      const params = new URLSearchParams(window.location.search);
-      const q = (params.get("q") ?? "").trim();
-      setQuery(q);
-      setDraft(q);
-    };
-    update();
-    window.addEventListener("popstate", update);
-    return () => window.removeEventListener("popstate", update);
-  }, []);
-
-  const results = useMemo(() => {
-    if (!query) return ctx.products;
-    const needle = query.toLowerCase();
-    return ctx.products.filter((p) => {
-      const hay = [
-        p.name,
-        p.sku ?? "",
-        (p as unknown as { description?: string | null }).description ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [ctx.products, query]);
+  const query = ctx.runtime.search_query?.trim() ?? "";
+  const results = filterProductsByQuery(ctx.products, query);
 
   const emptyMessage = resolveI18n(props.empty_state_message_i18n, locale);
   const phone = resolveTenantWhatsapp(ctx.tenant);
+  const searchLabel = resolveI18n(STRINGS.searchLabel, locale);
 
   const mobileCols = props.cols_mobile === 1 ? "grid-cols-1" : "grid-cols-2";
   const desktopCols =
@@ -173,17 +167,19 @@ function SearchResultsGridRender({
         ? "sm:grid-cols-3"
         : "sm:grid-cols-4";
 
-  // Plain GET form: works before hydration and without a header search. The
-  // storefront /search page reads `?q=` and this section re-reads it on mount.
+  // Plain GET form: works before hydration and without a header search.
+  // Uncontrolled input keyed on the query so a client-side navigation to a
+  // new `?q=` re-syncs the field instead of keeping the stale draft.
   const searchForm = (
     <form
+      key={query}
       role="search"
       method="get"
       action={`${base}/search`}
       className="mb-bk-md flex gap-bk-xs"
     >
       <label htmlFor={searchId} className="sr-only">
-        {resolveI18n(STRINGS.searchLabel, locale)}
+        {searchLabel}
       </label>
       <input
         id={searchId}
@@ -191,9 +187,8 @@ function SearchResultsGridRender({
         name="q"
         autoComplete="off"
         enterKeyHint="search"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder={resolveI18n(STRINGS.searchLabel, locale)}
+        defaultValue={query}
+        placeholder={searchLabel}
         className="min-w-0 flex-1 px-3 py-3 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
         style={{
           backgroundColor: "var(--bk-surface, #ffffff)",
@@ -211,9 +206,16 @@ function SearchResultsGridRender({
     </form>
   );
 
+  // The page's h1 — the results line is the meaningful title when a query
+  // is present; otherwise the plain search label.
+  const heading = query
+    ? resultsLine(results.length, query, locale)
+    : searchLabel;
+
   if (results.length === 0) {
     return (
       <Section density="dense">
+        <h1 className="sr-only">{heading}</h1>
         {searchForm}
         <div
           className="p-bk-xl text-center"
@@ -242,13 +244,14 @@ function SearchResultsGridRender({
 
   return (
     <Section density="dense">
+      <h1 className="sr-only">{heading}</h1>
       {searchForm}
       {query && (
         <p
           aria-live="polite"
-          className="mb-bk-md font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft"
+          className="mb-bk-md font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft tabular-nums"
         >
-          {resultsLine(results.length, query, locale)}
+          {heading}
         </p>
       )}
       <div
@@ -284,8 +287,8 @@ const definition: SectionDefinition<Props> = {
   category: "page",
   name: { en: "Search results", ar: "نتائج البحث" },
   description: {
-    en: "Search form + results grid filtered by ?q= with empty-state fallback.",
-    ar: "نموذج بحث وشبكة نتائج مفلترة من ?q= مع حالة فارغة.",
+    en: "Search form + results grid filtered server-side from ?q= with empty-state fallback.",
+    ar: "نموذج بحث وشبكة نتائج مفلترة من ?q= على الخادم مع حالة فارغة.",
   },
   thumbnail: "/sections/search_results_grid.svg",
   valid_on: ["search"],

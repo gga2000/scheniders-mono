@@ -58,6 +58,7 @@ import checkout_form from "./checkout_form";
 import checkout_order_summary from "./checkout_order_summary";
 import track_order_lookup from "./track_order_lookup";
 import order_tracker from "./order_tracker";
+import order_confirmation from "./order_confirmation";
 
 // Content variety
 import category_grid from "./category_grid";
@@ -138,6 +139,7 @@ export const BUILTIN_SECTIONS = [
   checkout_order_summary,
   track_order_lookup,
   order_tracker,
+  order_confirmation,
   category_grid,
   feature_grid,
   numbers_stat_strip,

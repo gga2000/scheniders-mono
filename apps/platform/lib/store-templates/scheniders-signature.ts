@@ -117,7 +117,7 @@ const FAQ_CONTACT_MORE = {
     icon_url: ASSETS.mic,
     title_i18n: { ar: "لديك أسئلة أخرى؟", en: "More questions?" },
     sub_i18n: {
-        ar: "إدا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+        ar: "إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
         en: "If you still need more information, you can always reach us.",
     },
     cta_label_i18n: { ar: "تواصل معنا", en: "Contact us" },
@@ -140,6 +140,37 @@ const FAQ_ITEMS_HOME = [
         },
     },
 ];
+
+/** Order-lifecycle questions from the original about page. */
+const FAQ_ITEMS_ORDERS = [
+    {
+        q_i18n: { ar: "كيف يمكنني إلغاء طلب؟", en: "How can I cancel an order?" },
+        a_i18n: {
+            ar: "نحن قادرون فقط على إلغاء الطلبات في غضون الـ 12 ساعة الأولى بعد تقديم الطلب. وبعد ذلك تمت معالجة الطلب على الأرجح والاستعداد للشحن. نحن نعتذر عن أي إزعاج قد يسببه هذا الأمر، لكننا نفخر بتقديم الخدمة السريعة وهذا يشمل إخراج طلباتك في أسرع وقت ممكن.",
+            en: "Orders can only be cancelled within the first 12 hours — after that they are likely processed and being prepared for shipping. We apologise for any inconvenience; fast service means your order goes out as quickly as possible.",
+        },
+    },
+    {
+        q_i18n: {
+            ar: "كم تستغرق عملية الشحن من الوقت؟",
+            en: "How long does shipping take?",
+        },
+        a_i18n: {
+            ar: "جميع الطلبات داخل العراق يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز.",
+            en: "All orders inside Iraq are delivered within 18 hours of confirmation.",
+        },
+    },
+    {
+        q_i18n: { ar: "متى سوف يشحن طلبي؟", en: "When will my order ship?" },
+        a_i18n: {
+            ar: "تتم معالجة الطلبات وشحنها عادة في نفس يوم تثبيت الطلب.",
+            en: "Orders are usually processed and shipped the same day they are confirmed.",
+        },
+    },
+];
+
+/** Every question the store answers, for the dedicated /faq page. */
+const FAQ_ITEMS_ALL = [...FAQ_ITEMS_HOME, ...FAQ_ITEMS_ORDERS];
 
 /** Product-page policy accordion — the five funnel accordions, verbatim. */
 const PDP_POLICIES = [
@@ -182,6 +213,158 @@ const PDP_POLICIES = [
         },
     },
 ];
+
+/** The store's own legal pages (Arabic only, as published on the original
+ *  site). Owned by the template so re-applying it never resets them to the
+ *  generic commerce boilerplate. Headings use `## ` so policy_content renders
+ *  real sections; contact numbers are links. */
+const POLICIES = {
+    policy_shipping: {
+        heading_i18n: { ar: "سياسة الشحن", en: "Shipping policy" },
+        body_md_i18n: { ar: `مرحبًا بكم في شنايدر! نسعى لتقديم تجربة تسوق مريحة وسلسة، وتشمل ذلك خدمة الشحن التي تضمن وصول طلباتكم بأسرع وقت ممكن.
+
+## تفاصيل الشحن
+
+**مدة معالجة الطلبات:**
+تتم معالجة الطلبات خلال يومي عمل (كل ايام الاسبوع) بعد تأكيد الطلب.
+الطلبات المقدمة في عطلة نهاية الأسبوع أو العطلات الرسمية سيتم معالجتها في أول يوم عمل بعدها.
+
+**مدة الشحن:**
+تختلف مدة الشحن بناءً على الموقع الجغرافي، وعادةً ما تتراوح بين 24 ساعة إلى 3 أيام عمل للطلبات المحلية.
+قد تستغرق الطلبات الدولية وقتًا أطول حسب الوجهة وخدمات الشحن المتاحة.
+
+**رسوم الشحن:**
+يتم احتساب رسوم الشحن تلقائيًا عند إتمام الطلب بناءً على رسوم الشحن الثابتة المفروضة من قبل شركة التوصيل (5000 بغداد, 6000 محافظات)
+قد نقدم شحنًا مجانيًا للطلبات التي تتجاوز مبلغًا معينًا (يتم الإعلان عن العروض عبر موقعنا).
+
+**تتبع الشحنات:**
+التواصل معنا على الواتساب [07779703832](https://wa.me/9647779703832) لمتابعة حالة طلبك
+
+## سياسة التسليم
+الدقة في العنوان: يرجى التأكد من إدخال عنوان الشحن بشكل صحيح وكامل لتجنب أي تأخير أو عدم استلام الطلب.
+التوقيع عند الاستلام: قد تتطلب بعض الطلبات توقيع المستلم لضمان التسليم الآمن.
+
+## الشحن الدولي
+يتم شحن الطلبات الدولية وفقًا لقوانين وأنظمة البلد الوجهة.
+يتحمل العميل أي رسوم جمركية أو ضرائب قد تفرضها السلطات المحلية.
+
+## مشاكل الشحن
+إذا واجهت أي مشكلة مع شحنتك، سواء كانت تأخيرًا أو تلفًا، يرجى التواصل معنا عبر البريد الإلكتروني أو الهاتف المخصص لخدمة العملاء، وسنعمل على حل المشكلة في أسرع وقت ممكن.
+
+نشكركم على ثقتكم بمتجرنا! إذا كانت لديكم أي استفسارات إضافية، لا تترددوا في التواصل معنا.` },
+    },
+    policy_returns: {
+        heading_i18n: { ar: "سياسة الاسترجاع", en: "Return and refund policy" },
+        last_updated: "2024-10-16",
+        body_md_i18n: { ar: `في شنايدر، رضا العملاء هو أولويتنا. إذا لم تكن راضيًا تمامًا عن مشترياتك، نحن هنا للمساعدة. فيما يلي سياسة الاسترجاع للمشتريات التي تتم في المتجر أو عبر الإنترنت.
+
+## اولاً: الأهلية للاسترجاع
+- يجب التبليغ برغبة الاسترجاع بعد استخدام العطر حصراً خلال 24 ساعة من تاريخ وصول الطلب لضمان تجربة العطر بصورة كاملة
+- يتم الاسترجاع فقط في حالة عدم رضا الزبون عن المنتج او وجود عيب مصنعي للمنتج او ارسال منتج غير صحيح (على الزبون التأكد من البضاعة الواصلة بحضور المندوب) والتأكد من طلبه جيداً قبل الطلب
+- يجب أن تكون السلعة في حالتها الأصلية، غير مستعملة بشدة او متضررة، وغير ممزقة او تالفة، مع وجود جميع البطاقات والتغليف الأصلي
+- يجب تقديم إثبات الشراء (فاتورة أو إيصال)
+
+## ثانيا: السلع غير القابلة للاسترجاع
+- سلع التصفية والسلع الترويجية غير قابلة للاسترجاع
+- عطور العينات والتقسيم غير قابلة للاسترجاع لأسباب تتعلق بالصحة والسلامة.
+
+## ثالثا: طريقة الاسترجاع
+الاسترجاع يتم التواصل المباشر معنا في غضون 24 ساعة من استلام الطلب عن طريق الواتساب من خلال الرقم [07779703832](https://wa.me/9647779703832). يتم ارسال مندوب من شركة التوصيل من قبلنا لأستلام المنتج وتسليم المبلغ او تبديله. يتم التبديل حصراً بعد التأكد ان المنتج بحالته الاصلية خلافه يسقط حق الزبون بالاسترجاع، او الاستبدال
+
+- يتحمل العميل تكاليف الشحن عند إعادة السلع (للمشتريات عبر الإنترنت)
+- استرداد الأموال: بعد استلامنا وفحص السلعة، سيتم إشعارك بقبول أو رفض الاسترجاع
+- اذا تم قبول استرجاعك، سيتم رد المبلغ على طريقة الدفع الأصلية بوجود المندوب مباشرة
+- نقوم بأسترجاع مبلغ الطلب، مع استقطاع مبلغ التوصيل من قبل شركة التوصيل لاعادة المبلغ للزبون، بسبب اعادة ارسال المندوب مرة اخرى للزبون
+
+## الاتصال بنا
+لأي استفسار أو دعم إضافي، يرجى الاتصال بنا عبر رقم الواتساب: [07779703832](https://wa.me/9647779703832)
+نحن في شنايدر نقدر اختيارك للتسوق معنا، ونسعى دائمًا لتقديم أفضل تجربة تسوق لعملائنا.` },
+    },
+    policy_privacy: {
+        heading_i18n: { ar: "سياسة الخصوصية", en: "Privacy policy" },
+        last_updated: "2024-10-16",
+        body_md_i18n: { ar: `نحن نحترم خصوصيتك ونلتزم بحمايتها. توضح سياسة الخصوصية هذه كيفية جمعنا واستخدامنا ومشاركة وحماية معلوماتك عندما تزور متجرنا أو موقعنا الإلكتروني أو تستخدم خدماتنا
+
+## اولاً: المعلومات التي نقوم بجمعها
+قد نقوم بجمع الأنواع التالية من المعلومات
+- المعلومات الشخصية: الاسم، عنوان البريد الإلكتروني، رقم الهاتف، عنوان السكن, والعنوان البريدي عند قيامك بالشراء، أو الاشتراك في النشرات الإخبارية، أو التواصل معنا
+- بيانات الاستخدام: معلومات حول كيفية استخدامك لموقعنا الالكترونية مثل عنوان الاي بي, نوع المتصفح, والصفحات التي تزورها
+
+## ثانياً: نستخدم المعلومات التي نجمعها للأغراض التالية
+- معالجة الطلبات: لاستخدام معلومات الدفع وتوصيل المشتريات.
+- تحسين تجربة المستخدم: لتحليل كيفية استخدامك لموقعنا الإلكتروني وتحسين خدماتنا ومنتجاتنا
+- التواصل معك: للرد على استفساراتك أو إرسال العروض الترويجية والأخبار التي تهمك (بموافقتك)
+
+## ثالثاً: مشاركة المعلومات
+نحن لا نبيع أو نؤجر بياناتك الشخصية لأي أطراف خارجية. قد نشارك معلوماتك فقط مع
+- مزودي الخدمة: شركات التوصيل لغرض التوصيل او الشحن الذين يساعدوننا في تقديم خدماتنا
+- الأغراض القانونية: إذا طُلب منا ذلك بموجب القانون أو لحماية حقوقنا القانونية
+
+## رابعاً: حماية المعلومات
+نحن نتخذ خطوات تقنية وإدارية لحماية معلوماتك من الوصول غير المصرح به أو التعديل أو الفقد. ومع ذلك، لا يمكننا ضمان أمان كامل نظرًا للطبيعة الإلكترونية للإنترنت.
+
+## خامساً: حقوق المستخدم
+بصفتك مستخدمًا، لديك الحقوق التالية
+- الوصول: يمكنك طلب الوصول إلى المعلومات التي جمعناها عنك
+- التصحيح: طلب تصحيح أي معلومات غير دقيقة أو غير مكتملة
+- الحذف: يمكنك طلب حذف بياناتك في أي وقت، باستثناء ما يُطلب منا الاحتفاظ به قانونيًا
+
+## سادساً: ملفات تعريف الارتباط (Cookies)
+نستخدم ملفات تعريف الارتباط لجمع بيانات الاستخدام ولتحسين تجربتك على موقعنا. يمكنك التحكم في إعدادات ملفات تعريف الارتباط من خلال متصفحك.
+
+## سابعاً: التغييرات على سياسة الخصوصية
+قد نقوم بتحديث هذه السياسة من وقت لآخر. سيتم نشر أي تغييرات على هذه الصفحة مع تحديث تاريخ السريان
+
+## ثامناً: الاتصال بنا
+إذا كان لديك أي استفسارات بخصوص سياسة الخصوصية هذه، يمكنك التواصل معنا عبر الهاتف [07779703832](tel:+9647779703832)
+نشكر لك ثقتك في شنايدر، ونؤكد التزامنا بحماية خصوصيتك وبياناتك الشخصية` },
+    },
+    policy_terms: {
+        heading_i18n: { ar: "الشروط والاحكام", en: "Terms of service" },
+        last_updated: "2024-10-16",
+        body_md_i18n: { ar: `مرحبًا بك في شنايدر!
+تحكم شروط الخدمة هذه وصولك إلى موقعنا واستخدامك له ولمنتجاتنا وخدماتنا.
+باستخدامك لموقعنا أو شرائك من متجرنا، فإنك توافق على الالتزام بالشروط التالية:
+
+## اولاً: قبول الشروط
+عند استخدامك لموقعنا أو خدماتنا، فإنك تقر بقراءتك وفهمك لهذه الشروط وتوافق على الالتزام بها. إذا كنت لا توافق على أي جزء من هذه الشروط، يرجى عدم استخدام الموقع أو شراء منتجاتنا.
+
+## ثانياً: المشتريات والمدفوعات
+- جميع الأسعار الموضحة على موقعنا الإلكتروني هي أسعار نهائية بالدينار العراقي ولا تضاف عليها أي ضرائب.
+- الدفع يتم نقداً عند الاستلام (الدفع عند الاستلام) بعد فحص المنتج بحضور المندوب.
+- قد تضاف أجور توصيل حسب المحافظة وتُعرض بوضوح قبل تأكيد الطلب. أنت توافق على تقديم معلومات صحيحة ودقيقة عند إتمام الطلب.
+
+## ثالثا: إلغاء الطلبات وتعديلات الأسعار
+نحتفظ بالحق في إلغاء أي طلب أو تعديله إذا كانت المعلومات الخاصة بالمنتج غير دقيقة أو عند حدوث خطأ في التسعير.
+قد نقوم بتعديل الأسعار في أي وقت دون إشعار مسبق.
+
+## رابعاً: الشحن والتسليم
+- يتم شحن المنتجات داخل العراق إلى العنوان الذي تحدده عند إتمام الطلب.
+- نحن لسنا مسؤولين عن أي تأخير في الشحن ناتج عن ظروف خارجة عن إرادتنا مثل مشاكل الشحن أو الجمارك.
+
+## خامساً: حقوق الملكية الفكرية
+جميع المحتويات الموجودة على موقع شنايدر، بما في ذلك النصوص، الصور، والشعارات، هي ملك لشركة شنايدر ومحميّة بموجب قوانين حقوق الملكية الفكرية
+- لا يجوز لك استخدام أو نسخ أي محتوى من الموقع دون إذن كتابي مسبق مكتوب من قبل مدير شركة شنايدر حصرا
+
+## سادساً: سياسة الاستخدام
+يجب عليك استخدام الموقع للأغراض القانونية فقط. يمنع تحميل أو نشر أي محتوى يضر أو ينتهك حقوق الآخرين، أو يتضمن فيروسات أو برامج ضارة.
+- نحن نحتفظ بالحق في إنهاء أو تعليق وصولك إلى الموقع إذا تم انتهاك هذه الشروط.
+
+## سابعاً: التعديلات على الشروط
+- نحن نحتفظ بالحق في تعديل أو تحديث هذه الشروط في أي وقت. سيتم نشر أي تغييرات على هذه الصفحة مع تحديث تاريخ السريان.
+
+## ثامناً: إخلاء المسؤولية
+نحن نقدم الموقع والمنتجات "كما هي" و"حسب توفرها" دون أي ضمانات صحية، صريحة أو ضمنية. نحن غير مسؤولين عن أي أضرار صحية او معنوية او مادية قد تنشأ من استخدامك للموقع أو المنتجات مثل رش العطور بالفم او التعرض لوعكة صحية نتيجة الاستخدام الخاطئ للمنتجات
+
+## تاسعاً: القانون المعمول به
+تخضع هذه الشروط وتفسر وفقًا لقوانين جمهورية العراق. أي نزاع ينشأ عن استخدامك للموقع أو شراء منتجاتنا سيخضع للاختصاص القضائي للمحاكم العراقية.
+
+## عاشراً: الاتصال بنا
+إذا كانت لديك أي استفسارات حول شروط الخدمة هذه، يمكنك التواصل معنا عبر الهاتف: [07779703832](tel:+9647779703832)
+
+نشكرك لاختيارك شنايدر ونتمنى لك تجربة تسوق ممتعة وآمنة!` },
+    },
+} as const;
 
 export const schenidersSignatureTemplate: StoreTemplate = {
     id: "scheniders_signature",
@@ -248,28 +431,28 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                         { label_i18n: { ar: "تتبع الطلب", en: "Track your order" }, href: "/track" },
                         {
                             label_i18n: {
-                                ar: "سياسة الخصوصية - Privacy policy",
+                                ar: "سياسة الخصوصية",
                                 en: "Privacy policy",
                             },
                             href: "/policies/privacy",
                         },
                         {
                             label_i18n: {
-                                ar: "الشروط والاحكام - Terms and conditions",
+                                ar: "الشروط والاحكام",
                                 en: "Terms and conditions",
                             },
                             href: "/policies/terms",
                         },
                         {
                             label_i18n: {
-                                ar: "سياسة الاسترجاع - Return and Refund policy",
+                                ar: "سياسة الاسترجاع",
                                 en: "Return and refund policy",
                             },
                             href: "/policies/returns",
                         },
                         {
                             label_i18n: {
-                                ar: "سياسة الشحن - Shipping policy",
+                                ar: "سياسة الشحن",
                                 en: "Shipping policy",
                             },
                             href: "/policies/shipping",
@@ -278,8 +461,10 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 },
             ],
             show_cod_badge: false,
+            // No phone here on purpose: a per-section override wins over the
+            // store's contact settings (helpers/whatsapp), so a stale number in
+            // the template would shadow whatever the merchant sets later.
             contact: {
-                phone: "+9647779703832",
                 address_i18n: {
                     ar: "العراق - بغداد - زيونة",
                     en: "Iraq - Baghdad - Zayouna",
@@ -394,7 +579,7 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                             en: "A stunning balance of formality and style",
                         },
                         cta_label_i18n: { ar: "شوفهم", en: "See them" },
-                        href: "/products",
+                        href: "/categories/work",
                     },
                     {
                         image_url: ASSETS.trioOutings,
@@ -404,7 +589,7 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                             en: "Luxury and comfort combined",
                         },
                         cta_label_i18n: { ar: "تعال نوريك", en: "Come see" },
-                        href: "/products",
+                        href: "/categories/outings",
                     },
                     {
                         image_url: ASSETS.trioOccasions,
@@ -414,13 +599,13 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                             en: "For special occasions",
                         },
                         cta_label_i18n: { ar: "تألق هسة", en: "Shine now" },
-                        href: "/products",
+                        href: "/categories/occasions",
                     },
                 ],
             }),
             s("testimonial_cards", {
                 eyebrow_i18n: { ar: "آراء كشايخنا", en: "What our regulars say" },
-                title_i18n: { ar: "ليش الناس تموت على عطور", en: "Why people are crazy about our perfumes" },
+                title_i18n: { ar: "ليش الناس تموت على عطورنا", en: "Why people are crazy about our perfumes" },
                 side_image_left_url: ASSETS.sideArtLeft,
                 side_image_right_url: ASSETS.sideArtRight,
                 items: TESTIMONIALS,
@@ -458,8 +643,8 @@ export const schenidersSignatureTemplate: StoreTemplate = {
             s("about_spotlight", {
                 title_i18n: { ar: "منو احنا", en: "Who we are" },
                 body_i18n: {
-                    ar: "نقدم لك أفضل المنتجات التي تلبي احتياجاتك. نحن ملتزمون بتوفير خدمة عملاء ممتازة من خلال فريقنا المدرب والودود الذي يساعدك في تحقيق أهدافك الجمالية. تصفح موقعنا الآن واستمتع بتجربة تسوق سهلة ومريحة مع توصيل سريع وموثوق. اكتشف الجمال الحقيقي معنا!",
-                    en: "We bring you the best products for your needs, backed by a friendly, trained team committed to excellent service. Browse now and enjoy easy shopping with fast, reliable delivery. Discover true beauty with us!",
+                    ar: "شنايدر متجر عطور من بغداد. نختار عطورنا يدوياً من أفخم الدور العالمية، ونجرّب كل عطر بأنفسنا قبل ما يوصلكم. كل طلب يجيك وياه تيستر مجاني تجرّبه بحضور المندوب، وإذا ما عجبك ترجّعه خلال أسبوع وتستلم فلوسك كاملة. الدفع عند الاستلام، والتوصيل لكل المحافظات.",
+                    en: "Scheniders is a perfume house from Baghdad. We hand-pick from the world's finest houses and wear-test every scent ourselves before it reaches you. Every order ships with a free tester to try with the courier present; if it isn't for you, return it within a week for a full refund. Cash on delivery, to every governorate.",
                 },
                 cta_label_i18n: { ar: "تعرف أكثر", en: "Learn more" },
                 cta_href: "/about",
@@ -538,7 +723,7 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 eyebrow_i18n: { ar: "أسئلة و أجوبة", en: "Questions & answers" },
                 title_i18n: { ar: "الأسئلة الأكثر شيوعا", en: "Frequently asked questions" },
                 sub_i18n: {
-                    ar: "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إدا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+                    ar: "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
                     en: "Answers to the most common questions — and you can always reach us for more.",
                 },
                 row_icon_url: ASSETS.faqRow,
@@ -576,75 +761,55 @@ export const schenidersSignatureTemplate: StoreTemplate = {
         ],
         about: [
             s("hero_card_float", {
-                headline_i18n: { ar: "مرحبا بك في متجرنا", en: "Welcome to our store" },
+                headline_i18n: { ar: "منو شنايدر؟", en: "Who is Scheniders?" },
                 sub_i18n: {
-                    ar: "نقدم لك أفضل المنتجات التي تلبي احتياجاتك. نحن ملتزمون بتوفير خدمة عملاء ممتازة من خلال فريقنا المدرب والودود الذي يساعدك في تحقيق أهدافك الجمالية. تصفح موقعنا الآن واستمتع بتجربة تسوق سهلة ومريحة مع توصيل سريع وموثوق. اكتشف الجمال الحقيقي معنا!",
-                    en: "The best products for your needs, backed by a friendly, trained team helping you reach your beauty goals. Browse now and enjoy easy shopping with fast, reliable delivery — discover true beauty with us!",
+                    ar: "متجر عطور من بغداد، نختار عطورنا يدوياً من أفخم الدور العالمية ونجرّبها بأنفسنا قبل ما توصلكم. تيستر مجاني مع كل طلب، دفع عند الاستلام، وترجيع خلال أسبوع.",
+                    en: "A perfume house from Baghdad. We hand-pick from the world's finest houses and wear-test every scent ourselves. Free tester with every order, cash on delivery, returns within a week.",
                 },
                 cta_label_i18n: { ar: "منتجاتنا", en: "Our products" },
                 cta_href: "/products",
                 card_align: "center",
+                badge_i18n: undefined,
                 secondary_cta_kind: "whatsapp",
                 secondary_cta_value: "",
                 secondary_cta_label_i18n: { ar: "اطلب عبر واتساب", en: "Order on WhatsApp" },
             }),
             s("pillars_grid", {
                 eyebrow_i18n: { ar: "مميزات", en: "Highlights" },
-                title_i18n: { ar: "لماذا متجرنا ؟", en: "Why our store?" },
+                title_i18n: { ar: "ليش تشتري من شنايدر؟", en: "Why buy from Scheniders?" },
+                // Three distinct promises, one icon each. The original page
+                // listed six generic pillars that repeated "offers and
+                // discounts" twice and reused every icon for two claims.
                 items: [
                     {
                         icon_url: ASSETS.pillarQuality,
-                        title_i18n: { ar: "رضا العملاء", en: "Customer satisfaction" },
+                        title_i18n: { ar: "تجرّب قبل ما تدفع", en: "Try before you pay" },
                         body_i18n: {
-                            ar: "نولي أهمية كبيرة لرضا العملاء، ونسعى جاهدين لضمان رضاك التام وراحتك في عملية الشراء واستخدام المنتج.",
-                            en: "Your satisfaction matters — we work hard to make buying and using our products a delight.",
+                            ar: "كل طلب يجيك وياه تيستر زجاجي مجاني تجرّبه بحضور المندوب. إذا ما عجبك، ترجّعه وتستلم فلوسك كاملة خلال أسبوع.",
+                            en: "Every order arrives with a free glass tester you try with the courier present. Not for you? Return it within a week for a full refund.",
                         },
                     },
                     {
                         icon_url: ASSETS.pillarValue,
-                        title_i18n: { ar: "عروض وتخفيضات", en: "Offers & discounts" },
+                        title_i18n: { ar: "سعر عادل، بدون مبالغة", en: "Fair prices, no markup games" },
                         body_i18n: {
-                            ar: "نقدم عروض وتخفيضات منتظمة على المنتجات لضمان جذب العملاء وتحقيق أفضل قيمة ممكنة لمشترياتهم.",
-                            en: "Regular offers and discounts so every purchase delivers the best possible value.",
+                            ar: "نسعّر عطورنا بأرقام نقتنع بيها احنا قبلكم — مستحيل نحط سعر على عطر ما مستعدين ندفعه بأنفسنا.",
+                            en: "We price at numbers we would pay ourselves — never a price we wouldn't pay for the same bottle.",
                         },
                     },
                     {
                         icon_url: ASSETS.pillarEndurance,
-                        title_i18n: { ar: "كفاءة عالية", en: "High standards" },
+                        title_i18n: { ar: "توصيل سريع لكل المحافظات", en: "Fast delivery to every governorate" },
                         body_i18n: {
-                            ar: "نحرص على توفير منتجات عالية الجودة من مصادر موثوقة. نختار الماركات المشهورة والمعروفة بجودتها.",
-                            en: "Quality products from trusted sources — only brands known for their excellence.",
-                        },
-                    },
-                    {
-                        icon_url: ASSETS.pillarQuality,
-                        title_i18n: { ar: "تجربة تسوق سهلة ومريحة", en: "Easy, comfortable shopping" },
-                        body_i18n: {
-                            ar: "تصفح موقعنا الإلكتروني بسهولة وبساطة, لدينا واجهة مستخدم بسيطة ومرنة تجعل عملية الشراء ممتعة وسهلة بضغطة زر.",
-                            en: "A simple, flexible storefront that makes buying enjoyable — one tap away.",
-                        },
-                    },
-                    {
-                        icon_url: ASSETS.pillarValue,
-                        title_i18n: { ar: "العروض والتخفيضات", en: "Exclusive deals" },
-                        body_i18n: {
-                            ar: "نقدم عروضًا وتخفيضاتٍ مميزة للعملاء الذين يتسوقون من متجرنا. نوفر عروض حصرية لتشجيع العملاء على الشراء والعودة للتسوق مجددًا.",
-                            en: "Exclusive deals for our shoppers — rewards that keep you coming back.",
-                        },
-                    },
-                    {
-                        icon_url: ASSETS.pillarEndurance,
-                        title_i18n: { ar: "توصيل سريع وموثوق", en: "Fast, reliable delivery" },
-                        body_i18n: {
-                            ar: "سيتم توصيل طلبك بأمان وفي أقرب وقت ممكن، لتستمتع بمنتجاتك وتجربتها في أسرع وقت.",
-                            en: "Your order arrives safely and as fast as possible, so you can enjoy it sooner.",
+                            ar: `${DELIVERY_SLA_I18N.ar}، والدفع عند الاستلام بعد ما تفحص الطلب.`,
+                            en: `${DELIVERY_SLA_I18N.en}, cash on delivery after you inspect the order.`,
                         },
                     },
                 ],
             }),
             s("testimonial_cards", {
                 eyebrow_i18n: { ar: "آراء كشايخنا", en: "What our regulars say" },
-                title_i18n: { ar: "ليش الناس تموت على عطور", en: "Why people are crazy about our perfumes" },
+                title_i18n: { ar: "ليش الناس تموت على عطورنا", en: "Why people are crazy about our perfumes" },
                 side_image_left_url: ASSETS.sideArtLeft,
                 side_image_right_url: ASSETS.sideArtRight,
                 items: TESTIMONIALS,
@@ -653,36 +818,11 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                 eyebrow_i18n: { ar: "أسئلة و أجوبة", en: "Questions & answers" },
                 title_i18n: { ar: "الأسئلة الأكثر شيوعا", en: "Frequently asked questions" },
                 sub_i18n: {
-                    ar: "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إدا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+                    ar: "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
                     en: "Answers to the most common questions — and you can always reach us for more.",
                 },
                 row_icon_url: ASSETS.faqRow,
-                items: [
-                    {
-                        q_i18n: { ar: "كيف يمكنني إلغاء طلب؟", en: "How can I cancel an order?" },
-                        a_i18n: {
-                            ar: "نحن قادرون فقط على إلغاء الطلبات في غضون الـ 12 ساعة الأولى بعد تقديم الطلب. وبعد ذلك تمت معالجة الطلب على الأرجح والاستعداد للشحن. نحن نعتذر عن أي إزعاج قد يسببه هذا الأمر، لكننا نفخر بتقديم الخدمة السريعة وهذا يشمل إخراج طلباتك في أسرع وقت ممكن.",
-                            en: "Orders can only be cancelled within the first 12 hours — after that they are likely processed and being prepared for shipping. We apologise for any inconvenience; fast service means your order goes out as quickly as possible.",
-                        },
-                    },
-                    {
-                        q_i18n: {
-                            ar: "كم تستغرق عملية الشحن من الوقت؟",
-                            en: "How long does shipping take?",
-                        },
-                        a_i18n: {
-                            ar: "جميع الطلبات داخل العراق يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز.",
-                            en: "All orders inside Iraq are delivered within 18 hours of confirmation.",
-                        },
-                    },
-                    {
-                        q_i18n: { ar: "متى سوف يشحن طلبي؟", en: "When will my order ship?" },
-                        a_i18n: {
-                            ar: "تتم معالجة الطلبات وشحنها عادة في نفس يوم تثبيت الطلب.",
-                            en: "Orders are usually processed and shipped the same day they are confirmed.",
-                        },
-                    },
-                ],
+                items: FAQ_ITEMS_ORDERS,
                 contact: FAQ_CONTACT_MORE,
             }),
         ],
@@ -706,8 +846,8 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                     // Instagram matches the footer's actual linked account
                     // (the original site's contact page typed a different
                     // handle than its own footer links — self-consistency won).
-                    ar: "## معلومات التواصل\n\nرقم الهاتف: 0777 970 3832\n\nانستغرام: @kawkab.brand\n\nالعنوان: العراق - بغداد - زيونة",
-                    en: "## Contact information\n\nPhone: 0777 970 3832\n\nInstagram: @kawkab.brand\n\nAddress: Iraq - Baghdad - Zayouna",
+                    ar: "## معلومات التواصل\n\nرقم الهاتف: [0777 970 3832](tel:+9647779703832)\n\nواتساب: [راسلنا على واتساب](https://wa.me/9647779703832)\n\nانستغرام: [@kawkab.brand](https://www.instagram.com/kawkab.brand/)\n\nالعنوان: العراق - بغداد - زيونة",
+                    en: "## Contact information\n\nPhone: [0777 970 3832](tel:+9647779703832)\n\nWhatsApp: [Message us on WhatsApp](https://wa.me/9647779703832)\n\nInstagram: [@kawkab.brand](https://www.instagram.com/kawkab.brand/)\n\nAddress: Iraq - Baghdad - Zayouna",
                 },
             }),
             s("trust_badge_row", { items: TRUST_BOTTOM, band_style: "plain" }),
@@ -721,10 +861,16 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                     en: "Answers to your most common questions, from our team",
                 },
                 row_icon_url: ASSETS.faqRow,
-                items: FAQ_ITEMS_HOME,
+                // The dedicated FAQ page carries every question the store
+                // answers anywhere; the other pages show subsets.
+                items: FAQ_ITEMS_ALL,
                 contact: FAQ_CONTACT_HOME,
             }),
         ],
         ...commercePages(s, { productCardStyle: "price_pill" }),
+        policy_shipping: [s("policy_content", { ...POLICIES.policy_shipping })],
+        policy_returns: [s("policy_content", { ...POLICIES.policy_returns })],
+        policy_privacy: [s("policy_content", { ...POLICIES.policy_privacy })],
+        policy_terms: [s("policy_content", { ...POLICIES.policy_terms })],
     },
 };

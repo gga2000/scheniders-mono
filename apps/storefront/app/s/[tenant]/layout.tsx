@@ -16,7 +16,6 @@ import { getRequestOrigin, htmlLangFor, ogLocaleFor } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { CartHydrator } from "@/components/cart-hydrator";
 import { HtmlLang } from "@/components/html-lang";
-import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pixels";
 import { SchneidersNewsletterPopup } from "@/components/schneiders/newsletter-popup";
 import type { Tenant } from "@/lib/types";
@@ -260,16 +259,11 @@ export default async function TenantLayout({ params, children }: Props) {
             "var(--bk-font-body, var(--font-dm-sans), 'DM Sans', 'Noto Sans Arabic', sans-serif)",
         }}
       >
+        {/* The language switcher lives inside the global `site_header`
+            section (P1-6) — it reads `store_config_v2.enabled_locales` off
+            the tenant in the section ctx and `runtime.locale`, so nothing
+            floats over page content any more. */}
         {children}
-        {/* Inside the brand wrapper on purpose: the switcher reads --bk-*
-            tokens, and outside the subtree they are unset, so it rendered in
-            the Candy Bento fallback pink on every non-Candy store. */}
-        {v2 && (v2.enabled_locales?.length ?? 0) > 1 && (
-          <LocaleSwitcher
-            locales={v2.enabled_locales}
-            current={currentLocale}
-          />
-        )}
       </div>
       <SchneidersNewsletterPopup config={schn.newsletter_popup} />
     </StoreBaseProvider>
