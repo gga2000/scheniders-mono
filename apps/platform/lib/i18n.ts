@@ -2680,6 +2680,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.filter.refunds": "Refunds",
         "orders.filter.suspended": "Suspended Order",
         "orders.filter.duplicates": "Duplicates",
+        "orders.filter.dueToday": "Due today",
 
         // ── Product Picker ──
         "orders.productPicker.search": "Search for a product...",
@@ -5775,6 +5776,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.filter.refunds": "المرتجعات",
         "orders.filter.suspended": "طلب معلق",
         "orders.filter.duplicates": "المكررين",
+        "orders.filter.dueToday": "مجدولة اليوم",
 
         // ── Product Picker ──
         "orders.productPicker.search": "ابحث عن منتج...",

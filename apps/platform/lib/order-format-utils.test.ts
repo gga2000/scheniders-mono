@@ -4,6 +4,7 @@ import {
     getAgeUrgency,
     getScheduledState,
     formatScheduledDate,
+    isScheduleDue,
 } from "@/lib/order-format-utils";
 
 // Local 2:00 PM on 7 Sep 2026. Built from local parts so the assertions hold
@@ -101,5 +102,32 @@ describe("age urgency", () => {
     it("stops tracking urgency once the order is finished", () => {
         expect(getAgeUrgency("delivered", hoursAgo(200))).toBe("none");
         expect(getAgeUrgency("rejected", hoursAgo(200))).toBe("none");
+    });
+});
+
+describe("due-today queue", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("includes an order whose scheduled day has arrived and still needs work", () => {
+        expect(isScheduleDue("confirmed", daysFromNow(0))).toBe(true);
+        expect(isScheduleDue("new", daysFromNow(-2))).toBe(true);
+    });
+
+    it("excludes orders parked for a later day", () => {
+        expect(isScheduleDue("confirmed", daysFromNow(1))).toBe(false);
+    });
+
+    it("excludes orders that are already settled", () => {
+        expect(isScheduleDue("completed", daysFromNow(0))).toBe(false);
+        expect(isScheduleDue("delivered", daysFromNow(-1))).toBe(false);
+        expect(isScheduleDue("cancelled", daysFromNow(-1))).toBe(false);
+    });
+
+    it("excludes orders that were never scheduled", () => {
+        expect(isScheduleDue("confirmed", null)).toBe(false);
     });
 });

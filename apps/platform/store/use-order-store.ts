@@ -58,6 +58,8 @@ interface FilterUISlice {
   newPresetName: string;
   groupBy: "none" | "status" | "city" | "verified";
   filterDuplicatesOnly: boolean;
+  /** Show only orders whose scheduled day has arrived and that still need work. */
+  filterDueToday: boolean;
   sortConfig: { key: string; direction: "asc" | "desc" } | null;
   sortConfigs: Array<{ key: string; direction: "asc" | "desc" }>;
   columnFilters: Record<string, string>;
@@ -72,6 +74,7 @@ interface FilterUISlice {
   setNewPresetName: (name: string) => void;
   setGroupBy: (val: "none" | "status" | "city" | "verified") => void;
   setFilterDuplicatesOnly: (val: boolean) => void;
+  setFilterDueToday: (val: boolean) => void;
   toggleSort: (key: string, shiftKey?: boolean) => void;
   setColumnFilters: (filters: Record<string, string>) => void;
   setOpenFilterColumn: (val: string | null) => void;
@@ -214,6 +217,7 @@ export const useOrderStore = create<OrderStore>()(
       newPresetName: "",
       groupBy: "none",
       filterDuplicatesOnly: false,
+      filterDueToday: false,
       sortConfig: null,
       sortConfigs: [],
       columnFilters: {},
@@ -228,6 +232,7 @@ export const useOrderStore = create<OrderStore>()(
       setNewPresetName: (name) => set({ newPresetName: name }),
       setGroupBy: (val) => set({ groupBy: val }),
       setFilterDuplicatesOnly: (val) => set({ filterDuplicatesOnly: val }),
+      setFilterDueToday: (val) => set({ filterDueToday: val }),
       toggleSort: (key, shiftKey) =>
         set((s) => {
           if (shiftKey) {

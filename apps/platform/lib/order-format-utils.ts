@@ -54,6 +54,25 @@ const scheduledDayStart = (scheduledDate: string | Date | undefined | null): Dat
     return isNaN(date.getTime()) ? null : date;
 };
 
+/** Statuses where the order is finished and no longer anyone's queue. */
+const SETTLED_STATUSES = new Set<string>([
+    "completed",
+    "delivered",
+    "rejected",
+    "cancelled",
+    "refund_delivered",
+]);
+
+/**
+ * An order whose scheduled day has arrived (or passed) and that still needs
+ * work. This is the "due today" queue — orders that were parked and have now
+ * come back round.
+ */
+export const isScheduleDue = (
+    status: Order["status"],
+    scheduledDate?: string | null
+) => getScheduledState(scheduledDate) === "due" && !SETTLED_STATUSES.has(status);
+
 /** "8 Sep" — the label for the scheduled-date badge. */
 export const formatScheduledDate = (scheduledDate: string | Date | undefined | null) => {
     const day = scheduledDayStart(scheduledDate);

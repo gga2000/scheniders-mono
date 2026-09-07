@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Layers, ChevronDown, ShieldCheck, Copy, Package, Check, X, RotateCcw, Repeat } from "lucide-react";
+import { Filter, Layers, ChevronDown, ShieldCheck, Copy, CalendarClock, Package, Check, X, RotateCcw, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
@@ -40,6 +40,10 @@ interface StickyFilterBarProps {
     setGroupBy: (group: 'none' | 'status' | 'city' | 'verified') => void;
     filterDuplicatesOnly?: boolean;
     setFilterDuplicatesOnly?: (val: boolean) => void;
+    /** Orders parked for a later day whose day has arrived. */
+    filterDueToday?: boolean;
+    setFilterDueToday?: (val: boolean) => void;
+    dueTodayCount?: number;
     /** When false the contextual sub-filter rows (Type, Products) are collapsed. Owned by the parent so the search-bar toggle can drive it. */
     showSubFilters?: boolean;
     className?: string;
@@ -60,6 +64,9 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     groupBy,
     setGroupBy,
     filterDuplicatesOnly,
+    filterDueToday,
+    setFilterDueToday,
+    dueTodayCount = 0,
     setFilterDuplicatesOnly,
     showSubFilters = false,
     className,
@@ -250,6 +257,29 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     >
                         <Copy className="w-4 h-4" />
                         <span>{!isMobile && t("orders.filter.duplicates")}</span>
+                    </button>
+                )}
+
+                {/* Due-Today Filter Toggle — orders that were postponed and have come round */}
+                {setFilterDueToday && dueTodayCount > 0 && (
+                    <button
+                        onClick={() => setFilterDueToday(!filterDueToday)}
+                        className={cn(
+                            "rounded-full whitespace-nowrap transition-all flex items-center gap-2 border",
+                            isMobile ? "px-4 py-2.5 text-sm" : "px-4 py-2 text-sm font-medium",
+                            filterDueToday
+                                ? "bg-blue-100 text-blue-700 border-blue-300 shadow-sm dark:bg-blue-400/15 dark:text-blue-200 dark:border-blue-400/35"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:hover:bg-white/5 dark:hover:border-[#4a5f87]"
+                        )}
+                    >
+                        <CalendarClock className="w-4 h-4" />
+                        <span>{!isMobile && t("orders.filter.dueToday")}</span>
+                        <span className={cn(
+                            "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                            filterDueToday ? "bg-blue-200/70 text-blue-800" : "bg-muted text-muted-foreground"
+                        )}>
+                            {dueTodayCount}
+                        </span>
                     </button>
                 )}
 
