@@ -72,7 +72,9 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
         selectedProducts.forEach(({ product, quantity, isOpenBox }) => {
             onSelect({
                 product_id: product.id,
-                name: product.name,
+                // Order snapshots carry the internal ops name; the marketing
+                // title (products.name) stays customer-facing on the storefront.
+                name: product.short_name?.trim() || product.name,
                 price: product.price,
                 quantity: quantity,
                 image_url: product.image_url || "",

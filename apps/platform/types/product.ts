@@ -17,6 +17,10 @@ export interface Product {
     created_at: string;
     updated_at?: string;
     name: string;
+    /** Internal ops name snapshotted into orders.items[].name (orders page,
+     *  printing, labels, WhatsApp templates). `name` stays the customer-facing
+     *  marketing title on the storefront. Falls back to `name` when empty. */
+    short_name?: string | null;
     description?: string;
     sku?: string;
     lightfunnels_aliases?: string[];

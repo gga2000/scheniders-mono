@@ -21,6 +21,7 @@ export interface ProductOptionFormData {
 export interface ProductEditorFormData {
     // Basic info
     name: string;
+    short_name: string;
     description: string;
     short_description: string;
     sku: string;
@@ -221,6 +222,7 @@ export interface BundleItemFormData {
 
 const DEFAULT_FORM_DATA: ProductEditorFormData = {
     name: "",
+    short_name: "",
     description: "",
     short_description: "",
     sku: "",
@@ -419,6 +421,7 @@ function calculateVariantDiff(
 function productToFormData(product: Product): ProductEditorFormData {
     return {
         name: product.name,
+        short_name: product.short_name || "",
         description: product.description || "",
         short_description: product.short_description || "",
         sku: product.sku || "",
@@ -935,6 +938,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
             if (mode === "create") {
                 const newProduct = await addProduct({
                     name: formData.name,
+                    short_name: formData.short_name.trim() || null,
                     description: formData.description,
                     sku: formData.sku || undefined,
                     price: formData.price,
@@ -1010,6 +1014,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
             } else if (product) {
                 await updateProduct(product.id, {
                     name: formData.name,
+                    short_name: formData.short_name.trim() || null,
                     description: formData.description,
                     sku: formData.sku || undefined,
                     price: formData.price,
@@ -1150,6 +1155,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         try {
             const newProduct = await addProduct({
                 name: `Copy of ${formData.name}`,
+                short_name: formData.short_name.trim() ? `Copy of ${formData.short_name.trim()}` : null,
                 description: formData.description,
                 sku: formData.sku ? `${formData.sku}-copy` : undefined,
                 price: formData.price,

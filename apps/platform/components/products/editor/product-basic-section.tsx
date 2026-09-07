@@ -31,6 +31,26 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
 
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
+                        Short Name
+                        <span className="text-xs text-muted ml-1">(internal)</span>
+                    </label>
+                    <input
+                        type="text"
+                        value={formData.short_name}
+                        onChange={(e) => updateField("short_name", e.target.value)}
+                        placeholder="e.g., انفوي"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                    />
+                    <p className="text-xs text-muted mt-1">
+                        Product Name is the full customer-facing title shown on the website and
+                        used for marketing. Short Name is what your team sees on orders, printing
+                        and labels — keep it brief for quick identification. Leave empty to use
+                        the full name everywhere.
+                    </p>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
                         SKU
                         <span className="text-xs text-muted ml-1">(LightFunnels)</span>
                     </label>
