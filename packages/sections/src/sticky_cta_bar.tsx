@@ -4,11 +4,15 @@
 // Sticky bottom CTA bar (mobile only). Renders a primary action button
 // plus an optional secondary kind (WhatsApp, call, or none). When
 // `show_total` is enabled and the bar is on the cart/checkout page,
-// the live cart subtotal is read from `useCart()`.
+// the live cart subtotal is read from `useCart()`. With
+// `show_product_price` on a product page, the product's own price sits
+// beside the primary button and the bar steps aside while the in-page
+// order form's submit button is on screen (no duplicate CTA).
 // =====================================================================
 
 "use client";
 
+import * as React from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
@@ -20,6 +24,7 @@ import {
 import { useStoreBase } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
+import { cn } from "./helpers/utils";
 import {
   resolveTenantWhatsapp,
   resolveTenantPhone,
@@ -46,9 +51,33 @@ const schema = z.object({
   /** Element id targeted by `scroll_to_form`. Omitted = "direct-order"
    *  (the id pdp_direct_order gives its form). */
   scroll_target_id: z.string().optional(),
+  /** Product page only: show the product's live price (compare-at struck
+   *  through when on sale) beside the primary button, and hide the bar
+   *  while the in-page form's own submit button is visible. Default off. */
+  show_product_price: z.boolean().optional(),
 });
 
 const DEFAULT_SCROLL_TARGET_ID = "direct-order";
+
+/** Listens for the in-page order form's submit button; `true` while it is
+ *  on screen. SSR + missing target → `false` (the bar stays visible). */
+function useFormSubmitVisible(targetId: string, enabled: boolean): boolean {
+  const [visible, setVisible] = React.useState(false);
+  React.useEffect(() => {
+    if (!enabled) return;
+    const submit = document.querySelector<HTMLElement>(
+      `#${CSS.escape(targetId)} button[type=submit]`,
+    );
+    if (!submit) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry?.isIntersecting ?? false),
+      { threshold: 0.5 },
+    );
+    observer.observe(submit);
+    return () => observer.disconnect();
+  }, [targetId, enabled]);
+  return visible;
+}
 
 type Props = z.infer<typeof schema>;
 
@@ -58,7 +87,37 @@ const defaultProps: Props = {
   secondary_label_i18n: { en: "Chat", ar: "تواصل" },
   secondary_kind: "whatsapp",
   show_total: false,
+  show_product_price: false,
 };
+
+/** Live product price for the bar: bold current price, compare-at struck
+ *  through when the product is on sale. */
+function ProductPrice({
+  price,
+  compareAt,
+  locale,
+}: {
+  price: number;
+  compareAt: number | null;
+  locale: "ar" | "en" | "ku";
+}) {
+  const onSale = compareAt != null && compareAt > price;
+  return (
+    <div
+      className="flex flex-col leading-tight pl-1 tabular-nums"
+      data-product-price
+    >
+      {onSale && (
+        <s className="font-label text-[11px] text-bk-ink-faint">
+          <bdi>{formatPrice(compareAt, locale)}</bdi>
+        </s>
+      )}
+      <span className="font-display font-black text-base whitespace-nowrap">
+        <bdi>{formatPrice(price, locale)}</bdi>
+      </span>
+    </div>
+  );
+}
 
 function StickyCtaBarRender({
   props,
@@ -73,6 +132,14 @@ function StickyCtaBarRender({
   const secondaryLabel = resolveI18n(props.secondary_label_i18n, locale);
   const subtotal = useCart((s) => s.getTotal());
   const itemCount = useCart((s) => s.getItemCount());
+  const product = ctx.product;
+  const showProductPrice = props.show_product_price === true && !!product;
+  const scrollTargetId = props.scroll_target_id || DEFAULT_SCROLL_TARGET_ID;
+  const formSubmitVisible = useFormSubmitVisible(
+    scrollTargetId,
+    showProductPrice,
+  );
+  const hidden = showProductPrice && formSubmitVisible;
 
   // Resolve through the canonical store contact so this bar uses the same
   // store-wide WhatsApp number as every other section (with an optional
@@ -100,9 +167,7 @@ function StickyCtaBarRender({
       : props.primary_href;
 
   const scrollToForm = () => {
-    const target = document.getElementById(
-      props.scroll_target_id || DEFAULT_SCROLL_TARGET_ID,
-    );
+    const target = document.getElementById(scrollTargetId);
     if (!target) return;
     const reduce = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -118,7 +183,13 @@ function StickyCtaBarRender({
       {/* In-flow spacer so the fixed bar never covers the last section. */}
       <div aria-hidden="true" className="h-20 sm:hidden" />
     <div
-      className="fixed bottom-0 inset-x-0 z-40 sm:hidden backdrop-blur px-bk-xs pt-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
+      className={cn(
+        "fixed bottom-0 inset-x-0 z-40 sm:hidden backdrop-blur px-bk-xs pt-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]",
+        "transition-[transform,opacity] duration-200 motion-reduce:transition-none",
+        hidden && "translate-y-full opacity-0 pointer-events-none",
+      )}
+      aria-hidden={hidden || undefined}
+      inert={hidden || undefined}
       style={{
         backgroundColor:
           "color-mix(in srgb, var(--bk-surface, #ffffff) 95%, transparent)",
@@ -142,6 +213,13 @@ function StickyCtaBarRender({
             <bdi>{formatPrice(subtotal, locale)}</bdi>
           </span>
         </div>
+      )}
+      {showProductPrice && product && (
+        <ProductPrice
+          price={product.price}
+          compareAt={product.compare_at_price ?? null}
+          locale={locale}
+        />
       )}
       {secondaryHref && (
         // A styled anchor — not a <button> nested in an <a> (invalid HTML,

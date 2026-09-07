@@ -6,6 +6,7 @@ import {
   getProductBySlug,
   getProductImages,
   getProductVariants,
+  listApprovedReviews,
   listCategories,
   listProducts,
 } from "@/lib/queries";
@@ -102,8 +103,13 @@ export default async function ProductPage({ params }: Props) {
       now: new Date(),
       productId: product.id,
     });
-    const hydratedProduct = { ...product, images: allImages, variants };
-    const related = await listProducts(tenant.id, { limit: 24 });
+    // P1-13: approved reviews ride in on the product so product_reviews
+    // renders its list in the SSR HTML (the client fetch is revalidation only).
+    const [related, reviews] = await Promise.all([
+      listProducts(tenant.id, { limit: 24 }),
+      listApprovedReviews(tenant.id, product.id),
+    ]);
+    const hydratedProduct = { ...product, images: allImages, variants, reviews };
 
     const { baseUrl } = await getStorefrontBase(tenantParam);
     const ar = locale === "ar";

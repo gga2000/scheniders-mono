@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import {
   IRAQ_GOVERNORATES,
   assignAbArm,
+  normalizeIraqiMobile,
   type GovernorateCode,
   type Experiment,
 } from "@scheniders/shared";
@@ -27,6 +28,10 @@ export const checkoutOrderBodySchema = z.object({
   governorate_code: z.enum(GOVERNORATE_CODES),
   city: z.string().min(1),
   address_details: z.string().min(1),
+  /** Optional second number the courier tries when `phone` doesn't answer
+   *  (the PDP buy box's "رقم بديل"). Normalised to 07XXXXXXXXX below and
+   *  stored on `orders.secondary_phone` — never smuggled into `notes`. */
+  alt_phone: z.string().trim().max(32).optional(),
   email: z.string().email().optional(),
   notes: z.string().optional(),
   payment_method: z.enum(["cod", "card", "fastpay"]).optional().default("cod"),
@@ -79,6 +84,18 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const data = parsed.data;
 
+    // Same rule as the primary phone (EC23): a COD alt number is only useful
+    // if the courier can actually dial it. The client validates on blur, so
+    // this only trips for a bypassed/old client — reject rather than store
+    // an undialable string.
+    const altPhone = data.alt_phone ? normalizeIraqiMobile(data.alt_phone) : null;
+    if (data.alt_phone && !altPhone) {
+      return NextResponse.json(
+        { success: false, error: "الرقم البديل غير صالح" },
+        { status: 422 },
+      );
+    }
+
     const payload = {
       tenantId: data.tenant_id,
       idempotencyKey: data.idempotency_key,
@@ -88,6 +105,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       customer: {
         customer_name: data.customer_name,
         phone: data.phone,
+        alt_phone: altPhone,
         governorate_code: data.governorate_code,
         city: data.city,
         address_details: data.address_details,

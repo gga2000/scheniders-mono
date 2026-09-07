@@ -68,11 +68,21 @@ export function trackPixel(
 
   const ttq = getTtq();
   if (ttq) {
+    // TikTok's Events API wants `content_id` + `content_type` on every
+    // event (its console warns "missing content_id" otherwise, and the
+    // catalogue match for Purchase/ViewContent silently fails). Single-item
+    // events carry the product id at the top level; multi-line carts are a
+    // `product_group` whose ids live in `contents[]`.
+    const single =
+      data.content_ids.length === 1 ? data.content_ids[0] : undefined;
     ttq.track(
       TIKTOK_EVENT[event],
       {
+        ...(single ? { content_id: single } : {}),
+        content_type: single ? "product" : "product_group",
         contents: data.contents.map((c) => ({
           content_id: c.id,
+          content_type: "product",
           quantity: c.quantity,
           price: c.item_price,
         })),

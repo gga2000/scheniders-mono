@@ -39,7 +39,9 @@ const ASSETS = {
     mic: `${A}66a2314b-371e-4474-ad0d-53a4cad055f9.svg`,
 };
 
-/** Customer chat-screenshot carousel shown on the original PDP (site-wide). */
+/** Customer chat-screenshot carousel shown on the original PDP (site-wide).
+ *  Each entry gets a numbered alt so the social proof is announced to
+ *  assistive tech instead of being nine empty images. */
 const REVIEW_SCREENSHOTS = [
     `${A}reviews/1ebf499e-fb7d-4325-a2fe-0b98e8530932.jpeg`,
     `${A}reviews/cba26e5e-7ad0-4213-b804-d535b7c0d7e6.jpeg`,
@@ -51,6 +53,15 @@ const REVIEW_SCREENSHOTS = [
     `${A}reviews/13ec2385-384c-4d1f-af39-793949cce8df.jpeg`,
     `${A}reviews/8e208e9b-b896-430d-839d-44d2a010b588.jpeg`,
 ];
+
+/** One delivery promise for the whole store. The original funnel said
+ *  14h on the product page, 18h in two FAQs and 24h in the COD card — three
+ *  numbers for one service. 18h is the figure the merchant actually commits
+ *  to in the FAQ, so every surface reads it from here. */
+const DELIVERY_SLA_I18N = {
+    ar: "أغلب الطلبات توصل خلال 18 ساعة من تثبيت الطلب",
+    en: "Most orders arrive within 18 hours of confirmation",
+};
 
 /** Top trust badges (hero strip) — original site order and labels. */
 const TRUST_TOP = [
@@ -142,8 +153,8 @@ const PDP_POLICIES = [
     {
         title_i18n: { ar: "شحن فائق السرعة", en: "Ultra-fast shipping" },
         body_i18n: {
-            ar: "يتم تسليم اغلب الطلبات في غضون 14 ساعة من تاريخ تثبيت الطلب",
-            en: "Most orders are delivered within 14 hours of confirmation.",
+            ar: `${DELIVERY_SLA_I18N.ar}.`,
+            en: `${DELIVERY_SLA_I18N.en}.`,
         },
     },
     {
@@ -491,6 +502,16 @@ export const schenidersSignatureTemplate: StoreTemplate = {
                     en: "This perfume is in high demand ✨ order fast — only {count} left",
                 },
                 show_gallery: true,
+                feature_cards_title_i18n: {
+                    ar: "شنو يميز هاي العطر عن غيره؟",
+                    en: "What makes this scent special?",
+                },
+                // The COD promise in the shopper's words, right under the CTA.
+                reassurance_i18n: {
+                    ar: "تفتح وتجرب قبل ما تدفع — والتيستر هدية وياه",
+                    en: "Open it and try it before you pay — tester included",
+                },
+                delivery_sla_i18n: DELIVERY_SLA_I18N,
             }),
             s("accordion_richtext", {
                 heading_i18n: undefined,
@@ -503,7 +524,13 @@ export const schenidersSignatureTemplate: StoreTemplate = {
             s("image_gallery", {
                 heading_i18n: { ar: "كلامهم مو كلامنا", en: "Their words, not ours" },
                 layout: "carousel",
-                images: REVIEW_SCREENSHOTS.map((url) => ({ url })),
+                images: REVIEW_SCREENSHOTS.map((url, i) => ({
+                    url,
+                    alt_i18n: {
+                        ar: `رسالة من زبون ${i + 1} من ${REVIEW_SCREENSHOTS.length}`,
+                        en: `Customer message ${i + 1} of ${REVIEW_SCREENSHOTS.length}`,
+                    },
+                })),
             }),
             // Real per-product customer reviews + submission form.
             s("product_reviews"),
@@ -520,7 +547,10 @@ export const schenidersSignatureTemplate: StoreTemplate = {
             }),
             s("product_grid", {
                 mode: "auto",
-                query: { sort: "newest", limit: 8 },
+                // The heading claims best sellers, so the sort must be
+                // bestsellers (merchant display order) — not newest. The
+                // grid also excludes the product being viewed.
+                query: { sort: "bestsellers", limit: 8 },
                 card_style: "price_pill",
                 eyebrow_i18n: { ar: "القطع المميزة لهذا الشهر", en: "This month's standouts" },
                 heading_i18n: { ar: "اكثر منتجاتنا مبيعاً", en: "Our best sellers" },
@@ -537,6 +567,7 @@ export const schenidersSignatureTemplate: StoreTemplate = {
             // empty /checkout.
             s("sticky_cta_bar", {
                 primary_kind: "scroll_to_form",
+                show_product_price: true,
                 primary_label_i18n: { ar: "اطلب الآن", en: "Order now" },
                 secondary_label_i18n: { ar: "واتساب", en: "WhatsApp" },
                 secondary_kind: "whatsapp",

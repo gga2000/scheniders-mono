@@ -111,6 +111,10 @@ export async function V2Page({
     locale: resolvedLocale,
     ab_test_arms: abArms,
     audience_segments: audienceSegments,
+    // The remembered governorate (sb_gov cookie, set at checkout) is the only
+    // prefill the COD forms use — the select otherwise starts empty so a
+    // shopper outside Baghdad can't submit with the wrong fee by default.
+    ...(govRaw ? { governorate: govRaw as RuntimeContext["governorate"] } : {}),
   };
 
   return (

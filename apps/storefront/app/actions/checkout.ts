@@ -38,6 +38,8 @@ interface SubmitCheckoutPayload {
   customer: {
     customer_name: string;
     phone: string;
+    /** Already-normalised (07XXXXXXXXX) alternative number, or null. */
+    alt_phone?: string | null;
     governorate_code: string;
     city: string;
     address_details: string;
@@ -321,6 +323,8 @@ export async function submitCheckout(
   const orderData = {
     customer_name: payload.customer.customer_name.trim(),
     phone,
+    // create_order_atomic reads `_order_data->>'secondary_phone'`.
+    secondary_phone: payload.customer.alt_phone ?? null,
     governorate_code: payload.customer.governorate_code,
     city: payload.customer.city.trim(),
     address_details: payload.customer.address_details.trim(),

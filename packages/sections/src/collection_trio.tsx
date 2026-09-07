@@ -5,6 +5,8 @@
 // an eyebrow chip + title, then surface cards (default 3): photo on top
 // (rounded), centred bold title, one-line sub, and a small primary pill
 // CTA with a sparkle glyph. Each card links to a collection / category.
+// Mobile (P2-14): a horizontal snap carousel (~85vw cards) instead of
+// three stacked full-width cards; `sm:` and up is the grid. Pure CSS.
 // =====================================================================
 
 import Image from "next/image";
@@ -96,12 +98,23 @@ function SparkleGlyph({
   );
 }
 
+/** `sm:` grid columns per card count (mobile is the snap track below). */
 const COLS: Record<number, string> = {
-  1: "grid-cols-1 max-w-sm",
-  2: "grid-cols-1 sm:grid-cols-2 max-w-2xl",
-  3: "grid-cols-1 sm:grid-cols-3 max-w-5xl",
-  4: "grid-cols-2 lg:grid-cols-4 max-w-6xl",
+  1: "sm:grid-cols-1 sm:max-w-sm",
+  2: "sm:grid-cols-2 sm:max-w-2xl",
+  3: "sm:grid-cols-3 sm:max-w-5xl",
+  4: "sm:grid-cols-2 lg:grid-cols-4 sm:max-w-6xl",
 };
+
+/** Mobile snap carousel → `sm:` grid. The negative margin lets the track
+ *  bleed to the band's padded edge; `scroll-px-4` keeps the snap point
+ *  aligned with that padding. */
+const TRACK_CLS =
+  "flex snap-x snap-mandatory overflow-x-auto scroll-px-4 -mx-4 px-4 gap-bk-sm " +
+  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden " +
+  "sm:mx-auto sm:grid sm:overflow-visible sm:px-0 sm:gap-bk-md";
+
+const CARD_CLS = "w-[85vw] shrink-0 snap-start sm:w-auto";
 
 function CollectionTrio({
   props,
@@ -156,7 +169,7 @@ function CollectionTrio({
           borderRadius: "calc(var(--bk-radius-card, 1.25rem) * 1.5)",
         }}
       >
-        <div className={`mx-auto grid ${cols} gap-bk-sm sm:gap-bk-md`}>
+        <div className={cn(TRACK_CLS, cols)}>
           {props.items.map((item, i) => {
             const cardTitle = resolveI18n(item.title_i18n, locale);
             const sub = resolveI18n(item.sub_i18n, locale);
@@ -165,7 +178,7 @@ function CollectionTrio({
               <StoreLink
                 key={i}
                 href={item.href}
-                className={cn("group block", PRESSABLE)}
+                className={cn("group block", CARD_CLS, PRESSABLE)}
               >
                 <div
                   className="flex h-full flex-col overflow-hidden p-3 text-center transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-1"

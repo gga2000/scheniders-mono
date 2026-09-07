@@ -250,6 +250,36 @@ describe("POST /api/checkout/orders", () => {
     expect(res.status).toBe(400);
   });
 
+  it("(k4) normalises alt_phone to 07XXXXXXXXX and forwards it (P2-10)", async () => {
+    const res = await POST(
+      makeRequest({ ...validBody, alt_phone: "+964 780 123 4567" }),
+    );
+    expect(res.status).toBe(200);
+    expect(submitCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: expect.objectContaining({ alt_phone: "07801234567" }),
+      }),
+    );
+  });
+
+  it("(k5) forwards alt_phone: null when the body has none", async () => {
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+    expect(submitCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: expect.objectContaining({ alt_phone: null }),
+      }),
+    );
+  });
+
+  it("(k6) rejects an undialable alt_phone with 422 and never submits", async () => {
+    const res = await POST(makeRequest({ ...validBody, alt_phone: "0000000000" }));
+    expect(res.status).toBe(422);
+    const json = await res.json();
+    expect(json.success).toBe(false);
+    expect(submitCheckout).not.toHaveBeenCalled();
+  });
+
   it("(k) does NOT record events when sb_vid cookie is absent", async () => {
     vi.mocked(cookies).mockResolvedValue({
       get: vi.fn().mockReturnValue(undefined),
