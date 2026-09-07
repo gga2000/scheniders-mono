@@ -34,3 +34,16 @@ export function normalizeIraqiMobile(
 export function isValidIraqiMobile(raw: string | null | undefined): boolean {
   return normalizeIraqiMobile(raw) !== null;
 }
+
+/**
+ * Display form of an Iraqi mobile for storefront chrome (footer, contact
+ * cards): `0777 970 3832` — the national `07XX XXX XXXX` grouping Iraqi
+ * readers expect, never raw E.164. Anything that is not an Iraqi mobile
+ * (a landline, a foreign number) is returned trimmed and untouched, so the
+ * caller can still render it.
+ */
+export function formatIraqiPhoneDisplay(raw: string): string {
+  const local = normalizeIraqiMobile(raw);
+  if (!local) return raw.trim();
+  return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
+}

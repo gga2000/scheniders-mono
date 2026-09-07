@@ -12,12 +12,13 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { formatIraqiPhoneDisplay, resolveI18n } from "@scheniders/shared";
 import { cn } from "./helpers/utils";
 import { BrandMark, MaterialIcon, TrustPill } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
-import { resolveTenantPhone } from "./helpers/whatsapp";
+import { chromeString } from "./helpers/chrome-strings";
+import { resolveTenantPhone, whatsappDigits } from "./helpers/whatsapp";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
@@ -300,8 +301,7 @@ function InfoPanelNewsletterForm({
             className="mt-2 font-label text-sm font-bold"
             data-i18n-field="newsletter.success_i18n"
           >
-            {successMessage ??
-              (locale !== "en" ? "تم! تحقق من بريدك." : "You're in — check your inbox.")}
+            {successMessage ?? chromeString("newsletter_success", locale)}
           </p>
         )}
         {status === "error" && (
@@ -309,7 +309,7 @@ function InfoPanelNewsletterForm({
             className="mt-2 font-label text-sm font-bold"
             style={{ color: "var(--bk-danger, #e5484d)" }}
           >
-            {locale !== "en" ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Try again."}
+            {chromeString("newsletter_error", locale)}
           </p>
         )}
       </div>
@@ -325,7 +325,6 @@ function SiteFooterRender({
   ctx: SectionRenderContext;
 }) {
   const locale = ctx.runtime.locale;
-  const t = locale !== "en";
   const name = ctx.tenant.business_name;
   const logo = ctx.tenant.branding?.logo_url ?? null;
   const tagline = props.tagline_i18n
@@ -452,22 +451,26 @@ function SiteFooterRender({
                 by a stale per-section override. */}
             {(() => {
               const phone = resolveTenantPhone(ctx.tenant, props.contact?.phone);
+              // P2-19: show the number the way Iraqis read it (0777 970
+              // 3832) and dial the E.164 form; never the raw stored string.
+              const phoneDisplay = phone ? formatIraqiPhoneDisplay(phone) : null;
+              const phoneHref = phone ? `tel:+${whatsappDigits(phone)}` : null;
               return (
                 (phone ||
                   addressLines.length > 0 ||
                   props.legal?.company_name ||
                   props.legal?.business_license) && (
               <div className="space-y-2 font-body text-sm opacity-70">
-                {phone && (
+                {phoneDisplay && phoneHref && (
                   <p>
                     <span className="font-bold">
-                      {t ? "رقم الهاتف:" : "Phone:"}
+                      {chromeString("phone_label", locale)}
                     </span>{" "}
                     <a
-                      href={`tel:${phone}`}
-                      className="inline-flex min-h-11 items-center underline-offset-4 hover:underline active:opacity-60 tabular-nums"
+                      href={phoneHref}
+                      className="inline-flex min-h-11 items-center px-1 -mx-1 underline-offset-4 hover:underline active:opacity-60 tabular-nums"
                     >
-                      {phone}
+                      {phoneDisplay}
                     </a>
                   </p>
                 )}
@@ -476,7 +479,7 @@ function SiteFooterRender({
                     {i === 0 && (
                       <>
                         <span className="font-bold">
-                          {t ? "العنوان:" : "Address:"}
+                          {chromeString("address_label", locale)}
                         </span>{" "}
                       </>
                     )}
@@ -486,7 +489,7 @@ function SiteFooterRender({
                 {props.legal?.company_name && (
                   <p>
                     <span className="font-bold">
-                      {t ? "الاسم القانوني للشركة:" : "Company legal name:"}
+                      {chromeString("company_legal_name_label", locale)}
                     </span>{" "}
                     {props.legal.company_name}
                   </p>
@@ -494,7 +497,7 @@ function SiteFooterRender({
                 {props.legal?.business_license && (
                   <p>
                     <span className="font-bold">
-                      {t ? "رقم الإجازة التجارية:" : "Business license:"}
+                      {chromeString("business_license_label", locale)}
                     </span>{" "}
                     {props.legal.business_license}
                   </p>
@@ -517,16 +520,12 @@ function SiteFooterRender({
               placeholder={
                 newsletter.placeholder_i18n
                   ? resolveI18n(newsletter.placeholder_i18n, locale)
-                  : t
-                    ? "بريدك الإلكتروني"
-                    : "you@email.com"
+                  : chromeString("newsletter_placeholder", locale)
               }
               buttonLabel={
                 newsletter.button_i18n
                   ? resolveI18n(newsletter.button_i18n, locale)
-                  : t
-                    ? "اشترك"
-                    : "Subscribe"
+                  : chromeString("newsletter_button", locale)
               }
               successMessage={
                 newsletter.success_i18n
@@ -579,7 +578,7 @@ function SiteFooterRender({
             )}
             {props.show_cod_badge && (
               <TrustPill icon={<MaterialIcon name="payments" className="text-lg" />} bg="mint">
-                {t ? "الدفع عند الاستلام" : "Cash on delivery"}
+                {chromeString("cash_on_delivery", locale)}
               </TrustPill>
             )}
           </div>
@@ -607,7 +606,7 @@ function SiteFooterRender({
                   <li key={`${l.href}-ci${ci}`}>
                     <StoreLink
                       href={l.href}
-                      className="inline-flex min-h-[44px] items-center font-body text-sm text-white/75 transition-colors duration-150 motion-reduce:transition-none hover:text-white hover:underline underline-offset-4 active:opacity-60"
+                      className="inline-flex min-h-11 items-center font-body text-sm text-white/75 transition-colors duration-150 motion-reduce:transition-none hover:text-white hover:underline underline-offset-4 active:opacity-60"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>
@@ -623,7 +622,7 @@ function SiteFooterRender({
             © {year} {name}
           </p>
           <p className="font-label font-bold text-[11px] bk-caps tracking-[0.2em] text-white/60">
-            {t ? "صُنع بحب في العراق 🇮🇶" : "Made with love in Iraq 🇮🇶"}
+            {chromeString("made_in_iraq", locale)}
           </p>
         </div>
       </div>

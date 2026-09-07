@@ -74,7 +74,13 @@ export function commercePages(
             s("checkout_order_summary"),
             s("trust_strip"),
         ],
-        checkout_success: [s("order_tracker"), s("product_grid", cardStyle)],
+        // The thank-you page leads with the confirmation (order number,
+        // "we'll call you", next steps, WhatsApp) — the tracker with its
+        // lookup form stays on /track only.
+        checkout_success: [
+            s("order_confirmation"),
+            s("product_grid", cardStyle),
+        ],
         // order_tracker ships its own lookup form — seeding
         // track_order_lookup beside it rendered two lookup forms on /track.
         track: [s("order_tracker")],

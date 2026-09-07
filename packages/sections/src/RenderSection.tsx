@@ -61,6 +61,7 @@ import "./checkout_form";
 import "./checkout_order_summary";
 import "./track_order_lookup";
 import "./order_tracker";
+import "./order_confirmation";
 import "./category_grid";
 import "./feature_grid";
 import "./numbers_stat_strip";
