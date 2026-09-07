@@ -19,10 +19,15 @@ interface DateTimePickerProps {
     label?: string;
     showTime?: boolean;
     className?: string;
-    /** Latest selectable instant. Days past it are disabled and a selection is clamped to it. */
-    maxDate?: Date | null;
-    /** Earliest selectable instant. */
-    minDate?: Date | null;
+    /**
+     * Latest selectable instant. Days past it are disabled and a selection is
+     * clamped to it. Pass "now" rather than a `new Date()` when the bound is the
+     * present moment: it is resolved on each interaction, so a form left open
+     * for an hour does not clamp against an hour-old clock.
+     */
+    maxDate?: Date | "now" | null;
+    /** Earliest selectable instant. Accepts "now" on the same terms as maxDate. */
+    minDate?: Date | "now" | null;
 }
 
 const MONTHS_AR = [
@@ -107,25 +112,32 @@ export function DateTimePicker({
         }
     }, [viewMonth]);
 
-    const maxTime = maxDate ? maxDate.getTime() : null;
-    const minTime = minDate ? minDate.getTime() : null;
+    /** Read the bound at the moment it is needed, so "now" never goes stale. */
+    const resolveBound = useCallback((bound: Date | "now" | null) => {
+        if (bound === null) return null;
+        return bound === "now" ? Date.now() : bound.getTime();
+    }, []);
 
     /** A whole day is unreachable only when it falls entirely outside the range. */
     const isDayDisabled = useCallback((day: number) => {
+        const maxTime = resolveBound(maxDate);
+        const minTime = resolveBound(minDate);
         const dayStart = new Date(viewYear, viewMonth, day, 0, 0, 0, 0).getTime();
         const dayEnd = new Date(viewYear, viewMonth, day, 23, 59, 59, 999).getTime();
         if (maxTime !== null && dayStart > maxTime) return true;
         if (minTime !== null && dayEnd < minTime) return true;
         return false;
-    }, [viewYear, viewMonth, maxTime, minTime]);
+    }, [viewYear, viewMonth, maxDate, minDate, resolveBound]);
 
     /** Pull a selection back inside the range so the picker cannot emit a value it disallows. */
     const clampToRange = useCallback((date: Date) => {
+        const maxTime = resolveBound(maxDate);
+        const minTime = resolveBound(minDate);
         let time = date.getTime();
         if (maxTime !== null && time > maxTime) time = maxTime;
         if (minTime !== null && time < minTime) time = minTime;
         return new Date(time);
-    }, [maxTime, minTime]);
+    }, [maxDate, minDate, resolveBound]);
 
     // Day selection
     const selectDay = useCallback((day: number, e: React.MouseEvent) => {
@@ -149,13 +161,15 @@ export function DateTimePicker({
     const selectToday = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const now = new Date();
+        // Clamp first, so the quick action lands on a value the picker would accept
+        // rather than showing "now" and silently emitting something else on confirm.
+        const now = clampToRange(new Date());
         setViewMonth(now.getMonth());
         setViewYear(now.getFullYear());
         setSelectedDay(now.getDate());
         setSelectedHour(now.getHours());
         setSelectedMinute(now.getMinutes());
-    }, []);
+    }, [clampToRange]);
 
     // Confirm final selection
     const confirmSelection = useCallback((e: React.MouseEvent) => {

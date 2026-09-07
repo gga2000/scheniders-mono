@@ -96,4 +96,25 @@ describe("OrderCustomerCard scheduling", () => {
         expect((today as HTMLButtonElement).disabled).toBe(false);
         expect((tomorrow as HTMLButtonElement).disabled).toBe(true);
     });
+
+    // The bound is read at interaction time, so a form left open does not clamp
+    // against a stale clock.
+    it("keeps the future cut-off current while the form stays open", () => {
+        renderCard({}, { isEditing: true });
+
+        const trigger = screen.getAllByRole("button").find((b) => /سبتمبر/.test(b.textContent || ""));
+        fireEvent.click(trigger!);
+
+        let dialog = screen.getByRole("dialog");
+        expect((within(dialog).getByRole("button", { name: "8" }) as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.keyDown(dialog, { key: "Escape" });
+
+        // The clock rolls past midnight while the card sits open.
+        vi.setSystemTime(new Date(2026, 8, 8, 9, 0, 0));
+
+        fireEvent.click(trigger!);
+        dialog = screen.getByRole("dialog");
+        expect((within(dialog).getByRole("button", { name: "8" }) as HTMLButtonElement).disabled).toBe(false);
+        expect((within(dialog).getByRole("button", { name: "9" }) as HTMLButtonElement).disabled).toBe(true);
+    });
 });

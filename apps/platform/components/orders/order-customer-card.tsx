@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { formatPhoneForDisplay, validatePhoneDetailed } from "@/lib/order-utils";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
@@ -31,11 +30,6 @@ export function OrderCustomerCard({
 }: OrderCustomerCardProps) {
     const { t } = useLanguage();
     const governorates = getAllGovernorateCodes();
-
-    // An order cannot have been placed in the future — the database rejects it too.
-    // Postponing is `scheduled_date`, not a forward-dated `created_at`.
-    // Re-read the clock each time the card enters edit mode.
-    const latestSelectableOrderDate = useMemo(() => (isEditing ? new Date() : null), [isEditing]);
 
     const scheduledDate: string | null = (
         isEditing && formData.scheduled_date !== undefined ? formData.scheduled_date : order?.scheduled_date
@@ -408,7 +402,7 @@ export function OrderCustomerCard({
                                     value={displayValue("created_at") as string}
                                     onChange={(isoString) => updateFormData("created_at", isoString)}
                                     showTime={true}
-                                    maxDate={latestSelectableOrderDate}
+                                    maxDate="now"
                                     className="h-[38px]"
                                 />
                                 <p className="mt-1 text-[10px] leading-tight text-muted">
