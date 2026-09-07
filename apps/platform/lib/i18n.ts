@@ -156,6 +156,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.avgTime.pendingResponse": "Pending response (avg age)",
         "dashboard.avgTime.inTransitWait": "In transit (avg wait)",
         "dashboard.avgTime.disclaimer": "* Cycle time uses delivered_at. Pending and in-transit use current timestamp vs last update.",
+        "dashboard.avgTime.excludedTitle": "Orders excluded from this average: impossible durations (delivered before created) or longer than 30 days.",
 
         // Week over Week
         "dashboard.wow.title": "Week over Week",
@@ -3255,6 +3256,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.avgTime.pendingResponse": "بانتظار الرد (متوسط العمر)",
         "dashboard.avgTime.inTransitWait": "قيد التوصيل (متوسط الانتظار)",
         "dashboard.avgTime.disclaimer": "* وقت الدورة يستخدم تاريخ التوصيل. المعلق وقيد التوصيل يستخدمان الطابع الزمني الحالي مقابل آخر تحديث.",
+        "dashboard.avgTime.excludedTitle": "طلبات مستبعدة من هذا المتوسط: مدد غير منطقية (تم التوصيل قبل الإنشاء) أو أطول من ٣٠ يوماً.",
 
         // مقارنة أسبوعية
         "dashboard.wow.title": "مقارنة أسبوعية",

@@ -87,6 +87,8 @@ export const dashboardMetricsSchema = z.object({
     }),
     avgTimePerStage: z.array(z.object({
         label: z.string(), avgHours: z.number(), sampleSize: z.number(),
+        /** DQ-D1: rows the average discarded (impossible or >30d durations). */
+        excluded: z.number().optional(),
     })),
     weekOverWeek: z.array(z.object({
         label: z.string(),

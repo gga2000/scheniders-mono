@@ -57,6 +57,16 @@ export function AvgTimePerStage({ metrics }: AvgTimePerStageProps) {
                                 <div className="flex items-center gap-2 shrink-0">
                                     <span className="text-sm font-bold text-foreground">{formatHours(m.avgHours)}</span>
                                     <span className="text-[10px] text-muted">n={m.sampleSize}</span>
+                                    {/* DQ-D1: say when rows were dropped rather than
+                                        letting the sample quietly shrink. */}
+                                    {!!m.excluded && m.excluded > 0 && (
+                                        <span
+                                            className="text-[10px] text-amber-600"
+                                            title={t("dashboard.avgTime.excludedTitle")}
+                                        >
+                                            −{m.excluded}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             {/* Progress bar */}
