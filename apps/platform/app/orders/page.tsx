@@ -9,6 +9,7 @@ import { useOrderStore } from "@/store/use-order-store";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
+import type { OrderFilters } from "@/types/order";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
@@ -399,14 +400,28 @@ export default function OrdersPage() {
         messageTemplates,
     } = useOrdersContext();
 
-    // Apply ?status= query param from dashboard card clicks (one-time on mount)
+    // Apply drill-through query params from the dashboard (one-time on mount).
+    // DV-D2: `status` was already honoured; `city`, `product` and `search` exist in
+    // OrderFilters but were never read from the URL, so the dashboard could only
+    // ever hand over a status. A merchant who spotted a bad city or a slow product
+    // had to re-find it by hand.
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const params = new URLSearchParams(window.location.search);
+
         const statusParam = params.get('status');
-        if (statusParam) {
-            setFilters(prev => ({ ...prev, status: statusParam as 'new' | 'confirmed' | 'rejected' | 'all' }));
-        }
+        const cityParam = params.get('city');
+        const productParam = params.get('product');
+        const searchParam = params.get('search');
+        if (!statusParam && !cityParam && !productParam && !searchParam) return;
+
+        setFilters(prev => ({
+            ...prev,
+            ...(statusParam ? { status: statusParam as OrderFilters['status'] } : {}),
+            ...(cityParam ? { city: cityParam } : {}),
+            ...(productParam ? { product: productParam } : {}),
+            ...(searchParam ? { searchQuery: searchParam } : {}),
+        }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // run once on mount
 

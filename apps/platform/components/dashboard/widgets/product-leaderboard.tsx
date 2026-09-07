@@ -10,9 +10,11 @@ const RANK_TEXT = ['text-amber-900', 'text-gray-700', 'text-amber-900', 'text-gr
 
 interface ProductLeaderboardProps {
     products: EnhancedProductItem[];
+    /** DV-D2: take the merchant to the orders behind the row. */
+    onProductClick?: (product: string) => void;
 }
 
-export function ProductLeaderboard({ products }: ProductLeaderboardProps) {
+export function ProductLeaderboard({ products, onProductClick }: ProductLeaderboardProps) {
     const maxCount = products.length > 0 ? products[0].value : 1;
     const { t } = useLanguage();
 
@@ -39,7 +41,11 @@ export function ProductLeaderboard({ products }: ProductLeaderboardProps) {
 
             <div className="flex flex-col justify-between flex-1 gap-2">
                 {products.map((p, i) => (
-                    <div key={p.id} className="space-y-1 group">
+                    <div
+                        key={p.id}
+                        className={`space-y-1 group ${onProductClick ? 'cursor-pointer rounded-lg -mx-1 px-1 hover:bg-[var(--background)] transition-colors' : ''}`}
+                        onClick={() => onProductClick?.(p.label)}
+                    >
                         <div className="flex items-center gap-2">
                             {/* Rank badge */}
                             <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${RANK_COLORS[i]} ${RANK_TEXT[i]}`}>

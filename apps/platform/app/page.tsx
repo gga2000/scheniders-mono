@@ -160,6 +160,11 @@ export default function Home() {
     router.push(`/orders?status=${status}`);
   };
 
+  // DV-D2: every widget that shows a problem should be able to show the orders
+  // behind it. The orders page reads these params on mount.
+  const goToOrders = (params: Record<string, string>) =>
+    router.push(`/orders?${new URLSearchParams(params).toString()}`);
+
   return (
     <div className="min-h-screen p-6 md:p-8 bg-[var(--background)]">
       <div className="max-w-[1920px] mx-auto space-y-6">
@@ -255,7 +260,10 @@ export default function Home() {
             <WidgetBoundary label="month-forecast"><MonthForecast forecast={dashboardMetrics.monthForecast} /></WidgetBoundary>
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <WidgetBoundary label="rejection-breakdown"><RejectionBreakdown cityRejectionStats={rangeScoped.urgency.cityRejectionStats} /></WidgetBoundary>
+            <WidgetBoundary label="rejection-breakdown"><RejectionBreakdown
+              cityRejectionStats={rangeScoped.urgency.cityRejectionStats}
+              onCityClick={(city) => goToOrders({ status: 'rejected', city })}
+            /></WidgetBoundary>
           </div>
         </div>
 
@@ -265,7 +273,10 @@ export default function Home() {
             <WidgetBoundary label="iraq-map"><IraqMap orders={orders} /></WidgetBoundary>
           </div>
           <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 xl:h-[460px]">
-            <WidgetBoundary label="city-leaderboard"><Leaderboard cities={rangeScoped.enhancedLeaderboard.topCities} /></WidgetBoundary>
+            <WidgetBoundary label="city-leaderboard"><Leaderboard
+              cities={rangeScoped.enhancedLeaderboard.topCities}
+              onCityClick={(city) => goToOrders({ city })}
+            /></WidgetBoundary>
             <WidgetBoundary label="product-leaderboard">
               <ProductLeaderboard
               products={rangeScoped.enhancedLeaderboard.topProductsEnhanced}
