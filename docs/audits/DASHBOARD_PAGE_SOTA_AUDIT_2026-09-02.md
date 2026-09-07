@@ -631,3 +631,41 @@ database and, where patched in place, checksum-matched to its repo file. Three o
 my own claims were wrong and are corrected in the record above: the SEC-1 "guard
 regression", the PROC-D1 branch warning, and the COR-D3 cycle-time prediction.*
 
+---
+
+## METRIC TRUTH TABLE — RE-RUN 2026-09-07 (after all 15 rounds)
+
+The audit's central method was: recompute every number independently in SQL and
+compare it to what the page prints. The opening table is above; this is the same
+exercise against the live database after the fixes, on the same tenant
+(`b5c4f2d4`, Scheniders Iraq). The "truth" column is a query written from the
+metric's definition, not from the function.
+
+| Metric | Dashboard shows | Independent SQL | Verdict |
+|---|---|---|---|
+| Funnel "All Orders" | 4,658 | 4,658 | ✅ match *(was 4,673 vs 4,664 — counted soft-deleted rows)* |
+| Funnel "Delivered" | 2,760 | 2,760 | ✅ match |
+| Pipeline · confirmed | 17 | 17 | ✅ match *(was off by a soft-deleted row)* |
+| Pipeline · in transit | 63 | 63 | ✅ match |
+| Orders today (Baghdad day) | 24 | 24 | ✅ match |
+| Revenue today | 613,750 | 613,750 | ✅ arithmetic matches — **definition still counts `confirmed` (COR-D1, open)** |
+| Cycle time · avg hours | 253.51487125027464 | 253.51487125 | ✅ match to 8 dp *(was 252.99 over a sample that silently dropped sub-3h deliveries)* |
+| Cycle time · sample size | 1,858 | 1,858 | ✅ match *(was 1,840)* |
+| Top product | فيوجن | فيوجن | ✅ match |
+| Top product · units | 2,098 | 2,098 | ✅ match |
+| Top product · revenue | 73,978,394.20469774 | 73,978,394.20469774 | ✅ exact *(was understated 3.8% by the equal split)* |
+| Top city | بغداد (1,614) | بغداد (1,614) | ✅ match |
+| Month-to-date orders | 56 | 56 | ✅ match |
+| Staff leaderboard #1 | Ali | Ali (event-attributed) | ✅ match *(was "WhatsApp Bot")* |
+| Delivery rate | `null` → "no deliveries in the last 7 days" | 0 terminal orders in window | ✅ **correct refusal** *(was "0%")* |
+
+**Fifteen of fifteen reconcile.** The one caveat is stated rather than hidden:
+revenue's *arithmetic* is now provably correct, but its *definition* still counts
+confirmed-not-delivered orders, which is COR-D1 — a business decision, not a bug,
+and the last open question about the numbers themselves.
+
+The delivery-rate row is the one worth dwelling on: the "correct" answer there is a
+refusal to answer. The page previously reported 0% — indistinguishable, to a
+merchant, from every delivery having failed. A dashboard that says "I don't know"
+when it doesn't know is the whole point of this engagement.
+
