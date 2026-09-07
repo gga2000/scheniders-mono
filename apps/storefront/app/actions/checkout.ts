@@ -158,7 +158,7 @@ export async function submitCheckout(
   const productIds = Array.from(new Set(payload.items.map((i) => i.product_id)));
   const { data: products, error: productsErr } = await supabase
     .from("products")
-    .select("id, tenant_id, price, website_price, is_visible, is_archived, is_supply")
+    .select("id, tenant_id, name, short_name, price, website_price, is_visible, is_archived, is_supply")
     .in("id", productIds)
     .eq("tenant_id", payload.tenantId);
 
@@ -328,14 +328,24 @@ export async function submitCheckout(
     governorate_code: payload.customer.governorate_code,
     city: payload.customer.city.trim(),
     address_details: payload.customer.address_details.trim(),
-    items: verifiedItems.map((i) => ({
-      product_id: i.product_id,
-      variant_id: i.variant_id,
-      name: i.name,
-      variant_name: i.variant_name,
-      price: i.price,
-      quantity: i.quantity,
-    })),
+    items: verifiedItems.map((i) => {
+      // Snapshot the merchant's internal ops name (short_name) rather than the
+      // client-supplied marketing title: orders.items[].name is what employees
+      // read on the orders page, printing, labels and WhatsApp templates, and
+      // it must never be client-controlled anyway. Falls back to the canonical
+      // products.name, then to the cart's name for safety.
+      const product = productMap.get(i.product_id) as
+        | { name?: string | null; short_name?: string | null }
+        | undefined;
+      return {
+        product_id: i.product_id,
+        variant_id: i.variant_id,
+        name: product?.short_name?.trim() || product?.name || i.name,
+        variant_name: i.variant_name,
+        price: i.price,
+        quantity: i.quantity,
+      };
+    }),
     price: subtotal,
     delivery_fee: deliveryFee,
     discount_amount: discountAmount,
