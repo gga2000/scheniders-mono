@@ -14,6 +14,7 @@ import type {
   BaseProduct,
   BaseProductVariant,
   Category,
+  ProductReview,
 } from "@scheniders/shared";
 
 export type { Category } from "@scheniders/shared";
@@ -49,7 +50,27 @@ export interface Product extends BaseProduct {
    *  fabricate a rating. */
   review_count?: number;
   avg_rating?: number;
+  /** APPROVED reviews resolved server-side by the product page (newest
+   *  first, capped) so the reviews section paints its list in the SSR HTML.
+   *  Absent on pages that don't preload them — sections fall back to a
+   *  client fetch. */
+  reviews?: ReviewSummaryItem[];
 }
+
+/** One approved review as the storefront preloads it into `Product.reviews`:
+ *  exactly the columns `/api/reviews` GET returns (no moderation status —
+ *  only approved rows ever reach this list). */
+export type ReviewSummaryItem = Pick<
+  ProductReview,
+  | "id"
+  | "product_id"
+  | "rating"
+  | "title"
+  | "body"
+  | "author_name"
+  | "photo_urls"
+  | "created_at"
+>;
 
 export interface ProductVariant extends BaseProductVariant {
   /** Variants always carry a concrete price when rendered. */

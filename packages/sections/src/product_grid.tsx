@@ -24,6 +24,7 @@ import {
 import { StoreLink } from "./helpers/store-context";
 import { SchneidersProductCard } from "./helpers/product-card";
 import { FilterableProductGrid } from "./helpers/filterable-grid";
+import { RevealMore } from "./helpers/reveal-more";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { formatPrice, formatCount } from "./helpers/format";
 import { cn } from "./helpers/utils";
@@ -82,8 +83,15 @@ const defaultProps: Props = {
 
 /* ---- product selection ------------------------------------------------ */
 
-function selectAuto(products: Product[], query: Props["query"]): Product[] {
-  let pool = products.slice();
+function selectAuto(
+  products: Product[],
+  query: Props["query"],
+  excludeId?: string,
+): Product[] {
+  // P1-17: a PDP cross-sell must never offer the product being viewed.
+  let pool = excludeId
+    ? products.filter((p) => p.id !== excludeId)
+    : products.slice();
   if (query?.category_slug) {
     // No slug field on Product — best-effort match on category_id-as-slug
     // (storefront populates category lookups upstream so this is mostly a
@@ -95,8 +103,12 @@ function selectAuto(products: Product[], query: Props["query"]): Product[] {
       (p) => p.compare_at_price != null && p.compare_at_price > p.price,
     );
   } else if (query?.sort === "bestsellers") {
-    // No "sold count" field — fall back to display_order ascending.
-    pool.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    // P2-6: flagged bestsellers first, then the merchant's display_order.
+    pool.sort(
+      (a, b) =>
+        Number(b.is_bestseller ?? false) - Number(a.is_bestseller ?? false) ||
+        (a.display_order ?? 0) - (b.display_order ?? 0),
+    );
   } else {
     // newest — created_at descending; fall back to id order.
     pool.sort((a, b) => {
@@ -126,11 +138,12 @@ function selectProducts(props: Props, ctx: SectionRenderContext): Product[] {
     const fill = selectAuto(
       ctx.products.filter((p) => !pinnedIds.has(p.id)),
       props.query,
+      ctx.product?.id,
     );
     const limit = props.query?.limit ?? Infinity;
     return [...pinned, ...fill].slice(0, limit);
   }
-  return selectAuto(ctx.products, props.query);
+  return selectAuto(ctx.products, props.query, ctx.product?.id);
 }
 
 /** Localised "N products" for the category hero count sticker. */
@@ -329,8 +342,21 @@ function ProductGridRender({
     const subheading = resolveI18n(props.subheading_i18n, locale);
     const seeAllLabel = resolveI18n(props.see_all_label_i18n, locale);
     // On a category page the grid is the full catalogue (the old-site
-    // collection layout is a flat grid — no client-side filter bar).
+    // collection layout is a flat grid — no client-side filter bar). P2-5:
+    // `query.limit` caps the first paint; the rest reveals on "show more".
     const pillItems = category ? ctx.products : items;
+    const pageSize = props.query?.limit;
+    const gridCls =
+      "grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4";
+    const cards = pillItems.map((product, i) => (
+      <PricePillCard
+        key={product.id}
+        product={product}
+        locale={locale}
+        priority={cardPriority(i)}
+        showStars={props.show_stars === true}
+      />
+    ));
 
     return (
       <Section>
@@ -388,21 +414,25 @@ function ProductGridRender({
             />
           )
         )}
-        <div
-          data-layer="cards"
-          data-layer-label="Product cards"
-          className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4"
-        >
-          {pillItems.map((product, i) => (
-            <PricePillCard
-              key={product.id}
-              product={product}
-              locale={locale}
-              priority={cardPriority(i)}
-              showStars={props.show_stars === true}
-            />
-          ))}
-        </div>
+        {category && pageSize && pillItems.length > pageSize ? (
+          <div data-layer="cards" data-layer-label="Product cards">
+            <RevealMore
+              initial={pageSize}
+              label={t ? "عرض المزيد" : "Show more"}
+              className={gridCls}
+            >
+              {cards}
+            </RevealMore>
+          </div>
+        ) : (
+          <div
+            data-layer="cards"
+            data-layer-label="Product cards"
+            className={gridCls}
+          >
+            {cards}
+          </div>
+        )}
         {/* "See all" lands after the cards: the natural next step once the
             shopper has scanned the curated set. */}
         {!category && props.see_all_href && (

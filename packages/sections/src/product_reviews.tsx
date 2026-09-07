@@ -5,11 +5,17 @@
 // of APPROVED reviews with their photos, and a submit form. Submissions POST
 // to /api/reviews (multipart) and land as `pending` until the merchant
 // moderates them — so nothing user-supplied shows publicly unreviewed.
+//
+// Data flow (P1-13): the product page preloads approved reviews into
+// `ctx.product.reviews`, so the list + true distribution are in the SSR
+// HTML. The `/api/reviews` GET is only used (a) when that prop is absent
+// (other templates / pages) and (b) as revalidation after a submit.
 // =====================================================================
 
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n, computeRatingSummary } from "@scheniders/shared";
 import type { ProductReview, RatingSummary } from "@scheniders/shared";
@@ -21,9 +27,12 @@ import {
   Stars,
 } from "./helpers/primitives";
 import { formatCount } from "./helpers/format";
+import { isOptimizableImageHost } from "./helpers/image";
+import { cn } from "./helpers/utils";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
+import type { ReviewSummaryItem } from "./types";
 
 const schema = z.object({
   heading_i18n: i18nStringOptional,
@@ -37,13 +46,19 @@ const defaultProps: Props = {
   show_form: true,
 };
 
+/** Mirrors `/api/reviews` POST's photo cap — over-picks are refused with a
+ *  visible message instead of being silently sliced. */
+const MAX_PHOTOS = 4;
+
 const EMPTY_SUMMARY: RatingSummary = {
   average: 0,
   count: 0,
   distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
 };
 
-function reviewCountLabel(count: number, locale: "ar" | "en" | "ku"): string {
+type Locale = "ar" | "en" | "ku";
+
+function reviewCountLabel(count: number, locale: Locale): string {
   return formatCount(count, locale, {
     one: locale === "en" ? "1 review" : "تقييم واحد",
     two: "تقييمان",
@@ -53,16 +68,101 @@ function reviewCountLabel(count: number, locale: "ar" | "en" | "ku"): string {
   });
 }
 
-function photosAttachedLabel(
-  count: number,
-  locale: "ar" | "en" | "ku",
-): string {
+function photosAttachedLabel(count: number, locale: Locale): string {
   return formatCount(count, locale, {
     one: locale === "en" ? "1 photo attached" : "صورة واحدة مرفقة",
     two: "صورتان مرفقتان",
     few: "{count} صور مرفقة",
     other: locale === "en" ? "{count} photos attached" : "{count} صورة مرفقة",
   });
+}
+
+/** Summary + "is the per-star distribution real?" flag. A product row only
+ *  carries count/average, so bars stay hidden until a full list is known. */
+function summarise(
+  list: ReviewSummaryItem[] | undefined,
+  product: { review_count?: number; avg_rating?: number } | undefined,
+): { summary: RatingSummary; distributionKnown: boolean } {
+  if (list) {
+    return { summary: computeRatingSummary(list), distributionKnown: true };
+  }
+  if (product?.review_count && product.review_count > 0) {
+    return {
+      summary: {
+        average: product.avg_rating ?? 0,
+        count: product.review_count,
+        distribution: EMPTY_SUMMARY.distribution,
+      },
+      distributionKnown: false,
+    };
+  }
+  return { summary: EMPTY_SUMMARY, distributionKnown: false };
+}
+
+type LightboxImage = { url: string; alt: string };
+
+/**
+ * Native `<dialog>` lightbox: `showModal()` gives focus trapping + Escape
+ * for free; a click on the backdrop (the dialog element itself, outside its
+ * child) closes it; page scroll is locked while it's open.
+ */
+function PhotoLightbox({
+  image,
+  onClose,
+  closeLabel,
+}: {
+  image: LightboxImage | null;
+  onClose: () => void;
+  closeLabel: string;
+}) {
+  const ref = React.useRef<HTMLDialogElement>(null);
+
+  React.useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (image) {
+      if (!dialog.open) dialog.showModal();
+      const prev = document.documentElement.style.overflow;
+      document.documentElement.style.overflow = "hidden";
+      return () => {
+        document.documentElement.style.overflow = prev;
+      };
+    }
+    if (dialog.open) dialog.close();
+    return undefined;
+  }, [image]);
+
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="m-auto max-h-[100dvh] max-w-[100vw] bg-transparent p-0 backdrop:bg-bk-ink/80 open:flex open:items-center open:justify-center"
+    >
+      {image && (
+        <div className="relative w-[min(92vw,56rem)] h-[min(80dvh,56rem)]">
+          <Image
+            src={image.url}
+            alt={image.alt}
+            fill
+            unoptimized={!isOptimizableImageHost(image.url)}
+            sizes="92vw"
+            className="object-contain"
+          />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={closeLabel}
+            className="absolute end-0 top-0 inline-flex h-11 w-11 items-center justify-center rounded-full bg-bk-surface text-bk-ink shadow-md focus-visible:outline-none focus-visible:ring-2 ring-bk-focus"
+          >
+            <MaterialIcon name="close" />
+          </button>
+        </div>
+      )}
+    </dialog>
+  );
 }
 
 function ProductReviewsRender({
@@ -81,20 +181,18 @@ function ProductReviewsRender({
 
   const tenantId = ctx.tenant?.id;
   const productId = product?.id;
+  const ssrReviews = product?.reviews;
+  const fileInputId = React.useId();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const [reviews, setReviews] = React.useState<ProductReview[]>([]);
-  // SSR seed: the product row already carries approved-review aggregates, so
-  // the first paint shows the real average/count instead of a "0.0 / 0"
-  // flash (the fetch below then fills the list + true distribution).
-  const [summary, setSummary] = React.useState<RatingSummary>(() =>
-    product?.review_count && product.review_count > 0
-      ? {
-          average: product.avg_rating ?? 0,
-          count: product.review_count,
-          distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-        }
-      : EMPTY_SUMMARY,
+  const [reviews, setReviews] = React.useState<ReviewSummaryItem[]>(
+    () => ssrReviews ?? [],
   );
+  const [{ summary, distributionKnown }, setSummaryState] = React.useState(() =>
+    summarise(ssrReviews, product),
+  );
+  // Bumped after a successful submit → one revalidating fetch.
+  const [refresh, setRefresh] = React.useState(0);
 
   // Form state.
   const [rating, setRating] = React.useState(0);
@@ -102,12 +200,16 @@ function ProductReviewsRender({
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
   const [files, setFiles] = React.useState<File[]>([]);
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [lightbox, setLightbox] = React.useState<LightboxImage | null>(null);
+
+  const needsFetch = ssrReviews === undefined || refresh > 0;
 
   React.useEffect(() => {
-    if (!tenantId || !productId) return;
+    if (!tenantId || !productId || !needsFetch) return;
     let active = true;
     const params = new URLSearchParams({
       product_id: productId,
@@ -118,17 +220,21 @@ function ProductReviewsRender({
       .then(
         (data: { reviews: ProductReview[]; summary: RatingSummary } | null) => {
           if (!active || !data) return;
-          setReviews(data.reviews ?? []);
-          setSummary(data.summary ?? computeRatingSummary(data.reviews ?? []));
+          const list = data.reviews ?? [];
+          setReviews(list);
+          setSummaryState({
+            summary: data.summary ?? computeRatingSummary(list),
+            distributionKnown: true,
+          });
         },
       )
       .catch(() => {
-        /* network blip — section just shows the empty/CTA state */
+        /* network blip — section keeps whatever it already shows */
       });
     return () => {
       active = false;
     };
-  }, [tenantId, productId]);
+  }, [tenantId, productId, needsFetch, refresh]);
 
   if (!product || !tenantId || !productId) return null;
   // Narrowed copies for the submit closure below (a hoisted function
@@ -139,6 +245,24 @@ function ProductReviewsRender({
   const heading =
     resolveI18n(props.heading_i18n, locale) ||
     t("Customer reviews", "آراء العملاء");
+
+  function handlePickPhotos(e: React.ChangeEvent<HTMLInputElement>): void {
+    const picked = Array.from(e.target.files ?? []);
+    // Reset so re-picking the same files fires onChange again.
+    e.target.value = "";
+    if (picked.length === 0) return;
+    if (picked.length > MAX_PHOTOS) {
+      setPhotoError(
+        t(
+          `You can attach up to ${MAX_PHOTOS} photos.`,
+          `يمكنك إرفاق ${MAX_PHOTOS} صور كحد أقصى.`,
+        ),
+      );
+      return;
+    }
+    setPhotoError(null);
+    setFiles(picked);
+  }
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -171,6 +295,8 @@ function ProductReviewsRender({
       setTitle("");
       setBody("");
       setFiles([]);
+      setPhotoError(null);
+      setRefresh((n) => n + 1);
     } catch {
       setError(
         t("Could not submit. Try again.", "تعذّر الإرسال. حاول مجددًا."),
@@ -185,6 +311,8 @@ function ProductReviewsRender({
   const hasReviews = summary.count > 0;
   const inputCls =
     "w-full rounded-xl border-2 border-bk-ink/15 bg-bk-surface px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus-visible:outline-none focus-visible:ring-2 ring-bk-focus focus-visible:ring-offset-2";
+  const reviewPhotoAlt = (n: number) =>
+    t(`Review photo ${n}`, `صورة التقييم ${n}`);
 
   return (
     <Section>
@@ -211,27 +339,34 @@ function ProductReviewsRender({
               {reviewCountLabel(summary.count, locale)}
             </span>
           </div>
-          <div className="flex-1 space-y-1">
-            {distRows.map((star) => (
-              <div key={star} className="flex items-center gap-bk-xs">
-                <span className="w-6 text-right font-label text-xs text-bk-ink-soft tabular-nums">
-                  {star}
-                </span>
-                <Stars value={1} max={1} size={14} label={`${star} / 5`} />
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-bk-ink/10">
+          {/* Per-star bars only once real counts are known — an aggregate
+              seed alone would draw five empty bars under a real average. */}
+          {distributionKnown && (
+            <div className="flex-1 space-y-1">
+              {distRows.map((star) => (
+                <div key={star} className="flex items-center gap-bk-xs">
+                  <span className="w-6 text-right font-label text-xs text-bk-ink-soft tabular-nums">
+                    {star}
+                  </span>
+                  <Stars value={1} max={1} size={14} label={`${star} / 5`} />
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-bk-ink/10">
+                    <span
+                      className="block h-full rounded-full bg-bk-primary"
+                      style={{
+                        width: `${(summary.distribution[star] / maxBar) * 100}%`,
+                      }}
+                    />
+                  </span>
                   <span
-                    className="block h-full rounded-full bg-bk-primary"
-                    style={{
-                      width: `${(summary.distribution[star] / maxBar) * 100}%`,
-                    }}
-                  />
-                </span>
-                <span className="w-6 font-label text-xs text-bk-ink-soft tabular-nums">
-                  {summary.distribution[star]}
-                </span>
-              </div>
-            ))}
-          </div>
+                    className="w-6 font-label text-xs text-bk-ink-soft tabular-nums"
+                    data-star-count={star}
+                  >
+                    {summary.distribution[star]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <p className="mt-bk-md font-body text-base text-bk-ink-soft text-pretty">
@@ -254,9 +389,9 @@ function ProductReviewsRender({
                 <Stars value={r.rating} size={16} label={`${r.rating} / 5`} />
               </div>
               {r.title && (
-                <p className="mt-1 font-display font-bold text-bk-ink">
+                <h3 className="mt-1 font-display font-bold text-bk-ink">
                   {r.title}
-                </p>
+                </h3>
               )}
               {r.body && (
                 <p className="mt-1 font-body text-bk-ink-soft text-pretty">
@@ -265,22 +400,39 @@ function ProductReviewsRender({
               )}
               {r.photo_urls.length > 0 && (
                 <div className="mt-bk-sm flex flex-wrap gap-bk-xs">
-                  {r.photo_urls.map((url, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element -- shopper uploads live on arbitrary storage hosts outside the next/image allowlist
-                    <img
-                      key={i}
-                      src={url}
-                      alt=""
-                      loading="lazy"
-                      className="h-20 w-20 rounded-lg object-cover"
-                    />
-                  ))}
+                  {r.photo_urls.map((url, i) => {
+                    const alt = reviewPhotoAlt(i + 1);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setLightbox({ url, alt })}
+                        aria-label={t("Enlarge photo", "تكبير الصورة")}
+                        className="relative h-20 w-20 overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2"
+                      >
+                        <Image
+                          src={url}
+                          alt={alt}
+                          fill
+                          unoptimized={!isOptimizableImageHost(url)}
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </li>
           ))}
         </ul>
       )}
+
+      <PhotoLightbox
+        image={lightbox}
+        onClose={() => setLightbox(null)}
+        closeLabel={t("Close", "إغلاق")}
+      />
 
       {/* Submit form */}
       {props.show_form && (
@@ -347,20 +499,79 @@ function ProductReviewsRender({
                 rows={3}
                 className={inputCls}
               />
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                onChange={(e) =>
-                  setFiles(Array.from(e.target.files ?? []).slice(0, 4))
-                }
-                className="block w-full font-body text-sm text-bk-ink-soft"
-              />
-              {files.length > 0 && (
-                <p className="font-label text-xs text-bk-ink-soft tabular-nums">
-                  {photosAttachedLabel(files.length, locale)}
-                </p>
-              )}
+
+              {/* Photo picker — the native "Choose Files" control is
+                  visually hidden (still in the DOM + labelled); the styled
+                  button is the single keyboard/touch target. */}
+              <div className="space-y-bk-xs">
+                <input
+                  ref={fileInputRef}
+                  id={fileInputId}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  tabIndex={-1}
+                  aria-label={t(
+                    `Add photos (up to ${MAX_PHOTOS})`,
+                    `أضف صور (حتى ${MAX_PHOTOS})`,
+                  )}
+                  onChange={handlePickPhotos}
+                  className="sr-only"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={cn(
+                    "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-bk-ink/15 bg-bk-surface px-4 py-2 font-label text-sm font-bold text-bk-ink",
+                    "transition-[opacity,transform] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
+                    "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
+                  )}
+                >
+                  <MaterialIcon name="add_a_photo" className="text-base" />
+                  {t(
+                    `Add photos (up to ${MAX_PHOTOS})`,
+                    `أضف صور (حتى ${MAX_PHOTOS})`,
+                  )}
+                </button>
+                {files.length > 0 && (
+                  <ul
+                    className="flex flex-wrap gap-bk-xs"
+                    aria-label={photosAttachedLabel(files.length, locale)}
+                  >
+                    {files.map((f, i) => (
+                      <li
+                        key={`${f.name}-${i}`}
+                        className="inline-flex max-w-full items-center gap-1 rounded-full bg-bk-ink/5 py-1 pe-1 ps-3 font-label text-xs text-bk-ink"
+                      >
+                        <span className="truncate" dir="auto">
+                          {f.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFiles((prev) => prev.filter((_, j) => j !== i))
+                          }
+                          aria-label={t(`Remove ${f.name}`, `إزالة ${f.name}`)}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-bk-ink/10"
+                        >
+                          <MaterialIcon name="close" className="text-sm" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {files.length > 0 && (
+                  <p className="font-label text-xs text-bk-ink-soft tabular-nums">
+                    {photosAttachedLabel(files.length, locale)}
+                  </p>
+                )}
+                {photoError && (
+                  <p role="alert" className="font-label text-sm text-bk-danger">
+                    {photoError}
+                  </p>
+                )}
+              </div>
+
               {error && (
                 <p role="alert" className="font-label text-sm text-bk-danger">
                   {error}

@@ -226,11 +226,13 @@ describe("pdp_direct_order stock urgency threshold (P1-4)", () => {
     expect(renderUrgency(10)).toContain("Only 10 left");
   });
   it("hides the line above the threshold (51 units is not scarcity)", () => {
-    expect(renderUrgency(51)).not.toContain("left");
+    // Match the copy, not the bare word: "left" also appears in layout
+    // classes (the governorate select's leading-icon `left-3.5`).
+    expect(renderUrgency(51)).not.toMatch(/Only \d+ left/);
   });
   it("honours a custom threshold and 0 = never", () => {
     expect(renderUrgency(51, 100)).toContain("Only 51 left");
-    expect(renderUrgency(1, 0)).not.toContain("left");
+    expect(renderUrgency(1, 0)).not.toMatch(/Only \d+ left/);
   });
 });
 

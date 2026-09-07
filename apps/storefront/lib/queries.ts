@@ -2,6 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "./supabase/server";
 import type { Tables } from "@scheniders/supabase";
+import type { ProductReview } from "@scheniders/shared";
 import type { Product, Category, ProductVariant } from "./types";
 
 type PublicClient = ReturnType<typeof createSupabasePublicClient>;
@@ -158,6 +159,36 @@ export const getProductBySlug = cache(
       }
 
       return null;
+    }),
+);
+
+/** Newest-first cap for the SSR review list — the section paints these in
+ *  the first HTML; anything beyond is pagination territory, not first paint. */
+const SSR_REVIEW_LIMIT = 20;
+
+/**
+ * P1-13: the approved reviews of ONE product, resolved server-side so the
+ * product page can hand them to the reviews section (no client fetch, no
+ * layout jump). Same columns, filters and ordering as `/api/reviews` GET —
+ * tenant-scoped, approved only, newest first — on the anon client under the
+ * `reviews_public_read` RLS policy, inside the shared 60s catalog cache.
+ */
+export const listApprovedReviews = cache(
+  (tenantId: string, productId: string): Promise<ProductReview[]> =>
+    publicCache(["listApprovedReviews", tenantId, productId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("product_reviews")
+        .select("id,product_id,rating,title,body,author_name,photo_urls,created_at")
+        .eq("tenant_id", tenantId)
+        .eq("product_id", productId)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(SSR_REVIEW_LIMIT);
+      if (error) {
+        console.error("[queries.listApprovedReviews]", error);
+        return [];
+      }
+      return data ?? [];
     }),
 );
 

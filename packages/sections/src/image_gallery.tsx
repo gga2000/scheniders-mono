@@ -5,13 +5,16 @@
 //   - masonry — CSS columns, variable card heights.
 //   - grid    — uniform 2/3-col grid.
 //   - carousel — horizontal scroll-snap row.
-// Each image can carry an optional caption and an optional click link.
+// Each image can carry an optional caption, an optional `alt_i18n` (falls
+// back to the caption, then ""), and an optional click link. The carousel
+// gets desktop prev/next arrows (touch scrolls the snap track directly).
 // Frames are token-driven (`--bk-border-thickness` / `--bk-ink` /
 // `--bk-surface` / `--bk-shadow-card`); images optimise through
 // next/image when the host is allowlisted and never claim `priority`
 // (the hero owns the LCP preload).
 // =====================================================================
 
+import { useId } from "react";
 import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
@@ -23,6 +26,7 @@ import {
   Section,
 } from "./helpers/primitives";
 import { isOptimizableImageHost } from "./helpers/image";
+import { CarouselArrows } from "./helpers/carousel-arrows";
 import { cn } from "./helpers/utils";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -35,6 +39,8 @@ const schema = z.object({
     z.object({
       url: z.string().describe("image"),
       caption_i18n: i18nStringOptional,
+      /** Screen-reader description (P1-15). Omitted → caption → "". */
+      alt_i18n: i18nStringOptional,
       link_href: z.string().optional(),
     }),
   ),
@@ -84,6 +90,7 @@ function ImgCard({
   locale: LocaleCode;
 }) {
   const caption = resolveI18n(img.caption_i18n, locale);
+  const alt = resolveI18n(img.alt_i18n, locale) || caption;
   const body = (
     <div
       className={cn("relative overflow-hidden", aspect)}
@@ -96,7 +103,7 @@ function ImgCard({
     >
       <Image
         src={img.url}
-        alt={caption}
+        alt={alt}
         fill
         unoptimized={!isOptimizableImageHost(img.url)}
         sizes={sizes}
@@ -142,6 +149,7 @@ function ImageGallery({
 }) {
   const locale = ctx.runtime.locale;
   const heading = resolveI18n(props.heading_i18n, locale);
+  const trackId = useId();
   // An empty-url entry (fresh editor placeholder, deleted upload) is not a
   // picture — skip it rather than framing a blank tile.
   const images = props.images.filter((img) => img.url.trim().length > 0);
@@ -187,22 +195,31 @@ function ImageGallery({
         </div>
       )}
       {props.layout === "carousel" && (
-        <div
-          role="region"
-          aria-roledescription="carousel"
-          aria-label={galleryLabel}
-          className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory scroll-px-4 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4"
-        >
-          {images.map((img, i) => (
-            <div key={i} className="w-[220px] shrink-0 sm:w-[280px] snap-start">
-              <ImgCard
-                img={img}
-                aspect="aspect-[3/4]"
-                sizes={sizes}
-                locale={locale}
-              />
-            </div>
-          ))}
+        <div role="region" aria-roledescription="carousel" aria-label={galleryLabel}>
+          <div
+            id={trackId}
+            className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory scroll-px-4 scroll-smooth motion-reduce:scroll-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4"
+          >
+            {images.map((img, i) => (
+              <div key={i} className="w-[220px] shrink-0 sm:w-[280px] snap-start">
+                <ImgCard
+                  img={img}
+                  aspect="aspect-[3/4]"
+                  sizes={sizes}
+                  locale={locale}
+                />
+              </div>
+            ))}
+          </div>
+          {/* Desktop-only arrows (P3-10) — touch already scrolls the track. */}
+          {images.length > 1 && (
+            <CarouselArrows
+              trackId={trackId}
+              prevLabel={locale === "en" ? "Previous images" : "الصور السابقة"}
+              nextLabel={locale === "en" ? "Next images" : "الصور التالية"}
+              className="mt-bk-sm justify-end"
+            />
+          )}
         </div>
       )}
     </Section>
