@@ -7,13 +7,15 @@ import { useLanguage } from "@/hooks/use-language";
 interface CityLeaderboardProps {
     /** Top cities by order count, already sorted descending. */
     cities: LeaderboardItem[];
+    /** DV-D2: take the merchant to the orders behind the row. */
+    onCityClick?: (city: string) => void;
 }
 
 /**
  * Top Cities leaderboard. Products live in the separate ProductLeaderboard
  * widget below, so this card is cities-only and spans its full container.
  */
-export function Leaderboard({ cities }: CityLeaderboardProps) {
+export function Leaderboard({ cities, onCityClick }: CityLeaderboardProps) {
     const { t } = useLanguage();
     const max = cities[0]?.value ?? 1;
 
@@ -27,7 +29,12 @@ export function Leaderboard({ cities }: CityLeaderboardProps) {
             </h3>
             <div className="flex flex-col justify-between flex-1 gap-3">
                 {cities.map((city, i) => (
-                    <div key={city.id} className="flex items-center gap-3">
+                    <div
+                        key={city.id}
+                        className={`flex items-center gap-3 ${onCityClick ? 'cursor-pointer rounded-lg -mx-1 px-1 hover:bg-[var(--background)] transition-colors' : ''}`}
+                        onClick={() => onCityClick?.(city.label)}
+                        title={onCityClick ? city.label : undefined}
+                    >
                         <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0 ${i === 0 ? 'bg-yellow-400 text-black' : 'bg-gray-100 text-gray-500'}`}>
                             {i + 1}
                         </span>

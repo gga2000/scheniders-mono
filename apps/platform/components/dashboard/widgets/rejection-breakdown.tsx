@@ -6,9 +6,11 @@ import { useLanguage } from "@/hooks/use-language";
 
 interface RejectionBreakdownProps {
     cityRejectionStats: UrgencyMetrics['cityRejectionStats'];
+    /** DV-D2: a bad rejection rate is only useful if you can see the orders. */
+    onCityClick?: (city: string) => void;
 }
 
-export function RejectionBreakdown({ cityRejectionStats }: RejectionBreakdownProps) {
+export function RejectionBreakdown({ cityRejectionStats, onCityClick }: RejectionBreakdownProps) {
     const { t } = useLanguage();
     // Sort by rejection rate desc, only show cities with >= 5 orders and > 0 rejections
     const rows = Object.entries(cityRejectionStats)
@@ -40,7 +42,11 @@ export function RejectionBreakdown({ cityRejectionStats }: RejectionBreakdownPro
                         const isHigh = stats.rate > 60;
                         const isMed = stats.rate >= 30 && stats.rate <= 60;
                         return (
-                            <div key={city} className="space-y-1">
+                            <div
+                                key={city}
+                                className={`space-y-1 ${onCityClick ? 'cursor-pointer rounded-lg -mx-1 px-1 hover:bg-[var(--background)] transition-colors' : ''}`}
+                                onClick={() => onCityClick?.(city)}
+                            >
                                 <div className="flex items-center justify-between text-xs">
                                     <div className="flex items-center gap-2">
                                         <span

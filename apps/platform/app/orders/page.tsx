@@ -12,6 +12,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, OrderItem } from "@/lib/supabase";
+import type { OrderFilters } from "@/types/order";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
@@ -204,17 +205,27 @@ export default function OrdersPage() {
         messageTemplates,
     } = useOrdersContext();
 
-    // Apply ?status= from dashboard card clicks, once the saved filter has
-    // loaded. Applied any earlier, it was overwritten by the saved filter (the
-    // link did nothing) and, before auth, persisted under the anonymous key.
-    const statusParamApplied = useRef(false);
+    // Apply drill-through params from the dashboard (?status=, ?city=, ?product=)
+    // once the saved filter has loaded. Applied any earlier, they were overwritten
+    // by the saved filter (the link did nothing) and, before auth, persisted under
+    // the anonymous key. DV-D2: city and product exist in OrderFilters but were
+    // never read from the URL, so the dashboard could only hand over a status.
+    // `?search=` is applied by OrderSearchParamSync.
+    const drillParamsApplied = useRef(false);
     useEffect(() => {
-        if (!filtersSettled || statusParamApplied.current || typeof window === 'undefined') return;
-        statusParamApplied.current = true;
-        const statusParam = new URLSearchParams(window.location.search).get('status');
-        if (statusParam) {
-            setFilters(prev => ({ ...prev, status: statusParam as 'new' | 'confirmed' | 'rejected' | 'all' }));
-        }
+        if (!filtersSettled || drillParamsApplied.current || typeof window === 'undefined') return;
+        drillParamsApplied.current = true;
+        const params = new URLSearchParams(window.location.search);
+        const statusParam = params.get('status');
+        const cityParam = params.get('city');
+        const productParam = params.get('product');
+        if (!statusParam && !cityParam && !productParam) return;
+        setFilters(prev => ({
+            ...prev,
+            ...(statusParam ? { status: statusParam as OrderFilters['status'] } : {}),
+            ...(cityParam ? { city: cityParam } : {}),
+            ...(productParam ? { product: productParam } : {}),
+        }));
     }, [filtersSettled, setFilters]);
 
     // Get products for Excel import matching
