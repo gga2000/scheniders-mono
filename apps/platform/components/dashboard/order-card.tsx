@@ -9,7 +9,6 @@ import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
 import { AvatarPill } from "@/components/ui/avatar-pill";
 
-import { OrderAssignment, mockEmployees } from "@/lib/team-types";
 import { useOrderStore } from "@/store/use-order-store";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 // ... existing imports ...
@@ -123,8 +122,6 @@ interface OrderCardProps {
     // Disable layout animations (e.g. for virtualized lists)
     isVirtualized?: boolean;
     // Assignments
-    assignments?: OrderAssignment[];
-    onAssignDuty?: (orderId: string, duty: 'confirmation' | 'fulfillment') => void;
 }
 
 export const OrderCard = memo(function OrderCard({
@@ -158,8 +155,6 @@ export const OrderCard = memo(function OrderCard({
     hasDuplicates = false,
     archivedOrderCount = 0,
     actionDock = false,
-    assignments = [],
-    onAssignDuty,
     blacklistEntry,
     onAddToBlacklist,
     onRemoveFromBlacklist,

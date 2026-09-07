@@ -37,9 +37,7 @@ import { useStartOrderConversation } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
 
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
-import { OrderAssignment, OrderDuty, mockEmployees } from "@/lib/team-types";
 import { AvatarPill } from "@/components/ui/avatar-pill";
-import { AssignmentPopover } from "@/components/orders/assignment-popover";
 import {
     MapPin,
     Phone,
@@ -92,8 +90,6 @@ interface OrderDetailsModalProps {
     onCreateReturn?: (orderId: string, data: { return_amount: number; reason: string; deductDeliveryFee?: boolean }) => Promise<{ success: boolean; error?: string }>;
     onCreateReplacement?: (orderId: string, data: { old_items: OrderItem[]; new_items: OrderItem[]; deductDeliveryFee?: boolean; notes?: string }) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
-    assignments?: OrderAssignment[];
-    onAssignDuty?: (orderId: string, duty: OrderDuty, employeeId: string) => void;
     onOpenTemplatePanel?: (order: Order) => void;
     messageTemplates?: MessageTemplate[];
 }
@@ -110,8 +106,6 @@ export function OrderDetailsModal({
     onCreateReturn,
     onCreateReplacement,
     checkOrderIdExists,
-    assignments = [],
-    onAssignDuty,
     onOpenTemplatePanel,
     messageTemplates,
 }: OrderDetailsModalProps) {

@@ -14,7 +14,6 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { getBaseOrderId } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
-import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
 import { reportOrderError } from "@/lib/order-telemetry";
@@ -195,7 +194,6 @@ import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { canShipWithoutSelection, canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { notificationService } from "@/lib/notification-service";
-import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
 import { toast, dismissToast } from "@/hooks/use-toast";
 
@@ -600,7 +598,6 @@ export default function OrdersPage() {
     const debouncedColumnFilters = useDebounce(columnFilters, 300);
 
     // Domain state (stays local — not UI state)
-    const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
     const { splitOrder } = useOrdersContext();
 
     const handleSplitOrder = async (keptItems: OrderItem[], returnedItems: OrderItem[]) => {
@@ -679,47 +676,7 @@ export default function OrdersPage() {
         }
     }, [setSelectedOrder]);
 
-    const handleAssignDuty = useCallback((orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => {
-        setAssignments(prev => {
-            const filtered = prev.filter(a => !(a.order_id === orderId && a.duty === duty));
-            return [...filtered, {
-                id: crypto.randomUUID(),
-                order_id: orderId,
-                employee_id: employeeId,
-                duty,
-                assigned_at: new Date().toISOString(),
-                status: 'pending'
-            }];
-        });
-        toast.success(`Assigned to ${duty}`);
-    }, []);
 
-    // Evaluate Auto-Assignments when orders change or load (Optimized: Web Worker)
-    useEffect(() => {
-        if (!orders || orders.length === 0) return;
-
-        // Run off-main-thread to avoid blocking React rendering
-        const worker = new Worker('/workers/assignment-worker.js');
-
-        worker.onmessage = (e) => {
-            const { type, payload } = e.data;
-            if (type === 'ASSIGNMENTS_RESULT' && payload.length > 0) {
-                setAssignments(prev => [...prev, ...payload]);
-            }
-            worker.terminate();
-        };
-
-        worker.postMessage({
-            type: 'EVALUATE_ASSIGNMENTS',
-            payload: {
-                orders,
-                rules: mockAssignmentRules,
-                currentAssignments: assignments
-            }
-        });
-
-        return () => worker.terminate();
-    }, [orders, assignments]);
 
     // A tenant with no orders at all must not be told its filters matched nothing.
     // `hasFilters` counts the date range, so "no filters" here means the full window.
@@ -2828,8 +2785,6 @@ export default function OrdersPage() {
                                                                         messageTemplates={workflowTemplates}
                                                                         isSelected={selectedOrders.has(order.id)}
                                                                         onToggleSelection={toggleOrderSelection}
-                                                                        assignments={assignments.filter(a => a.order_id === order.id)}
-                                                                        onAssignDuty={handleAssignDuty}
                                                                     />
                                                                 );
                                                             })}
@@ -2882,8 +2837,6 @@ export default function OrdersPage() {
                                                             getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
-                                                            assignments={assignments}
-                                                            onAssignDuty={handleAssignDuty}
                                                         />
                                                     ) : (
                                                         /* Use animated list for <50 orders */
@@ -2941,9 +2894,7 @@ export default function OrdersPage() {
                                                                             messageTemplates={workflowTemplates}
                                                                             isSelected={selectedOrders.has(order.id)}
                                                                             onToggleSelection={toggleOrderSelection}
-                                                                            assignments={assignments.filter(a => a.order_id === order.id)}
-                                                                            onAssignDuty={handleAssignDuty}
-                                                                        />
+                                                                            />
                                                                     </StaggerItem>
                                                                 );
                                                             })}
@@ -3033,8 +2984,6 @@ export default function OrdersPage() {
                         onCreateReturn={createReturnOrder}
                         onCreateReplacement={createReplacementOrder}
                         checkOrderIdExists={checkOrderIdExists}
-                        assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
-                        onAssignDuty={handleAssignDuty}
                         onOpenTemplatePanel={(o) => {
                             setOrderForTemplate(o);
                             setTemplatePanelOpen(true);

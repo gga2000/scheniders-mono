@@ -10,7 +10,6 @@ import { MobileSearchModal } from "./MobileSearchModal";
 import { MobileFilterModal } from "./MobileFilterModal";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { Order } from "@/lib/supabase";
-import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft } from "lucide-react";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
@@ -75,25 +74,11 @@ export function MobileOrdersPage() {
     const [templatePanelOpen, setTemplatePanelOpen] = useState(false);
     const [orderForTemplate, setOrderForTemplate] = useState<Order | null>(null);
 
-    const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
 
     // --- Pagination State ---
     const ITEMS_PER_PAGE = 50;
     const [currentPage, setCurrentPage] = useState(1);
 
-    const handleAssignDuty = React.useCallback((orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => {
-        setAssignments(prev => {
-            const filtered = prev.filter(a => !(a.order_id === orderId && a.duty === duty));
-            return [...filtered, {
-                id: `a_${Date.now()}`,
-                order_id: orderId,
-                employee_id: employeeId,
-                duty,
-                assigned_at: new Date().toISOString(),
-                status: 'pending'
-            }];
-        });
-    }, []);
 
     // Apply same filtering logic as desktop (Phase 4 placeholder/integration)
     const filteredOrders = useMemo(() => {
@@ -270,8 +255,6 @@ export function MobileOrdersPage() {
                     onDelete={deleteOrder}
                     onCreateReturn={createReturnOrder}
                     checkOrderIdExists={checkOrderIdExists}
-                    assignments={assignments.filter(a => a.order_id === selectedOrder.id)}
-                    onAssignDuty={handleAssignDuty}
                     messageTemplates={messageTemplates}
                     onOpenTemplatePanel={(o) => {
                         setOrderForTemplate(o);
