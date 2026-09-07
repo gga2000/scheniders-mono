@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 
 /**
@@ -13,17 +14,13 @@ import { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 // PHONE NORMALIZATION
 // =============================================
 
-/**
- * Normalize phone number for search comparison
- * Removes common Iraqi country codes and leading zeros
- */
-export function normalizePhoneForSearch(phone: string): string {
-    if (!phone) return "";
-    // Remove spaces, dashes, and common prefixes
-    return phone
-        .replace(/[\s\-\(\)]/g, "")
-        .replace(/^(\+964|964|00964|0)/, "");
-}
+// Phone normalization lives in lib/order-utils and is kept in lockstep with the
+// SQL `normalize_phone_for_search` via lib/__fixtures__/phone-normalization.json.
+// This module used to carry its own copy under the same name, which normalized
+// differently — it left Arabic-Indic digits and separators such as "." intact —
+// so a phone typed into the search box was matched by different rules than the
+// ones used for duplicate detection and the database index.
+export { normalizePhoneForSearch };
 
 /**
  * Normalize Arabic text for fuzzy search:

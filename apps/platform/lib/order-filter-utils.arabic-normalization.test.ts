@@ -20,3 +20,32 @@ describe("normalizeArabicText (search variant) — shared fixture with SQL", () 
         });
     }
 });
+
+// ---------------------------------------------------------------------------
+// Regression guard for ARCH-4.
+//
+// order-filter-utils used to define its own `normalizePhoneForSearch` with a
+// different algorithm from the canonical one in order-utils. The search box used
+// the local copy while duplicate detection and the SQL index used the canonical
+// one, so a phone typed with Arabic-Indic digits or "." separators was matched
+// by different rules than the ones that found duplicates.
+// ---------------------------------------------------------------------------
+describe("phone normalization is shared with order-utils", () => {
+    it("re-exports the canonical implementation rather than a second copy", async () => {
+        const filterUtils = await import("./order-filter-utils");
+        const orderUtils = await import("./order-utils");
+        expect(filterUtils.normalizePhoneForSearch).toBe(orderUtils.normalizePhoneForSearch);
+    });
+
+    it("normalizes the inputs the old local copy got wrong", async () => {
+        const { normalizePhoneForSearch } = await import("./order-filter-utils");
+        // Arabic-Indic digits: the old copy returned them untouched, so a search
+        // typed in Arabic numerals could never match a stored Latin-digit phone.
+        expect(normalizePhoneForSearch("٠٧٧٣٥٤٤١٣١٦")).toBe("7735441316");
+        // Separators other than space/dash/paren: the old copy kept the dots.
+        expect(normalizePhoneForSearch("0773.544.1316")).toBe("7735441316");
+        // Forms both implementations already agreed on stay unchanged.
+        expect(normalizePhoneForSearch("07735441316")).toBe("7735441316");
+        expect(normalizePhoneForSearch("+964 773 544 1316")).toBe("7735441316");
+    });
+});
