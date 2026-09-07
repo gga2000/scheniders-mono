@@ -99,6 +99,11 @@ export function getStatusLabel(status: string, isReturn?: boolean): string {
         return_pending: 'استرجاع معلق',
         suspended: 'طلب معلق',
         pending_checkout: 'سلة',
+        // These two were missing, so 74 live orders in refund_delivered rendered
+        // the raw status string in an otherwise-Arabic UI. Wording matches the
+        // canonical orders.status.* keys in lib/i18n.ts.
+        refund_delivered: 'تم الاسترجاع',
+        refund_failed: 'فشل الاسترجاع',
     };
 
     return labels[status as keyof typeof labels] || status;
