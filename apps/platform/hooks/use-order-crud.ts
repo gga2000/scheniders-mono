@@ -29,6 +29,8 @@ import {
     orderKeys
 } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { classifyTransition } from "@/lib/order-status-machine";
+import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
 import {
     summarizeBulkFailures,
@@ -147,6 +149,22 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         // Auto-redirect: return orders marked as "delivered" should use "refund_delivered"
         if (previousOrder?.is_return && status === 'delivered') {
             status = 'refund_delivered' as Order["status"];
+        }
+
+        // COR-3: report a status change that has no legitimate reading — an order
+        // claiming a fulfilment outcome it was never shipped for. Deliberately
+        // reported, not blocked: 60 distinct transitions occur in production in a
+        // six-month window, including corrections that look wrong but are real
+        // work, so refusing them would stop staff mid-shift.
+        if (previousOrder) {
+            const verdict = classifyTransition(previousOrder.status, status);
+            if (verdict.kind === "unusual") {
+                reportOrderError(new Error(`Unusual status transition: ${previousOrder.status} -> ${status}`), {
+                    operation: "orders-unusual-status-transition",
+                    orderId,
+                    extra: { from: previousOrder.status, to: status, reason: verdict.reason },
+                });
+            }
         }
 
         // Record to undo stack
