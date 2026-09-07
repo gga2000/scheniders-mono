@@ -1,11 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { formatPhoneForDisplay, validatePhoneDetailed } from "@/lib/order-utils";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle } from "lucide-react";
+import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import type { OrderStatus } from "@/lib/supabase";
 
@@ -30,6 +31,22 @@ export function OrderCustomerCard({
 }: OrderCustomerCardProps) {
     const { t } = useLanguage();
     const governorates = getAllGovernorateCodes();
+
+    // An order cannot have been placed in the future — the database rejects it too.
+    // Postponing is `scheduled_date`, not a forward-dated `created_at`.
+    // Re-read the clock each time the card enters edit mode.
+    const latestSelectableOrderDate = useMemo(() => (isEditing ? new Date() : null), [isEditing]);
+
+    const scheduledDate: string | null = (
+        isEditing && formData.scheduled_date !== undefined ? formData.scheduled_date : order?.scheduled_date
+    ) || null;
+
+    const dayKey = (date: Date) => date.toLocaleDateString("en-CA");
+    const scheduleInDays = (days: number) => {
+        const target = new Date();
+        target.setDate(target.getDate() + days);
+        updateFormData("scheduled_date", dayKey(target));
+    };
 
     const displayValue = (key: string) => {
         if (isEditing && formData[key] !== undefined) {
@@ -381,17 +398,23 @@ export function OrderCustomerCard({
                             {t("orderDetail.orderDate")}
                             {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                 <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
-                                    Modified
+                                    {t("orderDetail.dateCorrected")}
                                 </span>
                             )}
                         </span>
                         {isEditing ? (
-                            <DateTimePicker
-                                value={displayValue("created_at") as string}
-                                onChange={(isoString) => updateFormData("created_at", isoString)}
-                                showTime={true}
-                                className="h-[38px]"
-                            />
+                            <>
+                                <DateTimePicker
+                                    value={displayValue("created_at") as string}
+                                    onChange={(isoString) => updateFormData("created_at", isoString)}
+                                    showTime={true}
+                                    maxDate={latestSelectableOrderDate}
+                                    className="h-[38px]"
+                                />
+                                <p className="mt-1 text-[10px] leading-tight text-muted">
+                                    {t("orderDetail.orderDateHint")}
+                                </p>
+                            </>
                         ) : (
                             <div className={cn(
                                 "min-h-[38px] py-1 flex flex-col justify-center px-3 rounded-lg transition-all",
@@ -616,6 +639,67 @@ export function OrderCustomerCard({
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Scheduled For - the postpone control. Keeps the placement date honest. */}
+                <div className="border-t border-gray-100 pt-3 mt-1">
+                    <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1.5">
+                        <CalendarClock className="h-3 w-3" />
+                        {t("orderDetail.scheduledFor")}
+                    </span>
+                    {isEditing ? (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="sm:w-56">
+                                <DateTimePicker
+                                    value={scheduledDate ? `${scheduledDate}T00:00:00` : null}
+                                    onChange={(isoString) => updateFormData("scheduled_date", dayKey(new Date(isoString)))}
+                                    showTime={false}
+                                    className="h-[38px]"
+                                />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => scheduleInDays(1)}
+                                    className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                >
+                                    {t("orderDetail.tomorrow")}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => scheduleInDays(3)}
+                                    className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                >
+                                    {t("orderDetail.inThreeDays")}
+                                </button>
+                                {scheduledDate && (
+                                    <button
+                                        type="button"
+                                        onClick={() => updateFormData("scheduled_date", null)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-muted hover:bg-gray-100 transition-colors"
+                                    >
+                                        <X className="w-3 h-3" />
+                                        {t("orderDetail.clearSchedule")}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="min-h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            {scheduledDate ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(`${scheduledDate}T00:00:00`).toLocaleDateString("en-GB", {
+                                        weekday: "short",
+                                        day: "numeric",
+                                        month: "short"
+                                    })}
+                                </span>
+                            ) : (
+                                <span className="text-sm text-muted">{t("orderDetail.notScheduled")}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

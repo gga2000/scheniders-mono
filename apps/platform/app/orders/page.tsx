@@ -11,6 +11,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
+import { getScheduledState } from "@/lib/order-format-utils";
 import { getBaseOrderId } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
@@ -713,6 +714,13 @@ export default function OrdersPage() {
             // Priority: Pinned first
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
+
+            // Orders parked for a future day are not today's work. They sink below
+            // the live queue instead of riding the top of the list, which is what
+            // happened while postponing meant forward-dating created_at.
+            const aParked = getScheduledState(a.scheduled_date) === "future";
+            const bParked = getScheduledState(b.scheduled_date) === "future";
+            if (aParked !== bParked) return aParked ? 1 : -1;
 
             // Multi-column sort
             for (const sc of activeSorts) {

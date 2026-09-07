@@ -3,10 +3,10 @@
 import React, { memo } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
-import { formatShortDate, formatTime, getOrderAge, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
+import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getScheduledState, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
-import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, Calendar, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { cn, getStatusLabel } from "@/lib/utils";
 import { RiskBadge } from "@/components/orders/risk-badge";
@@ -58,6 +58,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     const governorateCode = getGovernorateCode(order);
     const fullAddress = getFullAddress(order.city, order.address_details);
     const orderAge = getOrderAge(order.created_at);
+    const scheduledState = getScheduledState(order.scheduled_date);
 
     // If not explicitly passed, try to extract from order object if available
     const resolvedRiskLevel = riskLevel || order.risk_data?.level;
@@ -302,6 +303,12 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                             <span>{orderAge}</span>
                             <Clock className="w-3.5 h-3.5" />
                         </div>
+                        {scheduledState && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
+                                <Calendar className="w-3 h-3" />
+                                {formatScheduledDate(order.scheduled_date)}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>

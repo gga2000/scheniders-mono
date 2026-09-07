@@ -58,6 +58,18 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
         try {
             const dataToSave = { ...formData };
 
+            // An order cannot have been placed in the future. Postponing one is
+            // `scheduled_date`; a forward-dated `created_at` corrupts age badges,
+            // urgency colours, the default sort and every report keyed on it.
+            // The database enforces the same rule — this just fails it kindly.
+            if (dataToSave.created_at) {
+                const picked = new Date(dataToSave.created_at as string).getTime();
+                if (!Number.isNaN(picked) && picked > Date.now() + 60_000) {
+                    toast.error(t("toast.saveFailed"), t("orderDetail.futureDateBlocked"));
+                    return;
+                }
+            }
+
             // Only send created_at if it was actually changed
             if (dataToSave.created_at && dataToSave.created_at !== order.created_at) {
                 // Preserve the original date so UI can show "date edited" badge

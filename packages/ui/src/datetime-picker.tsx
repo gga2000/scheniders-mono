@@ -19,6 +19,10 @@ interface DateTimePickerProps {
     label?: string;
     showTime?: boolean;
     className?: string;
+    /** Latest selectable instant. Days past it are disabled and a selection is clamped to it. */
+    maxDate?: Date | null;
+    /** Earliest selectable instant. */
+    minDate?: Date | null;
 }
 
 const MONTHS_AR = [
@@ -32,7 +36,9 @@ export function DateTimePicker({
     value,
     onChange,
     showTime = true,
-    className
+    className,
+    maxDate = null,
+    minDate = null
 }: DateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<"date" | "time">("date");
@@ -101,10 +107,31 @@ export function DateTimePicker({
         }
     }, [viewMonth]);
 
+    const maxTime = maxDate ? maxDate.getTime() : null;
+    const minTime = minDate ? minDate.getTime() : null;
+
+    /** A whole day is unreachable only when it falls entirely outside the range. */
+    const isDayDisabled = useCallback((day: number) => {
+        const dayStart = new Date(viewYear, viewMonth, day, 0, 0, 0, 0).getTime();
+        const dayEnd = new Date(viewYear, viewMonth, day, 23, 59, 59, 999).getTime();
+        if (maxTime !== null && dayStart > maxTime) return true;
+        if (minTime !== null && dayEnd < minTime) return true;
+        return false;
+    }, [viewYear, viewMonth, maxTime, minTime]);
+
+    /** Pull a selection back inside the range so the picker cannot emit a value it disallows. */
+    const clampToRange = useCallback((date: Date) => {
+        let time = date.getTime();
+        if (maxTime !== null && time > maxTime) time = maxTime;
+        if (minTime !== null && time < minTime) time = minTime;
+        return new Date(time);
+    }, [maxTime, minTime]);
+
     // Day selection
     const selectDay = useCallback((day: number, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        if (isDayDisabled(day)) return;
         setSelectedDay(day);
 
         if (showTime) {
@@ -112,11 +139,11 @@ export function DateTimePicker({
             setMode("time");
         } else {
             // If no time picker, confirm immediately
-            const newDate = new Date(viewYear, viewMonth, day, selectedHour, selectedMinute);
+            const newDate = clampToRange(new Date(viewYear, viewMonth, day, selectedHour, selectedMinute));
             onChange(newDate.toISOString());
             setIsOpen(false);
         }
-    }, [showTime, viewYear, viewMonth, selectedHour, selectedMinute, onChange]);
+    }, [showTime, viewYear, viewMonth, selectedHour, selectedMinute, onChange, isDayDisabled, clampToRange]);
 
     // Quick select today
     const selectToday = useCallback((e: React.MouseEvent) => {
@@ -134,10 +161,10 @@ export function DateTimePicker({
     const confirmSelection = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const finalDate = new Date(viewYear, viewMonth, selectedDay, selectedHour, selectedMinute);
+        const finalDate = clampToRange(new Date(viewYear, viewMonth, selectedDay, selectedHour, selectedMinute));
         onChange(finalDate.toISOString());
         setIsOpen(false);
-    }, [viewYear, viewMonth, selectedDay, selectedHour, selectedMinute, onChange]);
+    }, [viewYear, viewMonth, selectedDay, selectedHour, selectedMinute, onChange, clampToRange]);
 
     // AM/PM toggle
     const setAM = useCallback((e: React.MouseEvent) => {
@@ -325,13 +352,16 @@ export function DateTimePicker({
                                                         <button
                                                             type="button"
                                                             onClick={(e) => selectDay(day, e)}
+                                                            disabled={isDayDisabled(day)}
                                                             className={cn(
                                                                 "w-full h-full rounded-lg text-sm font-medium transition-all",
-                                                                selectedDay === day && viewMonth === (value ? new Date(value).getMonth() : viewMonth)
-                                                                    ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200"
-                                                                    : isToday(day)
-                                                                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                                                        : "hover:bg-gray-100 text-foreground"
+                                                                isDayDisabled(day)
+                                                                    ? "text-gray-300 cursor-not-allowed"
+                                                                    : selectedDay === day && viewMonth === (value ? new Date(value).getMonth() : viewMonth)
+                                                                        ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200"
+                                                                        : isToday(day)
+                                                                            ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                                                            : "hover:bg-gray-100 text-foreground"
                                                             )}
                                                         >
                                                             {day}

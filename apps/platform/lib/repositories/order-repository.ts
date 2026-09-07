@@ -21,6 +21,7 @@ const LIST_VIEW_COLUMNS = `
   created_at,
   updated_at,
   original_created_at,
+  scheduled_date,
   order_id,
   customer_name,
   phone,

@@ -18,7 +18,7 @@ import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, 
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
-import { formatShortDate, formatTime, getOrderAge, getAgeUrgency, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
+import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
@@ -212,7 +212,9 @@ export const OrderCard = memo(function OrderCard({
     }, [actionsOpen]);
 
     const orderAge = getOrderAge(order.created_at);
-    const ageUrgency = getAgeUrgency(order.status, order.created_at);
+    const scheduledState = getScheduledState(order.scheduled_date);
+    const ageUrgency = getAgeUrgency(order.status, order.created_at, order.scheduled_date);
+    const scheduledLabel = formatScheduledDate(order.scheduled_date);
 
     // Time-based follow-up cue — based on order creation time (how long customer has been waiting)
     /* eslint-disable react-hooks/purity */
@@ -606,6 +608,15 @@ export const OrderCard = memo(function OrderCard({
                                     <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
                                         Was: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
                                     </span>
+                                </span>
+                            )}
+                            {scheduledState && (
+                                <span className={cn(
+                                    "inline-flex items-center gap-0.5 px-1 py-0.5 text-[8px] font-bold rounded",
+                                    scheduledState === "future" ? "bg-blue-100 text-blue-700" : "bg-blue-50 text-blue-600"
+                                )}>
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    {scheduledLabel}
                                 </span>
                             )}
                             {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse ml-auto" />}
@@ -1228,11 +1239,28 @@ export const OrderCard = memo(function OrderCard({
                                     ageUrgency === "attention" && "bg-yellow-100 text-yellow-700",
                                     ageUrgency === "urgent" && "bg-orange-100 text-orange-700 animate-pulse",
                                     ageUrgency === "stale" && "bg-red-100 text-red-700 animate-pulse",
+                                    ageUrgency === "scheduled" && "bg-slate-100 text-slate-600",
                                     ageUrgency === "none" && "bg-gray-100 text-gray-500"
                                 )}>
                                     <Clock className="w-3 h-3" />
                                     {orderAge}
                                 </span>
+
+                                {/* Parked for a later day - not overdue work */}
+                                {scheduledState && (
+                                    <span
+                                        className={cn(
+                                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold",
+                                            scheduledState === "future"
+                                                ? "bg-blue-100 text-blue-700"
+                                                : "bg-blue-50 text-blue-600"
+                                        )}
+                                        title="مجدول لـ"
+                                    >
+                                        <Calendar className="w-3 h-3" />
+                                        {scheduledLabel}
+                                    </span>
+                                )}
                             </div>
                         )}
 
@@ -1368,14 +1396,6 @@ export const OrderCard = memo(function OrderCard({
                                     );
                                 }
                             })()}
-
-                            {/* Scheduled Date - hidden in semi-compact */}
-                            {compact === 0 && order.scheduled_date && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(order.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                </span>
-                            )}
 
                             {/* Return Indicator - hidden in semi-compact */}
                             {compact === 0 && !isReturn && hasRefund && returnOrderInfo && (
