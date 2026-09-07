@@ -521,6 +521,13 @@ export interface StageTimeMetric {
     label: string;
     avgHours: number;
     sampleSize: number;
+    /**
+     * Rows the average had to discard: impossible durations (delivered before
+     * created) and >30-day outliers. DQ-D1 — 16 such rows exist on the audited
+     * tenant. Dropping them is right; dropping them SILENTLY is what made a
+     * shrinking sample invisible.
+     */
+    excluded?: number;
 }
 
 export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
@@ -532,6 +539,7 @@ export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
         (parseUtcNaiveTimestamp(o.delivered_at!).getTime() - new Date(o.created_at).getTime()) / (1000 * 60 * 60)
     ).filter(h => h >= 0 && h < 24 * 30); // exclude outliers > 30 days; h>=0 admits same-instant cycles
 
+    const cycleExcluded = delivered.length - cycleTimes.length;
     const avgCycle = cycleTimes.length > 0
         ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length
         : 0;
@@ -558,7 +566,7 @@ export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
         : 0;
 
     return [
-        { label: 'New → Delivered (full cycle)', avgHours: avgCycle, sampleSize: cycleTimes.length },
+        { label: 'New → Delivered (full cycle)', avgHours: avgCycle, sampleSize: cycleTimes.length, excluded: cycleExcluded },
         { label: 'Pending response (avg age)', avgHours: avgPending, sampleSize: pendingTimes.length },
         { label: 'In transit (avg wait)', avgHours: avgTransit, sampleSize: transitTimes.length },
     ];

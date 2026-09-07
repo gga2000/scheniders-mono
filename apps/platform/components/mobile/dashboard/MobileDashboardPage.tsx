@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -13,9 +14,13 @@ import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { Plus } from "lucide-react";
 
 import { MobileDashboardCards } from "./MobileDashboardCards";
+import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
+import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
+import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 
 const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgency-triad").then(mod => ({ default: mod.UrgencyTriad })), { ssr: false });
+const DeliverySuccessRate = dynamic(() => import("@/components/dashboard/widgets/delivery-success-rate").then(mod => ({ default: mod.DeliverySuccessRate })), { ssr: false });
 // ProfitPulse removed — data source no longer in useDashboardMetrics
 
 export function MobileDashboardPage() {
@@ -29,6 +34,7 @@ export function MobileDashboardPage() {
     const usingLocalFallback = !serverMetrics && !!clientMetrics;   // ENG-D1
     const { t } = useLanguage();
     const { profile } = useAuth();
+    const router = useRouter();
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -83,8 +89,29 @@ export function MobileDashboardPage() {
                     </div>
                 )}
 
+                {/* MOB-D1: today's numbers, the pipeline and the delivery rate were
+                    missing from mobile entirely — classified in the audit as
+                    accidental holes rather than deliberate simplification. All three
+                    already ship mobile layouts (OrderPipeline has had a `md:hidden`
+                    stacked list that nothing rendered) and are fed by the same server
+                    metrics as desktop, so there is no second calculation to drift. */}
+                <WidgetBoundary label="mobile-today-strip">
+                    <TodayStrip metrics={dashboardMetrics.todayStrip} />
+                </WidgetBoundary>
+
                 {/* 1. Mobile Cards */}
                 <MobileDashboardCards stats={stats} />
+
+                <WidgetBoundary label="mobile-order-pipeline">
+                    <OrderPipeline
+                        stages={dashboardMetrics.pipeline}
+                        onStageClick={(status) => router.push(`/orders?status=${status}`)}
+                    />
+                </WidgetBoundary>
+
+                <WidgetBoundary label="mobile-delivery-rate">
+                    <DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} />
+                </WidgetBoundary>
 
                 {/* 2. Urgency Triad */}
                 <div className="space-y-3">
