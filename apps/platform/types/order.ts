@@ -107,6 +107,12 @@ export interface Order {
     sequence_number?: number;
     delivered_at?: string;
     cancelled_at?: string;
+    /**
+     * Set by the `trg_order_completed_at` trigger when an order reaches
+     * `completed`. Used as the fallback realized-revenue instant for rows that
+     * completed without a recorded delivery (see lib/order-revenue).
+     */
+    completed_at?: string;
     printed_at?: string;
     print_count?: number;
     last_batch_id?: string;

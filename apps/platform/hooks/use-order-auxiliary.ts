@@ -5,6 +5,13 @@ import { supabase, type Order, type RejectionReason, type MessageTemplate } from
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { computeCustomerOrderCounts, findOrderDuplicates } from "@/lib/order-duplicates";
+import {
+    sumRealizedRevenue,
+    sumRealizedRevenueForDay,
+    countRealizedForDay,
+    todayBaghdadDayKey,
+    recentBaghdadDayKeys,
+} from "@/lib/order-revenue";
 
 // =============================================
 // ORDER AUXILIARY HOOK
@@ -156,22 +163,17 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
     // =============================================
 
     const revenueTrends = useMemo(() => {
-        const trends: { date: string; revenue: number; orders: number }[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            const dateStr = date.toDateString();
-            const dayOrders = orders.filter(o => new Date(o.created_at).toDateString() === dateStr);
-            const dayRevenue = dayOrders
-                .filter(o => (o.status === "delivered" || o.status === "confirmed") && !o.is_return)
-                .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-            trends.push({
-                date: date.toLocaleDateString("en-US", { weekday: "short" }),
-                revenue: dayRevenue,
-                orders: dayOrders.length,
-            });
-        }
-        return trends;
+        // Bucketed on the Baghdad day the revenue was realized, not the day the
+        // order was created, and no longer counting `confirmed` — an order that
+        // has not shipped — as revenue. See lib/order-revenue for the numbers.
+        return recentBaghdadDayKeys(7).map(dayKey => ({
+            date: new Date(`${dayKey}T00:00:00.000Z`).toLocaleDateString("en-GB", {
+                weekday: "short",
+                timeZone: "UTC",
+            }),
+            revenue: sumRealizedRevenueForDay(orders, dayKey),
+            orders: countRealizedForDay(orders, dayKey),
+        }));
     }, [orders]);
 
     const velocityMetrics = useMemo(() => {
@@ -214,19 +216,13 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
             const today = new Date().toDateString();
             return new Date(o.created_at).toDateString() === today;
         }).length,
-        totalRevenue: orders
-            .filter((o) => o.status === "delivered" && !o.is_return)
-            .reduce((sum, o) => sum + (Number(o.price) || 0), 0),
-        todayRevenue: orders
-            .filter((o) => {
-                const today = new Date().toDateString();
-                return (
-                    new Date(o.created_at).toDateString() === today &&
-                    o.status === "delivered" &&
-                    !o.is_return
-                );
-            })
-            .reduce((sum, o) => sum + (Number(o.price) || 0), 0),
+        // One realized-revenue definition, shared with the profit engine: goods
+        // delivered or completed, returns excluded. Previously `delivered` only,
+        // which dropped every order that had moved on to `completed`.
+        totalRevenue: sumRealizedRevenue(orders),
+        // Bucketed on the Baghdad day the money was earned. Bucketing on
+        // `created_at` put 23.3% of a 30-day period's revenue on the wrong day.
+        todayRevenue: sumRealizedRevenueForDay(orders, todayBaghdadDayKey()),
         averageOrderValue:
             orders.length > 0
                 ? orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0) / orders.length

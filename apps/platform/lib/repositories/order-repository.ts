@@ -53,7 +53,9 @@ const LIST_VIEW_COLUMNS = `
   needs_attention,
   attention_reasons,
   last_status_changed_by_name,
-  last_status_changed_by_avatar
+  last_status_changed_by_avatar,
+  delivered_at,
+  completed_at
 `.trim();
 
 /**
