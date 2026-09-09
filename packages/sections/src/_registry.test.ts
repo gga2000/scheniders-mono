@@ -86,12 +86,13 @@ const EXPECTED_TYPES = [
   "countdown_announcement",
   "pdp_direct_order",
   "product_attributes",
+  "product_finder",
 ];
 
 describe("section registry", () => {
-  it("registers exactly 62 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(62);
-    expect(listSections()).toHaveLength(62);
+  it("registers exactly 63 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(63);
+    expect(listSections()).toHaveLength(63);
   });
 
   it("each section's defaultProps validates against its own schema", () => {

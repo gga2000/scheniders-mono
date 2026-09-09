@@ -92,6 +92,7 @@ import faq_contact_split from "./faq_contact_split";
 import countdown_announcement from "./countdown_announcement";
 import pdp_direct_order from "./pdp_direct_order";
 import product_attributes from "./product_attributes";
+import product_finder from "./product_finder";
 
 export { getSection, listSections, registerSection } from "./_registry";
 export type {
@@ -173,6 +174,7 @@ export const BUILTIN_SECTIONS = [
   countdown_announcement,
   pdp_direct_order,
   product_attributes,
+  product_finder,
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";
