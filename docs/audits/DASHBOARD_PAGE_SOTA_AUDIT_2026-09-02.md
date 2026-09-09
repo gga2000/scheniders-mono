@@ -212,6 +212,8 @@ Severity: **P0** blocker · **P1** launch-blocking · **P2** should-fix · **P3*
 - **Approval status:** PENDING
 
 #### [COR-D3] Every delivery-cycle time is 3 hours short, and fast deliveries are silently deleted from the average
+
+> **⚠️ The premise of this finding is FALSE and its fix introduced a worse defect. See the COR-D3 second correction (R23) below before reading further.**
 - **Dimension:** D1/D2 · **Pillar:** P1/P2 · **Severity:** P1 · *(inherits Orders COR-8 — dashboard **amplifies**: it does tz-mixed arithmetic on the column)*
 - **Location:** RPC `cycle_times` (`delivered_at - c_local`) + `cycle_agg` (`WHERE h > 0`); client `dashboard-calculations.ts:414-416` (same class via JS date parsing)
 - **Evidence:** `delivered_at` is `timestamp WITHOUT time zone` storing UTC instants — verified: on sampled delivered rows `delivered_at` equals `updated_at`'s UTC value exactly (`2026-09-01 22:00:00.344756` vs `…+00`). The RPC subtracts it from `c_local` (Baghdad, UTC+3): every duration computes **3 h short**, and a true cycle under 3 h computes negative → excluded by `h > 0` → the fastest deliveries vanish from the sample. UI avg 252.99 h ⇒ truth 255.99 h.
@@ -511,6 +513,16 @@ Approved scope: **REL-D1 only.** Commits `3a72b5cc` and `01c76999` on `fix/store
 **New finding raised, deliberately NOT fixed:** **SEC-D4 (P2)** — announcement writes are admin-gated client-side only; the live `tenant_isolation_*` policies on `announcements` carry no role predicate (the original admin policies were dropped by the 2026-04-06 migrations), so any authenticated tenant member can post, unpin or soft-delete via PostgREST. Same class as SEC-D2. Needs a policy migration and its own approval.
 
 > **COR-D3 correction (R5):** this report predicted the cycle-time average would rise from 252.99 h to 255.99 h. Measured after the fix it is **253.51 h over n=1,858** (was n=1,840): every row does gain exactly 3 h, but the same fix readmits 18 sub-3-hour deliveries that the `h > 0` guard had been discarding, and the two effects partly cancel.
+
+> **COR-D3 SECOND CORRECTION (R23) — the fix itself was wrong.** The premise was false: `orders.delivered_at` is **`timestamp WITH time zone`**, like every sibling column, not `timestamp WITHOUT time zone` holding a UTC instant. Verified twice — in `pg_attribute`, and in the payload PostgREST actually serialises (`"2026-03-16T12:25:12.848+00:00"`). The SQL fix therefore wrapped a timestamptz in `AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Baghdad'`, which shifts it **-3 h**, and comparing the resulting timestamptz against the function's naive Baghdad timestamps forced an implicit cast through the **session TimeZone** for a further **-3 h** — a wrong answer that also varied with connection state.
+>
+> Measured on live data (all tenants): the shift is **exactly -6.0000 h on every row** (min = max). A delivery 1.67 h after creation was recorded as **-4.33 h**, and the `h >= 0` guard then discarded every sub-6h delivery — **474 rows excluded where 91 is correct, 383 real deliveries silently dropped**. Cycle average 128.50 h → **122.81 h** (n 3,939 → 4,322).
+>
+> **COR-D1's revenue shares the same expression** through `r_local`: revenue **today 98,000 → 238,000 IQD (understated by 59%)**, month 440,750 → 464,750 IQD, and **1,924 of 5,227 realized orders (37%) were bucketed to the wrong day**.
+>
+> The **client engine was never wrong** — `parseUtcNaiveTimestamp` always took its "already zoned" branch, so it was a no-op on real data. Only the SQL diverged. Fixed in migration `20260909104500`; post-fix the RPC reconciles exactly with independent SQL (cycle 253.4046 = 253.4046, excluded 88, n 1,859, month revenue 44,750).
+>
+> **Why it hid for four days:** the dev-only drift check sampled only metrics keyed on `created_at`. Every sampled figure stayed green while the two engines disagreed about every event-timed number. It now also samples realized revenue and cycle time.
 
 ---
 
