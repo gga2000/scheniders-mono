@@ -281,6 +281,41 @@ export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): O
     return orders.filter(o => new Date(o.created_at) >= cutoff);
 }
 
+/**
+ * COR-D1 — when an order's money was actually realized.
+ *
+ * Revenue used to count `confirmed` orders bucketed by order date: a promise, not
+ * a collection. In COD Iraq a confirmed order can still be refused at the door, so
+ * the dashboard booked revenue at promise time and quietly un-booked it later.
+ * Realized revenue is delivered/completed orders, dated by when they were realized.
+ *
+ * `delivered_at` is UTC-naive (COR-D3), `completed_at` carries a zone. Returns null
+ * when neither exists — true only of pre-2026 legacy imports on this data, none of
+ * which fall inside any window the dashboard shows.
+ */
+export function realizedAt(o: Order): Date | null {
+    const delivered = (o as { delivered_at?: string | null }).delivered_at;
+    if (delivered) return parseUtcNaiveTimestamp(delivered);
+    const completed = (o as { completed_at?: string | null }).completed_at;
+    if (completed) return new Date(completed);
+    return null;
+}
+
+/** Orders whose money is realized, i.e. actually collected. */
+export function isRealizedRevenue(o: Order): boolean {
+    return o.status === 'delivered' || o.status === 'completed';
+}
+
+/** Sum of realized revenue in [start, end). */
+export function realizedRevenueBetween(orders: Order[], start: Date, end?: Date): number {
+    return orders.reduce((sum, o) => {
+        if (!isRealizedRevenue(o)) return sum;
+        const at = realizedAt(o);
+        if (!at || at < start || (end && at >= end)) return sum;
+        return sum + Number(o.price);
+    }, 0);
+}
+
 // =============================================
 // Today at a Glance Strip
 // =============================================
@@ -307,12 +342,11 @@ export function calculateTodayStrip(orders: Order[]): TodayStripMetrics {
         return d >= yesterdayStart && d < todayStart;
     });
 
-    const isRevenue = (o: Order) => o.status === 'confirmed' || o.status === 'delivered' || o.status === 'completed';
-
     const ordersToday = todayOrders.length;
     const ordersYesterday = yesterdayOrders.length;
-    const revenueToday = todayOrders.filter(isRevenue).reduce((s, o) => s + Number(o.price), 0);
-    const revenueYesterday = yesterdayOrders.filter(isRevenue).reduce((s, o) => s + Number(o.price), 0);
+    // COR-D1: revenue is what was realized in the window, not what was ordered in it.
+    const revenueToday = realizedRevenueBetween(orders, todayStart);
+    const revenueYesterday = realizedRevenueBetween(orders, yesterdayStart, todayStart);
 
     const ordersDelta = ordersToday - ordersYesterday;
     const revenueDelta = revenueToday - revenueYesterday;
@@ -394,9 +428,7 @@ export function calculateRevenueTrend(orders: Order[], days: 7 | 14 | 30, locale
             return d >= day && d < next;
         });
 
-        const revenue = dayOrders
-            .filter(o => ['confirmed', 'delivered', 'completed'].includes(o.status))
-            .reduce((s, o) => s + Number(o.price), 0);
+        const revenue = realizedRevenueBetween(orders, day, next);   // COR-D1
 
         let label: string;
         if (days === 7) {
@@ -603,9 +635,9 @@ export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
         return Math.round((terminal.filter(o => ['delivered', 'completed'].includes(o.status)).length / terminal.length) * 100);
     };
 
-    const revenue = (set: Order[]) =>
-        set.filter(o => ['confirmed', 'delivered', 'completed'].includes(o.status))
-           .reduce((s, o) => s + Number(o.price), 0);
+    // COR-D1: realized revenue, windowed on when it was realized.
+    const currRevenue = realizedRevenueBetween(orders, weekAgo);
+    const prevRevenue = realizedRevenueBetween(orders, twoWeeksAgo, weekAgo);
 
     const pct = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : null;
 
@@ -613,9 +645,6 @@ export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
     const prevOrders = previous.length;
     const currRate = deliveryRate(current);
     const prevRate = deliveryRate(previous);
-    const currRevenue = revenue(current);
-    const prevRevenue = revenue(previous);
-
     return [
         {
             label: 'Orders',
@@ -670,9 +699,7 @@ export function calculateMonthForecast(orders: Order[]): MonthForecast {
 
     const monthOrders = orders.filter(o => new Date(o.created_at) >= monthStart);
     const ordersThisMonth = monthOrders.length;
-    const revenueThisMonth = monthOrders
-        .filter(o => ['confirmed', 'delivered', 'completed'].includes(o.status))
-        .reduce((s, o) => s + Number(o.price), 0);
+    const revenueThisMonth = realizedRevenueBetween(orders, monthStart);   // COR-D1
 
     const ordersPerDay = ordersThisMonth / daysElapsed;
     const projectedOrders = Math.round(ordersPerDay * daysInMonth);
