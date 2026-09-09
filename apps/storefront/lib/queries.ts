@@ -142,6 +142,60 @@ async function withPriceTiers(
 }
 
 /**
+ * Add-on offers attached to one product. PDP only, like tiers — and like
+ * tiers, the checkout server re-reads them rather than trusting the browser.
+ */
+async function withOrderBumps(
+  supabase: PublicClient,
+  tenantId: string,
+  product: Product,
+): Promise<Product> {
+  const { data, error } = await supabase
+    .from("product_order_bumps")
+    .select("product_id, bump_product_id, discount_percentage, headline, description, is_active, display_order")
+    .eq("tenant_id", tenantId)
+    .eq("product_id", product.id)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    console.error("[queries.withOrderBumps]", error);
+    return product;
+  }
+  if (!data || data.length === 0) return product;
+
+  // Resolve the offered products here rather than hoping they appear in
+  // whatever page-level product list the section happens to receive — that
+  // list is capped, so a bump pointing at product #40 would silently never
+  // render. Only public, in-stock products are offered.
+  const bumpIds = [...new Set(data.map((b) => b.bump_product_id))];
+  const { data: bumpProducts } = await supabase
+    .from("products")
+    .select(
+      "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at",
+    )
+    .in("id", bumpIds)
+    .eq("tenant_id", tenantId)
+    .eq("is_visible", true)
+    .eq("is_archived", false)
+    .not("is_supply", "is", true);
+
+  return {
+    ...product,
+    order_bumps: data.map((b) => ({
+      product_id: b.product_id,
+      bump_product_id: b.bump_product_id,
+      discount_percentage: Number(b.discount_percentage),
+      headline: b.headline,
+      description: b.description,
+      is_active: b.is_active,
+      display_order: b.display_order,
+    })),
+    order_bump_products: (bumpProducts ?? []).map(normalizeProduct),
+  };
+}
+
+/**
  * Attach merchant-defined attributes to a batch of products in ONE extra
  * indexed query, mirroring `withReviewStats`. Products with no values pass
  * through untouched, so `attributes` stays absent rather than empty — a
@@ -281,7 +335,9 @@ export const getProductBySlug = cache(
       const withStats = async (row: Record<string, unknown>) => {
         const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
         const enriched = (await withAttributes(supabase, tenantId, withReviews))[0] ?? null;
-        return enriched ? withPriceTiers(supabase, tenantId, enriched) : null;
+        if (!enriched) return null;
+        const withTiers = await withPriceTiers(supabase, tenantId, enriched);
+        return withOrderBumps(supabase, tenantId, withTiers);
       };
 
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();

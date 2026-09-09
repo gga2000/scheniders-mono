@@ -17,6 +17,7 @@ export * from "./locale";
 export * from "./loyalty";
 export * from "./pixel";
 export * from "./price-tiers";
+export * from "./order-bumps";
 export * from "./product-attribute";
 export * from "./product-finder";
 export * from "./preview-token";
