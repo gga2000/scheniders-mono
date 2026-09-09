@@ -103,9 +103,19 @@ function selectAuto(
       (p) => p.compare_at_price != null && p.compare_at_price > p.price,
     );
   } else if (query?.sort === "bestsellers") {
-    // P2-6: flagged bestsellers first, then the merchant's display_order.
+    // P2-6: real sales rank first (1 = best seller over the trailing 180
+    // days of fulfilled orders, maintained in the database), then the
+    // merchandising flag, then the merchant's display_order for everything
+    // that never sold. Unranked products sort after ranked ones instead of
+    // ahead of them, so a heading that claims "best sellers" shows the
+    // products that actually sold.
+    const rank = (p: Product) =>
+      typeof p.bestseller_rank === "number" && p.bestseller_rank > 0
+        ? p.bestseller_rank
+        : Number.POSITIVE_INFINITY;
     pool.sort(
       (a, b) =>
+        rank(a) - rank(b) ||
         Number(b.is_bestseller ?? false) - Number(a.is_bestseller ?? false) ||
         (a.display_order ?? 0) - (b.display_order ?? 0),
     );

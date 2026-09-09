@@ -956,6 +956,13 @@ export type Database = {
             foreignKeyName: "chat_conversations_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "v_orders_with_risk"
             referencedColumns: ["id"]
           },
@@ -2519,6 +2526,13 @@ export type Database = {
             foreignKeyName: "follow_up_reminders_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "follow_up_reminders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "v_orders_with_risk"
             referencedColumns: ["id"]
           },
@@ -2682,6 +2696,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_ledger_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "inventory_ledger_order_id_fkey"
@@ -3272,6 +3293,13 @@ export type Database = {
             foreignKeyName: "order_notes_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "v_orders_with_risk"
             referencedColumns: ["id"]
           },
@@ -3453,6 +3481,13 @@ export type Database = {
             foreignKeyName: "order_status_history_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "v_orders_with_risk"
             referencedColumns: ["id"]
           },
@@ -3541,6 +3576,7 @@ export type Database = {
           waseet_qr_link: string | null
           waseet_status_id: number | null
           waseet_status_text: string | null
+          waseet_submit_started_at: string | null
           waseet_submitted_at: string | null
           whatsapp_link: string | null
         }
@@ -3619,6 +3655,7 @@ export type Database = {
           waseet_qr_link?: string | null
           waseet_status_id?: number | null
           waseet_status_text?: string | null
+          waseet_submit_started_at?: string | null
           waseet_submitted_at?: string | null
           whatsapp_link?: string | null
         }
@@ -3697,6 +3734,7 @@ export type Database = {
           waseet_qr_link?: string | null
           waseet_status_id?: number | null
           waseet_status_text?: string | null
+          waseet_submit_started_at?: string | null
           waseet_submitted_at?: string | null
           whatsapp_link?: string | null
         }
@@ -4513,6 +4551,7 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
+          bestseller_rank: number | null
           booking_enabled: boolean
           category_id: string | null
           compare_at_price: number | null
@@ -4524,8 +4563,8 @@ export type Database = {
           display_order: number
           download_url: string | null
           duration_minutes: number | null
-          file_size: string | null
           feature_cards: Json
+          file_size: string | null
           gallery_urls: Json
           id: string
           image_url: string | null
@@ -4542,6 +4581,7 @@ export type Database = {
           reorder_point: number | null
           reserved_quantity: number
           short_description: string | null
+          short_name: string | null
           sku: string | null
           slug: string | null
           status: string
@@ -4554,6 +4594,7 @@ export type Database = {
         }
         Insert: {
           barcode?: string | null
+          bestseller_rank?: number | null
           booking_enabled?: boolean
           category_id?: string | null
           compare_at_price?: number | null
@@ -4565,8 +4606,8 @@ export type Database = {
           display_order?: number
           download_url?: string | null
           duration_minutes?: number | null
-          file_size?: string | null
           feature_cards?: Json
+          file_size?: string | null
           gallery_urls?: Json
           id?: string
           image_url?: string | null
@@ -4583,6 +4624,7 @@ export type Database = {
           reorder_point?: number | null
           reserved_quantity?: number
           short_description?: string | null
+          short_name?: string | null
           sku?: string | null
           slug?: string | null
           status?: string
@@ -4595,6 +4637,7 @@ export type Database = {
         }
         Update: {
           barcode?: string | null
+          bestseller_rank?: number | null
           booking_enabled?: boolean
           category_id?: string | null
           compare_at_price?: number | null
@@ -4606,8 +4649,8 @@ export type Database = {
           display_order?: number
           download_url?: string | null
           duration_minutes?: number | null
-          file_size?: string | null
           feature_cards?: Json
+          file_size?: string | null
           gallery_urls?: Json
           id?: string
           image_url?: string | null
@@ -4624,6 +4667,7 @@ export type Database = {
           reorder_point?: number | null
           reserved_quantity?: number
           short_description?: string | null
+          short_name?: string | null
           sku?: string | null
           slug?: string | null
           status?: string
@@ -4859,6 +4903,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qc_quarantine_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "qc_quarantine_order_id_fkey"
@@ -6080,6 +6131,13 @@ export type Database = {
             foreignKeyName: "telegram_pending_orders_confirmed_order_id_fkey"
             columns: ["confirmed_order_id"]
             isOneToOne: false
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "telegram_pending_orders_confirmed_order_id_fkey"
+            columns: ["confirmed_order_id"]
+            isOneToOne: false
             referencedRelation: "v_orders_with_risk"
             referencedColumns: ["id"]
           },
@@ -6810,6 +6868,41 @@ export type Database = {
           },
         ]
       }
+      v_order_confirmations_by_agent: {
+        Row: {
+          agent: string | null
+          day: string | null
+          orders_confirmed: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_order_time_to_confirm: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string | null
+          hours_to_confirm: number | null
+          order_id: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_orders_with_risk: {
         Row: {
           address_details: string | null
@@ -7295,9 +7388,28 @@ export type Database = {
         }
         Returns: Json
       }
+      normalize_arabic_text_for_search: {
+        Args: { _text: string }
+        Returns: string
+      }
       normalize_phone: { Args: { input_phone: string }; Returns: string }
       normalize_phone_for_search: { Args: { _phone: string }; Returns: string }
       order_base_id: { Args: { _order_id: string }; Returns: string }
+      order_search_matches: {
+        Args: {
+          _address_details: string
+          _city: string
+          _customer_name: string
+          _delivery_order_id: string
+          _notes: string
+          _order_id: string
+          _phone: string
+          _secondary_phone: string
+          _sequence_number: number
+          _term: string
+        }
+        Returns: boolean
+      }
       process_return: {
         Args: {
           _changed_by_avatar: string
@@ -7338,6 +7450,10 @@ export type Database = {
       recompute_inventory: {
         Args: { p_tenant_id?: string }
         Returns: undefined
+      }
+      refresh_bestseller_ranks: {
+        Args: { p_top_n?: number; p_window_days?: number }
+        Returns: number
       }
       refresh_customer_aggregates: { Args: never; Returns: undefined }
       risk_level_calc: {

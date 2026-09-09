@@ -325,3 +325,73 @@ describe("sticky_cta_bar — product price", () => {
     expect(render(sticky_cta_bar, props)).not.toContain("data-product-price");
   });
 });
+
+// ── Real bestseller ranking (P2-6) ──
+
+describe("product_grid bestsellers uses the real sales rank", () => {
+  function renderBestsellers(products: Product[]): string {
+    const Render = product_grid.render;
+    return renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(Render, {
+          props: {
+            ...product_grid.defaultProps,
+            mode: "auto",
+            card_style: "price_pill",
+            query: { sort: "bestsellers", limit: 10 },
+          },
+          ctx: { ...baseCtx, products },
+        } as never),
+      ),
+    );
+  }
+
+  const mk = (
+    name: string,
+    extra: Partial<Product> & { bestseller_rank?: number | null },
+  ): Product =>
+    ({
+      id: name,
+      name,
+      price: 10000,
+      stock_quantity: 5,
+      reserved_quantity: 0,
+      is_archived: false,
+      slug: name,
+      ...extra,
+    }) as Product;
+
+  it("ranks by sales, not the merchant's display order", () => {
+    // Mirrors the live store before this shipped: the manual order led with
+    // a product that had sold 13 units while the real best seller sat last.
+    const html = renderBestsellers([
+      mk("manual-first", { display_order: 1, bestseller_rank: 7 }),
+      mk("real-best", { display_order: 9, bestseller_rank: 1 }),
+      mk("mid", { display_order: 5, bestseller_rank: 3 }),
+    ]);
+    const order = ["real-best", "mid", "manual-first"].map((n) =>
+      html.indexOf(n),
+    );
+    expect(order[0]).toBeGreaterThan(-1);
+    expect(order[0]).toBeLessThan(order[1]);
+    expect(order[1]).toBeLessThan(order[2]);
+  });
+
+  it("puts never-sold products after ranked ones", () => {
+    const html = renderBestsellers([
+      mk("never-sold", { display_order: 1 }),
+      mk("sold", { display_order: 8, bestseller_rank: 2 }),
+    ]);
+    expect(html.indexOf("sold")).toBeLessThan(html.indexOf("never-sold"));
+  });
+
+  it("falls back to display_order when nothing is ranked", () => {
+    const html = renderBestsellers([
+      mk("second", { display_order: 2 }),
+      mk("first", { display_order: 1 }),
+    ]);
+    expect(html.indexOf("first")).toBeLessThan(html.indexOf("second"));
+  });
+});
