@@ -18,6 +18,20 @@ interface SwipeableOrderCardProps {
     riskAssessment?: any; // Pass through risk assessment
     // ... all other props pass through
     [key: string]: any;
+    //
+    // ARCH-D3 — this index signature is load-bearing and hides real defects. Typing
+    // it as `OrderCardProps` (attempted 2026-09-09) surfaced three immediately:
+    //   1. callers pass `order.risk_data` where OrderCard's prop type declares
+    //      `TrustAssessment`; OrderCard then reads
+    //      `historicalData.rejectedCustomerFaultCount` / `.refundCount`, which
+    //      v_orders_with_risk never supplies — so those badges cannot render;
+    //   2. `onAssignDuty` is passed with a third `employeeId` the prop type does not
+    //      declare, and OrderCard never calls it at all (zero call sites) — dead
+    //      plumbing to the mock-backed assignment system;
+    //   3. the page passes `getCustomerOrderCount`, which is not a prop OrderCard has
+    //      (it reads `customerOrderCount`) — silently ignored.
+    // Reconciling ~34 props against a 2,437-line Orders component needs that
+    // surface's owner; the findings are recorded in the dashboard audit ledger.
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -40,7 +54,7 @@ export const SwipeableOrderCard = memo(function SwipeableOrderCard(props: Swipea
     const canConfirm = order.status === "new" || order.status === "contacted";
     const canCancel = ["new", "contacted", "confirmed", "in_transit"].includes(order.status);
 
-    const handleDragEnd = async (_: any, info: PanInfo) => {
+    const handleDragEnd = async (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         const offset = info.offset.x;
 
         if (offset > SWIPE_THRESHOLD && canConfirm) {
