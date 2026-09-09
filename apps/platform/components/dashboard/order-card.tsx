@@ -18,7 +18,7 @@ import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, 
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
-import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
+import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
@@ -214,7 +214,11 @@ export const OrderCard = memo(function OrderCard({
     const orderAge = getOrderAge(order.created_at);
     const scheduledState = getScheduledState(order.scheduled_date);
     const ageUrgency = getAgeUrgency(order.status, order.created_at, order.scheduled_date);
-    const scheduledLabel = formatScheduledDate(order.scheduled_date);
+    // "Today" reads faster than a date when the day has arrived, and it explains
+    // why the age badge is calm on an order that was placed long ago.
+    const scheduledLabel = isScheduledToday(order.scheduled_date)
+        ? "اليوم"
+        : formatScheduledDate(order.scheduled_date);
 
     // Time-based follow-up cue — based on order creation time (how long customer has been waiting)
     /* eslint-disable react-hooks/purity */
@@ -603,7 +607,7 @@ export const OrderCard = memo(function OrderCard({
                                 <span className="relative group/date-tag">
                                     <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded">
                                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                        edited
+                                        مصحّح
                                     </span>
                                     <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
                                         Was: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
@@ -1223,7 +1227,7 @@ export const OrderCard = memo(function OrderCard({
                                     <span className="relative group/date-tag">
                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-md">
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            date edited
+                                            تاريخ مصحّح
                                         </span>
                                         <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
                                             Original: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
