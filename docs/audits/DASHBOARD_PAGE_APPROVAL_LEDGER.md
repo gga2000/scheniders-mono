@@ -214,3 +214,12 @@ The post-fix truth table was stale: `20260907141759`, `20260909061411`, `2026090
 | recentOrders length | 12 | 12 | ✅ |
 
 **One apparent mismatch, which was mine, not the code's.** `leaderboard.topCity` first came back 1,627 (RPC) against 1,972 (my query) — every city short by ~18%. The RPC is right: `lb_src` deliberately excludes `cancelled` and `rejected`, so the leaderboard ranks cities by orders that actually stuck. My benchmark query counted all orders. Re-run against the real definition: **1,627 = 1,627**, second city **391 = 391**. Recorded because the correct response to a mismatch is to check the definition before declaring a defect — the opposite of what happened in COR-D3.
+
+**Round 26 (2026-09-09) — schema-wide sweep for the R23 defect class. Clean.**
+
+R23 was found in one function; the honest follow-up is asking where else the same mistake lives. Swept every function, view and materialised view in `public` for `AT TIME ZONE` usage:
+
+- **`get_dashboard_metrics` is the only object in the schema that does timezone math** (14 conversions). `generate_seed_orders` matched the text filter but has zero. **No view or matview** converts timezones at all.
+- **All 14 remaining conversions are single-step and type-consistent**: `timestamptz AT TIME ZONE 'Asia/Baghdad'` → naive Baghdad, compared against naive Baghdad. The one deliberate exception is `v_range_cutoff := v_today_start AT TIME ZONE 'Asia/Baghdad'`, which converts a *naive* value to timestamptz precisely because it is compared against `o.created_at` (timestamptz). Correct as written.
+- **0 `AT TIME ZONE 'UTC'` chains** remain anywhere. In the repo the string survives in exactly three files: my fix (where it is the search anchor) and the two historical FULL definitions that introduced it, which the patch corrects on replay. **No unapplied migration reintroduces it.**
+- **Client Baghdad helpers verified against Postgres** for the same instant, rather than assumed: `baghdadDayStart` `2026-09-08T21:00:00Z` = pg, `baghdadMonthStart` `2026-08-31T21:00:00Z` = pg, hour 12 = 12, dow 3 = 3, dom 9 = 9. The fixed +3h offset is right for Iraq, which has no DST. **The client timezone layer is sound.**
