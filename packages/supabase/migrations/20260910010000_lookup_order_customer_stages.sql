@@ -1,0 +1,91 @@
+-- =====================================================================
+-- lookup_order: add a customer-facing STAGE and a review target
+-- =====================================================================
+-- The public order lookup collapses 13 internal statuses to four buckets
+-- (placed / confirmed / shipped / delivered) so that anon never learns
+-- operational state. Right principle, too coarse: it told a customer who
+-- had been messaged on WhatsApp and not replied that their order was
+-- "confirmed", and one whose COD delivery was refused and coming back that
+-- it was "placed". The tracker could not say what to do next because it
+-- did not know.
+--
+-- ADDITIVE on purpose. `status` keeps the four buckets, because the
+-- storefront deployed today indexes a hero-copy table by that value and
+-- would throw on anything new. `stage` is a new column carrying one of ten
+-- customer stages; the rebuilt tracker reads it, the old one never sees it.
+-- So this can go live before the code does, with nothing to break.
+--
+-- Still never the raw status. The stage mapping mirrors STATUS_TO_STAGE in
+-- @scheniders/shared (packages/shared/src/order-status.ts); a test pins the
+-- two together.
+--
+-- `review_product_slug` is the first ordered product's slug, so a
+-- "rate your order" button has somewhere real to go. Ownership is already
+-- proven by order number + phone, so this reveals nothing the caller does
+-- not know.
+-- =====================================================================
+
+DROP FUNCTION IF EXISTS public.lookup_order(uuid, text, text);
+
+CREATE OR REPLACE FUNCTION public.lookup_order(p_tenant_id uuid, p_phone text, p_order_number text)
+RETURNS TABLE(
+  order_number text,
+  status text,
+  customer_name text,
+  governorate text,
+  stage text,
+  review_product_slug text
+)
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+  SELECT
+    o.order_id::text,
+    -- Unchanged: the four buckets the deployed client understands.
+    CASE
+      WHEN o.status IN ('delivered','completed','refund_delivered') THEN 'delivered'
+      WHEN o.status IN ('in_transit')                              THEN 'shipped'
+      WHEN o.status IN ('confirmed','contacted')                   THEN 'confirmed'
+      ELSE 'placed'
+    END,
+    o.customer_name,
+    o.governorate_code,
+    -- New: the customer stage. Mirrors STATUS_TO_STAGE in shared.
+    CASE o.status
+      WHEN 'new'              THEN 'placed'
+      WHEN 'pending_checkout' THEN 'placed'
+      WHEN 'contacted'        THEN 'awaiting_confirmation'
+      WHEN 'confirmed'        THEN 'confirmed'
+      WHEN 'in_transit'       THEN 'shipped'
+      WHEN 'delivered'        THEN 'delivered'
+      WHEN 'completed'        THEN 'delivered'
+      WHEN 'no_response'      THEN 'no_response'
+      WHEN 'suspended'        THEN 'on_hold'
+      WHEN 'cancelled'        THEN 'cancelled'
+      WHEN 'rejected'         THEN 'cancelled'
+      WHEN 'return_pending'   THEN 'returning'
+      WHEN 'refund_delivered' THEN 'refunded'
+      ELSE 'placed'
+    END,
+    (
+      SELECT p.slug FROM public.products p
+       WHERE p.id::text = (o.items::jsonb -> 0 ->> 'product_id')
+         AND p.tenant_id = o.tenant_id
+         AND p.is_visible AND NOT p.is_archived
+       LIMIT 1
+    )
+  FROM public.orders o
+  JOIN public.tenants t ON t.id = o.tenant_id
+  WHERE o.tenant_id = p_tenant_id
+    AND o.deleted_at IS NULL
+    AND t.status IN ('trial','active')
+    AND btrim(coalesce(p_order_number,'')) <> ''
+    AND o.order_id::text = btrim(p_order_number)
+    AND length(regexp_replace(coalesce(p_phone,''), '\D', '', 'g')) >= 7
+    AND right(regexp_replace(o.phone, '\D', '', 'g'), 10)
+      = right(regexp_replace(p_phone, '\D', '', 'g'), 10)
+  LIMIT 1;
+$function$;
+
+GRANT EXECUTE ON FUNCTION public.lookup_order(uuid, text, text) TO anon, authenticated;

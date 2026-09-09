@@ -323,9 +323,16 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 - **W3.6** Offer builder UI in the store builder.
 
 ### Wave 4 — Trust & post-purchase
-- **W4.1** Verify the full order-status set; narratives schema + dialect defaults. *(C4)*
-- **W4.2** Rebuild `order_tracker`: timeline, per-status narrative, dynamic
-  contact number, WhatsApp-confirmation awareness. *(C4)*
+- **W4.1** *(done)* Verified 13 statuses in production (no CHECK; `no_response`
+  not `no_answer`; `return_pending` is the largest bucket). `commerce.
+  order_status_narratives` + `resolveNarrative` with dialect defaults. *(C4)*
+- **W4.2** *(done)* `lookup_order` gains an ADDITIVE `stage` column (ten
+  customer stages; `status` keeps the four buckets so the deployed client cannot
+  crash) and `review_product_slug`. Tracker rebuilt around the narratives:
+  contact number from the tenant, CTA by kind, off-path stages keep the rungs
+  they reached and mark none current. Verified in a browser for `placed` and
+  `returning`. Builder screen for editing the narratives is **W4.2b**, still
+  open. *(C4)*
 - **W4.3** Surface delivery fee + ETA on PDP and cart from the existing config. *(C2)*
 - **W4.4** Shopper photo reviews: submit from the delivered-order link, moderate
   in platform. *(C1)*

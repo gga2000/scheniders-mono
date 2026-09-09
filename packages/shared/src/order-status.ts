@@ -61,14 +61,30 @@ export function stageForStatus(status: string | null | undefined): CustomerOrder
   return STATUS_TO_STAGE[(status ?? "").trim()] ?? "placed";
 }
 
+const STAGE_SET: ReadonlySet<string> = new Set(CUSTOMER_ORDER_STAGES);
+
+/**
+ * Accept a value that is EITHER an internal status OR already a stage —
+ * the lookup RPC's `stage` column and its legacy `status` buckets are both
+ * stage names, while older callers pass raw statuses. A stage name fed to
+ * `stageForStatus` alone would fall through to "placed" — which is how a
+ * shipped order once reported itself as merely placed.
+ */
+export function coerceStage(value: string | null | undefined): CustomerOrderStage {
+  const v = (value ?? "").trim();
+  return STAGE_SET.has(v) ? (v as CustomerOrderStage) : stageForStatus(v);
+}
+
 /** The happy path, in order — drives the timeline. Off-path stages sit outside it. */
-export const TIMELINE_STAGES: readonly CustomerOrderStage[] = [
+export const TIMELINE_STAGES = [
   "placed",
   "awaiting_confirmation",
   "confirmed",
   "shipped",
   "delivered",
-];
+] as const satisfies readonly CustomerOrderStage[];
+
+export type TimelineStage = (typeof TIMELINE_STAGES)[number];
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Shipped defaults — Iraqi dialect, WhatsApp flow                      */
@@ -211,6 +227,6 @@ export function resolveNarrative(
     next: next && next.trim() ? next : null,
     // A phone/whatsapp CTA with no number to dial is a dead button.
     cta: cta && (cta.kind === "phone" || cta.kind === "whatsapp") && !contact ? null : cta,
-    timeline_index: TIMELINE_STAGES.indexOf(stage),
+    timeline_index: (TIMELINE_STAGES as readonly CustomerOrderStage[]).indexOf(stage),
   };
 }

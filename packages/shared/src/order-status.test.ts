@@ -4,6 +4,7 @@ import {
   DEFAULT_NARRATIVES,
   STATUS_TO_STAGE,
   TIMELINE_STAGES,
+  coerceStage,
   resolveNarrative,
   stageForStatus,
 } from "./order-status";
@@ -116,5 +117,21 @@ describe("resolveNarrative", () => {
   it("reports the timeline position, or -1 off the happy path", () => {
     expect(resolveNarrative("shipped", "ar", undefined, null).timeline_index).toBe(3);
     expect(resolveNarrative("cancelled", "ar", undefined, null).timeline_index).toBe(-1);
+  });
+});
+
+describe("coerceStage", () => {
+  it("passes a stage name through unchanged", () => {
+    for (const stage of CUSTOMER_ORDER_STAGES) expect(coerceStage(stage)).toBe(stage);
+  });
+
+  it("maps an internal status", () => {
+    expect(coerceStage("in_transit")).toBe("shipped");
+    expect(coerceStage("return_pending")).toBe("returning");
+  });
+
+  it("falls back to placed for garbage", () => {
+    expect(coerceStage("???")).toBe("placed");
+    expect(coerceStage(undefined)).toBe("placed");
   });
 });
