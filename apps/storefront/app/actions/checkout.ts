@@ -5,6 +5,8 @@ import {
   computeDiscount,
   computeBundleDiscounts,
   computePointsRedemption,
+  computeReferralDiscount,
+  normalizeReferralCode,
   normalizeIraqiMobile, resolveTierPrice, resolveBumpPrice, qualifiesForFreeGift, resolveFreeGift, type PriceTier, type OrderBumpOffer } from "@scheniders/shared";
 import type {
   StoreConfigV2,
@@ -33,6 +35,8 @@ interface SubmitCheckoutPayload {
   purchaseEventId?: string;
   /** Loyalty: points the customer chose to redeem (server re-validates). */
   redeemPoints?: number;
+  /** Referral: a friend's code; eligibility + amount are re-resolved here. */
+  referralCode?: string;
   customer: {
     customer_name: string;
     phone: string;
@@ -414,8 +418,31 @@ export async function submitCheckout(
     }
   }
 
+  // Referral: a friend's code on a FIRST order. Eligibility is the single
+  // SQL rule (referral_check) the preview endpoint also runs; the amount comes
+  // from the PUBLISHED config. It does not stack on a coupon — a code typed
+  // where a coupon goes is either one or the other.
+  let referral: { code: string; referrer_phone: string; amount: number } | null = null;
+  const referralCode = normalizeReferralCode(payload.referralCode);
+  if (referralCode && !discount) {
+    const commerce = tenant.store_config_v2?.commerce;
+    const amount = computeReferralDiscount(subtotal, commerce?.referral, commerce?.loyalty);
+    if (amount > 0) {
+      const { data: check } = await supabase.rpc("referral_check", {
+        _tenant_id: payload.tenantId,
+        _code: referralCode,
+        _phone: phone,
+      });
+      const row = Array.isArray(check) ? check[0] : null;
+      if (row?.ok && row.referrer_phone) {
+        referral = { code: referralCode, referrer_phone: row.referrer_phone, amount };
+      }
+    }
+  }
+  const referralAmount = referral?.amount ?? 0;
+
   const discountAmount =
-    couponAmount + bundleSummary.total_amount_iqd + pointsDiscount;
+    couponAmount + bundleSummary.total_amount_iqd + pointsDiscount + referralAmount;
   const grandTotal = subtotal - discountAmount + deliveryFee;
 
   // Build the order payload in the shape create_order_atomic expects.
@@ -485,6 +512,20 @@ export async function submitCheckout(
   const orderRow = raw as Record<string, unknown> | null;
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
 
+  // Referral attribution: the row the delivery trigger pays the referrer
+  // from. Best-effort — the order is already placed and priced with the
+  // friend's discount; a failure here only loses the referrer's points.
+  if (referral && orderId) {
+    await supabase.from("referrals").insert({
+      tenant_id: payload.tenantId,
+      order_id: orderId,
+      code: referral.code,
+      referrer_phone: referral.referrer_phone,
+      referee_phone: phone,
+      discount_iqd: referral.amount,
+    });
+  }
+
   // Loyalty earn is NOT credited here. A COD order placed is not an order
   // paid: points are credited by trg_loyalty_order_changed when the order
   // reaches delivered/completed, and taken back if it leaves that state
@@ -531,6 +572,8 @@ export async function submitCheckout(
     total: grandTotal,
     ...(discount
       ? { discount: { code: discount.code, amount: discount.amount_iqd } }
-      : {}),
+      : referral
+        ? { discount: { code: referral.code, amount: referral.amount } }
+        : {}),
   };
 }

@@ -408,6 +408,8 @@ export interface StoreCommerceConfig {
   loyalty?: LoyaltyConfig;
   /** Free gift above a spending threshold (opt-in per tenant). */
   free_gift?: FreeGiftRewardConfig;
+  /** Referral program: a friend's discount + the referrer's points (opt-in). */
+  referral?: ReferralConfig;
   /** Per-stage copy for the order tracker. Missing stages use the shipped defaults. */
   order_status_narratives?: Partial<Record<CustomerOrderStage, OrderStatusNarrative>>;
 }
@@ -464,6 +466,23 @@ export type CustomerOrderStage =
   | "cancelled"
   | "returning"
   | "refunded";
+
+/**
+ * Referral program. A shopper who ordered gets a code; a friend using it on
+ * their FIRST order gets `friend_discount_pct` off, and the referrer is
+ * credited `referrer_points` when that order is delivered (via the loyalty
+ * ledger, so loyalty must be on for the referrer side to mean anything).
+ */
+export interface ReferralConfig {
+  /** Off by default — merchant must opt in. */
+  enabled?: boolean;
+  /** Friend's discount on their first order, 0–100 %. */
+  friend_discount_pct?: number;
+  /** Cap (IQD) on that discount. */
+  friend_max_discount_iqd?: number;
+  /** Points credited to the referrer when the friend's order is delivered. */
+  referrer_points?: number;
+}
 
 export interface LoyaltyConfig {
   /** Off by default — merchant must opt in. */

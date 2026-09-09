@@ -44,9 +44,12 @@ import {
   computePointsEarned,
   computePointsRedemption,
   formatPoints,
+  computeReferralDiscount,
+  normalizeReferralCode,
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import {
   clearCustomerMemory,
   prefillFromMemory,
@@ -123,6 +126,12 @@ const STRINGS = {
   enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
   pointsOff: { en: "{amount} off", ar: "خصم {amount}" },
   earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
+  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)" },
+  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M" },
+  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
+  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز." },
+  referralSelf: { en: "That's your own code — share it with a friend instead.", ar: "هذا رمزك انت — شاركه مع صديق." },
+  referralNotFirst: { en: "A friend's code works on your first order only.", ar: "رمز الصديق يشتغل بس على أول طلب." },
   quantity: { en: "Quantity", ar: "الكمية" },
   decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
   increase: { en: "Increase quantity", ar: "زيادة الكمية" },
@@ -289,6 +298,7 @@ export function PdpDirectOrderRender({
   const base = useStoreBase();
   const uid = useId();
   const fieldId = (k: FieldKey) => `${uid}-${k}`;
+  const referralFieldId = `${uid}-referral_code`;
   const errorId = (k: FieldKey) => `${uid}-${k}-error`;
   const submitErrorId = `${uid}-submit-error`;
 
@@ -315,6 +325,11 @@ export function PdpDirectOrderRender({
   // One Purchase event_id per submission — shared by the browser pixel and
   // the server CAPI twin (dedup); cleared on success.
   const purchaseEventIdRef = useRef<string | null>(null);
+  // Published commerce config is static for the render; read once up here so
+  // effects declared before the pricing block can see it.
+  const commerceRef = {
+    current: (ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined)?.store_config_v2?.commerce,
+  };
   const [form, setForm] = useState<FormState>(() => {
     // Empty until chosen: a pre-selected Baghdad silently shipped orders to
     // the wrong governorate (and priced the wrong fee) when shoppers skipped
@@ -331,6 +346,16 @@ export function PdpDirectOrderRender({
     };
   });
 
+  // Referral: the friend's code (from a shared ?ref= link or typed) and the
+  // server's verdict on it. The amount is previewed from the published
+  // program; the server re-checks eligibility and prices it again at submit.
+  const [referralCode, setReferralCode] = useState("");
+  const [referralState, setReferralState] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "valid"; pct: number; max: number | null }
+    | { kind: "invalid"; reason: "unknown" | "self" | "not_first_order" | "off" }
+  >({ kind: "idle" });
   // A returning shopper's details, from THIS browser only — see
   // helpers/customer-memory for why nothing is looked up by phone. Applied
   // after mount so server HTML and first client render agree; only blank
@@ -355,6 +380,48 @@ export function PdpDirectOrderRender({
     fieldRefs.current.customer_name?.focus();
   }
 
+  const referralProgram = commerceRef.current?.referral;
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const captured = captureReferral(ctx.tenant.id);
+    if (captured) setReferralCode(captured);
+  }, [referralProgram?.enabled]);
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const code = normalizeReferralCode(referralCode);
+    if (!code) {
+      setReferralState({ kind: "idle" });
+      return;
+    }
+    let active = true;
+    setReferralState({ kind: "checking" });
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ tenant_id: ctx.tenant.id, code });
+      const buyer = normalizeIraqiMobile(form.phone);
+      if (buyer) params.set("phone", buyer);
+      fetch(`/api/referral/validate?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { valid?: boolean; reason?: string; friend_discount_pct?: number; friend_max_discount_iqd?: number | null } | null) => {
+          if (!active) return;
+          if (d?.valid === true) {
+            setReferralState({ kind: "valid", pct: d.friend_discount_pct ?? 0, max: d.friend_max_discount_iqd ?? null });
+          } else {
+            const reason = d?.reason;
+            setReferralState({
+              kind: "invalid",
+              reason: reason === "self" || reason === "not_first_order" || reason === "off" ? reason : "unknown",
+            });
+          }
+        })
+        .catch(() => {
+          if (active) setReferralState({ kind: "idle" });
+        });
+    }, 500);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [referralProgram?.enabled, referralCode, form.phone]);
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
@@ -532,7 +599,11 @@ export function PdpDirectOrderRender({
   // Credited by the database when the order is delivered — never at
   // placement — so this is a promise about delivery, worded as one.
   const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
-  const total = subtotal - pointsDiscount + (displayedDelivery ?? 0);
+  const referralAmount =
+    referralState.kind === "valid"
+      ? computeReferralDiscount(subtotal, { enabled: true, friend_discount_pct: referralState.pct, friend_max_discount_iqd: referralState.max ?? undefined })
+      : 0;
+  const total = subtotal - pointsDiscount - referralAmount + (displayedDelivery ?? 0);
   const totalExcludesDelivery = displayedDelivery === null;
 
   // Fetch the balance once a valid phone is in; reset the chosen redemption
@@ -761,6 +832,9 @@ export function PdpDirectOrderRender({
           locale,
           idempotency_key: idempotencyKeyRef.current,
           ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+          ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
+            ? { referral_code: normalizeReferralCode(referralCode) }
+            : {}),
           ...(purchaseEventIdRef.current
             ? { event_id: purchaseEventIdRef.current }
             : {}),
@@ -775,6 +849,7 @@ export function PdpDirectOrderRender({
           total?: number;
         } | null;
         const orderNumber = data?.orderNumber ?? "";
+        if (referralState.kind === "valid") clearCapturedReferral(ctx.tenant.id);
         // Remember the shopper for next time — in their browser only.
         writeCustomerMemory(ctx.tenant.id, {
           customer_name: form.customer_name.trim(),
@@ -1621,6 +1696,49 @@ export function PdpDirectOrderRender({
                   </span>
                 </span>
               </label>
+            )}
+
+            {referralProgram?.enabled === true && (
+              <div data-testid="referral-field" className="space-y-1">
+                <label className={labelCls} htmlFor={referralFieldId}>
+                  {s("referralLabel")}
+                </label>
+                <input
+                  id={referralFieldId}
+                  type="text"
+                  name="referral_code"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  dir="ltr"
+                  maxLength={12}
+                  placeholder={s("referralPlaceholder")}
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  aria-invalid={referralState.kind === "invalid" || undefined}
+                  aria-describedby={referralState.kind === "idle" ? undefined : `${referralFieldId}-status`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+                {referralState.kind !== "idle" && (
+                  <p
+                    id={`${referralFieldId}-status`}
+                    role="status"
+                    data-referral-state={referralState.kind}
+                    className={`font-body text-xs ${referralState.kind === "invalid" ? "text-bk-danger" : "text-bk-ink-soft"}`}
+                  >
+                    {referralState.kind === "checking"
+                      ? "…"
+                      : referralState.kind === "valid"
+                        ? s("referralOff").replace("{amount}", `−${formatPrice(referralAmount, locale)}`)
+                        : referralState.reason === "self"
+                          ? s("referralSelf")
+                          : referralState.reason === "not_first_order"
+                            ? s("referralNotFirst")
+                            : s("referralUnknown")}
+                  </p>
+                )}
+              </div>
             )}
 
             {/* ── Loyalty points redemption ── */}

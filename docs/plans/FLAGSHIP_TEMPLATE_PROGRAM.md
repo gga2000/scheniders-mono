@@ -372,7 +372,17 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   key = `loyalty_phone_key` (normalizeIraqiMobile shape). PDP gains the
   redeem box; both forms state "earn N points on delivery" (`formatPoints`).
   Verified by a rolled-back DO-block probe on production. *(A3)*
-- **W5.3** Referral codes. *(D3)*
+- **W5.3** Referral codes — DONE. `commerce.referral` {enabled,
+  friend_discount_pct, friend_max_discount_iqd, referrer_points}; migration
+  `20260910130000`: `referral_codes`, `referrals`, `mint_referral_code`,
+  `referral_check` (one eligibility rule: known code, not self, buyer's first
+  live order — indexed on `loyalty_phone_key(phone)`), `trg_referral_order_changed`
+  paying/reversing referrer points on the loyalty ledger. Storefront:
+  `/api/referral/code` (mint with order-ownership proof), `/api/referral/validate`
+  (preview), `?ref=` capture (`helpers/referral-capture.ts`, 30 days), field on
+  both order forms, share block on `order_confirmation`. Checkout applies the
+  friend's discount only when no coupon matched and records the attribution.
+  Settings on the loyalty screen. Rolled-back probe verified end to end. *(D3)*
 - **W5.4** Abandoned-cart capture — DONE for the storefront: `checkout_form`
   already beaconed; `pdp_direct_order` now does too, gated on first form
   interaction so a remembered phone never beacons a product view. *(A6 —

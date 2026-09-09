@@ -3619,6 +3619,44 @@ export type Database = {
           },
         ]
       }
+      order_split_log: {
+        Row: {
+          id: string
+          original_before: Json
+          original_order_id: string
+          return_order_id: string
+          split_at: string
+          tenant_id: string
+          undone_at: string | null
+        }
+        Insert: {
+          id?: string
+          original_before: Json
+          original_order_id: string
+          return_order_id: string
+          split_at?: string
+          tenant_id: string
+          undone_at?: string | null
+        }
+        Update: {
+          id?: string
+          original_before?: Json
+          original_order_id?: string
+          return_order_id?: string
+          split_at?: string
+          tenant_id?: string
+          undone_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_split_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_status_history: {
         Row: {
           changed_at: string
@@ -5637,6 +5675,117 @@ export type Database = {
             columns: ["qc_item_id"]
             isOneToOne: false
             referencedRelation: "qc_quarantine"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          phone: string
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          phone: string
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          phone?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_codes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          code: string
+          created_at: string
+          discount_iqd: number
+          id: string
+          order_id: string
+          referee_phone: string
+          referrer_phone: string
+          reversed_points: number
+          rewarded_points: number
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          discount_iqd?: number
+          id?: string
+          order_id: string
+          referee_phone: string
+          referrer_phone: string
+          reversed_points?: number
+          rewarded_points?: number
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          discount_iqd?: number
+          id?: string
+          order_id?: string
+          referee_phone?: string
+          referrer_phone?: string
+          reversed_points?: number
+          rewarded_points?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "referrals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "mv_customer_aggregates"
+            referencedColumns: ["last_order_id"]
+          },
+          {
+            foreignKeyName: "referrals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "v_order_time_to_confirm"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "referrals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "v_orders_with_risk"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -8062,8 +8211,15 @@ export type Database = {
           customer_name: string
           governorate: string
           order_number: string
+          review_product_slug: string
+          stage: string
           status: string
         }[]
+      }
+      loyalty_phone_key: { Args: { _phone: string }; Returns: string }
+      loyalty_points_for_order: {
+        Args: { _subtotal: number; _tenant_id: string }
+        Returns: number
       }
       merge_orders_atomic: {
         Args: {
@@ -8073,6 +8229,10 @@ export type Database = {
           _tenant_id?: string
         }
         Returns: Json
+      }
+      mint_referral_code: {
+        Args: { _phone: string; _tenant_id: string }
+        Returns: string
       }
       normalize_arabic_text_for_search: {
         Args: { _text: string }
@@ -8137,6 +8297,14 @@ export type Database = {
         Args: { p_tenant_id?: string }
         Returns: undefined
       }
+      referral_check: {
+        Args: { _code: string; _phone: string; _tenant_id: string }
+        Returns: {
+          ok: boolean
+          reason: string
+          referrer_phone: string
+        }[]
+      }
       refresh_bestseller_ranks: {
         Args: { p_top_n?: number; p_window_days?: number }
         Returns: number
@@ -8199,6 +8367,10 @@ export type Database = {
       }
       unmerge_orders_atomic: {
         Args: { _merge_log_id: string; _tenant_id?: string }
+        Returns: Json
+      }
+      unsplit_order_atomic: {
+        Args: { _split_log_id: string; _tenant_id?: string }
         Returns: Json
       }
       uuid_generate_v4: { Args: never; Returns: string }
