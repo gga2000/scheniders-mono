@@ -15,6 +15,7 @@ import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { getBaseOrderId, getStatusLabel } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { restoreDeletedOrders } from "@/app/actions/deleted-orders";
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
 import { reportOrderError } from "@/lib/order-telemetry";
 
@@ -1039,11 +1040,34 @@ export default function OrdersPage() {
             return;
         }
 
-        toast.success(t("toast.ordersDeleted"), t("toast.ordersDeletedDesc").replace("{count}", String(deletedCount)));
+        // WF-2: delete is a soft delete, so the rows are recoverable until the
+        // 30-day purge. Offer that directly rather than making the operator find
+        // the trash screen.
+        const deletedIds = result.deletedIds ?? ids;
+        toast({
+            title: t("toast.ordersDeleted"),
+            description: t("toast.ordersDeletedDesc").replace("{count}", String(deletedCount)),
+            variant: "success",
+            duration: 20000,
+            action: {
+                label: t("toast.undo") || "Undo",
+                onClick: async () => {
+                    const res = await restoreDeletedOrders(deletedIds);
+                    if (!res.success) {
+                        toast.error(t("toast.updateFailed"), res.error);
+                        return;
+                    }
+                    await refreshOrders();
+                    toast.success(
+                        t("toast.ordersRestored") || "Restored",
+                        `${res.restored} orders returned to the list`,
+                    );
+                },
+            },
+        });
         setSelectedOrders(new Set());
     };
 
-    // Additional bulk status handlers
     // Additional bulk status handlers
     const handleBulkNew = makeBulkStatusHandler("new");
     const handleBulkContacted = makeBulkStatusHandler("contacted");

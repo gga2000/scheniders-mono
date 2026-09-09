@@ -1368,7 +1368,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (mergeError) throw mergeError;
 
-            const merged = mergedOrder as Order | null;
+            const merged = mergedOrder as (Order & { merge_log_id?: string }) | null;
+            const mergeLogId = merged?.merge_log_id;
 
             // Update React Query cache
             optimisticUpdate((prev) =>
@@ -1382,6 +1383,32 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     })
                     .filter((order) => order.id !== archiveOrderId)
             );
+
+            // WF-2: merge sums two orders' money and archives one of them, and
+            // used to be irreversible. merge_orders_atomic now snapshots exactly
+            // the columns it overwrites, so this can be handed straight back as
+            // an undo instead of sending the operator to support.
+            if (mergeLogId) {
+                toast.success("Orders merged", {
+                    description: `${archiveOrder.order_id} merged into ${keepOrder.order_id}`,
+                    duration: 20000,
+                    action: {
+                        label: "Undo",
+                        onClick: async () => {
+                            const { error: undoError } = await supabase.rpc("unmerge_orders_atomic", {
+                                _merge_log_id: mergeLogId,
+                                _tenant_id: tenantId,
+                            });
+                            if (undoError) {
+                                toast.error("Could not undo the merge", { description: undoError.message });
+                                return;
+                            }
+                            await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                            toast.success("Merge undone", { description: "Both orders are back as they were" });
+                        },
+                    },
+                });
+            }
 
             // Merging combines money and archives the duplicate, so it needs an
             // audit record naming both sides — previously it left none at all.
