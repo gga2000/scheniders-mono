@@ -7,14 +7,14 @@ import {
     Printer, Package, Truck, ArrowRight, Clock, MapPin,
     AlertTriangle, CheckCircle2, FileText, ExternalLink,
 } from "lucide-react";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersList } from "@/components/providers/orders-provider";
 import { SectionCard } from "@/components/finances/hub/primitives/section-card";
 import { FinanceValue } from "@/components/finances/hub/primitives/finance-value";
 import { Sparkline } from "@/components/finances/hub/primitives/sparkline";
 import { cn } from "@/lib/utils";
 
 export function PrintShipTab() {
-    const { orders } = useOrdersContext();
+    const { orders } = useOrdersList();
 
     const stats = useMemo(() => {
         const confirmed = orders.filter((o) => o.status === "confirmed");

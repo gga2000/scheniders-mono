@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, type Product, type ProductVariant, type ProductPriceHistory, getStockStatus } from "@/lib/supabase";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersList } from "@/components/providers/orders-provider";
 import {
     useProductsQuery,
     useAddProductMutation,
@@ -56,7 +56,7 @@ interface VariantFormData {
 export function useProductsCrud() {
     const queryClient = useQueryClient();
     const { data: rawProducts, isLoading: loading, error: queryError } = useProductsQuery();
-    const { orders } = useOrdersContext();
+    const { orders } = useOrdersList();
 
     // Mutations
     const addProductMutation = useAddProductMutation();

@@ -34,7 +34,7 @@ import { useEffect } from "react";
 // via queryClient.setQueryData / invalidateQueries.
 // =============================================
 
-export function useOrders() {
+export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}) {
     // =============================================
     // REACT QUERY INTEGRATION FOR CACHING
     // =============================================
@@ -49,11 +49,13 @@ export function useOrders() {
         }
     });
 
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery();
+    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery(undefined, listEnabled);
 
     // Single source of truth: React Query cache
     const orders = cachedOrders ?? [];
-    const loading = queryLoading;
+    // A subscriber has asked for the list but the fetch has not started yet:
+    // report loading, or consumers flash an empty state for a tick.
+    const loading = queryLoading || (listEnabled && cachedOrders === undefined);
     const error = queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch orders" : null;
 
     // =============================================

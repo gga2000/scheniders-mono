@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersList } from "@/components/providers/orders-provider";
 import { useOrderRiskQuery } from "@/hooks/use-order-risk-query";
 import { useOrderStore } from "@/store/use-order-store";
 import { useSidebar } from "@/components/layout/dashboard-layout";
@@ -37,7 +37,7 @@ export function MobileOrdersPage() {
         getCustomerOrderCount,
         hasDuplicates,
         exportOrders,
-    } = useOrdersContext();
+    } = useOrdersList();
     // PERF-D1: risk loads on the routes that render it, not on every route.
     const riskByOrderId = useOrderRiskQuery();
 

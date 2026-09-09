@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersList } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useStats } from "@/hooks/use-stats";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
@@ -24,7 +24,7 @@ const DeliverySuccessRate = dynamic(() => import("@/components/dashboard/widgets
 // ProfitPulse removed — data source no longer in useDashboardMetrics
 
 export function MobileDashboardPage() {
-    const { orders, error, createOrder } = useOrdersContext();
+    const { orders, error, createOrder } = useOrdersList();
     const { products } = useProductsCrud();
     const stats = useStats(orders);
     // Server metrics gate first paint; client computation is the fallback.

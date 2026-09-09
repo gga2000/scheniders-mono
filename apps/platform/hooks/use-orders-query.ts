@@ -165,7 +165,7 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  *
  * @param refetchTrigger - Optional trigger to force refetch
  */
-export function useOrdersQuery(refetchTrigger?: string) {
+export function useOrdersQuery(refetchTrigger?: string, enabled: boolean = true) {
     const queryClient = useQueryClient();
     const { session, clientReady } = useAuth();
 
@@ -182,7 +182,11 @@ export function useOrdersQuery(refetchTrigger?: string) {
         queryFn: fetchOrders,
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
-        enabled: !!session && clientReady,
+        //
+        // PERF-D1: `enabled` is the subscriber gate. OrdersProvider sits in the
+        // ROOT layout, so without it this ~7 MB fetch ran on every route in the
+        // app — including routes that never read an order.
+        enabled: !!session && clientReady && enabled,
         // SWR: Hydrate from sessionStorage immediately (shows data in <5ms).
         // React Query knows the real age via initialDataUpdatedAt, so it will
         // refetch in the background if the cached data is stale (>30s old).

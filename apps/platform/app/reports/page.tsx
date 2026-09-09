@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { FileBarChart, Download, FileSpreadsheet, Printer, RefreshCw, Filter, CalendarDays, TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersList } from "@/components/providers/orders-provider";
 import { useReportsMetrics, useDateRangePresets, DateRange } from "@/hooks/use-reports-metrics";
 import { useEmployeeMetrics } from "@/hooks/use-employee-metrics";
 import { useBatchAnalytics } from "@/hooks/use-batch-analytics";
@@ -88,7 +88,7 @@ const presetLabels: Record<PresetKey, string> = {
 };
 
 export default function ReportsPage() {
-    const { orders, loading, error } = useOrdersContext();
+    const { orders, loading, error } = useOrdersList();
     const presets = useDateRangePresets();
     const [dateRange, setDateRange] = useState<DateRange>(presets.last30Days);
 

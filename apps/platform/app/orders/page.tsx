@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersList } from "@/components/providers/orders-provider";
 import { useOrderRiskQuery } from "@/hooks/use-order-risk-query";
 import { useOrderStore } from "@/store/use-order-store";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -399,7 +399,7 @@ export default function OrdersPage() {
         statusCounts,
         // Message templates
         messageTemplates,
-    } = useOrdersContext();
+    } = useOrdersList();
 
     // PERF-D1: risk assessments no longer ride on every order row. They load
     // here, on the one route that filters and renders them.
@@ -498,7 +498,7 @@ export default function OrdersPage() {
 
     // Domain state (stays local — not UI state)
     const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
-    const { splitOrder } = useOrdersContext();
+    const { splitOrder } = useOrdersList();
 
     const handleSplitOrder = async (keptItems: OrderItem[], returnedItems: OrderItem[]) => {
         if (!splitOrderDialog.order) return;

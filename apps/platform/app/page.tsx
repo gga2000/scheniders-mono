@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersList } from "@/components/providers/orders-provider";
 import { useStats } from "@/hooks/use-stats";
 import { Plus, Download } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -46,7 +46,7 @@ const StaffLeaderboard = dynamic(() => import("@/components/dashboard/widgets/st
 const TeamAnnouncements = dynamic(() => import("@/components/dashboard/widgets/team-announcements").then(mod => ({ default: mod.TeamAnnouncements })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 
 export default function Home() {
-  const { orders, error, createOrder } = useOrdersContext();
+  const { orders, error, createOrder } = useOrdersList();
   const { products } = useProductsCrud();
   const stats = useStats(orders);
   // Server-computed metrics (fast, ~KB) gate first paint instead of the full
