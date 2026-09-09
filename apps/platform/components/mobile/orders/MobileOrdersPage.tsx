@@ -111,6 +111,16 @@ export function MobileOrdersPage() {
         return result;
     }, [hookFilteredOrders, localSearchQuery, filters.riskLevel]);
 
+    // ARCH-6: the order store is module-level, so an open modal, a bulk
+    // selection or a half-finished inline edit outlived this page and came back
+    // on the next visit — with a stale order snapshot behind it. Clear the
+    // transient half on unmount; view preferences and filters persist as before.
+    useEffect(() => {
+        return () => {
+            useOrderStore.getState().resetTransientState();
+        };
+    }, []);
+
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1); // eslint-disable-line react-hooks/set-state-in-effect

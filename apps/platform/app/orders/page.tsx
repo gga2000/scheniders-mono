@@ -684,6 +684,16 @@ export default function OrdersPage() {
     const emptyStateHasFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
     const isFirstRun = (orders?.length ?? 0) === 0 && !filters.searchQuery && !emptyStateHasFilters;
 
+    // ARCH-6: the order store is module-level, so an open modal, a bulk
+    // selection or a half-finished inline edit outlived this page and came back
+    // on the next visit — with a stale order snapshot behind it. Clear the
+    // transient half on unmount; view preferences and filters persist as before.
+    useEffect(() => {
+        return () => {
+            useOrderStore.getState().resetTransientState();
+        };
+    }, []);
+
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
         messageTemplates.filter(t =>

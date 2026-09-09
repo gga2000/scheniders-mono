@@ -42,6 +42,10 @@ export default defineConfig({
             "lib/**/*.test.ts",
             "lib/**/*.test.tsx",
             "app/api/**/*.test.ts",
+            // ARCH-6: store/ had no include pattern, so a test placed beside the
+            // Zustand slices was silently never collected.
+            "store/**/*.test.ts",
+            "apps/platform/store/**/*.test.ts",
             "apps/platform/components/**/*.test.ts",
             "apps/platform/components/**/*.test.tsx",
             "apps/platform/hooks/**/*.test.ts",

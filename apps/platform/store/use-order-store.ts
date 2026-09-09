@@ -156,6 +156,17 @@ interface TransientSlice {
   setIsHeaderAnimating: (val: boolean) => void;
   setNotificationsEnabled: (val: boolean) => void;
   setEditingCell: (val: { orderId: string; field: string } | null) => void;
+
+  /**
+   * Clear everything that should not outlive a visit to the orders page.
+   *
+   * ARCH-6: this store is module-level, so an open modal, a bulk selection or a
+   * half-finished inline edit survived navigating away and reappeared on return
+   * — with `selectedOrder` still holding the snapshot captured last time, which
+   * by then is stale. View preferences and filters are deliberately NOT cleared:
+   * those are meant to persist, and are what `partialize` writes to storage.
+   */
+  resetTransientState: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -357,6 +368,34 @@ export const useOrderStore = create<OrderStore>()(
       setIsFilterPanelAnimating: (val) => set({ isFilterPanelAnimating: val }),
       setIsHeaderAnimating: (val) => set({ isHeaderAnimating: val }),
       setNotificationsEnabled: (val) => set({ notificationsEnabled: val }),
+
+      resetTransientState: () => set({
+        // Modals and the order snapshots they hold
+        isModalOpen: false,
+        selectedOrder: null,
+        isCreateModalOpen: false,
+        showDuplicateModal: false,
+        duplicateOrder: null,
+        cancelDialogOpen: false,
+        orderToCancel: null,
+        rejectDialogOpen: false,
+        orderToReject: null,
+        templatePanelOpen: false,
+        orderForTemplate: null,
+        isImportModalOpen: false,
+        isExportModalOpen: false,
+        splitOrderDialog: { open: false, order: null },
+        screenshotOrder: null,
+        showDatePicker: false,
+        colorPickerOpenId: null,
+        // Bulk selection and in-flight row state
+        selectedOrders: new Set<string>(),
+        loadingId: null,
+        editingCell: null,
+        // Animation latches
+        isFilterPanelAnimating: false,
+        isHeaderAnimating: false,
+      }),
     }),
     {
       name: "orders-ui-store",
