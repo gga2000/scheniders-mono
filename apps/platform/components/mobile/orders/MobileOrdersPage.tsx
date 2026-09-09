@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { orderMatchesSearch } from "@/lib/order-filter-utils";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useShallow } from "zustand/react/shallow";
@@ -84,13 +85,11 @@ export function MobileOrdersPage() {
     const filteredOrders = useMemo(() => {
         let result = [...hookFilteredOrders];
 
-        // Global Search
+        // MOB-2: this was a plain `includes()` over a concatenated string, so a
+        // phone typed with spaces or an Arabic name spelled with a different alef
+        // matched on desktop but not here. Both screens now share one predicate.
         if (localSearchQuery) {
-            const lowerQuery = localSearchQuery.toLowerCase();
-            result = result.filter((o) => {
-                const searchStr = `${o.customer_name || ""} ${o.phone || ""} ${o.city || ""} ${o.order_id || ""} ${o.sequence_number || ""} ${o.notes || ""}`.toLowerCase();
-                return searchStr.includes(lowerQuery);
-            });
+            result = result.filter((o) => orderMatchesSearch(o, localSearchQuery, hookFilteredOrders));
         }
 
         // Status / Risk level filters
@@ -102,8 +101,14 @@ export function MobileOrdersPage() {
             }
         }
 
-        // Default sorting: Newest first
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Default sorting: Newest first. Timestamps resolved once rather than
+        // parsed twice per comparison, matching the desktop list.
+        const createdAtMs = new Map<string, number>();
+        for (const order of result) {
+            const parsed = Date.parse(order.created_at);
+            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
+        }
+        result.sort((a, b) => (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0));
 
         return result;
     }, [hookFilteredOrders, localSearchQuery, filters.riskLevel]);
