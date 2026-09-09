@@ -134,9 +134,9 @@ export function MobileOrdersPage() {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-background pb-6">
+        <div className="flex flex-col min-h-screen bg-background pb-safe">
             {/* Sticky Header */}
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-[var(--card-border)] px-4 py-3 flex flex-col gap-3">
+            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-[var(--card-border)] px-4 pb-3 pt-safe flex flex-col gap-3">
 
                 {/* Unified Search Bar */}
                 <div className="flex flex-row-reverse items-center w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden h-12 relative">

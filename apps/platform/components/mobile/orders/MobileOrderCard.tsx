@@ -351,7 +351,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                 }}
                                 disabled={!isValidPhone2}
                                 className={cn(
-                                    "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
+                                    "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white touch-target-hit",
                                     isValidPhone2
                                         ? "bg-[#1E1E1E] active:scale-95"
                                         : "bg-gray-200 text-gray-400 cursor-not-allowed",
@@ -384,7 +384,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                             }}
                             disabled={!isValidPhone}
                             className={cn(
-                                "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
+                                "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white touch-target-hit",
                                 isValidPhone
                                     ? "bg-[#1E1E1E] active:scale-95"
                                     : "bg-gray-200 text-gray-400 cursor-not-allowed",

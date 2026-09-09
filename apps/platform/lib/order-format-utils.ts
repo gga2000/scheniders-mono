@@ -1,22 +1,45 @@
 import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
 
+/**
+ * Merchant-facing dates and times are Baghdad's, not the viewer's.
+ *
+ * I18N-5. `formatShortDate` produced month/day, the American order, which reads
+ * as the wrong date entirely in Iraq: 9/3 is the 9th of March here, not the 3rd
+ * of September. Neither formatter pinned a time zone either, so both rendered in
+ * whatever zone the browser happened to be in — a merchant travelling, or a
+ * server render, could show a different calendar day from the one the order
+ * actually belongs to. Revenue is now bucketed on Baghdad days (see
+ * lib/order-revenue), and what is displayed has to agree with it.
+ */
+const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
+
+const baghdadDayMonth = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "numeric",
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+const baghdadTime = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
 export const formatShortDate = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+    // en-GB gives day/month, which is how Iraq writes it.
+    return baghdadDayMonth.format(date);
 };
 
 export const formatTime = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    }).replace(' ', '');
+    return baghdadTime.format(date).replace(/\s/g, "");
 };
 
 export const getOrderAge = (dateStr: string | Date | undefined | null) => {

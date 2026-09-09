@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/supabase-server";
 import { extractOrderFromImage } from "@/lib/gemini-order-extractor";
 import { validateImageUpload } from "@/lib/order-image-upload";
+import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { reportOrderError } from "@/lib/order-telemetry";
+
+/**
+ * Per-user ceiling on image analyses. Bulk upload sends one request per image,
+ * and a merchant photographing a stack of receipts is a normal burst, so the
+ * window is generous enough not to interrupt real work while still bounding
+ * what a single account can spend against the Gemini key.
+ */
+const ANALYZE_IMAGE_LIMIT = 60;
+const ANALYZE_IMAGE_WINDOW_SECONDS = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +24,28 @@ export async function POST(request: NextRequest) {
     const { user, error: authError } = await verifyAccessToken(token);
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Each analysis is a billed Gemini call, so cap how fast one account can
+    // spend. Postgres backs the counter, so the limit holds across instances.
+    const limit = await consumeRateLimit(
+      `analyze-image:${user.id}`,
+      ANALYZE_IMAGE_LIMIT,
+      ANALYZE_IMAGE_WINDOW_SECONDS,
+    );
+    if (limit.error) {
+      // Fails open rather than taking the feature down, but never silently.
+      reportOrderError(new Error(`Rate limiter unavailable: ${limit.error}`), {
+        operation: "orders-analyze-image-rate-limit",
+      });
+    }
+    if (!limit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Too many image analyses. Try again in ${limit.retryAfterSeconds}s.`,
+        },
+        { status: 429, headers: rateLimitHeaders(limit, ANALYZE_IMAGE_LIMIT) },
+      );
     }
 
     const formData = await request.formData();
