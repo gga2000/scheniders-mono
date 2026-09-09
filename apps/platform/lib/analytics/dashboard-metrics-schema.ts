@@ -41,6 +41,24 @@ export const recentOrderRowSchema = z.object({
 });
 export type RecentOrderRow = z.infer<typeof recentOrderRowSchema>;
 
+/**
+ * What the feed accepts. Same seven fields, but the optional columns also allow
+ * `undefined`, because the client fallback engine passes real `Order` rows where
+ * those columns are optional rather than nullable. Widening here — not in the
+ * schema — keeps RPC drift detection strict about the keys the server sends.
+ */
+export type RecentOrderDisplayRow =
+    Omit<RecentOrderRow, "customer_name" | "city" | "items"> & {
+        customer_name?: string | null;
+        city?: string | null;
+        /**
+         * Only the fields the feed reads. Deliberately without the schema's
+         * passthrough index signature, which no interface (`OrderItem`) can
+         * satisfy.
+         */
+        items?: { name: string; quantity?: number | null; price?: number | null }[] | null;
+    };
+
 export const dashboardMetricsSchema = z.object({
     urgency: z.object({
         failedDeliveries: z.number(),

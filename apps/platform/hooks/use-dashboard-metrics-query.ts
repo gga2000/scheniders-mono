@@ -100,7 +100,7 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
                 throw contractError;
             }
 
-            return parsed.data as unknown as DashboardMetrics;
+            return parsed.data;
         },
         // Same auth gate as orders: wait for the client's session to be ready.
         enabled: !!session && clientReady,

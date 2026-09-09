@@ -46,7 +46,12 @@ export function buildDashboardCsv(
     { range, includeFinancials, generatedAt = new Date() }: DashboardExportOptions,
 ): string {
     const rows: (string | number | null | undefined)[][] = [];
-    const money = (n: number | null | undefined) => (includeFinancials ? n ?? "" : "");
+    // IQD has no minor unit, and the UI formats every amount with
+    // maximumFractionDigits: 0. Proportional line-price allocation (product
+    // revenue) produces fractions, so round here too — otherwise the export
+    // disagrees with the screen it was exported from.
+    const money = (n: number | null | undefined) =>
+        includeFinancials && typeof n === "number" && Number.isFinite(n) ? Math.round(n) : "";
 
     rows.push(["Scheniders — dashboard summary"]);
     rows.push(["Generated", generatedAt.toISOString()]);

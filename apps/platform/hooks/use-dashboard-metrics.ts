@@ -32,6 +32,7 @@ import {
     EnhancedLeaderboardMetrics,
     StaffEntry,
 } from "@/lib/analytics/dashboard-calculations";
+import type { RecentOrderDisplayRow } from "@/lib/analytics/dashboard-metrics-schema";
 
 export interface DashboardMetrics {
     urgency: UrgencyMetrics;
@@ -47,10 +48,17 @@ export interface DashboardMetrics {
     monthForecast: MonthForecast;
     enhancedLeaderboard: EnhancedLeaderboardMetrics;
     staffLeaderboard: StaffEntry[];
-    recentOrders: Order[];
+    /**
+     * ARCH-D3. The RPC sends only the seven fields the feed renders (SEC-D2),
+     * not whole orders. Typing this `Order[]` forced a double cast in the query
+     * hook and told every consumer that fields like `phone` exist on rows that
+     * never carry them. The client fallback returns full orders, which satisfy
+     * this narrower contract; the RPC's rows do not satisfy `Order`.
+     */
+    recentOrders: RecentOrderDisplayRow[];
 }
 
-export function useDashboardMetrics(orders: Order[], products: Product[] = []) {
+export function useDashboardMetrics(orders: Order[], products: Product[] = []): DashboardMetrics | null {
     return useMemo(() => {
         if (!orders.length) return null;
 

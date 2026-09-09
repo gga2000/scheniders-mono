@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { escapeCsvField, toCsv } from "./dashboard-export";
+import { buildDashboardCsv, escapeCsvField, toCsv } from "./dashboard-export";
+import { liveDashboardMetrics } from "./__fixtures__/dashboard-metrics";
 
 /**
  * COM-D1. City and product names reach this file from order records — outside
@@ -31,5 +32,32 @@ describe("CSV escaping", () => {
 
     it("joins rows with CRLF so Excel reads them as rows", () => {
         expect(toCsv([["a", "b"], [1, 2]])).toBe("a,b\r\n1,2");
+    });
+});
+
+/**
+ * IQD has no minor unit. Product revenue is allocated proportionally by line
+ * price, so it arrives fractional; the UI hides that via formatIQD's
+ * maximumFractionDigits: 0. The export must agree with the screen it came from.
+ */
+describe("money in the export", () => {
+    it("THE RISK: writes whole IQD, not the raw fraction the screen never showed", () => {
+        const csv = buildDashboardCsv(liveDashboardMetrics(), {
+            range: "all",
+            includeFinancials: true,
+            generatedAt: new Date("2026-09-09T00:00:00Z"),
+        });
+        expect(csv).toContain("73721144");
+        expect(csv).not.toContain("73721144.2");
+    });
+
+    it("still omits money entirely when the viewer lacks VIEW_FINANCIALS", () => {
+        const csv = buildDashboardCsv(liveDashboardMetrics(), {
+            range: "all",
+            includeFinancials: false,
+            generatedAt: new Date("2026-09-09T00:00:00Z"),
+        });
+        expect(csv).not.toContain("73721144");
+        expect(csv).toContain("Financial figures omitted");
     });
 });
