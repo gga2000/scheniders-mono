@@ -9,7 +9,15 @@
 
 import type { CSSProperties } from "react";
 import { z } from "zod";
-import { resolveI18n, governorateLabel } from "@scheniders/shared";
+import {
+  IRAQ_GOVERNORATES,
+  etaForGovernorate,
+  formatHours,
+  governorateLabel,
+  resolveI18n,
+  type GovernorateCode,
+  type StoreConfigV2,
+} from "@scheniders/shared";
 import {
   BentoCard,
   MaterialIcon,
@@ -61,17 +69,6 @@ const defaultProps: Props = {
   },
 };
 
-function fmtHours(h: number, locale: "ar" | "en" | "ku"): string {
-  if (locale !== "en") {
-    if (h < 24) return `${h} ساعة`;
-    const days = Math.round(h / 24);
-    return `${days} ${days === 1 ? "يوم" : "أيام"}`;
-  }
-  if (h < 24) return `${h}h`;
-  const days = Math.round(h / 24);
-  return `${days} ${days === 1 ? "day" : "days"}`;
-}
-
 function DeliveryPromise({
   props,
   ctx,
@@ -82,6 +79,32 @@ function DeliveryPromise({
   const locale = ctx.runtime.locale;
   const heading = resolveI18n(props.heading_i18n, locale);
   const inspection = resolveI18n(props.inspection_text_i18n, locale);
+
+  // The merchant's shipping config is the truth when it carries one. The
+  // section's own hours and list are the fallback for tenants who never set
+  // it — never the other way round, or a merchant who sets a 12h Baghdad ETA
+  // would keep seeing the 6h this file shipped with.
+  const shipping = (
+    ctx.tenant as { store_config_v2?: Pick<StoreConfigV2, "commerce"> | null } | undefined
+  )?.store_config_v2?.commerce?.shipping;
+  const baghdadHours = etaForGovernorate(shipping, "BG") ?? props.baghdad_hours;
+  const provincesHours = (() => {
+    if (!shipping) return props.provinces_hours;
+    const others = (Object.keys(shipping.rates ?? {}) as GovernorateCode[])
+      .filter((c) => c !== "BG")
+      .map((c) => etaForGovernorate(shipping, c))
+      .filter((h): h is number => h !== null);
+    const fallback = etaForGovernorate(shipping, null);
+    const pool = others.length ? others : fallback !== null ? [fallback] : [];
+    return pool.length ? Math.max(...pool) : props.provinces_hours;
+  })();
+  // Coverage: with a default rate every governorate is served; with only
+  // overrides, exactly those; with no config, whatever the section says.
+  const covered: string[] = shipping
+    ? shipping.default_rate
+      ? IRAQ_GOVERNORATES.map((g) => governorateLabel(g.code, locale))
+      : (Object.keys(shipping.rates ?? {}) as GovernorateCode[]).map((c) => governorateLabel(c, locale))
+    : props.governorates_covered;
 
   const visitorGov = ctx.runtime.governorate
     ? String(ctx.runtime.governorate)
@@ -125,7 +148,7 @@ function DeliveryPromise({
               </span>
             </div>
             <div className="font-display font-black text-3xl uppercase">
-              {fmtHours(props.baghdad_hours, locale)}
+              {formatHours(baghdadHours, locale)}
             </div>
           </div>
           <div
@@ -149,17 +172,17 @@ function DeliveryPromise({
               </span>
             </div>
             <div className="font-display font-black text-3xl uppercase">
-              {fmtHours(props.provinces_hours, locale)}
+              {formatHours(provincesHours, locale)}
             </div>
           </div>
         </div>
-        {props.governorates_covered.length > 0 && (
+        {covered.length > 0 && (
           <div className="mt-5">
             <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-2">
               {locale !== "en" ? "نوصل إلى" : "We ship to"}
             </p>
             <div className="flex flex-wrap gap-2">
-              {props.governorates_covered.map((g) => (
+              {covered.map((g) => (
                 <span
                   key={g}
                   className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-white border-bk border-bk-ink rounded-full px-3 py-1"

@@ -119,8 +119,37 @@ describe("pdp_direct_order governorate (P1-2)", () => {
     expect(placeholder).toContain("اختر المحافظة");
     // Only the placeholder is selected.
     expect(html.match(/<option[^>]*\bselected\b/g)).toHaveLength(1);
-    // Delivery fee is unknown until a governorate is chosen.
-    expect(html).toMatch(/data-delivery-fee[^>]*>—</);
+    // "Never a silent Baghdad" means never ASSUME a governorate's rate. With
+    // no shipping config the fee is the legacy flat one — the same
+    // everywhere — so stating it upfront assumes nothing, and a shopper
+    // learns the delivery cost before filling in a form. It is labelled as
+    // applying to every governorate and counted in the total.
+    expect(html).toMatch(/data-delivery-fee[^>]*>[\s\S]*?5,000[\s\S]*?لكل المحافظات/);
+    expect(html).not.toMatch(/data-delivery-fee[^>]*>—</);
+    expect(html).not.toContain("بدون التوصيل");
+  });
+
+  it("shows a range, not a number, when the fee genuinely varies by governorate", () => {
+    // Here assuming a rate WOULD be a silent Baghdad — so the row shows the
+    // spread and the total is marked as excluding delivery until they pick.
+    const html = render({}, {
+      tenant: {
+        ...tenant,
+        store_config_v2: {
+          commerce: {
+            shipping: {
+              default_rate: { fee_iqd: 6000 },
+              rates: { BG: { fee_iqd: 4000 } },
+            },
+          },
+        },
+      } as never,
+    });
+    expect(html).toMatch(/data-delivery-fee[^>]*>[\s\S]*?4,000[\s\S]*?6,000[\s\S]*?حسب المحافظة/);
+    expect(html).toContain("بدون التوصيل");
+    // (The "choose your governorate so we can price delivery" hint is a
+    // validation message, rendered only after a failed submit — not in the
+    // static markup — so it is not asserted here.)
   });
 
   it("prefills from the runtime governorate (sb_gov cookie) when present", () => {

@@ -40,7 +40,7 @@ import {
   pixelContentsFromItems,
   isValidIraqiMobile,
   normalizeIraqiMobile,
-  cn, buildPriceLadder, resolveTierPrice, offersForProduct, applyBumpDiscount } from "@scheniders/shared";
+  cn, buildPriceLadder, resolveTierPrice, offersForProduct, applyBumpDiscount, summarizeDelivery, etaForGovernorate, formatHours } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import {
@@ -92,6 +92,18 @@ const STRINGS = {
     en: "Choose your governorate so we can price delivery.",
     ar: "اختر محافظتك حتى نحسب أجرة التوصيل.",
   },
+  /** When the fee is flat the price is already known — the governorate is
+   *  needed for the address, and the copy must not pretend otherwise. */
+  governorateRequiredFlat: {
+    en: "Choose your governorate for delivery.",
+    ar: "اختر محافظتك للتوصيل.",
+  },
+  deliveryAllGovernorates: { en: "all governorates", ar: "لكل المحافظات" },
+  deliveryRange: { en: "{min} – {max} by governorate", ar: "{min} – {max} حسب المحافظة" },
+  deliveryFreeAbove: { en: "free above {amount}", ar: "مجاني فوق {amount}" },
+  deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}" },
+  deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}" },
+  totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل" },
   quantity: { en: "Quantity", ar: "الكمية" },
   decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
   increase: { en: "Increase quantity", ar: "زيادة الكمية" },
@@ -403,7 +415,20 @@ export function PdpDirectOrderRender({
         governorate: chosenGovernorate,
       })
     : null;
-  const total = subtotal + (delivery ?? 0);
+  // What can honestly be said BEFORE a governorate is picked. Flat fee →
+  // say it and count it in the total. Varies → show the range, keep the
+  // total as "before delivery". Nothing here is a guess: "varies" only
+  // appears when the config actually contains different numbers.
+  const deliverySummary = summarizeDelivery(commerce?.shipping);
+  const flatFeeKnown = delivery === null && deliverySummary.kind !== "varies";
+  const displayedDelivery: number | null = flatFeeKnown
+    ? computeDeliveryFee(subtotal, qty, { shipping: commerce?.shipping })
+    : delivery;
+  const total = subtotal + (displayedDelivery ?? 0);
+  const totalExcludesDelivery = displayedDelivery === null;
+  const etaHours = chosenGovernorate
+    ? etaForGovernorate(commerce?.shipping, chosenGovernorate)
+    : null;
   const returnsDays = commerce?.returns_policy?.window_days;
 
   // Honest social proof: the chip renders ONLY when the product actually has
@@ -489,7 +514,7 @@ export function PdpDirectOrderRender({
       case "alt_phone":
         return !v || isValidIraqiMobile(v) ? null : s("phoneInvalid");
       case "governorate_code":
-        return isGovernorateCode(v) ? null : s("governorateRequired");
+        return isGovernorateCode(v) ? null : s(deliverySummary.kind === "varies" ? "governorateRequired" : "governorateRequiredFlat");
     }
   }
 
@@ -1302,18 +1327,57 @@ export function PdpDirectOrderRender({
               <div className="flex items-center justify-between font-body text-sm text-bk-ink-soft">
                 <span>{s("delivery")}</span>
                 <span className="tabular-nums" data-delivery-fee>
-                  {delivery === null ? (
-                    "—"
-                  ) : delivery === 0 ? (
+                  {displayedDelivery === null ? (
+                    <bdi>
+                      {s("deliveryRange")
+                        .replace("{min}", formatPrice(deliverySummary.fee.min, locale))
+                        .replace("{max}", formatPrice(deliverySummary.fee.max, locale))}
+                    </bdi>
+                  ) : displayedDelivery === 0 ? (
                     s("deliveryFree")
                   ) : (
-                    <bdi>{formatPrice(delivery, locale)}</bdi>
+                    <bdi>
+                      {formatPrice(displayedDelivery, locale)}
+                      {flatFeeKnown && <span className="ms-1 text-xs">{s("deliveryAllGovernorates")}</span>}
+                    </bdi>
                   )}
                 </span>
               </div>
+              {/* Only what the merchant configured: a free-delivery line when
+                  every rate agrees on a threshold, an ETA when one is set. */}
+              {(flatFeeKnown && deliverySummary.free_threshold_iqd && displayedDelivery !== 0) ||
+              etaHours ||
+              (delivery === null && deliverySummary.eta_hours) ? (
+                <p className="font-body text-xs text-bk-ink-soft" data-delivery-note>
+                  {[
+                    flatFeeKnown && deliverySummary.free_threshold_iqd && displayedDelivery !== 0
+                      ? s("deliveryFreeAbove").replace(
+                          "{amount}",
+                          formatPrice(deliverySummary.free_threshold_iqd, locale),
+                        )
+                      : null,
+                    etaHours
+                      ? s("deliveryEta").replace("{eta}", formatHours(etaHours, locale))
+                      : delivery === null && deliverySummary.eta_hours
+                        ? deliverySummary.eta_hours.min === deliverySummary.eta_hours.max
+                          ? s("deliveryEta").replace("{eta}", formatHours(deliverySummary.eta_hours.min, locale))
+                          : s("deliveryEtaRange")
+                              .replace("{min}", formatHours(deliverySummary.eta_hours.min, locale))
+                              .replace("{max}", formatHours(deliverySummary.eta_hours.max, locale))
+                        : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              ) : null}
               <div className="flex items-center justify-between">
                 <span className="font-display font-black text-base">
                   {s("total")}
+                  {totalExcludesDelivery && (
+                    <span className="ms-1 font-body text-xs font-normal text-bk-ink-soft">
+                      {s("totalExcludesDelivery")}
+                    </span>
+                  )}
                 </span>
                 <span
                   className="font-display font-black text-xl tabular-nums"

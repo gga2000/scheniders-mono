@@ -333,7 +333,13 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   they reached and mark none current. Verified in a browser for `placed` and
   `returning`. Builder screen for editing the narratives is **W4.2b**, still
   open. *(C4)*
-- **W4.3** Surface delivery fee + ETA on PDP and cart from the existing config. *(C2)*
+- **W4.3** *(done)* `summarizeDelivery` reads the WHOLE shipping config: flat →
+  state the fee upfront and count it in the total; varies → state the range and
+  mark the total "before delivery"; ETA only when a rate declares one.
+  `eta_hours` had never had a consumer. `delivery_promise` now reads ETAs and
+  coverage from the config instead of hardcoded 6h/48h and an English list.
+  Three copies of an hours formatter, one with the wrong Arabic plural,
+  became `formatHours`. *(C2)*
 - **W4.4** Shopper photo reviews: submit from the delivered-order link, moderate
   in platform. *(C1)*
 - **W4.5** Authenticity block *(C5)* and open-on-delivery policy surface *(C3)*.
