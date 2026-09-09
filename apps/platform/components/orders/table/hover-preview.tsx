@@ -4,8 +4,8 @@ import { memo } from "react";
 import { cn, formatIQD } from "@/lib/utils";
 import type { Order } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
-import { getStatusLabel } from "@/lib/utils";
 import { Phone, MapPin, FileText, Package, Clock } from "lucide-react";
+import { useStatusLabel } from "@/hooks/use-status-label";
 
 interface HoverPreviewProps {
     order: Order;
@@ -13,6 +13,7 @@ interface HoverPreviewProps {
 }
 
 export const RowHoverPreview = memo(function RowHoverPreview({ order, position }: HoverPreviewProps) {
+    const orderStatusLabel = useStatusLabel();
     const items = order.items || [];
     const notes = order.notes?.trim();
 
@@ -25,7 +26,7 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
             <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-bold text-foreground">{order.customer_name}</span>
                 <span className={cn("px-2 py-0.5 text-[10px] font-bold rounded-full", getStatusBadgeStyle(order.status))}>
-                    {getStatusLabel(order.status)}
+                    {orderStatusLabel(order.status)}
                 </span>
             </div>
 

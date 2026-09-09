@@ -1,5 +1,7 @@
 // Re-export shared utilities
 import { formatIQD } from "@scheniders/shared";
+import type { Locale } from "@/lib/i18n";
+import { getOrderStatusLabel } from "@/lib/order-status-labels";
 export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
 
 /**
@@ -61,34 +63,18 @@ export function formatDate(date: string | Date): string {
 
 
 /**
- * Get status label in Arabic
+ * Human label for an order status.
+ *
+ * The table itself lives in lib/order-status-labels, which the `orders.status.*`
+ * translation keys are also generated from — ARCH-4: this function used to carry
+ * its own hardcoded Arabic copy that had already drifted from them.
+ *
+ * The locale defaults to "ar" so the ~30 existing call sites keep their current
+ * behaviour; components that know the active locale pass it, and then an English
+ * user reads English here too. Prefer `useStatusLabel()` in a component.
  */
-export function getStatusLabel(status: string, isReturn?: boolean): string {
-    if (status === 'in_transit' && isReturn) {
-        return 'استرجاع قيد التوصيل';
-    }
-
-    const labels = {
-        new: 'جديد',
-        contacted: 'تم الاتصال',
-        confirmed: 'مؤكد',
-        cancelled: 'ملغي',
-        in_transit: 'قيد التوصيل',
-        rejected: 'مرفوض',
-        delivered: 'تم التوصيل',
-        completed: 'طلب تام',
-        no_response: 'لم يرد',
-        return_pending: 'استرجاع معلق',
-        suspended: 'طلب معلق',
-        pending_checkout: 'سلة',
-        // These two were missing, so 74 live orders in refund_delivered rendered
-        // the raw status string in an otherwise-Arabic UI. Wording matches the
-        // canonical orders.status.* keys in lib/i18n.ts.
-        refund_delivered: 'تم الاسترجاع',
-        refund_failed: 'فشل الاسترجاع',
-    };
-
-    return labels[status as keyof typeof labels] || status;
+export function getStatusLabel(status: string, isReturn?: boolean, locale: Locale = "ar"): string {
+    return getOrderStatusLabel(status, locale, isReturn);
 }
 
 /**

@@ -14,6 +14,7 @@ import { cn, getStatusLabel } from "@/lib/utils";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
+import { useStatusLabel } from "@/hooks/use-status-label";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -49,6 +50,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     onOpenTemplatePanel,
 }: MobileOrderCardProps) {
     const { t } = useLanguage();
+    const orderStatusLabel = useStatusLabel();
     const isReturn = order.is_return;
     const items = getItemsDisplay(order.items || []);
     const itemsText = items.length > 0
@@ -256,7 +258,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         getStatusBadgeStyle(order.status),
                                         isReturn && "bg-rose-100 text-rose-700"
                                     )}>
-                                        {getStatusLabel(order.status, order.is_return || false) || order.status.replace('_', ' ')}
+                                        {orderStatusLabel(order.status, order.is_return || false) || order.status.replace('_', ' ')}
                                     </div>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-[180px] p-2 space-y-1 rounded-xl bg-(--card-bg) border-(--card-border) shadow-xl z-50">
@@ -275,7 +277,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                             )}
                                         >
                                             {getStatusIcon(status)}
-                                            {getStatusLabel(status, order.is_return || false) || status.replace('_', ' ')}
+                                            {orderStatusLabel(status, order.is_return || false) || status.replace('_', ' ')}
                                             {order.status === status && <CheckCircle className="w-3.5 h-3.5 ml-auto opacity-70" />}
                                         </DropdownMenuItem>
                                     ))}

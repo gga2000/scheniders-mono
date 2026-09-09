@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { orderMatchesSearch } from "@/lib/order-filter-utils";
+import { orderMatchesSearch, orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useShallow } from "zustand/react/shallow";
@@ -11,7 +11,6 @@ import { MobileSearchModal } from "./MobileSearchModal";
 import { MobileFilterModal } from "./MobileFilterModal";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { Order } from "@/lib/supabase";
-import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft } from "lucide-react";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
@@ -90,13 +89,12 @@ export function MobileOrdersPage() {
             result = result.filter((o) => orderMatchesSearch(o, localSearchQuery, hookFilteredOrders));
         }
 
-        // Status / Risk level filters
-        if (filters.riskLevel) {
-            if (filters.riskLevel === "flagged") {
-                result = result.filter((o) => isOrderFlagged(o) || o.status === "rejected");
-            } else {
-                result = result.filter((o) => o.risk_data?.level === filters.riskLevel);
-            }
+        // Risk / flagged filter — shared with the desktop page via
+        // orderMatchesRiskLevel so the two screens cannot disagree about what
+        // "flagged" means. This was the last predicate still duplicated here.
+        const riskLevel = filters.riskLevel;
+        if (riskLevel) {
+            result = result.filter((o) => orderMatchesRiskLevel(o, riskLevel));
         }
 
         // Default sorting: Newest first. Timestamps resolved once rather than

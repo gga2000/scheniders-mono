@@ -1,6 +1,7 @@
 "use client";
 
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 
 /**
@@ -98,8 +99,26 @@ export function normalizeArabicText(text: string): string {
 // ORDER FILTERING
 // =============================================
 
-
-
+/**
+ * Whether one order matches the risk / "flagged" filter.
+ *
+ * MOB-2: this predicate existed twice — once in the desktop page's post-hook
+ * `filteredOrders` memo and once in `MobileOrdersPage` — so the two screens
+ * could disagree about what "flagged" means. They now call this.
+ *
+ * "Flagged" is deliberately not a risk level: it means the order has a data
+ * quality problem, or the customer rejected it. Every other value is the risk
+ * level joined from the database.
+ */
+export function orderMatchesRiskLevel(
+    order: Order,
+    riskLevel: NonNullable<OrderFilters["riskLevel"]>,
+): boolean {
+    if (riskLevel === "flagged") {
+        return isOrderFlagged(order) || order.status === "rejected";
+    }
+    return order.risk_data?.level === riskLevel;
+}
 
 
 // =============================================

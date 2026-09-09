@@ -12,7 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@scheniders/ui/dialog";
-import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel, getBaseOrderId } from "@/lib/utils";
+import { formatIQD, formatDate, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
@@ -78,6 +78,7 @@ import {
     Ban,
 } from "lucide-react";
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
+import { useStatusLabel } from "@/hooks/use-status-label";
 
 interface OrderDetailsModalProps {
     order: Order | null;
@@ -116,6 +117,7 @@ export function OrderDetailsModal({
     const governorates = getAllGovernorateCodes();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
+    const orderStatusLabel = useStatusLabel();
     const { promptUser, PromptComponent } = usePrompt();
 
     // Sync local state with prop updates
@@ -212,7 +214,7 @@ export function OrderDetailsModal({
     const quickActions = [
         {
             status: "new" as Order["status"],
-            label: getStatusLabel("new"),
+            label: orderStatusLabel("new"),
             icon: Clock,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -221,7 +223,7 @@ export function OrderDetailsModal({
         },
         {
             status: "pending_checkout" as Order["status"],
-            label: getStatusLabel("pending_checkout"),
+            label: orderStatusLabel("pending_checkout"),
             icon: ShoppingCart,
             bgColor: "bg-pink-100",
             textColor: "text-pink-900",
@@ -230,7 +232,7 @@ export function OrderDetailsModal({
         },
         {
             status: "contacted" as Order["status"],
-            label: getStatusLabel("contacted"),
+            label: orderStatusLabel("contacted"),
             icon: PhoneCall,
             bgColor: "bg-[var(--pastel-yellow)]",
             textColor: "text-amber-900",
@@ -239,7 +241,7 @@ export function OrderDetailsModal({
         },
         {
             status: "confirmed" as Order["status"],
-            label: getStatusLabel("confirmed"),
+            label: orderStatusLabel("confirmed"),
             icon: CheckCircle,
             bgColor: "bg-[var(--pastel-green)]",
             textColor: "text-green-900",
@@ -248,7 +250,7 @@ export function OrderDetailsModal({
         },
         {
             status: "in_transit" as Order["status"],
-            label: getStatusLabel("in_transit"),
+            label: orderStatusLabel("in_transit"),
             icon: Truck,
             bgColor: "bg-blue-100",
             textColor: "text-blue-900",
@@ -257,7 +259,7 @@ export function OrderDetailsModal({
         },
         {
             status: "delivered" as Order["status"],
-            label: getStatusLabel("delivered"),
+            label: orderStatusLabel("delivered"),
             icon: CheckCheck,
             bgColor: "bg-[var(--pastel-mint)]",
             textColor: "text-teal-900",
@@ -266,7 +268,7 @@ export function OrderDetailsModal({
         },
         {
             status: "completed" as Order["status"],
-            label: getStatusLabel("completed"),
+            label: orderStatusLabel("completed"),
             icon: CheckCircle,
             bgColor: "bg-green-100",
             textColor: "text-green-900",
@@ -275,7 +277,7 @@ export function OrderDetailsModal({
         },
         {
             status: "cancelled" as Order["status"],
-            label: getStatusLabel("cancelled"),
+            label: orderStatusLabel("cancelled"),
             icon: XCircle,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -284,7 +286,7 @@ export function OrderDetailsModal({
         },
         {
             status: "rejected" as Order["status"],
-            label: getStatusLabel("rejected"),
+            label: orderStatusLabel("rejected"),
             icon: XCircle,
             bgColor: "bg-[var(--pastel-pink)]",
             textColor: "text-rose-900",
@@ -293,7 +295,7 @@ export function OrderDetailsModal({
         },
         {
             status: "no_response" as Order["status"],
-            label: getStatusLabel("no_response"),
+            label: orderStatusLabel("no_response"),
             icon: PhoneOff,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -302,7 +304,7 @@ export function OrderDetailsModal({
         },
         {
             status: "return_pending" as Order["status"],
-            label: getStatusLabel("return_pending"),
+            label: orderStatusLabel("return_pending"),
             icon: RotateCcw,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -311,7 +313,7 @@ export function OrderDetailsModal({
         },
         {
             status: "suspended" as Order["status"],
-            label: getStatusLabel("suspended"),
+            label: orderStatusLabel("suspended"),
             icon: Pause,
             bgColor: "bg-purple-100",
             textColor: "text-purple-900",
@@ -452,7 +454,7 @@ export function OrderDetailsModal({
     const row1Group1 = [
         {
             status: "pending_checkout" as Order["status"],
-            label: getStatusLabel("pending_checkout"),
+            label: orderStatusLabel("pending_checkout"),
             icon: ShoppingCart,
             bgColor: "bg-pink-100",
             textColor: "text-pink-900",
@@ -460,7 +462,7 @@ export function OrderDetailsModal({
         },
         {
             status: "new" as Order["status"],
-            label: getStatusLabel("new"),
+            label: orderStatusLabel("new"),
             icon: Clock,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -468,7 +470,7 @@ export function OrderDetailsModal({
         },
         {
             status: "contacted" as Order["status"],
-            label: getStatusLabel("contacted"),
+            label: orderStatusLabel("contacted"),
             icon: PhoneCall,
             bgColor: "bg-[var(--pastel-yellow)]",
             textColor: "text-amber-900",
@@ -479,7 +481,7 @@ export function OrderDetailsModal({
     const row1Group2 = [
         {
             status: "confirmed" as Order["status"],
-            label: getStatusLabel("confirmed"),
+            label: orderStatusLabel("confirmed"),
             icon: CheckCircle,
             bgColor: "bg-[var(--pastel-green)]",
             textColor: "text-green-900",
@@ -487,7 +489,7 @@ export function OrderDetailsModal({
         },
         {
             status: "in_transit" as Order["status"],
-            label: getStatusLabel("in_transit"),
+            label: orderStatusLabel("in_transit"),
             icon: Truck,
             bgColor: "bg-blue-100",
             textColor: "text-blue-900",
@@ -498,7 +500,7 @@ export function OrderDetailsModal({
     const row1Group3 = [
         {
             status: "return_pending" as Order["status"],
-            label: getStatusLabel("return_pending"),
+            label: orderStatusLabel("return_pending"),
             icon: RotateCcw,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -510,7 +512,7 @@ export function OrderDetailsModal({
     const row2Group1 = [
         {
             status: "cancelled" as Order["status"],
-            label: getStatusLabel("cancelled"),
+            label: orderStatusLabel("cancelled"),
             icon: XCircle,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -518,7 +520,7 @@ export function OrderDetailsModal({
         },
         {
             status: "rejected" as Order["status"],
-            label: getStatusLabel("rejected"),
+            label: orderStatusLabel("rejected"),
             icon: XCircle,
             bgColor: "bg-[var(--pastel-pink)]",
             textColor: "text-rose-900",
@@ -526,7 +528,7 @@ export function OrderDetailsModal({
         },
         {
             status: "no_response" as Order["status"],
-            label: getStatusLabel("no_response"),
+            label: orderStatusLabel("no_response"),
             icon: PhoneOff,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -537,7 +539,7 @@ export function OrderDetailsModal({
     const row2Group2 = [
         {
             status: "delivered" as Order["status"],
-            label: getStatusLabel("delivered"),
+            label: orderStatusLabel("delivered"),
             icon: CheckCheck,
             bgColor: "bg-[var(--pastel-mint)]",
             textColor: "text-teal-900",
@@ -545,7 +547,7 @@ export function OrderDetailsModal({
         },
         {
             status: "completed" as Order["status"],
-            label: getStatusLabel("completed"),
+            label: orderStatusLabel("completed"),
             icon: CheckCircle,
             bgColor: "bg-green-100",
             textColor: "text-green-900",
@@ -556,7 +558,7 @@ export function OrderDetailsModal({
     const row2Group3 = [
         {
             status: "suspended" as Order["status"],
-            label: getStatusLabel("suspended"),
+            label: orderStatusLabel("suspended"),
             icon: Pause,
             bgColor: "bg-purple-100",
             textColor: "text-purple-900",
@@ -613,7 +615,7 @@ export function OrderDetailsModal({
                                                 getStatusBadgeStyle()
                                             )}
                                         >
-                                            {getStatusLabel(order.status)}
+                                            {orderStatusLabel(order.status)}
                                         </button>
 
                                         {/* Status Dropdown Menu */}

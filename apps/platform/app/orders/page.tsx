@@ -11,7 +11,7 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
-import { isOrderFlagged } from "@/lib/data-quality-utils";
+import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { getBaseOrderId, getStatusLabel } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
@@ -801,15 +801,10 @@ export default function OrdersPage() {
             });
         });
 
-        // 1.2. Apply Risk/Flagged Filter
+        // 1.2. Apply Risk/Flagged Filter — the predicate itself lives in
+        // lib/order-filter-utils so the mobile screen runs the same one.
         if (defRiskLevel) {
-            if (defRiskLevel === 'flagged') {
-                // "Flagged" = data quality issues OR rejected orders
-                result = result.filter(o => isOrderFlagged(o) || o.status === 'rejected');
-            } else {
-                // Other risk levels use the embedded database risk data
-                result = result.filter((o) => o.risk_data?.level === defRiskLevel);
-            }
+            result = result.filter(o => orderMatchesRiskLevel(o, defRiskLevel));
         }
 
         // 1.5. Apply Duplicates-Only Filter
@@ -857,15 +852,17 @@ export default function OrdersPage() {
 
     const defOrders = React.useDeferredValue(orders);
 
-    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders)
+    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
+    // Counted with the same predicate the filter uses, so the number on the card
+    // can never disagree with the list you get after clicking it.
     const flaggedCount = useMemo(() => {
-        return defHookFilteredOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+        return defHookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [defHookFilteredOrders]);
 
     // Calculate global risk count for the key filter button (all orders)
     const totalRiskCount = useMemo(() => {
         if (!defOrders) return 0;
-        return defOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+        return defOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [defOrders]);
 
     // Scroll to top when filters change to prevent empty list illusion

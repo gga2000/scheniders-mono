@@ -13,7 +13,7 @@ import { useOrderStore } from "@/store/use-order-store";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 // ... existing imports ...
 
-import { formatIQD, generateWhatsAppLink, getStatusLabel, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
+import { formatIQD, generateWhatsAppLink, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
@@ -62,6 +62,7 @@ import {
     ExternalLink
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useStatusLabel } from "@/hooks/use-status-label";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -161,6 +162,7 @@ export const OrderCard = memo(function OrderCard({
     onRemoveFromBlacklist,
 }: OrderCardProps) {
     const { t } = useLanguage();
+    const orderStatusLabel = useStatusLabel();
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
     const isReturn = order.is_return;
@@ -399,7 +401,7 @@ export const OrderCard = memo(function OrderCard({
                                 )}
                             >
                                 {getStatusIcon(status)}
-                                {getStatusLabel(status, isReturn)}
+                                {orderStatusLabel(status, isReturn)}
                                 {order.status === status && <CheckCircle className="w-3.5 h-3.5 ml-auto opacity-70" />}
                             </DropdownMenuItem>
                         ))}
@@ -449,7 +451,7 @@ export const OrderCard = memo(function OrderCard({
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
-                                    {getStatusLabel(order.status, isReturn)}
+                                    {orderStatusLabel(order.status, isReturn)}
                                 </span>
                             )}
                         </div>
@@ -564,7 +566,7 @@ export const OrderCard = memo(function OrderCard({
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
-                                    {getStatusLabel(order.status, isReturn)}
+                                    {orderStatusLabel(order.status, isReturn)}
                                 </span>
                             )}
                         </div>
@@ -809,7 +811,7 @@ export const OrderCard = memo(function OrderCard({
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
-                                    {getStatusLabel(order.status, isReturn)}
+                                    {orderStatusLabel(order.status, isReturn)}
                                 </span>
                             )}
                             {isUrgent && (
@@ -1247,7 +1249,7 @@ export const OrderCard = memo(function OrderCard({
                                 >
                                     {isNew && <Sparkles className="w-3 h-3" />}
                                     {isReturn && <RotateCcw className="w-3 h-3" />}
-                                    {getStatusLabel(order.status, isReturn)}
+                                    {orderStatusLabel(order.status, isReturn)}
                                 </motion.span>
                             )}
 

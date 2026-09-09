@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Activity, Package, StickyNote } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
-import { cn, getStatusLabel } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useStatusLabel } from "@/hooks/use-status-label";
 
 interface OrderLike {
     id: string;
@@ -34,6 +35,7 @@ export function ActivityLogTimeline({
     orders: OrderLike[];
     notes: NoteLike[];
 }) {
+    const orderStatusLabel = useStatusLabel();
     const events = useMemo(() => {
         const items: { key: string; date: Date; type: "order" | "note"; label: string; sub?: string; pastel: string; dotClass: string }[] = [];
 
@@ -43,7 +45,7 @@ export function ActivityLogTimeline({
                 date: new Date(o.created_at),
                 type: "order",
                 label: `طلب #${o.order_id}`,
-                sub: getStatusLabel(o.status),
+                sub: orderStatusLabel(o.status),
                 pastel: "bg-(--pastel-blue)/40",
                 dotClass: "bg-(--pastel-blue)",
             });
@@ -62,7 +64,7 @@ export function ActivityLogTimeline({
         }
 
         return items.sort((a, b) => b.date.getTime() - a.date.getTime());
-    }, [orders, notes]);
+    }, [orders, notes, orderStatusLabel]);
 
     return (
         <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)]">
