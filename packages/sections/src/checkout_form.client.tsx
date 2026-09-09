@@ -419,6 +419,8 @@ export function CheckoutFormRender({
       if (res.ok) {
         const data = (await res.json().catch(() => null)) as {
           orderNumber?: string;
+          /** The order's id — proof of ownership for the post-purchase upsell. */
+          orderId?: string;
           total?: number;
         } | null;
         const orderNumber = data?.orderNumber ?? "";
@@ -430,6 +432,11 @@ export function CheckoutFormRender({
             "schn:last-order",
             JSON.stringify({
               number: orderNumber,
+              // Order id + phone let the thank-you page prove to the upsell
+              // endpoint that this browser placed the order. Additive: older
+              // readers of the stash ignore them.
+              order_id: data?.orderId ?? null,
+              phone: normalizeIraqiMobile(form.phone) ?? null,
               // Lets the thank-you page greet the buyer by name; optional so
               // older readers of the stash keep working unchanged.
               customer_name: form.customer_name.trim(),
