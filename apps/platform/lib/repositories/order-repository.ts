@@ -22,7 +22,7 @@ import { diag } from "@/lib/diag";
 // audit hit the same gap from the other side: its COR-4 could not bucket by
 // delivered_at precisely because this list never selected it.
 // NOTE: this string is sent verbatim as a PostgREST `select=` — no SQL comments.
-const LIST_VIEW_COLUMNS = `
+export const LIST_VIEW_COLUMNS = `
   id,
   created_at,
   updated_at,
