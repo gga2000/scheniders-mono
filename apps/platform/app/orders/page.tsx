@@ -2702,72 +2702,65 @@ export default function OrdersPage() {
                                                             hasFilters={emptyStateHasFilters}
                                                         />
                                                     ) : compactView >= 1 && compactGrid ? (
-                                                        /* Grid layout for compact views */
-                                                        <div className={cn(
-                                                            "grid gap-2 grid-deferred-cells",
-                                                            compactView === 2
-                                                                ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-                                                                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-                                                        )}>
-                                                            {displayedOrders.map((order) => {
-                                                                const customerOrders = getCustomerHistory(order.phone);
-                                                                const orderCount = getCustomerOrderCount(order.phone, order.order_id);
-                                                                const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
-
-                                                                return (
-                                                                    <SwipeableOrderCard
-                                                                        key={order.id}
-                                                                        order={order}
-                                                                        loadingId={loadingId}
-                                                                        onStatusUpdate={handleStatusUpdate}
-                                                                        onViewDetails={handleViewDetails}
-                                                                        onSplit={() => setSplitOrderDialog({ open: true, order })}
-                                                                        isBlacklisted={isBlacklisted(order.phone)}
-                                                                        blacklistEntry={getBlacklistEntry(order.phone)}
-                                                                        onAddToBlacklist={addToBlacklist}
-                                                                        onRemoveFromBlacklist={removeFromBlacklist}
-                                                                        riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
-                                                                        riskAssessment={order.risk_data}
-                                                                        customerOrderCount={orderCount}
-                                                                        archivedOrderCount={getCustomerArchivedCount(order.phone)}
-                                                                        previousOrder={previousOrder}
-                                                                        onMergeWithPrevious={async (keepId: string, archiveId: string) => {
-                                                                            await mergeOrders(keepId, archiveId);
-                                                                        }}
-                                                                        onShowDuplicates={(o: Order) => {
-                                                                            setDuplicateOrder(o);
-                                                                            setShowDuplicateModal(true);
-                                                                        }}
-                                                                        hasDuplicates={hasDuplicates(order.id)}
-                                                                        getCustomerOrderCount={(phone: string) => getCustomerOrderCount(phone, order.order_id)}
-                                                                        onTogglePin={(id: string) => togglePin(id)}
-                                                                        onClone={(o: Order) => cloneOrder(o.id)}
-                                                                        onScreenshot={() => setScreenshotOrder(order)}
-                                                                        onCancelWithReason={(o: Order) => {
-                                                                            setOrderToCancel(o);
-                                                                            setCancelDialogOpen(true);
-                                                                        }}
-                                                                        onRejectWithReason={(o: Order) => {
-                                                                            setOrderToReject(o);
-                                                                            setRejectDialogOpen(true);
-                                                                        }}
-                                                                        onToggleReviewed={toggleReviewed}
-                                                                        returnOrderInfo={getReturnOrderInfo(order.id)}
-                                                                        originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
-                                                                        compact={compactView}
-                                                                        actionDock={actionDock}
-                                                                        gridMode={true}
-                                                                        onOpenTemplatePanel={(o: Order) => {
-                                                                            setOrderForTemplate(o);
-                                                                            setTemplatePanelOpen(true);
-                                                                        }}
-                                                                        messageTemplates={workflowTemplates}
-                                                                        isSelected={selectedOrders.has(order.id)}
-                                                                        onToggleSelection={toggleOrderSelection}
-                                                                    />
-                                                                );
-                                                            })}
-                                                        </div>
+                                                        /* PERF-2: the compact grid used to render every filtered
+                                                           order at once. It is the same virtualized list as below,
+                                                           in grid mode — `content-visibility` is deliberately not
+                                                           applied any more, because it would make the virtualizer
+                                                           measure the placeholder height instead of the card. */
+                                                        <VirtualizedOrderList
+                                                            orders={displayedOrders}
+                                                            gridMode
+                                                            gridClassName={cn(
+                                                                "grid gap-2",
+                                                                compactView === 2
+                                                                    ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                                                                    : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                                                            )}
+                                                            loadingId={loadingId}
+                                                            selectedOrders={selectedOrders}
+                                                            messageTemplates={workflowTemplates}
+                                                            onStatusUpdate={handleStatusUpdate}
+                                                            onViewDetails={handleViewDetails}
+                                                            onToggleSelection={toggleOrderSelection}
+                                                            onTogglePin={togglePin}
+                                                            onCloneOrder={cloneOrder}
+                                                            onScreenshot={setScreenshotOrder}
+                                                            onCancelWithReason={(o) => {
+                                                                setOrderToCancel(o);
+                                                                setCancelDialogOpen(true);
+                                                            }}
+                                                            onRejectWithReason={(o) => {
+                                                                setOrderToReject(o);
+                                                                setRejectDialogOpen(true);
+                                                            }}
+                                                            onToggleReviewed={toggleReviewed}
+                                                            onOpenTemplatePanel={(o) => {
+                                                                setOrderForTemplate(o);
+                                                                setTemplatePanelOpen(true);
+                                                            }}
+                                                            onShowDuplicates={(o) => {
+                                                                setDuplicateOrder(o);
+                                                                setShowDuplicateModal(true);
+                                                            }}
+                                                            onMergeWithPrevious={async (keepId, archiveId) => {
+                                                                await mergeOrders(keepId, archiveId);
+                                                            }}
+                                                            isBlacklisted={isBlacklisted}
+                                                            getBlacklistEntry={getBlacklistEntry}
+                                                            onAddToBlacklist={addToBlacklist}
+                                                            onRemoveFromBlacklist={removeFromBlacklist}
+                                                            getRiskAssessment={getRiskAssessmentByPhone}
+                                                            getCustomerOrderCount={getCustomerOrderCount}
+                                                            getCustomerArchivedCount={getCustomerArchivedCount}
+                                                            getCustomerHistory={getCustomerHistory}
+                                                            getReturnOrderInfo={getReturnOrderInfo}
+                                                            getOriginalOrderInfo={getOriginalOrderInfo}
+                                                            compactView={compactView}
+                                                            actionDock={actionDock}
+                                                            getRiskLevel={getRiskLevelByPhone}
+                                                            hasDuplicates={hasDuplicates}
+                                                            onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
+                                                        />
                                                     ) : displayedOrders.length >= 10 ? (
                                                         /* Use virtualized list for 50+ orders */
                                                         <VirtualizedOrderList
