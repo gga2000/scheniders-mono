@@ -123,10 +123,15 @@ export function calculateUrgencyMetrics(orders: Order[]): UrgencyMetrics {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const failedDeliveries = orders.filter(o =>
         o.status === 'rejected' &&
-        new Date(o.updated_at || o.created_at) > sevenDaysAgo
+        // COR-D4(b): when it was rejected, not when the row was last touched.
+        outcomeAt(o) > sevenDaysAgo
     ).length;
 
     // 3. Stuck In Transit (> 3 days)
+    // COR-D4(b): the server dates this from the order_status_history event that
+    // set 'in_transit' (135 of 171 open rows have one). The client has no access
+    // to that table, so it keeps `updated_at` — a documented near-match on the
+    // fallback path, which announces itself.
     const stuckInTransit = orders.filter(o =>
         o.status === 'in_transit' &&
         new Date(o.updated_at || o.created_at) < threeDaysAgo
@@ -303,6 +308,23 @@ export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): O
  * Returns null when neither exists — true only of pre-2026 legacy imports on this data, none of
  * which fall inside any window the dashboard shows.
  */
+/**
+ * COR-D4(b). When the OUTCOME happened, for windowing "what changed this week".
+ *
+ * `updated_at` is not that: 775 of 5,240 delivered/completed rows carry
+ * updated_at = created_at, because platform writes do not bump it — so
+ * "delivered in the last 7 days" silently meant "created in the last 7 days".
+ *
+ * The server RPC also reads the order_status_history event that set 'rejected'.
+ * The client only has the order row, so a rejection falls back to `updated_at`
+ * here. That is a documented near-match on the degraded fallback path, which
+ * already announces itself; it is never a reason to DROP the row, because
+ * dropping a rejection inflates the delivery rate.
+ */
+export function outcomeAt(o: Order): Date {
+    return realizedAt(o) ?? new Date(o.updated_at || o.created_at);
+}
+
 export function realizedAt(o: Order): Date | null {
     const delivered = (o as { delivered_at?: string | null }).delivered_at;
     if (delivered) return parseUtcNaiveTimestamp(delivered);
@@ -527,7 +549,8 @@ export function calculateDeliverySuccessRate(orders: Order[], locale: ChartLocal
     // "0% delivery rate" for a merchant who simply had a quiet week.
     const rateForWindow = (start: Date, end: Date): number | null => {
         const window = orders.filter(o => {
-            const d = new Date(o.updated_at || o.created_at);
+            // COR-D4(b): bucket by when the outcome happened, not the row's last touch.
+            const d = outcomeAt(o);
             return d >= start && d < end && ['delivered', 'completed', 'rejected'].includes(o.status);
         });
         if (!window.length) return null;
