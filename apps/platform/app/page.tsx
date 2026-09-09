@@ -102,6 +102,11 @@ export default function Home() {
   // Dev-only parallel-run drift check: once the client has computed metrics from
   // the loaded orders array, compare key server vs client numbers. Lets us prove
   // the SQL function matches before fully retiring the client path.
+  // Cycle time is a float; compare to the whole hour so float noise is not
+  // reported as drift. A real timezone shift moves it by hours, not fractions.
+  const roundOrNull = (n: number | null | undefined) =>
+      typeof n === 'number' && Number.isFinite(n) ? Math.round(n) : null;
+
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development' || !serverMetrics || !clientMetrics) return;
     const cmp: Array<[string, number | null, number | null]> = [
@@ -110,6 +115,15 @@ export default function Home() {
       ['funnel.total', serverMetrics.funnel[0]?.value ?? -1, clientMetrics.funnel[0]?.value ?? -1],
       ['deliveryRate.current', serverMetrics.deliveryRate.currentRate, clientMetrics.deliveryRate.currentRate],
       ['monthForecast.ordersThisMonth', serverMetrics.monthForecast.ordersThisMonth, clientMetrics.monthForecast.ordersThisMonth],
+      // Added after the COR-D3 timezone correction. Both of these read
+      // delivered_at, and both disagreed with the client for days while every
+      // sampled metric above stayed green: the SQL shifted delivery times by a
+      // flat -6h, so today's revenue was understated by 59% and 383 sub-6h
+      // deliveries were discarded as impossible. Sample the metrics that depend
+      // on event timestamps, not just the ones keyed on created_at.
+      ['monthForecast.revenueThisMonth', serverMetrics.monthForecast.revenueThisMonth, clientMetrics.monthForecast.revenueThisMonth],
+      ['avgTimePerStage.avgHours', roundOrNull(serverMetrics.avgTimePerStage[0]?.avgHours), roundOrNull(clientMetrics.avgTimePerStage[0]?.avgHours)],
+      ['avgTimePerStage.sampleSize', serverMetrics.avgTimePerStage[0]?.sampleSize ?? -1, clientMetrics.avgTimePerStage[0]?.sampleSize ?? -1],
     ];
     const drift = cmp.filter(([, s, c]) => s !== c);
     if (drift.length === 0) diag.log('[Diag:MetricsDrift] OK — server matches client on sampled metrics');

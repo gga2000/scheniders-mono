@@ -70,17 +70,26 @@ export function onlyDashboardOrders(orders: Order[]): Order[] {
 }
 
 // =============================================
-// delivered_at is UTC-naive (COR-D3 / Orders COR-8)
+// Timestamp parsing (COR-D3, corrected)
 // =============================================
 /**
- * `orders.delivered_at` is `timestamp WITHOUT time zone` holding a UTC instant,
- * unlike every sibling timestamp. Postgrest serialises it with no zone
- * designator ("2026-09-01 22:00:00.344756"), and `new Date()` then parses that as
- * BROWSER-LOCAL time — so on a Baghdad machine (UTC+3) every delivery looked 3
- * hours earlier than it was, understating each cycle by 3h and pushing sub-3h
- * deliveries negative, where a `> 0` filter silently discarded them.
+ * CORRECTION. COR-D3 asserted that `orders.delivered_at` is
+ * `timestamp WITHOUT time zone` holding a UTC instant. **That was wrong.**
+ * Verified against the live catalog and the serialised payload: the column is
+ * `timestamp WITH time zone`, like every sibling, and PostgREST sends it with an
+ * offset ("2026-03-16T12:25:12.848+00:00"). So this helper has always taken its
+ * `hasZone` branch and has always been a no-op on real data — the client engine
+ * was never wrong.
  *
- * Parse it explicitly as UTC. Values that already carry a zone are left alone.
+ * The SQL half of that same fix was not harmless: it wrapped the column in
+ * `AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Baghdad'`, which on a timestamptz
+ * shifted every delivery by a flat -6h, understating today's revenue by 59% and
+ * discarding 383 sub-6h deliveries as "impossible". Fixed in migration
+ * 20260909104500.
+ *
+ * The helper is kept because it is genuinely defensive: a zone-less value would
+ * otherwise be read as BROWSER-LOCAL, which in Baghdad (UTC+3) silently shifts
+ * the instant. It is not evidence that any column is zone-less.
  */
 export function parseUtcNaiveTimestamp(value: string): Date {
     const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim());
@@ -289,8 +298,9 @@ export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): O
  * the dashboard booked revenue at promise time and quietly un-booked it later.
  * Realized revenue is delivered/completed orders, dated by when they were realized.
  *
- * `delivered_at` is UTC-naive (COR-D3), `completed_at` carries a zone. Returns null
- * when neither exists — true only of pre-2026 legacy imports on this data, none of
+ * Both `delivered_at` and `completed_at` are timestamptz and arrive with an
+ * offset; see parseUtcNaiveTimestamp for why its name overstates the case.
+ * Returns null when neither exists — true only of pre-2026 legacy imports on this data, none of
  * which fall inside any window the dashboard shows.
  */
 export function realizedAt(o: Order): Date | null {
