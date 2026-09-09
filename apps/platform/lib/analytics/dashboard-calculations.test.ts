@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+    calculateTodayStrip,
+    realizedRevenueBetween,
     formatChartWeekday,
     formatChartDayMonth,
     baghdadDayStart,
@@ -230,5 +232,59 @@ describe("I18N-D3 — chart axis labels follow the locale and Baghdad's day", ()
         // 22:05Z Saturday is already Sunday in Baghdad; the label must say Sunday
         // whatever timezone the browser is in.
         expect(formatChartWeekday(new Date("2026-09-05T22:05:00.000Z"), "en")).toBe("Sun");
+    });
+});
+
+describe("COR-D1 — revenue is what was collected, not what was promised", () => {
+    const iso = (d: string) => new Date(d).toISOString();
+
+    it("THE BUG: a confirmed-but-undelivered order is not revenue", () => {
+        const orders = [order({
+            status: "confirmed", price: 34750,
+            created_at: iso("2026-09-08T09:00:00Z"),
+        })];
+        expect(realizedRevenueBetween(orders, new Date("2026-09-01T00:00:00Z"))).toBe(0);
+    });
+
+    it("counts a delivered order, dated by when it was DELIVERED", () => {
+        // Ordered in August, delivered in September: the money belongs to September.
+        const orders = [order({
+            status: "delivered", price: 50000,
+            created_at: iso("2026-08-20T09:00:00Z"),
+            delivered_at: "2026-09-05 10:00:00.000000",
+        })];
+        expect(realizedRevenueBetween(orders, new Date("2026-09-01T00:00:00Z"))).toBe(50000);
+        // ...and not to August.
+        expect(realizedRevenueBetween(
+            orders, new Date("2026-08-01T00:00:00Z"), new Date("2026-09-01T00:00:00Z"),
+        )).toBe(0);
+    });
+
+    it("falls back to completed_at when there is no delivered_at", () => {
+        // `completed_at` is not part of the client Order type (the list view does not
+        // select it) — the server RPC is the authoritative path for this fallback.
+        const orders = [{
+            ...order({ status: "completed", price: 12000, created_at: iso("2026-08-20T09:00:00Z") }),
+            completed_at: iso("2026-09-05T10:00:00Z"),
+        } as unknown as Order];
+        expect(realizedRevenueBetween(orders, new Date("2026-09-01T00:00:00Z"))).toBe(12000);
+    });
+
+    it("excludes a realized order that carries no timestamp at all (legacy imports)", () => {
+        const orders = [order({ status: "delivered", price: 9999, created_at: iso("2025-06-01T09:00:00Z") })];
+        expect(realizedRevenueBetween(orders, new Date("2025-01-01T00:00:00Z"))).toBe(0);
+    });
+
+    it("today's strip reports collected money, not booked money", () => {
+        const today = new Date();
+        const orders = [
+            order({ status: "confirmed", price: 100000, created_at: today.toISOString() }),
+            order({ id: "o2", status: "delivered", price: 25000,
+                    created_at: today.toISOString(),
+                    delivered_at: today.toISOString().replace("T", " ").replace("Z", "") }),
+        ];
+        const strip = calculateTodayStrip(orders);
+        expect(strip.ordersToday).toBe(2);        // both are orders
+        expect(strip.revenueToday).toBe(25000);   // only one is revenue
     });
 });
