@@ -54,11 +54,36 @@ function getSnaptr(): Snaptr | undefined {
  */
 export function trackPageView(): void {
   if (typeof window === "undefined") return;
+  funnelSink?.({ type: "page_view" });
   getFbq()?.("track", "PageView");
   const ttq = getTtq();
   if (ttq && typeof ttq.page === "function") ttq.page();
   getSnaptr()?.("track", "PAGE_VIEW");
 }
+
+/* ── First-party funnel ─────────────────────────────────────────────── */
+
+export type FunnelEventType = "page_view" | "view_product" | "add_to_cart" | "initiate_checkout";
+export interface FunnelEvent {
+  type: FunnelEventType;
+  page_id?: string;
+  product_id?: string;
+}
+
+// The storefront's FunnelBeacon installs a sink; sections stay app-agnostic
+// and simply forward the pixel events they already fire. No sink (editor
+// preview, tests) → nothing recorded.
+let funnelSink: ((e: FunnelEvent) => void) | null = null;
+export function setFunnelSink(sink: ((e: FunnelEvent) => void) | null): void {
+  funnelSink = sink;
+}
+
+const FUNNEL_OF: Partial<Record<PixelEvent, FunnelEventType>> = {
+  ViewContent: "view_product",
+  AddToCart: "add_to_cart",
+  InitiateCheckout: "initiate_checkout",
+  // Purchase is recorded by the checkout server with its own total.
+};
 
 export function trackPixel(
   event: PixelEvent,
@@ -66,6 +91,11 @@ export function trackPixel(
   eventId?: string,
 ): void {
   if (typeof window === "undefined") return;
+
+  const funnelType = FUNNEL_OF[event];
+  if (funnelSink && funnelType) {
+    funnelSink({ type: funnelType, product_id: data.content_ids[0] });
+  }
 
   const fbq = getFbq();
   if (fbq) {

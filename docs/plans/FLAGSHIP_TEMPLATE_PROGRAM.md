@@ -417,7 +417,15 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   clean/caution/high/blocked, newcomer/good/vip). Ops chips in the order card
   and the virtualized table (`COD_RISK_REASON_LABELS`). Rolled-back probe on
   real histories verified all four reasons. *(P16)*
-- **W6.7** Storefront funnel dashboard. *(G1)*
+- **W6.7** Storefront funnel — DONE. Migration `20260910150000`:
+  `storefront_events` (RLS members-select, no anon) + `storefront_funnel`
+  RPC (SECURITY INVOKER, unique visitors per stage, daily series, top viewed→
+  bought). Storefront: `/api/events` batch beacon (visitor key from `sb_vid`
+  only; `purchase` refused), `<FunnelBeacon>` in `v2-page` (page_view /
+  view_product per render, sink for `trackPixel`), checkout route writes
+  purchase rows per line with the server total. Platform: `useStorefrontFunnel`,
+  `FunnelCard` in the Command Center (`command_center.funnel_*` strings).
+  Verified: RPC probe rolled back; route/card/forwarding tests. *(G1)*
 - **W6.8** Kurdish locale. *(P9)*
 
 ### Wave 7 — Craft

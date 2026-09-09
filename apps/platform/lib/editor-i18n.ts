@@ -1017,6 +1017,15 @@ export const STRINGS = {
         kpi_aov: { en: "Avg. order value", ar: "متوسط قيمة الطلب", ku: "ناوەندی بەهای داواکاری" },
         kpi_last_7_days: { en: "Last 7 days", ar: "آخر 7 أيام", ku: "٧ ڕۆژی ڕابردوو" },
         kpi_no_orders_yet: { en: "No orders yet", ar: "لا توجد طلبات بعد", ku: "هێشتا داواکاری نییە" },
+        funnel_title: { en: "Storefront funnel", ar: "مسار الزبون بالمتجر", ku: "ڕێڕەوی کڕیار" },
+        funnel_visitors: { en: "Visitors", ar: "زوّار", ku: "سەردانکەران" },
+        funnel_product_viewers: { en: "Viewed a product", ar: "شافوا منتج", ku: "بەرهەمێکیان بینی" },
+        funnel_checkout_starters: { en: "Started an order", ar: "بدوا طلب", ku: "داواکارییان دەستپێکرد" },
+        funnel_buyers: { en: "Ordered", ar: "طلبوا", ku: "داوایان کرد" },
+        funnel_of_previous: { en: "Share of the previous step", ar: "نسبة من الخطوة السابقة", ku: "ڕێژە لە هەنگاوی پێشوو" },
+        funnel_conversion: { en: "Visitors who ordered:", ar: "من الزوّار طلبوا:", ku: "لە سەردانکەران داوایان کرد:" },
+        funnel_top_products: { en: "Most viewed → bought", ar: "الأكثر مشاهدة ← شراء", ku: "زۆرترین بینراو ← کڕدراو" },
+        funnel_empty: { en: "No visits recorded yet. Once the store is live, visitors, product views, checkout starts and orders show here.", ar: "بعد ماكو زيارات مسجلة. أول ما يشتغل المتجر، تشوف هنا الزوّار ومشاهدات المنتجات وبدايات الطلب والطلبات.", ku: "هێشتا سەردان تۆمار نەکراوە. کاتێک فرۆشگاکە کارا بوو، لێرە دەردەکەون." },
 
         /* Health card */
         health_heading: { en: "Store health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },

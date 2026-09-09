@@ -6660,6 +6660,50 @@ export type Database = {
           },
         ]
       }
+      storefront_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: number
+          order_id: string | null
+          page_id: string | null
+          product_id: string | null
+          tenant_id: string
+          value_iqd: number | null
+          visitor_key: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: never
+          order_id?: string | null
+          page_id?: string | null
+          product_id?: string | null
+          tenant_id: string
+          value_iqd?: number | null
+          visitor_key: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: never
+          order_id?: string | null
+          page_id?: string | null
+          product_id?: string | null
+          tenant_id?: string
+          value_iqd?: number | null
+          visitor_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storefront_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           auto_renew: boolean
@@ -8360,6 +8404,10 @@ export type Database = {
             }
             Returns: Json
           }
+      storefront_funnel: {
+        Args: { _from: string; _tenant_id: string; _to: string }
+        Returns: Json
+      }
       tenant_block_active: {
         Args: { p_block: string; p_tenant_id: string }
         Returns: boolean

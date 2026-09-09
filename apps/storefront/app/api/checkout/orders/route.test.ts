@@ -314,12 +314,12 @@ describe("POST /api/checkout/orders", () => {
         arm_id: "arm_real",
       }),
     ]);
-    const inserted = JSON.stringify(mockInsert.mock.calls[0]?.[0]);
+    const inserted = JSON.stringify(mockInsert.mock.calls);
     expect(inserted).not.toContain("forged_arm");
     expect(inserted).not.toContain("ghost_exp");
   });
 
-  it("(l2) records no events when the store has no running experiments", async () => {
+  it("(l2) records only the first-party purchase when the store has no running experiments", async () => {
     vi.mocked(cookies).mockResolvedValue({
       get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
     } as never);
@@ -330,7 +330,13 @@ describe("POST /api/checkout/orders", () => {
 
     const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(200);
-    expect(mockInsert).not.toHaveBeenCalled();
+    // One insert: the funnel's purchase rows (one per line, server total on
+    // the first) — and no experiment attribution rows at all.
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    const rows = mockInsert.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+    expect(rows.every((r) => r.event_type === "purchase" && r.visitor_key === "visitor-abc")).toBe(true);
+    expect(rows.some((r) => "experiment_id" in r)).toBe(false);
+    expect(rows[0]?.value_iqd).toBeTypeOf("number");
   });
 
   it("(m) does NOT record events on a failed order", async () => {
