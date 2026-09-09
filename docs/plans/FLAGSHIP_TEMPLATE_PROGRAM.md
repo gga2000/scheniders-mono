@@ -340,8 +340,14 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   coverage from the config instead of hardcoded 6h/48h and an English list.
   Three copies of an hours formatter, one with the wrong Arabic plural,
   became `formatHours`. *(C2)*
-- **W4.4** Shopper photo reviews: submit from the delivered-order link, moderate
-  in platform. *(C1)*
+- **W4.4** *(done, much smaller than planned)* Photo reviews were already built
+  end to end: multipart `POST /api/reviews` storing `pending`, a submit form
+  with photo upload in `product_reviews`, and a moderation page in the
+  platform. The missing piece was the entry from a delivered order: the
+  tracker's "rate your order" (W4.2) linked to `#reviews`, which did not exist.
+  The section now carries the anchor and, on `#reviews`, scrolls to the form
+  and focuses the first star. The WhatsApp "delivered" message that would
+  carry the link is Interakt — out of scope. *(C1)*
 - **W4.5** Authenticity block *(C5)* and open-on-delivery policy surface *(C3)*.
 - **W4.6** Real inventory-driven urgency, replacing the evergreen countdown. *(P14)*
 
@@ -383,6 +389,22 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 5. Verified at 390px first, then 1440px. Screenshot before/after for visual work.
 6. One PR per task or per coherent group; config published only after the code
    that understands it is live on `main`.
+
+## 6b. Final publish checklist (config, after the code is live on `main`)
+
+Sections shipped in this program that the flagship's published config does not
+yet place. Publish discipline: only after the deploy that understands them.
+
+- `product_attributes` → `product` page (after `pdp_direct_order`).
+- `product_finder` → `home` (below the hero) — needs per-product attribute
+  values first, or it renders nothing.
+- `post_purchase_offer` → `checkout_success` (before `product_grid`) — needs
+  at least one order bump configured, or it renders nothing.
+- `product_grid` on the catalog page: `enable_filters` is set by
+  `deriveCatalogPage`, no config change needed.
+- Verified present already: `product_reviews` on `product`, `order_tracker` on
+  `track`, `free_gift_strip` on `cart` (renders nothing until
+  `commerce.free_gift` is set in the builder).
 
 ## 7. Out of scope
 
