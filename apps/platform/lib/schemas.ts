@@ -21,6 +21,17 @@ export const OrderStatusEnum = z.enum([
     'suspended'
 ]);
 
+/**
+ * Every order status, at runtime, derived from the same enum the schemas use.
+ *
+ * MOB-2: the mobile card carried its own hardcoded array that had drifted to 12
+ * of the 14 — it was missing `refund_delivered` and `refund_failed`, so those
+ * statuses could not be set from a phone even though 74 live orders sit in
+ * refund_delivered. Anything listing statuses should read this rather than
+ * writing the list out again.
+ */
+export const ALL_ORDER_STATUSES = OrderStatusEnum.options;
+
 export const OrderPriorityEnum = z.enum(['normal', 'high', 'urgent']);
 export const PaymentStatusEnum = z.enum(['pending', 'cod', 'prepaid', 'partial', 'paid']);
 export const DeliverySlotEnum = z.enum(['morning', 'afternoon', 'evening']);

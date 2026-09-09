@@ -4,6 +4,7 @@ import React, { memo } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { formatShortDate, formatTime, getOrderAge, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
+import { ALL_ORDER_STATUSES } from "@/lib/schemas";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
@@ -114,10 +115,6 @@ export const MobileOrderCard = memo(function MobileOrderCard({
         );
     };
 
-    const ORDER_STATUSES = [
-        "new", "pending_checkout", "contacted", "confirmed", "in_transit", "delivered",
-        "completed", "cancelled", "rejected", "no_response", "return_pending", "suspended"
-    ] as const;
 
     const getStatusIcon = (status: Order["status"]) => {
         switch (status) {
@@ -262,7 +259,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-[180px] p-2 space-y-1 rounded-xl bg-(--card-bg) border-(--card-border) shadow-xl z-50">
                                     <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">تغيير حالة الطلب</div>
-                                    {ORDER_STATUSES.map((status) => (
+                                    {ALL_ORDER_STATUSES.map((status) => (
                                         <DropdownMenuItem
                                             key={status}
                                             onClick={(e) => {
