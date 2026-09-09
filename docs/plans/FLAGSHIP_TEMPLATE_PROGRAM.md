@@ -292,7 +292,22 @@ Ali's list in the order he gave it would mean rewriting most of it later.
 - **W2.5** Product-finder quiz engine — questions map to attribute filters. *(B3)*
 
 ### Wave 3 — Money engine
-- **W3.1** `OfferRule` schema in store-config-v2 + resolver in `shared`.
+
+**Revised 2026-09-09 after reading the code.** Much of this wave already
+exists and is wired end to end: `commerce.bundles` + `computeBundleDiscounts`
+(cart, checkout and the `product_bundles` section), `commerce.discounts`,
+`commerce.loyalty` with a builder screen and `/api/loyalty/balance`, and
+`commerce.cart_recovery` with a cron route. Building an `OfferRule` engine
+over the top would duplicate working code. What is genuinely missing is the
+checkout bump, the quantity ladder and the post-purchase upsell.
+
+- **W3.0** *(done)* **Live P0.** `productRepository` read and wrote eight
+  relations that did not exist, so every product save reported failure after
+  the product had already been written — and `saveOrderBumps` /
+  `saveTieredPrices`, the storage behind two approved features, could never
+  have worked. Tables created; anon read split from members-only.
+- **W3.1** ~~`OfferRule` schema~~ — superseded. Bundles and discounts already
+  have a config home and a server-authoritative resolver.
 - **W3.2** PDP + cart offer surfaces: bundles, free-gift progress bar. *(A1, A2)*
 - **W3.3** Checkout order bump. *(A4a)*
 - **W3.4** Post-purchase upsell → downsell chain + `…/append` endpoint. *(A4b)*
