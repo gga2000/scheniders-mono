@@ -269,3 +269,14 @@ describe("pdp_direct_order neutral copy + optional lines (P2-11)", () => {
     expect(html).toContain("إرجاع خلال 7 أيام");
   });
 });
+
+describe("pdp_direct_order — open before you pay (C3)", () => {
+  const withReturns = (returns_policy: Record<string, unknown>) =>
+    render({}, { tenant: { ...tenant, store_config_v2: { commerce: { returns_policy } } } as never });
+
+  it("renders the commitment only when the merchant switched it on", () => {
+    expect(withReturns({ inspect_before_paying: true })).toContain("افتح الطلب وتأكد قبل ما تدفع");
+    expect(withReturns({ window_days: 14 })).not.toContain("افتح الطلب وتأكد قبل ما تدفع");
+    expect(render()).not.toContain("data-inspect-before-paying");
+  });
+});

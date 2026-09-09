@@ -385,7 +385,16 @@ export interface StoreCommerceConfig {
   /** prefilled WhatsApp message templates (from legacy schneiders.whatsapp_templates) */
   whatsapp_templates?: { order_confirm?: I18nString; product_inquiry?: I18nString };
   socials?: { instagram?: string; facebook?: string; tiktok?: string; email?: string };
-  returns_policy?: { window_days?: number };
+  returns_policy?: {
+    window_days?: number;
+    /**
+     * The shopper may open the parcel and check it before paying the
+     * courier. Rendered wherever merchant commitments appear (PDP order
+     * form, delivery promise). Off unless the merchant says so — this is a
+     * promise made at the door, never assumed.
+     */
+    inspect_before_paying?: boolean;
+  };
   delivery_promise?: { baghdad_hours?: number; provinces_hours?: number; governorates_covered?: number };
   /** Per-governorate shipping rates (EC2/EC16 engine). */
   shipping?: GovernorateShippingConfig;

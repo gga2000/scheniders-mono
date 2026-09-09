@@ -402,6 +402,14 @@ yet place. Publish discipline: only after the deploy that understands them.
   at least one order bump configured, or it renders nothing.
 - `product_grid` on the catalog page: `enable_filters` is set by
   `deriveCatalogPage`, no config change needed.
+- **Fix a false claim**: the product page's `trust_badge_row` says
+  "Free delivery" in English while the Arabic says "توصيل لكل المحافظات" —
+  delivery is 5,000 IQD below 75,000. Change the English label; do not ship a
+  claim the checkout contradicts.
+- **Replace the promo bar's content**: `globals.promo_bar` is
+  `countdown_announcement` in `evergreen_minutes` (150 min). The code now
+  renders that mode without a clock, so it degrades to a plain "discount
+  offer" bar; the merchant decides what it should say (§5 item 1).
 - Verified present already: `product_reviews` on `product`, `order_tracker` on
   `track`, `free_gift_strip` on `cart` (renders nothing until
   `commerce.free_gift` is set in the builder).

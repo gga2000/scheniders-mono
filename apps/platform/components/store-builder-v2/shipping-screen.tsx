@@ -67,6 +67,31 @@ export function ShippingScreen({
         });
     };
 
+    // "Open it before you pay" lives beside the rates because it is part of
+    // the same COD promise; the storefront reads it from
+    // commerce.returns_policy.inspect_before_paying (PDP commitments,
+    // delivery promise). Unchecking removes the key so an untouched store
+    // keeps rendering its section copy as before.
+    const inspectBeforePaying =
+        builder.config.commerce?.returns_policy?.inspect_before_paying === true;
+    const setInspectBeforePaying = (on: boolean): void => {
+        builder.setConfig(
+            (prev) => {
+                const { inspect_before_paying: _drop, ...rest } =
+                    prev.commerce?.returns_policy ?? {};
+                void _drop;
+                return {
+                    ...prev,
+                    commerce: {
+                        ...prev.commerce,
+                        returns_policy: on ? { ...rest, inspect_before_paying: true } : rest,
+                    },
+                };
+            },
+            on ? "Promised open-before-paying" : "Removed open-before-paying",
+        );
+    };
+
     const setRate = (
         code: GovernorateCode,
         patch: Partial<GovernorateShippingRate>,
@@ -150,6 +175,30 @@ export function ShippingScreen({
                             />
                         </label>
                     </div>
+                </section>
+
+                {/* Promise at the door */}
+                <section className="rounded-xl border border-(--card-border) bg-(--card-bg) p-4">
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Promise at the door
+                    </h3>
+                    <label className="flex items-start gap-2.5 text-sm text-foreground">
+                        <input
+                            type="checkbox"
+                            data-testid="shipping-inspect-before-paying"
+                            checked={inspectBeforePaying}
+                            onChange={(e) => setInspectBeforePaying(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 accent-primary"
+                        />
+                        <span>
+                            Customers may open and check the parcel before paying
+                            <span className="block text-xs text-muted-foreground">
+                                Shown on the product page and delivery promise as
+                                “افتح الطلب وتأكد قبل ما تدفع”. Only turn this on if your
+                                courier honours it.
+                            </span>
+                        </span>
+                    </label>
                 </section>
 
                 {/* Per-governorate overrides */}
