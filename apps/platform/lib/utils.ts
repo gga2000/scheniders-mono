@@ -59,24 +59,6 @@ export function formatDate(date: string | Date): string {
     }).format(new Date(date));
 }
 
-/**
- * Get status color based on order status
- */
-export function getStatusColor(status: string): string {
-    const colors = {
-        new: 'text-info border-info/20 bg-info/10',
-        contacted: 'text-warning border-warning/20 bg-warning/10',
-        confirmed: 'text-success border-success/20 bg-success/10',
-        rejected: 'text-destructive border-destructive/20 bg-destructive/10',
-        delivered: 'text-primary border-primary/20 bg-primary/10',
-        completed: 'text-emerald-600 border-emerald-200 bg-emerald-50',
-        no_response: 'text-slate-500 border-slate-200 bg-slate-50',
-        return_pending: 'text-rose-600 border-rose-200 bg-rose-50',
-        suspended: 'text-orange-600 border-orange-200 bg-orange-50',
-    };
-
-    return colors[status as keyof typeof colors] || colors.new;
-}
 
 /**
  * Get status label in Arabic
