@@ -10,9 +10,9 @@
 import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import { PRESSABLE, Section } from "./helpers/primitives";
+import { Section } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
-import { cn } from "./helpers/utils";
+import { cn, PRESSABLE } from "./helpers/utils";
 import { i18nStringSchema } from "./_schema";
 import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";

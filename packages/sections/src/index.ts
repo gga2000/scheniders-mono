@@ -98,7 +98,15 @@ export type {
   SectionRenderContext,
   AnySectionDefinition,
 } from "./_types";
-export type { Tenant, Product, ProductVariant, Category } from "./types";
+export type {
+  Tenant,
+  SectionTenant,
+  SectionTenantContact,
+  Product,
+  ProductVariant,
+  Category,
+} from "./types";
+export { toSectionTenant } from "./helpers/section-tenant";
 
 /** All built-in section definitions, in registration order. */
 export const BUILTIN_SECTIONS = [

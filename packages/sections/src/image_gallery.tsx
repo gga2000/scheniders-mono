@@ -12,6 +12,13 @@
 // `--bk-surface` / `--bk-shadow-card`); images optimise through
 // next/image when the host is allowlisted and never claim `priority`
 // (the hero owns the LCP preload).
+//
+// Empty state: a freshly added section still carries the untouched
+// default image list (four empty urls). That renders one neutral
+// placeholder frame naming the section so the editor canvas is not
+// blank; any edited list whose urls are all empty renders nothing, so a
+// live store never shows a placeholder for a gallery the merchant
+// emptied on purpose.
 // =====================================================================
 
 import { useId } from "react";
@@ -22,12 +29,11 @@ import type { LocaleCode } from "@scheniders/shared";
 import { StoreLink } from "./helpers/store-context";
 import {
   CenteredSectionHeader,
-  PRESSABLE,
   Section,
 } from "./helpers/primitives";
 import { isOptimizableImageHost } from "./helpers/image";
 import { CarouselArrows } from "./helpers/carousel-arrows";
-import { cn } from "./helpers/utils";
+import { cn, PRESSABLE } from "./helpers/utils";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -49,6 +55,8 @@ const schema = z.object({
 type Props = z.infer<typeof schema>;
 type GalleryImage = Props["images"][number];
 
+const SECTION_NAME = { en: "Image gallery", ar: "ألبوم صور" } as const;
+
 const defaultProps: Props = {
   heading_i18n: { en: "From the lookbook", ar: "من اللوك بوك" },
   layout: "grid",
@@ -59,6 +67,19 @@ const defaultProps: Props = {
     { url: "", caption_i18n: { en: "Look 04", ar: "إطلالة 04" } },
   ],
 };
+
+/**
+ * True only for the untouched default image list — the runtime-independent
+ * "this section was just added" signal. Any merchant edit (a url, a
+ * caption, a removed entry) breaks equality and the section goes back to
+ * rendering nothing while no url is set.
+ */
+function isUntouchedDefaultImages(images: GalleryImage[]): boolean {
+  return (
+    images.every((img) => img.url.trim().length === 0) &&
+    JSON.stringify(images) === JSON.stringify(defaultProps.images)
+  );
+}
 
 /** `sizes` per layout — the carousel card is a fixed 280px, the grids
  *  are 2/3/4 columns. Wrong hints made next/image ship 4× oversized
@@ -153,7 +174,28 @@ function ImageGallery({
   // An empty-url entry (fresh editor placeholder, deleted upload) is not a
   // picture — skip it rather than framing a blank tile.
   const images = props.images.filter((img) => img.url.trim().length > 0);
-  if (!images.length) return null;
+  if (!images.length) {
+    if (!isUntouchedDefaultImages(props.images)) return null;
+    return (
+      <Section>
+        <div
+          data-gallery-placeholder=""
+          className="flex aspect-[3/2] w-full items-center justify-center p-bk-md text-center sm:aspect-[4/1]"
+          style={{
+            border:
+              "var(--bk-border-thickness, 3px) dashed var(--bk-ink-faint, rgb(26 26 26 / 0.2))",
+            borderRadius: "var(--bk-radius-card, 1rem)",
+            backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+            color: "var(--bk-ink-soft, rgb(26 26 26 / 0.6))",
+          }}
+        >
+          <span className="font-label font-bold text-sm bk-caps tracking-[0.2em]">
+            {resolveI18n(SECTION_NAME, locale)}
+          </span>
+        </div>
+      </Section>
+    );
+  }
 
   const sizes = SIZES[props.layout];
   const galleryLabel = heading || (locale === "en" ? "Gallery" : "معرض الصور");
@@ -229,7 +271,7 @@ function ImageGallery({
 const definition: SectionDefinition<Props> = {
   type: "image_gallery",
   category: "content",
-  name: { en: "Image gallery", ar: "ألبوم صور" },
+  name: SECTION_NAME,
   description: {
     en: "Masonry, grid, or carousel layout of images with captions and links.",
     ar: "ألبوم صور بتخطيط ماسوني أو شبكي أو شريطي مع تسميات وروابط.",

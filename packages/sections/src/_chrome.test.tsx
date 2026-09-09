@@ -9,7 +9,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { StoreBaseProvider } from "./helpers/store-context";
 import { chromeString } from "./helpers/chrome-strings";
 import { readEnabledLocales } from "./helpers/locale-switch";
-import { PRESSABLE } from "./helpers/primitives";
+import {  } from "./helpers/primitives";
+import { PRESSABLE } from "./helpers/utils";
 
 import site_header from "./site_header";
 import site_footer from "./site_footer";

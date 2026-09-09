@@ -63,7 +63,7 @@ import { StoreBaseProvider } from "@/lib/store-context";
 // (We render via SchneidersPreviewLiveRenderer, which uses RenderSection
 // internally and supports postMessage updates from the editor; the
 // barrel import below also runs the side-effect registry registrations.)
-import "@scheniders/sections"; // side effect: register all built-in sections
+import { toSectionTenant } from "@scheniders/sections"; // also registers all built-in sections (barrel side effect)
 import { SchneidersPreviewBridge } from "@/components/schneiders-preview-bridge";
 import { SchneidersPreviewLiveRenderer } from "@/components/schneiders-preview-live-renderer";
 import { getTemplate } from "@/templates/registry";
@@ -480,7 +480,10 @@ export default async function PreviewPage({
           initialPageConfig={pageConfig}
           initialRuntime={runtime}
           renderCtx={{
-            tenant,
+            // Pruned: the live renderer is a client component, so this
+            // whole object is serialised into the page. Sections read only
+            // the fields `toSectionTenant` keeps.
+            tenant: toSectionTenant(tenant),
             products,
             categories,
             product,

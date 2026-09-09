@@ -21,11 +21,10 @@ import { StoreLink } from "./helpers/store-context";
 import {
   ChunkyLink,
   MaterialIcon,
-  PRESSABLE,
   Section,
   WhatsAppButton,
 } from "./helpers/primitives";
-import { cn } from "./helpers/utils";
+import { cn, PRESSABLE } from "./helpers/utils";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import {
   isPlausiblePhone,

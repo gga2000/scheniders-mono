@@ -1,0 +1,174 @@
+// =====================================================================
+// Section — exit_intent_offer
+// =====================================================================
+// Modal triggered when the mouse leaves the viewport (or after a fallback
+// delay on mobile, where mouseleave isn't reliable). Shows a single
+// offer card with heading + body + CTA + optional discount code. The
+// shopper can copy the code with one tap. Suppressed via `sessionStorage`
+// once dismissed so it doesn't reappear on every page in the same
+// session.
+// =====================================================================
+// Client half of `exit_intent_offer` — the component (hooks / browser APIs). The
+// schema, defaults and registry entry live in `./exit_intent_offer.tsx` so the
+// definition is server-safe; only this module ships to the browser.
+// =====================================================================
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { resolveI18n } from "@scheniders/shared";
+import { BentoCard, ChunkyButton, MaterialIcon, ScribbleHeading } from "./helpers/primitives";
+import type { SectionRenderContext } from "./_types";
+import type { Props } from "./exit_intent_offer";
+
+const SUPPRESS_KEY = "schn:exit_intent:dismissed";
+
+export function ExitIntentOfferRender({
+  props,
+  ctx,
+}: {
+  props: Props;
+  ctx: SectionRenderContext;
+}) {
+  const locale = ctx.runtime.locale;
+  const heading = resolveI18n(props.heading_i18n, locale);
+  const body = resolveI18n(props.body_i18n, locale);
+  const ctaLabel = resolveI18n(props.cta_label_i18n, locale);
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.sessionStorage.getItem(SUPPRESS_KEY) === "1") return;
+
+    let armed = false;
+    const armTimer = window.setTimeout(
+      () => {
+        armed = true;
+      },
+      Math.max(0, props.triggered_after_seconds) * 1000,
+    );
+
+    function trigger() {
+      if (!armed) return;
+      setOpen(true);
+    }
+
+    function onMouseLeave(e: MouseEvent) {
+      // Only top-edge exits — avoids triggering on link-clicks within page.
+      if (e.clientY <= 0) trigger();
+    }
+
+    // Mobile fallback — fire after the configured delay if the page has
+    // any scroll activity (proxy for intent to leave).
+    let mobileTimer: number | undefined;
+    function onScrollOnce() {
+      if (mobileTimer) window.clearTimeout(mobileTimer);
+      mobileTimer = window.setTimeout(trigger, 8_000);
+    }
+
+    document.addEventListener("mouseleave", onMouseLeave);
+    window.addEventListener("scroll", onScrollOnce, { passive: true });
+
+    return () => {
+      window.clearTimeout(armTimer);
+      if (mobileTimer) window.clearTimeout(mobileTimer);
+      document.removeEventListener("mouseleave", onMouseLeave);
+      window.removeEventListener("scroll", onScrollOnce);
+    };
+  }, [props.triggered_after_seconds]);
+
+  function dismiss() {
+    setOpen(false);
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem(SUPPRESS_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  async function copyCode() {
+    if (!props.discount_code) return;
+    try {
+      await navigator.clipboard.writeText(props.discount_code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="exit-intent-heading"
+      onClick={dismiss}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md"
+      >
+        <BentoCard bg="butter" size="md" className="p-bk-lg relative">
+          <button
+            type="button"
+            onClick={dismiss}
+            aria-label={locale !== "en" ? "إغلاق" : "Close"}
+            className="absolute top-3 right-3 w-9 h-9 bg-white flex items-center justify-center"
+            style={{
+              border:
+                "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+              borderRadius: "var(--bk-radius-input, 0.75rem)",
+            }}
+          >
+            <MaterialIcon name="close" />
+          </button>
+          <div id="exit-intent-heading">
+            <ScribbleHeading color="pink" className="mb-bk-xs">
+              {heading}
+            </ScribbleHeading>
+          </div>
+          <p className="font-body text-base text-bk-ink-soft mb-bk-sm">{body}</p>
+          {props.discount_code && (
+            <button
+              type="button"
+              onClick={copyCode}
+              className="w-full mb-bk-sm bg-white px-4 py-3 text-center font-display font-black text-2xl uppercase tracking-widest"
+              style={{
+                border:
+                  "var(--bk-border-thickness, 3px) dashed var(--bk-ink, #1a1a1a)",
+                borderRadius: "var(--bk-radius-input, 0.75rem)",
+              }}
+              aria-label={
+                locale !== "en"
+                  ? `انسخ الكود ${props.discount_code}`
+                  : `Copy code ${props.discount_code}`
+              }
+            >
+              {props.discount_code}
+              <span className="ml-2 font-label font-bold text-xs text-bk-ink-faint normal-case">
+                {copied
+                  ? locale !== "en"
+                    ? "تم النسخ"
+                    : "Copied"
+                  : locale !== "en"
+                    ? "اضغط للنسخ"
+                    : "Tap to copy"}
+              </span>
+            </button>
+          )}
+          <a href={props.cta_href} onClick={dismiss}>
+            <ChunkyButton bg="pink" size="lg" fullWidth>
+              {ctaLabel}
+            </ChunkyButton>
+          </a>
+        </BentoCard>
+      </div>
+    </div>
+  );
+}

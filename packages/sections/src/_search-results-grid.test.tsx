@@ -7,9 +7,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StoreBaseProvider } from "./helpers/store-context";
 
-import search_results_grid, {
-  filterProductsByQuery,
-} from "./search_results_grid";
+import search_results_grid from "./search_results_grid";
+import { filterProductsByQuery } from "./search_results_grid.client";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 
