@@ -14,28 +14,6 @@ export function generateOrderId(): string {
     return `LF-${random}${timestamp}-${year}`;
 }
 
-/**
- * Validate Iraqi phone number
- * Accepts formats: +9647XXXXXXXX, 9647XXXXXXXX, 07XXXXXXXX
- */
-export function validatePhone(phone: string): boolean {
-    if (!phone) return false;
-
-    // Convert Arabic numerals to English numerals
-    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
-
-    // Remove all non-digit and non-plus characters
-    cleaned = cleaned.replace(/[^\d+]/g, '');
-
-    // Check Iraqi formats
-    const patterns = [
-        /^\+9647\d{8}$/,     // +9647XXXXXXXX
-        /^9647\d{8}$/,       // 9647XXXXXXXX
-        /^07\d{8}$/,         // 07XXXXXXXX
-    ];
-
-    return patterns.some(pattern => pattern.test(cleaned));
-}
 
 /**
  * Phone validation result with detailed error information
@@ -275,41 +253,6 @@ export interface ValidationErrors {
     [key: string]: string | undefined;
 }
 
-export function validateOrderForm(data: OrderFormData): ValidationErrors {
-    const errors: ValidationErrors = {};
-
-    // Customer name is required
-    if (!data.customer_name || data.customer_name.trim() === '') {
-        errors.customer_name = 'اسم العميل مطلوب';
-    }
-
-    // Phone is required and must be valid
-    if (!data.phone || data.phone.trim() === '') {
-        errors.phone = 'رقم الهاتف مطلوب';
-    } else if (!validatePhone(data.phone)) {
-        errors.phone = 'رقم الهاتف غير صحيح';
-    }
-
-    // At least one item is required
-    if (!data.items || data.items.length === 0) {
-        errors.items = 'يجب إضافة منتج واحد على الأقل';
-    } else {
-        // Validate each item
-        const invalidItems = data.items.some(item => {
-            return !item.name ||
-                !item.quantity ||
-                item.quantity <= 0 ||
-                !item.price ||
-                item.price <= 0;
-        });
-
-        if (invalidItems) {
-            errors.items = 'جميع المنتجات يجب أن تحتوي على اسم وكمية وسعر صحيح';
-        }
-    }
-
-    return errors;
-}
 
 /**
  * Format phone number to Iraqi standard
