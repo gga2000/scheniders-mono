@@ -64,7 +64,14 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
                     setAuxData({
                         rejectionReasons: reasonsRes.data || [],
                         messageTemplates: templatesRes.data || [],
-                        blacklistMap: new Map((blacklistRes.data || []).map((b: BlacklistEntry) => [b.phone, b])),
+                        // ARCH-4: keyed on the normalized phone, not the raw stored
+                        // string. Lookups come from create-order-modal via
+                        // normalizeIraqiPhone ("07…") while entries were stored in
+                        // whatever shape the caller happened to pass, so a
+                        // blacklisted customer saved as "+964…" or "7…" would never
+                        // have matched — the blacklist would silently let the order
+                        // through, which is the one thing it exists to prevent.
+                        blacklistMap: new Map((blacklistRes.data || []).map((b: BlacklistEntry) => [normalizePhoneForSearch(b.phone), b])),
                     });
                 }
             } catch (err) {
@@ -80,11 +87,11 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
     }, []);
 
     function isBlacklisted(phone: string): boolean {
-        return auxData.blacklistMap.has(phone);
+        return auxData.blacklistMap.has(normalizePhoneForSearch(phone));
     }
 
     function getBlacklistEntry(phone: string): BlacklistEntry | null {
-        return auxData.blacklistMap.get(phone) ?? null;
+        return auxData.blacklistMap.get(normalizePhoneForSearch(phone)) ?? null;
     }
 
     async function addToBlacklist(phone: string, reason: string, notes?: string): Promise<void> {
@@ -93,7 +100,7 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         await supabase.from("blacklist").upsert(entry);
         setAuxData(prev => ({
             ...prev,
-            blacklistMap: new Map(prev.blacklistMap).set(phone, entry),
+            blacklistMap: new Map(prev.blacklistMap).set(normalizePhoneForSearch(phone), entry),
         }));
     }
 
@@ -101,7 +108,7 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         await supabase.from("blacklist").delete().eq("phone", phone);
         setAuxData(prev => {
             const updated = new Map(prev.blacklistMap);
-            updated.delete(phone);
+            updated.delete(normalizePhoneForSearch(phone));
             return { ...prev, blacklistMap: updated };
         });
     }
@@ -112,9 +119,14 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
 
     const getCustomerArchivedCount = useCallback((phone: string) => {
         if (!phone) return 0;
-        const normalized = phone.replace(/\s/g, '');
+        // ARCH-4: was stripping spaces only, a third normalization inside this
+        // one file, so an archived order stored as "+964…" did not count towards
+        // a customer looked up as "07…". Uses the shared normalizer like the
+        // history and duplicate helpers below.
+        const normalized = normalizePhoneForSearch(phone);
+        if (!normalized) return 0;
         return archivedOrders.filter(o =>
-            o.is_archived && o.phone.replace(/\s/g, '') === normalized
+            o.is_archived && normalizePhoneForSearch(o.phone) === normalized
         ).length;
     }, [archivedOrders]);
 
