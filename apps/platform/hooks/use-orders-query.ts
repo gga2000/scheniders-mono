@@ -8,6 +8,7 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
+import type { CreateOrderInput } from "@/types/order";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
 import type { OrderWindow } from "@/lib/order-window";
@@ -505,7 +506,7 @@ export function useCreateOrderMutation() {
     const { session } = useAuth();
 
     return useMutation({
-        mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
+        mutationFn: async (orderData: CreateOrderInput) => {
             const result = await createOrderAction(orderData, session?.access_token ?? "");
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);

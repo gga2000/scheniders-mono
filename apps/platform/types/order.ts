@@ -219,6 +219,36 @@ export interface OrderFilters {
     orderType?: 'refund' | 'replacement';
 }
 
+/**
+ * What order creation accepts.
+ *
+ * ARCH-3: CreateOrderModal declared `onCreate: (orderData: any) => Promise<any>`,
+ * so every caller had to cast. This mirrors `createOrder` in use-order-crud so
+ * the modal and the hook agree without an `any` in between.
+ */
+type OrderColumnsWithDbDefaults =
+    | "status"
+    | "priority"
+    | "payment_status"
+    | "is_return"
+    | "is_replacement"
+    | "is_archived"
+    // Generated server-side by create_order_atomic from the global counter
+    // (see INT-7), so a caller neither knows nor should invent it.
+    | "order_id";
+
+export type CreateOrderInput =
+    // Columns the database defaults are optional here, so a caller is not made
+    // to invent values Postgres already supplies (verified against the live
+    // schema: status 'new', priority 'normal', payment_status 'cod', and the
+    // three booleans false).
+    Omit<Order, "id" | "created_at" | "updated_at" | OrderColumnsWithDbDefaults> &
+    Partial<Pick<Order, OrderColumnsWithDbDefaults>> & {
+        custom_created_at?: string | null;
+    };
+
+export type CreateOrderResult = { success: boolean; data?: Order; error?: string };
+
 export interface FilterPreset {
     id: string;
     name: string;

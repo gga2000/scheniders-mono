@@ -21,6 +21,7 @@ import {
     type ValidationErrors,
 } from "@/lib/order-utils";
 import type { OrderItem } from "@/lib/supabase";
+import type { CreateOrderInput, CreateOrderResult, OrderSource } from "@/types/order";
 import { useAuth } from "@/components/auth/auth-provider";
 import { checkOrderLimitsAction } from "@/app/actions/orders";
 import { toast } from "sonner";
@@ -70,13 +71,18 @@ const TikTokIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+/** Prefill accepted by the create-order modal, exported so callers can type
+ *  their own state instead of casting at the call site. */
+export type CreateOrderModalInitialData = Partial<
+    OrderFormData & { secondary_phone?: string; source?: OrderSource; order_id?: string }
+>;
+
 interface CreateOrderModalProps {
     open: boolean;
     onClose: () => void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onCreate: (orderData: any) => Promise<any>;
+    onCreate: (orderData: CreateOrderInput) => Promise<CreateOrderResult>;
     checkOrderIdExists?: (orderId: string) => Promise<boolean>;
-    initialData?: Partial<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>;
+    initialData?: CreateOrderModalInitialData;
     getBlacklistEntry?: (phone: string) => BlacklistEntry | null;
 }
 
@@ -102,7 +108,7 @@ export function CreateOrderModal({
     const [limitWarning, setLimitWarning] = useState<string | null>(null);
     const [limitBlocked, setLimitBlocked] = useState<string | null>(null);
     const [orderType, setOrderType] = useState<OrderType>("delivery");
-    const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>({
+    const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: OrderSource; order_id?: string }>({
         customer_name: initialData?.customer_name || "",
         phone: initialData?.phone || "",
         secondary_phone: initialData?.secondary_phone || "",
@@ -466,10 +472,11 @@ export function CreateOrderModal({
 
             if (result.success) {
                 const orderId = result.data?.order_id || '';
+                const createdOrderId = result.data?.id;
                 toast.success(`تم إنشاء الطلب ${orderId ? `#${orderId}` : 'بنجاح'}`, {
-                    action: result.data?.id ? {
+                    action: createdOrderId ? {
                         label: "عرض الطلب",
-                        onClick: () => { window.location.href = `/orders?highlight=${result.data.id}`; }
+                        onClick: () => { window.location.href = `/orders?highlight=${createdOrderId}`; }
                     } : undefined,
                 });
 
@@ -1294,8 +1301,20 @@ export function CreateOrderModal({
                                 discount_amount: 0,
                                 delivery_fee: 0,
                                 is_shop_order: false,
-                                status: 'pending',
+                                // ARCH-3: this was 'pending', which is not an
+                                // OrderStatus. OrderSchema validates status against
+                                // the enum, so every order this path created was
+                                // rejected with a validation error — the bulk image
+                                // upload could not create anything. Surfaced only
+                                // once `onCreate` stopped being typed `any`.
+                                status: 'new',
                                 source: 'whatsapp',
+                                priority: 'normal',
+                                payment_status: 'cod',
+                                is_return: false,
+                                is_replacement: false,
+                                is_archived: false,
+                                order_id: '',
                             });
                             
                             if (result?.success) {

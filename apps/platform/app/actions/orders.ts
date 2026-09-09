@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
+import type { CreateOrderInput } from "@/types/order";
 import { Order, OrderItem } from "@/lib/supabase";
 import { canCreateOrder } from "@/lib/tenant";
 import { createOrderForTenant } from "@/lib/order-service";
@@ -73,7 +74,7 @@ export async function checkOrderLimitsAction(
 // =============================================
 
 export async function createOrderAction(
-    orderData: Omit<Order, "id" | "created_at" | "updated_at">,
+    orderData: CreateOrderInput,
     accessToken: string,
 ): Promise<{ success: boolean; data?: Order; error?: string; warning?: string }> {
     const resolved = await resolveCaller(accessToken);

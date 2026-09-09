@@ -18,6 +18,7 @@ import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { cleanPhoneForExport } from "@/lib/export-utils";
 import { exportOrders as exportOrdersFromUtils } from "@/lib/order-export-utils";
 import { calculateTotal } from "@/lib/order-utils";
+import type { CreateOrderInput, CreateOrderResult } from "@/types/order";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { splitOrderAction } from "@/app/actions/orders";
@@ -427,7 +428,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         }
     }
 
-    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at"> & { custom_created_at?: string | null }): Promise<{ success: boolean; data?: Order; error?: string }> {
+    async function createOrder(orderData: CreateOrderInput): Promise<CreateOrderResult> {
         // Extract custom_created_at before passing to mutation (not part of Order schema)
         const { custom_created_at, ...cleanOrderData } = orderData;
 

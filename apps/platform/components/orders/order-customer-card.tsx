@@ -8,12 +8,15 @@ import { cn } from "@/lib/utils";
 import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import type { OrderStatus } from "@/lib/supabase";
+import type { Order } from "@/types/order";
 
 interface OrderCustomerCardProps {
     isEditing: boolean;
-    order: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    formData: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    updateFormData: (key: string, value: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    // ARCH-3: these were `any` with three eslint-disable lines to silence it.
+    // Typed instead, which removes the suppressions rather than the warning.
+    order: Order;
+    formData: Partial<Order>;
+    updateFormData: (key: string, value: unknown) => void;
     onStatusUpdate?: (orderId: string, status: OrderStatus, reason?: string) => Promise<{ success: boolean; error?: string }>;
     isUpdatingStatus: boolean;
     handleStatusChange: (status: OrderStatus) => void;
@@ -31,7 +34,7 @@ export function OrderCustomerCard({
     const { t } = useLanguage();
     const governorates = getAllGovernorateCodes();
 
-    const displayValue = (key: string) => {
+    const displayValue = <K extends keyof Order>(key: K): Order[K] | undefined => {
         if (isEditing && formData[key] !== undefined) {
             return formData[key];
         }

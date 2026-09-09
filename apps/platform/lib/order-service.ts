@@ -1,4 +1,5 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import type { CreateOrderInput } from "@/types/order";
 import { Order } from "@/lib/supabase";
 import { canCreateOrder, getCurrentUsage, getPlanLimits, getWallet } from "@/lib/tenant";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
@@ -27,7 +28,7 @@ export type CreateOrderResult = {
 };
 
 export async function createOrderForTenant(
-    orderData: Omit<Order, "id" | "created_at" | "updated_at">,
+    orderData: CreateOrderInput,
     tenantId: string,
 ): Promise<CreateOrderResult> {
     const supabase = createSupabaseServiceClient();

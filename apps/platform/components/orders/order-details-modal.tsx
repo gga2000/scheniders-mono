@@ -29,6 +29,7 @@ import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
 import { SplitOrderDialog } from "./split-order-dialog";
 import { CreateOrderModal } from "./create-order-modal";
+import type { CreateOrderModalInitialData } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderDetailsForm, useOrderIdEdit } from "@/hooks/use-order-details-form";
 import { useOrderDetailsState } from "@/hooks/use-order-details-state";
@@ -332,7 +333,9 @@ export function OrderDetailsModal({
 
     // Reorder functionality
     const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
-    const [orderInitialData, setOrderInitialData] = useState<Record<string, unknown> | null>(null);
+    // ARCH-3: was Record<string, unknown>, which forced an `as any` at the
+    // call site. Typed to what CreateOrderModal actually accepts.
+    const [orderInitialData, setOrderInitialData] = useState<CreateOrderModalInitialData | null>(null);
     const { createOrder } = useOrderCrud();
 
     const handleReorder = () => {
@@ -1602,11 +1605,9 @@ export function OrderDetailsModal({
                         setShowCreateOrderModal(false);
                         setOrderInitialData(null);
                     }}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onCreate={createOrder as any}
+                    onCreate={createOrder}
                     checkOrderIdExists={checkOrderIdExists}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    initialData={orderInitialData as any}
+                    initialData={orderInitialData ?? undefined}
                 />
             )}
 
