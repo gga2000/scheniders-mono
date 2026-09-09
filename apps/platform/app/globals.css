@@ -2444,6 +2444,21 @@ body {
   font-weight: 500;
 }
 
+/* Skips layout and paint for grid cells that are off-screen.
+   PERF-2: the compact grid is not virtualized, which is harmless at the default
+   one-day window (busiest day is 202 orders) but not on a deliberately wide
+   filter, where it would mount tens of thousands of cards. Virtualizing a
+   RESPONSIVE grid needs lane and resize-observer awareness whose layout cannot
+   be verified without a browser, so this uses the browser's own skipping
+   instead: correctness is unchanged, and it degrades to normal rendering where
+   content-visibility is unsupported.
+   contain-intrinsic-size supplies a placeholder height so the scrollbar stays
+   stable; it is a hint, and the real height is used once a cell is rendered. */
+.grid-deferred-cells > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
+
 /* Touch-friendly tap targets */
 .touch-target {
   min-height: 44px;
