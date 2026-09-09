@@ -8,7 +8,7 @@
 // =====================================================================
 
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { attributeSimilarity, resolveI18n } from "@scheniders/shared";
 import { Section, SectionHeader } from "./helpers/primitives";
 import { SchneidersProductCard } from "./helpers/product-card";
 import type { Product } from "./types";
@@ -53,6 +53,32 @@ function PdpRelatedProductsRender({
     const currentId = ctx.product.id;
     const currentCategory = ctx.product.category_id ?? null;
     const others = (ctx.products ?? []).filter((p) => p.id !== currentId);
+
+    // When the merchant has marked attributes comparable, "related" can mean
+    // what it says: rank by how alike the products actually are. Falls back
+    // to category-first for anything with no comparable overlap, so a
+    // half-filled catalogue degrades product by product rather than all at
+    // once.
+    const own = ctx.product.attributes ?? [];
+    if (own.length > 0) {
+      const scored = others.map((p) => ({
+        product: p,
+        score: attributeSimilarity(own, p.attributes ?? []),
+      }));
+      if (scored.some((s) => s.score !== null)) {
+        return [...scored]
+          .sort((a, b) => {
+            // Unscored products sort below every scored one rather than
+            // being dropped — the grid should still fill.
+            if (a.score === null && b.score === null) return 0;
+            if (a.score === null) return 1;
+            if (b.score === null) return -1;
+            return b.score - a.score;
+          })
+          .map((s) => s.product);
+      }
+    }
+
     // Prefer same-category products first, then anything else.
     const same = others.filter((p) => p.category_id === currentCategory);
     const rest = others.filter((p) => p.category_id !== currentCategory);

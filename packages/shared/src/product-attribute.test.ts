@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attributeSimilarity,
   parseProductAttributeDefs,
   resolveProductAttribute,
   resolveProductAttributes,
@@ -168,5 +169,100 @@ describe("resolveProductAttributes", () => {
 
   it("returns an empty list when the tenant has no taxonomy", () => {
     expect(resolveProductAttributes([], [])).toEqual([]);
+  });
+});
+
+describe("attributeSimilarity", () => {
+  const defs = parseProductAttributeDefs([
+    {
+      id: "d1", key: "scent_family", kind: "enum", is_comparable: true, display_order: 0,
+      name_i18n: { en: "Family" },
+      options: [{ value: "oriental" }, { value: "woody" }, { value: "fresh" }],
+    },
+    {
+      id: "d2", key: "longevity", kind: "range", is_comparable: true, display_order: 1,
+      name_i18n: { en: "Longevity" }, range_min: 1, range_max: 5,
+    },
+    {
+      id: "d3", key: "notes", kind: "group_list", is_comparable: true, display_order: 2,
+      name_i18n: { en: "Notes" },
+      group_keys: [{ key: "top" }, { key: "base" }],
+    },
+    {
+      id: "d4", key: "season", kind: "enum", is_comparable: false, display_order: 3,
+      name_i18n: { en: "Season" }, options: [{ value: "summer" }, { value: "winter" }],
+    },
+    { id: "d5", key: "story", kind: "text", is_comparable: true, display_order: 4, name_i18n: { en: "Story" } },
+  ]);
+
+  const attrs = (values: Record<string, unknown>) =>
+    resolveProductAttributes(
+      defs,
+      Object.entries(values).map(([key, value]) => ({
+        product_id: "p",
+        attribute_def_id: defs.find((d) => d.key === key)!.id,
+        value,
+      })),
+    );
+
+  it("scores 1 for identical comparable attributes", () => {
+    const a = attrs({ scent_family: "oriental", longevity: 4 });
+    expect(attributeSimilarity(a, a)).toBe(1);
+  });
+
+  it("scores 0 when every comparable attribute differs maximally", () => {
+    const a = attrs({ scent_family: "oriental", longevity: 1 });
+    const b = attrs({ scent_family: "woody", longevity: 5 });
+    expect(attributeSimilarity(a, b)).toBe(0);
+  });
+
+  it("treats a range as a distance, not a match", () => {
+    // 4 vs 3 on a 1–5 scale is close; 4 vs 1 is not.
+    const a = attrs({ longevity: 4 });
+    expect(attributeSimilarity(a, attrs({ longevity: 3 }))).toBeCloseTo(0.75, 5);
+    expect(attributeSimilarity(a, attrs({ longevity: 1 }))).toBeCloseTo(0.25, 5);
+  });
+
+  it("scores grouped lists by overlap, across tiers", () => {
+    // Same note in a different tier still counts — a shared accord is a
+    // shared accord wherever it sits in the pyramid.
+    const a = attrs({ notes: { top: ["برغموت"], base: ["عنبر"] } });
+    const b = attrs({ notes: { top: ["عنبر"], base: ["برغموت"] } });
+    expect(attributeSimilarity(a, b)).toBe(1);
+
+    const c = attrs({ notes: { top: ["برغموت"], base: ["مسك"] } });
+    // shared 1 of union 3
+    expect(attributeSimilarity(a, c)).toBeCloseTo(1 / 3, 5);
+  });
+
+  it("ignores attributes the merchant did not mark comparable", () => {
+    const a = attrs({ season: "summer" });
+    const b = attrs({ season: "winter" });
+    expect(attributeSimilarity(a, b)).toBeNull();
+  });
+
+  it("ignores text — string equality on prose is noise, not signal", () => {
+    const a = attrs({ story: { en: "same" } });
+    const b = attrs({ story: { en: "same" } });
+    expect(attributeSimilarity(a, b)).toBeNull();
+  });
+
+  it("returns null when the two share no comparable attribute", () => {
+    expect(attributeSimilarity(attrs({ scent_family: "oriental" }), attrs({ longevity: 3 }))).toBeNull();
+    expect(attributeSimilarity([], attrs({ longevity: 3 }))).toBeNull();
+  });
+
+  it("averages only over attributes BOTH products carry", () => {
+    // One shares family (1.0) and longevity (0.5); the extra note list on
+    // the left must not dilute the score toward zero.
+    const a = attrs({ scent_family: "oriental", longevity: 3, notes: { top: ["x"] } });
+    const b = attrs({ scent_family: "oriental", longevity: 1 });
+    expect(attributeSimilarity(a, b)).toBeCloseTo((1 + 0.5) / 2, 5);
+  });
+
+  it("is symmetric", () => {
+    const a = attrs({ scent_family: "oriental", longevity: 4, notes: { top: ["a", "b"] } });
+    const b = attrs({ scent_family: "woody", longevity: 2, notes: { top: ["b", "c"] } });
+    expect(attributeSimilarity(a, b)).toBe(attributeSimilarity(b, a));
   });
 });
