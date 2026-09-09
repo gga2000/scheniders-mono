@@ -229,8 +229,25 @@ describe("product_grid price_pill — priority + sold-out", () => {
 });
 
 describe("image_gallery — tokens + carousel semantics", () => {
-  it("drops empty-url entries and returns nothing when none remain", () => {
-    expect(render(image_gallery, image_gallery.defaultProps)).toBe("");
+  it("renders one neutral placeholder frame for the untouched defaults (editor canvas)", () => {
+    const html = render(image_gallery, image_gallery.defaultProps);
+    expect(html).toContain("data-gallery-placeholder");
+    expect(html).toContain("ألبوم صور");
+    expect(html).not.toContain("<img");
+    expect(html).toContain("var(--bk-surface-alt");
+  });
+
+  it("drops empty-url entries and returns nothing once the list was edited", () => {
+    // Same empty urls, but a merchant-edited list (one entry removed).
+    expect(
+      render(image_gallery, {
+        ...image_gallery.defaultProps,
+        images: image_gallery.defaultProps.images.slice(0, 3),
+      }),
+    ).toBe("");
+    expect(
+      render(image_gallery, { ...image_gallery.defaultProps, images: [] }),
+    ).toBe("");
   });
 
   it("frames real images with tokens and labels the carousel", () => {

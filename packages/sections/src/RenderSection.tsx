@@ -6,9 +6,22 @@
 // props object, then we validate that object against the section's Zod
 // schema. Failures degrade silently in production (so a misconfigured
 // instance never blows up the storefront) and log a warning in dev.
+//
+// This module has NO "use client" directive on purpose: on the storefront
+// it runs as a server component, so lookup + resolve + validate happen on
+// the server and the 30-odd server-safe sections render there too — none
+// of that code ships to the browser. The interactive sections keep their
+// own "use client" component modules (`*.client.tsx`); a server component
+// rendering a client component is the normal RSC boundary. The same module
+// also works when imported from a client component (the editor's live
+// preview): it uses nothing server-only (no `next/headers`, no
+// `server-only`, no async components).
+//
+// Registry population is the barrel's job (`index.ts` imports every
+// section definition). Import `RenderPage`/`RenderSection` from
+// `@scheniders/sections`, not from this file, so the registry your
+// module graph sees is populated.
 // =====================================================================
-
-"use client";
 
 import * as React from "react";
 import { isSectionEnabled, resolveSection } from "@scheniders/shared";
@@ -19,124 +32,9 @@ import type {
 } from "@scheniders/shared";
 import { getSection } from "./_registry";
 import { EAGER_SECTION_COUNT, LazySection } from "./_lazy-section";
+import { reportSectionDrop } from "./_report";
+import { SectionErrorBoundary } from "./_section-error-boundary";
 import type { SectionRenderContext } from "./_types";
-// Side-effect imports: register every built-in section in this module's
-// graph. Without this, when RenderSection is bundled as a client component,
-// the registry it sees is empty even though the server-component barrel
-// would have registered them in its own graph.
-import "./hero_image";
-import "./trust_strip";
-import "./product_grid";
-import "./faq_accordion";
-import "./newsletter_inline";
-import "./hero_split";
-import "./hero_marquee";
-import "./hero_video";
-import "./about_block";
-import "./brand_story";
-import "./founder_note";
-import "./press_quotes";
-import "./testimonials_carousel";
-import "./image_gallery";
-import "./video_block";
-import "./marquee_strip";
-import "./announcement_bar";
-import "./promo_banner";
-import "./countdown_card";
-import "./free_gift_strip";
-import "./delivery_promise";
-import "./cta_banner";
-import "./pdp_gallery";
-import "./pdp_buy_box";
-import "./pdp_info_block";
-import "./pdp_info_tabs";
-import "./pdp_variants";
-import "./pdp_add_to_cart";
-import "./pdp_related_products";
-import "./product_reviews";
-import "./product_bundles";
-import "./cart_line_items";
-import "./cart_summary";
-import "./checkout_form";
-import "./checkout_order_summary";
-import "./track_order_lookup";
-import "./order_tracker";
-import "./order_confirmation";
-import "./category_grid";
-import "./feature_grid";
-import "./numbers_stat_strip";
-import "./instagram_grid";
-import "./accordion_richtext";
-import "./html_embed";
-import "./logo_strip";
-import "./search_results_grid";
-import "./policy_content";
-import "./exit_intent_offer";
-import "./sticky_cta_bar";
-import "./site_header";
-import "./site_footer";
-import "./hero_card_float";
-import "./trust_badge_row";
-import "./category_spotlight_pair";
-import "./collection_trio";
-import "./testimonial_cards";
-import "./pillars_grid";
-import "./about_spotlight";
-import "./faq_contact_split";
-import "./countdown_announcement";
-import "./pdp_direct_order";
-
-/**
- * Surface a silently-dropped section. In dev we warn to the console (as
- * before); in prod we report to Sentry IF the host app has put it on the
- * global — sections is a framework-neutral shared lib, so we avoid a hard
- * `@sentry/*` dependency. Behavior is otherwise unchanged: the caller still
- * degrades to `null`.
- */
-function reportSectionDrop(
-  reason: "unknown_type" | "schema_invalid" | "render_error",
-  type: string,
-  detail?: unknown,
-): void {
-  if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line no-console
-    console.warn(`[sections] dropped "${type}": ${reason}`, detail ?? "");
-    return;
-  }
-  const sentry = (
-    globalThis as {
-      Sentry?: { captureMessage?: (m: string, c?: unknown) => void };
-    }
-  ).Sentry;
-  sentry?.captureMessage?.(`section_dropped:${reason}`, {
-    level: "warning",
-    extra: { type, detail },
-  });
-}
-
-/**
- * Per-section error boundary (EC10). A runtime throw inside ONE section
- * component (a null deref, a bad `new URL()`, a non-allowlisted next/image
- * host, a hook error) must NOT take down the whole page — without this it
- * propagates to the route-level error.tsx and white-screens header + footer +
- * every other valid section. On error we drop just this section (render null)
- * and report it via the same path as a schema-invalid degrade.
- */
-class SectionErrorBoundary extends React.Component<
-  { children: React.ReactNode; onError: () => void },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-  static getDerivedStateFromError(): { hasError: boolean } {
-    return { hasError: true };
-  }
-  componentDidCatch(): void {
-    this.props.onError();
-  }
-  render(): React.ReactNode {
-    return this.state.hasError ? null : this.props.children;
-  }
-}
 
 interface RenderSectionProps {
   instance: SectionInstance;
@@ -184,9 +82,7 @@ function RenderSectionImpl({
       data-section-overlay={def.overlay ? "true" : undefined}
       style={wrapperStyle}
     >
-      <SectionErrorBoundary
-        onError={() => reportSectionDrop("render_error", instance.type)}
-      >
+      <SectionErrorBoundary sectionType={instance.type}>
         <Render props={parsed.data} ctx={{ ...renderCtx, runtime }} />
       </SectionErrorBoundary>
     </div>
@@ -194,12 +90,14 @@ function RenderSectionImpl({
 }
 
 /**
- * EC27: memoized. A re-render of RenderPage — e.g. one keystroke in the editor
- * LivePreview, which produces a new `pages` array — would otherwise re-run
- * `resolveSection` + the Zod `safeParse` for EVERY section. With shallow prop
- * memoization, only the section whose `instance` ref actually changed re-runs;
- * unchanged sections (stable `instance`/`runtime`/`renderCtx` refs) skip. Harm-
- * less on the storefront, which renders each section once per request anyway.
+ * EC27: memoized for the client-side caller. A re-render of the editor's
+ * live preview — one keystroke produces a new `pages` array — would
+ * otherwise re-run `resolveSection` + the Zod `safeParse` for EVERY
+ * section. With shallow prop memoization, only the section whose
+ * `instance` ref actually changed re-runs; unchanged sections (stable
+ * `instance`/`runtime`/`renderCtx` refs) skip. On the storefront this runs
+ * as a server component, where `memo` is a no-op: each section renders
+ * once per request anyway.
  */
 export const RenderSection = React.memo(RenderSectionImpl);
 

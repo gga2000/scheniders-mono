@@ -11,6 +11,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { RenderPage } from "./RenderSection";
 import { StoreBaseProvider } from "./helpers/store-context";
+// RenderSection does not register sections itself (the barrel does); pull
+// in the one type this test renders so the registry lookup succeeds.
+import "./trust_strip";
 import type { PageConfig, RuntimeContext, SectionInstance } from "@scheniders/shared";
 
 function makeInstance(id: string): SectionInstance {

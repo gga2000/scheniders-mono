@@ -15,13 +15,32 @@ import type {
   BaseProductVariant,
   Category,
   ProductReview,
+  StoreConfigV2,
 } from "@scheniders/shared";
 
 export type { Category } from "@scheniders/shared";
 
-/** Tenant as sections see it. Sections don't reach into store_config — it's
- * available to consumers but never read in any built-in section render. */
-export type Tenant = BaseTenant;
+/** Contact numbers a section may read off the tenant's legacy
+ *  `store_config` (the universal WhatsApp/phone set in the store builder). */
+export interface SectionTenantContact {
+  whatsapp_number?: string | null;
+  phone_number?: string | null;
+}
+
+/**
+ * Tenant as sections see it: `BaseTenant` plus the two config slices a
+ * built-in section (or a helper it calls) actually reads. This is the
+ * shape `toSectionTenant()` produces — the storefront prunes its full
+ * tenant row to it before handing it to `RenderPage`, so nothing beyond
+ * these fields is serialised into the RSC payload for client sections.
+ * See `helpers/section-tenant.ts` for the field-by-field reader list.
+ */
+export interface SectionTenant extends BaseTenant {
+  store_config?: { contact?: SectionTenantContact | null } | null;
+  store_config_v2?: Pick<StoreConfigV2, "commerce" | "enabled_locales"> | null;
+}
+
+export type Tenant = SectionTenant;
 
 /** Product as sections see it. Storefront-only fields are optional and
  * additive (slug, category_id, display_order, images, etc.) — the storefront

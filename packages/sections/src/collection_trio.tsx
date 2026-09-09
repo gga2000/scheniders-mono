@@ -14,11 +14,10 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   CenteredSectionHeader,
-  PRESSABLE,
   Section,
 } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
-import { cn } from "./helpers/utils";
+import { cn, PRESSABLE } from "./helpers/utils";
 import { i18nStringOptional, i18nStringSchema } from "./_schema";
 import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";

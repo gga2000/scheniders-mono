@@ -1,0 +1,466 @@
+// =====================================================================
+// Section — order_confirmation
+// =====================================================================
+// The thank-you page lead (P0-4): "order received" eyebrow, thanks
+// heading, the order number in a copyable <code>, the honest "we'll call
+// you to confirm" line (no invented minutes), three what-happens-next
+// steps, an optional delivery ETA (merchant-authored — never a computed
+// date), a WhatsApp button prefilled with the order number, a track link
+// and a continue-shopping link. Everything is --bk-* token driven.
+//
+// Order number source: `ctx.runtime.order_number` (the success route
+// copies `?order=` into the runtime); when absent — a direct visit or a
+// stripped query — the client falls back to the `schn:last-order` stash
+// that checkout_form / pdp_direct_order write on success. The same stash
+// feeds the privacy-safe item recap: only the buyer's own browser holds
+// it, so this section never fetches an order by number (enumeration).
+//
+// Pixels: the Purchase event fires in checkout_form / pdp_direct_order
+// right before the redirect (paired with the server CAPI event id), so
+// this section deliberately fires nothing — a second event would double
+// count every order.
+// =====================================================================
+// Client half of `order_confirmation` — the component (hooks / browser APIs). The
+// schema, defaults and registry entry live in `./order_confirmation.tsx` so the
+// definition is server-safe; only this module ships to the browser.
+// =====================================================================
+
+"use client";
+
+import { useEffect, useId, useState } from "react";
+import { resolveI18n } from "@scheniders/shared";
+import type { I18nString, LocaleCode } from "@scheniders/shared";
+import { EyebrowChip, MaterialIcon, Section, WhatsAppButton } from "./helpers/primitives";
+import { PRESSABLE } from "./helpers/utils";
+import { StoreLink } from "./helpers/store-context";
+import { formatPrice } from "./helpers/format";
+import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
+import type { SectionRenderContext } from "./_types";
+import type { Props } from "./order_confirmation";
+
+/* ─── Session stash (written by checkout_form / pdp_direct_order) ───── */
+
+const STASH_KEY = "schn:last-order";
+/** Only a fresh stash counts — a stale one belongs to a previous order. */
+const STASH_TTL_MS = 60 * 60 * 1000;
+
+interface StashedItem {
+  name: string;
+  variant: string | null;
+  qty: number;
+  price: number;
+}
+
+interface StashedOrder {
+  number: string;
+  /** Buyer's name as typed at checkout — greets them on the thank-you page.
+   *  Absent from stashes written before the field existed. */
+  customer_name?: string;
+  items: StashedItem[];
+  total: number;
+  ts: number;
+}
+
+function isStashedItem(v: unknown): v is StashedItem {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.name === "string" &&
+    typeof o.qty === "number" &&
+    typeof o.price === "number"
+  );
+}
+
+/** Parse the stash defensively: it is browser-held JSON, so a malformed or
+ *  stale value simply yields "no stash" rather than a broken thank-you page. */
+function parseStash(raw: string | null, now: number): StashedOrder | null {
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Not JSON — treat as absent (documented degradation, see above).
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const o = parsed as Record<string, unknown>;
+  if (typeof o.ts !== "number" || now - o.ts > STASH_TTL_MS) return null;
+  const items = Array.isArray(o.items) ? o.items.filter(isStashedItem) : [];
+  const customerName =
+    typeof o.customer_name === "string" ? o.customer_name.trim() : "";
+  return {
+    number: typeof o.number === "string" ? o.number : "",
+    ...(customerName ? { customer_name: customerName } : {}),
+    items: items.map((i) => ({
+      name: i.name,
+      variant: typeof i.variant === "string" ? i.variant : null,
+      qty: i.qty,
+      price: i.price,
+    })),
+    total: typeof o.total === "number" ? o.total : 0,
+    ts: o.ts,
+  };
+}
+
+function readStash(): StashedOrder | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return parseStash(window.sessionStorage.getItem(STASH_KEY), Date.now());
+  } catch {
+    // sessionStorage can throw (privacy mode / blocked storage) — no stash.
+    return null;
+  }
+}
+
+/* ─── Styles ────────────────────────────────────────────────────────── */
+
+const INK_BORDER =
+  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
+
+const CARD_STYLE = {
+  backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+  borderRadius: "var(--bk-radius-card, 1rem)",
+  color: "var(--bk-ink, #1a1a1a)",
+} as const;
+
+const LABEL_CLS =
+  "font-label font-bold text-[11px] bk-caps tracking-[0.2em] text-bk-ink-soft";
+
+/* ─── Helpers ───────────────────────────────────────────────────────── */
+
+/**
+ * The thank-you heading: the named variant when the buyer's name is known
+ * AND the merchant's copy actually carries the `{name}` token (a template
+ * without it would silently drop the personalisation, so it is treated as
+ * "use the generic heading"). Exported for the static-markup tests — the
+ * name itself only ever arrives from the client-side stash.
+ */
+export function resolveGreeting(
+  props: Pick<Props, "heading_i18n" | "heading_named_i18n">,
+  locale: LocaleCode,
+  name?: string,
+): string {
+  const generic = resolveI18n(props.heading_i18n, locale);
+  const trimmed = name?.trim() ?? "";
+  if (!trimmed) return generic;
+  const named = resolveI18n(props.heading_named_i18n, locale);
+  if (!named.includes("{name}")) return generic;
+  return named.replace("{name}", trimmed);
+}
+
+function buildWhatsappHref(
+  phone: string,
+  template: string,
+  orderNumber: string,
+): string {
+  const message = orderNumber
+    ? template.replace("{order}", orderNumber)
+    : template.replace(/\s*\{order\}/g, "");
+  return `https://wa.me/${whatsappDigits(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+/* ─── Sub-blocks ────────────────────────────────────────────────────── */
+
+function OrderNumber({
+  value,
+  label,
+  copyLabel,
+  copiedLabel,
+}: {
+  value: string;
+  label: string;
+  copyLabel: string;
+  copiedLabel: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  const copy = () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    navigator.clipboard.writeText(value).then(
+      () => setCopied(true),
+      // Clipboard permission denied: the number is `select-all` text, so
+      // the shopper can still long-press to copy — nothing to surface.
+      () => setCopied(false),
+    );
+  };
+
+  return (
+    <div className="mt-bk-md flex flex-col items-center gap-bk-2xs">
+      <span className={LABEL_CLS}>{label}</span>
+      <div className="flex items-center gap-bk-xs">
+        <code
+          className="select-all px-3 py-1.5 font-display text-bk-h3 font-black tabular-nums"
+          style={{
+            backgroundColor: "var(--bk-surface, #ffffff)",
+            border: INK_BORDER,
+            borderRadius: "var(--bk-radius-input, 0.75rem)",
+            fontFamily: "var(--bk-font-display, inherit)",
+          }}
+        >
+          {value}
+        </code>
+        <button
+          type="button"
+          onClick={copy}
+          aria-live="polite"
+          className={`inline-flex min-h-11 items-center gap-1 px-3 font-label text-sm font-bold ${PRESSABLE} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus`}
+          style={{
+            border: INK_BORDER,
+            borderRadius: "var(--bk-radius-pill, 9999px)",
+            backgroundColor: "var(--bk-surface, #ffffff)",
+            color: "var(--bk-ink, #1a1a1a)",
+          }}
+        >
+          <MaterialIcon
+            name={copied ? "check" : "content_copy"}
+            className="text-base"
+          />
+          {copied ? copiedLabel : copyLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Recap({
+  order,
+  locale,
+  heading,
+  totalLabel,
+}: {
+  order: StashedOrder;
+  locale: LocaleCode;
+  heading: string;
+  totalLabel: string;
+}) {
+  return (
+    <div className="mt-bk-md p-bk-md" style={CARD_STYLE}>
+      <h2 className="font-display text-bk-h3 font-black">{heading}</h2>
+      <ul className="mt-bk-xs space-y-bk-2xs">
+        {order.items.map((it, i) => (
+          <li
+            key={`${i}-${it.name}`}
+            className="flex items-start justify-between gap-bk-sm text-sm"
+          >
+            <span className="min-w-0 font-body">
+              <span className="font-bold">{it.name}</span>
+              {it.variant ? (
+                <span className="text-bk-ink-soft"> · {it.variant}</span>
+              ) : null}
+              <span className="text-bk-ink-soft tabular-nums"> × {it.qty}</span>
+            </span>
+            <span className="whitespace-nowrap font-display font-black tabular-nums">
+              {formatPrice(it.price * it.qty, locale)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div
+        className="mt-bk-sm flex items-center justify-between pt-bk-sm"
+        style={{
+          borderTop: "2px dashed var(--bk-ink-faint, rgb(26 26 26 / 0.2))",
+        }}
+      >
+        <span className="font-display font-black bk-caps">{totalLabel}</span>
+        <span
+          className="font-display text-bk-h3 font-black tabular-nums"
+          style={{ color: "var(--bk-primary, #ff5a8a)" }}
+        >
+          {formatPrice(order.total, locale)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Render ────────────────────────────────────────────────────────── */
+
+export function OrderConfirmationRender({
+  props,
+  ctx,
+}: {
+  props: Props;
+  ctx: SectionRenderContext;
+}) {
+  const locale = ctx.runtime.locale;
+  const stepsId = useId();
+  const [stash, setStash] = useState<StashedOrder | null>(null);
+  useEffect(() => {
+    setStash(readStash());
+  }, []);
+
+  const runtimeOrder = ctx.runtime.order_number?.trim() ?? "";
+  const orderNumber = runtimeOrder || stash?.number || "";
+  // The recap must belong to THIS order: a stash from an earlier order in
+  // the same session must not render under a different order number.
+  const stashIsThisOrder =
+    stash !== null && (!runtimeOrder || stash.number === runtimeOrder);
+  const recap =
+    props.show_order_recap && stashIsThisOrder && stash.items.length > 0
+      ? stash
+      : null;
+  // Same ownership rule for the greeting: never address the buyer by a
+  // name stashed for a different order.
+  const heading = resolveGreeting(
+    props,
+    locale,
+    stashIsThisOrder ? stash.customer_name : undefined,
+  );
+
+  const phone = resolveTenantWhatsapp(ctx.tenant);
+  const t = (s: I18nString) => resolveI18n(s, locale);
+  const eta = props.eta_i18n ? t(props.eta_i18n) : "";
+  const trackHref = orderNumber
+    ? `/track?order=${encodeURIComponent(orderNumber)}`
+    : "/track";
+
+  return (
+    <Section>
+      <div className="mx-auto max-w-2xl">
+        <div className="p-bk-lg text-center sm:p-bk-xl" style={CARD_STYLE}>
+          <EyebrowChip glyph="sparkle" data-i18n-field="eyebrow_i18n">
+            {t(props.eyebrow_i18n)}
+          </EyebrowChip>
+          <h1
+            data-i18n-field="heading_i18n"
+            className="mt-bk-sm font-display text-bk-h1 font-black text-balance"
+            style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+          >
+            {heading}
+          </h1>
+          <p
+            data-i18n-field="call_promise_i18n"
+            className="mx-auto mt-bk-xs max-w-prose font-body text-base text-pretty text-bk-ink-soft"
+          >
+            {t(props.call_promise_i18n)}
+          </p>
+          {orderNumber && (
+            <OrderNumber
+              value={orderNumber}
+              label={t(props.order_label_i18n)}
+              copyLabel={t(props.copy_label_i18n)}
+              copiedLabel={t(props.copied_label_i18n)}
+            />
+          )}
+        </div>
+
+        {recap && (
+          <Recap
+            order={recap}
+            locale={locale}
+            heading={t(props.recap_heading_i18n)}
+            totalLabel={t(props.total_label_i18n)}
+          />
+        )}
+
+        <section aria-labelledby={stepsId} className="mt-bk-md">
+          <h2
+            id={stepsId}
+            data-i18n-field="steps_heading_i18n"
+            className="font-display text-bk-h3 font-black"
+          >
+            {t(props.steps_heading_i18n)}
+          </h2>
+          <ol className="mt-bk-sm space-y-bk-xs">
+            {props.steps.map((step, i) => {
+              const body = step.body_i18n ? t(step.body_i18n) : "";
+              return (
+                <li
+                  key={i}
+                  className="flex items-start gap-bk-sm p-bk-sm"
+                  style={CARD_STYLE}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center font-display text-base font-black tabular-nums"
+                    style={{
+                      backgroundColor: "var(--bk-primary, #ff5a8a)",
+                      color: "var(--bk-on-primary, #ffffff)",
+                      borderRadius: "var(--bk-radius-pill, 9999px)",
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-display font-bold">
+                      {t(step.title_i18n)}
+                    </p>
+                    {body && (
+                      <p className="mt-0.5 font-body text-sm text-bk-ink-soft">
+                        {body}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+
+        {eta && (
+          <div
+            className="mt-bk-md flex items-start gap-bk-sm p-bk-md"
+            style={CARD_STYLE}
+          >
+            <MaterialIcon name="local_shipping" className="text-2xl" />
+            <div>
+              <p className={LABEL_CLS}>{t(props.eta_label_i18n)}</p>
+              <p
+                data-i18n-field="eta_i18n"
+                className="mt-0.5 font-display font-bold"
+              >
+                {eta}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-bk-lg flex flex-col gap-bk-xs">
+          {phone && (
+            <WhatsAppButton
+              href={buildWhatsappHref(
+                phone,
+                t(props.whatsapp_message_i18n),
+                orderNumber,
+              )}
+              tone="solid"
+              size="lg"
+              fullWidth
+              data-i18n-field="whatsapp_label_i18n"
+            >
+              {t(props.whatsapp_label_i18n)}
+            </WhatsAppButton>
+          )}
+          <StoreLink
+            href={trackHref}
+            data-i18n-field="track_label_i18n"
+            className={`inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 py-3 font-display text-base font-bold ${PRESSABLE} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus`}
+            style={{
+              backgroundColor: "var(--bk-surface, #ffffff)",
+              color: "var(--bk-ink, #1a1a1a)",
+              border: INK_BORDER,
+              borderRadius: "var(--bk-radius-pill, 9999px)",
+              boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+              fontFamily: "var(--bk-font-display, inherit)",
+            }}
+          >
+            <MaterialIcon name="package_2" className="text-xl" />
+            {t(props.track_label_i18n)}
+          </StoreLink>
+          <StoreLink
+            href="/products"
+            data-i18n-field="continue_label_i18n"
+            className="inline-flex min-h-11 items-center justify-center font-label text-sm font-bold underline underline-offset-4 text-bk-ink-soft hover:text-bk-ink"
+          >
+            {t(props.continue_label_i18n)}
+          </StoreLink>
+        </div>
+      </div>
+    </Section>
+  );
+}

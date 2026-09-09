@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cookies, headers } from "next/headers";
-import { RenderPage } from "@scheniders/sections";
+import { RenderPage, toSectionTenant } from "@scheniders/sections";
 import {
   assignAbArm,
   evaluateSegments,
@@ -113,6 +113,16 @@ export async function V2Page({
 
   const audienceSegments = evaluateSegments(v2.segments ?? [], segmentCtx);
 
+  // Sections only ever see the pruned tenant. `renderCtx.tenant` arrives as
+  // the full storefront row (store_config, store_config_v2, draft…); every
+  // client section's `ctx` is serialised into the RSC payload, so handing it
+  // the whole row would ship the entire page tree to the browser on every
+  // request. `toSectionTenant` keeps exactly the fields sections read.
+  const sectionCtx: Omit<SectionRenderContext, "runtime"> = {
+    ...renderCtx,
+    tenant: toSectionTenant(renderCtx.tenant),
+  };
+
   // EC13: resolve the locale to actually render for THIS visitor — explicit
   // switcher cookie, else Accept-Language, else the store default — constrained
   // to the store's enabled_locales. The page passed `runtime.locale` (the store
@@ -145,15 +155,15 @@ export async function V2Page({
       <StorefrontGlobals
         globals={v2.globals}
         runtime={enrichedRuntime}
-        renderCtx={renderCtx}
+        renderCtx={sectionCtx}
         slots={["promo_bar", "header"]}
       />
       {lead ? lead(enrichedRuntime) : null}
-      <RenderPage page={page} runtime={enrichedRuntime} renderCtx={renderCtx} />
+      <RenderPage page={page} runtime={enrichedRuntime} renderCtx={sectionCtx} />
       <StorefrontGlobals
         globals={v2.globals}
         runtime={enrichedRuntime}
-        renderCtx={renderCtx}
+        renderCtx={sectionCtx}
         slots={["footer"]}
       />
       {/* Sticky bottom bar — fixed-position, so DOM order after the footer is
@@ -163,7 +173,7 @@ export async function V2Page({
       <StorefrontGlobals
         globals={v2.globals}
         runtime={enrichedRuntime}
-        renderCtx={renderCtx}
+        renderCtx={sectionCtx}
         slots={["sticky_bottom_bar"]}
       />
     </>

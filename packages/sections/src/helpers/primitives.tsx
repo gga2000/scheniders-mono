@@ -288,11 +288,6 @@ const baseBtn =
   "hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] " +
   "transition-[transform,box-shadow,background-color,color,opacity] duration-150 motion-reduce:transition-none";
 
-/** Press/hover feedback for tappable cards and links. Touch has no hover,
- *  so the `active:` step is what makes the primary device feel alive. */
-export const PRESSABLE =
-  "transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]";
-
 function buttonStyle(bg: CardBg): CSSProperties {
   return {
     ...surfaceStyle(bg),

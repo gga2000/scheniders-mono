@@ -15,7 +15,6 @@ import {
   BentoCard,
   CenteredSectionHeader,
   MaterialIcon,
-  PRESSABLE,
   Section,
   SectionHeader,
   Stars,
@@ -28,7 +27,7 @@ import { RevealMore } from "./helpers/reveal-more";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { chromeString } from "./helpers/chrome-strings";
 import { formatPrice, formatCount } from "./helpers/format";
-import { cn } from "./helpers/utils";
+import { cn, PRESSABLE } from "./helpers/utils";
 import type { Product } from "./types";
 import { i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
