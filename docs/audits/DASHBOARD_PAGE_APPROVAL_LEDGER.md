@@ -189,3 +189,28 @@ Part (b) was blocked on COR-D3 and became actionable once the timezone correctio
 - Replay re-simulated through all five patches: preconditions met, **0 `u_local` left in these windows, 0 bad tz chains**. The new regression test **fails against the `updated_at` version before it passes**.
 
 `tsc` clean · `lint` 0 errors · **750 tests across 89 files green**.
+
+**Round 25 (2026-09-09) — full truth-table re-run after four migrations. 13/13 reconcile.**
+
+The post-fix truth table was stale: `20260907141759`, `20260909061411`, `20260909104500` and `20260909112000` had all landed since it was last run, and R23 proved that a fix verified against a *prediction* rather than an independent recomputation can ship a P0. Re-recomputed every metric from base tables, as the audited tenant, in one transaction.
+
+| Metric | RPC | Independent SQL | |
+|---|---|---|---|
+| funnel.total | 4,691 | 4,691 | ✅ |
+| todayStrip.ordersToday | 4 | 4 | ✅ |
+| todayStrip.ordersYesterday | 39 | 39 | ✅ |
+| todayStrip.revenueToday | 0 | 0 | ✅ |
+| pipeline.new | 0 | 0 | ✅ |
+| pipeline.in_transit | 104 | 104 | ✅ |
+| monthForecast.ordersThisMonth | 89 | 89 | ✅ |
+| monthForecast.revenueThisMonth | 44,750 | 44,750 | ✅ |
+| urgency.unconfirmedHighValue | 0 | 0 | ✅ |
+| urgency.failedDeliveries | 0 | 0 | ✅ |
+| urgency.stuckInTransit | 43 | 43 | ✅ |
+| deliveryRate.currentRate | 100 | 100 | ✅ |
+| cycle.avgHours | 253.4046 | 253.4046 | ✅ |
+| cycle.sampleSize | 1,859 | 1,859 | ✅ |
+| leaderboard.topCity | 1,627 | 1,627 | ✅ |
+| recentOrders length | 12 | 12 | ✅ |
+
+**One apparent mismatch, which was mine, not the code's.** `leaderboard.topCity` first came back 1,627 (RPC) against 1,972 (my query) — every city short by ~18%. The RPC is right: `lb_src` deliberately excludes `cancelled` and `rejected`, so the leaderboard ranks cities by orders that actually stuck. My benchmark query counted all orders. Re-run against the real definition: **1,627 = 1,627**, second city **391 = 391**. Recorded because the correct response to a mismatch is to check the definition before declaring a defect — the opposite of what happened in COR-D3.
