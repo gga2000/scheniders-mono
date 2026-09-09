@@ -150,10 +150,11 @@ describe("COR-D6 — the fallback engine does not guess at staff performance", (
     });
 });
 
-describe("COR-D3 — delivered_at is UTC-naive, so cycle times were 3 hours short", () => {
-    it("THE BUG: a zoneless timestamp is read as UTC, not as browser-local", () => {
-        // Postgrest serialises `timestamp WITHOUT time zone` with no designator.
-        // new Date() would treat this as local; it is really 22:00 UTC.
+describe("COR-D3 (corrected) — delivered_at arrives WITH an offset; the parser must not shift it", () => {
+    it("a zoneless timestamp is read as UTC, not as browser-local", () => {
+        // Defensive only: the live column is timestamptz and never arrives in
+        // this form. Kept because a zoneless value would otherwise be read as
+        // browser-local, which in Baghdad (UTC+3) shifts the instant.
         expect(parseUtcNaiveTimestamp("2026-09-01 22:00:00.344756").toISOString())
             .toBe("2026-09-01T22:00:00.344Z");
     });
