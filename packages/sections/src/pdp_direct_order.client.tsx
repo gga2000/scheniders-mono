@@ -1277,7 +1277,7 @@ export function PdpDirectOrderRender({
                   href={waHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  bg="mint"
+                  bg="success"
                   size="lg"
                   fullWidth
                 >

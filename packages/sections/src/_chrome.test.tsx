@@ -15,6 +15,8 @@ import { PRESSABLE } from "./helpers/utils";
 import site_header from "./site_header";
 import site_footer from "./site_footer";
 import product_grid from "./product_grid";
+import sticky_cta_bar from "./sticky_cta_bar";
+import accordion_richtext from "./accordion_richtext";
 import policy_content from "./policy_content";
 import cta_banner from "./cta_banner";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -292,5 +294,70 @@ describe("heading ownership", () => {
     expect(html).not.toContain("<h1");
     expect(html).toContain("<h2");
     expect(html).not.toMatch(/<a[^>]*>\s*<button/);
+  });
+});
+
+// ── No fixed Candy pastels on brand surfaces ──
+
+describe("WhatsApp CTAs use the brand's success green, not Candy mint", () => {
+  it("sticky_cta_bar's WhatsApp link reads --bk-success", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(sticky_cta_bar.render, {
+          props: { ...sticky_cta_bar.defaultProps, secondary_kind: "whatsapp" },
+          ctx: {
+            tenant: {
+              id: "t1",
+              contact_phone: "07802301677",
+              store_config: { contact: { whatsapp_number: "07802301677" } },
+            },
+            runtime: {
+              page_id: "product",
+              breakpoint: "mobile",
+              locale: "ar",
+              audience_segments: [],
+              ab_test_arms: {},
+              now: new Date("2026-05-15T00:00:00Z"),
+            },
+            products: [],
+            categories: [],
+          },
+        } as never),
+      ),
+    );
+    expect(html).toContain("--bk-success");
+    // --bk-mint is a fixed pastel a tenant cannot recolour; it must not
+    // carry a brand CTA.
+    expect(html).not.toContain("--bk-mint");
+  });
+
+  it("accordion_richtext tints derive from the tenant palette", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(accordion_richtext.render, {
+          props: accordion_richtext.defaultProps,
+          ctx: {
+            tenant: { id: "t1" },
+            runtime: {
+              page_id: "product",
+              breakpoint: "mobile",
+              locale: "ar",
+              audience_segments: [],
+              ab_test_arms: {},
+              now: new Date("2026-05-15T00:00:00Z"),
+            },
+            products: [],
+            categories: [],
+          },
+        } as never),
+      ),
+    );
+    expect(html).not.toContain("--bk-mint");
+    expect(html).not.toContain("--bk-lilac");
+    expect(html).not.toContain("--bk-sky");
   });
 });

@@ -57,15 +57,17 @@ const defaultProps: Props = {
   ],
 };
 
-/** Icon-box tint rotation. Token-bound (the decorative candy surfaces read
- *  the fixed `--bk-mint/--bk-sky/--bk-lilac`, matching the primitives'
- *  SCRIBBLE map) — a dynamic `bg-candy-${tint}` class was purged by
- *  Tailwind and rendered nothing. */
+/** Icon-box tint rotation, derived from the tenant's own palette rather
+ *  than the fixed `--bk-mint/--bk-sky/--bk-lilac` candy pastels: those are
+ *  deliberately un-themeable, so on a cream-and-yellow store they were the
+ *  one off-palette thing on the product page. Soft mixes keep the rotation
+ *  legible against `--bk-ink` on every kit. (A dynamic `bg-candy-${tint}`
+ *  class was purged by Tailwind and rendered nothing — hence inline.) */
 const ICON_TINTS = [
-  "var(--bk-mint, #7cf0bd)",
-  "var(--bk-accent, #ffd84a)",
-  "var(--bk-sky, #9ad8ff)",
-  "var(--bk-lilac, #c5b6ff)",
+  "color-mix(in srgb, var(--bk-accent, #ffd84a) 55%, var(--bk-surface, #fff))",
+  "color-mix(in srgb, var(--bk-primary, #ff5a8a) 22%, var(--bk-surface, #fff))",
+  "color-mix(in srgb, var(--bk-success, #25d366) 28%, var(--bk-surface, #fff))",
+  "color-mix(in srgb, var(--bk-secondary, #3e3129) 18%, var(--bk-surface, #fff))",
   "var(--bk-surface-alt, #fff7ed)",
 ] as const;
 
