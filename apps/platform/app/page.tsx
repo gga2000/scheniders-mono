@@ -7,7 +7,7 @@ import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useStats } from "@/hooks/use-stats";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { filterOrdersByDateRange, DateRangeKey } from "@/lib/analytics/dashboard-calculations";
@@ -27,6 +27,7 @@ import { perfTrace } from "@/lib/perf-trace";
 import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
 import { diag } from "@/lib/diag";
 import { DASHBOARD_EVENTS, useTrackEvent } from "@/lib/analytics/track-event";
+import { buildDashboardCsv } from "@/lib/analytics/dashboard-export";
 
 // Dynamic imports — all chart + operational widgets
 const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
@@ -167,6 +168,21 @@ export default function Home() {
 
   // DV-D2: every widget that shows a problem should be able to show the orders
   // behind it. The orders page reads these params on mount.
+  // COM-D1: a merchant could read these numbers but never get them out.
+  const handleExport = () => {
+    const csv = buildDashboardCsv(rangeScoped, { range: dateRange, includeFinancials: canReveal });
+    // \ufeff = BOM, so Excel opens the Arabic city and product names as UTF-8
+    // instead of mojibake.
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dashboard-${dateRange}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'export', filters: dateRange });
+  };
+
   const goToOrders = (params: Record<string, string>, sourceWidget: string) => {
     // Record WHICH widget drove the click, not the customer or city itself — a city
     // name is business data, and events stay free of record content (OBS-D1).
@@ -211,6 +227,15 @@ export default function Home() {
                 duplicating the working GlobalSearch and NotificationsDropdown in
                 the app shell's top bar. Removed rather than wired, so there is one
                 search and one bell in the product, not two. */}
+
+            <button
+              onClick={handleExport}
+              title={t("dashboard.export.title")}
+              aria-label={t("dashboard.export.title")}
+              className="w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm"
+            >
+              <Download className="w-5 h-5" />
+            </button>
 
             <button
               onClick={() => setIsCreateModalOpen(true)}
