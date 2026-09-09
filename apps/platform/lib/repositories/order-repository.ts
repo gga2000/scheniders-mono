@@ -16,6 +16,12 @@ import { diag } from "@/lib/diag";
  * Excludes detail-only fields to reduce payload size by ~25%.
  * findById still fetches all columns (*) for the detail modal.
  */
+// `delivered_at` / `completed_at` are here because realized revenue and cycle time
+// are dated by when an order was DELIVERED, not created (COR-D1). Without them the
+// client engine reads null for every order and reports zero revenue. The Orders
+// audit hit the same gap from the other side: its COR-4 could not bucket by
+// delivered_at precisely because this list never selected it.
+// NOTE: this string is sent verbatim as a PostgREST `select=` — no SQL comments.
 const LIST_VIEW_COLUMNS = `
   id,
   created_at,
@@ -32,6 +38,8 @@ const LIST_VIEW_COLUMNS = `
   items,
   price,
   status,
+  delivered_at,
+  completed_at,
   priority,
   payment_status,
   delivery_fee,
