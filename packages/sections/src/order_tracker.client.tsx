@@ -67,24 +67,29 @@ const STRINGS = {
   intro: {
     en: "Enter the phone number you ordered with and your order number.",
     ar: "أدخل رقم الهاتف الذي طلبت به ورقم الطلب.",
+
+    ku: "ئەو ژمارە مۆبایلەی پێی داواکاریت کردووە و ژمارەی داواکارییەکەت بنووسە.",
   },
-  phone: { en: "Phone number", ar: "رقم الهاتف" },
-  orderNumber: { en: "Order number", ar: "رقم الطلب" },
-  find: { en: "Find order", ar: "ابحث عن الطلب" },
-  searching: { en: "Searching…", ar: "جارٍ البحث…" },
-  order: { en: "Order", ar: "رقم الطلب" },
+  phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل"},
+  orderNumber: { en: "Order number", ar: "رقم الطلب", ku: "ژمارەی داواکاری"},
+  find: { en: "Find order", ar: "ابحث عن الطلب", ku: "داواکاری بدۆزەرەوە"},
+  searching: { en: "Searching…", ar: "جارٍ البحث…", ku: "گەڕان…"},
+  order: { en: "Order", ar: "رقم الطلب", ku: "داواکاری"},
   // One message per failure class so the shopper knows what to change.
   errInvalid: {
     en: "Check the phone number and order number, then try again.",
     ar: "تحقّق من رقم الهاتف ورقم الطلب ثم حاول مرة أخرى.",
+    ku: "ژمارەی مۆبایل و ژمارەی داواکاری بپشکنە، پاشان دووبارە هەوڵ بدەرەوە.",
   },
   errNotFound: {
     en: "No order matches those details.",
     ar: "لم نجد طلباً بهذه البيانات.",
+    ku: "هیچ داواکارییەک بەم زانیارییانە نەدۆزرایەوە.",
   },
   errServer: {
     en: "We couldn't reach the server. Try again in a moment.",
     ar: "تعذّر الاتصال بالخادم. حاول مرة أخرى بعد قليل.",
+    ku: "نەتوانرا پەیوەندی بە ڕاژەکار بکرێت. دوای کەمێک دووبارە هەوڵ بدەرەوە.",
   },
 } as const;
 

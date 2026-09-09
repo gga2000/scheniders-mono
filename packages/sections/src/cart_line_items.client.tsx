@@ -24,11 +24,11 @@ import type { Props } from "./cart_line_items";
 /** Chrome strings. Resolved through `resolveI18n` so Kurdish follows the
  *  storefront's ku → ar → en chain instead of an English-only `aria-label`. */
 const STRINGS = {
-  heading: { en: "Your cart", ar: "سلتك" },
-  decrease: { en: "Decrease quantity", ar: "تقليل الكمية" },
-  increase: { en: "Increase quantity", ar: "زيادة الكمية" },
-  remove: { en: "Remove", ar: "إزالة" },
-  quantity: { en: "Quantity", ar: "الكمية" },
+  heading: { en: "Your cart", ar: "سلتك", ku: "سەبەتەکەت"},
+  decrease: { en: "Decrease quantity", ar: "تقليل الكمية", ku: "کەمکردنەوەی بڕ"},
+  increase: { en: "Increase quantity", ar: "زيادة الكمية", ku: "زیادکردنی بڕ"},
+  remove: { en: "Remove", ar: "إزالة", ku: "لابردن"},
+  quantity: { en: "Quantity", ar: "الكمية", ku: "بڕ"},
 } as const;
 
 function itemCountLine(count: number, locale: LocaleCode): string {

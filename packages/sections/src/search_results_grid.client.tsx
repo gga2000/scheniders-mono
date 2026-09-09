@@ -31,18 +31,20 @@ import type { Product } from "./types";
 import type { Props } from "./search_results_grid";
 
 const STRINGS = {
-  searchLabel: { en: "Search products", ar: "ابحث عن منتج" },
-  searchButton: { en: "Search", ar: "بحث" },
-  searchedFor: { en: "Searched for", ar: "بحثت عن" },
+  searchLabel: { en: "Search products", ar: "ابحث عن منتج", ku: "بۆ بەرهەم بگەڕێ"},
+  searchButton: { en: "Search", ar: "بحث", ku: "گەڕان"},
+  searchedFor: { en: "Searched for", ar: "بحثت عن", ku: "گەڕایت بۆ"},
   helpTitle: {
     en: "Can't find what you want?",
     ar: "ما لقيت اللي تبحث عنه؟",
+    ku: "ئەوەی دەتەوێت نادۆزیتەوە؟",
   },
   helpBody: {
     en: "Our personal shoppers are ready to help you find the perfect piece.",
     ar: "فريق التسوّق الشخصي جاهز لمساعدتك في إيجاد القطعة المثالية.",
+    ku: "تیمی یارمەتیدەرمان ئامادەیە یارمەتیت بدات پارچەی تەواو بدۆزیتەوە.",
   },
-  askUs: { en: "Ask us", ar: "اسألنا" },
+  askUs: { en: "Ask us", ar: "اسألنا", ku: "لێمان بپرسە"},
 } as const;
 
 const INK_BORDER =

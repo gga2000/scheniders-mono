@@ -426,7 +426,14 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   purchase rows per line with the server total. Platform: `useStorefrontFunnel`,
   `FunnelCard` in the Command Center (`command_center.funnel_*` strings).
   Verified: RPC probe rolled back; route/card/forwarding tests. *(G1)*
-- **W6.8** Kurdish locale. *(P9)*
+- **W6.8** Kurdish locale — DONE for the conversion path: `ku` added to the
+  `STRINGS` tables of `cart_line_items`, `checkout_form`, `order_tracker`,
+  `pdp_direct_order`, `search_results_grid` (111 entries), Kurdish shapes in
+  `formatHours` / `formatPoints` / review counts, inline labels in
+  `order_confirmation`, `sticky_cta_bar`, PDP ladder. `_kurdish-coverage.test.ts`
+  guards those tables. Out of scope by design: merchant copy (builder Languages
+  screen) and non-conversion sections (Arabic fallback via `LOCALE_FALLBACKS`).
+  *(P9)*
 
 ### Wave 7 — Craft
 - **W7.1** View Transitions grid → PDP. *(F1)*

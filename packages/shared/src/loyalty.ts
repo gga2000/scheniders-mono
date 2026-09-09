@@ -85,6 +85,7 @@ export function computePointsRedemption(opts: {
  */
 export function formatPoints(points: number, locale: LocaleCode): string {
   const n = Math.max(0, Math.floor(points));
+  if (locale === "ku") return `${n} خاڵ`;
   if (locale !== "ar") return n === 1 ? "1 point" : `${n} points`;
   if (n === 1) return "نقطة واحدة";
   if (n === 2) return "نقطتين";
