@@ -198,6 +198,14 @@ export function normalizePhoneForSearch(phone: string | undefined | null): strin
     // Remove all non-digit characters
     cleaned = cleaned.replace(/\D/g, '');
 
+    // Remove the international access code so 00964... reduces to 964... and the
+    // country-code strip below can see it. Without this, 00964 lost only one
+    // leading zero and kept the 964, so it never matched a stored number.
+    // A local Iraqi number never begins 00, so this cannot eat a real prefix.
+    if (cleaned.startsWith('00')) {
+        cleaned = cleaned.substring(2);
+    }
+
     // Remove +964 or 964 prefix
     if (cleaned.startsWith('964')) {
         cleaned = cleaned.substring(3);
