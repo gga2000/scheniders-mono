@@ -1,13 +1,19 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { authFailure, requireTenantAdmin } from "@/lib/auth/require-caller";
 import crypto from "node:crypto";
 
 /**
  * Server actions for managing the Telegram bot ↔ employee account links.
- * The Settings → Team page is already gated to admins, so we follow the
- * existing pattern (e.g. toggleRolePermissionAction) and don't re-verify
- * the caller's role here.
+ *
+ * ORD-A12 — this comment used to read: "The Settings → Team page is already
+ * gated to admins, so we follow the existing pattern (e.g.
+ * toggleRolePermissionAction) and don't re-verify the caller's role here."
+ * That reasoning was wrong, and it was spreading. A Server Action is an
+ * independently addressable HTTP endpoint: the page that renders the button is
+ * irrelevant to who can POST to the action. Every action below now proves the
+ * caller administers the tenant named in its arguments.
  *
  * Multi-tenant: every code/link row carries tenant_id. Reads are scoped
  * to a tenant by the caller passing the current admin's tenant_id; the
@@ -40,6 +46,9 @@ export async function getTelegramLinkStatusAction(
     targetUserProfileId: string,
     tenantId: string | null
 ): Promise<TelegramLinkStatus> {
+    if (!tenantId) return { linked: false };
+    await requireTenantAdmin(tenantId);
+
     const supabase = createSupabaseServiceClient();
 
     let linkQuery = supabase
@@ -74,6 +83,14 @@ export async function generateTelegramLinkCodeAction(
     tenantId: string,
     createdByUserProfileId?: string
 ): Promise<{ success: boolean; code?: string; expires_at?: string; error?: string }> {
+    try {
+        await requireTenantAdmin(tenantId);
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
+    }
+
     const supabase = createSupabaseServiceClient();
 
     if (!tenantId) {
@@ -121,6 +138,15 @@ export async function unlinkTelegramAction(
     targetUserProfileId: string,
     tenantId: string | null
 ): Promise<{ success: boolean; error?: string }> {
+    try {
+        if (!tenantId) return { success: false, error: "Tenant context required" };
+        await requireTenantAdmin(tenantId);
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
+    }
+
     const supabase = createSupabaseServiceClient();
     let query = supabase
         .from("telegram_employee_link")

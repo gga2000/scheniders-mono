@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { authFailure, requireTenantAdmin } from "@/lib/auth/require-caller";
 
 /**
  * Top up a tenant's wallet.
@@ -13,6 +14,18 @@ export async function topUpWalletAction(
     paymentMethod: string = "manual",
     idempotencyKey?: string
 ): Promise<{ success: boolean; newBalance?: number; error?: string }> {
+    // ORD-A12: this credits real money to a tenant-supplied account id and runs
+    // as service-role. Before this guard, any caller could mint up to 10,000,000
+    // IQD into any tenant's wallet, because a Server Action is a public endpoint
+    // and nothing established who was asking.
+    try {
+        await requireTenantAdmin(tenantId);
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
+    }
+
     if (amountIqd <= 0) {
         return { success: false, error: "Amount must be positive" };
     }

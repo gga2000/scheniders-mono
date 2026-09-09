@@ -7,7 +7,10 @@ import {
     answerCallbackQuery,
     downloadFile,
 } from "@/lib/telegram";
-import { createOrderAction } from "@/app/actions/orders";
+// ORD-A12: the webhook has no user session; it is trusted by its own signature
+// check. It calls the non-action core directly so the browser-facing action can
+// require authentication.
+import { createOrderCore } from "@/lib/orders/create-order-core";
 import type { Order, OrderItem } from "@/types/order";
 import {
     matchProductReply,
@@ -287,7 +290,7 @@ async function handleProductReply(
         source: "telegram",
     };
 
-    const result = await createOrderAction(orderInput, link.tenant_id);
+    const result = await createOrderCore(orderInput, link.tenant_id);
     if (!result.success || !result.data) {
         return sendMessage(
             msg.chat.id,

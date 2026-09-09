@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { authFailure, requireTenantAdmin } from "@/lib/auth/require-caller";
 
 const VALID_PLANS = ["starter", "growth", "professional", "enterprise"] as const;
 
@@ -12,6 +13,16 @@ export async function changePlanAction(
     tenantId: string,
     newPlan: string
 ): Promise<{ success: boolean; warning?: string; error?: string }> {
+    // ORD-A12: changes what a tenant is billed, for a tenant id supplied by the
+    // caller, as service-role. Admin of that tenant only.
+    try {
+        await requireTenantAdmin(tenantId);
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
+    }
+
     if (!VALID_PLANS.includes(newPlan as (typeof VALID_PLANS)[number])) {
         return { success: false, error: "Invalid plan" };
     }

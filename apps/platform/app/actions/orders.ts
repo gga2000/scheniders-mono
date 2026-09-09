@@ -2,8 +2,25 @@
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { Order, OrderItem } from "@/lib/supabase";
-import { canCreateOrder, getCurrentUsage, getPlanLimits, getWallet } from "@/lib/tenant";
+import { canCreateOrder } from "@/lib/tenant";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
+import { createOrderCore } from "@/lib/orders/create-order-core";
+import { authFailure, requireTenantMember } from "@/lib/auth/require-caller";
+
+/**
+ * ORD-A12. Every export here is a public HTTP endpoint.
+ *
+ * A Next.js Server Action is addressable independently of the component that
+ * imports it — the action id ships in the client bundle and anyone can POST to
+ * it with arbitrary arguments. These actions build a service-role client, which
+ * bypasses RLS, and they take `tenantId` as a parameter. Until this change none
+ * of them checked the caller, so any signed-in user could create orders in, and
+ * bill, any tenant.
+ *
+ * `requireTenantMember` establishes the caller from the SESSION COOKIE — which
+ * cannot be supplied as an argument — and proves membership of the tenant the
+ * arguments name. Never trust the argument on its own.
+ */
 
 // =============================================
 // CHECK LIMITS (called from UI before showing create modal)
@@ -12,6 +29,12 @@ import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 export async function checkOrderLimitsAction(
     tenantId: string
 ): Promise<{ allowed: boolean; reason?: string; warning?: string }> {
+    try {
+        await requireTenantMember(tenantId);
+    } catch (err) {
+        if (authFailure(err)) return { allowed: false, reason: "Not authorised for this account." };
+        throw err;
+    }
     return canCreateOrder(tenantId);
 }
 
@@ -24,94 +47,17 @@ export async function createOrderAction(
     tenantId: string | null,
     retryCount = 0
 ): Promise<{ success: boolean; data?: Order; error?: string; warning?: string }> {
-    const MAX_RETRIES = 5;
-    const supabase = createSupabaseServiceClient();
-
+    // Creating an order charges the tenant's wallet and consumes plan quota, so
+    // the caller must be a member of the tenant they are billing.
     try {
-        // ── 0. Tenant pause guard (admin-issued restrictions) ──
-        if (tenantId) {
-            try {
-                await assertNotBlocked(tenantId, "new_orders");
-            } catch (err) {
-                if (err instanceof TenantBlockedError) {
-                    return {
-                        success: false,
-                        error: err.restrictions.reason
-                            || "New orders are paused for this account.",
-                    };
-                }
-                throw err;
-            }
-        }
-
-        // ── 1. Check plan limits (if tenant exists) ──
-        let warning: string | undefined;
-        if (tenantId) {
-            const limitCheck = await canCreateOrder(tenantId);
-            if (!limitCheck.allowed) {
-                return { success: false, error: limitCheck.reason };
-            }
-            warning = limitCheck.warning;
-        }
-
-        // ── 2. Create the order ──
-        const payload = {
-            ...orderData,
-            status: orderData.status || "confirmed",
-            priority: orderData.priority || "normal",
-            payment_status: orderData.payment_status || "cod",
-            is_return: orderData.is_return || false,
-            is_archived: false,
-        };
-
-        const { data, error: insertError } = await supabase
-            .rpc('create_order_atomic', { _order_data: payload, _tenant_id: tenantId });
-
-        if (insertError) {
-            throw insertError;
-        }
-
-        // ── 3. Post-creation: charge wallet + increment usage (fire-and-forget) ──
-        if (tenantId) {
-            chargeAndTrack(tenantId, supabase).catch((err) => {
-                console.error('[createOrderAction] Post-creation charge/track failed:', err);
-            });
-        }
-
-        // ── 4. Staff WhatsApp alerts (fire-and-forget, tenant-scoped) ──
-        // Reads the tenant's staff_alert_numbers settings and fans out the
-        // new-order template to each registered phone. Failures are logged
-        // but do not affect the order creation result.
-        if (data) {
-            import("@/lib/staff-alerts").then(({ sendNewOrderAlertToStaff }) => {
-                sendNewOrderAlertToStaff(data as Order, tenantId).catch((err) => {
-                    console.error('[createOrderAction] Staff alert fanout failed:', err);
-                });
-            }).catch((err) => {
-                console.error('[createOrderAction] Staff alert module load failed:', err);
-            });
-        }
-
-        return { success: true, data: data as Order, warning };
-    } catch (err: unknown) {
-        // Extract more detailed error information
-        let errorMessage = "Failed to create order";
-        if (err instanceof Error) {
-            errorMessage = err.message;
-        } else if (typeof err === "object" && err !== null) {
-            const errorObj = err as Record<string, unknown>;
-            if (errorObj.message) {
-                errorMessage = String(errorObj.message);
-            } else if (errorObj.code) {
-                errorMessage = `Database error: ${errorObj.code} - ${errorObj.details || errorObj.hint || 'Unknown error'}`;
-            }
-        }
-
-        return {
-            success: false,
-            error: errorMessage,
-        };
+        if (!tenantId) return { success: false, error: "No account specified." };
+        await requireTenantMember(tenantId);
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
     }
+    return createOrderCore(orderData, tenantId, retryCount);
 }
 
 export async function splitOrderAction(
@@ -120,6 +66,15 @@ export async function splitOrderAction(
     returnedItems: OrderItem[],
     tenantId: string | null
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
+    try {
+        if (!tenantId) return { success: false, error: "No account specified." };
+        await requireTenantMember(tenantId);
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
+    }
+
     const supabase = createSupabaseServiceClient();
 
     try {
@@ -165,65 +120,21 @@ export async function splitOrderAction(
 // POST-CREATION: Charge wallet + increment usage
 // =============================================
 
-type SupabaseAdmin = ReturnType<typeof createSupabaseServiceClient>;
-
-async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-
-    // Get current usage + plan limits to determine price
-    const [usage, wallet] = await Promise.all([
-        getCurrentUsage(tenantId),
-        getWallet(tenantId),
-    ]);
-
-    // Determine per-order price
-    // We need plan info from the tenant
-    const { data: tenant } = await supabase
-        .from('tenants')
-        .select('plan')
-        .eq('id', tenantId)
-        .single();
-
-    const limits = tenant ? await getPlanLimits(tenant.plan) : null;
-    const isOverLimit = limits && limits.max_orders_per_month !== -1 && usage.orders_count >= limits.max_orders_per_month;
-    const chargeAmount = isOverLimit
-        ? (limits?.overage_price_iqd ?? 500)
-        : (limits?.order_price_iqd ?? 100);
-
-    // ── Increment usage_tracking atomically ──
-    await supabase.rpc('increment_usage_tracking', {
-        _tenant_id: tenantId,
-        _year: year,
-        _month: month,
-    });
-
-    // ── Charge wallet atomically (prevents race conditions) ──
-    try {
-        const { data: chargeResult, error: chargeError } = await supabase
-            .rpc('charge_wallet_atomic', {
-                _tenant_id: tenantId,
-                _amount: chargeAmount,
-                _description: `Order charge${isOverLimit ? ' (overage)' : ''}`,
-                _order_id: null,
-            });
-
-        if (chargeError) {
-            console.error('[chargeAndTrack] Wallet charge RPC error:', chargeError.message);
-        } else if (chargeResult && !chargeResult.success) {
-            console.warn('[chargeAndTrack] Wallet charge failed:', chargeResult.error);
-        }
-    } catch (err) {
-        console.error('[chargeAndTrack] Wallet charge exception:', err);
-    }
-}
-
 // =============================================
 // CHECK ORDER ID EXISTS
 // =============================================
 
 export async function checkOrderIdExists(orderId: string, excludeUuid?: string, tenantId?: string | null): Promise<boolean> {
+    // ORD-A12: `tenantId` was optional, and omitting it queried every tenant's
+    // orders through a service-role client — a cross-tenant existence oracle
+    // for any order id. It is now required and authorised.
+    if (!tenantId) return false;
+    try {
+        await requireTenantMember(tenantId);
+    } catch {
+        return false;
+    }
+
     const supabase = createSupabaseServiceClient();
 
     try {
@@ -236,9 +147,7 @@ export async function checkOrderIdExists(orderId: string, excludeUuid?: string, 
             query = query.neq("id", excludeUuid);
         }
 
-        if (tenantId) {
-            query = query.eq("tenant_id", tenantId);
-        }
+        query = query.eq("tenant_id", tenantId);
 
         const { data, error } = await query;
         if (error) throw error;

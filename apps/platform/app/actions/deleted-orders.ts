@@ -2,8 +2,27 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+import { authFailure, requireCaller } from "@/lib/auth/require-caller";
+
+/**
+ * ORD-A12. Unlike the other action files, these two use the COOKIE-scoped
+ * client, so RLS is in force and they were never part of that P0 — a caller
+ * only ever sees and restores rows their own tenant policies allow.
+ *
+ * The explicit `requireCaller` below adds nothing to that isolation. It is here
+ * so an unauthenticated call fails with a clear message instead of an empty
+ * result, and so this file cannot be read as an example of an action that needs
+ * no auth — which is exactly how the pattern spread the first time.
+ */
 
 export async function getDeletedOrders() {
+    try {
+        await requireCaller();
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
+    }
     const supabase = await createSupabaseServerClient();
     
     // Fetch directly from orders table where deleted_at is not null
@@ -22,6 +41,13 @@ export async function getDeletedOrders() {
 }
 
 export async function restoreDeletedOrder(orderId: string) {
+    try {
+        await requireCaller();
+    } catch (err) {
+        const denied = authFailure(err);
+        if (denied) return denied;
+        throw err;
+    }
     const supabase = await createSupabaseServerClient();
     
     const { error } = await supabase
