@@ -7,7 +7,7 @@
 // authoritative balance — a client-supplied points amount is never trusted.
 // =====================================================================
 
-import type { LoyaltyConfig } from "./types/store-config-v2";
+import type { LocaleCode, LoyaltyConfig } from "./types/store-config-v2";
 
 export interface ResolvedLoyalty {
   enabled: boolean;
@@ -77,4 +77,17 @@ export function computePointsRedemption(opts: {
     discount === rawDiscount ? want : Math.floor(discount / l.redeemValueIqd);
   if (points_used <= 0) return none;
   return { points_used, discount_iqd: Math.round(points_used * l.redeemValueIqd) };
+}
+
+/**
+ * "N points" with the Arabic count shapes the dialect actually uses:
+ * one → "نقطة واحدة", two → "نقطتين", 3–10 → "N نقاط", 11+ → "N نقطة".
+ */
+export function formatPoints(points: number, locale: LocaleCode): string {
+  const n = Math.max(0, Math.floor(points));
+  if (locale !== "ar") return n === 1 ? "1 point" : `${n} points`;
+  if (n === 1) return "نقطة واحدة";
+  if (n === 2) return "نقطتين";
+  if (n >= 3 && n <= 10) return `${n} نقاط`;
+  return `${n} نقطة`;
 }

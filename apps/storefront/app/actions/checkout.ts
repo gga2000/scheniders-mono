@@ -4,7 +4,6 @@ import {
   computeDeliveryFee,
   computeDiscount,
   computeBundleDiscounts,
-  computePointsEarned,
   computePointsRedemption,
   normalizeIraqiMobile, resolveTierPrice, resolveBumpPrice, qualifiesForFreeGift, resolveFreeGift, type PriceTier, type OrderBumpOffer } from "@scheniders/shared";
 import type {
@@ -486,19 +485,11 @@ export async function submitCheckout(
   const orderRow = raw as Record<string, unknown> | null;
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
 
-  // Loyalty: award points earned on this order. Best-effort — never fail it.
-  if (loyaltyCfg?.enabled) {
-    const earned = computePointsEarned(subtotal, loyaltyCfg);
-    if (earned > 0) {
-      await supabase.rpc("adjust_customer_points", {
-        _tenant_id: payload.tenantId,
-        _phone: phone,
-        _delta: earned,
-        _reason: "earn",
-        _order_id: orderId ?? undefined,
-      });
-    }
-  }
+  // Loyalty earn is NOT credited here. A COD order placed is not an order
+  // paid: points are credited by trg_loyalty_order_changed when the order
+  // reaches delivered/completed, and taken back if it leaves that state
+  // (migration 20260910120000). Redemption above stays at placement because
+  // the discount is baked into the order total.
 
   // Abandoned-cart recovery: this phone just ordered — mark any pending cart
   // recovered so the WhatsApp reminder sweep skips it. Best-effort: a failure

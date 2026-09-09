@@ -108,8 +108,9 @@ export function LoyaltyScreen({
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">
-                    Reward repeat customers: they earn points on every order and redeem
-                    them for a discount at checkout. Off by default — turn it on to start
+                    Reward repeat customers: they earn points when an order is delivered
+                    and redeem them for a discount at checkout. Points come back if the
+                    order is returned or cancelled. Off by default — turn it on to start
                     the program.
                 </p>
 

@@ -365,7 +365,13 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   clears it. **Not** a server lookup by phone: an anon phone→address endpoint
   is a customer-enumeration hole. Server recognition needs OTP (WhatsApp
   channel), tracked under H3. *(P15)*
-- **W5.2** Loyalty earn on delivered + redeem at checkout. *(A3)*
+- **W5.2** Loyalty — DONE. Earn moved from placement (checkout.ts) to
+  `trg_loyalty_order_changed` (migration `20260910120000`): credit on entering
+  delivered/completed = points owed − net already earned; reversal on leaving
+  that state capped at the current balance (ledger `earn_reversal`). Balance
+  key = `loyalty_phone_key` (normalizeIraqiMobile shape). PDP gains the
+  redeem box; both forms state "earn N points on delivery" (`formatPoints`).
+  Verified by a rolled-back DO-block probe on production. *(A3)*
 - **W5.3** Referral codes. *(D3)*
 - **W5.4** Abandoned-cart capture — DONE for the storefront: `checkout_form`
   already beaconed; `pdp_direct_order` now does too, gated on first form
