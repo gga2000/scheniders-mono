@@ -63,6 +63,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useStatusLabel } from "@/hooks/use-status-label";
+import { useOrderInlineEdit, type InlineEditableField } from "@/hooks/use-order-inline-edit";
+import { OrderInlineEdit } from "@/components/orders/table/order-inline-edit";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -235,6 +237,63 @@ export const OrderCard = memo(function OrderCard({
     const orderReasonInfo = useMemo(() => getOrderReasonInfo(order, isReturn), [order, isReturn]);
 
     const governorateCode = getGovernorateCode(order);
+
+    // WF-4: card and grid views had no inline edit at all — correcting a misheard
+    // name or a wrong digit meant opening the modal, even though the field being
+    // corrected is right there on the card. The table's four editable fields are
+    // now editable here too, through the same component and the same validation,
+    // so the two surfaces cannot drift apart.
+    //
+    // A click on an editable field is held for 250ms and cancelled by a double
+    // click — the same arrangement the table row uses, and the reason a double
+    // click here does not also open the details modal. What that held click then
+    // does has to match what a click on the card body does, which differs by
+    // layout: the two ultra-compact layouts open the details, the semi-compact
+    // grid card has no body click at all, and the full card opens the details
+    // only when it is not rendered inside a selectable list.
+    const cardBodyOpensDetails =
+        compact === 2 ? true
+            : (compact === 1 && gridMode) ? false
+                : !onToggleSelection;
+    const inlineEdit = useOrderInlineEdit();
+    const editClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        if (editClickTimerRef.current) clearTimeout(editClickTimerRef.current);
+    }, []);
+
+    const editable = (
+        field: InlineEditableField,
+        value: string,
+        display: React.ReactNode,
+        className?: string,
+    ): React.ReactNode => {
+        if (inlineEdit.isEditing(order.id, field)) {
+            return <OrderInlineEdit orderId={order.id} field={field} value={value} className={className} />;
+        }
+        return (
+            // `contents` keeps the approved layout byte-identical: the wrapper
+            // generates no box of its own, it only carries the handlers.
+            <span
+                className="contents"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (editClickTimerRef.current) clearTimeout(editClickTimerRef.current);
+                    if (cardBodyOpensDetails) {
+                        editClickTimerRef.current = setTimeout(() => onViewDetails(order), 250);
+                    }
+                }}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (editClickTimerRef.current) clearTimeout(editClickTimerRef.current);
+                    inlineEdit.startEdit(order.id, field);
+                }}
+                title="Double-click to edit"
+            >
+                {display}
+            </span>
+        );
+    };
+
 
     // Priority badge styling
     const getPriorityBadge = () => {
@@ -443,7 +502,7 @@ export const OrderCard = memo(function OrderCard({
                                 "font-semibold text-sm truncate",
                                 isReturn ? "text-rose-700" : "text-foreground"
                             )}>
-                                <HighlightedText text={order.customer_name} query={localSearchQuery} />
+                                {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
                             </span>
                             {renderStatusBadgeWithDropdown(
                                 <span className={cn(
@@ -557,7 +616,7 @@ export const OrderCard = memo(function OrderCard({
                                     "font-semibold text-sm truncate",
                                     isReturn ? "text-rose-700" : "text-foreground"
                                 )}>
-                                    <HighlightedText text={order.customer_name} query={localSearchQuery} />
+                                    {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
                                 </span>
                             </div>
                             {renderStatusBadgeWithDropdown(
@@ -621,7 +680,7 @@ export const OrderCard = memo(function OrderCard({
                             {cityDisplay ? (
                                 <div className="flex items-center gap-1 text-xs text-muted min-w-0">
                                     <MapPin className="w-3 h-3 flex-shrink-0" />
-                                    <span className="truncate"><HighlightedText text={cityDisplay} query={localSearchQuery} /></span>
+                                    <span className="truncate">{editable("city", cityDisplay, <HighlightedText text={cityDisplay} query={localSearchQuery} />)}</span>
                                     {governorateCode && (
                                         <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
                                             {governorateCode}
@@ -769,7 +828,7 @@ export const OrderCard = memo(function OrderCard({
                                 "font-semibold text-sm truncate",
                                 isReturn ? "text-rose-700" : "text-foreground"
                             )}>
-                                <HighlightedText text={order.customer_name} query={localSearchQuery} />
+                                {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
                             </span>
                             {isBlacklisted && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-900 text-white text-[9px] font-bold flex-shrink-0">
@@ -843,7 +902,7 @@ export const OrderCard = memo(function OrderCard({
                         {cityDisplay && (
                             <div className="hidden lg:flex items-center gap-1 text-xs text-muted flex-shrink-0 max-w-[120px]">
                                 <MapPin className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate"><HighlightedText text={cityDisplay} query={localSearchQuery} /></span>
+                                <span className="truncate">{editable("city", cityDisplay, <HighlightedText text={cityDisplay} query={localSearchQuery} />)}</span>
                                 {governorateCode && (
                                     <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
                                         {governorateCode}
@@ -1066,7 +1125,7 @@ export const OrderCard = memo(function OrderCard({
                                 compact === 1 ? "text-sm" : "text-base",
                                 order.is_return ? "text-rose-700 dark:text-rose-400" : "text-foreground dark:text-white"
                             )}>
-                                <HighlightedText text={order.customer_name} query={localSearchQuery} />
+                                {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
                             </span>
 
 
@@ -1586,7 +1645,7 @@ export const OrderCard = memo(function OrderCard({
                                     hasDuplicates && isVerifiedCustomer && "text-emerald-600 font-semibold dark:text-emerald-400",
                                     !(!validatePhoneDetailed(order.phone).isValid) && !(hasDuplicates) && "dark:text-[#D4D4D4]"
                                 )}>
-                                    <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />
+                                    {editable("phone", order.phone || "", <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />, "font-mono")}
                                 </span>
                                 {/* Duplicate/Returning customer icon next to phone */}
                                 {hasDuplicates && (
@@ -1637,7 +1696,7 @@ export const OrderCard = memo(function OrderCard({
                                             </span>
                                         )}
                                         <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                                        <span className="truncate text-right" title={fullAddress}><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
+                                        <span className="truncate text-right" title={fullAddress}>{editable("address_details", order.address_details || "", <HighlightedText text={fullAddress} query={localSearchQuery} />)}</span>
                                         {/* Show governorate code - computed from stored value or extracted from city */}
                                         {governorateCode && (
                                             <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold flex-shrink-0">
@@ -1759,7 +1818,7 @@ export const OrderCard = memo(function OrderCard({
                                 >
                                     <MessageCircle className="w-4 h-4" />
                                     <span className="font-mono text-sm font-semibold tracking-wide">
-                                        <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />
+                                        {editable("phone", order.phone || "", <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />, "font-mono")}
                                     </span>
                                 </button>
 
@@ -1855,7 +1914,7 @@ export const OrderCard = memo(function OrderCard({
                         {fullAddress && (
                             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 dark:bg-[#1A1A1A] dark:border-white/5">
                                 <MapPin className="w-4 h-4 text-gray-400 dark:text-[var(--foreground-subtle)] flex-shrink-0" />
-                                <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1 text-right"><HighlightedText text={fullAddress} query={localSearchQuery} /></span>
+                                <span className="text-sm text-gray-600 dark:text-[var(--foreground-muted)] truncate flex-1 text-right">{editable("address_details", order.address_details || "", <HighlightedText text={fullAddress} query={localSearchQuery} />)}</span>
                                 {governorateCode && (
                                     <span className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-[11px] font-bold flex-shrink-0 shadow-sm">
                                         {governorateCode}
