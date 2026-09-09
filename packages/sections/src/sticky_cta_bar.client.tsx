@@ -201,7 +201,7 @@ export function StickyCtaBarRender({
                 ? "واتساب"
                 : "WhatsApp")
           }
-          bg="mint"
+          bg="success"
           size="md"
         >
           {props.secondary_kind === "whatsapp" ? (

@@ -4551,6 +4551,7 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
+          bestseller_rank: number | null
           booking_enabled: boolean
           category_id: string | null
           compare_at_price: number | null
@@ -4593,6 +4594,7 @@ export type Database = {
         }
         Insert: {
           barcode?: string | null
+          bestseller_rank?: number | null
           booking_enabled?: boolean
           category_id?: string | null
           compare_at_price?: number | null
@@ -4635,6 +4637,7 @@ export type Database = {
         }
         Update: {
           barcode?: string | null
+          bestseller_rank?: number | null
           booking_enabled?: boolean
           category_id?: string | null
           compare_at_price?: number | null
@@ -7447,6 +7450,10 @@ export type Database = {
       recompute_inventory: {
         Args: { p_tenant_id?: string }
         Returns: undefined
+      }
+      refresh_bestseller_ranks: {
+        Args: { p_top_n?: number; p_window_days?: number }
+        Returns: number
       }
       refresh_customer_aggregates: { Args: never; Returns: undefined }
       risk_level_calc: {

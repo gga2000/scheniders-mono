@@ -62,6 +62,11 @@ export interface Product extends BaseProduct {
   created_at?: string;
   /** Optional merchandising flag — drives the "Bestseller" card badge when set. */
   is_bestseller?: boolean;
+  /** 1 = the tenant's best seller over the trailing 180 days of fulfilled
+   *  orders, NULL/absent = outside the top 20. Computed in the database
+   *  (`refresh_bestseller_ranks()`), never edited by hand — the storefront
+   *  only reads the ordinal, never the underlying unit volumes. */
+  bestseller_rank?: number | null;
   /** Optional variant list — populated on the PDP. */
   variants?: ProductVariant[];
   /** Approved-review aggregates (real data, storefront-populated). Sections

@@ -121,6 +121,10 @@ type CardBg =
   | "lilac"
   | "sky"
   | "ink"
+  /** The brand's success green — WhatsApp / positive CTAs. Distinct from
+   *  "mint", which is a FIXED decorative candy pastel a tenant cannot
+   *  recolour. */
+  | "success"
   /** Resolves to the tenant's chosen primary accent (via --schn-accent-primary CSS var). */
   | "accent-primary"
   /** Resolves to the tenant's chosen secondary accent (via --schn-accent-secondary). */
@@ -142,6 +146,7 @@ const BG_MAP: Record<CardBg, string> = {
   lilac: "bg-candy-lilac",
   sky: "bg-candy-sky",
   ink: "bg-candy-ink text-white",
+  success: "",
   "accent-primary":
     "bg-[var(--schn-accent-primary)] text-[var(--schn-accent-primary-on)]",
   "accent-secondary": "bg-[var(--schn-accent-secondary)] text-candy-ink",
@@ -164,6 +169,10 @@ const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
   sky: { bg: "var(--bk-sky, #9ad8ff)", fg: "var(--bk-ink, #1a1a1a)" },
   cream: { bg: "var(--bk-surface, #fff7ed)", fg: "var(--bk-ink, #1a1a1a)" },
   ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "#fff" },
+  success: {
+    bg: "var(--bk-success, #25d366)",
+    fg: "var(--bk-on-primary, #1a1a1a)",
+  },
 };
 
 function surfaceStyle(bg: CardBg, base?: CSSProperties): CSSProperties {
