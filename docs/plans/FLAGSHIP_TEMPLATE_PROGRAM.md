@@ -331,8 +331,9 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   crash) and `review_product_slug`. Tracker rebuilt around the narratives:
   contact number from the tenant, CTA by kind, off-path stages keep the rungs
   they reached and mark none current. Verified in a browser for `placed` and
-  `returning`. Builder screen for editing the narratives is **W4.2b**, still
-  open. *(C4)*
+  `returning`. **W4.2b** builder screen — DONE: Settings → Advanced →
+  "Order tracking messages" (`order-status-screen.tsx`), all ten stages,
+  live preview through the same `resolveNarrative`. *(C4)*
 - **W4.3** *(done)* `summarizeDelivery` reads the WHOLE shipping config: flat →
   state the fee upfront and count it in the total; varies → state the range and
   mark the total "before delivery"; ETA only when a rate declares one.
@@ -348,8 +349,14 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   The section now carries the anchor and, on `#reviews`, scrolls to the form
   and focuses the first star. The WhatsApp "delivered" message that would
   carry the link is Interakt — out of scope. *(C1)*
-- **W4.5** Authenticity block *(C5)* and open-on-delivery policy surface *(C3)*.
-- **W4.6** Real inventory-driven urgency, replacing the evergreen countdown. *(P14)*
+- **W4.5** Open-before-paying promise *(C3)* — DONE (`3f2511ba`):
+  `commerce.returns_policy.inspect_before_paying`, shipping-screen checkbox,
+  PDP commitment line, delivery_promise callout gated on the switch.
+  Authenticity *(C5)* is a fifth `trust_badge_row` entry on the publish
+  checklist, pending Ali's confirmation of the wording.
+- **W4.6** Honest countdown *(P14)* — DONE (`3f2511ba`): `evergreen_minutes`
+  renders no clock (enum kept for parse back-compat); real low-stock urgency
+  already ships on the PDP. Bar replacement content is §5 item 1.
 
 ### Wave 5 — Identity & retention
 - **W5.1** Phone-recognition autofill — returning COD customer types a number,
