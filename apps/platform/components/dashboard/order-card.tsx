@@ -9,7 +9,7 @@ import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
 import { AvatarPill } from "@/components/ui/avatar-pill";
 
-import { OrderAssignment, mockEmployees } from "@/lib/team-types";
+import { OrderAssignment } from "@/lib/team-types";
 import { useOrderStore } from "@/store/use-order-store";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 // ... existing imports ...

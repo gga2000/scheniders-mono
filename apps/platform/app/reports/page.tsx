@@ -12,7 +12,7 @@ import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { exportReportsToCSV, exportReportsToExcel, printOperationalReport } from "@/lib/reports-export";
-import { calculateEmployeePerformance, calculatePeriodComparison } from "@/lib/analytics/employee-metrics";
+import { calculateSourcePerformance, calculatePeriodComparison } from "@/lib/analytics/source-metrics";
 import { calculateReturnAnalytics } from "@/lib/analytics/reports-calculations";
 import { CustomDatePicker } from "@/components/reports/custom-date-picker";
 
@@ -57,8 +57,8 @@ const AttentionFlagsSummary = dynamic(
     { loading: () => <div className="h-32 animate-pulse bg-white/5 rounded-3xl" /> }
 );
 
-const EmployeePerformance = dynamic(
-    () => import("@/components/reports/employee-performance").then(mod => ({ default: mod.EmployeePerformance })),
+const SourcePerformance = dynamic(
+    () => import("@/components/reports/source-performance").then(mod => ({ default: mod.SourcePerformance })),
     { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
 );
 
@@ -95,8 +95,8 @@ export default function ReportsPage() {
     const metrics = useReportsMetrics(orders, dateRange);
 
     // Calculate employee performance and period comparison
-    const employeeMetrics = useMemo(() =>
-        calculateEmployeePerformance(orders, dateRange),
+    const sourceMetrics = useMemo(() =>
+        calculateSourcePerformance(orders, dateRange),
         [orders, dateRange]
     );
 
@@ -310,7 +310,7 @@ export default function ReportsPage() {
                         error={employeeError}
                         onRefresh={refreshEmployeeMetrics}
                     />
-                    <EmployeePerformance data={employeeMetrics} />
+                    <SourcePerformance data={sourceMetrics} />
                 </div>
 
                 {/* Batch Analytics (Full Width) */}

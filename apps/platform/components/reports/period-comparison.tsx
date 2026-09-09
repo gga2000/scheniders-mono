@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { PeriodComparisonMetrics } from "@/lib/analytics/employee-metrics";
+import { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
 import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, DollarSign, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";

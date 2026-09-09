@@ -37,7 +37,7 @@ import { useStartOrderConversation } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
 
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
-import { OrderAssignment, OrderDuty, mockEmployees } from "@/lib/team-types";
+import { OrderAssignment, OrderDuty } from "@/lib/team-types";
 import { AvatarPill } from "@/components/ui/avatar-pill";
 import { AssignmentPopover } from "@/components/orders/assignment-popover";
 import {

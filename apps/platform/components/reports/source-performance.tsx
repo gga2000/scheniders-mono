@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { EmployeePerformanceMetrics } from "@/lib/analytics/employee-metrics";
+import { SourcePerformanceMetrics } from "@/lib/analytics/source-metrics";
 import { Trophy, Medal, Package, CheckCircle2, Clock, DollarSign, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 
-interface EmployeePerformanceProps {
-    data: EmployeePerformanceMetrics[];
+interface SourcePerformanceProps {
+    data: SourcePerformanceMetrics[];
 }
 
 const container = {
@@ -37,7 +37,7 @@ const getMedalShadow = (rank: number) => {
     return "shadow-blue-400/20";
 };
 
-export function EmployeePerformance({ data }: EmployeePerformanceProps) {
+export function SourcePerformance({ data }: SourcePerformanceProps) {
     if (data.length === 0) {
         return (
             <motion.div
@@ -89,7 +89,7 @@ export function EmployeePerformance({ data }: EmployeePerformanceProps) {
                 >
                     {topPerformers.map((emp, index) => (
                         <motion.div
-                            key={emp.userId}
+                            key={emp.sourceKey}
                             variants={item}
                             className={cn(
                                 "p-4 rounded-2xl text-white shadow-lg relative overflow-hidden",
@@ -124,7 +124,7 @@ export function EmployeePerformance({ data }: EmployeePerformanceProps) {
                     <div className="space-y-2">
                         {otherPerformers.map((emp, index) => (
                             <motion.div
-                                key={emp.userId}
+                                key={emp.sourceKey}
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.3 + index * 0.05 }}
