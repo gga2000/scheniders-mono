@@ -16,6 +16,7 @@ import {
 } from "@/lib/supabase";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { cleanPhoneForExport } from "@/lib/export-utils";
+import { exportOrders as exportOrdersFromUtils } from "@/lib/order-export-utils";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { splitOrderAction } from "@/app/actions/orders";
@@ -1164,62 +1165,16 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // EXPORT
     // =============================================
 
+    /**
+     * ARCH-4: this reimplemented lib/order-export-utils rather than calling it,
+     * and had drifted — it appended a trailing space to every item and to every
+     * TSV cell, and duplicated the header list and the download plumbing. It now
+     * delegates, so the mobile export and the desktop export produce identical
+     * files and the CSV quoting fix applies to both.
+     */
     function exportOrders(orderIds: string[], format: "csv" | "xlsx" = "csv") {
         const ordersToExport = orders.filter((o) => orderIds.includes(o.id));
-
-        const headers = [
-            "Order ID", "Customer Name", "Phone", "City", "Address",
-            "Items", "Total", "Status", "Payment Status", "Created At",
-        ];
-
-        const rows = ordersToExport.map((order) => [
-            order.order_id,
-            order.customer_name,
-            cleanPhoneForExport(order.phone),
-            order.city || "",
-            order.address_details || "",
-            order.items?.map((i) => `${i.name} x${i.quantity} `).join("; ") || "",
-            order.price,
-            order.status,
-            order.payment_status,
-            new Date(order.created_at).toLocaleDateString(),
-        ]);
-
-        if (format === "csv") {
-            const csvContent = [
-                headers.join(","),
-                ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-            ].join("\n");
-
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `orders_export_${new Date().toISOString().split("T")[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            return { success: true, count: ordersToExport.length };
-        }
-
-        const tsvContent = [
-            headers.join("\t"),
-            ...rows.map((row) => row.map((cell) => `${cell} `).join("\t")),
-        ].join("\n");
-
-        const blob = new Blob([tsvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `orders_export_${new Date().toISOString().split("T")[0]}.xls`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        return { success: true, count: ordersToExport.length };
+        return exportOrdersFromUtils(ordersToExport, format);
     }
 
     // =============================================
