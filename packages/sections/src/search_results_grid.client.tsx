@@ -18,7 +18,7 @@
 "use client";
 
 import { useId } from "react";
-import { resolveI18n } from "@scheniders/shared";
+import { resolveI18n, matchesAllTokens, searchTokens } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { ChunkyButton, MaterialIcon, Section, WhatsAppButton } from "./helpers/primitives";
 import { SchneidersProductCard } from "./helpers/product-card";
@@ -49,22 +49,55 @@ const INK_BORDER =
   "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
 
 /**
+ * Everything about a product that is worth searching: its own text, plus
+ * the merchant's attribute values. A shopper looking for "عنبر" means a
+ * perfume with amber in it, not a product whose description happens to say
+ * the word — and only the attributes know that.
+ *
+ * Only the human-readable side is indexed: option LABELS rather than their
+ * machine values, so nobody finds a product by typing "oriental" at an
+ * Arabic storefront.
+ */
+function searchableText(p: Product, locale: LocaleCode): string {
+  const parts = [p.name, p.sku ?? "", p.description ?? "", p.short_description ?? ""];
+
+  for (const attr of p.attributes ?? []) {
+    parts.push(resolveI18n(attr.def.name_i18n, locale));
+    switch (attr.kind) {
+      case "enum":
+        parts.push(resolveI18n(attr.option.label_i18n, locale) || attr.value);
+        break;
+      case "group_list":
+        for (const items of Object.values(attr.value)) parts.push(items.join(" "));
+        break;
+      case "text":
+        parts.push(resolveI18n(attr.value, locale));
+        break;
+      default:
+        // A number or a yes/no is not something anyone types into search.
+        break;
+    }
+  }
+  return parts.join(" ");
+}
+
+/**
  * Server-safe product search: every token of `query` must appear in the
- * product's name, SKU or description (case-insensitive). An empty query
- * returns the full list unchanged.
+ * product's text or its attribute values. An empty query returns the full
+ * list unchanged.
+ *
+ * Both sides are folded by `normalizeArabic`, so the same word spelled the
+ * several legitimate ways Arabic allows still matches — see
+ * packages/shared/src/arabic-search.ts.
  */
 export function filterProductsByQuery(
   products: Product[],
   query: string,
+  locale: LocaleCode = "ar",
 ): Product[] {
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const tokens = searchTokens(query);
   if (tokens.length === 0) return products;
-  return products.filter((p) => {
-    const hay = [p.name, p.sku ?? "", p.description ?? ""]
-      .join(" ")
-      .toLowerCase();
-    return tokens.every((tok) => hay.includes(tok));
-  });
+  return products.filter((p) => matchesAllTokens(searchableText(p, locale), tokens));
 }
 
 function resultsLine(count: number, query: string, locale: LocaleCode): string {
@@ -132,7 +165,7 @@ export function SearchResultsGridRender({
   const base = useStoreBase();
   const searchId = useId();
   const query = ctx.runtime.search_query?.trim() ?? "";
-  const results = filterProductsByQuery(ctx.products, query);
+  const results = filterProductsByQuery(ctx.products, query, ctx.runtime.locale);
 
   const emptyMessage = resolveI18n(props.empty_state_message_i18n, locale);
   const phone = resolveTenantWhatsapp(ctx.tenant);

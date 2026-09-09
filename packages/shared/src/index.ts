@@ -1,5 +1,6 @@
 export * from "./utils";
 export * from "./abandoned-cart";
+export * from "./arabic-search";
 export * from "./bundle";
 export * from "./governorates";
 export * from "./types";
