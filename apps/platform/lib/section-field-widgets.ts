@@ -23,6 +23,10 @@ export type FieldWidget =
     | { kind: "category"; multiple: true; stores: "id" }
     /** One category, stored by slug (what the storefront routes on). */
     | { kind: "category"; multiple: false; stores: "slug" }
+    /** One of the merchant's own product attributes, by key. */
+    | { kind: "attribute"; multiple: false }
+    /** Several attributes, in the order they should render. */
+    | { kind: "attribute"; multiple: true }
     /** A destination: a store page, a category, a product, or a URL. */
     | { kind: "link" };
 
@@ -39,6 +43,8 @@ export function resolveFieldWidget(fieldKey: string): FieldWidget | null {
     if (key.endsWith("product_ids")) return { kind: "product", multiple: true };
     if (key.endsWith("category_ids")) return { kind: "category", multiple: true, stores: "id" };
     if (key === "category_slug") return { kind: "category", multiple: false, stores: "slug" };
+    if (key === "attribute_key") return { kind: "attribute", multiple: false };
+    if (key.endsWith("attribute_keys")) return { kind: "attribute", multiple: true };
     if (key === "href" || (key.endsWith("_href") && !HREF_EXCEPTIONS.has(key))) {
         return { kind: "link" };
     }

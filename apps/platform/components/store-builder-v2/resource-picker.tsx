@@ -26,6 +26,7 @@ import {
     type BuilderCategory,
     type BuilderProduct,
 } from "@/hooks/use-builder-resources";
+import { useAttributeDefsQuery } from "@/hooks/use-product-attributes-query";
 import { cn } from "@/lib/utils";
 
 const FIELD_CLS =
@@ -408,6 +409,56 @@ export function CategoryPickerField(props: {
             }}
             choices={choices}
             placeholder={tx(STRINGS.picker.choose_category, props.locale)}
+            locale={props.locale}
+            testId={props.testId}
+        />
+    );
+}
+
+export function AttributePickerField(props: {
+    label: string;
+    value: unknown;
+    onChange: (next: unknown) => void;
+    multiple: boolean;
+    locale: LocaleCode;
+    testId?: string;
+}): ReactElement {
+    const { data: defs = [] } = useAttributeDefsQuery();
+    // Sections store the attribute KEY, not its id — the key is stable,
+    // readable in a config diff, and survives an attribute being recreated.
+    const choices = useMemo<Choice[]>(
+        () =>
+            defs.map((d) => ({
+                id: d.key,
+                name:
+                    (props.locale === "ar" ? d.name_i18n.ar ?? d.name_i18n.en : d.name_i18n.en ?? d.name_i18n.ar) ??
+                    d.key,
+                image_url: null,
+                note: d.key,
+            })),
+        [defs, props.locale],
+    );
+
+    if (props.multiple) {
+        return (
+            <MultiPicker
+                label={props.label}
+                value={Array.isArray(props.value) ? (props.value as string[]) : []}
+                onChange={props.onChange}
+                choices={choices}
+                placeholder={tx(STRINGS.picker.choose_attributes, props.locale)}
+                locale={props.locale}
+                testId={props.testId}
+            />
+        );
+    }
+    return (
+        <SinglePicker
+            label={props.label}
+            value={typeof props.value === "string" ? props.value : undefined}
+            onChange={props.onChange}
+            choices={choices}
+            placeholder={tx(STRINGS.picker.choose_attribute, props.locale)}
             locale={props.locale}
             testId={props.testId}
         />
