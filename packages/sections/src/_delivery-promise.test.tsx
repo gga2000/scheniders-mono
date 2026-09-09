@@ -82,7 +82,10 @@ describe("delivery_promise", () => {
 
 describe("delivery_promise — open-before-paying switch (C3)", () => {
   const AR = "افحص طلبك مجاناً عند الاستلام";
-  function renderWith(returns_policy: Record<string, unknown> | undefined, inspection_text_i18n?: unknown): string {
+  function renderWith(
+    returns_policy: Record<string, unknown> | undefined,
+    inspection_text_i18n?: { ar?: string; en?: string },
+  ): string {
     return renderToStaticMarkup(
       React.createElement(
         StoreBaseProvider,

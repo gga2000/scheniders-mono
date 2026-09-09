@@ -44,6 +44,12 @@ import {
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import {
+  clearCustomerMemory,
+  prefillFromMemory,
+  readCustomerMemory,
+  writeCustomerMemory,
+} from "./helpers/customer-memory";
+import {
   BentoCard,
   ChunkyButton,
   ChunkyLink,
@@ -106,6 +112,8 @@ const STRINGS = {
   totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل" },
   /** Only rendered when commerce.returns_policy.inspect_before_paying is true. */
   inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع" },
+  welcomeBack: { en: "Welcome back — we filled in your details from your last order.", ar: "رجعتلنا؟ عبّينا معلوماتك من آخر طلب." },
+  notYou: { en: "Not you? Clear", ar: "مو انت؟ امسح" },
   quantity: { en: "Quantity", ar: "الكمية" },
   decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
   increase: { en: "Increase quantity", ar: "زيادة الكمية" },
@@ -314,9 +322,37 @@ export function PdpDirectOrderRender({
     };
   });
 
+  // A returning shopper's details, from THIS browser only — see
+  // helpers/customer-memory for why nothing is looked up by phone. Applied
+  // after mount so server HTML and first client render agree; only blank
+  // fields are filled, so a shopper mid-typing is never overwritten.
+  const [recognised, setRecognised] = useState(false);
+  useEffect(() => {
+    const memory = readCustomerMemory(ctx.tenant.id);
+    if (!memory) return;
+    setForm((prev) => prefillFromMemory(prev, memory).next);
+    setRecognised(true);
+  }, [ctx.tenant.id]);
+  function forgetMe(): void {
+    clearCustomerMemory(ctx.tenant.id);
+    setRecognised(false);
+    setForm({
+      customer_name: "",
+      phone: "",
+      alt_phone: "",
+      governorate_code: "",
+      address_details: "",
+    });
+    fieldRefs.current.customer_name?.focus();
+  }
+
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
+  // The abandoned-cart beacon waits for the same signal: a remembered phone
+  // alone must not turn every product view by a returning shopper into an
+  // "abandoned cart" and a WhatsApp nudge.
+  const [interacted, setInteracted] = useState(false);
 
   // Price drift: bring the price row on screen and flash it for 1.2 s so the
   // shopper sees WHAT changed before re-confirming.
@@ -383,6 +419,51 @@ export function PdpDirectOrderRender({
   // Order bump: one add-on offer attached to this product. Only the first is
   // shown — a checkout form is not the place for a list of upsells.
   const bumpOffer = offersForProduct(product.order_bumps, product.id)[0] ?? null;
+
+  // Abandoned-cart capture: the direct-order form IS this store's checkout,
+  // so once the shopper has touched the form and typed a plausible Iraqi
+  // number the line is beaconed exactly as checkout_form does — debounced,
+  // best-effort (keepalive). Placing the order marks it recovered.
+  useEffect(() => {
+    if (!interacted) return;
+    const recoveryPhone = normalizeIraqiMobile(form.phone);
+    if (!recoveryPhone) return;
+    const handle = setTimeout(() => {
+      fetch("/api/cart/abandoned", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          tenant_id: ctx.tenant.id,
+          phone: recoveryPhone,
+          items: [
+            {
+              product_id: product.id,
+              variant_id: null,
+              name: product.name,
+              quantity: qty,
+              price: unitPrice,
+            },
+          ],
+          ...(form.governorate_code ? { governorate: form.governorate_code } : {}),
+          locale,
+        }),
+      }).catch(() => {
+        /* best-effort beacon */
+      });
+    }, 1500);
+    return () => clearTimeout(handle);
+  }, [
+    interacted,
+    form.phone,
+    form.governorate_code,
+    ctx.tenant.id,
+    product.id,
+    product.name,
+    qty,
+    unitPrice,
+    locale,
+  ]);
   const bumpProduct = bumpOffer
     ? (product.order_bump_products ?? []).find((p) => p.id === bumpOffer.bump_product_id) ??
       ctx.products.find((p) => p.id === bumpOffer.bump_product_id) ??
@@ -540,6 +621,7 @@ export function PdpDirectOrderRender({
     )
       return;
     initiateFired.current = true;
+    setInteracted(true);
     trackPixel(
       "InitiateCheckout",
       pixelContentsFromItems([
@@ -639,6 +721,14 @@ export function PdpDirectOrderRender({
           total?: number;
         } | null;
         const orderNumber = data?.orderNumber ?? "";
+        // Remember the shopper for next time — in their browser only.
+        writeCustomerMemory(ctx.tenant.id, {
+          customer_name: form.customer_name.trim(),
+          phone: form.phone.trim(),
+          alt_phone: form.alt_phone.trim() || undefined,
+          governorate_code: form.governorate_code,
+          address_details: form.address_details.trim(),
+        });
         // Stash the just-placed order for the thank-you recap — identical
         // privacy-safe path to checkout_form (only the buyer's browser
         // holds it; the success page never fetches by order number).
@@ -1013,6 +1103,22 @@ export function PdpDirectOrderRender({
                   {formTitle}
                 </h2>
               </div>
+
+              {recognised && (
+                <p data-testid="welcome-back" className="flex items-center justify-between gap-bk-xs rounded-bk-input bg-bk-decor-a/40 px-3 py-2 text-xs sm:text-sm text-bk-ink">
+                  <span className="inline-flex items-center gap-1.5">
+                    <MaterialIcon name="waving_hand" className="text-sm" />
+                    {s("welcomeBack")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={forgetMe}
+                    className="shrink-0 font-semibold underline underline-offset-2"
+                  >
+                    {s("notYou")}
+                  </button>
+                </p>
+              )}
 
               <div>
                 <label htmlFor={fieldId("customer_name")} className={labelCls}>

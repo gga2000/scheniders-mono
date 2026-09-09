@@ -359,11 +359,18 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   already ships on the PDP. Bar replacement content is §5 item 1.
 
 ### Wave 5 — Identity & retention
-- **W5.1** Phone-recognition autofill — returning COD customer types a number,
-  gets name/governorate/address back. *(P15)*
+- **W5.1** Returning-shopper autofill — DONE. Device memory
+  (`helpers/customer-memory.ts`, localStorage per tenant, 180-day TTL) written
+  after a successful order and read back by both order forms; "Not you?"
+  clears it. **Not** a server lookup by phone: an anon phone→address endpoint
+  is a customer-enumeration hole. Server recognition needs OTP (WhatsApp
+  channel), tracked under H3. *(P15)*
 - **W5.2** Loyalty earn on delivered + redeem at checkout. *(A3)*
 - **W5.3** Referral codes. *(D3)*
-- **W5.4** Abandoned-cart capture, storefront half only. *(A6 — Interakt is out of scope)*
+- **W5.4** Abandoned-cart capture — DONE for the storefront: `checkout_form`
+  already beaconed; `pdp_direct_order` now does too, gated on first form
+  interaction so a remembered phone never beacons a product view. *(A6 —
+  Interakt is out of scope)*
 
 ### Wave 6 — Platform
 - **W6.1** Niche content packs; signature refactored to direction + pack. *(P4)*
