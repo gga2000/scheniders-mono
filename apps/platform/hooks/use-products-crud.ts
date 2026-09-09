@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, type Product, type ProductVariant, type ProductPriceHistory, getStockStatus } from "@/lib/supabase";
-import { useOrdersList } from "@/components/providers/orders-provider";
+import { useProductSalesQuery } from "@/hooks/use-product-sales-query";
 import {
     useProductsQuery,
     useAddProductMutation,
@@ -56,7 +56,7 @@ interface VariantFormData {
 export function useProductsCrud() {
     const queryClient = useQueryClient();
     const { data: rawProducts, isLoading: loading, error: queryError } = useProductsQuery();
-    const { orders } = useOrdersList();
+    const salesByProductId = useProductSalesQuery();
 
     // Mutations
     const addProductMutation = useAddProductMutation();
@@ -74,41 +74,15 @@ export function useProductsCrud() {
     const updateVariantMutation = useUpdateVariantMutation();
     const deleteVariantMutation = useDeleteVariantMutation();
 
-    // Calculate sales data from orders - matches by SKU first, then name
-    const calculateProductSales = useCallback((product: { name: string; sku?: string }, ordersList: typeof orders) => {
-        let timesSold = 0;
-        let totalRevenue = 0;
-        let orderCount = 0;
-
-        ordersList.forEach((order) => {
-            if (!order.items) return;
-            order.items.forEach((item) => {
-                // Match by SKU first (most accurate)
-                const skuMatch = product.sku && item.sku &&
-                    item.sku.toLowerCase().trim() === product.sku.toLowerCase().trim();
-
-                // Fallback to name matching if no SKU
-                const nameMatch = item.name.toLowerCase().trim() === product.name.toLowerCase().trim();
-
-                if (skuMatch || (!product.sku && nameMatch)) {
-                    timesSold += item.quantity;
-                    totalRevenue += item.price * item.quantity;
-                    orderCount++;
-                }
-            });
-        });
-
-        return {
-            timesSold,
-            totalRevenue,
-            averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
-        };
-    }, []);
+    // PERF-D1: this fold now happens in SQL (get_product_sales). It used to run
+    // over the whole order book in the browser, which is the only reason this
+    // hook — and therefore /products — needed the book at all.
 
     // Enrich products with sales data
     const products = useMemo(() => {
         return (rawProducts || []).map((product) => {
-            const salesData = calculateProductSales({ name: product.name, sku: product.sku }, orders);
+            const salesData = salesByProductId.get(product.id)
+                ?? { timesSold: 0, totalRevenue: 0, averageOrderValue: 0 };
             const profitMargin = product.cost
                 ? ((product.price - product.cost) / product.price) * 100
                 : undefined;
@@ -121,7 +95,7 @@ export function useProductsCrud() {
                 profit_margin: profitMargin,
             };
         });
-    }, [rawProducts, orders, calculateProductSales]);
+    }, [rawProducts, salesByProductId]);
 
     // =============================================
     // CRUD Operations Wrappers
