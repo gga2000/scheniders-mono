@@ -9,6 +9,7 @@ import { ProductPricingSection } from "./product-pricing-section";
 import { ProductInventorySection } from "./product-inventory-section";
 import { ProductMediaSection } from "./product-media-section";
 import { ProductStorefrontSection } from "./product-storefront-section";
+import { ProductAttributesSection } from "./product-attributes-section";
 import { VariantOptionsBuilder } from "./variant-options-builder";
 import { VariantMatrixTable } from "./variant-matrix-table";
 import type { VariantRowData } from "./variant-matrix-table";
@@ -226,6 +227,13 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                 autoGenerateSlug={editor.autoGenerateSlug}
                             />
                         </div>
+
+                        {/* === ATTRIBUTES === */}
+                        {mode === "edit" && product?.id && !editor.formData.is_supply && (
+                            <div id="section-attributes">
+                                <ProductAttributesSection productId={product.id} />
+                            </div>
+                        )}
 
                         {/* === TAGS === */}
                         {mode === "edit" && product?.id && (
