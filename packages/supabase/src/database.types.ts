@@ -585,6 +585,41 @@ export type Database = {
           },
         ]
       }
+      analytics_events: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          props: Json
+          tenant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          props?: Json
+          tenant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          props?: Json
+          tenant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           content: string
@@ -622,6 +657,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      api_rate_limits: {
+        Row: {
+          bucket_key: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          bucket_key?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
       }
       app_settings: {
         Row: {
@@ -3213,6 +3266,47 @@ export type Database = {
           },
         ]
       }
+      order_deletion_log: {
+        Row: {
+          deleted_at: string
+          deleted_by: string | null
+          deleted_by_email: string | null
+          id: string
+          order_count: number
+          order_ids: string[]
+          order_numbers: string[]
+          tenant_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by?: string | null
+          deleted_by_email?: string | null
+          id?: string
+          order_count: number
+          order_ids: string[]
+          order_numbers?: string[]
+          tenant_id: string
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string | null
+          deleted_by_email?: string | null
+          id?: string
+          order_count?: number
+          order_ids?: string[]
+          order_numbers?: string[]
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_deletion_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_generation_config: {
         Row: {
           enabled: boolean
@@ -3237,6 +3331,50 @@ export type Database = {
             foreignKeyName: "order_generation_config_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_merge_log: {
+        Row: {
+          archive_before: Json
+          archive_order_id: string
+          id: string
+          keep_before: Json
+          keep_order_id: string
+          merged_at: string
+          merged_by: string | null
+          tenant_id: string
+          undone_at: string | null
+        }
+        Insert: {
+          archive_before: Json
+          archive_order_id: string
+          id?: string
+          keep_before: Json
+          keep_order_id: string
+          merged_at?: string
+          merged_by?: string | null
+          tenant_id: string
+          undone_at?: string | null
+        }
+        Update: {
+          archive_before?: Json
+          archive_order_id?: string
+          id?: string
+          keep_before?: Json
+          keep_order_id?: string
+          merged_at?: string
+          merged_by?: string | null
+          tenant_id?: string
+          undone_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_merge_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -4055,6 +4193,117 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "print_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_attribute_defs: {
+        Row: {
+          created_at: string
+          display_order: number
+          group_keys: Json | null
+          id: string
+          is_comparable: boolean
+          is_filterable: boolean
+          key: string
+          kind: string
+          name_i18n: Json
+          options: Json | null
+          range_max: number | null
+          range_min: number | null
+          tenant_id: string
+          unit_i18n: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          group_keys?: Json | null
+          id?: string
+          is_comparable?: boolean
+          is_filterable?: boolean
+          key: string
+          kind: string
+          name_i18n?: Json
+          options?: Json | null
+          range_max?: number | null
+          range_min?: number | null
+          tenant_id: string
+          unit_i18n?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          group_keys?: Json | null
+          id?: string
+          is_comparable?: boolean
+          is_filterable?: boolean
+          key?: string
+          kind?: string
+          name_i18n?: Json
+          options?: Json | null
+          range_max?: number | null
+          range_min?: number | null
+          tenant_id?: string
+          unit_i18n?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_defs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_attribute_values: {
+        Row: {
+          attribute_def_id: string
+          created_at: string
+          product_id: string
+          tenant_id: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          attribute_def_id: string
+          created_at?: string
+          product_id: string
+          tenant_id: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          attribute_def_id?: string
+          created_at?: string
+          product_id?: string
+          tenant_id?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_values_attribute_def_id_fkey"
+            columns: ["attribute_def_id"]
+            isOneToOne: false
+            referencedRelation: "product_attribute_defs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_attribute_values_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_attribute_values_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -7179,6 +7428,14 @@ export type Database = {
         Args: { p_follower_count: number }
         Returns: Database["public"]["Enums"]["lead_tier"]
       }
+      consume_rate_limit: {
+        Args: { _key: string; _limit: number; _window_seconds: number }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          reset_at: string
+        }[]
+      }
       create_order_atomic:
         | { Args: { _order_data: Json }; Returns: Json }
         | { Args: { _order_data: Json; _tenant_id?: string }; Returns: Json }
@@ -7496,6 +7753,10 @@ export type Database = {
       undo_return: {
         Args: { _order_id: string; _tenant_id: string }
         Returns: undefined
+      }
+      unmerge_orders_atomic: {
+        Args: { _merge_log_id: string; _tenant_id?: string }
+        Returns: Json
       }
       uuid_generate_v4: { Args: never; Returns: string }
       value_tier_calc: { Args: { p_completed: number }; Returns: string }
