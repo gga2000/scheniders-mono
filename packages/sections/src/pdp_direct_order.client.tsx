@@ -50,6 +50,7 @@ import {
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
+import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import {
   clearCustomerMemory,
   prefillFromMemory,
@@ -126,6 +127,9 @@ const STRINGS = {
   enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
   pointsOff: { en: "{amount} off", ar: "خصم {amount}" },
   earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
+  chooseVariant: { en: "Choose an option", ar: "اختار الخيار" },
+  chooseVariantFirst: { en: "Choose an option first.", ar: "اختار الخيار أول." },
+  variantOut: { en: "out of stock", ar: "نفد" },
   referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)" },
   referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M" },
   referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
@@ -434,6 +438,11 @@ export function PdpDirectOrderRender({
   // the published config and the authoritative balance.
   const [pointsBalance, setPointsBalance] = useState<number | null>(null);
   const [redeemPoints, setRedeemPoints] = useState(0);
+  // Which variant is being bought: chosen in a pdp_variants section, the
+  // buy box, or the inline pills below (only when no picker is on the page).
+  const chosen = useSelectedVariant(product);
+  const [variantError, setVariantError] = useState(false);
+  const variantPillsRef = useRef<HTMLDivElement | null>(null);
 
   // Price drift: bring the price row on screen and flash it for 1.2 s so the
   // shopper sees WHAT changed before re-confirming.
@@ -473,16 +482,18 @@ export function PdpDirectOrderRender({
   // 422s with `new_price` when it drifted; `livePrice` adopts that correction
   // so the retry succeeds without a page reload (parity with checkout_form's
   // cart-store `updatePrice` self-heal).
-  const price = livePrice ?? product.price;
+  const price = livePrice ?? chosen.variant?.price ?? product.price;
 
-  const compareAt = product.compare_at_price;
+  const compareAt = chosen.variant ? chosen.variant.compare_at_price : product.compare_at_price;
   const onSale = compareAt != null && compareAt > price;
   const discountPct =
     compareAt != null && onSale
       ? Math.round(((compareAt - price) / compareAt) * 100)
       : 0;
-  const stockLeft =
-    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+  // With several variants and none chosen there is nothing to count yet; the
+  // form asks for the choice at submit instead of calling the product sold out.
+  const awaitingVariant = chosen.variants.length > 1 && !chosen.variant;
+  const stockLeft = awaitingVariant ? 1 : stockLeftFor(product, chosen.variant);
   const oos = stockLeft <= 0;
   const maxQty = Math.min(
     props.max_qty,
@@ -771,7 +782,14 @@ export function PdpDirectOrderRender({
       errors.alt_phone = s("phoneInvalid");
     }
     setFieldErrors(errors);
+    // The option sits above the form, so it is the first thing to fix.
+    setVariantError(awaitingVariant);
     const firstInvalid = FIELD_ORDER.find((k) => errors[k]);
+    if (awaitingVariant) {
+      variantPillsRef.current?.scrollIntoView?.({ block: "center" });
+      variantPillsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+      return;
+    }
     if (firstInvalid || !phone) {
       fieldRefs.current[firstInvalid ?? "phone"]?.focus();
       return;
@@ -790,9 +808,9 @@ export function PdpDirectOrderRender({
     const items = [
       {
         product_id: product.id,
-        variant_id: null,
+        variant_id: chosen.variant?.id ?? null,
         name: product.name,
-        variant_name: null,
+        variant_name: chosen.variant?.name ?? null,
         price: unitPrice,
         quantity: qty,
       },
@@ -876,7 +894,7 @@ export function PdpDirectOrderRender({
               customer_name: form.customer_name.trim(),
               items: items.map((i) => ({
                 name: i.name,
-                variant: null,
+                variant: i.variant_name,
                 qty: i.quantity,
                 price: i.price,
               })),
@@ -1375,6 +1393,59 @@ export function PdpDirectOrderRender({
             </div>
 
             {/* ── Step 02 — quantity ── */}
+            {chosen.variants.length > 1 && !chosen.pickerMounted && (
+              <div
+                ref={variantPillsRef}
+                data-layer="variants"
+                data-layer-label="Options"
+                role="group"
+                aria-label={s("chooseVariant")}
+                className="space-y-bk-xs"
+              >
+                <p className="font-label text-xs font-bold uppercase tracking-[0.2em] text-bk-ink-soft">
+                  {s("chooseVariant")}
+                </p>
+                <div className="flex flex-wrap gap-bk-xs">
+                  {chosen.variants.map((v) => {
+                    const left = stockLeftFor(product, v);
+                    const active = chosen.variant?.id === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        aria-pressed={active}
+                        disabled={left <= 0}
+                        onClick={() => {
+                          chosen.select(v.id);
+                          setVariantError(false);
+                        }}
+                        className={cn(
+                          "min-h-11 rounded-bk-pill border-2 px-4 font-display text-sm font-black transition-colors",
+                          active ? "border-bk-ink bg-bk-ink text-bk-surface" : "border-bk-ink bg-bk-surface text-bk-ink",
+                          left <= 0 && "opacity-50 line-through",
+                        )}
+                      >
+                        {v.name}
+                        {v.price !== product.price && (
+                          <span className="ms-1.5 font-body text-xs font-bold tabular-nums">
+                            <bdi>{formatPrice(v.price, locale)}</bdi>
+                          </span>
+                        )}
+                        {left <= 0 && (
+                          <span className="ms-1 font-body text-xs">{s("variantOut")}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {variantError && (
+                  <p role="alert" className={errorCls}>
+                    {s("chooseVariantFirst")}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div
               className="space-y-bk-xs"
               data-layer="qty"

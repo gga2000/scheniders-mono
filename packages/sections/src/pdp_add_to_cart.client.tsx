@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import { resolveI18n, pixelContentsFromItems } from "@scheniders/shared";
+import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import { trackPixel } from "./helpers/pixels";
 import { ChunkyButton, MaterialIcon, WhatsAppIcon } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
@@ -34,6 +35,7 @@ export function PdpAddToCartRender({
   const addItem = useCart((s) => s.addItem);
   const [qty, setQty] = useState(1);
 
+  const chosen = useSelectedVariant(product);
   if (!product) return null;
 
   const primaryLabel = resolveI18n(props.primary_label_i18n, locale);
@@ -48,24 +50,27 @@ export function PdpAddToCartRender({
     locale,
   );
 
-  const oos =
-    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) <= 0;
+  const oos = stockLeftFor(product, chosen.variant) <= 0;
+  const unitPrice = chosen.variant?.price ?? product.price;
 
   function handleAdd() {
     if (oos) return;
+    // A product with several variants and none chosen cannot be added: the
+    // picker section (or the direct-order form) is where the choice is made.
+    if (chosen.variants.length > 1 && !chosen.variant) return;
     addItem({
       product_id: product!.id,
-      variant_id: null,
+      variant_id: chosen.variant?.id ?? null,
       name: product!.name,
-      variant_name: null,
-      price: product!.price,
+      variant_name: chosen.variant?.name ?? null,
+      price: unitPrice,
       quantity: qty,
-      image_url: product!.image_url ?? null,
+      image_url: chosen.variant?.image_url ?? product!.image_url ?? null,
     });
     trackPixel(
       "AddToCart",
       pixelContentsFromItems([
-        { product_id: product!.id, price: product!.price, quantity: qty },
+        { product_id: product!.id, price: unitPrice, quantity: qty },
       ]),
     );
   }

@@ -21,6 +21,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useVariantStore } from "./helpers/variant-store";
 import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import {
@@ -88,9 +89,19 @@ export function PdpBuyBoxRender({
     return { sizeVariants: sizes, otherVariants: others };
   }, [variants]);
 
-  const [variantId, setVariantId] = useState<string | null>(
-    variants[0]?.id ?? null,
-  );
+  // The buy box is itself a picker: its choice goes through the shared store
+  // so a direct-order form or add-to-cart on the same page sells the same
+  // variant, and it registers so no second inline picker appears.
+  const productId = product?.id ?? "";
+  const storedVariantId = useVariantStore((s) => s.selected[productId] ?? null);
+  const selectVariant = useVariantStore((s) => s.select);
+  const registerPicker = useVariantStore((s) => s.registerPicker);
+  const variantId = storedVariantId ?? variants[0]?.id ?? null;
+  const setVariantId = (id: string | null) => selectVariant(productId, id);
+  useEffect(() => {
+    if (!productId || variants.length === 0) return;
+    return registerPicker(productId);
+  }, [productId, variants.length, registerPicker]);
   const [qty, setQty] = useState(1);
 
   // WhatsApp deep-link embeds the absolute page URL — only known client-side,

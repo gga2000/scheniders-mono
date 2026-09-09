@@ -393,7 +393,16 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 - **W6.2** Template versioning and upgrade migration. *(P6)*
 - **W6.3** AI content seeding at onboarding. *(P8)*
 - **W6.4** Section-level A/B in the builder. *(A5, P10)*
-- **W6.5** Variants on the PDP. *(P13)*
+- **W6.5** Variants on the PDP — DONE. `helpers/variant-store.ts` (zustand,
+  per product id, not persisted; `useSelectedVariant`, `stockLeftFor`,
+  picker registration). `pdp_variants` and `pdp_buy_box` write it;
+  `pdp_direct_order` and `pdp_add_to_cart` read it. Direct-order: price /
+  compare-at / stock per variant, inline pills when no picker section is on
+  the page, required choice at submit, `variant_id` + `variant_name` on the
+  line and the stash. `getProductVariants` filters `is_enabled`, orders by
+  `display_order`, carries `reserved_quantity`/`compare_at_price`/`image_url`;
+  a variant without a price sells at the product price. Production has zero
+  variant rows today. *(P13)*
 - **W6.6** COD risk signals at checkout. *(P16)*
 - **W6.7** Storefront funnel dashboard. *(G1)*
 - **W6.8** Kurdish locale. *(P9)*

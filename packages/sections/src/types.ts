@@ -116,6 +116,9 @@ export type ReviewSummaryItem = Pick<
 >;
 
 export interface ProductVariant extends BaseProductVariant {
-  /** Variants always carry a concrete price when rendered. */
+  /** Variants always carry a concrete price when rendered (the product's when the row has none). */
   price: number;
+  reserved_quantity?: number | null;
+  compare_at_price?: number | null;
+  image_url?: string | null;
 }

@@ -397,10 +397,16 @@ export const getProductImages = cache((productId: string): Promise<string[]> =>
 export const getProductVariants = cache(
   (productId: string): Promise<ProductVariant[]> =>
     publicCache(["getProductVariants", productId], async (supabase) => {
+      // A disabled variant is not for sale; `is_enabled` is nullable and null
+      // means enabled (the column arrived after the rows).
       const { data } = await supabase
         .from("product_variants")
-        .select("id, product_id, tenant_id, name, price, stock_quantity, sku")
-        .eq("product_id", productId);
+        .select(
+          "id, product_id, tenant_id, name, price, stock_quantity, reserved_quantity, sku, compare_at_price, image_url, display_order",
+        )
+        .eq("product_id", productId)
+        .or("is_enabled.is.null,is_enabled.eq.true")
+        .order("display_order", { ascending: true, nullsFirst: false });
       return (data ?? []) as ProductVariant[];
     }),
 );
