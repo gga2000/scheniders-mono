@@ -90,7 +90,7 @@ export function PromoBar({
   return (
     <div
       className={cn(
-        "bg-candy-butter text-candy-ink font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
+        "bg-bk-accent text-bk-ink font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
         className,
       )}
       style={{
@@ -140,17 +140,17 @@ type CardBg =
  */
 const BG_MAP: Record<CardBg, string> = {
   white: "bg-white",
-  cream: "bg-candy-cream",
-  pink: "bg-candy-pink text-white",
-  mint: "bg-candy-mint",
-  butter: "bg-candy-butter",
-  lilac: "bg-candy-lilac",
-  sky: "bg-candy-sky",
-  ink: "bg-candy-ink text-white",
+  cream: "bg-bk-surface",
+  pink: "bg-bk-primary text-white",
+  mint: "bg-bk-secondary",
+  butter: "bg-bk-accent",
+  lilac: "bg-bk-decor-b",
+  sky: "bg-bk-decor-c",
+  ink: "bg-bk-ink text-white",
   success: "",
   "accent-primary":
     "bg-[var(--schn-accent-primary)] text-[var(--schn-accent-primary-on)]",
-  "accent-secondary": "bg-[var(--schn-accent-secondary)] text-candy-ink",
+  "accent-secondary": "bg-[var(--schn-accent-secondary)] text-bk-ink",
 };
 
 /** Brand-kit CSS variable override per surface tint. `undefined` means
@@ -298,7 +298,7 @@ const BTN_SIZE: Record<NonNullable<ChunkyButtonProps["size"]>, string> = {
 const baseBtn =
   "inline-flex items-center justify-center gap-2 font-display font-black bk-caps tracking-tight " +
   "hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] " +
-  "transition-[transform,box-shadow,background-color,color,opacity] duration-150 motion-reduce:transition-none";
+  "transition-[transform,box-shadow,background-color,color,opacity] duration-bk-fast motion-reduce:transition-none";
 
 function buttonStyle(bg: CardBg): CSSProperties {
   return {
@@ -878,7 +878,7 @@ export function WhatsAppButton({
       rel="noopener noreferrer"
       className={cn(
         "inline-flex items-center justify-center gap-2 font-display font-bold",
-        "transition-[transform,box-shadow,background-color,opacity] duration-150 motion-reduce:transition-none",
+        "transition-[transform,box-shadow,background-color,opacity] duration-bk-fast motion-reduce:transition-none",
         "hover:opacity-90 active:scale-[0.98]",
         BTN_SIZE[size],
         fullWidth && "w-full",

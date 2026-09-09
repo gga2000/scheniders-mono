@@ -264,6 +264,8 @@ describe("image_gallery — tokens + carousel semantics", () => {
     expect(html).toContain("scroll-px-4");
     expect(html.match(/<img/g)).toHaveLength(2);
     expect(html).not.toContain('rel="preload"');
+    // Guards the legacy Candy chrome by name — these utilities are gone
+    // repo-wide, and this section must never reintroduce them.
     expect(html).not.toMatch(/candy-ink|shadow-bento/);
     expect(html).toContain('sizes="280px"');
   });

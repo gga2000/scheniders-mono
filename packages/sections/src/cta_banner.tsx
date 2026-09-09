@@ -59,7 +59,7 @@ const defaultProps: Props = {
  *  size and primary surface without nesting a <button> inside an <a>. */
 const CTA_LINK_CLS =
   "inline-flex items-center justify-center gap-2 px-6 py-4 text-lg font-display font-black bk-caps tracking-tight " +
-  "transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none " +
+  "transition-[transform,box-shadow,opacity] duration-bk-fast motion-reduce:transition-none " +
   "hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:scale-[0.99]";
 
 const ctaLinkStyle: React.CSSProperties = {
@@ -108,7 +108,7 @@ function CtaBannerRender({
               alt=""
               className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-candy-ink/40" />
+            <div className="absolute inset-0 bg-bk-ink/40" />
           </div>
         )}
         <div

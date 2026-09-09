@@ -128,12 +128,12 @@ function AccordionRichtextRender({
                 name={props.allow_multiple ? undefined : groupName}
                 open={i === 0}
               >
-                <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-start transition-opacity duration-150 motion-reduce:transition-none active:opacity-70 [&::-webkit-details-marker]:hidden">
+                <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-start transition-opacity duration-bk-fast motion-reduce:transition-none active:opacity-70 [&::-webkit-details-marker]:hidden">
                   <span className="flex-1 font-display font-black text-base sm:text-lg bk-caps leading-tight text-balance">
                     {title}
                   </span>
                   <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center transition-transform duration-200 motion-reduce:transition-none group-open:rotate-45"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center transition-transform duration-bk-base motion-reduce:transition-none group-open:rotate-45"
                     style={{
                       backgroundColor: tint,
                       color: "var(--bk-ink, #1a1a1a)",

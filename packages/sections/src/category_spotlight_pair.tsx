@@ -183,7 +183,7 @@ function CategorySpotlightPair({
                       fill
                       unoptimized={!isOptimizableImageHost(item.image_url)}
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-bk-base motion-reduce:transition-none group-hover:scale-105"
                     />
                   ) : (
                     /* No image yet: tinted placeholder so the card still
@@ -200,7 +200,7 @@ function CategorySpotlightPair({
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent" />
                   {label && (
                     <span
-                      className="absolute bottom-4 left-1/2 inline-flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-0.5"
+                      className="absolute bottom-4 left-1/2 inline-flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform duration-bk-fast motion-reduce:transition-none group-hover:-translate-y-0.5"
                       style={{
                         backgroundColor: "var(--bk-surface, #ffffff)",
                         color: "var(--bk-ink, #1a1a1a)",
@@ -213,7 +213,7 @@ function CategorySpotlightPair({
                       <span className="truncate" data-i18n-field="label_i18n">
                         {label}
                       </span>
-                      <ChevronGlyph className="shrink-0 opacity-70 transition-transform duration-150 motion-reduce:transition-none group-hover:translate-x-0.5" />
+                      <ChevronGlyph className="shrink-0 opacity-70 transition-transform duration-bk-fast motion-reduce:transition-none group-hover:translate-x-0.5" />
                     </span>
                   )}
                 </div>

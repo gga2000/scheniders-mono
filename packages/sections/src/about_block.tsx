@@ -94,7 +94,7 @@ function AboutBlock({
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-candy-mint/40 via-candy-sky/30 to-candy-lilac/40" />
+            <div className="absolute inset-0 bg-gradient-to-br from-bk-secondary/40 via-bk-decor-c/30 to-bk-decor-b/40" />
           )}
         </BentoCard>
       </div>

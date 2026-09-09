@@ -464,7 +464,7 @@ export function PdpBuyBoxRender({
       <div
         aria-hidden={!showSticky}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-40 transition-transform duration-300 ease-out motion-reduce:transition-none",
+          "fixed inset-x-0 bottom-0 z-40 transition-transform duration-bk-base ease-out motion-reduce:transition-none",
           showSticky ? "translate-y-0" : "translate-y-full pointer-events-none",
         )}
         style={{

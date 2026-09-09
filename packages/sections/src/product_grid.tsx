@@ -238,7 +238,7 @@ export function PricePillCard({
               priority={priority}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className={cn(
-                "object-cover transition-transform duration-300 ease-out motion-reduce:transition-none group-hover:scale-[1.04]",
+                "object-cover transition-transform duration-bk-base ease-out motion-reduce:transition-none group-hover:scale-[1.04]",
                 !inStock && "opacity-60 grayscale",
               )}
             />

@@ -99,7 +99,7 @@ function FeatureGridRender({
               rotate={i % 2 === 0 ? -0.5 : 0.5}
               className="p-5 sm:p-6"
             >
-              <div className="w-12 h-12 rounded-xl border-[3px] border-candy-ink bg-white flex items-center justify-center mb-bk-sm">
+              <div className="w-12 h-12 rounded-bk-input border-bk border-bk-ink bg-white flex items-center justify-center mb-bk-sm">
                 <MaterialIcon name={item.icon} className="text-2xl" />
               </div>
               <h3 className="font-display font-black text-lg uppercase leading-tight">

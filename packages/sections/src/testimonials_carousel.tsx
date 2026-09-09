@@ -81,7 +81,7 @@ function Stars({ rating }: { rating: number }) {
         <span
           key={i}
           className={
-            i < rating ? "text-candy-pink" : "text-bk-ink-faint"
+            i < rating ? "text-bk-primary" : "text-bk-ink-faint"
           }
           aria-hidden="true"
         >
@@ -137,10 +137,10 @@ function TestimonialsCarousel({
                     width={48}
                     height={48}
                     unoptimized
-                    className="w-12 h-12 rounded-full border-[3px] border-candy-ink object-cover"
+                    className="w-12 h-12 rounded-full border-bk border-bk-ink object-cover"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-full border-[3px] border-candy-ink bg-candy-butter flex items-center justify-center font-display font-black text-lg">
+                  <div className="w-12 h-12 rounded-full border-bk border-bk-ink bg-bk-accent flex items-center justify-center font-display font-black text-lg">
                     {item.author_name.charAt(0)}
                   </div>
                 )}
@@ -167,7 +167,7 @@ function TestimonialsCarousel({
           {props.items.map((_, i) => (
             <span
               key={i}
-              className="w-2 h-2 rounded-full bg-candy-ink/25"
+              className="w-2 h-2 rounded-full bg-bk-ink/25"
               style={{ backgroundColor: "var(--bk-ink-faint, rgb(26 26 26 / 0.25))" }}
             />
           ))}

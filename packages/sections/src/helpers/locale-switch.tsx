@@ -115,7 +115,7 @@ export function LocaleSwitch({
             disabled={pending}
             className={cn(
               "inline-flex min-h-11 items-center justify-center px-3 font-body text-sm font-bold",
-              "transition-[background-color,color,opacity] duration-150 motion-reduce:transition-none",
+              "transition-[background-color,color,opacity] duration-bk-fast motion-reduce:transition-none",
               "hover:opacity-80 active:opacity-60 disabled:cursor-wait",
               "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus focus-visible:ring-offset-2",
               variant === "row" ? "flex-1" : "min-w-11",

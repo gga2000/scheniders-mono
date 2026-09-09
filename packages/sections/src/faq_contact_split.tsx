@@ -198,7 +198,7 @@ function FaqContactSplit({
                   boxShadow: CARD_SHADOW,
                 }}
               >
-                <summary className="flex w-full cursor-pointer list-none items-center gap-3 px-5 py-4 text-start transition-opacity duration-150 motion-reduce:transition-none active:opacity-70 [&::-webkit-details-marker]:hidden">
+                <summary className="flex w-full cursor-pointer list-none items-center gap-3 px-5 py-4 text-start transition-opacity duration-bk-fast motion-reduce:transition-none active:opacity-70 [&::-webkit-details-marker]:hidden">
                   {props.row_icon_url ? (
                     <Image
                       src={props.row_icon_url}
@@ -229,7 +229,7 @@ function FaqContactSplit({
                   </span>
                   <MaterialIcon
                     name="expand_more"
-                    className="shrink-0 text-xl transition-transform duration-200 motion-reduce:transition-none group-open:rotate-180"
+                    className="shrink-0 text-xl transition-transform duration-bk-base motion-reduce:transition-none group-open:rotate-180"
                   />
                 </summary>
                 <div

@@ -91,7 +91,7 @@ export function PromoBanner({
                 ].map((seg, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-baseline gap-1 bg-white/80 border-[3px] border-candy-ink rounded-lg px-2 py-1 text-bk-ink"
+                    className="inline-flex items-baseline gap-1 bg-white/80 border-bk border-bk-ink rounded-bk-input px-2 py-1 text-bk-ink"
                   >
                     <span className="font-display font-black text-base sm:text-lg">
                       {String(seg.v).padStart(2, "0")}

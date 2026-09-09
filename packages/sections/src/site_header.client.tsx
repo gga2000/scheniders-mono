@@ -37,7 +37,7 @@ import type { Props } from "./site_header";
 /** Circular surface bento control (menu / back). 44px touch target. */
 const circleBtn =
   "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full " +
-  "transition-transform duration-150 motion-reduce:transition-none hover:scale-105 active:scale-95";
+  "transition-transform duration-bk-fast motion-reduce:transition-none hover:scale-105 active:scale-95";
 const circleBtnStyle = {
   backgroundColor: "var(--bk-surface, #ffffff)",
   border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -235,7 +235,7 @@ export function SiteHeaderRender({
     const pillLogo = props.logo_image_url || logo;
     const pillIconBtn =
       "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full " +
-      "transition-opacity duration-150 motion-reduce:transition-none hover:opacity-70 active:opacity-60";
+      "transition-opacity duration-bk-fast motion-reduce:transition-none hover:opacity-70 active:opacity-60";
 
     return (
       <header
@@ -279,7 +279,7 @@ export function SiteHeaderRender({
                 <StoreLink
                   key={`${l.href}-${l.label}`}
                   href={l.href}
-                  className="inline-flex min-h-11 items-center font-body text-sm font-bold transition-opacity duration-150 motion-reduce:transition-none hover:opacity-70 active:opacity-60"
+                  className="inline-flex min-h-11 items-center font-body text-sm font-bold transition-opacity duration-bk-fast motion-reduce:transition-none hover:opacity-70 active:opacity-60"
                   style={{ color: "var(--bk-ink, #1a1a1a)" }}
                 >
                   {l.label}
@@ -369,7 +369,7 @@ export function SiteHeaderRender({
             onClose={close}
             sheetRef={sheetRef}
             links={navLinks}
-            linkClassName="flex min-h-11 items-center font-body text-sm font-bold transition-opacity duration-150 motion-reduce:transition-none active:opacity-60"
+            linkClassName="flex min-h-11 items-center font-body text-sm font-bold transition-opacity duration-bk-fast motion-reduce:transition-none active:opacity-60"
             locale={locale}
             enabledLocales={enabledLocales}
             className="mx-auto mt-2 max-w-6xl px-5 py-1"
@@ -445,13 +445,13 @@ export function SiteHeaderRender({
               <StoreLink
                 key={`${l.href}-${l.label}`}
                 href={l.href}
-                className="group relative inline-flex min-h-11 items-center font-label font-bold text-sm bk-caps tracking-wide transition-[color,opacity] duration-150 motion-reduce:transition-none hover:text-[var(--bk-primary,#ff5a8a)] active:opacity-60"
+                className="group relative inline-flex min-h-11 items-center font-label font-bold text-sm bk-caps tracking-wide transition-[color,opacity] duration-bk-fast motion-reduce:transition-none hover:text-[var(--bk-primary,#ff5a8a)] active:opacity-60"
                 style={{ color: "var(--bk-ink, #1a1a1a)" }}
               >
                 {l.label}
                 <span
                   aria-hidden="true"
-                  className="absolute bottom-2 left-0 h-[var(--bk-border-thickness,3px)] w-0 transition-[width] duration-200 motion-reduce:transition-none group-hover:w-full"
+                  className="absolute bottom-2 left-0 h-[var(--bk-border-thickness,3px)] w-0 transition-[width] duration-bk-base motion-reduce:transition-none group-hover:w-full"
                   style={{ backgroundColor: "var(--bk-primary, #ff5a8a)" }}
                 />
               </StoreLink>
@@ -498,7 +498,7 @@ export function SiteHeaderRender({
             <StoreLink
               href="/cart"
               aria-label={cartLabel}
-              className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 transition-transform duration-150 motion-reduce:transition-none hover:scale-105 active:scale-95"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 transition-transform duration-bk-fast motion-reduce:transition-none hover:scale-105 active:scale-95"
               style={{
                 backgroundColor: "var(--bk-decor-a, #7cf0bd)",
                 color: "var(--bk-on-decor, #1a1a1a)",
@@ -524,7 +524,7 @@ export function SiteHeaderRender({
           onClose={close}
           sheetRef={sheetRef}
           links={navLinks}
-          linkClassName="flex min-h-11 items-center font-label font-bold text-sm bk-caps tracking-wide transition-opacity duration-150 motion-reduce:transition-none active:opacity-60"
+          linkClassName="flex min-h-11 items-center font-label font-bold text-sm bk-caps tracking-wide transition-opacity duration-bk-fast motion-reduce:transition-none active:opacity-60"
           locale={locale}
           enabledLocales={enabledLocales}
           className="mx-auto max-w-6xl px-4 py-2"

@@ -13,11 +13,12 @@ const config: Config = {
   safelist: [
     // Brand-kit color utilities — used dynamically by section render code,
     // so safelist them by pattern.
-    { pattern: /^bg-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|primary-hover|primary-active|primary-soft|primary-disabled)$/ },
-    { pattern: /^text-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|on-primary|on-secondary|on-accent|ink-soft|ink-faint|primary-active|primary-disabled)$/ },
-    { pattern: /^border-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|divider)$/ },
+    { pattern: /^bg-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|primary-hover|primary-active|primary-soft|primary-disabled|decor-a|decor-b|decor-c)$/ },
+    { pattern: /^text-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|on-primary|on-secondary|on-accent|ink-soft|ink-faint|primary-active|primary-disabled|on-decor)$/ },
+    { pattern: /^border-bk-(primary|secondary|accent|surface|surface-alt|ink|success|danger|divider|decor-a|decor-b|decor-c)$/ },
     { pattern: /^(rounded|shadow)-bk-(card|button|input|pill)$/ },
     { pattern: /^ring-bk-focus$/ },
+    { pattern: /^duration-bk-(fast|base)$/ },
     { pattern: /^(px|py|p|gap|gap-x|gap-y|space-y|space-x|mb|mt)-bk-(2xs|xs|sm|md|lg|xl|2xl|section|section-dense|section-generous)$/ },
     { pattern: /^text-bk-(hero|h1|h2|h3)$/ },
     { pattern: /^font-(bk-display|bk-body)$/ },
@@ -81,6 +82,14 @@ const config: Config = {
           "ink-soft": "var(--bk-ink-soft)",
           "ink-faint": "var(--bk-ink-faint)",
           divider: "var(--bk-divider)",
+          // Decorative surfaces — derived from the accent hue at fixed
+          // offsets. These replace the old fixed candy pastels, which no
+          // tenant could recolour. `on-decor` is the one readable
+          // foreground for all three (see brand-kit-vars.ts).
+          "decor-a": "var(--bk-decor-a)",
+          "decor-b": "var(--bk-decor-b)",
+          "decor-c": "var(--bk-decor-c)",
+          "on-decor": "var(--bk-on-decor)",
         },
       },
       fontFamily: {
@@ -100,6 +109,15 @@ const config: Config = {
         // Brand-kit v2 fonts — driven by `--bk-font-*`.
         "bk-display": ["var(--bk-font-display)", "sans-serif"],
         "bk-body": ["var(--bk-font-body)", "sans-serif"],
+      },
+      transitionDuration: {
+        // `BrandMotion.speed` emits --bk-duration-*, but nothing consumed
+        // them, so slow / normal / snappy was a no-op on the storefront.
+        // Sections use two tiers: `fast` for pointer feedback (hover,
+        // press), `base` for expressive movement (image zoom, sticky
+        // bars). Defaults are 150ms / 250ms.
+        "bk-fast": "var(--bk-duration-fast)",
+        "bk-base": "var(--bk-duration-base)",
       },
       borderWidth: {
         "3": "3px",

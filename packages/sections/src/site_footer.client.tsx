@@ -179,7 +179,7 @@ function InfoPanelNewsletterForm({
           type="submit"
           disabled={submitting}
           aria-busy={submitting || undefined}
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-6 py-2.5 font-label text-sm font-bold transition-opacity duration-150 motion-reduce:transition-none hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-6 py-2.5 font-label text-sm font-bold transition-opacity duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-70"
           style={{
             backgroundColor: "var(--bk-primary, #ff5a8a)",
             color: "var(--bk-on-primary, #fff)",
@@ -310,7 +310,7 @@ export function SiteFooterRender({
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={label}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full transition-opacity duration-150 motion-reduce:transition-none hover:opacity-70 active:opacity-60"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full transition-opacity duration-bk-fast motion-reduce:transition-none hover:opacity-70 active:opacity-60"
                       style={{
                         backgroundColor:
                           "color-mix(in srgb, var(--bk-ink, #1a1a1a) 8%, transparent)",
@@ -344,7 +344,7 @@ export function SiteFooterRender({
                   <li key={`${l.href}-${i}`}>
                     <StoreLink
                       href={l.href}
-                      className="inline-flex min-h-11 items-center font-body text-sm opacity-75 transition-opacity duration-150 motion-reduce:transition-none underline-offset-4 hover:opacity-100 hover:underline active:opacity-60"
+                      className="inline-flex min-h-11 items-center font-body text-sm opacity-75 transition-opacity duration-bk-fast motion-reduce:transition-none underline-offset-4 hover:opacity-100 hover:underline active:opacity-60"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>
@@ -514,7 +514,7 @@ export function SiteFooterRender({
                   <li key={`${l.href}-ci${ci}`}>
                     <StoreLink
                       href={l.href}
-                      className="inline-flex min-h-11 items-center font-body text-sm text-white/75 transition-colors duration-150 motion-reduce:transition-none hover:text-white hover:underline underline-offset-4 active:opacity-60"
+                      className="inline-flex min-h-11 items-center font-body text-sm text-white/75 transition-colors duration-bk-fast motion-reduce:transition-none hover:text-white hover:underline underline-offset-4 active:opacity-60"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>
