@@ -13,7 +13,11 @@
 
 "use client";
 
-import { resolveI18n } from "@scheniders/shared";
+import {
+  freeGiftProgress,
+  resolveI18n,
+  type StoreConfigV2,
+} from "@scheniders/shared";
 import { BentoCard, Section } from "./helpers/primitives";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
@@ -28,19 +32,29 @@ export function FreeGiftStrip({
 }) {
   const locale = ctx.runtime.locale;
   const subtotal = useCart((s) => s.getTotal());
-  const remaining = Math.max(0, props.threshold_iqd - subtotal);
-  const unlocked = remaining === 0;
+
+  // The threshold and the gift itself come from `commerce.free_gift`, which
+  // is what the checkout server reads when it adds the line. The section's
+  // own `threshold_iqd` prop is kept for schema back-compat but deliberately
+  // NOT used: two thresholds would let the strip promise a gift at one number
+  // while the server granted it at another.
+  //
+  // No gift configured means no strip. This section spent a long time telling
+  // shoppers a gift would be "added at checkout" while nothing added one, and
+  // an unkept promise is worse than a missing banner.
+  const commerce = (
+    ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
+  )?.store_config_v2?.commerce;
+  const progress = freeGiftProgress(commerce?.free_gift, subtotal);
+  if (!progress) return null;
+
+  const { remainingIqd: remaining, unlocked, percent: pct } = progress;
   const headingTemplate = resolveI18n(props.heading_i18n, locale);
   const unlockedLabel = resolveI18n(props.unlocked_label_i18n, locale);
 
   const headingResolved = headingTemplate.replace(
     /\{remaining\}/g,
     formatPrice(remaining, locale),
-  );
-
-  const pct = Math.min(
-    100,
-    Math.round((subtotal / props.threshold_iqd) * 100) || 0,
   );
 
   return (

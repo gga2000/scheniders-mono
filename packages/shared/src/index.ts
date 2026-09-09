@@ -18,6 +18,7 @@ export * from "./loyalty";
 export * from "./pixel";
 export * from "./price-tiers";
 export * from "./order-bumps";
+export * from "./free-gift";
 export * from "./product-attribute";
 export * from "./product-finder";
 export * from "./preview-token";

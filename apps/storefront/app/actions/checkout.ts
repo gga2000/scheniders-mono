@@ -6,7 +6,7 @@ import {
   computeBundleDiscounts,
   computePointsEarned,
   computePointsRedemption,
-  normalizeIraqiMobile, resolveTierPrice, resolveBumpPrice, type PriceTier, type OrderBumpOffer } from "@scheniders/shared";
+  normalizeIraqiMobile, resolveTierPrice, resolveBumpPrice, qualifiesForFreeGift, resolveFreeGift, type PriceTier, type OrderBumpOffer } from "@scheniders/shared";
 import type {
   StoreConfigV2,
   GovernorateCode,
@@ -311,6 +311,45 @@ export async function submitCheckout(
 
   // Subtotal of line items (server-verified prices — never the client's).
   const subtotal = verifiedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+  // Free gift. Added HERE, by the server, from the verified subtotal — a
+  // zero-price line accepted from the client would be a free item anyone
+  // could post. The subtotal above excludes the gift by construction (it is
+  // appended after), so a free line can never count toward the threshold
+  // that earns it.
+  const freeGiftCfg = tenant.store_config_v2?.commerce?.free_gift;
+  if (qualifiesForFreeGift(freeGiftCfg, subtotal)) {
+    const giftId = resolveFreeGift(freeGiftCfg).productId!;
+    // Never gift something already being paid for: the shopper would lose a
+    // line they chose, or be handed a duplicate.
+    const alreadyInOrder = verifiedItems.some((i) => i.product_id === giftId);
+    if (!alreadyInOrder) {
+      const { data: gift } = await supabase
+        .from("products")
+        .select("id, name, short_name, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
+        .eq("id", giftId)
+        .eq("tenant_id", payload.tenantId)
+        .maybeSingle();
+      const giftInStock =
+        gift &&
+        !gift.is_archived &&
+        gift.is_visible &&
+        !(gift as { is_supply?: boolean }).is_supply &&
+        (gift.stock_quantity ?? 0) - (gift.reserved_quantity ?? 0) > 0;
+      if (giftInStock) {
+        verifiedItems.push({
+          product_id: gift.id,
+          variant_id: null,
+          name: gift.short_name || gift.name,
+          variant_name: null,
+          price: 0,
+          quantity: 1,
+        });
+      }
+      // Out of stock or withdrawn: the order proceeds without it rather than
+      // failing. The shopper loses nothing they paid for.
+    }
+  }
   // EC2: record the SAME delivery fee the storefront displays + the courier
   // collects (shared source of truth), so the order's recorded total
   // (price + delivery_fee) matches what the customer agreed to pay. Recomputed
