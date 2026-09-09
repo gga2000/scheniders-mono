@@ -38,8 +38,7 @@ import {
     Menu,
     Truck,
     Users,
-    type LucideIcon,
-} from "lucide-react";
+    type LucideIcon, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
@@ -157,6 +156,7 @@ export type SettingsSectionId =
     | "cart_recovery"
     | "pixels"
     | "loyalty"
+    | "free_gift"
     | "custom_pages"
     | "nav"
     | "redirects";
@@ -186,6 +186,7 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "cart_recovery", icon: ShoppingCart, labelKey: "setting_cart_recovery", label: "Cart recovery" },
     { id: "pixels", icon: BarChart3, labelKey: "setting_pixels", label: "Pixels & tracking" },
     { id: "loyalty", icon: Award, labelKey: "setting_loyalty", label: "Loyalty points" },
+    { id: "free_gift", icon: Gift, labelKey: "setting_free_gift", label: "Free gift" },
     { id: "custom_pages", icon: FileText, labelKey: "setting_custom_pages", label: "Custom pages" },
     { id: "nav", icon: Menu, labelKey: "setting_nav", label: "Navigation" },
     { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
@@ -225,6 +226,7 @@ const SETTING_TINT: Record<SettingsSectionId, string> = {
     cart_recovery: "sb-tile--conversion",
     pixels: "sb-tile--page",
     loyalty: "sb-tile--conversion",
+    free_gift: "sb-tile--conversion",
     custom_pages: "sb-tile--page",
     nav: "sb-tile--page",
     versions: "sb-tile--page",
