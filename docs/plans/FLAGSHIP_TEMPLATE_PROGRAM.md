@@ -122,30 +122,45 @@ The alternative — a section per presentation — yields ~40 near-duplicate ent
 and an unusable picker. This rule applies program-wide: **new presentation is a
 variant prop; new behaviour is a new section.**
 
-### D3 — Auto-form v2 via UI hints sidecar (P3)
+### D3 — Auto-form: pickers, not a hints sidecar (P3) — REVISED 2026-09-09
 
-The editor form is flat today. Sections with 20+ props will make it unusable, and
-this program adds many. Rejected: encoding metadata into Zod `.describe()`
-(abuses a field already used for help text). **Chosen:** an optional `ui` sidecar
-on `SectionDefinition`.
+**The original decision here was based on a wrong premise.** It claimed the
+editor form is flat and proposed a `SectionUiHints` sidecar to add groups,
+labels and conditional visibility. Reading the code first would have shown that
+all three already exist, and by a better mechanism:
 
-```ts
-interface SectionUiHints<P> {
-  groups?: Array<{ id: string; label: I18nString; collapsed?: boolean }>;
-  fields?: Partial<Record<keyof P & string, {
-    group?: string;
-    widget?: "product_picker" | "category_picker" | "attribute_picker"
-           | "image" | "color" | "icon" | "textarea" | "richtext" | "page_picker";
-    label?: I18nString;
-    help?: I18nString;
-    show_when?: { field: string; equals: unknown | unknown[] };
-    order?: number;
-  }>>;
-}
-```
+- `lib/section-field-groups.ts` sorts every field into essential / style / logic
+  **by naming convention**, so new sections are covered with no authoring.
+  A per-section sidecar would have been strictly worse: it only works for
+  sections someone remembered to annotate.
+- `lib/section-field-meta.ts` supplies localised labels and help in en/ar/ku,
+  with per-section overrides.
+- `isFieldEnabledBySiblings` already disables `*_value` / `*_label` when the
+  matching `*_kind` is unset.
+- `.describe()` already upgrades a string field to an image uploader, a colour
+  picker or a textarea.
 
-Optional by construction, so **every existing section renders byte-identically**
-(constraint 3). The manifest passes `ui` through; `auto-form` reads it.
+So the sidecar is rejected — not as a design, but as unnecessary. **The real
+gap is resource pickers.** Section props include 13 `product_id`, three
+multi-id fields (`pinned_product_ids`, `manual_product_ids`,
+`manual_category_ids`), `category_slug`, and 24 `*_href` fields. Every one of
+them is edited today by typing a raw UUID or a path by hand. That is the part
+of the builder a merchant cannot use.
+
+**Chosen:** a convention-based widget resolver (`lib/section-field-widgets.ts`),
+matching how field groups already work — key name decides the control, so future
+sections are covered automatically and no section file changes:
+
+| Field name           | Control                                        |
+| -------------------- | ---------------------------------------------- |
+| `product_id`         | product picker, single                         |
+| `*_product_ids`      | product picker, multiple + ordered              |
+| `*_category_ids`     | category picker, multiple                      |
+| `category_slug`      | category picker, single, stores the slug        |
+| `*_href`             | link picker: page, category, product, or URL    |
+
+Section schemas are untouched, so no Zod parse behaviour changes anywhere
+(constraint 3).
 
 ### D4 — Offer engine (P5)
 
@@ -262,10 +277,11 @@ Ali's list in the order he gave it would mean rewriting most of it later.
 - **W1.2** Shared types + storefront query join; `Product.attributes`.
 - **W1.3** Platform: attribute taxonomy manager (define per tenant).
 - **W1.4** Platform: per-product attribute editor.
-- **W1.5** `SectionUiHints` type + manifest passthrough (no behaviour change).
-- **W1.6** Auto-form v2: field groups + `show_when` conditional visibility.
-- **W1.7** Auto-form v2: rich widgets (product / category / attribute / image /
-  colour / icon / page pickers).
+- **W1.5** Widget resolver + product picker (single and multiple). *(revised —
+  see D3; the original three tasks assumed a flat form that does not exist)*
+- **W1.6** Category picker, and the link picker for every `*_href`.
+- **W1.7** Attribute picker, once W2.1 defines what an attribute-driven section
+  needs to reference.
 
 ### Wave 2 — Attribute-driven storefront
 - **W2.1** `product_attributes` section with all five layout variants. *(B4, B5)*

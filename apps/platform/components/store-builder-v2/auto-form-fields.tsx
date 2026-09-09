@@ -38,6 +38,12 @@ import {
     resolveFieldLabel,
 } from "@/lib/section-field-meta";
 import { I18nStringInput } from "./i18n-string-input";
+import { resolveFieldWidget } from "@/lib/section-field-widgets";
+import {
+    CategoryPickerField,
+    LinkPickerField,
+    ProductPickerField,
+} from "./resource-picker";
 import {
     inferField,
     type FieldShape,
@@ -158,6 +164,50 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     {tx(STRINGS.auto_form.set, fieldLocale)}
                 </button>
             </div>,
+        );
+    }
+
+    // Reference fields get a picker instead of a text box, chosen by field
+    // name (see lib/section-field-widgets.ts). This reads and writes exactly
+    // the value the schema already declares, so no section schema changes and
+    // no stored config is rewritten.
+    const widget = resolveFieldWidget(fieldKey);
+    if (widget) {
+        const pickerTestId = `${testIdBase}-picker`;
+        const picker =
+            widget.kind === "product" ? (
+                <ProductPickerField
+                    label={label}
+                    value={value}
+                    onChange={onChange}
+                    multiple={widget.multiple}
+                    locale={fieldLocale}
+                    testId={pickerTestId}
+                />
+            ) : widget.kind === "category" ? (
+                <CategoryPickerField
+                    label={label}
+                    value={value}
+                    onChange={onChange}
+                    multiple={widget.multiple}
+                    stores={widget.multiple ? "id" : widget.stores}
+                    locale={fieldLocale}
+                    testId={pickerTestId}
+                />
+            ) : (
+                <LinkPickerField
+                    label={label}
+                    value={value}
+                    onChange={onChange}
+                    locale={fieldLocale}
+                    testId={pickerTestId}
+                />
+            );
+        return (
+            <div className="space-y-1" data-testid={testIdBase}>
+                {picker}
+                {help && <p className="text-[11px] text-muted-foreground">{help}</p>}
+            </div>
         );
     }
 
