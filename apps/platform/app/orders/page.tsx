@@ -12,7 +12,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
-import { getBaseOrderId } from "@/lib/utils";
+import { getBaseOrderId, getStatusLabel } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
@@ -928,35 +928,27 @@ export default function OrdersPage() {
     };
 
     // Handle bulk actions
-    const handleBulkConfirm = async () => {
+    /**
+     * ARCH-1: nine bulk handlers were byte-identical apart from the status, and
+     * three of them shared one message — bulk "deliver" and bulk "reject" both
+     * told the operator the orders had been *confirmed*. One factory removes the
+     * duplication and makes the message follow the status it actually applied.
+     */
+    const makeBulkStatusHandler = (status: Order["status"]) => async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "confirmed"),
+            () => bulkUpdateStatus(ids, status),
             `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
+            t("toast.statusUpdatedDescCount")
+                .replace("{count}", String(ids.length))
+                .replace("{status}", getStatusLabel(status)),
             () => setSelectedOrders(new Set())
         );
     };
 
-    const handleBulkDeliver = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "delivered"),
-            `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkReject = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "rejected"),
-            `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
-            () => setSelectedOrders(new Set())
-        );
-    };
+    const handleBulkConfirm = makeBulkStatusHandler("confirmed");
+    const handleBulkDeliver = makeBulkStatusHandler("delivered");
+    const handleBulkReject = makeBulkStatusHandler("rejected");
 
     const handleBulkArchive = async () => {
         if (isBulkProcessing) return;
@@ -1053,55 +1045,11 @@ export default function OrdersPage() {
 
     // Additional bulk status handlers
     // Additional bulk status handlers
-    const handleBulkNew = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "new"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkContacted = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "contacted"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkInTransit = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "in_transit"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkCompleted = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "completed"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkNoResponse = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "no_response"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"),
-            () => setSelectedOrders(new Set())
-        );
-    };
+    const handleBulkNew = makeBulkStatusHandler("new");
+    const handleBulkContacted = makeBulkStatusHandler("contacted");
+    const handleBulkInTransit = makeBulkStatusHandler("in_transit");
+    const handleBulkCompleted = makeBulkStatusHandler("completed");
+    const handleBulkNoResponse = makeBulkStatusHandler("no_response");
 
     const handleShipExport = async (company: 'prime' | 'waseet') => {
         // Shipping with nothing selected means "everything matching my filter".
