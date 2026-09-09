@@ -38,7 +38,7 @@ export default async function AllProductsPage({ params }: Props) {
   if (!tenant) notFound();
 
   const [products, categories] = await Promise.all([
-    listProducts(tenant.id),
+    listProducts(tenant.id, { withAttributes: true }),
     listCategories(tenant.id),
   ]);
 

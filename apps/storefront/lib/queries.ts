@@ -161,7 +161,17 @@ async function withAttributes(
 export const listProducts = cache(
   (
     tenantId: string,
-    opts: { categoryId?: string; limit?: number; offset?: number } = {},
+    opts: {
+      categoryId?: string;
+      limit?: number;
+      offset?: number;
+      /**
+       * Attach merchant-defined attributes. Opt-in because only the pages
+       * that offer facet filtering need them — the home grid would pay for
+       * an extra query and a bigger payload to render nothing.
+       */
+      withAttributes?: boolean;
+    } = {},
   ): Promise<Product[]> =>
     publicCache(["listProducts", tenantId, JSON.stringify(opts)], async (supabase) => {
       let q = supabase
@@ -186,7 +196,13 @@ export const listProducts = cache(
         console.error("[queries.listProducts]", error);
         return [];
       }
-      return withReviewStats(supabase, (data ?? []).map(normalizeProduct));
+      const products = await withReviewStats(
+        supabase,
+        (data ?? []).map(normalizeProduct),
+      );
+      return opts.withAttributes
+        ? withAttributes(supabase, tenantId, products)
+        : products;
     }),
 );
 
@@ -340,7 +356,7 @@ export const listProductsInCategory = cache(
   (
     tenantId: string,
     categoryId: string,
-    opts: { limit?: number; offset?: number } = {},
+    opts: { limit?: number; offset?: number; withAttributes?: boolean } = {},
   ): Promise<Product[]> =>
     publicCache(
       ["listProductsInCategory", tenantId, categoryId, JSON.stringify(opts)],
@@ -368,13 +384,16 @@ export const listProductsInCategory = cache(
 
         type Row = { products: Record<string, unknown> | null };
         const rows = (data ?? []) as Row[];
-        return withReviewStats(
+        const products = await withReviewStats(
           supabase,
           rows
             .map((r) => r.products)
             .filter((p): p is Record<string, unknown> => p !== null)
             .map(normalizeProduct),
         );
+        return opts.withAttributes
+          ? withAttributes(supabase, tenantId, products)
+          : products;
       },
     ),
 );

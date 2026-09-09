@@ -47,6 +47,16 @@ const schema = z.object({
   manual_product_ids: z.array(z.string()).optional(),
   pinned_product_ids: z.array(z.string()).optional(),
   heading_i18n: i18nStringOptional,
+  /**
+   * Offer attribute facets above the grid. Optional: a stored instance
+   * from before this existed must still parse, or the section is
+   * silently dropped at render.
+   *
+   * A real category page turns them on regardless — a merchant browsing
+   * a category expects to narrow it. Off elsewhere so the home grid
+   * stays server-rendered and ships no filtering JavaScript.
+   */
+  enable_filters: z.boolean().optional(),
   scribble_color: scribbleColor.optional(),
   // ---- price_pill card style (all additions defaulted/optional so every
   // pre-existing stored config keeps parsing — and keeps rendering — exactly
@@ -77,6 +87,7 @@ const defaultProps: Props = {
   manual_product_ids: [],
   pinned_product_ids: [],
   heading_i18n: { en: "Just dropped", ar: "وصل حديثاً" },
+  enable_filters: false,
   scribble_color: "butter",
   card_style: "standard",
 };
@@ -358,6 +369,28 @@ function ProductGridRender({
     const pageSize = props.query?.limit;
     const gridCls =
       "grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4";
+    // Facets replace the flat grid when enabled — the catalog page is where
+    // narrowing earns its keep. Collections keep the flat layout.
+    if (props.enable_filters) {
+      return (
+        <Section>
+          {heading && (
+            <SectionHeader
+              title={heading}
+              color={props.scribble_color ?? "butter"}
+            />
+          )}
+          <FilterableProductGrid
+            products={pillItems}
+            locale={locale}
+            whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
+            cardStyle="price_pill"
+            showStars={props.show_stars === true}
+          />
+        </Section>
+      );
+    }
+
     const cards = pillItems.map((product, i) => (
       <PricePillCard
         key={product.id}
@@ -479,8 +512,11 @@ function ProductGridRender({
 
   return (
     <Section>
-      {category ? (
+      {category || props.enable_filters ? (
         <>
+          {/* Hero is category-only: the catalog page turns filters on
+              without one, and this block reads category.name. */}
+          {category ? (
           <div className="mb-bk-lg">
             <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
               <StoreLink
@@ -525,8 +561,16 @@ function ProductGridRender({
               </div>
             </BentoCard>
           </div>
+          ) : (
+            heading && (
+              <SectionHeader
+                title={heading}
+                color={props.scribble_color ?? "butter"}
+              />
+            )
+          )}
           <FilterableProductGrid
-            products={ctx.products}
+            products={category ? ctx.products : items}
             locale={locale}
             whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
           />
