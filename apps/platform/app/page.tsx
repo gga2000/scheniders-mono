@@ -26,6 +26,7 @@ import { useAnnouncements } from "@/hooks/use-announcements";
 import { perfTrace } from "@/lib/perf-trace";
 import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
 import { diag } from "@/lib/diag";
+import { DASHBOARD_EVENTS, useTrackEvent } from "@/lib/analytics/track-event";
 
 // Dynamic imports — all chart + operational widgets
 const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
@@ -69,6 +70,7 @@ export default function Home() {
   const isAdmin = role === 'admin';
 
   const { announcements, loading: announcementsLoading, error: announcementsError, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
+  const track = useTrackEvent();
 
   const [dateRange, setDateRange] = useState<DateRangeKey>('7d');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -84,8 +86,9 @@ export default function Home() {
   useEffect(() => {
     if (isMounted && dashboardMetrics) {
       perfTrace.mark('dashboard:first-paint');
+      track(DASHBOARD_EVENTS.opened, { is_mobile: isMobile, used_local_fallback: !serverMetrics });
     }
-  }, [isMounted, dashboardMetrics]);
+  }, [isMounted, dashboardMetrics]);   // eslint-disable-line react-hooks/exhaustive-deps -- first paint only
 
   const rangeOrders = useMemo(
     () => filterOrdersByDateRange(orders, dateRange),
@@ -153,17 +156,23 @@ export default function Home() {
   const rangeScoped = rangeMetrics ?? dashboardMetrics;
 
   const handleStatCardClick = (status: 'new' | 'confirmed' | 'rejected') => {
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'stats-grid', status });
     router.push(`/orders?status=${status}`);
   };
 
   const handlePipelineStageClick = (status: string) => {
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'order-pipeline', status });
     router.push(`/orders?status=${status}`);
   };
 
   // DV-D2: every widget that shows a problem should be able to show the orders
   // behind it. The orders page reads these params on mount.
-  const goToOrders = (params: Record<string, string>) =>
+  const goToOrders = (params: Record<string, string>, sourceWidget: string) => {
+    // Record WHICH widget drove the click, not the customer or city itself — a city
+    // name is business data, and events stay free of record content (OBS-D1).
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: sourceWidget, filters: Object.keys(params).join('+') });
     router.push(`/orders?${new URLSearchParams(params).toString()}`);
+  };
 
   return (
     <div className="min-h-screen p-6 md:p-8 bg-[var(--background)]">
@@ -189,7 +198,13 @@ export default function Home() {
                 </span>
               </div>
             )}
-            <DateRangeFilter value={dateRange} onChange={setDateRange} />
+            <DateRangeFilter
+              value={dateRange}
+              onChange={(next) => {
+                track(DASHBOARD_EVENTS.rangeChanged, { from: dateRange, to: next });
+                setDateRange(next);
+              }}
+            />
 
             {/* DV-D2: the Search and Bell buttons that used to sit here had no
                 onClick at all — dead controls in the page's prime real estate,
@@ -262,7 +277,7 @@ export default function Home() {
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
             <WidgetBoundary label="rejection-breakdown"><RejectionBreakdown
               cityRejectionStats={rangeScoped.urgency.cityRejectionStats}
-              onCityClick={(city) => goToOrders({ status: 'rejected', city })}
+              onCityClick={(city) => goToOrders({ status: 'rejected', city }, 'rejection-breakdown')}
             /></WidgetBoundary>
           </div>
         </div>
@@ -275,7 +290,7 @@ export default function Home() {
           <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 xl:h-[460px]">
             <WidgetBoundary label="city-leaderboard"><Leaderboard
               cities={rangeScoped.enhancedLeaderboard.topCities}
-              onCityClick={(city) => goToOrders({ city })}
+              onCityClick={(city) => goToOrders({ city }, 'city-leaderboard')}
             /></WidgetBoundary>
             <WidgetBoundary label="product-leaderboard">
               <ProductLeaderboard
