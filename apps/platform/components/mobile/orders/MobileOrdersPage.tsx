@@ -48,7 +48,6 @@ export function MobileOrdersPage() {
         filterDuplicatesOnly,
         sortConfig,
         setIsCreateModalOpen,
-        selectAll,
         groupBy,
         setGroupBy,
         setFilterDuplicatesOnly,
@@ -60,7 +59,6 @@ export function MobileOrdersPage() {
             filterDuplicatesOnly: state.filterDuplicatesOnly,
             sortConfig: state.sortConfig,
             setIsCreateModalOpen: state.setIsCreateModalOpen,
-            selectAll: state.selectAll,
             groupBy: state.groupBy,
             setGroupBy: state.setGroupBy,
             setFilterDuplicatesOnly: state.setFilterDuplicatesOnly,
@@ -189,15 +187,21 @@ export function MobileOrdersPage() {
                         </span>
                     </div>
 
-                    {/* Number Badge / Select All (Far Left in RTL) */}
+                    {/* Number badge — clears the search and the status filter.
+                        MOB-1: this also called selectAll(), but mobile renders no
+                        bulk action bar and no per-row selection toggle, so the
+                        selection went into the store where nothing could act on
+                        it. Tapping a control labelled "Select All" and getting
+                        nothing is worse than the control not claiming to do it,
+                        so the dead call is gone and the label now matches the
+                        behaviour. Mobile bulk actions remain unbuilt. */}
                     <button
                         onClick={() => {
                             setLocalSearchQuery('');
                             setFilters({ ...filters, status: "all" });
-                            selectAll(filteredOrders.map(o => o.id));
                         }}
                         className="h-full px-4 flex items-center justify-center bg-gradient-to-l from-amber-500/10 to-transparent border-r border-[var(--card-border)] text-amber-600 hover:bg-amber-500/20 transition-colors"
-                        title="Select All / Clear Search"
+                        title="Clear search and filters"
                     >
                         <span className="text-sm font-bold font-mono">{filteredOrders.length}</span>
                     </button>
