@@ -710,6 +710,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data) throw new Error("Pin update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: { note: newPinnedState ? 'Pinned order' : 'Unpinned order' },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error toggling pin:", err);
@@ -742,6 +748,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data) throw new Error("Pin update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: { note: isPinned ? 'Pinned order' : 'Unpinned order' },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error setting pin:", err);
@@ -782,6 +794,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data) throw new Error("Review update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: {
+                    order_id: order.order_id,
+                    note: newReviewedState ? 'Marked order reviewed' : 'Marked order not reviewed',
+                },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error toggling reviewed:", err);
@@ -816,6 +837,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data || data.length === 0) throw new Error("Verified update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: {
+                    order_id: order.order_id,
+                    note: `Marked customer verified across ${data.length} orders`,
+                },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error marking as verified customer:", err);
@@ -960,6 +990,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 });
             }
 
+            if (archivedIds.length > 0) {
+                activityLogger.log({
+                    action: 'order.edit',
+                    entityType: 'order',
+                    entityId: archivedIds[0],
+                    details: { note: `Archived ${archivedIds.length} orders`, order_ids: archivedIds },
+                }, tenantId);
+            }
+
             // Remove archived orders from active list in cache
             optimisticUpdate((prev) => prev.filter((order) => !archivedIds.includes(order.id)));
             return { success: true, count: archivedIds.length };
@@ -988,6 +1027,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 toast.warning(`${skipped.length} of ${orderIds.length} orders were not unarchived`, {
                     description: `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
                 });
+            }
+
+            if (unarchivedIds.length > 0) {
+                activityLogger.log({
+                    action: 'order.edit',
+                    entityType: 'order',
+                    entityId: unarchivedIds[0],
+                    details: { note: `Unarchived ${unarchivedIds.length} orders`, order_ids: unarchivedIds },
+                }, tenantId);
             }
 
             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -1334,6 +1382,20 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     })
                     .filter((order) => order.id !== archiveOrderId)
             );
+
+            // Merging combines money and archives the duplicate, so it needs an
+            // audit record naming both sides — previously it left none at all.
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: keepOrderId,
+                details: {
+                    order_id: keepOrder.order_id,
+                    note: `Merged order ${archiveOrder.order_id} into ${keepOrder.order_id}`,
+                    merged_from_order_id: archiveOrder.order_id,
+                    merged_from_id: archiveOrderId,
+                },
+            }, tenantId);
 
             return { success: true };
         } catch (err) {
