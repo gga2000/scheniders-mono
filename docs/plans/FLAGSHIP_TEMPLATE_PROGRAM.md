@@ -392,7 +392,10 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 - **W6.1** Niche content packs; signature refactored to direction + pack. *(P4)*
 - **W6.2** Template versioning and upgrade migration. *(P6)*
 - **W6.3** AI content seeding at onboarding. *(P8)*
-- **W6.4** Section-level A/B in the builder. *(A5, P10)*
+- **W6.4** Section-level A/B — ALREADY PRESENT, verified: `assignAbArm` +
+  `sb_vid` in `v2-page.tsx`, `ab_test` visibility rule in the variant editor,
+  server-derived arm attribution on `store_config_experiment_events` at
+  checkout, `aggregate_experiment_stats` in the experiments screen. *(A5, P10)*
 - **W6.5** Variants on the PDP — DONE. `helpers/variant-store.ts` (zustand,
   per product id, not persisted; `useSelectedVariant`, `stockLeftFor`,
   picker registration). `pdp_variants` and `pdp_buy_box` write it;
@@ -403,7 +406,17 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   `display_order`, carries `reserved_quantity`/`compare_at_price`/`image_url`;
   a variant without a price sells at the product price. Production has zero
   variant rows today. *(P13)*
-- **W6.6** COD risk signals at checkout. *(P16)*
+- **W6.6** COD risk signals — DONE. Migration `20260910140000`:
+  `cod_risk_signals(tenant, phone, address)` (SECURITY DEFINER, revoked from
+  anon/authenticated) reuses `risk_level_calc` / `value_tier_calc` and the
+  `blacklist` table, adds duplicate-open-order (24 h, linked id), velocity
+  (3 in 1 h) and thin-address (< 10 chars). `submitCheckout` stamps
+  `risk_metadata` (`source: "storefront"`), `needs_attention`,
+  `attention_reasons` via the existing `create_order_atomic` fields
+  (`packages/shared/src/cod-risk.ts` shapes it; vocabulary
+  clean/caution/high/blocked, newcomer/good/vip). Ops chips in the order card
+  and the virtualized table (`COD_RISK_REASON_LABELS`). Rolled-back probe on
+  real histories verified all four reasons. *(P16)*
 - **W6.7** Storefront funnel dashboard. *(G1)*
 - **W6.8** Kurdish locale. *(P9)*
 

@@ -7982,6 +7982,10 @@ export type Database = {
           unread: number
         }[]
       }
+      cod_risk_signals: {
+        Args: { _address: string; _phone: string; _tenant_id: string }
+        Returns: Json
+      }
       compute_lead_predictions: {
         Args: {
           p_avg_order_count?: number

@@ -1,5 +1,6 @@
 "use client";
 
+import { COD_RISK_REASON_LABELS, type CodRiskReason } from "@scheniders/shared";
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -402,6 +403,16 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         return order.order_id.slice(-6);
                     })()}
                 </span>
+                {order.needs_attention && (order.attention_reasons ?? []).some((r: string) => r in COD_RISK_REASON_LABELS) && (
+                    <span
+                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700 border border-amber-200"
+                        title={((order.attention_reasons ?? []) as string[]).filter((r): r is CodRiskReason => r in COD_RISK_REASON_LABELS).map((r) => COD_RISK_REASON_LABELS[r].ar).join(' · ')}
+                        data-testid="cod-risk-chip"
+                    >
+                        <AlertTriangle className="w-3 h-3" />
+                        COD
+                    </span>
+                )}
                 {order.needs_attention && order.attention_reasons?.some((r: string) => r.startsWith('whatsapp_')) && (
                     <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || 'فشل واتساب'}>
                         <AlertTriangle className="w-3 h-3" />

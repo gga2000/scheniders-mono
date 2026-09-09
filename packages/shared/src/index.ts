@@ -18,6 +18,7 @@ export * from "./health-rules";
 export * from "./locale";
 export * from "./loyalty";
 export * from "./referral";
+export * from "./cod-risk";
 export * from "./pixel";
 export * from "./price-tiers";
 export * from "./order-bumps";

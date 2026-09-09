@@ -1,5 +1,6 @@
 "use client";
 
+import { COD_RISK_REASON_LABELS, type CodRiskReason } from "@scheniders/shared";
 import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
@@ -1548,6 +1549,23 @@ export const OrderCard = memo(function OrderCard({
                                                                     order.attention_reasons!.includes('delivery_wrong_status') ? 'حالة خاطئة' :
                                                                         order.attention_reasons!.includes('delivery_partial_delivery') ? 'تسليم جزئي' :
                                                                             'مراجعة توصيل'}
+                                            </span>
+                                        )}
+                                        {/* COD risk signals stamped by the storefront at checkout (cod_risk_signals) */}
+                                        {order.needs_attention && (order.attention_reasons ?? []).some((r) => r in COD_RISK_REASON_LABELS) && (
+                                            <span
+                                                className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20"
+                                                title={(order.attention_reasons ?? [])
+                                                    .filter((r): r is CodRiskReason => r in COD_RISK_REASON_LABELS)
+                                                    .map((r) => COD_RISK_REASON_LABELS[r].ar)
+                                                    .join(' · ')}
+                                                data-testid="cod-risk-chip"
+                                            >
+                                                <AlertTriangle className="w-3.5 h-3.5" />
+                                                {COD_RISK_REASON_LABELS[(order.attention_reasons ?? []).find((r): r is CodRiskReason => r in COD_RISK_REASON_LABELS)!].ar}
+                                                {(order.attention_reasons ?? []).filter((r) => r in COD_RISK_REASON_LABELS).length > 1 && (
+                                                    <span className="opacity-70">+{(order.attention_reasons ?? []).filter((r) => r in COD_RISK_REASON_LABELS).length - 1}</span>
+                                                )}
                                             </span>
                                         )}
                                         {/* WhatsApp Attention Flag - shows when message sending failed */}
