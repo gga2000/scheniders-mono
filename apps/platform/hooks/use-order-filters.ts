@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useMemo, useCallback, useDeferredValue, useRef, useLayoutEffect } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useRef, useLayoutEffect, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
+import { reportOrderError } from "@/lib/order-telemetry";
+import { toast } from "@/hooks/use-toast";
 import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
@@ -42,12 +46,74 @@ interface UseOrderFiltersOptions {
 
 export function useOrderFilters({ orders, archivedOrders, filters, setFilters, clearFilters }: UseOrderFiltersOptions) {
 
+    // WF-3: saved views used to live only in localStorage, so they did not follow
+    // a user to another device or browser and were lost when site data was
+    // cleared. They now persist to `filter_presets`, which already existed with
+    // tenant-scoped RLS. localStorage is kept as the initial paint (so the list
+    // is not empty on first render) and as the source for a one-time migration
+    // of views a user had saved before this change.
     const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
         if (typeof window !== "undefined") {
             return loadFilterPresetsFromStorage();
         }
         return [];
     });
+
+    const { tenantId } = useAuth();
+
+    useEffect(() => {
+        if (!tenantId) return;
+        let cancelled = false;
+
+        (async () => {
+            const { data, error } = await supabase
+                .from("filter_presets")
+                .select("id, name, filters, page, created_by, created_at")
+                .eq("page", "orders")
+                .order("created_at", { ascending: true });
+
+            if (cancelled) return;
+            if (error) {
+                // Keep whatever localStorage gave us rather than blanking the list.
+                reportOrderError(error, { operation: "orders-filter-presets-load", tenantId });
+                return;
+            }
+
+            const remote = (data ?? []) as FilterPreset[];
+
+            // One-time lift of pre-existing local views into the shared table.
+            const local = loadFilterPresetsFromStorage();
+            const missing = local.filter(l => !remote.some(r => r.name === l.name));
+            if (missing.length > 0) {
+                const { error: upErr } = await supabase.from("filter_presets").insert(
+                    missing.map(m => ({
+                        name: m.name,
+                        filters: m.filters,
+                        page: "orders",
+                        created_by: m.created_by ?? null,
+                        tenant_id: tenantId,
+                    })),
+                );
+                if (upErr) {
+                    reportOrderError(upErr, { operation: "orders-filter-presets-migrate", tenantId });
+                } else {
+                    const { data: refreshed } = await supabase
+                        .from("filter_presets")
+                        .select("id, name, filters, page, created_by, created_at")
+                        .eq("page", "orders")
+                        .order("created_at", { ascending: true });
+                    if (!cancelled && refreshed) {
+                        setFilterPresets(refreshed as FilterPreset[]);
+                        return;
+                    }
+                }
+            }
+
+            setFilterPresets(remote);
+        })();
+
+        return () => { cancelled = true; };
+    }, [tenantId]);
 
     const deferredOrders = useDeferredValue(orders);
     const deferredArchivedOrders = useDeferredValue(archivedOrders);
@@ -313,8 +379,36 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
     function saveFilterPreset(name: string) {
         const preset = createFilterPreset(name, filters, "orders");
         const updated = [...filterPresets, preset];
+        // Optimistic so the view appears immediately; the row id is replaced by
+        // the server's once the insert returns.
         setFilterPresets(updated);
         saveFilterPresetsToStorage(updated);
+
+        void (async () => {
+            const { data, error } = await supabase
+                .from("filter_presets")
+                .insert({
+                    name: preset.name,
+                    filters: preset.filters,
+                    page: "orders",
+                    created_by: preset.created_by ?? null,
+                    tenant_id: tenantId,
+                })
+                .select("id, name, filters, page, created_by, created_at")
+                .single();
+
+            if (error) {
+                reportOrderError(error, { operation: "orders-filter-preset-save", tenantId });
+                toast.error("Saved view kept on this device only", "It could not be synced to your account.");
+                return;
+            }
+            if (data) {
+                setFilterPresets(prev =>
+                    prev.map(p => (p.id === preset.id ? (data as FilterPreset) : p)),
+                );
+            }
+        })();
+
         return preset;
     }
 
@@ -329,6 +423,13 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
         const updated = filterPresets.filter((p) => p.id !== presetId);
         setFilterPresets(updated);
         saveFilterPresetsToStorage(updated);
+
+        void (async () => {
+            const { error } = await supabase.from("filter_presets").delete().eq("id", presetId);
+            if (error) {
+                reportOrderError(error, { operation: "orders-filter-preset-delete", tenantId });
+            }
+        })();
     }
 
 
