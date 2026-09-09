@@ -308,9 +308,17 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   have worked. Tables created; anon read split from members-only.
 - **W3.1** ~~`OfferRule` schema~~ — superseded. Bundles and discounts already
   have a config home and a server-authoritative resolver.
+- **W3.0.2** *(done)* **Second live P0**, found probing W3.4. `create_order_atomic`
+  picked the next order number with `order_id LIKE prefix% AND created_at >=
+  current_date`. `created_at` is editable (the LightFunnels importer stamps its
+  own timestamp), so a backdated order carrying today's prefix was invisible to
+  the scan — MAX returned 0 and every web checkout collided on `…001`. Fixed by
+  scanning on prefix alone; verified live (`4260909002` issued).
 - **W3.2** PDP + cart offer surfaces: bundles, free-gift progress bar. *(A1, A2)*
 - **W3.3** Checkout order bump. *(A4a)*
-- **W3.4** Post-purchase upsell → downsell chain + `…/append` endpoint. *(A4b)*
+- **W3.4** *(done)* Post-purchase upsell → downsell via `…/[id]/upsell` (GET lists,
+  POST accepts). Offers are the merchant's existing order bumps. Ownership =
+  order id + phone, status `new`, under an hour old. *(A4b)*
 - **W3.5** Quantity ladder on PDP. *(A7)*
 - **W3.6** Offer builder UI in the store builder.
 
