@@ -1,8 +1,9 @@
+import { useMemo } from "react";
 // apps/platform/hooks/chat/use-order-actions.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useConversations, chatKeys } from "./use-conversations";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersByIdQuery, type LinkedOrder } from "@/hooks/use-orders-by-id-query";
 import { orderKeys } from "@/hooks/use-orders-query";
 import type { Order } from "@/types/order";
 
@@ -49,17 +50,17 @@ export function useSetConversationResolved() {
 }
 
 /**
- * Returns the live `Order` object linked to a conversation, or `null` when:
- * - the conversation is not an order thread (`order_id` is null), or
- * - the order is not yet loaded in the orders context.
+ * The order linked to a conversation, or `null` when the conversation is not an
+ * order thread or the order has not arrived yet.
+ *
+ * PERF-D1: this used to scan the whole order book held in context. It now
+ * fetches the one order it needs, sharing the ["orders","byId"] cache with
+ * conversation-list.
  */
-export function useOrderForConversation(conversationId: string | null): Order | null {
+export function useOrderForConversation(conversationId: string | null): LinkedOrder | null {
     const { data: conversations = [] } = useConversations();
-    const { orders } = useOrdersContext();
-
     const conv = conversationId ? conversations.find((c) => c.id === conversationId) : null;
     const orderId = conv?.order_id ?? null;
-    if (!orderId) return null;
-
-    return orders.find((o) => o.id === orderId) ?? null;
+    const byId = useOrdersByIdQuery(useMemo(() => (orderId ? [orderId] : []), [orderId]));
+    return orderId ? byId.get(orderId) ?? null : null;
 }

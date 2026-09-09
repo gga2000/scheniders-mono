@@ -23,7 +23,8 @@ import { useWebPush } from "@/hooks/chat/use-web-push";
 import { useLanguage } from "@/components/providers/language-provider";
 import { filterConversations } from "@/lib/chat/filter-conversations";
 import type { ConvFilter } from "@/lib/chat/filter-conversations";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrdersByIdQuery, type LinkedOrder } from "@/hooks/use-orders-by-id-query";
+import type { OrderStatus } from "@/types/order";
 import type { Order } from "@/types/order";
 import { formatIQD } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
@@ -130,7 +131,7 @@ function OrderSection({
     onSelect: (id: string) => void;
     nameFor: (c: ConversationWithMeta) => string;
     onOpenSettings: (conversationId: string) => void;
-    orderMap: Map<string, Order>;
+    orderMap: ReadonlyMap<string, LinkedOrder>;
     showSubFilter: boolean;
 }) {
     const { t } = useLanguage();
@@ -162,7 +163,10 @@ function OrderSection({
             const order = orderMap.get(c.order_id);
             if (!order) return statusFilter === "all"; // not loaded → pass status filter only
             if (statusFilter !== "all" && order.status !== statusFilter) return false;
-            if (minNum !== null && minValueValid && order.price < minNum) return false;
+            // SEC-D2: price is null for a role that may not see money. An
+            // unknown value cannot fail a minimum — same rule as the missing
+            // order above, which passes rather than disappears.
+            if (minNum !== null && minValueValid && order.price !== null && order.price < minNum) return false;
             return true;
         });
     }, [items, showSubFilter, statusFilter, minNum, minValueValid, orderMap, unresolvedOnly]);
@@ -272,13 +276,15 @@ function OrderSection({
                                     {linkedOrder && (
                                         <span className="mt-0.5 flex items-center gap-1.5">
                                             <span
-                                                className={`inline-flex items-center rounded-full px-1.5 py-px text-[9px] font-semibold leading-none ${getStatusBadgeStyle(linkedOrder.status)}`}
+                                                className={`inline-flex items-center rounded-full px-1.5 py-px text-[9px] font-semibold leading-none ${getStatusBadgeStyle(linkedOrder.status as OrderStatus)}`}
                                             >
                                                 {PIPELINE_STAGE_REGISTRY[linkedOrder.status as PipelineStageId]?.fallback ?? linkedOrder.status}
                                             </span>
-                                            <span className="text-[10px] tabular-nums text-muted-foreground">
-                                                {formatIQD(linkedOrder.price)}
-                                            </span>
+                                            {linkedOrder.price !== null && (
+                                                <span className="text-[10px] tabular-nums text-muted-foreground">
+                                                    {formatIQD(linkedOrder.price)}
+                                                </span>
+                                            )}
                                         </span>
                                     )}
                                 </button>
@@ -377,7 +383,6 @@ export function ConversationList() {
     const startDm = useStartDm();
     const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings, soundEnabled, setSoundEnabled } = useChatStore();
     const { t } = useLanguage();
-    const { orders } = useOrdersContext();
     const [startingId, setStartingId] = useState<string | null>(null);
     const [newMenuOpen, setNewMenuOpen] = useState(false);
     const [channelDialogOpen, setChannelDialogOpen] = useState(false);
@@ -401,11 +406,15 @@ export function ConversationList() {
         [members]
     );
 
-    // Index orders by their DB id (= conversation.order_id) for O(1) lookup.
-    const orderMap = useMemo(
-        () => new Map<string, Order>(orders.map((o) => [o.id, o])),
-        [orders]
+    // PERF-D1: fetch the orders these conversations actually link to. This used
+    // to index the ENTIRE order book to read `status` and `price` off the few
+    // conversations that are order threads — and this component is mounted in
+    // the root layout, so it paid that cost on every route.
+    const linkedOrderIds = useMemo(
+        () => conversations.map((c) => c.order_id).filter((v): v is string => !!v),
+        [conversations]
     );
+    const orderMap = useOrdersByIdQuery(linkedOrderIds);
 
     const mentionConvIds = useMemo(
         () => new Set(mentions.map((n) => n.conversation_id).filter((id): id is string => id !== null)),

@@ -1,4 +1,5 @@
 // apps/platform/components/chat/order-action-bar.tsx
+import type { LinkedOrder } from "@/hooks/use-orders-by-id-query";
 "use client";
 import { useState } from "react";
 import { Check, ChevronDown, UserPlus, CheckCircle, Circle } from "lucide-react";
@@ -16,7 +17,8 @@ import type { Order, OrderStatus } from "@/types/order";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
 
 interface OrderActionBarProps {
-    order: Order;
+    // PERF-D1: chat fetches the columns it reads, not whole orders.
+    order: LinkedOrder;
     conversation: ConversationWithMeta;
 }
 

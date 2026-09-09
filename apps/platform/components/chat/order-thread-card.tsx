@@ -1,4 +1,6 @@
 // apps/platform/components/chat/order-thread-card.tsx
+import type { LinkedOrder } from "@/hooks/use-orders-by-id-query";
+import type { OrderStatus } from "@/types/order";
 "use client";
 import { Phone } from "lucide-react";
 import { useOrderForConversation } from "@/hooks/chat/use-order-actions";
@@ -51,7 +53,7 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
 
     const statusMeta = PIPELINE_STAGE_REGISTRY[order.status as PipelineStageId];
     const statusLabel = statusMeta?.fallback ?? order.status;
-    const waLink = generateWhatsAppLink(order.phone);
+    const waLink = order.phone ? generateWhatsAppLink(order.phone) : undefined;
 
     return (
         <div className="shrink-0 border-b border-(--card-border) bg-(--card-bg)">
@@ -60,11 +62,11 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
                 <span className="text-[11px] font-mono font-semibold tracking-tight text-muted-foreground">
                     #{order.order_id}
                 </span>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none ${getStatusBadgeStyle(order.status)}`}>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none ${getStatusBadgeStyle(order.status as OrderStatus)}`}>
                     {statusLabel}
                 </span>
                 <span className="ml-auto text-xs font-semibold tabular-nums text-foreground">
-                    {formatIQD(order.price)}
+                    {order.price === null ? "" : formatIQD(order.price)}
                 </span>
             </div>
 
