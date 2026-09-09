@@ -58,7 +58,7 @@ const defaultProps: Props = {
 };
 
 /** Icon-box tint rotation, derived from the tenant's own palette rather
- *  than the fixed `--bk-mint/--bk-sky/--bk-lilac` candy pastels: those are
+ *  than the `--bk-decor-a/b/c` decorative surfaces: those are
  *  deliberately un-themeable, so on a cream-and-yellow store they were the
  *  one off-palette thing on the product page. Soft mixes keep the rotation
  *  legible against `--bk-ink` on every kit. (A dynamic `bg-candy-${tint}`
