@@ -1,0 +1,331 @@
+# Flagship Template Program
+
+**Goal.** Turn `scheniders_signature` from a bespoke perfume storefront into the
+platform's flagship store template: world-class on its own merits, and general
+enough that a coffee roaster, a fashion label or an electronics shop can adopt it
+without a developer.
+
+**Owner.** Ali (merchant + platform owner).
+**Started.** 2026-09-09. **Branch.** `feat/flagship-template` (worktree
+`.claude/worktrees/flagship`, cut from `origin/main` @ `e1eb320f`).
+
+---
+
+## 1. The reframe
+
+The perfume features Ali asked for are the *test case*, not the *feature*. Each
+one ships as a generic primitive that any niche instantiates:
+
+| Asked for (perfume)     | Ships as (platform)             | Coffee          | Electronics     |
+| ----------------------- | ------------------------------- | --------------- | --------------- |
+| Scent-family filter     | Attribute facet filter          | Roast / origin  | Brand / RAM     |
+| Note pyramid            | Grouped-attribute renderer      | Flavour wheel   | —               |
+| Longevity / sillage bars | Range-attribute meters         | Body / acidity  | Battery / weight |
+| "Similar to X"          | Attribute-similarity relation   | Similar roasts  | Compatible models |
+| Scent-finder quiz       | Product-finder quiz engine      | Coffee quiz     | Buying guide    |
+
+One system, five features, every niche. **This is the keystone.** Nothing else
+in this program is worth building before it.
+
+## 2. What already exists (verified, do not rebuild)
+
+Research on 2026-09-09 against `origin/main`:
+
+- **Section contract is sound.** Each section is a `SectionDefinition` in
+  `packages/sections/src/<type>.tsx` with a Zod `schema` as the single source of
+  truth. `apps/platform/lib/sections-manifest.ts` projects the registry into the
+  editor, so the auto-form derives from the real schema — zero drift. Keep this.
+- **Brand kit already spans more than colour.** `BrandKit` carries `shape`
+  (radius, border thickness, shadow style, rotation), `motion`, `typography`
+  (incl. Arabic pairings) and `voice`; `buildBrandKitVars()` emits ~38 `--bk-*`
+  tokens including `--bk-radius-*`, `--bk-shadow-*`, `--bk-border-thickness`,
+  `--bk-duration-*`, `--bk-scale-*`. **P7 is ~90% done** — what remains is
+  adoption and removing the Candy Bento leftovers (`--bk-lilac`, `--bk-mint`,
+  `--bk-sky`, `--bk-wedge-multiplier`).
+- **Per-governorate delivery is already built.** `GovernorateShippingConfig`
+  supports per-governorate `fee_iqd`, `free_threshold_iqd` and `eta_hours` with a
+  `default_rate` fallback. **C2 is a surfacing job, not a build job.** Ali's note
+  that Iraqi delivery is usually a flat fee is satisfied by `default_rate` alone.
+- **Tables that exist:** `product_variants`, `product_reviews`, `customer_points`,
+  `customer_points_ledger`, `store_config_experiment_events`,
+  `aggregate_experiment_stats`, `order_status_history`, `industries`.
+- **APIs that exist:** `/api/loyalty/balance`, `/api/exp-event`,
+  `/api/cart/abandoned`, `/api/reviews`, `/api/orders/lookup`,
+  `/api/newsletter`, `/api/checkout/orders`.
+- **Config primitives that exist with real implementations:** `AudienceSegment`
+  (17 files), `NamedSnapshot` (7), `ScheduledChange` (4), `ExperimentArm`.
+
+**The gap that matters:** `products` has **no generic attributes column**, and
+`scheniders-signature.ts` is **685 lines** of hardcoded perfume copy against
+~80 lines for every other template.
+
+## 3. Standing constraints (carried from the SOTA engagement)
+
+1. **Zero hardcoding.** Everything renders from tenant data, `--bk-*` tokens or props.
+2. **Root-cause fixes only.** No workarounds.
+3. **Section back-compat.** Other templates share these sections. Default
+   branches stay byte-identical; a Zod parse failure silently DROPS a section at
+   render, so every schema change is additive-with-default.
+4. **LTR only.** Never `<html dir>` / `dir="rtl"`.
+5. **Arabic-first**, Iraqi dialect, judged in Arabic first.
+6. **Mobile is the business.** Design and audit at 390px first.
+7. **Never change the checkout wire contract.** `/api/checkout/orders` and its
+   422 `new_price` self-heal are battle-tested. New capabilities get new
+   endpoints; the existing contract is frozen.
+8. **Publish discipline.** Work on `store_config_v2_draft` + a branch. Never
+   publish config before the code that understands it is live on `main`. Respect
+   the `store_config_rev` optimistic lock.
+9. **Do not touch:** DNS/domains, WhatsApp/Interakt cutover, other tenants' data,
+   other sessions' migrations.
+10. **Supabase NEW project `sduvpgqwhxragxtxztur` only.** Storage keys must be
+    ASCII/hex (Arabic → `InvalidKey`); `tenant-assets` caps at 512KB.
+
+## 4. Architecture decisions
+
+### D1 — Attribute system (P1)
+
+Two tables, both tenant-scoped with RLS from creation.
+
+```
+product_attribute_defs           -- the taxonomy, per tenant
+  id, tenant_id, key (ascii slug), name_i18n,
+  kind: 'enum' | 'range' | 'group_list' | 'text' | 'boolean',
+  options        jsonb   -- enum:       [{value, label_i18n, color?}]
+  group_keys     jsonb   -- group_list: [{key, label_i18n}]  e.g. top/heart/base
+  range_min, range_max, unit_i18n       -- range
+  is_filterable, is_comparable, display_order
+  unique (tenant_id, key)
+
+product_attribute_values         -- values per product
+  product_id, attribute_def_id, tenant_id, value jsonb
+  primary key (product_id, attribute_def_id)
+```
+
+`value` shape follows `kind`: enum → `"oriental"`; range → `4.5`; group_list →
+`{top:[...], heart:[...], base:[...]}`; text → `{en, ar}`; boolean → `true`.
+
+- GIN index on `value`, btree on `(tenant_id, attribute_def_id)`.
+- anon `SELECT` only for values of visible products; defs readable per tenant.
+- Storefront `Product` type gains `attributes: Record<key, {def, value}>`.
+
+**Why this shape:** one renderer per `kind` covers every niche. A merchant adding
+"roast level" gets meters for free; adding "flavour notes" gets the pyramid for
+free. No section knows the word "perfume".
+
+### D2 — Layout variants, not section proliferation (P2)
+
+One `product_attributes` section with a `layout` enum
+(`pyramid | meters | table | chips | accordion`). Merchant picks in a dropdown.
+The alternative — a section per presentation — yields ~40 near-duplicate entries
+and an unusable picker. This rule applies program-wide: **new presentation is a
+variant prop; new behaviour is a new section.**
+
+### D3 — Auto-form v2 via UI hints sidecar (P3)
+
+The editor form is flat today. Sections with 20+ props will make it unusable, and
+this program adds many. Rejected: encoding metadata into Zod `.describe()`
+(abuses a field already used for help text). **Chosen:** an optional `ui` sidecar
+on `SectionDefinition`.
+
+```ts
+interface SectionUiHints<P> {
+  groups?: Array<{ id: string; label: I18nString; collapsed?: boolean }>;
+  fields?: Partial<Record<keyof P & string, {
+    group?: string;
+    widget?: "product_picker" | "category_picker" | "attribute_picker"
+           | "image" | "color" | "icon" | "textarea" | "richtext" | "page_picker";
+    label?: I18nString;
+    help?: I18nString;
+    show_when?: { field: string; equals: unknown | unknown[] };
+    order?: number;
+  }>>;
+}
+```
+
+Optional by construction, so **every existing section renders byte-identically**
+(constraint 3). The manifest passes `ui` through; `auto-form` reads it.
+
+### D4 — Offer engine (P5)
+
+A1 bundles, A2 free-gift, A4 bump/upsell/downsell and A7 quantity ladder are one
+thing: merchant-defined rules. Rules live in `store_config_v2.commerce.offers` —
+merchant-editable in the builder, versioned, publishable, consistent with the
+rest of the config.
+
+```ts
+interface OfferRule {
+  id: string; enabled: boolean; label: string;
+  placement: "pdp" | "cart" | "checkout_bump"
+           | "post_purchase_upsell" | "post_purchase_downsell";
+  trigger: { kind: "always" }
+         | { kind: "product_in_cart";  product_ids: string[] }
+         | { kind: "category_in_cart"; category_ids: string[] }
+         | { kind: "subtotal_gte";     iqd: number };
+  offer:   { kind: "product"; product_id: string; variant_id?: string }
+         | { kind: "bundle";  product_ids: string[] }
+         | { kind: "free_gift"; product_id: string };
+  pricing: { kind: "fixed_iqd" | "percent_off"; value: number } | { kind: "free" };
+  copy: { headline_i18n; body_i18n; accept_i18n; decline_i18n };
+  on_decline?: { next_offer_id?: string };   // the downsell chain
+}
+```
+
+**Post-purchase upsell and constraint 7.** Appending to a placed order must not
+touch `/api/checkout/orders`. A new endpoint
+`POST /api/checkout/orders/[id]/append` handles it, guarded by the order token
+already issued at confirmation, and refuses once the order leaves `pending`.
+
+### D5 — Order-status narratives (C4)
+
+Per Ali's spec. `store_config_v2.commerce.order_status_narratives` maps each
+order status to merchant-editable customer-facing copy:
+
+```ts
+Record<OrderStatus, {
+  title_i18n; body_i18n; next_i18n;
+  cta?: { kind: "whatsapp" | "phone" | "link" | "review"; label_i18n; value? };
+}>
+```
+
+Shipped defaults (Iraqi dialect), with the WhatsApp-bot reality baked in:
+
+| Status | Customer sees |
+| --- | --- |
+| `pending` | طلبك وصلنا. فريقنا راح يتواصل وياك عبر واتساب. — "ما وصلتك رسالة؟ اتصل بينا" → **tenant contact number** |
+| awaiting confirm | دزينالك رسالة على واتساب — أكّد الطلب حتى نكمل. |
+| `confirmed` | طلبك مؤكد ✅ قيد التحضير. |
+| shipped / out for delivery | طلبك بالطريق. المندوب راح يتصل بيك. |
+| `delivered` / `completed` | تم التسليم. شكراً! → review CTA (feeds C1) |
+| `cancelled` / `returned` | Reason + reorder CTA |
+| `no_answer` | حاولنا نتصل بيك وما ردّيت — راجعنا على واتساب |
+
+Every string merchant-editable per status. The contact number comes from tenant
+config — **never hardcoded**. `order_tracker` renders a visual timeline plus the
+narrative for the current status. Lookup is phone + order number and must not
+leak PII beyond the order it matches.
+
+Confirmed statuses in use: `pending`, `confirmed`, `delivered`, `completed`,
+`cancelled`, `returned`, `no_answer`. The exact full set is verified at the start
+of Wave 4 before the narrative map is frozen.
+
+### D6 — Niche content packs (P4)
+
+Split the 685-line signature template into:
+
+- **visual direction** — brand kit + section stacks (~120 lines, like its peers)
+- **content pack** — `lib/store-templates/content-packs/<niche>.ts`, carrying
+  copy, seed attribute taxonomy and starter categories.
+
+`applyStoreTemplate(direction, pack)` composes them. Onboarding becomes: pick
+niche → pick look. Packs: perfume, coffee, fashion, beauty, electronics, food,
+services.
+
+### D7 — Template versioning (P6)
+
+When the flagship improves, merchants already on it should be able to pull the
+improvement without losing customisation. Approach: templates carry a
+`version` and a per-version **migration list**; a merchant's config records
+`template_id` + `template_version` and which section instances they have edited
+(dirty flags). Upgrading replays migrations, skipping dirty instances and
+reporting them for manual review. Designed in Wave 6, not before — it needs the
+section set to have stopped moving.
+
+## 5. Waves
+
+Sequencing is not cosmetic: **W1 unlocks roughly half the backlog.** Building
+Ali's list in the order he gave it would mean rewriting most of it later.
+
+### Wave 0 — Foundations & hygiene
+- **W0.1** Worktree off `origin/main`, program plan committed. *(done)*
+- **W0.2** Remove Candy Bento leftovers from `brand-kit-vars.ts` (`--bk-lilac`,
+  `--bk-mint`, `--bk-sky`, `--bk-wedge-multiplier`) after auditing every consumer.
+- **W0.3** Audit `shape`/`motion` token adoption across all 61 sections; replace
+  hardcoded radii/shadows/borders with the tokens they should have used. (P7 remainder)
+
+### Wave 1 — Keystones
+- **W1.1** Migration: `product_attribute_defs` + `product_attribute_values`, RLS,
+  indexes, anon grants. Regenerate `database.types.ts`.
+- **W1.2** Shared types + storefront query join; `Product.attributes`.
+- **W1.3** Platform: attribute taxonomy manager (define per tenant).
+- **W1.4** Platform: per-product attribute editor.
+- **W1.5** `SectionUiHints` type + manifest passthrough (no behaviour change).
+- **W1.6** Auto-form v2: field groups + `show_when` conditional visibility.
+- **W1.7** Auto-form v2: rich widgets (product / category / attribute / image /
+  colour / icon / page pickers).
+
+### Wave 2 — Attribute-driven storefront
+- **W2.1** `product_attributes` section with all five layout variants. *(B4, B5)*
+- **W2.2** Facet filtering in `filterable-grid`, category and products pages. *(B2)*
+- **W2.3** Attribute-similarity related products. *(B7)*
+- **W2.4** Search: Arabic normalisation (ة/ه, ى/ي, hamza forms, diacritics),
+  typo tolerance, facets, suggestions. *(E3, P17)*
+- **W2.5** Product-finder quiz engine — questions map to attribute filters. *(B3)*
+
+### Wave 3 — Money engine
+- **W3.1** `OfferRule` schema in store-config-v2 + resolver in `shared`.
+- **W3.2** PDP + cart offer surfaces: bundles, free-gift progress bar. *(A1, A2)*
+- **W3.3** Checkout order bump. *(A4a)*
+- **W3.4** Post-purchase upsell → downsell chain + `…/append` endpoint. *(A4b)*
+- **W3.5** Quantity ladder on PDP. *(A7)*
+- **W3.6** Offer builder UI in the store builder.
+
+### Wave 4 — Trust & post-purchase
+- **W4.1** Verify the full order-status set; narratives schema + dialect defaults. *(C4)*
+- **W4.2** Rebuild `order_tracker`: timeline, per-status narrative, dynamic
+  contact number, WhatsApp-confirmation awareness. *(C4)*
+- **W4.3** Surface delivery fee + ETA on PDP and cart from the existing config. *(C2)*
+- **W4.4** Shopper photo reviews: submit from the delivered-order link, moderate
+  in platform. *(C1)*
+- **W4.5** Authenticity block *(C5)* and open-on-delivery policy surface *(C3)*.
+- **W4.6** Real inventory-driven urgency, replacing the evergreen countdown. *(P14)*
+
+### Wave 5 — Identity & retention
+- **W5.1** Phone-recognition autofill — returning COD customer types a number,
+  gets name/governorate/address back. *(P15)*
+- **W5.2** Loyalty earn on delivered + redeem at checkout. *(A3)*
+- **W5.3** Referral codes. *(D3)*
+- **W5.4** Abandoned-cart capture, storefront half only. *(A6 — Interakt is out of scope)*
+
+### Wave 6 — Platform
+- **W6.1** Niche content packs; signature refactored to direction + pack. *(P4)*
+- **W6.2** Template versioning and upgrade migration. *(P6)*
+- **W6.3** AI content seeding at onboarding. *(P8)*
+- **W6.4** Section-level A/B in the builder. *(A5, P10)*
+- **W6.5** Variants on the PDP. *(P13)*
+- **W6.6** COD risk signals at checkout. *(P16)*
+- **W6.7** Storefront funnel dashboard. *(G1)*
+- **W6.8** Kurdish locale. *(P9)*
+
+### Wave 7 — Craft
+- **W7.1** View Transitions grid → PDP. *(F1)*
+- **W7.2** Image pipeline audit: AVIF/WebP, correct `sizes`. *(F2)*
+- **W7.3** Optimistic cart + designed skeletons. *(F3)*
+- **W7.4** PWA / add-to-home-screen. *(F4)*
+- **W7.5** schema.org product rich results. *(E2)*
+- **W7.6** Arabic blog / guides. *(E1)*
+- **W7.7** Video sections wired. *(E4)*
+- **W7.8** Motion identity pass. *(H2)*
+- **W7.9** Per-section performance + a11y budgets in CI. *(P11)*
+- **W7.10** Storybook × variant visual regression. *(P12)*
+
+## 6. Definition of done (every task)
+
+1. `pnpm type-check` and `pnpm lint` pass — the CI gate.
+2. Relevant `vitest` run locally. **CI does not run tests.**
+3. DB changes: RLS + tenant scoping confirmed.
+4. Section changes: default branch proven byte-identical (parity harness).
+5. Verified at 390px first, then 1440px. Screenshot before/after for visual work.
+6. One PR per task or per coherent group; config published only after the code
+   that understands it is live on `main`.
+
+## 7. Out of scope
+
+DNS flip to scheniders.com · WhatsApp/Interakt cutover · D1 repurchase reminders
+and D2 VIP tiers (deferred by Ali) · H1 logo redesign (brand stays) · H3
+editorial photography (revisit later) · other tenants' data.
+
+## 8. Open merchant decisions carried forward
+
+From the SOTA audit §5, still unanswered and still non-blocking: countdown
+authenticity (superseded by W4.6), footer legal-name spelling, collection
+curation, Instagram handle `@kawkab.brand`, the 18-hour delivery SLA.
