@@ -98,144 +98,9 @@ export function normalizeArabicText(text: string): string {
 // ORDER FILTERING
 // =============================================
 
-/**
- * Apply filters to an array of orders
- * This is a pure function that can be used anywhere
- */
-export function applyOrderFilters(
-    orders: Order[],
-    filters: OrderFilters
-): Order[] {
-    return orders.filter((order) => {
-        // Status filter
-        const statusFilter = filters.status as string;
-        if (statusFilter && statusFilter !== "all") {
-            // Special handling for "needs_review" filter
-            if (statusFilter === "needs_review") {
-                const needsReview = checkIfOrderNeedsReview(order);
-                if (!needsReview) return false;
-            } else if (order.status !== statusFilter) {
-                return false;
-            }
-        }
 
-        // Date range filter
-        if (filters.dateFrom) {
-            const orderDate = new Date(order.created_at);
-            const fromDate = new Date(filters.dateFrom);
-            fromDate.setHours(0, 0, 0, 0);
-            if (orderDate < fromDate) return false;
-        }
-        if (filters.dateTo) {
-            const orderDate = new Date(order.created_at);
-            const toDate = new Date(filters.dateTo);
-            toDate.setHours(23, 59, 59, 999);
-            if (orderDate > toDate) return false;
-        }
 
-        // City filter
-        if (filters.city && order.city !== filters.city) {
-            return false;
-        }
 
-        // Product filter
-        if (filters.product) {
-            const hasProduct = order.items?.some((item) =>
-                item.name.toLowerCase().includes(filters.product!.toLowerCase())
-            );
-            if (!hasProduct) return false;
-        }
-
-        // Priority filter
-        if (filters.priority && order.priority !== filters.priority) {
-            return false;
-        }
-
-        // Payment status filter
-        if (filters.paymentStatus && order.payment_status !== filters.paymentStatus) {
-            return false;
-        }
-
-        // Return orders filter
-        if (filters.isReturn !== undefined && order.is_return !== filters.isReturn) {
-            return false;
-        }
-
-        // Search query
-        if (filters.searchQuery) {
-            // Shared with the mobile screen so the two cannot drift again.
-            if (!orderMatchesSearch(order, filters.searchQuery, orders)) return false;
-        }
-
-        return true;
-    });
-}
-
-/**
- * Check if an order needs manual review
- */
-export function checkIfOrderNeedsReview(order: Order): boolean {
-    // Has warning flags in notes
-    if (order.notes && order.notes.includes("⚠️")) return true;
-
-    // Empty items and not a manual order
-    if (
-        (!order.items || order.items.length === 0) &&
-        order.customer_name !== "Manual Order"
-    ) {
-        return true;
-    }
-
-    // Placeholder customer name
-    if (
-        order.customer_name?.startsWith("Customer ") &&
-        order.customer_name !== "Customer"
-    ) {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * Sort orders with pinned orders first, then by date descending
- */
-export function sortOrders(orders: Order[]): Order[] {
-    return [...orders].sort((a, b) => {
-        // Pinned orders always come first
-        if (a.is_pinned && !b.is_pinned) return -1;
-        if (!a.is_pinned && b.is_pinned) return 1;
-        // Then sort by date descending (newest first)
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-}
-
-/**
- * Calculate status counts for a set of orders
- */
-export function calculateStatusCounts(orders: Order[]): Record<string, number> {
-    const counts: Record<string, number> = {
-        all: orders.length,
-        new: 0,
-        contacted: 0,
-        confirmed: 0,
-        in_transit: 0,
-        delivered: 0,
-        completed: 0,
-        rejected: 0,
-        no_response: 0,
-        return_pending: 0,
-        suspended: 0,
-    };
-
-    orders.forEach((order) => {
-        if (counts[order.status] !== undefined) {
-            counts[order.status]++;
-        }
-    });
-
-    return counts;
-}
 
 // =============================================
 // FILTER PRESETS
@@ -286,23 +151,7 @@ export function createFilterPreset(
 // AVAILABLE OPTIONS EXTRACTORS
 // =============================================
 
-/**
- * Get unique cities from orders
- */
-export function getAvailableCities(orders: Order[]): string[] {
-    return [...new Set(orders.map((o) => o.city).filter(Boolean))] as string[];
-}
 
-/**
- * Get unique products from orders
- */
-export function getAvailableProducts(orders: Order[]): string[] {
-    return [
-        ...new Set(
-            orders.flatMap((o) => o.items?.map((i) => i.name) || []).filter(Boolean)
-        ),
-    ] as string[];
-}
 
 // =============================================
 // DATE UTILITIES
