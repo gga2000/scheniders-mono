@@ -14,7 +14,7 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
 import { getBaseOrderId } from "@/lib/utils";
-import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { orderRepository } from "@/lib/repositories/order-repository";
 

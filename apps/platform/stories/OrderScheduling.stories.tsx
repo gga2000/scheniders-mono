@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
-import { OrderCard } from "@/components/dashboard/order-card";
+import { OrderCard } from "@/components/orders/order-card";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import type { Order } from "@/lib/supabase";
 
