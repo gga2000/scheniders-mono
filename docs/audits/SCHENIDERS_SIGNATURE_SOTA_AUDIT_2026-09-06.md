@@ -6,6 +6,14 @@
 
 ---
 
+## 0. Outcome (2026-09-09)
+
+**Shipped: 41 → 89 / 100.** Six PRs merged (#72, #73, #74, #76, #77, #78) and four config revisions published (20–23), each verified on the live store before the next round started. The audit below is preserved as written on 2026-09-06; §7 is the delivery ledger and §8 the closing measurement.
+
+Everything in §3 marked P0 or P1 is fixed and live, except the items §8 lists as deliberately open (they need a decision from the merchant, not code).
+
+---
+
 ## 1. Verdict
 
 **Overall score today: 41 / 100.** The plan below takes it to **~88 / 100** (Phase 4 done); the P0 hotfix alone lifts it to ~60.
@@ -288,3 +296,66 @@ Not touched by this plan: DNS/domains, WhatsApp/Interakt dispatch, other tenants
 | 2026-09-07 | Phase 2 PDP / conversion | Buy-box form: visible labels, `dir="auto"`, full autocomplete, inline Iraqi-phone validation with `role="alert"` + first-error focus (`noValidate` so the browser tooltip never pre-empts), governorate empty + required + `sb_gov` prefill, 44px stepper with `<output>`, Latin step chips, focusable `aria-busy` submit, 422 price-drift message + highlight, `max_qty.catch(10)`, neutral `feature_cards_title_i18n`, new `reassurance_i18n` / `delivery_sla_i18n`. Structured `alt_phone` → `orders.secondary_phone` (no more smuggling in notes). Pixels: InitiateCheckout on first focus, TikTok `content_id`/`content_type`. Reviews SSR from `product.reviews` (distribution from real rows), `<dialog>` lightbox, custom photo picker with a >4 alert. Gallery `alt_i18n` + desktop arrows. product_grid bestseller sort, self-exclusion, category `limit` + show-more. collection_trio mobile snap carousel. sticky_cta_bar `show_product_price` + auto-hide while the form CTA is visible. Template: single 18h delivery SLA, gallery alts, perfume highlights title, reassurance line, bestseller cross-sell, price-aware sticky bar (config rev 22 after deploy). Verified: type-check + lint green, sections 102/102, storefront 74/74, templates 16/16; local @390: empty submit → 4 inline errors + focus on name, bad phone → inline message, governorate placeholder disabled+required, stepper 44px, SSR reviews in raw HTML, trio `scroll-snap-type: x mandatory`. |
 | 2026-09-07 | Phase 3 chrome, routes & content | Routes: `/products` derives from the template's category grid (no more Candy synthetic grid) with an sr-only h1; thank-you renders V2 with a new `order_confirmation` section (order number, copy button, next steps, WhatsApp, track link, no fabricated ETA); 404 renders the tenant's `not_found` page inside the brand chrome and resolves the tenant from proxy headers in both host modes; search filters server-side from `runtime.search_query` (no client flash) with the query prefilled. Chrome: language switcher moved from the floating pink pill into the header (desktop segmented control, mobile menu-sheet row), menu sheet is a real dialog (Escape/backdrop/focus/scroll-lock), logo optimised, safe-area top inset, footer phone formatted inside a `tel:` link with 44px targets, Kurdish chrome strings table. Content (template + config rev 23): about page rewritten in dialect around sourcing/tester/return/COD with 3 distinct pillars; home "who we are" rewritten; `/faq` carries all 5 questions; contact page has real tel/WhatsApp/Instagram links (handle unified to @kawkab.brand); four policies now owned by the template (live legal text, `## ` sections, dated, linked numbers); collection trio links to three new curated categories `work` / `outings` / `occasions` (6 products each, assigned by scent family — merchant can re-curate in the platform); footer drops the hardcoded phone override and the bilingual labels; testimonial title fixed; "إذا" spelling. Verified: type-check + lint green; sections 131/131, shared 323/323, storefront 89/89, platform 22/22. |
 | 2026-09-09 | Phase 4 performance & polish | `RenderSection`/`RenderPage` are server components again: lookup, variant resolution and Zod validation run on the server, the ~34 server-safe sections render there, and the 27 interactive ones moved to their own `*.client.tsx` modules (the RSC boundary is now per section, not per registry). `toSectionTenant` prunes the tenant handed to sections to the fields they actually read, so the whole page tree (~55 kB) no longer rides in the RSC payload of every client section; the editor's live preview passes the same pruned object. A temporary parity harness confirmed byte-identical markup for 59 of 61 sections at `defaultProps` (the two diffs are the deliberate gallery rewrites below) and was deleted afterwards. Pixels: `PageView` / `ttq.page()` now re-fire on client navigations. `pdp_gallery` (other templates) gets a native `<dialog>` zoom with pinch-zoom, optimised images, localised labels, `aspect` and `low_stock_threshold` props and a "+N" overflow tile. Thank-you greets by name when the order stash carries one. Verified: type-check, lint (0 errors) and a clean `next build` all pass; sections 148/148, storefront 92/92, shared 323/323, platform 22/22. Runtime smoke on the production build: countdown ticks, Arabic typing retained, qty stepper, 19 governorates, sticky price bar, menu dialog, cart, SSR reviews in raw HTML, 0 page errors. Client JS per route fell ~20 kB (home 486→465 kB, PDP 431→411 kB, policy 425→406 kB). |
+
+
+---
+
+## 8. Closing measurement (2026-09-09)
+
+Measured on the live store after the final deploy, using the same method as the opening audit: 26 route/viewport combinations at 390 px and 1440 px, plus CDP-throttled Web Vitals (1.6 Mbps / 150 ms / 4× CPU).
+
+### What the numbers say
+
+| Check | 2026-09-06 | 2026-09-09 |
+|---|---|---|
+| Horizontal overflow at 390 px | 626 / 914 / 338 px on the three PDPs | **0 px on all 26 combinations** |
+| Arabic text nodes outside Cairo | most of the site | **0** |
+| Pages leaking the Candy Bento template | 9 routes | **0** (verified by sampling computed colours, not class names) |
+| `<button>` inside `<a>` | hero, about, cart, sticky bar, 404 | **0** |
+| Images without `alt` | several | **0** |
+| Pages with exactly one `h1` | 8 of 20 | **20 of 20** |
+| Console / page errors | — | **0** |
+| Home CLS (throttled) | 0.141 | **0.000** |
+| Home LCP (throttled) | 0.58 s | 0.94 s |
+| PDP LCP (throttled) | 0.66 s | 0.72 s |
+| Client JS per route | — | home 486 → **465 kB**, PDP 431 → **411 kB** |
+| `theme-color` + `viewport-fit=cover` | absent | present on every route |
+
+Home LCP rose ~0.36 s because the hero photo now stacks above the card on mobile instead of hiding behind it — the LCP element is genuinely larger. Both figures sit well inside the 2.5 s "good" threshold, and the CLS win is the trade worth having.
+
+### Per-page scores
+
+| Page | Was | Now | What changed |
+|---|---|---|---|
+| Home | 62 | 90 | Photo-first hero, one type scale, real best-seller ranking, dialect copy, curated collections that actually curate. |
+| PDP (mobile) | **18** | **88** | Overflow gone, typing works, labelled fields with inline Arabic errors, governorate required, price-aware sticky bar, SSR reviews, brand-green WhatsApp. |
+| PDP (1440) | 58 | 88 | Same, plus gallery arrows and a real zoom dialog. |
+| Category pages | 68 | 88 | Limit honoured, sold-out state, 44 px breadcrumb, three new curated categories. |
+| /products | **28** | **88** | Derives from the template's own grid; no Candy cards. |
+| /search | **12** | **85** | Server-side filtering, search form, Arabic card copy, price-pill cards. |
+| /cart | 35 | 85 | Tokenised, no false free-gift promise, valid controls. |
+| /checkout | 42 | 88 | Tokenised, autocomplete everywhere, inline phone validation, governorate required, per-item price-drift messages, dead card option removed. |
+| Thank-you | **20** | **90** | A real V2 confirmation: order number, next steps, WhatsApp, tracking — and no invented delivery date. |
+| /track | 45 | 85 | Tokenised, honest lookup contract, distinct error messages. |
+| /about | 50 | 88 | Rewritten in dialect around sourcing, the tester, the return window and COD; three distinct pillars. |
+| /contact | 55 | 88 | Real `tel:` / WhatsApp / Instagram links, one handle. |
+| /faq | 55 | 87 | All five questions, native `<details>`, own h1. |
+| /policies ×4 | **30** | 90 | Template-owned legal text, real headings, dated, linked numbers, merchant tab titles. |
+| 404 | 25 | 85 | The tenant's own page inside the brand chrome, Arabic, with an h1. |
+
+### Deliberately open
+
+These need a decision from the merchant, not code:
+
+1. **Countdown** — the 150-minute evergreen loop still runs. It is fake scarcity; recommend replacing it with the WELCOME15 member bar (no timer) or tying it to a real campaign end date.
+2. **Legal name** — the footer reads "Schnieder - شنايدر"; the brand is spelled "Scheniders" everywhere else.
+3. **Logo** — the trefoil mark reads as a radiation symbol at 40 px.
+4. **Collection curation** — `work` / `outings` / `occasions` were created and seeded with six products each by scent family; the merchant should re-curate.
+5. **Kurdish** — chrome strings are Sorani, but section copy falls back to Arabic.
+6. **Thank-you tab title** — still the platform's "تم استلام الطلب 🎉" rather than a merchant string.
+
+Out of scope by instruction and untouched: DNS/domains, the WhatsApp/Interakt cutover, other tenants' data.
+
+### Why 89 and not higher
+
+The remaining gap is content and merchandising judgement, not engineering: the countdown is still a dark pattern, the product photography is inconsistent between suppliers, and the collection curation is mine rather than the merchant's. Those are the merchant's calls. The build itself — layout, typography, colour discipline, forms, trust, accessibility, performance — is at the bar the plan set out to hit.
