@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/supabase';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
-import { getOrderAge, getScheduledState, formatScheduledDate, getStatusBadgeStyle } from '@/lib/order-format-utils';
+import { getOrderAge, getScheduledState, formatScheduledDate, isScheduledToday, getStatusBadgeStyle } from '@/lib/order-format-utils';
 import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/ui/empty-states';
 import { OrderContextMenu } from '@/components/orders/table/context-menu';
@@ -572,7 +572,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     {getScheduledState(order.scheduled_date) && (
                         <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[9px] font-bold">
                             <Calendar className="w-2.5 h-2.5" />
-                            {formatScheduledDate(order.scheduled_date)}
+                            {isScheduledToday(order.scheduled_date) ? "اليوم" : formatScheduledDate(order.scheduled_date)}
                         </span>
                     )}
                 </div>

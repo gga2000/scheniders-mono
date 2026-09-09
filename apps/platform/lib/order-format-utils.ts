@@ -54,6 +54,12 @@ const scheduledDayStart = (scheduledDate: string | Date | undefined | null): Dat
     return isNaN(date.getTime()) ? null : date;
 };
 
+/** True when the order is scheduled for the current day. */
+export const isScheduledToday = (scheduledDate: string | Date | undefined | null) => {
+    const key = toDayKey(scheduledDate);
+    return key !== null && key === localDayKey();
+};
+
 /** Statuses where the order is finished and no longer anyone's queue. */
 const SETTLED_STATUSES = new Set<string>([
     "completed",

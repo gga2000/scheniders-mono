@@ -5,6 +5,7 @@ import {
     getScheduledState,
     formatScheduledDate,
     isScheduleDue,
+    isScheduledToday,
 } from "@/lib/order-format-utils";
 
 // Local 2:00 PM on 7 Sep 2026. Built from local parts so the assertions hold
@@ -67,6 +68,15 @@ describe("scheduled state", () => {
         // ICU renders the short month as "Sep" or "Sept" depending on the CLDR build.
         expect(formatScheduledDate("2026-09-08")).toMatch(/^8 Sept?$/);
         expect(formatScheduledDate(null)).toBe("");
+    });
+
+    // The cards say "today" instead of a date on this one, so the calm age
+    // colour on a long-parked order reads as explained rather than broken.
+    it("singles out the current day", () => {
+        expect(isScheduledToday(daysFromNow(0))).toBe(true);
+        expect(isScheduledToday(daysFromNow(1))).toBe(false);
+        expect(isScheduledToday(daysFromNow(-1))).toBe(false);
+        expect(isScheduledToday(null)).toBe(false);
     });
 });
 

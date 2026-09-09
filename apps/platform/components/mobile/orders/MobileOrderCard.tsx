@@ -3,7 +3,7 @@
 import React, { memo } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
-import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getScheduledState, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
+import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getScheduledState, isScheduledToday, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, Calendar, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
@@ -306,7 +306,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         {scheduledState && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
                                 <Calendar className="w-3 h-3" />
-                                {formatScheduledDate(order.scheduled_date)}
+                                {isScheduledToday(order.scheduled_date) ? "اليوم" : formatScheduledDate(order.scheduled_date)}
                             </span>
                         )}
                     </div>
