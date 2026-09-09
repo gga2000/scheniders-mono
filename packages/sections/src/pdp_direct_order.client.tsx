@@ -40,8 +40,7 @@ import {
   pixelContentsFromItems,
   isValidIraqiMobile,
   normalizeIraqiMobile,
-  cn,
-} from "@scheniders/shared";
+  cn, buildPriceLadder, resolveTierPrice } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import {
@@ -52,6 +51,7 @@ import {
   WhatsAppIcon,
   Stars,
 } from "./helpers/primitives";
+import { PRESSABLE } from "./helpers/utils";
 import { useStoreBase } from "./helpers/store-context";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
 import { formatCount, formatPrice } from "./helpers/format";
@@ -359,7 +359,12 @@ export function PdpDirectOrderRender({
   const atMinQty = qty <= 1;
   const atMaxQty = qty >= maxQty;
 
-  const subtotal = price * qty;
+  // Quantity price break, if the merchant set any. The checkout server
+  // re-derives this from the same helper, so what the shopper sees here and
+  // what they are charged cannot drift — see @scheniders/shared price-tiers.
+  const ladder = buildPriceLadder(product.price_tiers, price, maxQty);
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, price);
+  const subtotal = unitPrice * qty;
   // Same per-governorate shipping engine as checkout_form so the total this
   // CTA shows matches what the server records for the order. Until the
   // shopper picks a governorate the fee is unknown — shown as "—", never a
@@ -488,7 +493,7 @@ export function PdpDirectOrderRender({
     trackPixel(
       "InitiateCheckout",
       pixelContentsFromItems([
-        { product_id: product.id, price, quantity: qty },
+        { product_id: product.id, price: unitPrice, quantity: qty },
       ]),
     );
   }
@@ -1074,6 +1079,57 @@ export function PdpDirectOrderRender({
                   {qtyTitle}
                 </h2>
               </div>
+              {/* Tappable rungs when the merchant set price breaks. This
+                  reframes the choice from "one?" to "how many?", and each
+                  tile states the real saving rather than implying one.
+                  The stepper stays below for any quantity in between. */}
+              {ladder.length > 0 && (
+                <div
+                  className="grid grid-cols-3 gap-bk-2xs"
+                  role="group"
+                  aria-label={qtyTitle || s("quantity")}
+                >
+                  {ladder.map((rung) => {
+                    const active = qty === rung.quantity;
+                    return (
+                      <button
+                        key={rung.quantity}
+                        type="button"
+                        onClick={() => setQty(rung.quantity)}
+                        aria-pressed={active}
+                        className={cn(
+                          "flex min-h-11 flex-col items-center justify-center gap-0.5 px-1 py-2 text-center",
+                          PRESSABLE,
+                        )}
+                        style={{
+                          border: active
+                            ? "2px solid var(--bk-ink, #1a1a1a)"
+                            : "1px solid var(--bk-divider, rgb(26 26 26 / 0.14))",
+                          borderRadius: "var(--bk-radius-input, 0.75rem)",
+                          backgroundColor: active
+                            ? "var(--bk-decor-a, #fff)"
+                            : "var(--bk-surface-alt, #fff)",
+                        }}
+                      >
+                        <span className="font-display text-sm font-black tabular-nums">
+                          {rung.quantity}
+                        </span>
+                        <span className="font-body text-[11px] tabular-nums text-bk-ink-soft">
+                          <bdi>{formatPrice(rung.unit_price, locale)}</bdi>
+                        </span>
+                        {rung.saves > 0 && (
+                          <span className="font-label text-[10px] font-bold tabular-nums text-bk-primary">
+                            <bdi>
+                              {locale === "en" ? "save " : "توفّر "}
+                              {formatPrice(rung.saves, locale)}
+                            </bdi>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div
                 className="flex items-center justify-between bg-white px-2 py-1.5"
                 style={{

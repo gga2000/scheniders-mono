@@ -6,8 +6,7 @@ import {
   computeBundleDiscounts,
   computePointsEarned,
   computePointsRedemption,
-  normalizeIraqiMobile,
-} from "@scheniders/shared";
+  normalizeIraqiMobile, resolveTierPrice, type PriceTier } from "@scheniders/shared";
 import type {
   StoreConfigV2,
   GovernorateCode,
@@ -186,6 +185,34 @@ export async function submitCheckout(
     for (const v of variants as VariantRow[]) variantMap.set(v.id, v);
   }
 
+  // Quantity price breaks. Fetched here so the server derives the SAME unit
+  // price the product page showed — the price check below rejects any
+  // mismatch, so a client-only ladder would bounce every tiered order.
+  // Tenant-scoped like everything else; a merchant with no tiers pays for an
+  // empty read and nothing changes.
+  const tiersByProduct = new Map<string, PriceTier[]>();
+  {
+    const { data: tierRows, error: tiersErr } = await supabase
+      .from("product_tiered_pricing")
+      .select("product_id, min_quantity, max_quantity, price")
+      .in("product_id", productIds)
+      .eq("tenant_id", payload.tenantId);
+    if (tiersErr) {
+      // Non-fatal: without tiers every line prices at its base, which is the
+      // behaviour before tiers existed. Failing the order would be worse.
+      console.error("[checkout] tier lookup failed:", tiersErr);
+    }
+    for (const row of tierRows ?? []) {
+      const list = tiersByProduct.get(row.product_id) ?? [];
+      list.push({
+        min_quantity: row.min_quantity,
+        max_quantity: row.max_quantity,
+        price: Number(row.price),
+      });
+      tiersByProduct.set(row.product_id, list);
+    }
+  }
+
   // EC24: validate every line and COLLECT per-item issues (unavailable /
   // repriced / bad quantity) instead of dead-ending on the first one with a
   // generic message — so the client can remove or re-price the offending lines
@@ -226,6 +253,9 @@ export async function submitCheckout(
       issue("invalid_quantity");
       continue;
     }
+    // Quantity break, after the base price is known and the quantity is
+    // known good. A product with no tiers is unaffected.
+    unitPrice = resolveTierPrice(tiersByProduct.get(i.product_id), i.quantity, unitPrice);
     // Price moved since add-to-cart — surface it (don't silently charge a
     // different amount than the shopper saw); they re-confirm at the new price.
     if (Math.round(i.price) !== Math.round(unitPrice)) {

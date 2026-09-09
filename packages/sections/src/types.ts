@@ -13,6 +13,7 @@ import type {
   BaseTenant,
   BaseProduct,
   ResolvedProductAttribute,
+  PriceTier,
   BaseProductVariant,
   Category,
   ProductReview,
@@ -73,6 +74,10 @@ export interface Product extends BaseProduct {
    *  needs them (the PDP today); absent elsewhere, and sections must render
    *  nothing rather than a placeholder when the list is empty. */
   attributes?: ResolvedProductAttribute[];
+  /** Quantity price breaks, when the merchant set any. Populated on the PDP.
+   *  The SERVER re-derives the same price from these at checkout, so the
+   *  ladder shown here and the price charged cannot drift. */
+  price_tiers?: PriceTier[];
   /** Optional variant list — populated on the PDP. */
   variants?: ProductVariant[];
   /** Approved-review aggregates (real data, storefront-populated). Sections

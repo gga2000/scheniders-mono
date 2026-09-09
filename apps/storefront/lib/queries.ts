@@ -109,6 +109,39 @@ export const listAttributeDefs = cache(
 );
 
 /**
+ * Quantity price breaks for one product. Read on the PDP only — it is the
+ * one page that can offer a ladder, and the checkout server re-reads them
+ * itself rather than trusting anything sent from the browser.
+ */
+async function withPriceTiers(
+  supabase: PublicClient,
+  tenantId: string,
+  product: Product,
+): Promise<Product> {
+  const { data, error } = await supabase
+    .from("product_tiered_pricing")
+    .select("min_quantity, max_quantity, price")
+    .eq("tenant_id", tenantId)
+    .eq("product_id", product.id)
+    .order("min_quantity", { ascending: true });
+
+  if (error) {
+    console.error("[queries.withPriceTiers]", error);
+    return product;
+  }
+  if (!data || data.length === 0) return product;
+
+  return {
+    ...product,
+    price_tiers: data.map((t) => ({
+      min_quantity: t.min_quantity,
+      max_quantity: t.max_quantity,
+      price: Number(t.price),
+    })),
+  };
+}
+
+/**
  * Attach merchant-defined attributes to a batch of products in ONE extra
  * indexed query, mirroring `withReviewStats`. Products with no values pass
  * through untouched, so `attributes` stays absent rather than empty — a
@@ -247,7 +280,8 @@ export const getProductBySlug = cache(
       // facet filtering needs them.
       const withStats = async (row: Record<string, unknown>) => {
         const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
-        return (await withAttributes(supabase, tenantId, withReviews))[0] ?? null;
+        const enriched = (await withAttributes(supabase, tenantId, withReviews))[0] ?? null;
+        return enriched ? withPriceTiers(supabase, tenantId, enriched) : null;
       };
 
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
