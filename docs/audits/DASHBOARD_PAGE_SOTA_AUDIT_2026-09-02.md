@@ -693,7 +693,10 @@ headline number still counted money that had not been earned. That is now decide
 and shipped (`2805636b`).
 
 **Revenue = realized revenue**: status IN (delivered, completed), dated by when it
-was realized — `delivered_at` (UTC-naive, converted) falling back to `completed_at`.
+was realized — `delivered_at` falling back to `completed_at`. (The parenthetical
+this line used to carry, "UTC-naive, converted", was wrong; see the COR-D3 second
+correction. The conversion it described shifted every figure below by -6h and was
+removed in `20260909104500`.)
 Chosen to match the Orders page and finance's `delivered_revenue`, and because it
 answers the question a COD merchant actually asks.
 
@@ -734,9 +737,49 @@ recorded rather than quietly claimed.
 **Still NO-GO**, now on four items, none of which is a defect on this page:
 
 1. **SEC-D2 + PERF-D1** — the app-wide order-book fetch (one change closes both).
-2. **COR-D4** — deploy the held Orders `updated_at` trigger.
+2. **COR-D4 part (a)** — deploy the held Orders `updated_at` trigger. *(Part (b),
+   the windowing, was fixed independently in R24.)*
 3. **MOB-D1** — which remaining widgets belong on a phone (a product call).
 4. **The `[U]` visual sweep** — needs one test-tenant session.
+
+---
+
+## SECOND CLOSING RE-SCORE — 2026-09-09, after rounds 21-27
+
+The score above was recorded before four further correctness changes, **one of
+which was a P0 introduced by this audit's own COR-D3 fix**. Re-scored honestly,
+including the process failure.
+
+| Pillar | Opening | Post-fixes | After COR-D1 | **Now** |
+|---|:--:|:--:|:--:|:--:|
+| **P1 Metric truth** | 45 | 72 | 82 | **88** |
+| **P6 Engineering rigour** | 55 | 74 | 74 | **70** |
+
+**Overall: 52 → 73 → 75 → 78.**
+
+**P1 rises to 88.** The -6h shift is gone and every figure it touched now
+reconciles with independent SQL; delivery rate, the sparkline, failed deliveries
+and stuck-in-transit moved off a frozen `updated_at` onto outcome time, correcting
+**70% of outcome rows** that sat in the wrong day; the exported CSV now agrees
+with the screen it came from. A **13/13 truth-table re-run** (R25) and a
+**schema-wide timezone sweep** (R26) back the number rather than asserting it. It
+is not 95 because the cross-surface revenue disagreement (Customers,
+`use-business-metrics`) is untouched, and because the client fallback still
+near-matches rather than matches on rejection timing.
+
+**P6 falls from 74 to 70, deliberately.** An audit that ships a P0 into the
+surface it is auditing has a rigour problem, and hiding that behind the improved
+P1 would be the same dishonesty the audit exists to find. COR-D3 was accepted on a
+column type nobody checked against the catalog, and "verified" by comparing the
+result to a *predicted* value rather than an independent recomputation — so a
+number wrong by -6h agreed with a forecast wrong by -6h. It then survived four
+days because the dual-engine drift check sampled only metrics keyed on
+`created_at`. Two guards now exist that did not before (the drift check samples
+event-timed metrics; migrations assert their own preconditions and ACLs), which is
+why 70 and not lower.
+
+**The verdict does not change.** Still **NO-GO** on the same four items — none of
+them a defect on this page, and none of them mine to close.
 
 Everything the audit found *about the numbers* is closed. What is left is
 infrastructure, another team's deploy, a product decision, and an evidence gap.
