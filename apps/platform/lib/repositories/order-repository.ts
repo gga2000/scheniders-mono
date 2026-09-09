@@ -62,6 +62,30 @@ export const LIST_VIEW_COLUMNS = `
   last_status_changed_by_avatar
 `.trim();
 
+export interface OrderSearchRow {
+    id: string;
+    order_id: string;
+    customer_name: string | null;
+    phone: string | null;
+    city: string | null;
+    status: string;
+    price: number | null;
+    governorate_code: string | null;
+    created_at: string;
+}
+
+export interface CustomerSearchRow {
+    customer_phone: string;
+    latest_name: string | null;
+    total_orders: number;
+}
+
+export interface ProductSearchRow {
+    id: string;
+    name: string;
+    price: number | null;
+}
+
 /** The risk assessment `v_orders_with_risk` builds from `customer_trust`. */
 export type OrderRisk = NonNullable<Order["risk_data"]>;
 
@@ -90,6 +114,59 @@ export const orderRepository = {
         }
         diag.log(`[Diag:Repo] findRiskData OK rows=${map.size} took=${(performance.now() - _t).toFixed(1)}ms`);
         return map;
+    },
+
+    /**
+     * Server-side order search. Returns matches, not the book.
+     *
+     * PERF-D1: global-search and chat's #ref search each filtered all ~4,700
+     * orders in the browser, which is why the whole book had to be resident on
+     * every route. See migration 20260909130000 — the 2-character floor and the
+     * 50-row clamp are enforced in SQL, not here.
+     */
+    async searchOrders(term: string, limit = 20): Promise<OrderSearchRow[]> {
+        const { data, error } = await supabase.rpc("search_orders", { p_term: term, p_limit: limit });
+        if (error) throw error;
+        return (data ?? []) as OrderSearchRow[];
+    },
+
+    /**
+     * Customer search, from the tenant-scoped aggregates view.
+     *
+     * This also FIXES a defect: the old client-side version counted a customer's
+     * orders from whatever happened to be loaded, so "N orders" was the number of
+     * matches, not the number of orders. `total_orders` is the real count.
+     */
+    async searchCustomers(term: string, limit = 20): Promise<CustomerSearchRow[]> {
+        const t = term.trim();
+        if (t.length < 2) return [];
+        const { data, error } = await supabase
+            .from("customer_aggregates")
+            .select("customer_phone, latest_name, total_orders")
+            .or(`latest_name.ilike.%${t}%,customer_phone.ilike.%${t}%`)
+            .limit(limit);
+        if (error) throw error;
+        return (data ?? []) as CustomerSearchRow[];
+    },
+
+    /**
+     * Product search, from `products`.
+     *
+     * The old version scanned every order's `items` array to discover product
+     * names — it could only find a product that had already been ordered, and it
+     * priced it from the line rather than the catalogue.
+     */
+    async searchProducts(term: string, limit = 20): Promise<ProductSearchRow[]> {
+        const t = term.trim();
+        if (t.length < 2) return [];
+        const { data, error } = await supabase
+            .from("products")
+            .select("id, name, price")
+            .eq("is_archived", false)
+            .ilike("name", `%${t}%`)
+            .limit(limit);
+        if (error) throw error;
+        return (data ?? []) as ProductSearchRow[];
     },
 
     /** One order's risk assessment — for detail panels, which need exactly one. */

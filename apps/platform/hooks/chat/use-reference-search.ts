@@ -1,6 +1,9 @@
 import { useMemo } from "react";
-// Same source global-search.tsx uses for the orders array + order-id normalizer.
-import { useOrdersContext } from "@/components/providers/orders-provider";
+// PERF-D1: this used to read the whole order book from OrdersProvider and filter
+// it in the browser. It runs inside the chat runtime, which is mounted in the
+// root layout, so it was one of the three consumers forcing a ~9.7 MB fetch onto
+// every route. Same source global-search now uses: matches from the server.
+import { useOrderSearchQuery } from "@/hooks/use-order-search-query";
 import { getBaseOrderId } from "@/lib/utils";
 import type { ChatReference } from "@/types/chat";
 
@@ -15,20 +18,13 @@ export interface ReferenceResult {
 const MAX_RESULTS = 8;
 
 export function useReferenceSearch(query: string): ReferenceResult[] {
-    const { orders } = useOrdersContext();
-    return useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return [];
-        const results: ReferenceResult[] = [];
-
-        for (const o of orders) {
-            const display = getBaseOrderId(o.order_id);
-            const matchesId = display.toLowerCase().includes(q) || o.order_id.toLowerCase().includes(q);
-            const matchesName = (o.customer_name ?? "").toLowerCase().includes(q);
-            const matchesPhone = (o.phone ?? "").includes(q);
-            if (matchesId || matchesName || matchesPhone) {
-                results.push({
-                    ref_type: "order",
+    const matches = useOrderSearchQuery(query, MAX_RESULTS);
+    return useMemo(
+        () =>
+            matches.map((o) => {
+                const display = getBaseOrderId(o.order_id);
+                return {
+                    ref_type: "order" as const,
                     ref_id: o.id,
                     label: `#${display}`,
                     sublabel: `${o.customer_name ?? ""} · ${o.phone ?? ""}`,
@@ -40,10 +36,8 @@ export function useReferenceSearch(query: string): ReferenceResult[] {
                         status: o.status,
                         governorate_code: o.governorate_code,
                     },
-                });
-            }
-            if (results.length >= MAX_RESULTS) break;
-        }
-        return results.slice(0, MAX_RESULTS);
-    }, [orders, query]);
+                };
+            }),
+        [matches]
+    );
 }

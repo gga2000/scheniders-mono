@@ -4,7 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import {
+    useCustomerSearchQuery,
+    useOrderSearchQuery,
+    useProductSearchQuery,
+} from "@/hooks/use-order-search-query";
 import { useLanguage } from "@/components/providers/language-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -48,8 +52,11 @@ interface SearchResult {
 
 export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
     const router = useRouter();
-    // Use shared context instead of direct useOrders() call
-    const { orders } = useOrdersContext();
+    // PERF-D1: this component is mounted in the app shell, so it renders on
+    // EVERY route. It used to read the whole order book from context and filter
+    // ~4,700 rows in the browser, which is what forced OrdersProvider into the
+    // root layout and a 9.7 MB fetch onto every page load. It now asks the
+    // server for matches.
     const { t } = useLanguage();
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState<SearchCategory>("all");
@@ -65,6 +72,10 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
         { id: "products" as const, label: t("nav.products"), icon: ShoppingBag },
     ];
 
+    const orderMatches = useOrderSearchQuery(query, 8);
+    const customerMatches = useCustomerSearchQuery(query, 8);
+    const productMatches = useProductSearchQuery(query, 8);
+
     // Search logic
     useEffect(() => {
         if (!query.trim()) {
@@ -73,78 +84,51 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
         }
 
         const searchResults: SearchResult[] = [];
-        const lowerQuery = query.toLowerCase();
 
-        // Search orders
         if (category === "all" || category === "orders") {
-            orders.forEach((order) => {
-                // Normalize order ID for search (handles both old LF-XXXXX and new #XXXXX formats)
+            orderMatches.forEach((order) => {
                 const normalizedOrderId = getBaseOrderId(order.order_id);
-                const matchesId = normalizedOrderId.toString().includes(query) || order.order_id?.toString().includes(query);
-                const matchesPhone = order.phone.includes(query);
-                const matchesName = order.customer_name.toLowerCase().includes(lowerQuery);
-
-                if (matchesId || matchesPhone || matchesName) {
-                    searchResults.push({
-                        type: "order",
-                        id: order.id,
-                        title: `#${normalizedOrderId} - ${order.customer_name}`,
-                        subtitle: order.phone,
-                        meta: formatIQD(Number(order.price)),
-                        href: `/orders?search=${normalizedOrderId}`,
-                    });
-                }
-            });
-        }
-
-        // Search customers (unique by phone)
-        if (category === "all" || category === "customers") {
-            const seenPhones = new Set<string>();
-            orders.forEach((order) => {
-                if (seenPhones.has(order.phone)) return;
-
-                const matchesPhone = order.phone.includes(query);
-                const matchesName = order.customer_name.toLowerCase().includes(lowerQuery);
-
-                if (matchesPhone || matchesName) {
-                    seenPhones.add(order.phone);
-                    const customerOrders = orders.filter((o) => o.phone === order.phone);
-                    searchResults.push({
-                        type: "customer",
-                        id: order.phone,
-                        title: order.customer_name,
-                        subtitle: order.phone,
-                        meta: `${customerOrders.length} orders`,
-                        href: `/customers?search=${order.phone}`,
-                    });
-                }
-            });
-        }
-
-        // Search products
-        if (category === "all" || category === "products") {
-            const seenProducts = new Set<string>();
-            orders.forEach((order) => {
-                order.items?.forEach((item) => {
-                    const key = item.name.toLowerCase();
-                    if (seenProducts.has(key)) return;
-
-                    if (item.name.toLowerCase().includes(lowerQuery)) {
-                        seenProducts.add(key);
-                        searchResults.push({
-                            type: "product",
-                            id: key,
-                            title: item.name,
-                            subtitle: formatIQD(item.price),
-                            href: `/products?search=${encodeURIComponent(item.name)}`,
-                        });
-                    }
+                searchResults.push({
+                    type: "order",
+                    id: order.id,
+                    title: `#${normalizedOrderId} - ${order.customer_name ?? ""}`,
+                    subtitle: order.phone ?? "",
+                    // SEC-D2: price is null for a role that may not see money.
+                    meta: order.price === null ? "" : formatIQD(Number(order.price)),
+                    href: `/orders?search=${normalizedOrderId}`,
                 });
             });
         }
 
-        setResults(searchResults.slice(0, 8));
-    }, [query, category, orders]);
+        if (category === "all" || category === "customers") {
+            customerMatches.forEach((c) => {
+                searchResults.push({
+                    type: "customer",
+                    id: c.customer_phone,
+                    title: c.latest_name ?? c.customer_phone,
+                    subtitle: c.customer_phone,
+                    // This count is now the customer's REAL order total. It used
+                    // to be "how many of their orders matched the search term".
+                    meta: `${c.total_orders} orders`,
+                    href: `/customers?search=${c.customer_phone}`,
+                });
+            });
+        }
+
+        if (category === "all" || category === "products") {
+            productMatches.forEach((p) => {
+                searchResults.push({
+                    type: "product",
+                    id: p.id,
+                    title: p.name,
+                    subtitle: p.price === null ? "" : formatIQD(p.price),
+                    href: `/products?search=${encodeURIComponent(p.name)}`,
+                });
+            });
+        }
+
+        setResults(searchResults.slice(0, 8)); // eslint-disable-line react-hooks/set-state-in-effect
+    }, [query, category, orderMatches, customerMatches, productMatches]);
 
     // Close on click outside
     useEffect(() => {
