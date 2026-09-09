@@ -257,3 +257,18 @@ The last real engineering item on the ledger. `OrdersProvider` sits in the **roo
 **`price` was deliberately NOT gated.** An employee reads 4,743 prices (177,258,650 IQD on the largest tenant), which looks like the finding — but price is what the customer pays and an employee taking orders needs it. Blanking it is a product decision about whether employees may see order values at all, not a defect fix. **Raised, not decided.**
 
 `tsc` clean · `lint` **0 errors** / 1,146 warnings · **756 tests across 91 files green**.
+
+
+**Round 29 (2026-09-09) — the last broad consumer, and a defect underneath it.** `2bca65ea`, `80c1dc18`; migrations `20260909150000` and `20260909150500`.
+
+`use-products-crud` read the **entire order book** — ~7 MB even after `risk_data` was split out — for one purpose: folding every order's `items` array into per-product sales. Because `/products`, `/products/[id]/edit` and several product components import that hook, all of them were full-book routes.
+
+- **The fold moved to SQL** (`get_product_sales()`): **40,972 order lines collapse to 22 rows**. `SECURITY INVOKER`, so RLS scopes both tables; an explicit `tenant_id` join additionally stops a multi-tenant user's products from matching another of their tenants' lines. Scope mirrors what the browser actually saw — `is_archived = false AND deleted_at IS NULL` — and order **status is deliberately not filtered**, because the client counted every status, rejected included. A faithful port, not an improvement.
+- **Parity proven against an independently written aggregation** — one groups lines first then attributes to products, the other joins then groups — across all 22 products: **0 mismatches** on units, revenue and line count; **2,723 units both ways**.
+- **No route outside order analysis reads the book any more.**
+
+**The defect underneath.** The matching rule keyed off the **product**: a product with a SKU counted only SKU-matched lines. But only **3,300 of 40,972 lines (8%)** carry a SKU at all — so *giving a product a SKU silently discarded every historical line recorded before it*. The product's sales did not drop; its counter did. One product read **"0 sold" while 16 units of it had been sold** (ايبسكو / `SCHN-EPSCO`) — a merchant reading that row would conclude it had never sold. Across all tenants: 2 of 22 products affected, **17 units and 740,500 IQD of product revenue restored**.
+
+The rule now keys off the **line**, which is what actually varies. Double counting was **checked, not assumed**: zero duplicate SKUs and zero duplicate product names within a tenant, and after the change attributed lines (2,723) remain below visible lines (4,808).
+
+**Shipped as two commits on purpose** — the SQL move and the rule change are separately verifiable. Folding a numbers change into a performance commit is how a wrong number ships unnoticed.
