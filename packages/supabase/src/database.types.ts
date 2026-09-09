@@ -2691,6 +2691,63 @@ export type Database = {
           },
         ]
       }
+      inventory_history: {
+        Row: {
+          change_type: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          product_id: string
+          quantity_after: number | null
+          quantity_before: number | null
+          quantity_change: number
+          reference_id: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          change_type: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity_after?: number | null
+          quantity_before?: number | null
+          quantity_change: number
+          reference_id?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity_after?: number | null
+          quantity_before?: number | null
+          quantity_change?: number
+          reference_id?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_ledger: {
         Row: {
           created_at: string
@@ -4200,6 +4257,51 @@ export type Database = {
           },
         ]
       }
+      product_activity_log: {
+        Row: {
+          action: string
+          changes_json: Json | null
+          created_at: string
+          id: string
+          product_id: string
+          tenant_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          changes_json?: Json | null
+          created_at?: string
+          id?: string
+          product_id: string
+          tenant_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          changes_json?: Json | null
+          created_at?: string
+          id?: string
+          product_id?: string
+          tenant_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_activity_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_activity_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_attribute_defs: {
         Row: {
           created_at: string
@@ -4378,6 +4480,58 @@ export type Database = {
           },
         ]
       }
+      product_bundle_items: {
+        Row: {
+          child_product_id: string
+          created_at: string
+          display_order: number
+          id: string
+          product_id: string
+          quantity: number
+          tenant_id: string | null
+        }
+        Insert: {
+          child_product_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          product_id: string
+          quantity?: number
+          tenant_id?: string | null
+        }
+        Update: {
+          child_product_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          product_id?: string
+          quantity?: number
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_bundle_items_child_product_id_fkey"
+            columns: ["child_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_bundle_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_bundle_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           category_id: string
@@ -4535,6 +4689,167 @@ export type Database = {
           },
         ]
       }
+      product_order_bumps: {
+        Row: {
+          bump_product_id: string
+          created_at: string
+          description: string | null
+          discount_percentage: number
+          display_order: number
+          headline: string | null
+          id: string
+          is_active: boolean
+          product_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          bump_product_id: string
+          created_at?: string
+          description?: string | null
+          discount_percentage?: number
+          display_order?: number
+          headline?: string | null
+          id?: string
+          is_active?: boolean
+          product_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          bump_product_id?: string
+          created_at?: string
+          description?: string | null
+          discount_percentage?: number
+          display_order?: number
+          headline?: string | null
+          id?: string
+          is_active?: boolean
+          product_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_order_bumps_bump_product_id_fkey"
+            columns: ["bump_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_order_bumps_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_order_bumps_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_price_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_price: number
+          old_price: number | null
+          product_id: string
+          reason: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_price: number
+          old_price?: number | null
+          product_id: string
+          reason?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_price?: number
+          old_price?: number | null
+          product_id?: string
+          reason?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_price_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_related: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          product_id: string
+          related_product_id: string
+          relation_type: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          product_id: string
+          related_product_id: string
+          relation_type?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          product_id?: string
+          related_product_id?: string
+          relation_type?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_related_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_related_related_product_id_fkey"
+            columns: ["related_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_related_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_reviews: {
         Row: {
           author_name: string | null
@@ -4648,6 +4963,66 @@ export type Database = {
           },
         ]
       }
+      product_suppliers: {
+        Row: {
+          created_at: string
+          id: string
+          is_primary: boolean
+          lead_time_days: number | null
+          minimum_order_quantity: number | null
+          notes: string | null
+          product_id: string
+          supplier_contact: string | null
+          supplier_email: string | null
+          supplier_name: string
+          tenant_id: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          lead_time_days?: number | null
+          minimum_order_quantity?: number | null
+          notes?: string | null
+          product_id: string
+          supplier_contact?: string | null
+          supplier_email?: string | null
+          supplier_name: string
+          tenant_id?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          lead_time_days?: number | null
+          minimum_order_quantity?: number | null
+          notes?: string | null
+          product_id?: string
+          supplier_contact?: string | null
+          supplier_email?: string | null
+          supplier_name?: string
+          tenant_id?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_suppliers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_suppliers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_tag_assignments: {
         Row: {
           product_id: string
@@ -4703,6 +5078,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "product_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_tiered_pricing: {
+        Row: {
+          created_at: string
+          id: string
+          max_quantity: number | null
+          min_quantity: number
+          price: number
+          product_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_quantity?: number | null
+          min_quantity: number
+          price: number
+          product_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_quantity?: number | null
+          min_quantity?: number
+          price?: number
+          product_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_tiered_pricing_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_tiered_pricing_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -7605,6 +8025,15 @@ export type Database = {
           value_tier: string
         }[]
       }
+      get_product_sales: {
+        Args: never
+        Returns: {
+          line_count: number
+          product_id: string
+          times_sold: number
+          total_revenue: number
+        }[]
+      }
       get_seed_automation_status: { Args: never; Returns: Json }
       get_user_tenant_ids: { Args: never; Returns: string[] }
       increment_order_usage: {
@@ -7722,6 +8151,20 @@ export type Database = {
           p_severe: number
         }
         Returns: string
+      }
+      search_orders: {
+        Args: { p_limit?: number; p_term: string }
+        Returns: {
+          city: string
+          created_at: string
+          customer_name: string
+          governorate_code: string
+          id: string
+          order_id: string
+          phone: string
+          price: number
+          status: string
+        }[]
       }
       seed_store_config_v2_draft: {
         Args: { p_config: Json; p_tenant_id: string }
