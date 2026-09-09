@@ -10,6 +10,7 @@ import {
     calculateEnhancedLeaderboard,
     calculateAvgTimePerStage,
     parseUtcNaiveTimestamp,
+    outcomeAt,
     calculateDeliverySuccessRate,
     calculateWeekOverWeek,
     calculateStaffLeaderboard,
@@ -287,5 +288,48 @@ describe("COR-D1 — revenue is what was collected, not what was promised", () =
         const strip = calculateTodayStrip(orders);
         expect(strip.ordersToday).toBe(2);        // both are orders
         expect(strip.revenueToday).toBe(25000);   // only one is revenue
+    });
+});
+
+/**
+ * COR-D4(b). `updated_at` is not bumped by the platform's own writes, so
+ * windowing on it asked "what changed this week" of a frozen timestamp.
+ */
+describe("COR-D4(b) — outcome time, not last touch", () => {
+    const base = {
+        id: "o1", order_id: "1001", customer_name: "A", phone: "0770", city: "Baghdad",
+        price: 1000, items: [], priority: "normal", payment_status: "unpaid",
+    } as unknown as Order;
+
+    it("dates a delivered order by delivered_at, not by a frozen updated_at", () => {
+        const o = {
+            ...base, status: "delivered",
+            created_at: "2026-05-01T08:00:00+00:00",
+            updated_at: "2026-05-01T08:00:00+00:00", // frozen: equals created_at
+            delivered_at: "2026-05-09T15:00:00+00:00",
+        } as unknown as Order;
+        expect(outcomeAt(o).toISOString()).toBe("2026-05-09T15:00:00.000Z");
+    });
+
+    it("falls back to updated_at rather than dropping a rejection", () => {
+        // Dropping a rejection would INFLATE the delivery rate — never do it.
+        const o = {
+            ...base, status: "rejected",
+            created_at: "2026-05-01T08:00:00+00:00",
+            updated_at: "2026-05-06T09:30:00+00:00",
+        } as unknown as Order;
+        expect(outcomeAt(o).toISOString()).toBe("2026-05-06T09:30:00.000Z");
+    });
+
+    it("counts a delivery in the week it was delivered, not the week it was created", () => {
+        const now = new Date();
+        const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 3600 * 1000).toISOString();
+        const longAgo = new Date(now.getTime() - 40 * 24 * 3600 * 1000).toISOString();
+        const { currentRate } = calculateDeliverySuccessRate([{
+            ...base, status: "delivered",
+            created_at: longAgo, updated_at: longAgo, delivered_at: twoDaysAgo,
+        } as unknown as Order]);
+        // On updated_at this row sat 40 days back and the window was empty (null).
+        expect(currentRate).toBe(100);
     });
 });
