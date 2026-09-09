@@ -177,7 +177,15 @@ export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: O
         let govName = '';
         const govCode = order.validated_governorate_code || order.governorate_code || '';
         if (govCode) {
-            const { governorate } = extractGovernorate(govCode, undefined, undefined);
+            // INT-3: the code was passed in the `city` slot. The signature is
+            // extractGovernorate(city?, governorateCode?, addressDetails?), so the
+            // code-resolution branch never ran. That branch is not merely tidier:
+            // 16 of the 18 canonical codes return null from the city slot, and
+            // only BGD and KOT happen to resolve there — which is why a spot-check
+            // with Baghdad looks fine. 214 real orders hold one of the other 16
+            // codes with a city that names no province, and for those the courier
+            // received an empty governorate while the data sat in the row.
+            const { governorate } = extractGovernorate(undefined, govCode, undefined);
             govName = governorate?.nameAr || '';
         }
         if (!govName && order.city) {
