@@ -113,3 +113,15 @@ Entitlement verified live against real accounts: as employee `noor` every money 
 **Round 17 (2026-09-08) — DV-D2 completed.** Orders page reads `city`/`product`/`search`; four widgets drill through. `tsc` 0 · `lint` 0 errors / 1,139 warnings · **vitest 734/734 across 88 files**.
 
 **⚠️ NOT A DASHBOARD FINDING — surfaced 2026-09-07, needs a decision:** the other session's `is_active` enforcement in `get_user_tenant_ids()` locks out `Scheniders Store` (`94d3e409…`, super_admin, active member of the main tenant) — it is the only one of 23 users with `user_profiles.is_active = false`, and the column defaults to true. That account now sees zero orders, customers and metrics through RLS. Untouched deliberately: flipping an access-control flag is not mine to do.
+
+**Round 18 (2026-09-09) — ARCH-D3 remainder + three new Orders-surface findings.** `tsc` 0 · **vitest 735/735 across 88 files**.
+
+Attempting to replace `swipeable-order-card`'s `[key: string]: any` with OrderCard's real props did not compile, and each failure was a live defect the signature had been hiding:
+
+| # | Defect | Effect |
+|---|---|---|
+| **ORD-N1** | Callers pass `order.risk_data`; OrderCard's prop declares `TrustAssessment` and reads `historicalData.rejectedCustomerFaultCount` / `.refundCount`, which `v_orders_with_risk` never builds | The "previous rejected / refunded orders" badges on every order card **cannot render for anyone** |
+| **ORD-N2** | `onAssignDuty` passed with a third `employeeId` the prop type omits — and OrderCard **never calls it** (zero call sites) | Dead plumbing into the mock-backed assignment system (Orders ARCH-2) |
+| **ORD-N3** | Page passes `getCustomerOrderCount`; the prop is `customerOrderCount` | Silently ignored |
+
+The type migration was **reverted rather than half-shipped** — reconciling ~34 props against a 2,437-line Orders component needs that surface's owner. The safe half (framer-motion's event type on `handleDragEnd`) is kept, and the findings are recorded in a comment at the site so nobody has to rediscover them. These belong to the **Orders** backlog, not this one.
