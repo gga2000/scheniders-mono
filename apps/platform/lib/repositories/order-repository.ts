@@ -53,7 +53,6 @@ export const LIST_VIEW_COLUMNS = `
   tag_color,
   notes,
   internal_notes,
-  risk_data,
   contact_count,
   last_contacted_at,
   rejection_reason,
@@ -63,7 +62,47 @@ export const LIST_VIEW_COLUMNS = `
   last_status_changed_by_avatar
 `.trim();
 
+/** The risk assessment `v_orders_with_risk` builds from `customer_trust`. */
+export type OrderRisk = NonNullable<Order["risk_data"]>;
+
 export const orderRepository = {
+    /**
+     * Risk assessments keyed by order id.
+     *
+     * PERF-D1: this was a column on the shared list fetch, where it cost 28.2%
+     * of the payload (2,803,916 of 9,951,233 bytes on the largest tenant) on
+     * every route in the app — while only the orders route and the returns
+     * panel ever read it. It now loads on its own, for the routes that render it.
+     */
+    async findRiskData(): Promise<Map<string, OrderRisk>> {
+        const _t = performance.now();
+        const { data, error } = await supabase
+            .from("v_orders_with_risk")
+            .select("id, risk_data")
+            .eq("is_archived", false);
+        if (error) {
+            diag.log(`[Diag:Repo] findRiskData ERR err=${error.message}`);
+            throw error;
+        }
+        const map = new Map<string, OrderRisk>();
+        for (const row of (data ?? []) as { id: string; risk_data: OrderRisk | null }[]) {
+            if (row.risk_data) map.set(row.id, row.risk_data);
+        }
+        diag.log(`[Diag:Repo] findRiskData OK rows=${map.size} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return map;
+    },
+
+    /** One order's risk assessment — for detail panels, which need exactly one. */
+    async findRiskFor(orderId: string): Promise<OrderRisk | null> {
+        const { data, error } = await supabase
+            .from("v_orders_with_risk")
+            .select("risk_data")
+            .eq("id", orderId)
+            .maybeSingle();
+        if (error) throw error;
+        return ((data as { risk_data: OrderRisk | null } | null)?.risk_data) ?? null;
+    },
+
     /** Fetch all active (non-archived) orders, newest first.
      *  Uses a count query + parallel page fetches to cut latency in half. */
     async findAll(): Promise<Order[]> {

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrderRiskQuery } from "@/hooks/use-order-risk-query";
 import { useOrderStore } from "@/store/use-order-store";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -400,6 +401,10 @@ export default function OrdersPage() {
         messageTemplates,
     } = useOrdersContext();
 
+    // PERF-D1: risk assessments no longer ride on every order row. They load
+    // here, on the one route that filters and renders them.
+    const riskByOrderId = useOrderRiskQuery();
+
     // Apply drill-through query params from the dashboard (one-time on mount).
     // DV-D2: `status` was already honoured; `city`, `product` and `search` exist in
     // OrderFilters but were never read from the URL, so the dashboard could only
@@ -715,7 +720,7 @@ export default function OrdersPage() {
                 result = result.filter(o => isOrderFlagged(o) || o.status === 'rejected');
             } else {
                 // Other risk levels use the embedded database risk data
-                result = result.filter((o) => o.risk_data?.level === defRiskLevel);
+                result = result.filter((o) => riskByOrderId.get(o.id)?.level === defRiskLevel);
             }
         }
 
@@ -2618,8 +2623,8 @@ export default function OrdersPage() {
                                                                         blacklistEntry={getBlacklistEntry(order.phone)}
                                                                         onAddToBlacklist={addToBlacklist}
                                                                         onRemoveFromBlacklist={removeFromBlacklist}
-                                                                        riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
-                                                                        riskAssessment={order.risk_data}
+                                                                        riskLevel={(riskByOrderId.get(order.id)?.level || "low") as "low" | "medium" | "high" | "blocked"}
+                                                                        riskAssessment={riskByOrderId.get(order.id)}
                                                                         customerOrderCount={orderCount}
                                                                         archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                         previousOrder={previousOrder}
@@ -2701,7 +2706,7 @@ export default function OrdersPage() {
                                                             onRemoveFromBlacklist={removeFromBlacklist}
                                                             getRiskAssessment={(phone) => {
                                                                 const order = displayedOrders.find(o => o.phone === phone);
-                                                                return order?.risk_data;
+                                                                return order ? riskByOrderId.get(order.id) : undefined;
                                                             }}
                                                             getCustomerOrderCount={getCustomerOrderCount}
                                                             getCustomerArchivedCount={getCustomerArchivedCount}
@@ -2712,7 +2717,7 @@ export default function OrdersPage() {
                                                             actionDock={actionDock}
                                                             getRiskLevel={(phone) => {
                                                                 const order = displayedOrders.find(o => o.phone === phone);
-                                                                const level = order?.risk_data?.level || "low";
+                                                                const level = (order ? riskByOrderId.get(order.id)?.level : undefined) || "low";
                                                                 return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
                                                             }}
                                                             hasDuplicates={hasDuplicates}
@@ -2740,8 +2745,8 @@ export default function OrdersPage() {
                                                                             blacklistEntry={getBlacklistEntry(order.phone)}
                                                                             onAddToBlacklist={addToBlacklist}
                                                                             onRemoveFromBlacklist={removeFromBlacklist}
-                                                                            riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
-                                                                            riskAssessment={order.risk_data}
+                                                                            riskLevel={(riskByOrderId.get(order.id)?.level || "low") as "low" | "medium" | "high" | "blocked"}
+                                                                            riskAssessment={riskByOrderId.get(order.id)}
                                                                             customerOrderCount={orderCount}
                                                                             archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                             previousOrder={previousOrder}
@@ -2808,7 +2813,7 @@ export default function OrdersPage() {
                                                     updateOrderStatus={updateOrderStatus}
                                                     getRiskLevel={(phone) => {
                                                         const order = displayedOrders.find(o => o.phone === phone);
-                                                        const level = order?.risk_data?.level || "low";
+                                                        const level = (order ? riskByOrderId.get(order.id)?.level : undefined) || "low";
                                                         return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
                                                     }}
                                                     columnFilters={columnFilters}

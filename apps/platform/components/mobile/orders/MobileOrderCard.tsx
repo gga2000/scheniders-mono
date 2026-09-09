@@ -60,8 +60,9 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     const orderAge = getOrderAge(order.created_at);
     const scheduledState = getScheduledState(order.scheduled_date);
 
-    // If not explicitly passed, try to extract from order object if available
-    const resolvedRiskLevel = riskLevel || order.risk_data?.level;
+    // PERF-D1: risk_data no longer rides on the order row; the list route owns
+    // the risk map and passes the level down.
+    const resolvedRiskLevel = riskLevel;
     const totalOrders = customerOrderCount + archivedOrderCount;
     const hasManyOrders = totalOrders > 1 || hasDuplicates;
 

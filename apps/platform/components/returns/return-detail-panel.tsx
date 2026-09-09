@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useOrderRisk } from "@/hooks/use-order-risk-query";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { ExternalLink, Ban, ShieldAlert } from "lucide-react";
@@ -49,7 +50,8 @@ export function ReturnDetailPanel({
     const [blacklisted, setBlacklisted] = useState<boolean>(false);
     const [blacklisting, setBlacklisting] = useState<boolean>(false);
 
-    const rawRisk = order.risk_data?.level;
+    // PERF-D1: one order, one risk row — not the whole map.
+    const rawRisk = useOrderRisk(order.id)?.level;
     const riskLevel = (rawRisk === "medium" || rawRisk === "high" || rawRisk === "blocked"
         ? rawRisk : rawRisk === "flagged" ? "high" : "low") as RiskLevel;
     const statusLabel = getStatusLabel(order.status, order.is_return);

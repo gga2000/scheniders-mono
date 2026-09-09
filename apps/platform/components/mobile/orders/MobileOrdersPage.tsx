@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrderRiskQuery } from "@/hooks/use-order-risk-query";
 import { useOrderStore } from "@/store/use-order-store";
 import { useSidebar } from "@/components/layout/dashboard-layout";
 import { MobileOrdersList } from "./MobileOrdersList";
@@ -37,6 +38,8 @@ export function MobileOrdersPage() {
         hasDuplicates,
         exportOrders,
     } = useOrdersContext();
+    // PERF-D1: risk loads on the routes that render it, not on every route.
+    const riskByOrderId = useOrderRiskQuery();
 
     const {
         localSearchQuery,
@@ -97,7 +100,7 @@ export function MobileOrdersPage() {
             if (filters.riskLevel === "flagged") {
                 result = result.filter((o) => isOrderFlagged(o) || o.status === "rejected");
             } else {
-                result = result.filter((o) => o.risk_data?.level === filters.riskLevel);
+                result = result.filter((o) => riskByOrderId.get(o.id)?.level === filters.riskLevel);
             }
         }
 

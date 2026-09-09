@@ -6,6 +6,7 @@ import { motion, useAnimation } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { Order } from "@/lib/supabase";
 import { MobileOrderCard } from "./MobileOrderCard";
+import { useOrderRiskQuery } from "@/hooks/use-order-risk-query";
 
 interface MobileOrdersListProps {
     orders: Order[];
@@ -87,6 +88,9 @@ export const MobileOrdersList = memo(function MobileOrdersList({
     };
 
     // Virtualization
+    // PERF-D1: shares the ["orders","risk"] query key with the page, so this is
+    // the same cached fetch, not a second one.
+    const riskByOrderId = useOrderRiskQuery();
     const estimateSize = useCallback(() => 160, []); // Estimated height of MobileOrderCard including gap
 
     const virtualizer = useWindowVirtualizer({
@@ -163,6 +167,7 @@ export const MobileOrdersList = memo(function MobileOrdersList({
                                     customerOrderCount={getCustomerOrderCount(order.phone, order.order_id)}
                                     archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                     hasDuplicates={hasDuplicates(order.id)}
+                                    riskLevel={riskByOrderId.get(order.id)?.level}
                                     onOpenTemplatePanel={onOpenTemplatePanel}
                                 />
                             </div>
