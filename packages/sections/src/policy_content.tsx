@@ -183,7 +183,11 @@ function PolicyContentRender({
     <Section>
       <div className="mx-auto max-w-3xl">
         <CenteredSectionHeader
-          as="h1"
+          // The policy pages are a single section, so this is their h1. On a
+          // page that already has one (the contact page leads with
+          // faq_contact_split) a second h1 would be wrong, so the level
+          // follows the page rather than the section.
+          as={ctx.runtime.page_id === "contact" ? "h2" : "h1"}
           align="start"
           eyebrow={eyebrow || undefined}
           eyebrowField="eyebrow_i18n"

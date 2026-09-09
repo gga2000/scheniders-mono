@@ -6,11 +6,11 @@
 // a last conversion nudge.
 // =====================================================================
 
+import type * as React from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
-  ChunkyButton,
   Section,
   Sticker,
 } from "./helpers/primitives";
@@ -53,6 +53,22 @@ const defaultProps: Props = {
   background_image_url: undefined,
   bg_tint: "pink",
   align: "start",
+};
+
+/** CTA styling shared by the banner's link. Mirrors ChunkyButton's `lg`
+ *  size and primary surface without nesting a <button> inside an <a>. */
+const CTA_LINK_CLS =
+  "inline-flex items-center justify-center gap-2 px-6 py-4 text-lg font-display font-black bk-caps tracking-tight " +
+  "transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none " +
+  "hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:scale-[0.99]";
+
+const ctaLinkStyle: React.CSSProperties = {
+  backgroundColor: "var(--bk-primary, #ff5a8a)",
+  color: "var(--bk-on-primary, #fff)",
+  border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+  borderRadius: "var(--bk-radius-input, 0.75rem)",
+  boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+  fontFamily: "var(--bk-font-display, inherit)",
 };
 
 function CtaBannerRender({
@@ -108,15 +124,25 @@ function CtaBannerRender({
               {eyebrow}
             </Sticker>
           )}
-          <h2
-            data-i18n-field="heading_i18n"
-            className="font-display font-black text-bk-h2 uppercase leading-[0.95] tracking-tight max-w-2xl"
-            style={{
-              fontFamily: "var(--bk-font-display, inherit)",
-            }}
-          >
-            {heading}
-          </h2>
+          {/* On the 404 page this banner IS the page, so it owns the h1;
+              anywhere else it is one section among many. */}
+          {ctx.runtime.page_id === "not_found" ? (
+            <h1
+              data-i18n-field="heading_i18n"
+              className="font-display font-black text-bk-h1 bk-caps leading-[0.95] tracking-tight max-w-2xl text-balance"
+              style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+            >
+              {heading}
+            </h1>
+          ) : (
+            <h2
+              data-i18n-field="heading_i18n"
+              className="font-display font-black text-bk-h2 bk-caps leading-[0.95] tracking-tight max-w-2xl text-balance"
+              style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+            >
+              {heading}
+            </h2>
+          )}
           {sub && (
             <p
               data-i18n-field="sub_i18n"
@@ -126,10 +152,15 @@ function CtaBannerRender({
             </p>
           )}
           <div className="mt-bk-2xs">
-            <StoreLink href={props.cta_href} data-i18n-field="cta_label_i18n">
-              <ChunkyButton bg="pink" size="lg">
-                {ctaLabel}
-              </ChunkyButton>
+            {/* A styled link, never a <button> inside an <a>: that is invalid
+                HTML and gives screen readers two nested controls. */}
+            <StoreLink
+              href={props.cta_href}
+              data-i18n-field="cta_label_i18n"
+              className={CTA_LINK_CLS}
+              style={ctaLinkStyle}
+            >
+              {ctaLabel}
             </StoreLink>
           </div>
         </div>

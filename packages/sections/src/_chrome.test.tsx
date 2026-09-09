@@ -15,6 +15,8 @@ import { PRESSABLE } from "./helpers/utils";
 import site_header from "./site_header";
 import site_footer from "./site_footer";
 import product_grid from "./product_grid";
+import policy_content from "./policy_content";
+import cta_banner from "./cta_banner";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 
@@ -236,5 +238,59 @@ describe("product_grid category breadcrumb (P3-12)", () => {
       runtime: { ...runtime, locale: "ku" },
     });
     expect(html).toContain(">سەرەکی<");
+  });
+});
+
+// ── Heading levels follow the page, not the section ──
+
+describe("heading ownership", () => {
+  function renderOn(
+    def: { render: React.ComponentType<{ props: never; ctx: never }>; defaultProps: unknown },
+    pageId: string,
+    props?: Record<string, unknown>,
+  ): string {
+    return renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(def.render, {
+          props: { ...(def.defaultProps as object), ...(props ?? {}) },
+          ctx: {
+            tenant: { id: "t1", business_name: "Demo" },
+            runtime: {
+              page_id: pageId,
+              breakpoint: "mobile",
+              locale: "ar",
+              audience_segments: [],
+              ab_test_arms: {},
+              now: new Date("2026-05-15T00:00:00Z"),
+            },
+            products: [],
+            categories: [],
+          },
+        } as never),
+      ),
+    );
+  }
+
+  it("policy_content owns the h1 on a policy page", () => {
+    expect(renderOn(policy_content, "policy_returns")).toContain("<h1");
+  });
+
+  it("policy_content steps down on the contact page, which already has one", () => {
+    const html = renderOn(policy_content, "contact");
+    expect(html).not.toContain("<h1");
+    expect(html).toContain("<h2");
+  });
+
+  it("cta_banner owns the h1 on the 404 page", () => {
+    expect(renderOn(cta_banner, "not_found")).toContain("<h1");
+  });
+
+  it("cta_banner is an h2 anywhere else, and never nests a button in a link", () => {
+    const html = renderOn(cta_banner, "home");
+    expect(html).not.toContain("<h1");
+    expect(html).toContain("<h2");
+    expect(html).not.toMatch(/<a[^>]*>\s*<button/);
   });
 });
