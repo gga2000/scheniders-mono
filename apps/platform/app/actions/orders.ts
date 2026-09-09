@@ -180,3 +180,35 @@ export async function checkOrderIdExists(
     if (error) throw error;
     return data.length > 0;
 }
+
+/**
+ * Reverse a split, restoring the original order and retracting the return it
+ * created.
+ *
+ * WF-2: only valid while that return order is untouched — the RPC refuses once
+ * it has moved off `rejected`, been sent to a courier, or had a refund recorded,
+ * because by then the split reflects something that already happened.
+ */
+export async function unsplitOrderAction(
+    splitLogId: string,
+    accessToken: string,
+): Promise<{ success: boolean; error?: string }> {
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+
+    const { tenantId, role } = resolved.caller;
+    if (!ORDER_WRITE_ROLES.includes(role)) {
+        return { success: false, error: "You do not have permission to undo a split" };
+    }
+
+    const supabase = createSupabaseServiceClient();
+    const { error } = await supabase.rpc("unsplit_order_atomic", {
+        _split_log_id: splitLogId,
+        _tenant_id: tenantId,
+    });
+
+    if (error) {
+        return { success: false, error: error.message };
+    }
+    return { success: true };
+}

@@ -21,7 +21,7 @@ import { calculateTotal } from "@/lib/order-utils";
 import type { CreateOrderInput, CreateOrderResult } from "@/types/order";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
-import { splitOrderAction } from "@/app/actions/orders";
+import { splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
 import { MAX_ORDER_IDS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "sonner";
@@ -634,6 +634,32 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             note: `Split order: Kept ${keptItems.length} items (${keptTotal}), Returned ${returnedItems.length} items (${returnedTotal}). New Return Order: ${result.data?.order_id || 'Generated'}`
                         }
                     }, tenantId);
+                }
+
+                // WF-2: split rewrites the original and creates a return order,
+                // and used to be irreversible. split_order_atomic now snapshots
+                // what it overwrote and returns split_log_id, so the undo can be
+                // offered here. It stays valid only while the return order is
+                // untouched — the RPC refuses once it has shipped or refunded,
+                // and says which, rather than silently doing nothing.
+                const splitLogId = (result.data as (Order & { split_log_id?: string }) | undefined)?.split_log_id;
+                if (splitLogId) {
+                    toast.success("Order split", {
+                        description: `A return order was created for ${returnedItems.length} item(s)`,
+                        duration: 20000,
+                        action: {
+                            label: "Undo",
+                            onClick: async () => {
+                                const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
+                                if (!undo.success) {
+                                    toast.error("Could not undo the split", { description: undo.error });
+                                    return;
+                                }
+                                await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                                toast.success("Split undone", { description: "The order is back as it was" });
+                            },
+                        },
+                    });
                 }
 
                 return { success: true };
