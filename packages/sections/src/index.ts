@@ -91,6 +91,7 @@ import about_spotlight from "./about_spotlight";
 import faq_contact_split from "./faq_contact_split";
 import countdown_announcement from "./countdown_announcement";
 import pdp_direct_order from "./pdp_direct_order";
+import product_attributes from "./product_attributes";
 
 export { getSection, listSections, registerSection } from "./_registry";
 export type {
@@ -171,6 +172,7 @@ export const BUILTIN_SECTIONS = [
   faq_contact_split,
   countdown_announcement,
   pdp_direct_order,
+  product_attributes,
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";
