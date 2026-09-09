@@ -669,3 +669,60 @@ refusal to answer. The page previously reported 0% — indistinguishable, to a
 merchant, from every delivery having failed. A dashboard that says "I don't know"
 when it doesn't know is the whole point of this engagement.
 
+---
+
+## COR-D1 CLOSED — 2026-09-09, and the re-score that follows
+
+The closing re-score above held **P1 Metric truth at 72** for one reason: the
+headline number still counted money that had not been earned. That is now decided
+and shipped (`2805636b`).
+
+**Revenue = realized revenue**: status IN (delivered, completed), dated by when it
+was realized — `delivered_at` (UTC-naive, converted) falling back to `completed_at`.
+Chosen to match the Orders page and finance's `delivered_revenue`, and because it
+answers the question a COD merchant actually asks.
+
+Verified against independent SQL after the change — all four reconcile exactly:
+
+| Figure | Dashboard | Independent SQL |
+|---|---|---|
+| Revenue today | 0 | 0 |
+| Week-over-week · current | 44,750 | 44,750 |
+| Week-over-week · previous | 0 | 0 |
+| Month to date | 44,750 | 44,750 |
+
+Before → after: today 34,750 → 0, week 79,500 → 44,750, month 79,500 → 44,750. The
+drop is the correction; the difference was money not yet collected.
+
+**Why it was safe on this data, checked first:** 767 delivered/completed orders
+carry no realized timestamp and would have vanished from every window. All 767 are
+legacy imports dated 2025-01-15 to 2025-12-19, and **zero** of the last 90 days'
+orders lack one — so none falls inside today / 7d / 14d / month.
+
+### Revised pillar
+
+| Pillar | Opening | Post-fixes | **Now** |
+|---|:--:|:--:|:--:|
+| **P1 Metric truth** | 45 | 72 | **82** |
+
+**Overall: 52 → 73 → 75.**
+
+Not 85, and deliberately so. What remains under P1 is not a dashboard defect but a
+**cross-surface** one: this page now agrees with Orders and Finance on what revenue
+means, but Customers still totals `mv_customer_aggregates.total_spent` over every
+status, and `use-business-metrics` sums the `total` column rather than `price`.
+Unifying those is a separate engagement against surfaces this audit did not cover —
+recorded rather than quietly claimed.
+
+### Verdict
+
+**Still NO-GO**, now on four items, none of which is a defect on this page:
+
+1. **SEC-D2 + PERF-D1** — the app-wide order-book fetch (one change closes both).
+2. **COR-D4** — deploy the held Orders `updated_at` trigger.
+3. **MOB-D1** — which remaining widgets belong on a phone (a product call).
+4. **The `[U]` visual sweep** — needs one test-tenant session.
+
+Everything the audit found *about the numbers* is closed. What is left is
+infrastructure, another team's deploy, a product decision, and an evidence gap.
+
