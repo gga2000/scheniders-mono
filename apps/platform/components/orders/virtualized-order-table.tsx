@@ -451,7 +451,25 @@ const VirtualTableRow = memo(function VirtualTableRow({
             </div>
 
             {/* Phone 1 */}
-            <div role="cell" className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}>
+            <div
+                role="cell"
+                className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}
+                onDoubleClick={(e) => { e.stopPropagation(); onStartEdit?.(order.id, "phone"); }}
+            >
+                {isEditingField("phone") ? (
+                    <InlineEditCell
+                        value={order.phone || ""}
+                        orderId={order.id}
+                        field="phone"
+                        onSave={updateOrder!}
+                        onClose={() => onStartEdit?.(null, null)}
+                        className="font-mono"
+                        // WF-4: a phone is the one field where a typo silently
+                        // costs a delivery, so it is checked before it is saved
+                        // rather than flagged red afterwards.
+                        validate={(v) => validatePhoneDetailed(v).isValid ? null : "That is not a valid Iraqi phone number"}
+                    />
+                ) : (
                 <div className="relative inline-flex items-center gap-1 group/phone">
                     <span
                         className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && "text-amber-600 font-bold")}
@@ -469,6 +487,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         <Copy className="w-3 h-3 text-muted" />
                     </button>
                 </div>
+                )}
             </div>
 
             {/* Phone 2 */}
