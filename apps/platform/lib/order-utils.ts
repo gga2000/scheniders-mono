@@ -224,8 +224,14 @@ export function normalizePhoneForSearch(phone: string | undefined | null): strin
  * Calculate total price from items array
  */
 export function calculateTotal(items: OrderItem[]): number {
+    // Items come from a jsonb column, so price and quantity can arrive as
+    // strings. Coerce explicitly rather than relying on `*` doing it, and treat
+    // a missing or unparseable value as 0 so one bad line cannot turn the whole
+    // total into NaN.
     return items.reduce((sum, item) => {
-        return sum + (item.price * item.quantity);
+        const price = Number(item?.price) || 0;
+        const quantity = Number(item?.quantity) || 0;
+        return sum + price * quantity;
     }, 0);
 }
 

@@ -17,6 +17,7 @@ import {
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { cleanPhoneForExport } from "@/lib/export-utils";
 import { exportOrders as exportOrdersFromUtils } from "@/lib/order-export-utils";
+import { calculateTotal } from "@/lib/order-utils";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { splitOrderAction } from "@/app/actions/orders";
@@ -620,7 +621,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
 
                 if (originalOrder) {
-                    const calculateTotal = (items: OrderItem[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
                     const keptTotal = calculateTotal(keptItems);
                     const returnedTotal = calculateTotal(returnedItems);
 

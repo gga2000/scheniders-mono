@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { calculateTotal } from "@/lib/order-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@scheniders/ui/dialog";
 import { Button } from "@scheniders/ui/button";
 import { Order, OrderItem } from "@/lib/supabase";
@@ -87,10 +88,7 @@ export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrder
         });
     };
 
-    // Calculations
-    const calculateTotal = (items: OrderItem[]) => {
-        return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    };
+    // Calculations use the shared item-total helper.
 
     const keptTotal = calculateTotal(keptItems);
     const returnedTotal = calculateTotal(returnedItems);

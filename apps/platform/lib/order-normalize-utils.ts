@@ -128,32 +128,6 @@ export function getOrderValidationErrors(order: Partial<Order>): string[] {
 }
 
 // =============================================
-// ORDER CALCULATIONS
-// =============================================
-
-/**
- * Calculate total price for order items
- */
-export function calculateOrderTotal(
-    items: Order["items"],
-    deliveryFee: number = 0,
-    discount: number = 0
-): number {
-    const itemsTotal = items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-    );
-    return Math.max(0, itemsTotal + deliveryFee - discount);
-}
-
-/**
- * Calculate total quantity of items in an order
- */
-export function calculateTotalQuantity(items: Order["items"]): number {
-    return items.reduce((sum, item) => sum + item.quantity, 0);
-}
-
-// =============================================
 // STATUS UTILITIES
 // =============================================
 
