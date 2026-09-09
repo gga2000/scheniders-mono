@@ -2525,6 +2525,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.status.return_pending": "Return Pending",
         "orders.status.refund_delivered": "Refund Delivered",
         "orders.status.refund_failed": "Refund Failed",
+        "orders.card.followUpDiscount": "{hours}h elapsed — offer a discount",
+        "orders.card.followUpReminder": "{hours}h elapsed — send a reminder",
+        "orders.whatsapp.greeting": "Hello {name}, regarding your order #{orderId}",
         "orders.status.pending_checkout": "Pending Checkout",
 
         // ── Order Confirmation Card ──
@@ -5577,6 +5580,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.status.return_pending": "استرجاع معلق",
         "orders.status.refund_delivered": "تم الاسترجاع",
         "orders.status.refund_failed": "فشل الاسترجاع",
+        "orders.card.followUpDiscount": "مرت {hours} ساعة (خصم)",
+        "orders.card.followUpReminder": "مرت {hours} ساعة (تذكير)",
+        "orders.whatsapp.greeting": "مرحباً {name}، بخصوص طلبك رقم {orderId}",
         "orders.status.pending_checkout": "قيد الدفع",
 
         // ── Order Confirmation Card ──

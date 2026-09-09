@@ -4,6 +4,7 @@ import React, { memo } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { formatShortDate, formatTime, getOrderAge, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
+import { useLanguage } from "@/hooks/use-language";
 import { ALL_ORDER_STATUSES } from "@/lib/schemas";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
@@ -47,6 +48,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     archivedOrderCount = 0,
     onOpenTemplatePanel,
 }: MobileOrderCardProps) {
+    const { t } = useLanguage();
     const isReturn = order.is_return;
     const items = getItemsDisplay(order.items || []);
     const itemsText = items.length > 0
@@ -320,9 +322,8 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     : "bg-amber-50 text-amber-700 border-amber-300"
                             )}>
                                 {needsDiscount ? <Gift className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
-                                {needsDiscount
-                                    ? `مرت ${Math.floor(hoursSinceCreated)} ساعة (خصم)`
-                                    : `مرت ${Math.floor(hoursSinceCreated)} ساعة (تذكير)`}
+                                {t(needsDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder")
+                                    .replace("{hours}", String(Math.floor(hoursSinceCreated)))}
                             </div>
                         )}
 
@@ -338,7 +339,9 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         try {
                                             const link = generateWhatsAppLink(
                                                 phone2,
-                                                `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+                                                t("orders.whatsapp.greeting")
+                                                    .replace("{name}", order.customer_name ?? "")
+                                                    .replace("{orderId}", String(order.order_id))
                                             );
                                             window.open(link, "_blank");
                                         } catch (error) {
@@ -371,7 +374,9 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     try {
                                         const link = generateWhatsAppLink(
                                             order.phone,
-                                            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+                                            t("orders.whatsapp.greeting")
+                                                    .replace("{name}", order.customer_name ?? "")
+                                                    .replace("{orderId}", String(order.order_id))
                                         );
                                         window.open(link, "_blank");
                                     } catch (error) {

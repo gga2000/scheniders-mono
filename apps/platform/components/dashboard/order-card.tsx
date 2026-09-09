@@ -18,6 +18,7 @@ import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils"
 import { extractGovernorate } from "@/lib/address-validator";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { formatShortDate, formatTime, getOrderAge, getAgeUrgency, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
+import { useLanguage } from "@/hooks/use-language";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
@@ -159,6 +160,7 @@ export const OrderCard = memo(function OrderCard({
     onAddToBlacklist,
     onRemoveFromBlacklist,
 }: OrderCardProps) {
+    const { t } = useLanguage();
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
     const isReturn = order.is_return;
@@ -1905,7 +1907,7 @@ export const OrderCard = memo(function OrderCard({
                                     : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
                             )}>
                                 {needsDiscount ? <Gift className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-                                <span>{needsDiscount ? `مرت ${Math.floor(hoursSinceCreated)} ساعة (خصم)` : `مرت ${Math.floor(hoursSinceCreated)} ساعة (تذكير)`}</span>
+                                <span>{t(needsDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder").replace("{hours}", String(Math.floor(hoursSinceCreated)))}</span>
                             </div>
                         )}
 
