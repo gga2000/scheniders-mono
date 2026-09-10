@@ -4,6 +4,8 @@ import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listCategories } from "@/lib/queries";
 import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
+import { JsonLd } from "@/components/json-ld";
+import { faqItemsFromPage, faqPageJsonLd } from "@/lib/seo";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { FaqAccordion } from "@/components/schneiders/faq-accordion";
@@ -68,8 +70,17 @@ export default async function FaqPage({ params }: { params: Promise<{ tenant: st
   const v2Page = pickV2Page(v2, "faq");
   if (v2 && v2Page) {
     const categories = await listCategories(tenant.id);
-    const runtime = buildRuntimeContext({ pageId: "faq", locale: v2.default_locale ?? "ar", now: new Date() });
-    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+    const locale = v2.default_locale ?? "ar";
+    const runtime = buildRuntimeContext({ pageId: "faq", locale, now: new Date() });
+    // FAQ rich results, built from the questions this page actually renders —
+    // undefined (and so not emitted) when the merchant placed none.
+    const faq = faqPageJsonLd(faqItemsFromPage(v2Page, locale));
+    return (
+      <>
+        {faq && <JsonLd data={faq} />}
+        <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />
+      </>
+    );
   }
 
   const categories = await listCategories(tenant.id);

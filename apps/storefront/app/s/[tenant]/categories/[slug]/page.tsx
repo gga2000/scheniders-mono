@@ -15,6 +15,8 @@ import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { SchneidersCategoryView } from "@/components/schneiders/category-view";
 import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
+import { JsonLd } from "@/components/json-ld";
+import { getStorefrontBase, itemListJsonLd } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
@@ -73,13 +75,24 @@ export default async function CategoryPage({ params }: Props) {
       now: new Date(),
       categoryId: category.id,
     });
+    const { baseUrl } = await getStorefrontBase(tenantParam);
+    const collection = itemListJsonLd({
+      name: category.name,
+      items: products.map((p) => ({
+        name: p.name,
+        url: `${baseUrl}/products/${encodeURIComponent(p.slug ?? p.id)}`,
+      })),
+    });
     return (
-      <V2Page
-        v2={v2}
-        page={v2Page}
-        runtime={runtime}
-        renderCtx={{ tenant, products, categories, category }}
-      />
+      <>
+        {collection && <JsonLd data={collection} />}
+        <V2Page
+          v2={v2}
+          page={v2Page}
+          runtime={runtime}
+          renderCtx={{ tenant, products, categories, category }}
+        />
+      </>
     );
   }
 

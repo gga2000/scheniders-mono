@@ -493,7 +493,19 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 - **W7.2** Image pipeline audit: AVIF/WebP, correct `sizes`. *(F2)*
 - **W7.3** Optimistic cart + designed skeletons. *(F3)*
 - **W7.4** PWA / add-to-home-screen. *(F4)*
-- **W7.5** schema.org product rich results. *(E2)*
+- **W7.5** Rich results — DONE. `lib/seo.ts` gains `shippingDetailsJsonLd`
+  (real fee, one value when flat and a min/max when governorates differ,
+  transit time only from a published ETA), `returnPolicyJsonLd` (the
+  merchant's own window; no claim about who pays the courier),
+  `faqPageJsonLd` + `faqItemsFromPage` (the questions the page actually
+  renders, from `faq_accordion` / `faq_contact_split`), and `itemListJsonLd`
+  for collections. The product offer also carries `sku` and `seller`.
+  `itemCondition` and `priceValidUntil` are deliberately NOT emitted — a
+  store may sell open-box goods and sets no price expiry; a missing
+  recommended field is a warning, a wrong one is a lie in a search result.
+  Verified live against the flagship: 5,000 IQD flat shipping, no returns
+  policy (unset), no rating (no approved reviews), 5 real FAQ questions,
+  collections of 7 and 5 real products. *(E2)*
 - **W7.6** Arabic blog / guides. *(E1)*
 - **W7.7** Video sections wired. *(E4)*
 - **W7.8** Motion identity pass. *(H2)*

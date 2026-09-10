@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { summarizeDelivery } from "@scheniders/shared";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { enforceRedirect } from "@/lib/redirects";
@@ -24,6 +25,8 @@ import {
   getStorefrontBase,
   productJsonLd,
   breadcrumbJsonLd,
+  shippingDetailsJsonLd,
+  returnPolicyJsonLd,
 } from "@/lib/seo";
 
 interface Props {
@@ -118,6 +121,17 @@ export default async function ProductPage({ params }: Props) {
     const productUrl = `${baseUrl}/products/${encodeURIComponent(product.slug ?? product.id)}`;
     const inStock =
       (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
+    // Delivery and returns in the rich result come from the SAME config the
+    // checkout charges and the product page shows — never a default. Both are
+    // omitted when the merchant has not configured them.
+    const commerce = v2.commerce;
+    const delivery = summarizeDelivery(commerce?.shipping);
+    const shippingDetails = shippingDetailsJsonLd({
+      minFeeIqd: delivery.fee.min,
+      maxFeeIqd: delivery.fee.max,
+      etaHours: delivery.eta_hours,
+    });
+    const returnPolicy = returnPolicyJsonLd(commerce?.returns_policy?.window_days);
     return (
       <>
         <JsonLd
@@ -132,6 +146,9 @@ export default async function ProductPage({ params }: Props) {
               brand: tenant.business_name,
               ratingAverage: product.avg_rating ?? null,
               ratingCount: product.review_count ?? null,
+              sku: product.sku ?? null,
+              ...(shippingDetails ? { shippingDetails } : {}),
+              ...(returnPolicy ? { returnPolicy } : {}),
             }),
             breadcrumbJsonLd([
               { name: ar ? "الرئيسية" : "Home", url: baseUrl || "/" },
