@@ -93,6 +93,9 @@ const DateRangePicker = dynamic(
     () => import("@scheniders/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
     { ssr: false, loading: () => <div className="w-full h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
+import { GlobalSearchField } from "@/components/orders/global-search-field";
+import { OrdersAnalyticsPanel } from "@/components/orders/orders-analytics-panel";
+import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
 import { EmptyState } from "@/components/ui/empty-states";
 import { StaggerContainer, StaggerItem, EASE_CHROME, EASE_PANEL, EASE_CROSSFADE } from "@/components/layout/page-transition";
 import { useSidebar } from "@/components/layout/dashboard-layout";
@@ -202,125 +205,6 @@ import { toast, dismissToast } from "@/hooks/use-toast";
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
-interface GlobalSearchFieldProps {
-    filters: { searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string };
-    setFilters: React.Dispatch<React.SetStateAction<{ searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string }>>;
-    inputClassName?: string;
-    onScannerOpen?: () => void;
-    /** Optional sub-filters toggle rendered next to the scanner button. When wired, it shows/hides the TYPE+PRODUCTS rows in the sticky filter bar. */
-    subFiltersOpen?: boolean;
-    onToggleSubFilters?: () => void;
-}
-
-const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen, subFiltersOpen, onToggleSubFilters }: GlobalSearchFieldProps) {
-    const localSearchQuery = useOrderStore((s) => s.localSearchQuery);
-    const setLocalSearchQuery = useOrderStore((s) => s.setLocalSearchQuery);
-    const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
-    const { t } = useLanguage();
-
-    // Track the previous search state to know when user starts/clears a search
-    const prevSearchRef = React.useRef<string>("");
-
-    useEffect(() => {
-        const prevSearch = prevSearchRef.current;
-        // Normalize scanned/pasted QR ("QR:{id}|PHONE:..") down to the order id; plain text passes through.
-        const newSearch = extractScannedOrderId(debouncedSearchQuery);
-
-        if (newSearch === (filters.searchQuery || "")) return; // No change needed
-
-        if (newSearch && !prevSearch) {
-            // User STARTED searching — clear date range so all orders are searchable
-            setFilters((prev) => ({
-                ...prev,
-                searchQuery: newSearch,
-                dateFrom: undefined,
-                dateTo: undefined,
-            }));
-        } else if (!newSearch && prevSearch) {
-            // User CLEARED search — restore today's date range
-            const todayStr = (() => {
-                const d = new Date();
-                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-            })();
-            setFilters((prev) => ({
-                ...prev,
-                searchQuery: undefined,
-                dateFrom: todayStr,
-                dateTo: todayStr,
-            }));
-        } else {
-            // Search query changed but not starting/stopping — just update searchQuery
-            setFilters((prev) => ({ ...prev, searchQuery: newSearch || undefined }));
-        }
-
-        prevSearchRef.current = newSearch;
-    }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
-
-    return (
-        <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-subtle)]" />
-            <input
-                type="text"
-                placeholder={t ? t("orders.searchPlaceholder") : "Search orders..."}
-                value={localSearchQuery}
-                onChange={(e) => setLocalSearchQuery(e.target.value)}
-                className={inputClassName}
-            />
-            {/* Sub-filters toggle — sits to the left of the scanner so the user
-                can show/hide the TYPE + PRODUCTS rows without leaving the search bar. */}
-            {onToggleSubFilters && (
-                <button
-                    onClick={onToggleSubFilters}
-                    title={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
-                    aria-label={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
-                    aria-pressed={!!subFiltersOpen}
-                    className={cn(
-                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",
-                        subFiltersOpen
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200"
-                            : "text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
-                        // Shift left of the scanner: scanner sits at right-9 (when query) or right-2; place this 9 left of that.
-                        localSearchQuery ? "right-[4.5rem]" : "right-11"
-                    )}
-                >
-                    {subFiltersOpen ? (
-                        <ChevronsDownUp className="w-4 h-4" />
-                    ) : (
-                        <ChevronsUpDown className="w-4 h-4" />
-                    )}
-                </button>
-            )}
-            {/* Scanner button — shifts left when archive button is also visible */}
-            {onScannerOpen && (
-                <button
-                    onClick={onScannerOpen}
-                    title="Scan barcode"
-                    className={cn(
-                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
-                        localSearchQuery ? "right-9" : "right-2"
-                    )}
-                >
-                    <ScanBarcode className="w-4 h-4" />
-                </button>
-            )}
-            {localSearchQuery && (
-                <button
-                    onClick={() => setFilters((prev) => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
-                    className={cn(
-                        "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all flex items-center gap-1",
-                        filters.searchIncludesArchive
-                            ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                            : "text-muted-foreground hover:bg-amber-100/40"
-                    )}
-                    title="Include Archive in Search"
-                >
-                    <Archive className="w-3.5 h-3.5" />
-                    {filters.searchIncludesArchive && <span className="text-[10px] sm:hidden font-bold pr-1">{t("orders.filter.archivedIncluded")}</span>}
-                </button>
-            )}
-        </div>
-    );
-});
 
 export default function OrdersPage() {
     const { sidebarExpanded } = useSidebar();
@@ -1083,6 +967,24 @@ export default function OrdersPage() {
     const handleBulkInTransit = makeBulkStatusHandler("in_transit");
     const handleBulkCompleted = makeBulkStatusHandler("completed");
     const handleBulkNoResponse = makeBulkStatusHandler("no_response");
+    const handleBulkSuspend = makeBulkStatusHandler("suspended");
+
+    // ARCH-1: passed to OrdersFilterBar as one object. Ten separate props
+    // for ten handlers that differ only by status would have made the
+    // extraction's interface larger than the markup it removed.
+    const bulkActions = {
+        confirm: handleBulkConfirm,
+        contacted: handleBulkContacted,
+        deliver: handleBulkDeliver,
+        reject: handleBulkReject,
+        completed: handleBulkCompleted,
+        inTransit: handleBulkInTransit,
+        noResponse: handleBulkNoResponse,
+        setNew: handleBulkNew,
+        suspend: handleBulkSuspend,
+        archive: handleBulkArchive,
+        remove: handleBulkDelete,
+    };
 
     const handleShipExport = async (company: 'prime' | 'waseet') => {
         // Shipping with nothing selected means "everything matching my filter".
@@ -2067,213 +1969,14 @@ export default function OrdersPage() {
                                             {/* Old Saved Views Location Removed */}
 
                                             {/* Collapsible Analytics Panel */}
-                                            <AnimatePresence initial={false}>
-                                                {analyticsLevel >= 1 && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="space-y-4 pb-6">
-                                                            {/* Main Stats Grid */}
-
-                                                            <ErrorBoundary name="Analytics Dashboard">
-                                                                {/* Main Stats Grid */}
-                                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                                                                    {/* New Orders - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <Sparkles className="w-16 h-16 text-rose-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600">
-                                                                                    <Sparkles className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">{t("orders.status.new")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{statusCounts.new || 0}</h3>
-                                                                                <span className="text-sm font-medium text-rose-600/80">orders</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Contacted - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <PhoneCall className="w-16 h-16 text-amber-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600">
-                                                                                    <PhoneCall className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">{t("orders.status.contacted")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{statusCounts.contacted || 0}</h3>
-                                                                                <span className="text-sm font-medium text-amber-600/80">active</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Confirmed - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-violet-50 to-purple-100/50 border border-violet-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <CheckCircle2 className="w-16 h-16 text-violet-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600">
-                                                                                    <CheckCircle2 className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">{t("orders.status.confirmed")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{statusCounts.confirmed || 0}</h3>
-                                                                                <span className="text-sm font-medium text-violet-600/80">ready</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* In Transit - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <Truck className="w-16 h-16 text-orange-500 -rotate-12 group-hover:scale-110 group-hover:translate-x-2 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-orange-100 text-orange-600">
-                                                                                    <Truck className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">{t("orders.status.inTransit")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{statusCounts.in_transit || 0}</h3>
-                                                                                <span className="text-sm font-medium text-orange-600/80">shipped</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Conversion Rate - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-white/60 backdrop-blur-md border border-white/40 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group ring-1 ring-black/5">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
-                                                                            <TrendingUp className="w-16 h-16 text-emerald-500 -rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
-                                                                                    <TrendingUp className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{t("orders.stats.conversion")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-end gap-2">
-                                                                                <h3 className="text-3xl font-bold text-foreground dark:text-white">{stats.conversionRate.toFixed(1)}%</h3>
-                                                                            </div>
-                                                                            {/* Animated Progress Bar */}
-                                                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                                                                <div
-                                                                                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out relative"
-                                                                                    style={{ width: `${stats.conversionRate}%` }}
-                                                                                >
-                                                                                    <div className="absolute inset-0 bg-white/30 w-full animate-[shimmer_2s_infinite]" />
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
-                                                                {analyticsLevel >= 2 && (
-                                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                                        {/* Operational Velocity */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <Activity className="w-16 h-16 text-blue-500 rotate-12" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.operationalVelocity")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.confirmSpeed")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.deliverySpeed")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.peakHour")}</span>
-                                                                                    <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{stats.peakTime}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Needs Attention */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <AlertTriangle className="w-16 h-16 text-red-500 -rotate-12" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.needsAttention")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center group/item hover:bg-rose-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, riskLevel: 'flagged' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <ShieldCheck className="w-4 h-4 text-rose-600" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.flagged")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-rose-600">{flaggedCount}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center group/item hover:bg-red-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, priority: 'urgent' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.urgent")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-red-600">{stats.urgentOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center group/item hover:bg-orange-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'no_response' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="w-2 h-2 rounded-full bg-orange-400" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.noResponse")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-orange-600">{stats.noResponseOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100 group/item hover:bg-yellow-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'return_pending' })}>
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.returnsPending")}</span>
-                                                                                    <span className="font-bold text-yellow-600">{stats.returnPendingOrders}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Business Pulse */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <BarChart3 className="w-16 h-16 text-emerald-500 rotate-6" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.businessPulse")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.revenue")}</span>
-                                                                                    <span className="font-bold text-emerald-600">{formatIQD(stats.todayRevenue)}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.ordersCount")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.todayOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.avgOrderValue")}</span>
-                                                                                    <span className="font-bold text-foreground">{formatIQD(stats.averageOrderValue)}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </ErrorBoundary>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            <OrdersAnalyticsPanel
+                                                analyticsLevel={analyticsLevel}
+                                                stats={stats}
+                                                statusCounts={statusCounts}
+                                                filters={filters}
+                                                setFilters={setFilters}
+                                                flaggedCount={flaggedCount}
+                                            />
 
                                             {/* Order Pipeline — collapsible funnel overview, sits above the search bar (hidden by default) */}
                                             <AnimatePresence initial={false}>
@@ -2299,330 +2002,15 @@ export default function OrdersPage() {
                                             </AnimatePresence>
 
                                             {/* Filters & Search Bar */}
-                                            <AnimatePresence initial={false}>
-                                                {showSearchBar && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
-                                                        onAnimationStart={() => setIsFilterPanelAnimating(true)}
-                                                        onAnimationComplete={() => setIsFilterPanelAnimating(false)}
-                                                        className={cn(
-                                                            isFilterPanelAnimating ? "overflow-hidden" : "overflow-visible"
-                                                        )}
-                                                    >
-                                                        <div className="pastel-card p-6 space-y-4 orders-search-panel">
-                                                            <div className="flex flex-col lg:flex-row gap-4">
-                                                                <GlobalSearchField
-                                                                    filters={filters}
-                                                                    setFilters={setFilters}
-                                                                    onScannerOpen={() => setIsScannerOpen(true)}
-                                                                    subFiltersOpen={showSubFilters}
-                                                                    onToggleSubFilters={toggleSubFilters}
-                                                                    inputClassName="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
-                                                                />
-                                                                {/* Sort dropdown removed in favor of column sorting */}
-                                                            </div>
-
-                                                            {!isMobile && (
-                                                                <StickyFilterBar
-                                                                    filters={filters}
-                                                                    setFilters={setFilters}
-                                                                    statusCounts={statusCounts}
-                                                                    productsInView={availableProductsInView}
-                                                                    totalRiskCount={totalRiskCount}
-                                                                    showFilters={showFilters}
-                                                                    setShowFilters={setShowFilters}
-                                                                    hasActiveFilters={hasActiveFilters}
-                                                                    groupBy={groupBy}
-                                                                    setGroupBy={setGroupBy}
-                                                                    filterDuplicatesOnly={filterDuplicatesOnly}
-                                                                    setFilterDuplicatesOnly={setFilterDuplicatesOnly}
-                                                                    showSubFilters={showSubFilters}
-                                                                    isMobile={false}
-                                                                />
-                                                            )}
-
-                                                            {/* Advanced Filters Panel */}
-                                                            <AnimatePresence>
-                                                                {showFilters && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        className="overflow-hidden"
-                                                                    >
-                                                                        <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
-                                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                                                {/* City Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.city")}</label>
-                                                                                    <div className="relative">
-                                                                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.city || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allCities")}</option>
-                                                                                            {availableCities.map((city) => (
-                                                                                                <option key={city} value={city}>{city}</option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* Product Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.product")}</label>
-                                                                                    <div className="relative">
-                                                                                        <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.product || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allProducts")}</option>
-                                                                                            {availableProducts.map((product) => (
-                                                                                                <option key={product} value={product}>{product}</option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* Payment Status Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.payment")}</label>
-                                                                                    <div className="relative">
-                                                                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.paymentStatus || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allPayments")}</option>
-                                                                                            <option value="cod">{t("orders.filter.paymentCoD")}</option>
-                                                                                            <option value="prepaid">{t("orders.filter.paymentPrepaid")}</option>
-                                                                                            <option value="pending">{t("orders.filter.paymentPending")}</option>
-                                                                                            <option value="partial">{t("orders.filter.paymentPartial")}</option>
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                            {/* Filter Actions Row */}
-                                                                            <div className="flex flex-wrap items-center gap-3">
-                                                                                {/* Clear Filters Button */}
-                                                                                {hasActiveFilters && (
-                                                                                    <button
-                                                                                        onClick={clearFilters}
-                                                                                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
-                                                                                    >
-                                                                                        <X className="w-3.5 h-3.5" />
-                                                                                        Clear all filters
-                                                                                    </button>
-                                                                                )}
-
-                                                                                {/* Toggle Presets */}
-                                                                                <button
-                                                                                    onClick={() => setShowPresets(!showPresets)}
-                                                                                    className={cn(
-                                                                                        "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all",
-                                                                                        showPresets || filterPresets.length > 0
-                                                                                            ? "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                                                                            : "text-muted hover:text-foreground hover:bg-gray-50"
-                                                                                    )}
-                                                                                >
-                                                                                    <Bookmark className="w-3.5 h-3.5" />
-                                                                                    Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
-                                                                                </button>
-                                                                            </div>
-
-                                                                            {/* Filter Presets Panel */}
-                                                                            <AnimatePresence>
-                                                                                {showPresets && (
-                                                                                    <motion.div
-                                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                                        className="overflow-hidden"
-                                                                                    >
-                                                                                        <div className="pt-3 border-t border-dashed border-[var(--card-border)] space-y-3">
-                                                                                            {/* Save Current Filter */}
-                                                                                            {hasActiveFilters && (
-                                                                                                <div className="flex gap-2">
-                                                                                                    <input
-                                                                                                        type="text"
-                                                                                                        placeholder="Name this filter..."
-                                                                                                        value={newPresetName}
-                                                                                                        onChange={(e) => setNewPresetName(e.target.value)}
-                                                                                                        className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"
-                                                                                                    />
-                                                                                                    <button
-                                                                                                        onClick={() => {
-                                                                                                            if (newPresetName.trim()) {
-                                                                                                                saveFilterPreset(newPresetName.trim());
-                                                                                                                setNewPresetName("");
-                                                                                                            }
-                                                                                                        }}
-                                                                                                        disabled={!newPresetName.trim()}
-                                                                                                        className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
-                                                                                                    >
-                                                                                                        <Save className="w-3.5 h-3.5" />
-                                                                                                        Save
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            )}
-
-                                                                                            {/* Saved Presets List */}
-                                                                                            {filterPresets.length > 0 ? (
-                                                                                                <div className="flex flex-wrap gap-2">
-                                                                                                    {filterPresets.map((preset) => (
-                                                                                                        <div
-                                                                                                            key={preset.id}
-                                                                                                            className="flex items-center gap-1 pl-3 pr-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg group"
-                                                                                                        >
-                                                                                                            <button
-                                                                                                                onClick={() => loadFilterPreset(preset.id)}
-                                                                                                                className="text-sm text-purple-700 hover:text-purple-900 font-medium"
-                                                                                                            >
-                                                                                                                {preset.name}
-                                                                                                            </button>
-                                                                                                            <button
-                                                                                                                onClick={() => deleteFilterPreset(preset.id)}
-                                                                                                                className="p-1 text-purple-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
-                                                                                                            >
-                                                                                                                <Trash2 className="w-3 h-3" />
-                                                                                                            </button>
-                                                                                                        </div>
-                                                                                                    ))}
-                                                                                                </div>
-                                                                                            ) : (
-                                                                                                <p className="text-xs text-muted">{t("orders.filter.noSavedFilters")}</p>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    </motion.div>
-                                                                                )}
-                                                                            </AnimatePresence>
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-
-                                                            <AnimatePresence>
-                                                                {selectedOrders.size > 0 && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        className={cn("flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide", isBulkProcessing && "pointer-events-none opacity-50")}
-                                                                    >
-                                                                        <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} {t("orders.selected")}</span>
-
-                                                                        {/* Primary Actions */}
-                                                                        <button
-                                                                            onClick={handleBulkConfirm}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.confirm")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkDeliver}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.deliver")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkReject}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.reject")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkArchive}
-                                                                            className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.archive")}
-                                                                        </button>
-
-                                                                        {/* WhatsApp Bulk Send */}
-                                                                        <button
-                                                                            onClick={() => setTemplatePanelOpen(true)}
-                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap flex items-center gap-1.5"
-                                                                        >
-                                                                            <MessageCircle className="w-4 h-4" />
-                                                                            {t("orders.bulk.sendTemplate") || "إرسال رسالة واتساب"}
-                                                                        </button>
-
-                                                                        {/* Divider */}
-                                                                        <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                                        {/* Status Change Buttons */}
-                                                                        <button
-                                                                            onClick={handleBulkNew}
-                                                                            className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.new")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkContacted}
-                                                                            className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.contacted")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkInTransit}
-                                                                            className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.inTransit")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkCompleted}
-                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.completed")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                const ids = Array.from(selectedOrders);
-                                                                                withProcessing(
-                                                                                    () => bulkUpdateStatus(ids, "suspended"),
-                                                                                    `Updating ${ids.length} orders...`,
-                                                                                    t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Suspended"),
-                                                                                    () => setSelectedOrders(new Set())
-                                                                                );
-                                                                            }}
-                                                                            className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.suspended")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkNoResponse}
-                                                                            className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.status.noResponse")}
-                                                                        </button>
-
-                                                                        {/* Divider */}
-                                                                        <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                                        {/* Destructive Action */}
-                                                                        <button
-                                                                            onClick={handleBulkDelete}
-                                                                            className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.delete")}
-                                                                        </button>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            <OrdersFilterBar
+                                                bulkActions={bulkActions}
+                                                isBulkProcessing={isBulkProcessing}
+                                                hasActiveFilters={hasActiveFilters}
+                                                totalRiskCount={totalRiskCount}
+                                                showSubFilters={showSubFilters}
+                                                toggleSubFilters={toggleSubFilters}
+                                                onOpenScanner={() => setIsScannerOpen(true)}
+                                            />
 
                                             {/* Mobile Sticky Filter Bar - Rendered outside overflow-hidden container */}
                                             {isMobile && showSearchBar && (
