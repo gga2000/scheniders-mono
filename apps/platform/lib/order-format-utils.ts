@@ -21,10 +21,17 @@ const baghdadDayMonth = new Intl.DateTimeFormat("en-GB", {
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
+// `hourCycle`, not `hour12`. Asking for `hour12: true` on `en-GB` lets ICU
+// pick the cycle, and it picks h11 — where midnight is hour 0 — so 00:30 UTC+3
+// renders as the nonsense "00:30 am" instead of "12:30 am". Which cycle a
+// runtime picks varies by ICU version, so the same order read differently on a
+// developer's machine, the CI runner and the server. `h12` pins 1-12 with
+// midnight and noon as 12 everywhere. Note the two options cannot be combined:
+// per spec `hour12` overrides `hourCycle`, so it has to be gone, not adjusted.
 const baghdadTime = new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hourCycle: "h12" as const,
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
@@ -95,7 +102,7 @@ const baghdadDateTime = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hourCycle: "h12" as const,
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
@@ -104,7 +111,7 @@ const baghdadDayMonthTime = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hourCycle: "h12" as const,
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
