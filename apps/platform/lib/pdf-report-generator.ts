@@ -2,6 +2,7 @@
 
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
+import { formatOrderNamedDayMonth } from "@/lib/order-format-utils";
 
 // ============================================
 // TYPES
@@ -445,7 +446,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
             order.items?.map((i) => `${i.name} x${i.quantity}`).join(", ") || "—",
             formatIQD(Number(order.price) || 0),
             getStatusLabel(order.status),
-            new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+            formatOrderNamedDayMonth(order.created_at),
         ]);
 
         autoTable(doc, {

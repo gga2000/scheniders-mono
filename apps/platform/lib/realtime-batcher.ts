@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
 import { diag } from "@/lib/diag";
+import { belongsInWindow, type OrderWindow } from "@/lib/order-window";
 
 
 // =============================================
@@ -23,6 +24,45 @@ interface RealtimeBatcherOptions {
     normalizer?: (raw: unknown) => unknown;
     flushDelayMs?: number; // Default: 200ms
     onNewOrder?: (order: Order) => void;
+    /**
+     * The window the cache currently holds, or null while it holds every
+     * non-archived order. Rows outside it must never be prepended — see
+     * lib/order-window.ts.
+     */
+    getWindow?: () => OrderWindow;
+}
+
+/**
+ * Decide whether an incoming realtime row should replace what's in cache.
+ *
+ * Prefers `version` — a server-assigned counter bumped by a BEFORE UPDATE
+ * trigger on every write, which a client cannot fabricate. Falls back to
+ * `updated_at` only when a version is unavailable on either side (e.g. a row
+ * cached before `version` was added to the list columns).
+ *
+ * Historically this compared `updated_at` first, but platform writes never
+ * moved that column, so every peer edit arrived with an equal timestamp and was
+ * discarded — realtime looked alive while silently delivering nothing (CON-2).
+ */
+export function shouldApplyRealtimeUpdate(
+    cached: { version?: unknown; updated_at?: unknown },
+    incoming: { version?: unknown; updated_at?: unknown },
+): boolean {
+    const cachedVersion = cached.version;
+    const incomingVersion = incoming.version;
+    if (typeof cachedVersion === "number" && typeof incomingVersion === "number") {
+        // Strictly newer wins; equal means we already have this revision.
+        return incomingVersion > cachedVersion;
+    }
+
+    const cachedAt = cached.updated_at;
+    const incomingAt = incoming.updated_at;
+    if (typeof cachedAt === "string" && typeof incomingAt === "string") {
+        return incomingAt > cachedAt;
+    }
+
+    // Not enough information to prove the event is stale — apply it.
+    return true;
 }
 
 export class RealtimeBatcher {
@@ -33,6 +73,7 @@ export class RealtimeBatcher {
     private normalizer: (raw: unknown) => unknown;
     private flushDelayMs: number;
     private onNewOrder?: (order: Order) => void;
+    private getWindow?: () => OrderWindow;
 
     // Mutation guard: track recently-mutated order IDs to prevent
     // stale realtime broadcasts from overwriting optimistic updates
@@ -45,6 +86,7 @@ export class RealtimeBatcher {
         this.normalizer = options.normalizer ?? ((x: unknown) => x);
         this.flushDelayMs = options.flushDelayMs ?? 200;
         this.onNewOrder = options.onNewOrder;
+        this.getWindow = options.getWindow;
     }
 
     /**
@@ -144,6 +186,8 @@ export class RealtimeBatcher {
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
 
+            const win = this.getWindow?.() ?? null;
+
             const result = old
                 // Remove deleted orders
                 .filter((o) => {
@@ -155,20 +199,13 @@ export class RealtimeBatcher {
                     if (updated) {
                         updates.delete(o.id); // Mark as applied
                         if (updated.is_archived) return null; // Remove archived from active list
+                        // Edited out of the loaded window (e.g. its date moved):
+                        // drop it rather than leave a row that no longer matches.
+                        if (!belongsInWindow(updated, win)) return null;
 
-                        // Timestamp-aware: skip broadcasts whose updated_at is older
-                        // than or equal to what's already in cache (deterministic dedup)
-                        if (o.updated_at && updated.updated_at && updated.updated_at <= o.updated_at) {
+                        // Version-first dedup (see shouldApplyRealtimeUpdate).
+                        if (!shouldApplyRealtimeUpdate(o, updated)) {
                             return o; // Keep current (newer) data
-                        }
-
-                        // Version-aware: skip stale events (if version column exists)
-                        const oVersion = (o as unknown as Record<string, unknown>).version;
-                        const updatedVersion = (updated as unknown as Record<string, unknown>).version;
-                        if (typeof oVersion === "number" && typeof updatedVersion === "number") {
-                            if (updatedVersion < oVersion) {
-                                return o; // Keep current (newer) version
-                            }
                         }
                         return updated;
                     }
@@ -176,15 +213,19 @@ export class RealtimeBatcher {
                 })
                 .filter((o): o is Order => o !== null);
 
-            // Add new inserts + any updates for orders not in the current list
+            // Add new inserts + any updates for orders not in the current list.
+            // Only rows that belong in the loaded window: with a windowed cache,
+            // prepending anything else invents a row the merchant can act on.
             const newOrders: Order[] = [];
             for (const [, order] of inserts) {
+                if (!belongsInWindow(order, win)) continue;
                 if (!result.some((o) => o.id === order.id)) {
                     newOrders.push(order);
                 }
             }
             // Updates for orders that weren't in the list (e.g., un-archived)
             for (const [, order] of updates) {
+                if (!belongsInWindow(order, win)) continue;
                 if (!order.is_archived && !result.some((o) => o.id === order.id)) {
                     newOrders.push(order);
                 }
@@ -232,17 +273,20 @@ export class RealtimeBatcher {
                     const updated = updates.get(o.id);
                     if (!updated) return o;
                     updates.delete(o.id); // mark applied
-                    // Timestamp-aware dedup: keep cache if it's already newer/equal.
-                    if (o.updated_at && updated.updated_at && updated.updated_at <= o.updated_at) {
+                    // Version-first dedup (see shouldApplyRealtimeUpdate).
+                    if (!shouldApplyRealtimeUpdate(o, updated)) {
                         return o;
                     }
                     applied++;
                     return updated;
                 });
 
-            // Genuinely-new rows (not already in the list) → prepend (newest-first).
+            // Genuinely-new rows (not already in the list) → prepend (newest-first),
+            // but only those belonging to the loaded window.
+            const win = this.getWindow?.() ?? null;
             const newOnes: Order[] = [];
             for (const [, order] of updates) {
+                if (!belongsInWindow(order, win)) continue;
                 if (!result.some((o) => o.id === order.id)) { newOnes.push(order); applied++; }
             }
 

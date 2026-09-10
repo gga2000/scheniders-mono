@@ -8,12 +8,16 @@ import { cn } from "@/lib/utils";
 import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import type { OrderStatus } from "@/lib/supabase";
+import type { Order } from "@/types/order";
+import { formatOrderDateTime, formatOrderDayMonthTime } from "@/lib/order-format-utils";
 
 interface OrderCustomerCardProps {
     isEditing: boolean;
-    order: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    formData: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    updateFormData: (key: string, value: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    // ARCH-3: these were `any` with three eslint-disable lines to silence it.
+    // Typed instead, which removes the suppressions rather than the warning.
+    order: Order;
+    formData: Partial<Order>;
+    updateFormData: (key: string, value: unknown) => void;
     onStatusUpdate?: (orderId: string, status: OrderStatus, reason?: string) => Promise<{ success: boolean; error?: string }>;
     isUpdatingStatus: boolean;
     handleStatusChange: (status: OrderStatus) => void;
@@ -31,7 +35,7 @@ export function OrderCustomerCard({
     const { t } = useLanguage();
     const governorates = getAllGovernorateCodes();
 
-    const displayValue = (key: string) => {
+    const displayValue = <K extends keyof Order>(key: K): Order[K] | undefined => {
         if (isEditing && formData[key] !== undefined) {
             return formData[key];
         }
@@ -144,7 +148,6 @@ export function OrderCustomerCard({
                                         }
                                     }}
                                     className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] text-right"
-                                    dir="rtl"
                                 >
                                     <option value="" disabled>{t("orderDetail.selectProvince")}</option>
                                     {governorates.map((gov, index) => (
@@ -406,14 +409,7 @@ export function OrderCustomerCard({
                                             ? "text-amber-900 font-semibold"
                                             : "text-foreground"
                                     )}>
-                                        {new Date(order.created_at).toLocaleString('en-US', {
-                                            year: 'numeric',
-                                            month: '2-digit',
-                                            day: '2-digit',
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            hour12: true
-                                        })}
+                                        {formatOrderDateTime(order.created_at)}
                                     </span>
                                     {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                         <span
@@ -422,13 +418,7 @@ export function OrderCustomerCard({
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
                                             <span className="text-amber-500 mr-0.5">was</span>
-                                            {new Date(order.original_created_at).toLocaleString('en-US', {
-                                                month: '2-digit',
-                                                day: '2-digit',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                                hour12: true
-                                            })}
+                                            {formatOrderDayMonthTime(order.original_created_at)}
                                         </span>
                                     )}
                                 </div>

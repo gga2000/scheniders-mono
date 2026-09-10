@@ -1,10 +1,16 @@
 // Centralized translation dictionary
 // Supports "en" and "ar" locales
 
+// ARCH-4: the `orders.status.*` entries are generated from the single status
+// label table in lib/order-status-labels rather than typed out here, where they
+// had drifted into two spellings that said different things.
+import { orderStatusTranslations } from "@/lib/order-status-labels";
+
 export type Locale = "en" | "ar";
 
 export const translations: Record<Locale, Record<string, string>> = {
     en: {
+        ...orderStatusTranslations("en"),
         // ── Navigation ──
         "nav.dashboard": "Dashboard",
         "nav.orders": "Orders",
@@ -227,18 +233,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.archived": "Archived",
         // Status tabs
         "orders.status.all": "All Orders",
-        "orders.status.new": "New",
-        "orders.status.contacted": "Contacted",
-        "orders.status.confirmed": "Confirmed",
-        "orders.status.inTransit": "In Transit",
-        "orders.status.delivered": "Delivered",
-        "orders.status.completed": "Completed",
-        "orders.status.rejected": "Rejected",
-        "orders.status.cancelled": "Canceled",
-        "orders.status.noResponse": "No Response",
-        "orders.status.returnPending": "Return Pending",
-        "orders.status.suspended": "Suspended",
-        "orders.status.pendingCheckout": "Abandoned",
         "orders.pipeline.title": "Order Pipeline",
         "orders.pipeline.totalActive": "total active",
         "orders.pipeline.empty": "No orders in these stages",
@@ -2518,14 +2512,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.timeline.daysAgo": "{days}d ago",
 
         // ── Order Status Labels (snake_case for timeline) ──
-        "orders.status.in_transit": "In Transit",
-        "orders.status.no_response": "No Response",
         "orders.status.modified": "Modified",
         "orders.status.was": "was",
-        "orders.status.return_pending": "Return Pending",
-        "orders.status.refund_delivered": "Refund Delivered",
-        "orders.status.refund_failed": "Refund Failed",
-        "orders.status.pending_checkout": "Pending Checkout",
+        "orders.card.followUpDiscount": "{hours}h elapsed — offer a discount",
+        "orders.card.followUpReminder": "{hours}h elapsed — send a reminder",
+        "orders.whatsapp.greeting": "Hello {name}, regarding your order #{orderId}",
 
         // ── Order Confirmation Card ──
         "orders.confirm.title": "Order Confirmation",
@@ -3060,6 +3051,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     },
 
     ar: {
+        ...orderStatusTranslations("ar"),
         // ── Navigation ──
         "nav.dashboard": "لوحة التحكم",
         "nav.orders": "الطلبات",
@@ -3282,18 +3274,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.archived": "مؤرشف",
         // Status tabs
         "orders.status.all": "كل الطلبات",
-        "orders.status.new": "جديد",
-        "orders.status.contacted": "تم الاتصال",
-        "orders.status.confirmed": "مؤكد",
-        "orders.status.inTransit": "قيد التوصيل",
-        "orders.status.delivered": "تم التوصيل",
-        "orders.status.completed": "مكتمل",
-        "orders.status.rejected": "مرفوض",
-        "orders.status.cancelled": "ملغي",
-        "orders.status.noResponse": "لم يرد",
-        "orders.status.returnPending": "قيد الاسترجاع",
-        "orders.status.suspended": "معلق",
-        "orders.status.pendingCheckout": "متروكة",
         "orders.pipeline.title": "مسار الطلبات",
         "orders.pipeline.totalActive": "نشطة",
         "orders.pipeline.empty": "لا توجد طلبات في هذه المراحل",
@@ -5570,14 +5550,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.timeline.daysAgo": "قبل {days} يوم",
 
         // ── Order Status Labels (snake_case for timeline) ──
-        "orders.status.in_transit": "قيد التوصيل",
-        "orders.status.no_response": "لم يرد",
         "orders.status.modified": "معدّل",
         "orders.status.was": "كان",
-        "orders.status.return_pending": "استرجاع معلق",
-        "orders.status.refund_delivered": "تم الاسترجاع",
-        "orders.status.refund_failed": "فشل الاسترجاع",
-        "orders.status.pending_checkout": "قيد الدفع",
+        "orders.card.followUpDiscount": "مرت {hours} ساعة (خصم)",
+        "orders.card.followUpReminder": "مرت {hours} ساعة (تذكير)",
+        "orders.whatsapp.greeting": "مرحباً {name}، بخصوص طلبك رقم {orderId}",
 
         // ── Order Confirmation Card ──
         "orders.confirm.title": "تأكيد الطلب",

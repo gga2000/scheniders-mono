@@ -7,7 +7,7 @@ import {
     answerCallbackQuery,
     downloadFile,
 } from "@/lib/telegram";
-import { createOrderAction } from "@/app/actions/orders";
+import { createOrderForTenant } from "@/lib/order-service";
 import type { Order, OrderItem } from "@/types/order";
 import {
     matchProductReply,
@@ -287,7 +287,7 @@ async function handleProductReply(
         source: "telegram",
     };
 
-    const result = await createOrderAction(orderInput, link.tenant_id);
+    const result = await createOrderForTenant(orderInput, link.tenant_id);
     if (!result.success || !result.data) {
         return sendMessage(
             msg.chat.id,

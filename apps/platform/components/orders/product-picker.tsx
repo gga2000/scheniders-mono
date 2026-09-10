@@ -150,8 +150,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder={t("orders.productPicker.search")}
-                                className="w-full h-10 pr-10 pl-4 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pastel-green)] focus:border-transparent"
-                                dir="rtl"
+                                className="w-full h-10 pr-10 pl-4 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm text-right focus:outline-none focus:ring-2 focus:ring-[var(--pastel-green)] focus:border-transparent"
                             />
                         </div>
                     </div>

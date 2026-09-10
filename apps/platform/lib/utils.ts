@@ -1,5 +1,7 @@
 // Re-export shared utilities
 import { formatIQD } from "@scheniders/shared";
+import type { Locale } from "@/lib/i18n";
+import { getOrderStatusLabel } from "@/lib/order-status-labels";
 export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
 
 /**
@@ -59,49 +61,20 @@ export function formatDate(date: string | Date): string {
     }).format(new Date(date));
 }
 
-/**
- * Get status color based on order status
- */
-export function getStatusColor(status: string): string {
-    const colors = {
-        new: 'text-info border-info/20 bg-info/10',
-        contacted: 'text-warning border-warning/20 bg-warning/10',
-        confirmed: 'text-success border-success/20 bg-success/10',
-        rejected: 'text-destructive border-destructive/20 bg-destructive/10',
-        delivered: 'text-primary border-primary/20 bg-primary/10',
-        completed: 'text-emerald-600 border-emerald-200 bg-emerald-50',
-        no_response: 'text-slate-500 border-slate-200 bg-slate-50',
-        return_pending: 'text-rose-600 border-rose-200 bg-rose-50',
-        suspended: 'text-orange-600 border-orange-200 bg-orange-50',
-    };
-
-    return colors[status as keyof typeof colors] || colors.new;
-}
 
 /**
- * Get status label in Arabic
+ * Human label for an order status.
+ *
+ * The table itself lives in lib/order-status-labels, which the `orders.status.*`
+ * translation keys are also generated from — ARCH-4: this function used to carry
+ * its own hardcoded Arabic copy that had already drifted from them.
+ *
+ * The locale defaults to "ar" so the ~30 existing call sites keep their current
+ * behaviour; components that know the active locale pass it, and then an English
+ * user reads English here too. Prefer `useStatusLabel()` in a component.
  */
-export function getStatusLabel(status: string, isReturn?: boolean): string {
-    if (status === 'in_transit' && isReturn) {
-        return 'استرجاع قيد التوصيل';
-    }
-
-    const labels = {
-        new: 'جديد',
-        contacted: 'تم الاتصال',
-        confirmed: 'مؤكد',
-        cancelled: 'ملغي',
-        in_transit: 'قيد التوصيل',
-        rejected: 'مرفوض',
-        delivered: 'تم التوصيل',
-        completed: 'طلب تام',
-        no_response: 'لم يرد',
-        return_pending: 'استرجاع معلق',
-        suspended: 'طلب معلق',
-        pending_checkout: 'سلة',
-    };
-
-    return labels[status as keyof typeof labels] || status;
+export function getStatusLabel(status: string, isReturn?: boolean, locale: Locale = "ar"): string {
+    return getOrderStatusLabel(status, locale, isReturn);
 }
 
 /**

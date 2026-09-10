@@ -3,27 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSettings } from "@/hooks/use-settings";
 import { Save, MapPin } from "lucide-react";
+// I18N-6: this list used to be a third hardcoded copy of the same eighteen
+// provinces. The slug ids are unchanged — they key every merchant's stored
+// delivery-fee map — only the list itself moved.
+import { DELIVERY_FEE_GOVERNORATES as IRAQ_GOVERNORATES } from "@/lib/governorate-code-bridge";
 
-const IRAQ_GOVERNORATES = [
-    { id: "baghdad",      nameEn: "Baghdad",       nameAr: "بغداد",        capital: true },
-    { id: "basra",        nameEn: "Basra",          nameAr: "البصرة",       capital: false },
-    { id: "nineveh",      nameEn: "Nineveh",        nameAr: "نينوى",        capital: false },
-    { id: "erbil",        nameEn: "Erbil",          nameAr: "أربيل",        capital: false },
-    { id: "sulaymaniyah", nameEn: "Sulaymaniyah",   nameAr: "السليمانية",   capital: false },
-    { id: "dohuk",        nameEn: "Dohuk",          nameAr: "دهوك",         capital: false },
-    { id: "kirkuk",       nameEn: "Kirkuk",         nameAr: "كركوك",        capital: false },
-    { id: "anbar",        nameEn: "Anbar",          nameAr: "الأنبار",      capital: false },
-    { id: "babel",        nameEn: "Babel",          nameAr: "بابل",         capital: false },
-    { id: "diyala",       nameEn: "Diyala",         nameAr: "ديالى",        capital: false },
-    { id: "karbala",      nameEn: "Karbala",        nameAr: "كربلاء",       capital: false },
-    { id: "maysan",       nameEn: "Maysan",         nameAr: "ميسان",        capital: false },
-    { id: "muthanna",     nameEn: "Muthanna",       nameAr: "المثنى",       capital: false },
-    { id: "najaf",        nameEn: "Najaf",          nameAr: "النجف",        capital: false },
-    { id: "qadisiyyah",   nameEn: "Qadisiyyah",     nameAr: "القادسية",     capital: false },
-    { id: "salah_al_din", nameEn: "Salah al-Din",   nameAr: "صلاح الدين",   capital: false },
-    { id: "thi_qar",      nameEn: "Thi-Qar",        nameAr: "ذي قار",       capital: false },
-    { id: "wasit",        nameEn: "Wasit",          nameAr: "واسط",         capital: false },
-] as const;
 
 export function DeliveryFeesForm() {
     const { settings, updateSetting, loading } = useSettings();

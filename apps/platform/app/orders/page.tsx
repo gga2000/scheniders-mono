@@ -6,31 +6,47 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
-import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
+import { Order, PaymentStatus, OrderItem, supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
-import { isOrderFlagged } from "@/lib/data-quality-utils";
-import { getBaseOrderId } from "@/lib/utils";
+import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { getBaseOrderId, getStatusLabel } from "@/lib/utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
-import { OrderAssignment, mockAssignments } from "@/lib/team-types";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { restoreDeletedOrders } from "@/app/actions/deleted-orders";
+import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
+import { reportOrderError } from "@/lib/order-telemetry";
 
-const OrderDetailsModal = dynamic(
-    () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
-    { loading: () => null, ssr: false }
+const OrderDetailsModal = withOrderModalBoundary(
+    "OrderDetailsModal",
+    dynamic(
+        () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const CreateOrderModal = dynamic(
-    () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
-    { loading: () => null, ssr: false }
+const CreateOrderModal = withOrderModalBoundary(
+    "CreateOrderModal",
+    dynamic(
+        () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const ReturnsCockpitModal = dynamic(
-    () => import("@/components/returns/returns-cockpit-modal").then(mod => ({ default: mod.ReturnsCockpitModal })),
-    { loading: () => null, ssr: false }
+const ReturnsCockpitModal = withOrderModalBoundary(
+    "ReturnsCockpitModal",
+    dynamic(
+        () => import("@/components/returns/returns-cockpit-modal").then(mod => ({ default: mod.ReturnsCockpitModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const BarcodeScanner = dynamic(
-    () => import("@/components/products/barcode-scanner").then(mod => ({ default: mod.BarcodeScanner })),
-    { loading: () => null, ssr: false }
+const BarcodeScanner = withOrderModalBoundary(
+    "BarcodeScanner",
+    dynamic(
+        () => import("@/components/products/barcode-scanner").then(mod => ({ default: mod.BarcodeScanner })),
+        { loading: () => null, ssr: false }
+    )
 );
 // Dynamic imports for other heavy components
 const FloatingActionBar = dynamic(
@@ -41,21 +57,33 @@ const WorkflowTabs = dynamic(
     () => import("@/components/orders/workflow-tabs").then(mod => ({ default: mod.WorkflowTabs })),
     { ssr: false, loading: () => <div className="w-full h-96 animate-pulse bg-muted/20 rounded-2xl" /> }
 );
-const DuplicateComparisonModal = dynamic(
-    () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
-    { loading: () => null, ssr: false }
+const DuplicateComparisonModal = withOrderModalBoundary(
+    "DuplicateComparisonModal",
+    dynamic(
+        () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const ExportReportModal = dynamic(
-    () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
-    { loading: () => null, ssr: false }
+const ExportReportModal = withOrderModalBoundary(
+    "ExportReportModal",
+    dynamic(
+        () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
+        { loading: () => null, ssr: false }
+    )
 );
-const WhatsAppTemplatePanel = dynamic(
-    () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
-    { loading: () => null, ssr: false }
+const WhatsAppTemplatePanel = withOrderModalBoundary(
+    "WhatsAppTemplatePanel",
+    dynamic(
+        () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
+        { loading: () => null, ssr: false }
+    )
 );
-const SplitOrderDialog = dynamic(
-    () => import("@/components/orders/split-order-dialog").then(mod => ({ default: mod.SplitOrderDialog })),
-    { loading: () => null, ssr: false }
+const SplitOrderDialog = withOrderModalBoundary(
+    "SplitOrderDialog",
+    dynamic(
+        () => import("@/components/orders/split-order-dialog").then(mod => ({ default: mod.SplitOrderDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
 const VirtualizedOrderList = dynamic(
     () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
@@ -65,6 +93,9 @@ const DateRangePicker = dynamic(
     () => import("@scheniders/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
     { ssr: false, loading: () => <div className="w-full h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
+import { GlobalSearchField } from "@/components/orders/global-search-field";
+import { OrdersAnalyticsPanel } from "@/components/orders/orders-analytics-panel";
+import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
 import { EmptyState } from "@/components/ui/empty-states";
 import { StaggerContainer, StaggerItem, EASE_CHROME, EASE_PANEL, EASE_CROSSFADE } from "@/components/layout/page-transition";
 import { useSidebar } from "@/components/layout/dashboard-layout";
@@ -76,17 +107,26 @@ const OrderConfirmationCard = dynamic(
     () => import("@/components/orders/order-confirmation-card").then(mod => ({ default: mod.OrderConfirmationCard })),
     { ssr: false, loading: () => <div className="hidden" /> }
 );
-const CancellationReasonDialog = dynamic(
-    () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
-    { loading: () => null, ssr: false }
+const CancellationReasonDialog = withOrderModalBoundary(
+    "CancellationReasonDialog",
+    dynamic(
+        () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
-const ShipExportConfirmationDialog = dynamic(
-    () => import("@/components/orders/ship-export-confirmation-dialog").then(mod => ({ default: mod.ShipExportConfirmationDialog })),
-    { loading: () => null, ssr: false }
+const ShipExportConfirmationDialog = withOrderModalBoundary(
+    "ShipExportConfirmationDialog",
+    dynamic(
+        () => import("@/components/orders/ship-export-confirmation-dialog").then(mod => ({ default: mod.ShipExportConfirmationDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
-const MoveToTransitDialog = dynamic(
-    () => import("@/components/orders/move-to-transit-dialog").then(mod => ({ default: mod.MoveToTransitDialog })),
-    { loading: () => null, ssr: false }
+const MoveToTransitDialog = withOrderModalBoundary(
+    "MoveToTransitDialog",
+    dynamic(
+        () => import("@/components/orders/move-to-transit-dialog").then(mod => ({ default: mod.MoveToTransitDialog })),
+        { loading: () => null, ssr: false }
+    )
 );
 const StickyFilterBar = dynamic(
     () => import("@/components/orders/sticky-filter-bar").then(mod => ({ default: mod.StickyFilterBar })),
@@ -157,136 +197,18 @@ import {
 import { extractScannedOrderId } from "@/lib/scan-utils";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
+import { canShipWithoutSelection, canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { notificationService } from "@/lib/notification-service";
-import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
 import { toast, dismissToast } from "@/hooks/use-toast";
 
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
-interface GlobalSearchFieldProps {
-    filters: { searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string };
-    setFilters: React.Dispatch<React.SetStateAction<{ searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string }>>;
-    inputClassName?: string;
-    onScannerOpen?: () => void;
-    /** Optional sub-filters toggle rendered next to the scanner button. When wired, it shows/hides the TYPE+PRODUCTS rows in the sticky filter bar. */
-    subFiltersOpen?: boolean;
-    onToggleSubFilters?: () => void;
-}
-
-const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen, subFiltersOpen, onToggleSubFilters }: GlobalSearchFieldProps) {
-    const localSearchQuery = useOrderStore((s) => s.localSearchQuery);
-    const setLocalSearchQuery = useOrderStore((s) => s.setLocalSearchQuery);
-    const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
-    const { t } = useLanguage();
-
-    // Track the previous search state to know when user starts/clears a search
-    const prevSearchRef = React.useRef<string>("");
-
-    useEffect(() => {
-        const prevSearch = prevSearchRef.current;
-        // Normalize scanned/pasted QR ("QR:{id}|PHONE:..") down to the order id; plain text passes through.
-        const newSearch = extractScannedOrderId(debouncedSearchQuery);
-
-        if (newSearch === (filters.searchQuery || "")) return; // No change needed
-
-        if (newSearch && !prevSearch) {
-            // User STARTED searching — clear date range so all orders are searchable
-            setFilters((prev) => ({
-                ...prev,
-                searchQuery: newSearch,
-                dateFrom: undefined,
-                dateTo: undefined,
-            }));
-        } else if (!newSearch && prevSearch) {
-            // User CLEARED search — restore today's date range
-            const todayStr = (() => {
-                const d = new Date();
-                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-            })();
-            setFilters((prev) => ({
-                ...prev,
-                searchQuery: undefined,
-                dateFrom: todayStr,
-                dateTo: todayStr,
-            }));
-        } else {
-            // Search query changed but not starting/stopping — just update searchQuery
-            setFilters((prev) => ({ ...prev, searchQuery: newSearch || undefined }));
-        }
-
-        prevSearchRef.current = newSearch;
-    }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
-
-    return (
-        <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-subtle)]" />
-            <input
-                type="text"
-                placeholder={t ? t("orders.searchPlaceholder") : "Search orders..."}
-                value={localSearchQuery}
-                onChange={(e) => setLocalSearchQuery(e.target.value)}
-                className={inputClassName}
-            />
-            {/* Sub-filters toggle — sits to the left of the scanner so the user
-                can show/hide the TYPE + PRODUCTS rows without leaving the search bar. */}
-            {onToggleSubFilters && (
-                <button
-                    onClick={onToggleSubFilters}
-                    title={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
-                    aria-label={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
-                    aria-pressed={!!subFiltersOpen}
-                    className={cn(
-                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",
-                        subFiltersOpen
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200"
-                            : "text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
-                        // Shift left of the scanner: scanner sits at right-9 (when query) or right-2; place this 9 left of that.
-                        localSearchQuery ? "right-[4.5rem]" : "right-11"
-                    )}
-                >
-                    {subFiltersOpen ? (
-                        <ChevronsDownUp className="w-4 h-4" />
-                    ) : (
-                        <ChevronsUpDown className="w-4 h-4" />
-                    )}
-                </button>
-            )}
-            {/* Scanner button — shifts left when archive button is also visible */}
-            {onScannerOpen && (
-                <button
-                    onClick={onScannerOpen}
-                    title="Scan barcode"
-                    className={cn(
-                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
-                        localSearchQuery ? "right-9" : "right-2"
-                    )}
-                >
-                    <ScanBarcode className="w-4 h-4" />
-                </button>
-            )}
-            {localSearchQuery && (
-                <button
-                    onClick={() => setFilters((prev) => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
-                    className={cn(
-                        "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all flex items-center gap-1",
-                        filters.searchIncludesArchive
-                            ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                            : "text-muted-foreground hover:bg-amber-100/40"
-                    )}
-                    title="Include Archive in Search"
-                >
-                    <Archive className="w-3.5 h-3.5" />
-                    {filters.searchIncludesArchive && <span className="text-[10px] sm:hidden font-bold pr-1">{t("orders.filter.archivedIncluded")}</span>}
-                </button>
-            )}
-        </div>
-    );
-});
 
 export default function OrdersPage() {
     const { sidebarExpanded } = useSidebar();
+    const { tenantId } = useAuth();
     // 🔍 DIAGNOSTIC: Track loading → content transition (one-shot, not per-render)
     const pageMountTime = useRef<number | null>(null);
     const hasLoggedMount = useRef(false);
@@ -394,6 +316,7 @@ export default function OrdersPage() {
         getCustomerOrders,
         dismissDuplicate,
         statusCounts,
+        ordersAreComplete,
         // Message templates
         messageTemplates,
     } = useOrdersContext();
@@ -415,6 +338,10 @@ export default function OrdersPage() {
     const { t } = useLanguage();
 
     // ── Zustand Store (replaces ~35 useState calls) ──
+    // Selected through `useShallow` rather than destructured off the bare store:
+    // a no-selector `useOrderStore()` compares whole-state identity, so every
+    // keystroke re-rendered this entire component and defeated the memo on
+    // GlobalSearchField.
     const {
         // View preferences
         viewMode, setViewMode,
@@ -462,7 +389,90 @@ export default function OrdersPage() {
         isFilterPanelAnimating, setIsFilterPanelAnimating,
         isHeaderAnimating, setIsHeaderAnimating,
         notificationsEnabled, setNotificationsEnabled,
-    } = useOrderStore();
+    } = useOrderStore(
+        useShallow((s) => ({
+            viewMode: s.viewMode,
+            setViewMode: s.setViewMode,
+            compactView: s.compactView,
+            setCompactView: s.setCompactView,
+            compactGrid: s.compactGrid,
+            setCompactGrid: s.setCompactGrid,
+            actionDock: s.actionDock,
+            showSearchBar: s.showSearchBar,
+            setShowSearchBar: s.setShowSearchBar,
+            analyticsLevel: s.analyticsLevel,
+            setAnalyticsLevel: s.setAnalyticsLevel,
+            toolbarCollapsed: s.toolbarCollapsed,
+            toggleToolbarCollapse: s.toggleToolbarCollapse,
+            workflowMode: s.workflowMode,
+            toggleWorkflowMode: s.toggleWorkflowMode,
+            setSoundEnabled: s.setSoundEnabled,
+            showFilters: s.showFilters,
+            setShowFilters: s.setShowFilters,
+            showPresets: s.showPresets,
+            setShowPresets: s.setShowPresets,
+            newPresetName: s.newPresetName,
+            setNewPresetName: s.setNewPresetName,
+            groupBy: s.groupBy,
+            setGroupBy: s.setGroupBy,
+            filterDuplicatesOnly: s.filterDuplicatesOnly,
+            setFilterDuplicatesOnly: s.setFilterDuplicatesOnly,
+            sortConfig: s.sortConfig,
+            sortConfigs: s.sortConfigs,
+            toggleSort: s.toggleSort,
+            columnFilters: s.columnFilters,
+            setColumnFilters: s.setColumnFilters,
+            openFilterColumn: s.openFilterColumn,
+            setOpenFilterColumn: s.setOpenFilterColumn,
+            activePresetId: s.activePresetId,
+            setActivePresetId: s.setActivePresetId,
+            isModalOpen: s.isModalOpen,
+            setIsModalOpen: s.setIsModalOpen,
+            selectedOrder: s.selectedOrder,
+            setSelectedOrder: s.setSelectedOrder,
+            isCreateModalOpen: s.isCreateModalOpen,
+            setIsCreateModalOpen: s.setIsCreateModalOpen,
+            showDuplicateModal: s.showDuplicateModal,
+            setShowDuplicateModal: s.setShowDuplicateModal,
+            duplicateOrder: s.duplicateOrder,
+            setDuplicateOrder: s.setDuplicateOrder,
+            cancelDialogOpen: s.cancelDialogOpen,
+            setCancelDialogOpen: s.setCancelDialogOpen,
+            orderToCancel: s.orderToCancel,
+            setOrderToCancel: s.setOrderToCancel,
+            rejectDialogOpen: s.rejectDialogOpen,
+            setRejectDialogOpen: s.setRejectDialogOpen,
+            orderToReject: s.orderToReject,
+            setOrderToReject: s.setOrderToReject,
+            templatePanelOpen: s.templatePanelOpen,
+            setTemplatePanelOpen: s.setTemplatePanelOpen,
+            orderForTemplate: s.orderForTemplate,
+            setOrderForTemplate: s.setOrderForTemplate,
+            setIsImportModalOpen: s.setIsImportModalOpen,
+            isExportModalOpen: s.isExportModalOpen,
+            setIsExportModalOpen: s.setIsExportModalOpen,
+            splitOrderDialog: s.splitOrderDialog,
+            setSplitOrderDialog: s.setSplitOrderDialog,
+            screenshotOrder: s.screenshotOrder,
+            setScreenshotOrder: s.setScreenshotOrder,
+            showDatePicker: s.showDatePicker,
+            setShowDatePicker: s.setShowDatePicker,
+            datePickerPos: s.datePickerPos,
+            setDatePickerPos: s.setDatePickerPos,
+            selectedOrders: s.selectedOrders,
+            setSelectedOrders: s.setSelectedOrders,
+            showArchived: s.showArchived,
+            setShowArchived: s.setShowArchived,
+            loadingId: s.loadingId,
+            setLoadingId: s.setLoadingId,
+            isFilterPanelAnimating: s.isFilterPanelAnimating,
+            setIsFilterPanelAnimating: s.setIsFilterPanelAnimating,
+            isHeaderAnimating: s.isHeaderAnimating,
+            setIsHeaderAnimating: s.setIsHeaderAnimating,
+            notificationsEnabled: s.notificationsEnabled,
+            setNotificationsEnabled: s.setNotificationsEnabled,
+        })),
+    );
 
     // Sync local search input when filters.searchQuery is cleared externally (e.g. "clear filters" button)
     useEffect(() => {
@@ -475,7 +485,6 @@ export default function OrdersPage() {
     const debouncedColumnFilters = useDebounce(columnFilters, 300);
 
     // Domain state (stays local — not UI state)
-    const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
     const { splitOrder } = useOrdersContext();
 
     const handleSplitOrder = async (keptItems: OrderItem[], returnedItems: OrderItem[]) => {
@@ -517,8 +526,15 @@ export default function OrdersPage() {
                 // Order was deleted or doesn't exist
                 toast.error("Order not found", "This order may have been deleted.");
             }
-        } catch {
-            // Network or DB error — open modal with the data we already have
+        } catch (err) {
+            // Falling back to the list row is better than refusing to open, but
+            // it was previously silent: the operator edited a possibly-stale
+            // record with no idea the refresh had failed.
+            reportOrderError(err, { operation: "orders-view-details-fetch", orderId: order.id });
+            toast.warning(
+                "Showing the last known details",
+                "This order could not be refreshed, so it may be out of date.",
+            );
             setSelectedOrder(order);
             setIsModalOpen(true);
         }
@@ -536,52 +552,33 @@ export default function OrdersPage() {
             } else {
                 setSelectedOrder(order);
             }
-        } catch {
+        } catch (err) {
+            // Same silent-stale path as handleViewDetails, reached from the table.
+            reportOrderError(err, { operation: "orders-select-order-fetch", orderId: order.id });
+            toast.warning(
+                "Showing the last known details",
+                "This order could not be refreshed, so it may be out of date.",
+            );
             setSelectedOrder(order);
         }
     }, [setSelectedOrder]);
 
-    const handleAssignDuty = useCallback((orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => {
-        setAssignments(prev => {
-            const filtered = prev.filter(a => !(a.order_id === orderId && a.duty === duty));
-            return [...filtered, {
-                id: crypto.randomUUID(),
-                order_id: orderId,
-                employee_id: employeeId,
-                duty,
-                assigned_at: new Date().toISOString(),
-                status: 'pending'
-            }];
-        });
-        toast.success(`Assigned to ${duty}`);
-    }, []);
 
-    // Evaluate Auto-Assignments when orders change or load (Optimized: Web Worker)
+
+    // A tenant with no orders at all must not be told its filters matched nothing.
+    // `hasFilters` counts the date range, so "no filters" here means the full window.
+    const emptyStateHasFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
+    const isFirstRun = (orders?.length ?? 0) === 0 && !filters.searchQuery && !emptyStateHasFilters;
+
+    // ARCH-6: the order store is module-level, so an open modal, a bulk
+    // selection or a half-finished inline edit outlived this page and came back
+    // on the next visit — with a stale order snapshot behind it. Clear the
+    // transient half on unmount; view preferences and filters persist as before.
     useEffect(() => {
-        if (!orders || orders.length === 0) return;
-
-        // Run off-main-thread to avoid blocking React rendering
-        const worker = new Worker('/workers/assignment-worker.js');
-
-        worker.onmessage = (e) => {
-            const { type, payload } = e.data;
-            if (type === 'ASSIGNMENTS_RESULT' && payload.length > 0) {
-                setAssignments(prev => [...prev, ...payload]);
-            }
-            worker.terminate();
+        return () => {
+            useOrderStore.getState().resetTransientState();
         };
-
-        worker.postMessage({
-            type: 'EVALUATE_ASSIGNMENTS',
-            payload: {
-                orders,
-                rules: mockAssignmentRules,
-                currentAssignments: assignments
-            }
-        });
-
-        return () => worker.terminate();
-    }, [orders, assignments]);
+    }, []);
 
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
@@ -690,15 +687,10 @@ export default function OrdersPage() {
             });
         });
 
-        // 1.2. Apply Risk/Flagged Filter
+        // 1.2. Apply Risk/Flagged Filter — the predicate itself lives in
+        // lib/order-filter-utils so the mobile screen runs the same one.
         if (defRiskLevel) {
-            if (defRiskLevel === 'flagged') {
-                // "Flagged" = data quality issues OR rejected orders
-                result = result.filter(o => isOrderFlagged(o) || o.status === 'rejected');
-            } else {
-                // Other risk levels use the embedded database risk data
-                result = result.filter((o) => o.risk_data?.level === defRiskLevel);
-            }
+            result = result.filter(o => orderMatchesRiskLevel(o, defRiskLevel));
         }
 
         // 1.5. Apply Duplicates-Only Filter
@@ -708,6 +700,15 @@ export default function OrdersPage() {
 
         // 2. Sort
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
+
+        // Same reason as in use-order-filters: the comparator ran `new Date()`
+        // twice per comparison. Resolve each order's timestamp once up front.
+        const createdAtMs = new Map<string, number>();
+        for (const order of result) {
+            const parsed = Date.parse(order.created_at);
+            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
+        }
+        const createdAt = (order: Order) => createdAtMs.get(order.id) ?? 0;
 
         result.sort((a, b) => {
             // Priority: Pinned first
@@ -721,7 +722,7 @@ export default function OrdersPage() {
 
                 if (sc.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
                 if (sc.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
-                if (sc.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
+                if (sc.key === 'created_at') { aVal = createdAt(a); bVal = createdAt(b); }
 
                 if (aVal != null && bVal != null && aVal < bVal) return sc.direction === 'asc' ? -1 : 1;
                 if (aVal != null && bVal != null && aVal > bVal) return sc.direction === 'asc' ? 1 : -1;
@@ -730,22 +731,24 @@ export default function OrdersPage() {
             if (activeSorts.length > 0) return 0;
 
             // Default sort: Newest first
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return createdAt(b) - createdAt(a);
         });
         return result;
     }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel]);
 
     const defOrders = React.useDeferredValue(orders);
 
-    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders)
+    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
+    // Counted with the same predicate the filter uses, so the number on the card
+    // can never disagree with the list you get after clicking it.
     const flaggedCount = useMemo(() => {
-        return defHookFilteredOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+        return defHookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [defHookFilteredOrders]);
 
     // Calculate global risk count for the key filter button (all orders)
     const totalRiskCount = useMemo(() => {
         if (!defOrders) return 0;
-        return defOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+        return defOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [defOrders]);
 
     // Scroll to top when filters change to prevent empty list illusion
@@ -819,35 +822,27 @@ export default function OrdersPage() {
     };
 
     // Handle bulk actions
-    const handleBulkConfirm = async () => {
+    /**
+     * ARCH-1: nine bulk handlers were byte-identical apart from the status, and
+     * three of them shared one message — bulk "deliver" and bulk "reject" both
+     * told the operator the orders had been *confirmed*. One factory removes the
+     * duplication and makes the message follow the status it actually applied.
+     */
+    const makeBulkStatusHandler = (status: Order["status"]) => async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "confirmed"),
+            () => bulkUpdateStatus(ids, status),
             `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
+            t("toast.statusUpdatedDescCount")
+                .replace("{count}", String(ids.length))
+                .replace("{status}", getStatusLabel(status)),
             () => setSelectedOrders(new Set())
         );
     };
 
-    const handleBulkDeliver = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "delivered"),
-            `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkReject = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "rejected"),
-            `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
-            () => setSelectedOrders(new Set())
-        );
-    };
+    const handleBulkConfirm = makeBulkStatusHandler("confirmed");
+    const handleBulkDeliver = makeBulkStatusHandler("delivered");
+    const handleBulkReject = makeBulkStatusHandler("rejected");
 
     const handleBulkArchive = async () => {
         if (isBulkProcessing) return;
@@ -938,63 +933,72 @@ export default function OrdersPage() {
             return;
         }
 
-        toast.success(t("toast.ordersDeleted"), t("toast.ordersDeletedDesc").replace("{count}", String(deletedCount)));
+        // WF-2: delete is a soft delete, so the rows are recoverable until the
+        // 30-day purge. Offer that directly rather than making the operator find
+        // the trash screen.
+        const deletedIds = result.deletedIds ?? ids;
+        toast({
+            title: t("toast.ordersDeleted"),
+            description: t("toast.ordersDeletedDesc").replace("{count}", String(deletedCount)),
+            variant: "success",
+            duration: 20000,
+            action: {
+                label: t("toast.undo") || "Undo",
+                onClick: async () => {
+                    const res = await restoreDeletedOrders(deletedIds);
+                    if (!res.success) {
+                        toast.error(t("toast.updateFailed"), res.error);
+                        return;
+                    }
+                    await refreshOrders();
+                    toast.success(
+                        t("toast.ordersRestored") || "Restored",
+                        `${res.restored} orders returned to the list`,
+                    );
+                },
+            },
+        });
         setSelectedOrders(new Set());
     };
 
     // Additional bulk status handlers
-    // Additional bulk status handlers
-    const handleBulkNew = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "new"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"),
-            () => setSelectedOrders(new Set())
-        );
-    };
+    const handleBulkNew = makeBulkStatusHandler("new");
+    const handleBulkContacted = makeBulkStatusHandler("contacted");
+    const handleBulkInTransit = makeBulkStatusHandler("in_transit");
+    const handleBulkCompleted = makeBulkStatusHandler("completed");
+    const handleBulkNoResponse = makeBulkStatusHandler("no_response");
+    const handleBulkSuspend = makeBulkStatusHandler("suspended");
 
-    const handleBulkContacted = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "contacted"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkInTransit = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "in_transit"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkCompleted = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "completed"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkNoResponse = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "no_response"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"),
-            () => setSelectedOrders(new Set())
-        );
+    // ARCH-1: passed to OrdersFilterBar as one object. Ten separate props
+    // for ten handlers that differ only by status would have made the
+    // extraction's interface larger than the markup it removed.
+    const bulkActions = {
+        confirm: handleBulkConfirm,
+        contacted: handleBulkContacted,
+        deliver: handleBulkDeliver,
+        reject: handleBulkReject,
+        completed: handleBulkCompleted,
+        inTransit: handleBulkInTransit,
+        noResponse: handleBulkNoResponse,
+        setNew: handleBulkNew,
+        suspend: handleBulkSuspend,
+        archive: handleBulkArchive,
+        remove: handleBulkDelete,
     };
 
     const handleShipExport = async (company: 'prime' | 'waseet') => {
+        // Shipping with nothing selected means "everything matching my filter".
+        // That is only true while the cached list IS the complete filtered set;
+        // against a windowed list it would hand the courier whichever orders
+        // happened to be loaded. Refuse rather than dispatch the wrong set.
+        if (!canShipWithoutSelection({ selectedCount: selectedOrders.size, ordersAreComplete })) {
+            toast.warning(
+                "Select the orders to ship",
+                "Only part of this filter is loaded, so \"all visible\" would not be all of them.",
+            );
+            return;
+        }
+
         const ids = selectedOrders.size > 0
             ? Array.from(selectedOrders)
             : filteredOrders.map(o => o.id);
@@ -1013,7 +1017,44 @@ export default function OrdersPage() {
 
         const companyLabel = company === 'prime' ? 'Prime' : 'Al-Waseet';
 
+        // OBS-3: shipping-submission failure rate was unanswerable because only
+        // successful exports left a trace — `print_batches` is written on
+        // success, and a failure showed a toast and nothing else. Every attempt
+        // is now recorded, including which half of it failed. The tenant is
+        // validated inside the function, not taken on trust.
+        const recordExportOutcome = async (
+            succeeded: boolean,
+            failureStage?: 'file' | 'batch_record',
+            errorMessage?: string,
+        ) => {
+            const { error } = await supabase.rpc('log_shipping_export', {
+                p_tenant_id: tenantId,
+                p_company: company,
+                p_order_count: ids.length,
+                p_succeeded: succeeded,
+                p_failure_stage: failureStage ?? null,
+                p_error_message: errorMessage ?? null,
+            });
+            if (error) {
+                // Never let the audit write change what the operator is told
+                // about their export — report it and carry on.
+                reportOrderError(error, {
+                    operation: "orders-ship-export-outcome-record",
+                    extra: { company, orderCount: ids.length, succeeded },
+                });
+            }
+        };
+
         try {
+            // Generate the file before recording the batch. The batch row used to
+            // be inserted first, so an export that threw left a committed row
+            // claiming a shipment that never left.
+            if (company === 'prime') {
+                await exportOrdersToPrimeCSV(ids, ordersToExport);
+            } else {
+                await exportOrdersToWaseetXLSX(ids, ordersToExport);
+            }
+
             const batchName = `${companyLabel} Export ${new Date().toLocaleDateString('en-GB')}`;
             const { success: batchSuccess, error: batchError } = await createBatch(
                 batchName,
@@ -1022,30 +1063,40 @@ export default function OrdersPage() {
                 "invoice"
             );
 
+            // Capture previous statuses for undo capability
+            const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
+            setSelectedOrders(new Set());
+
             if (batchSuccess) {
-                if (company === 'prime') {
-                    await exportOrdersToPrimeCSV(ids, ordersToExport);
-                } else {
-                    await exportOrdersToWaseetXLSX(ids, ordersToExport);
-                }
-
-                // Capture previous statuses for undo capability
-                const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
-                setSelectedOrders(new Set());
-
+                await recordExportOutcome(true);
                 toast.success(
                     "Export successful",
                     `${ids.length} orders exported via ${companyLabel}`,
                 );
-
-                // Prompt to move the exported orders to In Transit
-                setPendingTransitIds(ids);
-                setPendingTransitPrevStatuses(previousStatuses);
-                setMoveTransitOpen(true);
             } else {
-                throw new Error(batchError || "Failed to create export batch");
+                await recordExportOutcome(false, 'batch_record', batchError || undefined);
+                // The file is already in the operator's hands, so this is not an
+                // export failure — say exactly what did and did not happen.
+                reportOrderError(new Error(batchError || "Failed to create export batch"), {
+                    operation: "orders-ship-export-batch-record",
+                    extra: { company, orderCount: ids.length },
+                });
+                toast.warning(
+                    "Exported, but not recorded",
+                    `${ids.length} orders were exported via ${companyLabel}. The batch record could not be saved.`,
+                );
             }
+
+            // Prompt to move the exported orders to In Transit
+            setPendingTransitIds(ids);
+            setPendingTransitPrevStatuses(previousStatuses);
+            setMoveTransitOpen(true);
         } catch (err) {
+            await recordExportOutcome(
+                false,
+                'file',
+                err instanceof Error ? err.message : "Could not complete the export process",
+            );
             toast.error(
                 "Export failed",
                 err instanceof Error ? err.message : "Could not complete the export process"
@@ -1102,6 +1153,31 @@ export default function OrdersPage() {
     // Switch between regular and archived orders
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
     const deferredDisplayedOrders = React.useDeferredValue(displayedOrders);
+
+    // Risk data by phone, built once. These lookups are called once per rendered
+    // row, and each used to be a `.find()` over the whole list — O(rows x visible)
+    // on every render. Mirrors the O(1) map `getCustomerOrderCount` already uses.
+    const riskByPhone = useMemo(() => {
+        const map = new Map<string, Order["risk_data"]>();
+        for (const o of deferredDisplayedOrders) {
+            if (o.phone && !map.has(o.phone)) map.set(o.phone, o.risk_data);
+        }
+        return map;
+    }, [deferredDisplayedOrders]);
+
+    const getRiskAssessmentByPhone = useCallback(
+        (phone: string) => riskByPhone.get(phone),
+        [riskByPhone],
+    );
+
+    const getRiskLevelByPhone = useCallback(
+        (phone: string): "low" | "medium" | "high" | "blocked" => {
+            const level = riskByPhone.get(phone)?.level || "low";
+            return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
+        },
+        [riskByPhone],
+    );
+
 
     const groupedOrders = useMemo(() => {
         if (groupBy === 'none') {
@@ -1810,7 +1886,16 @@ export default function OrdersPage() {
                                                                         initial={{ opacity: 0, scale: 0.8 }}
                                                                         animate={{ opacity: 1, scale: 1 }}
                                                                         exit={{ opacity: 0, scale: 0.8 }}
-                                                                        onClick={async () => { await undoLastAction(); }}
+                                                                        onClick={async () => {
+                                                                            // The result was discarded, so a refused undo looked
+                                                                            // identical to a successful one.
+                                                                            const result = await undoLastAction();
+                                                                            if (result.success) {
+                                                                                toast.success("Undone", result.undoneAction);
+                                                                            } else if (result.error) {
+                                                                                toast.warning("Nothing was undone", result.error);
+                                                                            }
+                                                                        }}
                                                                         className="p-2.5 rounded-xl bg-lime-100/50 text-lime-700 hover:bg-lime-100 transition-all shadow-sm"
                                                                         title="Undo Last Action"
                                                                     >
@@ -1884,213 +1969,14 @@ export default function OrdersPage() {
                                             {/* Old Saved Views Location Removed */}
 
                                             {/* Collapsible Analytics Panel */}
-                                            <AnimatePresence initial={false}>
-                                                {analyticsLevel >= 1 && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="space-y-4 pb-6">
-                                                            {/* Main Stats Grid */}
-
-                                                            <ErrorBoundary name="Analytics Dashboard">
-                                                                {/* Main Stats Grid */}
-                                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                                                                    {/* New Orders - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <Sparkles className="w-16 h-16 text-rose-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600">
-                                                                                    <Sparkles className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">{t("orders.status.new")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{statusCounts.new || 0}</h3>
-                                                                                <span className="text-sm font-medium text-rose-600/80">orders</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Contacted - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <PhoneCall className="w-16 h-16 text-amber-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600">
-                                                                                    <PhoneCall className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">{t("orders.status.contacted")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{statusCounts.contacted || 0}</h3>
-                                                                                <span className="text-sm font-medium text-amber-600/80">active</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Confirmed - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-violet-50 to-purple-100/50 border border-violet-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <CheckCircle2 className="w-16 h-16 text-violet-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600">
-                                                                                    <CheckCircle2 className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">{t("orders.status.confirmed")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{statusCounts.confirmed || 0}</h3>
-                                                                                <span className="text-sm font-medium text-violet-600/80">ready</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* In Transit - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <Truck className="w-16 h-16 text-orange-500 -rotate-12 group-hover:scale-110 group-hover:translate-x-2 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-orange-100 text-orange-600">
-                                                                                    <Truck className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">{t("orders.status.inTransit")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{statusCounts.in_transit || 0}</h3>
-                                                                                <span className="text-sm font-medium text-orange-600/80">shipped</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Conversion Rate - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-white/60 backdrop-blur-md border border-white/40 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group ring-1 ring-black/5">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
-                                                                            <TrendingUp className="w-16 h-16 text-emerald-500 -rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
-                                                                                    <TrendingUp className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{t("orders.stats.conversion")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-end gap-2">
-                                                                                <h3 className="text-3xl font-bold text-foreground dark:text-white">{stats.conversionRate.toFixed(1)}%</h3>
-                                                                            </div>
-                                                                            {/* Animated Progress Bar */}
-                                                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                                                                <div
-                                                                                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out relative"
-                                                                                    style={{ width: `${stats.conversionRate}%` }}
-                                                                                >
-                                                                                    <div className="absolute inset-0 bg-white/30 w-full animate-[shimmer_2s_infinite]" />
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
-                                                                {analyticsLevel >= 2 && (
-                                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                                        {/* Operational Velocity */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <Activity className="w-16 h-16 text-blue-500 rotate-12" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.operationalVelocity")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.confirmSpeed")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.deliverySpeed")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.peakHour")}</span>
-                                                                                    <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{stats.peakTime}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Needs Attention */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <AlertTriangle className="w-16 h-16 text-red-500 -rotate-12" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.needsAttention")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center group/item hover:bg-rose-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, riskLevel: 'flagged' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <ShieldCheck className="w-4 h-4 text-rose-600" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.flagged")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-rose-600">{flaggedCount}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center group/item hover:bg-red-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, priority: 'urgent' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.urgent")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-red-600">{stats.urgentOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center group/item hover:bg-orange-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'no_response' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="w-2 h-2 rounded-full bg-orange-400" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.noResponse")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-orange-600">{stats.noResponseOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100 group/item hover:bg-yellow-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'return_pending' })}>
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.returnsPending")}</span>
-                                                                                    <span className="font-bold text-yellow-600">{stats.returnPendingOrders}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Business Pulse */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <BarChart3 className="w-16 h-16 text-emerald-500 rotate-6" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.businessPulse")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.revenue")}</span>
-                                                                                    <span className="font-bold text-emerald-600">{formatIQD(stats.todayRevenue)}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.ordersCount")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.todayOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.avgOrderValue")}</span>
-                                                                                    <span className="font-bold text-foreground">{formatIQD(stats.averageOrderValue)}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </ErrorBoundary>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            <OrdersAnalyticsPanel
+                                                analyticsLevel={analyticsLevel}
+                                                stats={stats}
+                                                statusCounts={statusCounts}
+                                                filters={filters}
+                                                setFilters={setFilters}
+                                                flaggedCount={flaggedCount}
+                                            />
 
                                             {/* Order Pipeline — collapsible funnel overview, sits above the search bar (hidden by default) */}
                                             <AnimatePresence initial={false}>
@@ -2116,330 +2002,15 @@ export default function OrdersPage() {
                                             </AnimatePresence>
 
                                             {/* Filters & Search Bar */}
-                                            <AnimatePresence initial={false}>
-                                                {showSearchBar && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
-                                                        onAnimationStart={() => setIsFilterPanelAnimating(true)}
-                                                        onAnimationComplete={() => setIsFilterPanelAnimating(false)}
-                                                        className={cn(
-                                                            isFilterPanelAnimating ? "overflow-hidden" : "overflow-visible"
-                                                        )}
-                                                    >
-                                                        <div className="pastel-card p-6 space-y-4 orders-search-panel">
-                                                            <div className="flex flex-col lg:flex-row gap-4">
-                                                                <GlobalSearchField
-                                                                    filters={filters}
-                                                                    setFilters={setFilters}
-                                                                    onScannerOpen={() => setIsScannerOpen(true)}
-                                                                    subFiltersOpen={showSubFilters}
-                                                                    onToggleSubFilters={toggleSubFilters}
-                                                                    inputClassName="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
-                                                                />
-                                                                {/* Sort dropdown removed in favor of column sorting */}
-                                                            </div>
-
-                                                            {!isMobile && (
-                                                                <StickyFilterBar
-                                                                    filters={filters}
-                                                                    setFilters={setFilters}
-                                                                    statusCounts={statusCounts}
-                                                                    productsInView={availableProductsInView}
-                                                                    totalRiskCount={totalRiskCount}
-                                                                    showFilters={showFilters}
-                                                                    setShowFilters={setShowFilters}
-                                                                    hasActiveFilters={hasActiveFilters}
-                                                                    groupBy={groupBy}
-                                                                    setGroupBy={setGroupBy}
-                                                                    filterDuplicatesOnly={filterDuplicatesOnly}
-                                                                    setFilterDuplicatesOnly={setFilterDuplicatesOnly}
-                                                                    showSubFilters={showSubFilters}
-                                                                    isMobile={false}
-                                                                />
-                                                            )}
-
-                                                            {/* Advanced Filters Panel */}
-                                                            <AnimatePresence>
-                                                                {showFilters && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        className="overflow-hidden"
-                                                                    >
-                                                                        <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
-                                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                                                {/* City Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.city")}</label>
-                                                                                    <div className="relative">
-                                                                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.city || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allCities")}</option>
-                                                                                            {availableCities.map((city) => (
-                                                                                                <option key={city} value={city}>{city}</option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* Product Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.product")}</label>
-                                                                                    <div className="relative">
-                                                                                        <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.product || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allProducts")}</option>
-                                                                                            {availableProducts.map((product) => (
-                                                                                                <option key={product} value={product}>{product}</option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* Payment Status Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.payment")}</label>
-                                                                                    <div className="relative">
-                                                                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.paymentStatus || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allPayments")}</option>
-                                                                                            <option value="cod">{t("orders.filter.paymentCoD")}</option>
-                                                                                            <option value="prepaid">{t("orders.filter.paymentPrepaid")}</option>
-                                                                                            <option value="pending">{t("orders.filter.paymentPending")}</option>
-                                                                                            <option value="partial">{t("orders.filter.paymentPartial")}</option>
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                            {/* Filter Actions Row */}
-                                                                            <div className="flex flex-wrap items-center gap-3">
-                                                                                {/* Clear Filters Button */}
-                                                                                {hasActiveFilters && (
-                                                                                    <button
-                                                                                        onClick={clearFilters}
-                                                                                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
-                                                                                    >
-                                                                                        <X className="w-3.5 h-3.5" />
-                                                                                        Clear all filters
-                                                                                    </button>
-                                                                                )}
-
-                                                                                {/* Toggle Presets */}
-                                                                                <button
-                                                                                    onClick={() => setShowPresets(!showPresets)}
-                                                                                    className={cn(
-                                                                                        "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all",
-                                                                                        showPresets || filterPresets.length > 0
-                                                                                            ? "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                                                                            : "text-muted hover:text-foreground hover:bg-gray-50"
-                                                                                    )}
-                                                                                >
-                                                                                    <Bookmark className="w-3.5 h-3.5" />
-                                                                                    Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
-                                                                                </button>
-                                                                            </div>
-
-                                                                            {/* Filter Presets Panel */}
-                                                                            <AnimatePresence>
-                                                                                {showPresets && (
-                                                                                    <motion.div
-                                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                                        className="overflow-hidden"
-                                                                                    >
-                                                                                        <div className="pt-3 border-t border-dashed border-[var(--card-border)] space-y-3">
-                                                                                            {/* Save Current Filter */}
-                                                                                            {hasActiveFilters && (
-                                                                                                <div className="flex gap-2">
-                                                                                                    <input
-                                                                                                        type="text"
-                                                                                                        placeholder="Name this filter..."
-                                                                                                        value={newPresetName}
-                                                                                                        onChange={(e) => setNewPresetName(e.target.value)}
-                                                                                                        className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"
-                                                                                                    />
-                                                                                                    <button
-                                                                                                        onClick={() => {
-                                                                                                            if (newPresetName.trim()) {
-                                                                                                                saveFilterPreset(newPresetName.trim());
-                                                                                                                setNewPresetName("");
-                                                                                                            }
-                                                                                                        }}
-                                                                                                        disabled={!newPresetName.trim()}
-                                                                                                        className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
-                                                                                                    >
-                                                                                                        <Save className="w-3.5 h-3.5" />
-                                                                                                        Save
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            )}
-
-                                                                                            {/* Saved Presets List */}
-                                                                                            {filterPresets.length > 0 ? (
-                                                                                                <div className="flex flex-wrap gap-2">
-                                                                                                    {filterPresets.map((preset) => (
-                                                                                                        <div
-                                                                                                            key={preset.id}
-                                                                                                            className="flex items-center gap-1 pl-3 pr-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg group"
-                                                                                                        >
-                                                                                                            <button
-                                                                                                                onClick={() => loadFilterPreset(preset.id)}
-                                                                                                                className="text-sm text-purple-700 hover:text-purple-900 font-medium"
-                                                                                                            >
-                                                                                                                {preset.name}
-                                                                                                            </button>
-                                                                                                            <button
-                                                                                                                onClick={() => deleteFilterPreset(preset.id)}
-                                                                                                                className="p-1 text-purple-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
-                                                                                                            >
-                                                                                                                <Trash2 className="w-3 h-3" />
-                                                                                                            </button>
-                                                                                                        </div>
-                                                                                                    ))}
-                                                                                                </div>
-                                                                                            ) : (
-                                                                                                <p className="text-xs text-muted">{t("orders.filter.noSavedFilters")}</p>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    </motion.div>
-                                                                                )}
-                                                                            </AnimatePresence>
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-
-                                                            <AnimatePresence>
-                                                                {selectedOrders.size > 0 && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        className={cn("flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide", isBulkProcessing && "pointer-events-none opacity-50")}
-                                                                    >
-                                                                        <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} {t("orders.selected")}</span>
-
-                                                                        {/* Primary Actions */}
-                                                                        <button
-                                                                            onClick={handleBulkConfirm}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.confirm")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkDeliver}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.deliver")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkReject}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.reject")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkArchive}
-                                                                            className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.archive")}
-                                                                        </button>
-
-                                                                        {/* WhatsApp Bulk Send */}
-                                                                        <button
-                                                                            onClick={() => setTemplatePanelOpen(true)}
-                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap flex items-center gap-1.5"
-                                                                        >
-                                                                            <MessageCircle className="w-4 h-4" />
-                                                                            {t("orders.bulk.sendTemplate") || "إرسال رسالة واتساب"}
-                                                                        </button>
-
-                                                                        {/* Divider */}
-                                                                        <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                                        {/* Status Change Buttons */}
-                                                                        <button
-                                                                            onClick={handleBulkNew}
-                                                                            className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.new")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkContacted}
-                                                                            className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.contacted")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkInTransit}
-                                                                            className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.inTransit")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkCompleted}
-                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.completed")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                const ids = Array.from(selectedOrders);
-                                                                                withProcessing(
-                                                                                    () => bulkUpdateStatus(ids, "suspended"),
-                                                                                    `Updating ${ids.length} orders...`,
-                                                                                    t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Suspended"),
-                                                                                    () => setSelectedOrders(new Set())
-                                                                                );
-                                                                            }}
-                                                                            className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.suspended")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkNoResponse}
-                                                                            className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.status.noResponse")}
-                                                                        </button>
-
-                                                                        {/* Divider */}
-                                                                        <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                                        {/* Destructive Action */}
-                                                                        <button
-                                                                            onClick={handleBulkDelete}
-                                                                            className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.delete")}
-                                                                        </button>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            <OrdersFilterBar
+                                                bulkActions={bulkActions}
+                                                isBulkProcessing={isBulkProcessing}
+                                                hasActiveFilters={hasActiveFilters}
+                                                totalRiskCount={totalRiskCount}
+                                                showSubFilters={showSubFilters}
+                                                toggleSubFilters={toggleSubFilters}
+                                                onOpenScanner={() => setIsScannerOpen(true)}
+                                            />
 
                                             {/* Mobile Sticky Filter Bar - Rendered outside overflow-hidden container */}
                                             {isMobile && showSearchBar && (
@@ -2521,7 +2092,12 @@ export default function OrdersPage() {
                                                         )}
                                                     >
                                                         <span className="font-semibold">{selectedOrders.size} orders selected</span>
-                                                        {selectedOrders.size < filteredOrders.length && filteredOrders.length > PAGE_SELECT_LIMIT && (
+                                                        {canOfferSelectAll({
+                                                            selectedCount: selectedOrders.size,
+                                                            loadedCount: filteredOrders.length,
+                                                            pageSelectLimit: PAGE_SELECT_LIMIT,
+                                                            ordersAreComplete,
+                                                        }) && (
                                                             <button
                                                                 onClick={() => {
                                                                     useOrderStore.getState().selectAll(filteredOrders.map(o => o.id));
@@ -2546,79 +2122,70 @@ export default function OrdersPage() {
                                                 <>
                                                     {displayedOrders.length === 0 ? (
                                                         <EmptyState
-                                                            type={(filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
+                                                            type={isFirstRun ? "no-orders" : (filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
                                                             searchQuery={filters.searchQuery}
-                                                            hasFilters={!!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority)}
+                                                            hasFilters={emptyStateHasFilters}
                                                         />
                                                     ) : compactView >= 1 && compactGrid ? (
-                                                        /* Grid layout for compact views */
-                                                        <div className={cn(
-                                                            "grid gap-2",
-                                                            compactView === 2
-                                                                ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-                                                                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-                                                        )}>
-                                                            {displayedOrders.map((order) => {
-                                                                const customerOrders = getCustomerHistory(order.phone);
-                                                                const orderCount = getCustomerOrderCount(order.phone, order.order_id);
-                                                                const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
-
-                                                                return (
-                                                                    <SwipeableOrderCard
-                                                                        key={order.id}
-                                                                        order={order}
-                                                                        loadingId={loadingId}
-                                                                        onStatusUpdate={handleStatusUpdate}
-                                                                        onViewDetails={handleViewDetails}
-                                                                        onSplit={() => setSplitOrderDialog({ open: true, order })}
-                                                                        isBlacklisted={isBlacklisted(order.phone)}
-                                                                        blacklistEntry={getBlacklistEntry(order.phone)}
-                                                                        onAddToBlacklist={addToBlacklist}
-                                                                        onRemoveFromBlacklist={removeFromBlacklist}
-                                                                        riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
-                                                                        riskAssessment={order.risk_data}
-                                                                        customerOrderCount={orderCount}
-                                                                        archivedOrderCount={getCustomerArchivedCount(order.phone)}
-                                                                        previousOrder={previousOrder}
-                                                                        onMergeWithPrevious={async (keepId: string, archiveId: string) => {
-                                                                            await mergeOrders(keepId, archiveId);
-                                                                        }}
-                                                                        onShowDuplicates={(o: Order) => {
-                                                                            setDuplicateOrder(o);
-                                                                            setShowDuplicateModal(true);
-                                                                        }}
-                                                                        hasDuplicates={hasDuplicates(order.id)}
-                                                                        getCustomerOrderCount={(phone: string) => getCustomerOrderCount(phone, order.order_id)}
-                                                                        onTogglePin={(id: string) => togglePin(id)}
-                                                                        onClone={(o: Order) => cloneOrder(o.id)}
-                                                                        onScreenshot={() => setScreenshotOrder(order)}
-                                                                        onCancelWithReason={(o: Order) => {
-                                                                            setOrderToCancel(o);
-                                                                            setCancelDialogOpen(true);
-                                                                        }}
-                                                                        onRejectWithReason={(o: Order) => {
-                                                                            setOrderToReject(o);
-                                                                            setRejectDialogOpen(true);
-                                                                        }}
-                                                                        onToggleReviewed={toggleReviewed}
-                                                                        returnOrderInfo={getReturnOrderInfo(order.id)}
-                                                                        originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
-                                                                        compact={compactView}
-                                                                        actionDock={actionDock}
-                                                                        gridMode={true}
-                                                                        onOpenTemplatePanel={(o: Order) => {
-                                                                            setOrderForTemplate(o);
-                                                                            setTemplatePanelOpen(true);
-                                                                        }}
-                                                                        messageTemplates={workflowTemplates}
-                                                                        isSelected={selectedOrders.has(order.id)}
-                                                                        onToggleSelection={toggleOrderSelection}
-                                                                        assignments={assignments.filter(a => a.order_id === order.id)}
-                                                                        onAssignDuty={handleAssignDuty}
-                                                                    />
-                                                                );
-                                                            })}
-                                                        </div>
+                                                        /* PERF-2: the compact grid used to render every filtered
+                                                           order at once. It is the same virtualized list as below,
+                                                           in grid mode — `content-visibility` is deliberately not
+                                                           applied any more, because it would make the virtualizer
+                                                           measure the placeholder height instead of the card. */
+                                                        <VirtualizedOrderList
+                                                            orders={displayedOrders}
+                                                            gridMode
+                                                            gridClassName={cn(
+                                                                "grid gap-2",
+                                                                compactView === 2
+                                                                    ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                                                                    : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                                                            )}
+                                                            loadingId={loadingId}
+                                                            selectedOrders={selectedOrders}
+                                                            messageTemplates={workflowTemplates}
+                                                            onStatusUpdate={handleStatusUpdate}
+                                                            onViewDetails={handleViewDetails}
+                                                            onToggleSelection={toggleOrderSelection}
+                                                            onTogglePin={togglePin}
+                                                            onCloneOrder={cloneOrder}
+                                                            onScreenshot={setScreenshotOrder}
+                                                            onCancelWithReason={(o) => {
+                                                                setOrderToCancel(o);
+                                                                setCancelDialogOpen(true);
+                                                            }}
+                                                            onRejectWithReason={(o) => {
+                                                                setOrderToReject(o);
+                                                                setRejectDialogOpen(true);
+                                                            }}
+                                                            onToggleReviewed={toggleReviewed}
+                                                            onOpenTemplatePanel={(o) => {
+                                                                setOrderForTemplate(o);
+                                                                setTemplatePanelOpen(true);
+                                                            }}
+                                                            onShowDuplicates={(o) => {
+                                                                setDuplicateOrder(o);
+                                                                setShowDuplicateModal(true);
+                                                            }}
+                                                            onMergeWithPrevious={async (keepId, archiveId) => {
+                                                                await mergeOrders(keepId, archiveId);
+                                                            }}
+                                                            isBlacklisted={isBlacklisted}
+                                                            getBlacklistEntry={getBlacklistEntry}
+                                                            onAddToBlacklist={addToBlacklist}
+                                                            onRemoveFromBlacklist={removeFromBlacklist}
+                                                            getRiskAssessment={getRiskAssessmentByPhone}
+                                                            getCustomerOrderCount={getCustomerOrderCount}
+                                                            getCustomerArchivedCount={getCustomerArchivedCount}
+                                                            getCustomerHistory={getCustomerHistory}
+                                                            getReturnOrderInfo={getReturnOrderInfo}
+                                                            getOriginalOrderInfo={getOriginalOrderInfo}
+                                                            compactView={compactView}
+                                                            actionDock={actionDock}
+                                                            getRiskLevel={getRiskLevelByPhone}
+                                                            hasDuplicates={hasDuplicates}
+                                                            onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
+                                                        />
                                                     ) : displayedOrders.length >= 10 ? (
                                                         /* Use virtualized list for 50+ orders */
                                                         <VirtualizedOrderList
@@ -2656,10 +2223,7 @@ export default function OrdersPage() {
                                                             getBlacklistEntry={getBlacklistEntry}
                                                             onAddToBlacklist={addToBlacklist}
                                                             onRemoveFromBlacklist={removeFromBlacklist}
-                                                            getRiskAssessment={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                return order?.risk_data;
-                                                            }}
+                                                            getRiskAssessment={getRiskAssessmentByPhone}
                                                             getCustomerOrderCount={getCustomerOrderCount}
                                                             getCustomerArchivedCount={getCustomerArchivedCount}
                                                             getCustomerHistory={getCustomerHistory}
@@ -2667,15 +2231,9 @@ export default function OrdersPage() {
                                                             getOriginalOrderInfo={getOriginalOrderInfo}
                                                             compactView={compactView}
                                                             actionDock={actionDock}
-                                                            getRiskLevel={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                const level = order?.risk_data?.level || "low";
-                                                                return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                            }}
+                                                            getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
-                                                            assignments={assignments}
-                                                            onAssignDuty={handleAssignDuty}
                                                         />
                                                     ) : (
                                                         /* Use animated list for <50 orders */
@@ -2733,9 +2291,7 @@ export default function OrdersPage() {
                                                                             messageTemplates={workflowTemplates}
                                                                             isSelected={selectedOrders.has(order.id)}
                                                                             onToggleSelection={toggleOrderSelection}
-                                                                            assignments={assignments.filter(a => a.order_id === order.id)}
-                                                                            onAssignDuty={handleAssignDuty}
-                                                                        />
+                                                                            />
                                                                     </StaggerItem>
                                                                 );
                                                             })}
@@ -2763,11 +2319,7 @@ export default function OrdersPage() {
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
                                                     updateOrderStatus={updateOrderStatus}
-                                                    getRiskLevel={(phone) => {
-                                                        const order = displayedOrders.find(o => o.phone === phone);
-                                                        const level = order?.risk_data?.level || "low";
-                                                        return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                    }}
+                                                    getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
                                                     setColumnFilters={setColumnFilters}
                                                     openFilterColumn={openFilterColumn}
@@ -2805,8 +2357,17 @@ export default function OrdersPage() {
                     </div>
 
                     {/* Modals */}
+                    {/*
+                        Merge, do not replace. `selectedOrder` is the full row fetched by
+                        handleViewDetails; the list row carries fewer columns but fresher
+                        values, so layering it on top keeps both. Replacing dropped fields
+                        the list view never selects — scheduled_date, is_replacement,
+                        delivered_at, refund_status and others — and wasted the full fetch.
+                    */}
                     <OrderDetailsModal
-                        order={selectedOrder ? (orders.find((o: Order) => o.id === selectedOrder.id) ?? selectedOrder) : null}
+                        order={selectedOrder
+                            ? { ...selectedOrder, ...(orders.find((o: Order) => o.id === selectedOrder.id) ?? {}) }
+                            : null}
                         open={isModalOpen}
                         onClose={() => {
                             setIsModalOpen(false);
@@ -2820,8 +2381,6 @@ export default function OrdersPage() {
                         onCreateReturn={createReturnOrder}
                         onCreateReplacement={createReplacementOrder}
                         checkOrderIdExists={checkOrderIdExists}
-                        assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
-                        onAssignDuty={handleAssignDuty}
                         onOpenTemplatePanel={(o) => {
                             setOrderForTemplate(o);
                             setTemplatePanelOpen(true);
@@ -3002,7 +2561,6 @@ export default function OrdersPage() {
                         onClose={() => setIsExportModalOpen(false)}
                         filteredOrders={filteredOrders}
                         selectedOrderIds={selectedOrders}
-                        allOrders={orders}
                         currentDateFrom={filters.dateFrom}
                         currentDateTo={filters.dateTo}
                     />
@@ -3111,6 +2669,7 @@ export default function OrdersPage() {
                         }
                         currentTab={filters.status || 'all'}
                         hasSelection={selectedOrders.size > 0}
+                        ordersAreComplete={ordersAreComplete}
                         onConfirmExport={() => handleShipExport(shipConfirmCompany)}
                     />
 

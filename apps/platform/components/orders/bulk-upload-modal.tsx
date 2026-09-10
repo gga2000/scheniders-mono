@@ -18,6 +18,7 @@ import {
     Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
 
 interface ExtractedData {
     id: string;
@@ -38,6 +39,7 @@ interface BulkUploadModalProps {
 }
 
 export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProps) {
+    const { session } = useAuth();
     const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -73,8 +75,14 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                 const formData = new FormData();
                 formData.append('image', file);
 
+                // The route requires a bearer token. Without it every image came
+                // back 401 and the tile just showed "فشل التحليل", so bulk image
+                // extraction has never actually worked.
                 const response = await fetch('/api/orders/analyze-image', {
                     method: 'POST',
+                    headers: {
+                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    },
                     body: formData,
                 });
 

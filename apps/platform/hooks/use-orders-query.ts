@@ -8,8 +8,11 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
+import type { CreateOrderInput } from "@/types/order";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
+import type { OrderWindow } from "@/lib/order-window";
+import { reportOrderError } from "@/lib/order-telemetry";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -130,12 +133,25 @@ function readSwrCache(): Order[] | null {
     }
 }
 
+/**
+ * Whether a cache holding `window` is the COMPLETE set matching the merchant's
+ * filters, or only a slice of it.
+ *
+ * A null window means no date filter is active, so the fetch loaded everything.
+ * Any other window is by definition a subset — and the actions that mean "act on
+ * everything I can see" (ship-with-no-selection, select-all) must refuse rather
+ * than silently operate on whichever rows happened to load.
+ */
+export function ordersCacheIsCompleteSet(window: OrderWindow): boolean {
+    return window === null;
+}
+
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
-async function fetchOrders(): Promise<Order[]> {
+async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
-    const result = await orderRepository.findAll();
+    const result = await orderRepository.findWindow(window);
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
@@ -165,9 +181,18 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  *
  * @param refetchTrigger - Optional trigger to force refetch
  */
-export function useOrdersQuery(refetchTrigger?: string) {
+export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: string) {
     const queryClient = useQueryClient();
     const { session, clientReady } = useAuth();
+
+    // The query key deliberately does NOT include the window. Realtime, every
+    // mutation, delta sync and the sessionStorage SWR cache all read and write
+    // `orderKeys.lists()`; keying per window would scatter those across caches.
+    // The cache holds one window at a time and a change invalidates it.
+    const windowKey = window ? `${window.fromInstant}-${window.toInstant}` : "all";
+    useEffect(() => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    }, [windowKey, queryClient]);
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -179,7 +204,7 @@ export function useOrdersQuery(refetchTrigger?: string) {
 
     return useQuery({
         queryKey: orderKeys.lists(),
-        queryFn: fetchOrders,
+        queryFn: () => fetchOrders(window),
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
         enabled: !!session && clientReady,
@@ -238,8 +263,8 @@ export function useUpdateOrderMutation() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, updates, expectedUpdatedAt }: { orderId: string; updates: Partial<Order>; expectedUpdatedAt?: string }) => {
-            const data = await orderRepository.update(orderId, updates, expectedUpdatedAt);
+        mutationFn: async ({ orderId, updates, expectedVersion }: { orderId: string; updates: Partial<Order>; expectedVersion?: number }) => {
+            const data = await orderRepository.update(orderId, updates, expectedVersion);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
@@ -275,7 +300,11 @@ export function useUpdateOrderMutation() {
         },
         onError: (err, variables, context) => {
             diag.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
-            console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
+            reportOrderError(err, {
+                operation: "updateOrder",
+                orderId: variables.orderId,
+                extra: { fields: Object.keys(variables.updates ?? {}) },
+            });
 
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
@@ -306,7 +335,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId,
             last_status_changed_by_name,
             last_status_changed_by_avatar,
-            expectedUpdatedAt,
+            expectedVersion,
         }: {
             orderId: string;
             status: Order["status"];
@@ -314,7 +343,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId?: string;
             last_status_changed_by_name?: string;
             last_status_changed_by_avatar?: string;
-            expectedUpdatedAt?: string;
+            expectedVersion?: number;
         }) => {
             const data = await orderRepository.updateStatus(
                 orderId,
@@ -322,7 +351,7 @@ export function useUpdateStatusMutation() {
                 rejectionReason,
                 last_status_changed_by_name,
                 last_status_changed_by_avatar,
-                expectedUpdatedAt,
+                expectedVersion,
                 rejectionReasonId
             );
             return { orderId, status, data };
@@ -351,7 +380,11 @@ export function useUpdateStatusMutation() {
                                     ? order.rejection_reason
                                     : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
-                            updated_at: new Date().toISOString(),
+                            // Deliberately NOT stamping `updated_at` here: a
+                            // client-clock value would be compared against real
+                            // server timestamps by the realtime dedup and could
+                            // suppress genuine incoming events. onSuccess writes
+                            // the authoritative server row moments later.
                             last_status_changed_by_name,
                             last_status_changed_by_avatar,
                         } as Order)
@@ -383,6 +416,8 @@ export function useUpdateStatusMutation() {
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't rollback — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) return;
+
+            reportOrderError(err, { operation: "updateOrderStatus", orderId: variables.orderId, extra: { status: variables.status } });
 
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
@@ -418,7 +453,9 @@ export function usePrefetchOrders() {
     return () => {
         queryClient.prefetchQuery({
             queryKey: orderKeys.lists(),
-            queryFn: fetchOrders,
+            // Prefetch on hover has no filter context; it warms the unwindowed
+            // list and the real query replaces it with the active window.
+            queryFn: () => fetchOrders(null),
             // Match staleTime from useOrdersQuery
             staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });
@@ -433,7 +470,7 @@ export function useDeleteOrderMutation() {
 
     return useMutation({
         mutationFn: async (orderId: string) => {
-            await orderRepository.update(orderId, { deleted_at: new Date().toISOString() } as any);
+            await orderRepository.update(orderId, { deleted_at: new Date().toISOString() });
             return orderId;
         },
         onMutate: async (orderId) => {
@@ -450,6 +487,7 @@ export function useDeleteOrderMutation() {
             return { previousOrders };
         },
         onError: (err, variables, context) => {
+            reportOrderError(err, { operation: "deleteOrder", orderId: variables });
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
@@ -461,12 +499,15 @@ export function useDeleteOrderMutation() {
 /**
  * useCreateOrderMutation - Optimistic create
  */
-export function useCreateOrderMutation(tenantId: string | null) {
+export function useCreateOrderMutation() {
     const queryClient = useQueryClient();
+    // The server action derives the tenant from this token — the client no
+    // longer tells the server which tenant to write into.
+    const { session } = useAuth();
 
     return useMutation({
-        mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            const result = await createOrderAction(orderData, tenantId);
+        mutationFn: async (orderData: CreateOrderInput) => {
+            const result = await createOrderAction(orderData, session?.access_token ?? "");
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 throw new Error(result.error || "Failed to create order");
@@ -507,6 +548,7 @@ export function useCreateOrderMutation(tenantId: string | null) {
             }
         },
         onError: (err, _variables, context) => {
+            reportOrderError(err, { operation: "createOrder" });
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }

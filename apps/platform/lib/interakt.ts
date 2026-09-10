@@ -34,10 +34,17 @@ interface InteraktTemplateBody {
 interface InteraktAPIResponse {
     result: boolean;
     message?: string;
-    data?: {
-        message_id?: string;
-        [key: string]: unknown;
-    };
+    /**
+     * The message id, at the top level. OBS-3: this used to be read as
+     * `data.message_id`, a shape Interakt does not send, so `interakt_message_id`
+     * was null on all 8,862 rows of `whatsapp_logs` and no send could ever be
+     * matched to its delivery receipt. Confirmed against stored live responses:
+     *   {"result":true,"message":"Message queued for sending via Interakt.
+     *    Check webhook for delivery status","id":"04a77cb4-…"}
+     * and the receipt webhook carries the same value at `data.message.id`.
+     */
+    id?: string;
+    data?: Record<string, unknown>;
 }
 
 export interface SendTemplateResult {
@@ -45,6 +52,8 @@ export interface SendTemplateResult {
     messageId?: string;
     error?: string;
     statusCode?: number;
+    /** The provider's raw response, for the audit log. Never an error channel. */
+    raw?: unknown;
 }
 
 // =============================================
@@ -374,14 +383,19 @@ export async function sendTemplateMessage(
             }
 
             if (data.result) {
+                const messageId = typeof data.id === "string" ? data.id : undefined;
                 console.log(
                     `[Interakt] ✅ Template sent successfully for order ${order.order_id}`,
-                    data.data?.message_id ? `(msg: ${data.data.message_id})` : ""
+                    messageId ? `(msg: ${messageId})` : ""
                 );
                 return {
                     success: true,
-                    messageId: data.data?.message_id as string | undefined,
-                    error: JSON.stringify(data), // We temporarily store the full payload here for debugging
+                    messageId,
+                    // The raw response used to be stuffed into `error` on the
+                    // success path "temporarily, for debugging"; it now has a
+                    // field of its own, so nothing reads a response out of a
+                    // field named error.
+                    raw: data,
                 };
             }
 
