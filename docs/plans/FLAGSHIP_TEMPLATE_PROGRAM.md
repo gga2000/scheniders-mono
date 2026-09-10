@@ -490,7 +490,19 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 
 ### Wave 7 — Craft
 - **W7.1** View Transitions grid → PDP. *(F1)*
-- **W7.2** Image pipeline audit: AVIF/WebP, correct `sizes`. *(F2)*
+- **W7.2** Image pipeline — DONE, and smaller than the plan assumed. The
+  config was already right (AVIF + WebP, a 390 device size, Supabase remote
+  pattern) and all 22 `fill` images in `packages/sections` already declared
+  `sizes` — the V2 path had no bug. The 6 that did are in the V1/legacy
+  components, the same path W0.4 fixed: an 80px cart thumbnail with no
+  `sizes` defaults to `100vw`, so a 390px phone fetched a ≥640px file for it.
+  Fixed with the real slot widths (80px thumbs, `20vw/10vw` strip,
+  `(max-width:768px) 100vw, 50vw` gallery, `100vw` hero) and two
+  below-the-fold avatars made `loading="lazy" decoding="async"`.
+  `image-sizes.test.ts` walks the source — the bug is a missing attribute, so
+  only the source can prove it is gone. *(F2)*
+  *(A first pass of this audit reported 14 offenders; the regex only matched
+  `sizes="…"` and missed `sizes={…}`. The real count was 6.)*
 - **W7.3** Optimistic cart + designed skeletons. *(F3)*
 - **W7.4** PWA / add-to-home-screen. *(F4)*
 - **W7.5** Rich results — DONE. `lib/seo.ts` gains `shippingDetailsJsonLd`

@@ -46,7 +46,7 @@ export function CartView() {
           >
             <div className="relative w-20 h-20 bg-zinc-100 rounded shrink-0">
               {item.image_url && (
-                <Image src={item.image_url} alt={item.name} fill className="object-cover rounded" />
+                <Image src={item.image_url} alt={item.name} fill sizes="80px" className="object-cover rounded" />
               )}
             </div>
             <div className="flex-1 min-w-0">
