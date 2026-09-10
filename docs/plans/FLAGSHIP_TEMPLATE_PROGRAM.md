@@ -417,7 +417,20 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   Screen: Settings → Advanced → "Template updates" (writes the draft through
   `applyConfig`, so it is undoable and publishes on the merchant's terms).
   *(P6)*
-- **W6.3** AI content seeding at onboarding. *(P8)*
+- **W6.3** AI content seeding — DONE. `lib/store-copy.ts` +
+  `/api/ai/store-copy` (Anthropic via raw fetch, matching this app's two
+  existing AI routes; `claude-opus-5`, `output_config.format` json_schema).
+  The wizard's optional "what do you sell?" box turns one sentence into the
+  store's voice — hero, story, about, founder line, three pillars, four
+  trust labels, three FAQs, the bestsellers heading and the tagline — in
+  Iraqi dialect plus English, previewed before the store is created and
+  editable afterwards. Skipping it keeps the pack's words.
+  **It writes voice, never facts or promises:** policies, the delivery
+  promise, the PDP policy accordion, the taxonomy and testimonials all stay
+  with the pack, and `containsFabricatedClaim` rejects the whole response if
+  any line carries a number attached to money, time or a percentage — a
+  hallucinated "توصيل خلال ٢٤ ساعة" can never be seeded as a promise nobody
+  made. *(P8)*
 - **W6.4** Section-level A/B — ALREADY PRESENT, verified: `assignAbArm` +
   `sb_vid` in `v2-page.tsx`, `ab_test` visibility rule in the variant editor,
   server-derived arm attribution on `store_config_experiment_events` at
