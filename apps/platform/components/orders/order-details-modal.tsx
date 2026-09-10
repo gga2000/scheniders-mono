@@ -17,6 +17,7 @@ import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils"
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote, MessageTemplate, OrderItem } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { usePrompt } from "@scheniders/ui/prompt-dialog";
 import { OrderTimeline } from "./order-timeline";
@@ -411,9 +412,14 @@ export function OrderDetailsModal({
     const handleSendTemplate = async () => {
         setIsSendingTemplate(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const response = await fetch("/api/webhooks/interakt/send", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    // The send endpoint now requires a signed-in caller.
+                    ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                },
                 body: JSON.stringify({ order }),
             });
 
