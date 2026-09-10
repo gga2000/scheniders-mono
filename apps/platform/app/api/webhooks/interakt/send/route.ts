@@ -2,25 +2,82 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import type { Order } from "@/types/order";
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
-import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient, createSupabaseServerClientWithToken, verifyAccessToken } from "@/lib/supabase-server";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
+/**
+ * Sends a WhatsApp template for one order.
+ *
+ * This had no authentication at all, and the middleware matcher excludes
+ * `/api`, so nothing else was checking. Anyone who knew the URL could POST an
+ * arbitrary `order` with an arbitrary `overridePhone` and make the merchant's
+ * verified WhatsApp sender deliver a template to any number in the world, billed
+ * to their Interakt account and logged as if staff had sent it.
+ *
+ * Three things close that, and all three are needed:
+ *
+ *  1. The caller must be signed in.
+ *  2. The order is re-read from the database under that caller's own RLS, using
+ *     only the id from the payload. A signed-in user from one tenant could
+ *     otherwise post another tenant's order — or an order that never existed —
+ *     and the route would have taken the body's word for it.
+ *  3. `overridePhone` must be a number already on that order. Without this the
+ *     endpoint stays an open relay for anyone with a login, which is a smaller
+ *     hole but the same hole.
+ */
 export async function POST(request: NextRequest) {
     try {
+        const token = request.headers.get("Authorization")?.replace("Bearer ", "");
+        if (!token) {
+            return NextResponse.json({ success: false, error: "Missing Authorization header" }, { status: 401 });
+        }
+        const { user, error: authError } = await verifyAccessToken(token);
+        if (authError || !user) {
+            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+        }
+
         const payload = await request.json();
-        const order = payload.order as Order;
+        const requestedOrderId = (payload.order as Order | undefined)?.id;
         const overridePhone = payload.overridePhone as string | undefined;
         const templateType = (payload.templateType as TemplateType) || 'confirmation';
         const discountPercent = payload.discountPercent as number | undefined;
         const customPrice = payload.customPrice as number | undefined;
 
-        if (!order || !order.id || !order.phone) {
+        if (!requestedOrderId) {
             return NextResponse.json(
                 { success: false, error: "Invalid order data" },
                 { status: 400 }
             );
+        }
+
+        // Read under the caller's RLS, so tenant scoping is enforced by the same
+        // policy the rest of the app uses rather than re-implemented here.
+        const { data: order, error: orderError } = await createSupabaseServerClientWithToken(token)
+            .from("orders")
+            .select("*")
+            .eq("id", requestedOrderId)
+            .maybeSingle<Order>();
+
+        if (orderError || !order || !order.phone) {
+            return NextResponse.json(
+                { success: false, error: "Order not found" },
+                { status: 404 }
+            );
+        }
+
+        if (overridePhone) {
+            const allowed = [order.phone, order.secondary_phone]
+                .filter(Boolean)
+                .map((p) => normalizePhoneForSearch(p as string));
+            if (!allowed.includes(normalizePhoneForSearch(overridePhone))) {
+                return NextResponse.json(
+                    { success: false, error: "overridePhone must be a number on this order" },
+                    { status: 400 }
+                );
+            }
         }
 
         const templateName = TEMPLATE_NAMES[templateType];

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { verifyAccessToken } from '@/lib/supabase-server';
+import { env } from '@/lib/env';
 import { fetchCheckoutById, getSavedAccessToken } from '@/lib/lightfunnels-api';
 import { parseCheckoutToWebhook, createOrderFromWebhook } from '@/lib/webhook-handler';
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
@@ -12,11 +14,26 @@ const BATCH_SIZE = 50; // Process all pending checkouts
 /**
  * GET /api/cron/process-checkouts-manual
  *
- * Manual trigger to process ALL pending checkouts in the queue.
- * No authentication required - useful for debugging.
+ * Manual trigger to process ALL pending checkouts in the queue, from the /debug
+ * screen.
+ *
+ * This used to say "No authentication required - useful for debugging", and it
+ * meant it. The middleware matcher excludes `/api`, so nothing else was checking
+ * either: anyone who knew the URL could make the production app drain the
+ * checkout queue and create orders under the service role. It now requires a
+ * signed-in user, like every other operator endpoint.
  */
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!token) {
+            return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+        }
+        const { user, error: authError } = await verifyAccessToken(token);
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         console.log('[Manual] Processing all pending checkouts...');
 
         // Fetch ALL pending checkout IDs (no time limit)
@@ -101,7 +118,7 @@ export async function GET() {
                 }
 
                 // Import the checkout
-                const result = await createOrderFromWebhook(webhookData);
+                const result = await createOrderFromWebhook(webhookData, env.LIGHTFUNNELS_TENANT_ID);
 
                 if (result.success || result.duplicate) {
                     // Mark as processed

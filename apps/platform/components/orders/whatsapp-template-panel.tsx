@@ -28,6 +28,7 @@ import { cn, formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils
 import { processEmojis } from "@/lib/emoji-shortcodes";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface WhatsAppTemplatePanelProps {
@@ -252,6 +253,11 @@ export function WhatsAppTemplatePanel({
             let failCount = 0;
             let lastError = "";
 
+            // Fetched once rather than per target: a bulk send is one operator
+            // action, and the token is the same for all of them.
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+
             // Loop through all target orders (1 in single mode, N in bulk mode)
             for (const target of targetOrders) {
                 // Determine override phone (only works in single mode)
@@ -259,7 +265,12 @@ export function WhatsAppTemplatePanel({
 
                 const res = await fetch("/api/webhooks/interakt/send", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        // The send endpoint now requires a signed-in caller and
+                        // re-reads the order under that caller's RLS.
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
                     body: JSON.stringify({
                         order: target,
                         templateType: selectedType,
