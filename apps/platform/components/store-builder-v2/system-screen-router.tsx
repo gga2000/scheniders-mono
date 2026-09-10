@@ -29,6 +29,7 @@ import { PixelsScreen } from "./pixels-screen";
 import { LoyaltyScreen } from "./loyalty-screen";
 import { FreeGiftScreen } from "./free-gift-screen";
 import { OrderStatusScreen } from "./order-status-screen";
+import { TemplateUpdatesScreen } from "./template-updates-screen";
 import { CustomPagesScreen } from "./custom-pages-screen";
 import { NavBuilderScreen } from "./nav-builder-screen";
 import { I18nScreen } from "./i18n-screen";
@@ -117,6 +118,8 @@ export function SystemScreenRouter({
                 <FreeGiftScreen builder={builder} onClose={onClose} />
             ) : screen === "order_status" ? (
                 <OrderStatusScreen builder={builder} onClose={onClose} />
+            ) : screen === "template_updates" ? (
+                <TemplateUpdatesScreen builder={builder} onClose={onClose} />
             ) : screen === "custom_pages" ? (
                 <CustomPagesScreen
                     builder={builder}

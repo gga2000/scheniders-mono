@@ -26,6 +26,13 @@ export type BrandKitPreset = Omit<BrandKit, "identity">;
 export interface StoreTemplate {
     /** Stable id (e.g. "kinetic_ink"). Persisted on the industries table. */
     id: string;
+    /**
+     * Bumped whenever the direction's section stacks change shape — a section
+     * added, removed or moved. A store stamped with an older version is told
+     * an update exists; the upgrade planner then compares its actual sections
+     * against this definition, so the number is a signal, not a migration key.
+     */
+    version: number;
     /** Localized name shown in the wizard picker. */
     name_i18n: I18nString;
     /** Localized one-liner description. */

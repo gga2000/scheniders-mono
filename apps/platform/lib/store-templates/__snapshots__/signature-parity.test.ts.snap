@@ -324,6 +324,134 @@ exports[`scheniders_signature parity > produces the same config as before the di
         },
         {
           "base": {
+            "heading_i18n": {
+              "ar": "لكَّي عطرك",
+              "en": "Find your scent",
+            },
+            "intro_i18n": {
+              "ar": "ثلاث أسئلة وننطيك الأنسب إلك.",
+              "en": "Three questions, and we'll narrow it down for you.",
+            },
+            "questions": [
+              {
+                "answers": [
+                  {
+                    "label_i18n": {
+                      "ar": "دافئ وشرقي",
+                      "en": "Warm and oriental",
+                    },
+                    "value": "oriental",
+                    "weight": 2,
+                  },
+                  {
+                    "label_i18n": {
+                      "ar": "خشبي",
+                      "en": "Woody",
+                    },
+                    "value": "woody",
+                    "weight": 2,
+                  },
+                  {
+                    "label_i18n": {
+                      "ar": "منعش",
+                      "en": "Fresh",
+                    },
+                    "value": "fresh",
+                    "weight": 2,
+                  },
+                  {
+                    "label_i18n": {
+                      "ar": "حلو",
+                      "en": "Sweet",
+                    },
+                    "value": "sweet",
+                    "weight": 2,
+                  },
+                ],
+                "attribute_key": "scent_family",
+                "prompt_i18n": {
+                  "ar": "شنو نوع العطر اللي يعجبك؟",
+                  "en": "What kind of scent do you like?",
+                },
+              },
+              {
+                "answers": [
+                  {
+                    "label_i18n": {
+                      "ar": "طول اليوم",
+                      "en": "All day",
+                    },
+                    "value": "5",
+                  },
+                  {
+                    "label_i18n": {
+                      "ar": "كم ساعة تكفي",
+                      "en": "A few hours is fine",
+                    },
+                    "value": "3",
+                  },
+                ],
+                "attribute_key": "longevity",
+                "prompt_i18n": {
+                  "ar": "شكد تريده يثبت؟",
+                  "en": "How long should it last?",
+                },
+              },
+              {
+                "answers": [
+                  {
+                    "label_i18n": {
+                      "ar": "بالصيف",
+                      "en": "Summer",
+                    },
+                    "value": "summer",
+                  },
+                  {
+                    "label_i18n": {
+                      "ar": "بالشتاء",
+                      "en": "Winter",
+                    },
+                    "value": "winter",
+                  },
+                  {
+                    "label_i18n": {
+                      "ar": "طول السنة",
+                      "en": "All year",
+                    },
+                    "value": "all_year",
+                  },
+                ],
+                "attribute_key": "season",
+                "prompt_i18n": {
+                  "ar": "وين راح تستخدمه؟",
+                  "en": "When will you wear it?",
+                },
+              },
+            ],
+            "restart_label_i18n": {
+              "ar": "من الأول",
+              "en": "Start over",
+            },
+            "result_heading_i18n": {
+              "ar": "الأنسب إلك",
+              "en": "Your matches",
+            },
+            "result_limit": 4,
+            "skip_label_i18n": {
+              "ar": "ما يفرق",
+              "en": "No preference",
+            },
+            "start_label_i18n": {
+              "ar": "ابدأ",
+              "en": "Start",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_finder",
+        },
+        {
+          "base": {
             "card_style": "price_pill",
             "enable_filters": false,
             "eyebrow_i18n": {
@@ -791,6 +919,20 @@ exports[`scheniders_signature parity > produces the same config as before the di
           "enabled": true,
           "id": "<id>",
           "type": "pdp_direct_order",
+        },
+        {
+          "base": {
+            "attribute_keys": [],
+            "heading_i18n": {
+              "ar": "التفاصيل",
+              "en": "Details",
+            },
+            "layout": "stacked",
+            "start_collapsed": false,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_attributes",
         },
         {
           "base": {
@@ -1316,6 +1458,34 @@ You may keep and test the perfume for a full week from delivery; if the experien
     {
       "page_id": "checkout_success",
       "sections": [
+        {
+          "base": {
+            "accept_label_i18n": {
+              "ar": "نعم، ضيفها",
+              "en": "Yes, add it",
+            },
+            "accepted_i18n": {
+              "ar": "تمت الإضافة ✓ مجموع طلبك الجديد {total}",
+              "en": "Added ✓ Your new order total is {total}",
+            },
+            "decline_label_i18n": {
+              "ar": "لا، شكراً",
+              "en": "No thanks",
+            },
+            "eyebrow_i18n": {
+              "ar": "عرض لمرة وحدة — خصم {discount}٪",
+              "en": "One-time offer — {discount}% off",
+            },
+            "heading_i18n": {
+              "ar": "تضيفها على نفس الطلب؟",
+              "en": "Add it to this order?",
+            },
+            "max_offers": 2,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "post_purchase_offer",
+        },
         {
           "base": {
             "call_promise_i18n": {

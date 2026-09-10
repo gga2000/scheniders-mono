@@ -38,7 +38,7 @@ import {
     Menu,
     Truck,
     Users,
-    type LucideIcon, Gift, MessageSquareText } from "lucide-react";
+    type LucideIcon, Gift, MessageSquareText, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
@@ -158,6 +158,7 @@ export type SettingsSectionId =
     | "loyalty"
     | "free_gift"
     | "order_status"
+    | "template_updates"
     | "custom_pages"
     | "nav"
     | "redirects";
@@ -189,6 +190,7 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "loyalty", icon: Award, labelKey: "setting_loyalty", label: "Loyalty points" },
     { id: "free_gift", icon: Gift, labelKey: "setting_free_gift", label: "Free gift" },
     { id: "order_status", icon: MessageSquareText, labelKey: "setting_order_status", label: "Order tracking messages" },
+    { id: "template_updates", icon: Sparkles, labelKey: "setting_template_updates", label: "Template updates" },
     { id: "custom_pages", icon: FileText, labelKey: "setting_custom_pages", label: "Custom pages" },
     { id: "nav", icon: Menu, labelKey: "setting_nav", label: "Navigation" },
     { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
@@ -230,6 +232,7 @@ const SETTING_TINT: Record<SettingsSectionId, string> = {
     loyalty: "sb-tile--conversion",
     free_gift: "sb-tile--conversion",
     order_status: "sb-tile--trust",
+    template_updates: "sb-tile--story",
     custom_pages: "sb-tile--page",
     nav: "sb-tile--page",
     versions: "sb-tile--page",

@@ -404,7 +404,19 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   `starterTaxonomy`; the seed route accepts `categories`/`attribute_defs` and
   inserts them under the member's RLS on a fresh seed; wizard copy is
   "what you sell → pick a look". *(P4)*
-- **W6.2** Template versioning and upgrade migration. *(P6)*
+- **W6.2** Template versioning — DONE, and it retired three §6b steps.
+  Directions carry a `version`; the signature is at **2** (it gained
+  `product_finder` on home, `product_attributes` on product,
+  `post_purchase_offer` on checkout_success — all three render nothing until
+  the merchant has the data behind them). `lib/store-templates/upgrade.ts`
+  keeps **no archive and replays no migration list**: it compares the store's
+  actual sections against the direction's current definition, so it can only
+  ever ADD a section the merchant does not have, at the template's own index —
+  edited sections are reported and left alone, extra sections are never
+  removed, and a store of unknown origin gets no plan rather than a guess.
+  Screen: Settings → Advanced → "Template updates" (writes the draft through
+  `applyConfig`, so it is undoable and publishes on the merchant's terms).
+  *(P6)*
 - **W6.3** AI content seeding at onboarding. *(P8)*
 - **W6.4** Section-level A/B — ALREADY PRESENT, verified: `assignAbArm` +
   `sb_vid` in `v2-page.tsx`, `ab_test` visibility rule in the variant editor,
@@ -476,11 +488,12 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 Sections shipped in this program that the flagship's published config does not
 yet place. Publish discipline: only after the deploy that understands them.
 
-- `product_attributes` → `product` page (after `pdp_direct_order`).
-- `product_finder` → `home` (below the hero) — needs per-product attribute
-  values first, or it renders nothing.
-- `post_purchase_offer` → `checkout_success` (before `product_grid`) — needs
-  at least one order bump configured, or it renders nothing.
+- **The three unplaced sections are now a template update, not manual config
+  surgery.** The signature direction is at v2 and places `product_attributes`
+  (product), `product_finder` (home) and `post_purchase_offer`
+  (checkout_success). Open Settings → Advanced → "Template updates", take all
+  three into the draft, then publish. Each renders nothing until its data
+  exists (attribute values / an order bump), so publishing them early is safe.
 - `product_grid` on the catalog page: `enable_filters` is set by
   `deriveCatalogPage`, no config change needed.
 - **Fix a false claim**: the product page's `trust_badge_row` says
