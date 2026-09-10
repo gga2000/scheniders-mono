@@ -42,6 +42,19 @@ describe("per-tenant documents on a store's own domain", () => {
     });
 });
 
+describe("path-based stores are unaffected", () => {
+    it("leaves an already-prefixed document alone", () => {
+        // `/s/<tenant>/sitemap.xml` already names its tenant, so there is
+        // nothing to rewrite. `getStorefrontBase` falls back to `/s/<tenant>`
+        // when the proxy sends no `x-store-base`, which is the right base for
+        // path mode — this is how the manifest has always worked there.
+        expect(rewriteTargetFor("localhost", "/s/my-store/sitemap.xml")).toBeNull();
+        expect(
+            rewriteTargetFor("localhost", "/s/my-store/manifest.webmanifest"),
+        ).toBeNull();
+    });
+});
+
 describe("static assets keep passing straight through", () => {
     it.each([
         "/logo.png",
