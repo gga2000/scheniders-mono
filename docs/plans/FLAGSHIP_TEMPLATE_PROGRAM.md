@@ -489,7 +489,15 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   *(P9)*
 
 ### Wave 7 — Craft
-- **W7.1** View Transitions grid → PDP. *(F1)*
+- **W7.1** View Transitions — BLOCKED on React, not on us. Next 16.0.10
+  accepts `experimental.viewTransition`, but the flag only enables React's
+  `<ViewTransition>`, which stable React 19.2.1 does not export (experimental
+  channel only) and Next ships no React of its own. Hand-rolling
+  `document.startViewTransition` around App Router navigation is what
+  `<ViewTransition>` exists to solve — it fights the router's scheduling and
+  breaks on back/forward. Not worth putting a live COD checkout on
+  `react@experimental` for a page animation. Revisit when React ships it
+  stable. *(F1)*
 - **W7.2** Image pipeline — DONE, and smaller than the plan assumed. The
   config was already right (AVIF + WebP, a 390 device size, Supabase remote
   pattern) and all 22 `fill` images in `packages/sections` already declared
@@ -521,7 +529,23 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 - **W7.6** Arabic blog / guides. *(E1)*
 - **W7.7** Video sections wired. *(E4)*
 - **W7.8** Motion identity pass. *(H2)*
-- **W7.9** Per-section performance + a11y budgets in CI. *(P11)*
+- **W7.9** CI budgets — DONE, reshaped by what is real:
+  1. **The suite now runs in CI.** It never did: 1,635 tests existed and every
+     merge relied on someone remembering `vitest` locally — the exact failure
+     that let a TS1501 through this week. `pnpm test` at the root, a `Test`
+     step between type-check and build, GitHub annotations on failure.
+  2. **A shared-runtime bundle budget** (`apps/storefront/scripts/bundle-budget.mjs`,
+     budget in `bundle-budget.json`): the JS every shopper downloads on every
+     page, gzipped — 157.6 KB today against a 180 KB budget. Deliberately not
+     total `.next/static`, which grows whenever a page is added and would
+     train people to raise the number until it meant nothing. A missing build
+     fails rather than passing quietly. Verified it fails on a lowered budget
+     and on an absent build.
+  3. **Per-section** budgets are not measurable: the Turbopack build emits no
+     per-route size artifact (`app-build-manifest.json` is absent and
+     `build-manifest.json` carries one empty `/_app` entry).
+  4. **Keyboard-a11y budgets deliberately skipped** — standing instruction is
+     not to build keyboard-a11y sweeps unless asked. *(P11)*
 - **W7.10** Storybook × variant visual regression. *(P12)*
 
 ## 6. Definition of done (every task)

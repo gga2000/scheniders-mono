@@ -26,7 +26,24 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm exec turbo lint type-check build
+      # Ordered fastest-feedback first, and split so a failure names itself
+      # rather than hiding inside one combined turbo run.
+      - name: Lint and type-check
+        run: pnpm exec turbo lint type-check
+
+      # The suite was never in CI: 1,600+ tests existed and every merge relied
+      # on someone remembering to run them locally. It needs no secrets.
+      - name: Test
+        run: pnpm exec vitest run --reporter=default --reporter=github-actions
+
+      - name: Build
+        run: pnpm exec turbo build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      # What every shopper downloads on every page. Reads the build above, so
+      # it must run after it. Fails if the build is missing rather than
+      # passing quietly.
+      - name: Storefront bundle budget
+        run: pnpm --filter @scheniders/storefront bundle-budget
