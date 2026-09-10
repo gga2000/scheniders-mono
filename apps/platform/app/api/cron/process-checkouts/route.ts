@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireCronAuth } from "@/lib/cron-auth";
 import { Receiver } from '@upstash/qstash';
 import { env } from '@/lib/env';
 import { fetchCheckoutById, getSavedAccessToken } from '@/lib/lightfunnels-api';
@@ -133,11 +134,8 @@ async function processCheckoutQueue(): Promise<NextResponse> {
  * Manual trigger (UI button) or Vercel Cron.
  */
 export async function GET(request: Request) {
-    // Verify cron secret (Vercel automatically sends this)
-    const authHeader = request.headers.get('authorization');
-    if (env.CRON_SECRET && authHeader !== `Bearer ${env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
 
     return processCheckoutQueue();
 }

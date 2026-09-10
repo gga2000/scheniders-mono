@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireCronAuth } from "@/lib/cron-auth";
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 
@@ -71,11 +72,8 @@ async function fetchAllInBatches(
 }
 
 export async function GET(request: Request) {
-    // Check Authorization if a cron secret is set, to prevent unauthorized triggering
-    const authHeader = request.headers.get('authorization');
-    if (env.CRON_SECRET && authHeader !== `Bearer ${env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
 
     try {
         if (!serviceRoleKey) {

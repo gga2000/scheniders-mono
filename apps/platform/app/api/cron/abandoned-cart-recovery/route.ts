@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { Receiver } from "@upstash/qstash";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -121,10 +122,8 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
-    const authHeader = request.headers.get("authorization");
-    if (env.CRON_SECRET && authHeader !== `Bearer ${env.CRON_SECRET}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
     try {
         const result = await sweepAbandonedCarts();
         return NextResponse.json({ success: true, ...result });
