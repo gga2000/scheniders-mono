@@ -829,8 +829,18 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
         }
 
         // Assess customer risk (fraud detection) before creating order
-        // This checks for previous rejections and adds attention flags
-        const riskAssessment = await fraudDetector.assessCustomerTrust(formattedPhone);
+        // This checks for previous rejections and adds attention flags.
+        //
+        // The service-role client and the tenant are passed explicitly: this runs
+        // with no user session, so the browser client this used to fall back on
+        // failed every lookup with `42501: permission denied for function
+        // get_user_tenant_ids` and quietly returned a default assessment. The
+        // effect was that `previous_rejection` was never flagged on an incoming
+        // order, no matter how many deliveries that customer had refused.
+        const riskAssessment = await fraudDetector.assessCustomerTrust(formattedPhone, {
+            client: supabase,
+            tenantId,
+        });
 
         // Add attention flags for high-risk customers with previous rejections
         if (riskAssessment.historicalData.rejectedCustomerFaultCount > 0) {
