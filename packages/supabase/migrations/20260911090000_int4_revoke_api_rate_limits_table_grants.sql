@@ -1,0 +1,17 @@
+-- INT-4 follow-up: make the rate-limit table's lockdown independent of RLS.
+--
+-- `api_rate_limits` ships with RLS enabled and deliberately no policies, because
+-- a client that could read or reset its own bucket would trivially defeat the
+-- limit. That works — verified against production: as `authenticated`, SELECT
+-- returns 0 rows and UPDATE affects 0 rows.
+--
+-- But it works for one reason only, and that reason is RLS. Supabase's schema
+-- defaults still granted anon and authenticated full table privileges, so the
+-- entire protection rested on RLS staying enabled and policy-free. Adding one
+-- permissive policy later, or toggling RLS off during an unrelated migration,
+-- would silently open it.
+--
+-- The grants now say what the comment already said. `consume_rate_limit` is
+-- SECURITY DEFINER owned by `postgres`, so it keeps its own access and the
+-- limiter is unaffected; it stays callable only by service_role.
+REVOKE ALL ON TABLE public.api_rate_limits FROM anon, authenticated;
