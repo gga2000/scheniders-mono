@@ -511,7 +511,20 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   only the source can prove it is gone. *(F2)*
   *(A first pass of this audit reported 14 offenders; the regex only matched
   `sizes="…"` and missed `sizes={…}`. The real count was 6.)*
-- **W7.3** Optimistic cart + designed skeletons. *(F3)*
+- **W7.3** Skeletons — DONE. The optimistic half needed nothing: the cart is
+  zustand + `persist`, so adding an item is already local and instant.
+  The real gap was that the storefront had **no `loading.tsx` anywhere** —
+  every server-rendered navigation showed a blank screen until the server
+  answered, which on a slow Iraqi connection is seconds of nothing.
+  `components/skeletons.tsx` + `loading.tsx` on the four slowest routes
+  (product, category, catalogue, search), shaped to the real layouts
+  (`grid-cols-2 / md:3 / lg:4`, the PDP's one/two-column split) so nothing
+  jumps on swap. Brand-kit tokens only, `aria-hidden` with no copy — a
+  localized "loading…" here could not read the tenant's locale, so it would
+  have to be hardcoded. The shimmer needs no reduced-motion guard of its
+  own: `globals.css` already flattens tenant-scope animations under
+  `prefers-reduced-motion` and the kit's own `data-bk-motion="reduce"`.
+  Shared-runtime budget unchanged at 157.6 KB. *(F3)*
 - **W7.4** Add to home screen — DONE for installability; no service worker.
   `app/s/[tenant]/manifest.webmanifest/route.ts` serves a manifest per
   tenant, built from real identity: name, tagline as description, brand-kit
