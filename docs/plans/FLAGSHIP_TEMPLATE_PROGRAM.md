@@ -512,7 +512,22 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   *(A first pass of this audit reported 14 offenders; the regex only matched
   `sizes="…"` and missed `sizes={…}`. The real count was 6.)*
 - **W7.3** Optimistic cart + designed skeletons. *(F3)*
-- **W7.4** PWA / add-to-home-screen. *(F4)*
+- **W7.4** Add to home screen — DONE for installability; no service worker.
+  `app/s/[tenant]/manifest.webmanifest/route.ts` serves a manifest per
+  tenant, built from real identity: name, tagline as description, brand-kit
+  surface and primary as `background_color`/`theme_color`, `start_url` and
+  `scope` at the store's own root in BOTH routing modes (`/` on a
+  subdomain or custom domain, `/s/<slug>/` in path mode), `dir: "ltr"` per
+  the project rule. The layout links it and adds `apple-touch-icon` +
+  `apple-mobile-web-app-title`, which is all iOS Safari's Add to Home Screen
+  needs — no manifest or service worker involved there.
+  **No icon is invented**: the manifest carries the merchant's uploaded logo
+  or favicon, or omits `icons` entirely, in which case the browser simply
+  does not offer to install. Store health already tells them to upload one
+  (`logo_uploaded`). Nothing is marked `maskable` and no `sizes` are claimed
+  for an arbitrary upload — both would be guesses.
+  Offline support (a service worker) is a separate feature and is NOT here.
+  Verified live in both routing modes, plus a 404 for an unknown store. *(F4)*
 - **W7.5** Rich results — DONE. `lib/seo.ts` gains `shippingDetailsJsonLd`
   (real fee, one value when flat and a min/max when governorates differ,
   transit time only from a published ETA), `returnPolicyJsonLd` (the

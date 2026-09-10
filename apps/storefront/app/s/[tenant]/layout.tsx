@@ -12,7 +12,7 @@ import {
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { getRequestOrigin, htmlLangFor, ogLocaleFor } from "@/lib/seo";
+import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { CartHydrator } from "@/components/cart-hydrator";
 import { HtmlLang } from "@/components/html-lang";
@@ -307,6 +307,12 @@ export async function generateViewport({
   };
 }
 
+/** Home-screen labels are clipped by the OS; keep the store's name, drop the rest. */
+function shortTitle(title: string): string {
+  const t = title.trim();
+  return t.length <= 15 ? t : t.slice(0, 15).trim();
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantParam } = await params;
   const tenant = await resolveTenant(tenantParam);
@@ -332,13 +338,30 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
     `${tenant.business_name} — اطلب الآن من أفضل المنتجات`;
   const origin = await getRequestOrigin();
   const ogImage = v2Identity?.og_image_url || seo?.og_image_url;
+  // Home-screen install: the manifest is per tenant and lives under the
+  // store's own root, so it resolves in both routing modes (path and
+  // subdomain/custom domain).
+  const { storeBase } = await getStorefrontBase(tenantParam);
 
   return {
     // metadataBase lets Next resolve relative OG/canonical URLs to absolutes.
     ...(origin ? { metadataBase: new URL(origin) } : {}),
     title,
     description,
-    icons: logoUrl ? [{ url: logoUrl }] : undefined,
+    icons: logoUrl
+      ? {
+          icon: [{ url: logoUrl }],
+          // iOS Safari's "Add to Home Screen" reads this one, and needs no
+          // manifest or service worker to do it.
+          apple: [{ url: logoUrl }],
+        }
+      : undefined,
+    manifest: `${storeBase}/manifest.webmanifest`,
+    appleWebApp: {
+      capable: true,
+      title: shortTitle(title),
+      statusBarStyle: "default",
+    },
     openGraph: {
       type: "website",
       locale: ogLocaleFor(
