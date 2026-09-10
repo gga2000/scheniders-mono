@@ -1,0 +1,2154 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scheniders_signature parity > produces the same config as before the direction/pack split 1`] = `
+{
+  "brand_kit": {
+    "colors": {
+      "accent": "#fbb82e",
+      "danger": "#e2574c",
+      "ink": "#483b36",
+      "primary": "#f7db17",
+      "secondary": "#3e3129",
+      "success": "#3ecf8e",
+      "surface": "#fdf8ef",
+      "surface_alt": "#f8efdf",
+    },
+    "identity": {},
+    "motion": {
+      "enabled": true,
+      "speed": "normal",
+    },
+    "shape": {
+      "border_thickness": "thin",
+      "radius": "round",
+      "rotation_intensity": "none",
+      "shadow_style": "soft",
+    },
+    "typography": {
+      "body": "Cairo",
+      "body_ar": "Cairo",
+      "display": "Cairo",
+      "display_ar": "Cairo",
+      "scale": "comfortable",
+    },
+    "voice": {
+      "formality": "casual",
+    },
+  },
+  "default_locale": "ar",
+  "enabled_locales": [
+    "ar",
+  ],
+  "experiments": [],
+  "globals": {
+    "footer": {
+      "base": {
+        "columns": [
+          {
+            "heading_i18n": {
+              "ar": "معلومات عنا",
+              "en": "About us",
+            },
+            "links": [
+              {
+                "href": "/contact",
+                "label_i18n": {
+                  "ar": "تواصل معنا",
+                  "en": "Contact us",
+                },
+              },
+              {
+                "href": "/about",
+                "label_i18n": {
+                  "ar": "من نحن",
+                  "en": "Who we are",
+                },
+              },
+              {
+                "href": "/track",
+                "label_i18n": {
+                  "ar": "تتبع الطلب",
+                  "en": "Track your order",
+                },
+              },
+              {
+                "href": "/policies/privacy",
+                "label_i18n": {
+                  "ar": "سياسة الخصوصية",
+                  "en": "Privacy policy",
+                },
+              },
+              {
+                "href": "/policies/terms",
+                "label_i18n": {
+                  "ar": "الشروط والاحكام",
+                  "en": "Terms and conditions",
+                },
+              },
+              {
+                "href": "/policies/returns",
+                "label_i18n": {
+                  "ar": "سياسة الاسترجاع",
+                  "en": "Return and refund policy",
+                },
+              },
+              {
+                "href": "/policies/shipping",
+                "label_i18n": {
+                  "ar": "سياسة الشحن",
+                  "en": "Shipping policy",
+                },
+              },
+            ],
+          },
+        ],
+        "contact": {
+          "address_i18n": {
+            "ar": "العراق - بغداد - زيونة",
+            "en": "Iraq - Baghdad - Zayouna",
+          },
+        },
+        "layout": "info_panel",
+        "legal": {
+          "business_license": "310536983500003",
+          "company_name": "Schnieder - شنايدر",
+        },
+        "links_heading_i18n": {
+          "ar": "معلومات عنا",
+          "en": "About us",
+        },
+        "newsletter": {
+          "button_i18n": {
+            "ar": "اشترك",
+            "en": "Subscribe",
+          },
+          "copy_i18n": {
+            "ar": "كن أول من يعرف آخر الاخبار عن متجرنا، عند انضمامك ستحصل فورا على كوبون خصم 15% على منتجاتنا.",
+            "en": "Be the first to hear our news — join and instantly get a 15% coupon.",
+          },
+          "enabled": true,
+          "placeholder_i18n": {
+            "ar": "ادخل بريدك الالكتروني هنا",
+            "en": "Enter your email here",
+          },
+          "success_i18n": {
+            "ar": "تم الاشتراك! كود الخصم مالتك: WELCOME15",
+            "en": "You're in! Your discount code: WELCOME15",
+          },
+        },
+        "rights_i18n": {
+          "ar": "جميع الحقوق محفوظة لمجموعة شركات شنايدر",
+          "en": "All rights reserved to the Scheniders group",
+        },
+        "show_cod_badge": false,
+        "social_links": {
+          "instagram": "https://www.instagram.com/kawkab.brand/",
+          "tiktok": "https://www.tiktok.com/@kawkab.brand",
+        },
+        "tagline_i18n": {
+          "ar": "عطور فخمة فائقة الجودة بأسعار تنافسية",
+          "en": "Premium, top-quality perfumes at competitive prices",
+        },
+      },
+      "enabled": true,
+      "id": "<id>",
+      "type": "site_footer",
+    },
+    "header": {
+      "base": {
+        "layout": "floating_pill",
+        "logo_image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/da0471e3-4980-4e4d-80ef-4ea9e75bf2da.png",
+        "nav_links": [
+          {
+            "href": "/",
+            "label_i18n": {
+              "ar": "الصفحة الرئيسية",
+              "en": "Home",
+            },
+          },
+          {
+            "href": "/products",
+            "label_i18n": {
+              "ar": "منتجاتنا",
+              "en": "Our products",
+            },
+          },
+          {
+            "href": "/about",
+            "label_i18n": {
+              "ar": "معلومات عنا",
+              "en": "About us",
+            },
+          },
+          {
+            "href": "/contact",
+            "label_i18n": {
+              "ar": "تواصل معنا",
+              "en": "Contact us",
+            },
+          },
+        ],
+        "show_cart": false,
+        "show_search": false,
+        "sticky": true,
+        "wordmark_i18n": {
+          "ar": "شنايدر",
+          "en": "Scheniders",
+        },
+        "wordmark_style": "pill",
+      },
+      "enabled": true,
+      "id": "<id>",
+      "type": "site_header",
+    },
+    "promo_bar": {
+      "base": {
+        "bg": "secondary",
+        "duration_minutes": 150,
+        "label_i18n": {
+          "ar": "ينتهي عرض الخصم خلال:",
+          "en": "Discount offer ends in:",
+        },
+        "mode": "evergreen_minutes",
+        "show_flame": true,
+      },
+      "enabled": true,
+      "id": "<id>",
+      "type": "countdown_announcement",
+    },
+  },
+  "pages": [
+    {
+      "page_id": "home",
+      "sections": [
+        {
+          "base": {
+            "bg_image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/cc0006f8-a7d5-4c0e-b10d-e5f73253ca22.webp",
+            "card_align": "end",
+            "cta_href": "/products",
+            "cta_label_i18n": {
+              "ar": "مجموعتنا",
+              "en": "Our collection",
+            },
+            "headline_i18n": {
+              "ar": "يا هلا ومرحبا!",
+              "en": "Welcome!",
+            },
+            "secondary_cta_kind": "whatsapp",
+            "secondary_cta_label_i18n": {
+              "ar": "اطلب عبر واتساب",
+              "en": "Order on WhatsApp",
+            },
+            "secondary_cta_value": "",
+            "sub_i18n": {
+              "ar": "مستعد تجرب روائح عطرية من افخم الماركات العالمية؟",
+              "en": "Ready to try fragrances from the world's finest houses?",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "hero_card_float",
+        },
+        {
+          "base": {
+            "band_style": "plain",
+            "items": [
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/1be3edb0-56f8-4c0a-b3c9-88637ee49cd3.svg",
+                "label_i18n": {
+                  "ar": "توصيل سريع",
+                  "en": "Fast delivery",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a04ab73b-1d8b-41f4-83fb-5b249bd68616.svg",
+                "label_i18n": {
+                  "ar": "ضمان الجودة",
+                  "en": "Quality guarantee",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/cc287ee8-2cc5-46bf-9354-d0a55d33ba1a.svg",
+                "label_i18n": {
+                  "ar": "متوفر بالعراق",
+                  "en": "Available in Iraq",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/ac7e449d-f570-4cfb-9e8d-d407fe573a89.svg",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "trust_badge_row",
+        },
+        {
+          "base": {
+            "eyebrow_i18n": {
+              "ar": "الفئات",
+              "en": "Categories",
+            },
+            "items": [
+              {
+                "href": "/categories/picked",
+                "image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/eb55eb3a-1955-4f85-8720-1fca98b8a394.webp",
+                "label_i18n": {
+                  "ar": "عطور مختارة",
+                  "en": "Curated perfumes",
+                },
+              },
+              {
+                "href": "/categories/topsellers",
+                "image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/8647a500-6a35-4302-afcb-d1271904b1fb.jpg",
+                "label_i18n": {
+                  "ar": "الاكثر مبيعاً",
+                  "en": "Best sellers",
+                },
+              },
+            ],
+            "side_image_left_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/d8f80617-73ac-4b2f-bc58-014da751de42.svg",
+            "side_image_right_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/08f20a22-335e-450a-86dd-4ee24a86204e.svg",
+            "title_i18n": {
+              "ar": "اختر حسب الفئة",
+              "en": "Shop by category",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "category_spotlight_pair",
+        },
+        {
+          "base": {
+            "card_style": "price_pill",
+            "enable_filters": false,
+            "eyebrow_i18n": {
+              "ar": "الأكثر مبيعا",
+              "en": "Best sellers",
+            },
+            "heading_i18n": {
+              "ar": "اكثر العطور مبيعاً",
+              "en": "Our best-selling perfumes",
+            },
+            "manual_product_ids": [],
+            "mode": "auto",
+            "pinned_product_ids": [],
+            "query": {
+              "limit": 8,
+              "sort": "bestsellers",
+            },
+            "scribble_color": "butter",
+            "see_all_href": "/products",
+            "see_all_label_i18n": {
+              "ar": "شوفهم كلهم",
+              "en": "See them all",
+            },
+            "show_stars": true,
+            "subheading_i18n": {
+              "ar": "تجميعة من اكثر العطور اللي حبوهم زبائنا",
+              "en": "A lineup of the perfumes our customers loved most",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_grid",
+        },
+        {
+          "base": {
+            "eyebrow_i18n": {
+              "ar": "مختاراتنا",
+              "en": "Our picks",
+            },
+            "items": [
+              {
+                "cta_label_i18n": {
+                  "ar": "شوفهم",
+                  "en": "See them",
+                },
+                "href": "/categories/work",
+                "image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a92ea4e4-b91a-4228-91ac-b3c2f327a35d.webp",
+                "sub_i18n": {
+                  "ar": "توازن يجنن بين الرسمية والشياكة",
+                  "en": "A stunning balance of formality and style",
+                },
+                "title_i18n": {
+                  "ar": "عطور للدوام",
+                  "en": "Perfumes for work",
+                },
+              },
+              {
+                "cta_label_i18n": {
+                  "ar": "تعال نوريك",
+                  "en": "Come see",
+                },
+                "href": "/categories/outings",
+                "image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/5968b404-8796-4449-94a6-91f598130d84.webp",
+                "sub_i18n": {
+                  "ar": "الجمع بين الفخامة والراحة",
+                  "en": "Luxury and comfort combined",
+                },
+                "title_i18n": {
+                  "ar": "عطور للطلعات",
+                  "en": "Perfumes for outings",
+                },
+              },
+              {
+                "cta_label_i18n": {
+                  "ar": "تألق هسة",
+                  "en": "Shine now",
+                },
+                "href": "/categories/occasions",
+                "image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/09c277cd-17e1-4d23-a95d-bf02c83fafc2.webp",
+                "sub_i18n": {
+                  "ar": "للمناسبات الخاصة",
+                  "en": "For special occasions",
+                },
+                "title_i18n": {
+                  "ar": "عطور للمناسبات",
+                  "en": "Perfumes for occasions",
+                },
+              },
+            ],
+            "title_i18n": {
+              "ar": "عطور مميزة على ذوقنا",
+              "en": "Perfumes picked to our taste",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "collection_trio",
+        },
+        {
+          "base": {
+            "eyebrow_i18n": {
+              "ar": "آراء كشايخنا",
+              "en": "What our regulars say",
+            },
+            "items": [
+              {
+                "name_i18n": {
+                  "ar": "نورين",
+                  "en": "Noreen",
+                },
+                "quote_i18n": {
+                  "ar": "هاي ثاني مرة اشتري منكم، نوعية العطر والكوالتي مال تغليف حرفيا مشايفها مثلها بحياتي",
+                  "en": "Second time ordering — the perfume quality and packaging are unlike anything I've seen.",
+                },
+              },
+              {
+                "name_i18n": {
+                  "ar": "وسام الدراجي",
+                  "en": "Wissam Al-Darraji",
+                },
+                "quote_i18n": {
+                  "ar": "مصداقيتكم شي المفروض تنحمدون عليه, العطر وصلني وجان مثل الوصف ولا ولله الوصف ظالمه. كمت اخاف اطلب من النت من ورة الغش بس انتو عملة نادرة كلش شكراً",
+                  "en": "Your honesty deserves praise — the perfume arrived exactly as described. I was wary of ordering online, but you are a rare find. Thank you.",
+                },
+              },
+              {
+                "name_i18n": {
+                  "ar": "محمد علي",
+                  "en": "Mohammed Ali",
+                },
+                "quote_i18n": {
+                  "ar": "عطوركم وتغليفكم يفوزون صراحة",
+                  "en": "Your perfumes and packaging honestly win.",
+                },
+              },
+            ],
+            "side_image_left_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/d8f80617-73ac-4b2f-bc58-014da751de42.svg",
+            "side_image_right_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/08f20a22-335e-450a-86dd-4ee24a86204e.svg",
+            "title_i18n": {
+              "ar": "ليش الناس تموت على عطورنا",
+              "en": "Why people are crazy about our perfumes",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "testimonial_cards",
+        },
+        {
+          "base": {
+            "eyebrow_i18n": {
+              "ar": "ضمانات",
+              "en": "Guarantees",
+            },
+            "items": [
+              {
+                "body_i18n": {
+                  "ar": "عطورنا نختارهم فقط وحصرياً من اعلى جودة زيوت عطرية, اي شي دون الفئة العليا بالخامات العطرية ما نتقرب الها",
+                  "en": "We choose only the highest-grade fragrance oils — anything below the top tier never makes the cut.",
+                },
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/1059c16f-4311-4ceb-9365-ed7d3563d8dd.svg",
+                "title_i18n": {
+                  "ar": "الجودة الفائقة",
+                  "en": "Superior quality",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "على عكس بقية الشركات نحرص على تسعير عطورنا بارقام عادلة, مستحيل نخلي سعر على عطر احنا ما مستعدين ندفعها بيه",
+                  "en": "Unlike others we price fairly — we would never charge a price we would not pay ourselves.",
+                },
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/0eed8928-51d1-422b-89d0-edf7cb5c56e5.svg",
+                "title_i18n": {
+                  "ar": "القيمة مقابل السعر",
+                  "en": "Value for money",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "من اكثر الشروط الي معقدة عملنا هو حرصنا على اختبار العطور بصورة شخصية بانفسنا, ونعرضهم لمجموعة اختبارات سيطرة نوعية. العطر اللي ما يحافظ على اداءه وفوحانه اثناء اليوم يتم رفضه",
+                  "en": "We personally test every perfume through a battery of quality checks — any scent that fades through the day is rejected.",
+                },
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a018156e-4fe5-4010-ba33-90322ea745e1.svg",
+                "title_i18n": {
+                  "ar": "الادامة",
+                  "en": "Longevity",
+                },
+              },
+            ],
+            "title_i18n": {
+              "ar": "ليش شنايدر؟",
+              "en": "Why Scheniders?",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "pillars_grid",
+        },
+        {
+          "base": {
+            "bg_image_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/b6f25c2e-03d2-4c7a-9c81-76ba1abd6bcd.jpg",
+            "body_i18n": {
+              "ar": "شنايدر متجر عطور من بغداد. نختار عطورنا يدوياً من أفخم الدور العالمية، ونجرّب كل عطر بأنفسنا قبل ما يوصلكم. كل طلب يجيك وياه تيستر مجاني تجرّبه بحضور المندوب، وإذا ما عجبك ترجّعه خلال أسبوع وتستلم فلوسك كاملة. الدفع عند الاستلام، والتوصيل لكل المحافظات.",
+              "en": "Scheniders is a perfume house from Baghdad. We hand-pick from the world's finest houses and wear-test every scent ourselves before it reaches you. Every order ships with a free tester to try with the courier present; if it isn't for you, return it within a week for a full refund. Cash on delivery, to every governorate.",
+            },
+            "cta_href": "/about",
+            "cta_label_i18n": {
+              "ar": "تعرف أكثر",
+              "en": "Learn more",
+            },
+            "overlay_opacity": 0.1,
+            "title_i18n": {
+              "ar": "منو احنا",
+              "en": "Who we are",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "about_spotlight",
+        },
+        {
+          "base": {
+            "contact": {
+              "cta_label_i18n": {
+                "ar": "التواصل على واتساب",
+                "en": "Chat on WhatsApp",
+              },
+              "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/66a2314b-371e-4474-ad0d-53a4cad055f9.svg",
+              "sub_i18n": {
+                "ar": "نورونا على الواتساب وسولفوا ويانا",
+                "en": "Message us on WhatsApp and let's talk",
+              },
+              "title_i18n": {
+                "ar": "عندك استفسار",
+                "en": "Have a question?",
+              },
+              "whatsapp_number": "",
+            },
+            "eyebrow_i18n": {
+              "ar": "أسئلة و أجوبة",
+              "en": "Questions & answers",
+            },
+            "items": [
+              {
+                "a_i18n": {
+                  "ar": "يتم الدفع حصراً بعد استلام العطر واختباره من خلال زجاجة الاختبار المرفقة مجاناً مع كل عطر",
+                  "en": "Payment happens only after you receive the perfume and try it via the free tester bottle included with every order.",
+                },
+                "q_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "جميع الطلبات يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز",
+                  "en": "All orders are delivered within 18 hours of confirming the reservation.",
+                },
+                "q_i18n": {
+                  "ar": "شكد يطول الشحن؟",
+                  "en": "How long does delivery take?",
+                },
+              },
+            ],
+            "row_icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/73c12b05-fbb5-4cc7-9a75-f61094855221.svg",
+            "sub_i18n": {
+              "ar": "اجوبة لاسئلتكم المشهورة من فريقنا",
+              "en": "Answers to your most common questions, from our team",
+            },
+            "title_i18n": {
+              "ar": "الأسئلة الأكثر شيوعا",
+              "en": "Frequently asked questions",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "faq_contact_split",
+        },
+        {
+          "base": {
+            "band_style": "plain",
+            "items": [
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/1be3edb0-56f8-4c0a-b3c9-88637ee49cd3.svg",
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery to every governorate",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a04ab73b-1d8b-41f4-83fb-5b249bd68616.svg",
+                "label_i18n": {
+                  "ar": "خدمة العملاء",
+                  "en": "Customer care",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/cc287ee8-2cc5-46bf-9354-d0a55d33ba1a.svg",
+                "label_i18n": {
+                  "ar": "متوفر بالعراق",
+                  "en": "Available in Iraq",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/ac7e449d-f570-4cfb-9e8d-d407fe573a89.svg",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "trust_badge_row",
+        },
+      ],
+    },
+    {
+      "page_id": "category",
+      "sections": [
+        {
+          "base": {
+            "card_style": "price_pill",
+            "enable_filters": false,
+            "heading_i18n": {
+              "ar": "منتجاتنا",
+              "en": "Our products",
+            },
+            "manual_product_ids": [],
+            "mode": "auto",
+            "pinned_product_ids": [],
+            "query": {
+              "limit": 24,
+              "sort": "newest",
+            },
+            "scribble_color": "butter",
+            "show_stars": true,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_grid",
+        },
+        {
+          "base": {
+            "band_style": "plain",
+            "items": [
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/1be3edb0-56f8-4c0a-b3c9-88637ee49cd3.svg",
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery to every governorate",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a04ab73b-1d8b-41f4-83fb-5b249bd68616.svg",
+                "label_i18n": {
+                  "ar": "خدمة العملاء",
+                  "en": "Customer care",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/cc287ee8-2cc5-46bf-9354-d0a55d33ba1a.svg",
+                "label_i18n": {
+                  "ar": "متوفر بالعراق",
+                  "en": "Available in Iraq",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/ac7e449d-f570-4cfb-9e8d-d407fe573a89.svg",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "trust_badge_row",
+        },
+      ],
+    },
+    {
+      "page_id": "product",
+      "sections": [
+        {
+          "base": {
+            "delivery_sla_i18n": {
+              "ar": "أغلب الطلبات توصل خلال 18 ساعة من تثبيت الطلب",
+              "en": "Most orders arrive within 18 hours of confirmation",
+            },
+            "feature_cards_title_i18n": {
+              "ar": "شنو يميز هاي العطر عن غيره؟",
+              "en": "What makes this scent special?",
+            },
+            "form_title_i18n": {
+              "ar": "لتثبيت الحجز سجّل المعلومات أدناه:",
+              "en": "Fill in your details below to reserve your order:",
+            },
+            "max_qty": 10,
+            "payment_title_i18n": {
+              "ar": "طريقة الدفع",
+              "en": "Payment method",
+            },
+            "qty_title_i18n": {
+              "ar": "اختر الكمية",
+              "en": "Choose the quantity",
+            },
+            "rating_chip_i18n": {
+              "ar": "{count} تقييم من زبائننا",
+              "en": "{count} customer reviews",
+            },
+            "reassurance_i18n": {
+              "ar": "تفتح وتجرب قبل ما تدفع — والتيستر هدية وياه",
+              "en": "Open it and try it before you pay — tester included",
+            },
+            "show_description": true,
+            "show_gallery": true,
+            "show_price_row": true,
+            "show_whatsapp": true,
+            "stock_urgency_i18n": {
+              "ar": "هذا العطر عليه طلب كبير ✨ سارع بالطلب — باقي {count} قطع فقط",
+              "en": "This perfume is in high demand ✨ order fast — only {count} left",
+            },
+            "submit_label_i18n": {
+              "ar": "اضغط هنا لتأكيد الطلب",
+              "en": "Click here to confirm your order",
+            },
+            "trust_chips": [
+              {
+                "icon": "payments",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+              {
+                "icon": "verified",
+                "label_i18n": {
+                  "ar": "منتجات أصلية",
+                  "en": "Original products",
+                },
+              },
+              {
+                "icon": "workspace_premium",
+                "label_i18n": {
+                  "ar": "ضمان الجودة",
+                  "en": "Quality guarantee",
+                },
+              },
+              {
+                "icon": "support_agent",
+                "label_i18n": {
+                  "ar": "خدمة عملاء",
+                  "en": "Customer service",
+                },
+              },
+            ],
+            "urgency_max_stock": 10,
+            "whatsapp_label_i18n": {
+              "ar": "اضغط هنا للحجز عبر واتساب",
+              "en": "Click here to order via WhatsApp",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "pdp_direct_order",
+        },
+        {
+          "base": {
+            "allow_multiple": false,
+            "items": [
+              {
+                "body_i18n": {
+                  "ar": "يتم الدفع حصراً بعد استلام العطر واختباره من خلال العينة الزجاجية المرفقة مجاناُ مع كل طلب.",
+                  "en": "Payment happens only after receiving the perfume and testing it via the free glass sample included with every order.",
+                },
+                "title_i18n": {
+                  "ar": "سياسة الدفع عند الاستلام",
+                  "en": "Cash-on-delivery policy",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "أغلب الطلبات توصل خلال 18 ساعة من تثبيت الطلب.",
+                  "en": "Most orders arrive within 18 hours of confirmation.",
+                },
+                "title_i18n": {
+                  "ar": "شحن فائق السرعة",
+                  "en": "Ultra-fast shipping",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "عند استلام المنتج يتم التأكد من الجودة والمواصفات والفوحان والثبات بحضور المندوب, اي اختلاف يحق للزبون رفض المنتج ويتم ارجاع قيمته كاملة.
+
+ويحق للزبون استعمال العطر والاحتفاظ به لمدة اسبوع كامل من تاريخ استلام الطلب واختباره من راحة منزله. ان لم تعجبه التجربة العطرية او اكتشافه لفرق بالمواصفات المذكورة يحق له ارجاع العطر واستلام قيمته من قبلنا.",
+                  "en": "On delivery, quality, projection and longevity are verified with the courier present — any mismatch entitles you to refuse the product for a full refund.
+
+You may keep and test the perfume for a full week from delivery; if the experience disappoints or the specs differ, return it for a full refund.",
+                },
+                "title_i18n": {
+                  "ar": "كرت الضمان المميز و سياسة الاسترجاع",
+                  "en": "Premium warranty card & return policy",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "جميع عطورنا مختارة يدوياً وبعناية من افخم المصادر العالمية, ومن اجود انواع العطور والخامات العطرية. لا نتعامل بالعطور التركية المصنعة بالجملة او العطور الصينية الرديئة",
+                  "en": "Every perfume is hand-picked from premium global sources and the finest aromatic materials. We never deal in bulk-made or low-grade imitations.",
+                },
+                "title_i18n": {
+                  "ar": "عطور اصلية",
+                  "en": "Authentic perfumes",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "سولف ويانا ! احنا موجودين بأي وقت وبكل وقت حتى نجاوب بكل حب ع اسئلتكم واستفساراتكم من خلال الواتساب",
+                  "en": "Talk to us! We are available around the clock to answer your questions with love, over WhatsApp.",
+                },
+                "title_i18n": {
+                  "ar": "خدمة العملاء",
+                  "en": "Customer care",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "accordion_richtext",
+        },
+        {
+          "base": {
+            "band_style": "tinted",
+            "items": [
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/1be3edb0-56f8-4c0a-b3c9-88637ee49cd3.svg",
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery to every governorate",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a04ab73b-1d8b-41f4-83fb-5b249bd68616.svg",
+                "label_i18n": {
+                  "ar": "خدمة العملاء",
+                  "en": "Customer care",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/cc287ee8-2cc5-46bf-9354-d0a55d33ba1a.svg",
+                "label_i18n": {
+                  "ar": "متوفر بالعراق",
+                  "en": "Available in Iraq",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/ac7e449d-f570-4cfb-9e8d-d407fe573a89.svg",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "trust_badge_row",
+        },
+        {
+          "base": {
+            "heading_i18n": {
+              "ar": "كلامهم مو كلامنا",
+              "en": "Their words, not ours",
+            },
+            "images": [
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 1 من 9",
+                  "en": "Customer message 1 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/1ebf499e-fb7d-4325-a2fe-0b98e8530932.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 2 من 9",
+                  "en": "Customer message 2 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/cba26e5e-7ad0-4213-b804-d535b7c0d7e6.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 3 من 9",
+                  "en": "Customer message 3 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/8f742152-1b1a-4d65-a543-331196fc6830.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 4 من 9",
+                  "en": "Customer message 4 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/6bf95f17-026a-400d-9067-08894b88a4a0.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 5 من 9",
+                  "en": "Customer message 5 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/536e8d88-e55a-49f0-a9b3-305b69cbfbf5.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 6 من 9",
+                  "en": "Customer message 6 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/abf3f504-d358-4888-bd0f-eafd1136d248.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 7 من 9",
+                  "en": "Customer message 7 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/2f8ae556-1a0c-4cdb-b4e2-b30c2808755e.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 8 من 9",
+                  "en": "Customer message 8 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/13ec2385-384c-4d1f-af39-793949cce8df.jpeg",
+              },
+              {
+                "alt_i18n": {
+                  "ar": "رسالة من زبون 9 من 9",
+                  "en": "Customer message 9 of 9",
+                },
+                "url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/8e208e9b-b896-430d-839d-44d2a010b588.jpeg",
+              },
+            ],
+            "layout": "carousel",
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "image_gallery",
+        },
+        {
+          "base": {
+            "heading_i18n": {
+              "ar": "آراء العملاء",
+              "en": "Customer reviews",
+            },
+            "show_form": true,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_reviews",
+        },
+        {
+          "base": {
+            "contact": {
+              "cta_label_i18n": {
+                "ar": "تواصل معنا",
+                "en": "Contact us",
+              },
+              "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/66a2314b-371e-4474-ad0d-53a4cad055f9.svg",
+              "sub_i18n": {
+                "ar": "إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+                "en": "If you still need more information, you can always reach us.",
+              },
+              "title_i18n": {
+                "ar": "لديك أسئلة أخرى؟",
+                "en": "More questions?",
+              },
+              "whatsapp_number": "",
+            },
+            "eyebrow_i18n": {
+              "ar": "أسئلة و أجوبة",
+              "en": "Questions & answers",
+            },
+            "items": [
+              {
+                "a_i18n": {
+                  "ar": "يتم الدفع حصراً بعد استلام العطر واختباره من خلال زجاجة الاختبار المرفقة مجاناً مع كل عطر",
+                  "en": "Payment happens only after you receive the perfume and try it via the free tester bottle included with every order.",
+                },
+                "q_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "جميع الطلبات يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز",
+                  "en": "All orders are delivered within 18 hours of confirming the reservation.",
+                },
+                "q_i18n": {
+                  "ar": "شكد يطول الشحن؟",
+                  "en": "How long does delivery take?",
+                },
+              },
+            ],
+            "row_icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/73c12b05-fbb5-4cc7-9a75-f61094855221.svg",
+            "sub_i18n": {
+              "ar": "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+              "en": "Answers to the most common questions — and you can always reach us for more.",
+            },
+            "title_i18n": {
+              "ar": "الأسئلة الأكثر شيوعا",
+              "en": "Frequently asked questions",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "faq_contact_split",
+        },
+        {
+          "base": {
+            "card_style": "price_pill",
+            "enable_filters": false,
+            "eyebrow_i18n": {
+              "ar": "القطع المميزة لهذا الشهر",
+              "en": "This month's standouts",
+            },
+            "heading_i18n": {
+              "ar": "اكثر منتجاتنا مبيعاً",
+              "en": "Our best sellers",
+            },
+            "manual_product_ids": [],
+            "mode": "auto",
+            "pinned_product_ids": [],
+            "query": {
+              "limit": 8,
+              "sort": "bestsellers",
+            },
+            "scribble_color": "butter",
+            "see_all_href": "/products",
+            "see_all_label_i18n": {
+              "ar": "عرض المزيد",
+              "en": "Show more",
+            },
+            "show_stars": true,
+            "subheading_i18n": {
+              "ar": "شوف تشكيلة من اكثر العطور اللي حبوها زبائنا",
+              "en": "A selection of the perfumes our customers loved most",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_grid",
+        },
+        {
+          "base": {
+            "primary_href": "/checkout",
+            "primary_kind": "scroll_to_form",
+            "primary_label_i18n": {
+              "ar": "اطلب الآن",
+              "en": "Order now",
+            },
+            "secondary_kind": "whatsapp",
+            "secondary_label_i18n": {
+              "ar": "واتساب",
+              "en": "WhatsApp",
+            },
+            "show_product_price": true,
+            "show_total": false,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "sticky_cta_bar",
+        },
+      ],
+    },
+    {
+      "page_id": "search",
+      "sections": [
+        {
+          "base": {
+            "card_style": "price_pill",
+            "cols_desktop": 4,
+            "cols_mobile": 2,
+            "empty_state_message_i18n": {
+              "ar": "لا توجد منتجات تطابق بحثك.",
+              "en": "No products matched your search.",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "search_results_grid",
+        },
+      ],
+    },
+    {
+      "page_id": "cart",
+      "sections": [
+        {
+          "base": {
+            "empty_state_message_i18n": {
+              "ar": "سلتك فارغة — تابع التسوّق.",
+              "en": "Your cart is empty — keep shopping.",
+            },
+            "show_thumbnails": true,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "cart_line_items",
+        },
+        {
+          "base": {
+            "checkout_label_i18n": {
+              "ar": "متابعة الدفع",
+              "en": "Continue to checkout",
+            },
+            "heading_i18n": {
+              "ar": "ملخّص الطلب",
+              "en": "Order summary",
+            },
+            "show_promo_input": false,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "cart_summary",
+        },
+        {
+          "base": {
+            "pills": [
+              {
+                "bg": "mint",
+                "icon": "payments",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+              {
+                "bg": "butter",
+                "icon": "local_shipping",
+                "label_i18n": {
+                  "ar": "توصيل بغداد بنفس اليوم",
+                  "en": "Same-day Baghdad",
+                },
+              },
+              {
+                "bg": "sky",
+                "icon": "verified",
+                "label_i18n": {
+                  "ar": "ضمان سنة",
+                  "en": "1-year warranty",
+                },
+              },
+              {
+                "bg": "lilac",
+                "icon": "undo",
+                "label_i18n": {
+                  "ar": "إرجاع مجاني",
+                  "en": "Free returns",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "trust_strip",
+        },
+        {
+          "base": {
+            "primary_href": "/checkout",
+            "primary_label_i18n": {
+              "ar": "متابعة",
+              "en": "Continue",
+            },
+            "secondary_kind": "whatsapp",
+            "secondary_label_i18n": {
+              "ar": "تواصل",
+              "en": "Chat",
+            },
+            "show_product_price": false,
+            "show_total": false,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "sticky_cta_bar",
+        },
+      ],
+    },
+    {
+      "page_id": "checkout",
+      "sections": [
+        {
+          "base": {
+            "call_promise_i18n": {
+              "ar": "سنتصل بك لتأكيد الطلب",
+              "en": "We'll call to confirm your order",
+            },
+            "call_promise_note_i18n": {
+              "ar": "لا حاجة لأي دفع مسبق.",
+              "en": "No upfront payment needed.",
+            },
+            "payment_methods": [
+              "cod",
+            ],
+            "reassurance_text_i18n": {
+              "ar": "فحص مجاني عند الاستلام — لا تدفع إلا إذا أعجبتك القطعة.",
+              "en": "Free inspection on delivery — pay only if you're happy.",
+            },
+            "require_email": false,
+            "require_notes": false,
+            "trust_pills": [
+              {
+                "icon": "verified_user",
+                "label_i18n": {
+                  "ar": "طلب آمن",
+                  "en": "Secure order",
+                },
+              },
+              {
+                "icon": "storefront",
+                "label_i18n": {
+                  "ar": "بائع موثّق",
+                  "en": "Verified seller",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "checkout_form",
+        },
+        {
+          "base": {
+            "cod_note_i18n": {
+              "ar": "الدفع عند الاستلام — لا تدفع إلا بعد فحص الطلب.",
+              "en": "Cash on delivery — pay only after inspection.",
+            },
+            "heading_i18n": {
+              "ar": "ملخّص الطلب",
+              "en": "Order summary",
+            },
+            "show_thumbnails": true,
+            "sticky": true,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "checkout_order_summary",
+        },
+        {
+          "base": {
+            "pills": [
+              {
+                "bg": "mint",
+                "icon": "payments",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+              {
+                "bg": "butter",
+                "icon": "local_shipping",
+                "label_i18n": {
+                  "ar": "توصيل بغداد بنفس اليوم",
+                  "en": "Same-day Baghdad",
+                },
+              },
+              {
+                "bg": "sky",
+                "icon": "verified",
+                "label_i18n": {
+                  "ar": "ضمان سنة",
+                  "en": "1-year warranty",
+                },
+              },
+              {
+                "bg": "lilac",
+                "icon": "undo",
+                "label_i18n": {
+                  "ar": "إرجاع مجاني",
+                  "en": "Free returns",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "trust_strip",
+        },
+      ],
+    },
+    {
+      "page_id": "checkout_success",
+      "sections": [
+        {
+          "base": {
+            "call_promise_i18n": {
+              "ar": "سنتصل بك لتأكيد الطلب والعنوان قبل الشحن.",
+              "en": "We'll call you to confirm your order and address before shipping.",
+            },
+            "continue_label_i18n": {
+              "ar": "متابعة التسوّق",
+              "en": "Continue shopping",
+            },
+            "copied_label_i18n": {
+              "ar": "تم النسخ",
+              "en": "Copied",
+            },
+            "copy_label_i18n": {
+              "ar": "نسخ",
+              "en": "Copy",
+            },
+            "eta_label_i18n": {
+              "ar": "موعد التوصيل المتوقع",
+              "en": "Estimated delivery",
+            },
+            "eyebrow_i18n": {
+              "ar": "تم استلام طلبك",
+              "en": "Order received",
+            },
+            "heading_i18n": {
+              "ar": "شكراً لك على طلبك",
+              "en": "Thank you for your order",
+            },
+            "heading_named_i18n": {
+              "ar": "شكراً {name}",
+              "en": "Thanks, {name}",
+            },
+            "order_label_i18n": {
+              "ar": "رقم الطلب",
+              "en": "Order number",
+            },
+            "recap_heading_i18n": {
+              "ar": "ملخّص طلبك",
+              "en": "Your order",
+            },
+            "referral_body_i18n": {
+              "ar": "دز الرمز لصديق: ياخذ {discount} خصم على أول طلب، وانت تاخذ {points} لما يوصله الطلب.",
+              "en": "Send it to a friend: they get {discount} off their first order, and you get {points} when it is delivered.",
+            },
+            "referral_heading_i18n": {
+              "ar": "عندك رمز تشاركه",
+              "en": "You have a code to share",
+            },
+            "referral_share_label_i18n": {
+              "ar": "شارك على واتساب",
+              "en": "Share on WhatsApp",
+            },
+            "referral_share_message_i18n": {
+              "ar": "اطلب من {store} واستخدم رمزي {code} حتى تاخذ {discount} خصم على أول طلب: {link}",
+              "en": "Order from {store} with my code {code} for {discount} off your first order: {link}",
+            },
+            "show_order_recap": true,
+            "steps": [
+              {
+                "body_i18n": {
+                  "ar": "نراجع معك الطلب والعنوان.",
+                  "en": "We double-check your order and address with you.",
+                },
+                "title_i18n": {
+                  "ar": "نتصل بك للتأكيد",
+                  "en": "We call to confirm",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "يُغلّف طلبك بعناية ويُسلّم للمندوب.",
+                  "en": "Your order is packed with care and handed to the courier.",
+                },
+                "title_i18n": {
+                  "ar": "نجهّز طلبك",
+                  "en": "We prepare your order",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "افحص طلبك ثم ادفع للمندوب نقداً.",
+                  "en": "Check your order, then pay the courier in cash.",
+                },
+                "title_i18n": {
+                  "ar": "تستلم وتدفع عند الباب",
+                  "en": "You receive and pay at the door",
+                },
+              },
+            ],
+            "steps_heading_i18n": {
+              "ar": "ماذا يحدث الآن؟",
+              "en": "What happens next",
+            },
+            "total_label_i18n": {
+              "ar": "المجموع",
+              "en": "Total",
+            },
+            "track_label_i18n": {
+              "ar": "تتبّع طلبك",
+              "en": "Track your order",
+            },
+            "whatsapp_label_i18n": {
+              "ar": "تواصل معنا عبر واتساب",
+              "en": "Message us on WhatsApp",
+            },
+            "whatsapp_message_i18n": {
+              "ar": "مرحباً! عندي استفسار عن طلبي رقم {order}",
+              "en": "Hi! I have a question about my order {order}",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "order_confirmation",
+        },
+        {
+          "base": {
+            "card_style": "price_pill",
+            "enable_filters": false,
+            "heading_i18n": {
+              "ar": "وصل حديثاً",
+              "en": "Just dropped",
+            },
+            "manual_product_ids": [],
+            "mode": "auto",
+            "pinned_product_ids": [],
+            "query": {
+              "limit": 8,
+              "sort": "newest",
+            },
+            "scribble_color": "butter",
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_grid",
+        },
+      ],
+    },
+    {
+      "page_id": "track",
+      "sections": [
+        {
+          "base": {
+            "heading_i18n": {
+              "ar": "تتبّع طلبك",
+              "en": "Track your order",
+            },
+            "lookup_method": "both",
+            "show_timeline": true,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "order_tracker",
+        },
+      ],
+    },
+    {
+      "page_id": "about",
+      "sections": [
+        {
+          "base": {
+            "card_align": "center",
+            "cta_href": "/products",
+            "cta_label_i18n": {
+              "ar": "منتجاتنا",
+              "en": "Our products",
+            },
+            "headline_i18n": {
+              "ar": "منو شنايدر؟",
+              "en": "Who is Scheniders?",
+            },
+            "secondary_cta_kind": "whatsapp",
+            "secondary_cta_label_i18n": {
+              "ar": "اطلب عبر واتساب",
+              "en": "Order on WhatsApp",
+            },
+            "secondary_cta_value": "",
+            "sub_i18n": {
+              "ar": "متجر عطور من بغداد، نختار عطورنا يدوياً من أفخم الدور العالمية ونجرّبها بأنفسنا قبل ما توصلكم. تيستر مجاني مع كل طلب، دفع عند الاستلام، وترجيع خلال أسبوع.",
+              "en": "A perfume house from Baghdad. We hand-pick from the world's finest houses and wear-test every scent ourselves. Free tester with every order, cash on delivery, returns within a week.",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "hero_card_float",
+        },
+        {
+          "base": {
+            "eyebrow_i18n": {
+              "ar": "مميزات",
+              "en": "Highlights",
+            },
+            "items": [
+              {
+                "body_i18n": {
+                  "ar": "كل طلب يجيك وياه تيستر زجاجي مجاني تجرّبه بحضور المندوب. إذا ما عجبك، ترجّعه وتستلم فلوسك كاملة خلال أسبوع.",
+                  "en": "Every order arrives with a free glass tester you try with the courier present. Not for you? Return it within a week for a full refund.",
+                },
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/1059c16f-4311-4ceb-9365-ed7d3563d8dd.svg",
+                "title_i18n": {
+                  "ar": "تجرّب قبل ما تدفع",
+                  "en": "Try before you pay",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "نسعّر عطورنا بأرقام نقتنع بيها احنا قبلكم — مستحيل نحط سعر على عطر ما مستعدين ندفعه بأنفسنا.",
+                  "en": "We price at numbers we would pay ourselves — never a price we wouldn't pay for the same bottle.",
+                },
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/0eed8928-51d1-422b-89d0-edf7cb5c56e5.svg",
+                "title_i18n": {
+                  "ar": "سعر عادل، بدون مبالغة",
+                  "en": "Fair prices, no markup games",
+                },
+              },
+              {
+                "body_i18n": {
+                  "ar": "أغلب الطلبات توصل خلال 18 ساعة من تثبيت الطلب، والدفع عند الاستلام بعد ما تفحص الطلب.",
+                  "en": "Most orders arrive within 18 hours of confirmation, cash on delivery after you inspect the order.",
+                },
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a018156e-4fe5-4010-ba33-90322ea745e1.svg",
+                "title_i18n": {
+                  "ar": "توصيل سريع لكل المحافظات",
+                  "en": "Fast delivery to every governorate",
+                },
+              },
+            ],
+            "title_i18n": {
+              "ar": "ليش تشتري من شنايدر؟",
+              "en": "Why buy from Scheniders?",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "pillars_grid",
+        },
+        {
+          "base": {
+            "eyebrow_i18n": {
+              "ar": "آراء كشايخنا",
+              "en": "What our regulars say",
+            },
+            "items": [
+              {
+                "name_i18n": {
+                  "ar": "نورين",
+                  "en": "Noreen",
+                },
+                "quote_i18n": {
+                  "ar": "هاي ثاني مرة اشتري منكم، نوعية العطر والكوالتي مال تغليف حرفيا مشايفها مثلها بحياتي",
+                  "en": "Second time ordering — the perfume quality and packaging are unlike anything I've seen.",
+                },
+              },
+              {
+                "name_i18n": {
+                  "ar": "وسام الدراجي",
+                  "en": "Wissam Al-Darraji",
+                },
+                "quote_i18n": {
+                  "ar": "مصداقيتكم شي المفروض تنحمدون عليه, العطر وصلني وجان مثل الوصف ولا ولله الوصف ظالمه. كمت اخاف اطلب من النت من ورة الغش بس انتو عملة نادرة كلش شكراً",
+                  "en": "Your honesty deserves praise — the perfume arrived exactly as described. I was wary of ordering online, but you are a rare find. Thank you.",
+                },
+              },
+              {
+                "name_i18n": {
+                  "ar": "محمد علي",
+                  "en": "Mohammed Ali",
+                },
+                "quote_i18n": {
+                  "ar": "عطوركم وتغليفكم يفوزون صراحة",
+                  "en": "Your perfumes and packaging honestly win.",
+                },
+              },
+            ],
+            "side_image_left_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/d8f80617-73ac-4b2f-bc58-014da751de42.svg",
+            "side_image_right_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/08f20a22-335e-450a-86dd-4ee24a86204e.svg",
+            "title_i18n": {
+              "ar": "ليش الناس تموت على عطورنا",
+              "en": "Why people are crazy about our perfumes",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "testimonial_cards",
+        },
+        {
+          "base": {
+            "contact": {
+              "cta_label_i18n": {
+                "ar": "تواصل معنا",
+                "en": "Contact us",
+              },
+              "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/66a2314b-371e-4474-ad0d-53a4cad055f9.svg",
+              "sub_i18n": {
+                "ar": "إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+                "en": "If you still need more information, you can always reach us.",
+              },
+              "title_i18n": {
+                "ar": "لديك أسئلة أخرى؟",
+                "en": "More questions?",
+              },
+              "whatsapp_number": "",
+            },
+            "eyebrow_i18n": {
+              "ar": "أسئلة و أجوبة",
+              "en": "Questions & answers",
+            },
+            "items": [
+              {
+                "a_i18n": {
+                  "ar": "نحن قادرون فقط على إلغاء الطلبات في غضون الـ 12 ساعة الأولى بعد تقديم الطلب. وبعد ذلك تمت معالجة الطلب على الأرجح والاستعداد للشحن. نحن نعتذر عن أي إزعاج قد يسببه هذا الأمر، لكننا نفخر بتقديم الخدمة السريعة وهذا يشمل إخراج طلباتك في أسرع وقت ممكن.",
+                  "en": "Orders can only be cancelled within the first 12 hours — after that they are likely processed and being prepared for shipping. We apologise for any inconvenience; fast service means your order goes out as quickly as possible.",
+                },
+                "q_i18n": {
+                  "ar": "كيف يمكنني إلغاء طلب؟",
+                  "en": "How can I cancel an order?",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "جميع الطلبات داخل العراق يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز.",
+                  "en": "All orders inside Iraq are delivered within 18 hours of confirmation.",
+                },
+                "q_i18n": {
+                  "ar": "كم تستغرق عملية الشحن من الوقت؟",
+                  "en": "How long does shipping take?",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "تتم معالجة الطلبات وشحنها عادة في نفس يوم تثبيت الطلب.",
+                  "en": "Orders are usually processed and shipped the same day they are confirmed.",
+                },
+                "q_i18n": {
+                  "ar": "متى سوف يشحن طلبي؟",
+                  "en": "When will my order ship?",
+                },
+              },
+            ],
+            "row_icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/73c12b05-fbb5-4cc7-9a75-f61094855221.svg",
+            "sub_i18n": {
+              "ar": "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+              "en": "Answers to the most common questions — and you can always reach us for more.",
+            },
+            "title_i18n": {
+              "ar": "الأسئلة الأكثر شيوعا",
+              "en": "Frequently asked questions",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "faq_contact_split",
+        },
+      ],
+    },
+    {
+      "page_id": "faq",
+      "sections": [
+        {
+          "base": {
+            "contact": {
+              "cta_label_i18n": {
+                "ar": "التواصل على واتساب",
+                "en": "Chat on WhatsApp",
+              },
+              "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/66a2314b-371e-4474-ad0d-53a4cad055f9.svg",
+              "sub_i18n": {
+                "ar": "نورونا على الواتساب وسولفوا ويانا",
+                "en": "Message us on WhatsApp and let's talk",
+              },
+              "title_i18n": {
+                "ar": "عندك استفسار",
+                "en": "Have a question?",
+              },
+              "whatsapp_number": "",
+            },
+            "eyebrow_i18n": {
+              "ar": "أسئلة و أجوبة",
+              "en": "Questions & answers",
+            },
+            "items": [
+              {
+                "a_i18n": {
+                  "ar": "يتم الدفع حصراً بعد استلام العطر واختباره من خلال زجاجة الاختبار المرفقة مجاناً مع كل عطر",
+                  "en": "Payment happens only after you receive the perfume and try it via the free tester bottle included with every order.",
+                },
+                "q_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "جميع الطلبات يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز",
+                  "en": "All orders are delivered within 18 hours of confirming the reservation.",
+                },
+                "q_i18n": {
+                  "ar": "شكد يطول الشحن؟",
+                  "en": "How long does delivery take?",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "نحن قادرون فقط على إلغاء الطلبات في غضون الـ 12 ساعة الأولى بعد تقديم الطلب. وبعد ذلك تمت معالجة الطلب على الأرجح والاستعداد للشحن. نحن نعتذر عن أي إزعاج قد يسببه هذا الأمر، لكننا نفخر بتقديم الخدمة السريعة وهذا يشمل إخراج طلباتك في أسرع وقت ممكن.",
+                  "en": "Orders can only be cancelled within the first 12 hours — after that they are likely processed and being prepared for shipping. We apologise for any inconvenience; fast service means your order goes out as quickly as possible.",
+                },
+                "q_i18n": {
+                  "ar": "كيف يمكنني إلغاء طلب؟",
+                  "en": "How can I cancel an order?",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "جميع الطلبات داخل العراق يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز.",
+                  "en": "All orders inside Iraq are delivered within 18 hours of confirmation.",
+                },
+                "q_i18n": {
+                  "ar": "كم تستغرق عملية الشحن من الوقت؟",
+                  "en": "How long does shipping take?",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "تتم معالجة الطلبات وشحنها عادة في نفس يوم تثبيت الطلب.",
+                  "en": "Orders are usually processed and shipped the same day they are confirmed.",
+                },
+                "q_i18n": {
+                  "ar": "متى سوف يشحن طلبي؟",
+                  "en": "When will my order ship?",
+                },
+              },
+            ],
+            "row_icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/73c12b05-fbb5-4cc7-9a75-f61094855221.svg",
+            "sub_i18n": {
+              "ar": "اجوبة لاسئلتكم المشهورة من فريقنا",
+              "en": "Answers to your most common questions, from our team",
+            },
+            "title_i18n": {
+              "ar": "الأسئلة الأكثر شيوعا",
+              "en": "Frequently asked questions",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "faq_contact_split",
+        },
+      ],
+    },
+    {
+      "page_id": "contact",
+      "sections": [
+        {
+          "base": {
+            "contact": {
+              "cta_label_i18n": {
+                "ar": "التواصل على واتساب",
+                "en": "Chat on WhatsApp",
+              },
+              "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/66a2314b-371e-4474-ad0d-53a4cad055f9.svg",
+              "sub_i18n": {
+                "ar": "نورونا على الواتساب وسولفوا ويانا",
+                "en": "Message us on WhatsApp and let's talk",
+              },
+              "title_i18n": {
+                "ar": "عندك استفسار",
+                "en": "Have a question?",
+              },
+              "whatsapp_number": "",
+            },
+            "eyebrow_i18n": {
+              "ar": "تواصل معنا",
+              "en": "Contact us",
+            },
+            "items": [
+              {
+                "a_i18n": {
+                  "ar": "يتم الدفع حصراً بعد استلام العطر واختباره من خلال زجاجة الاختبار المرفقة مجاناً مع كل عطر",
+                  "en": "Payment happens only after you receive the perfume and try it via the free tester bottle included with every order.",
+                },
+                "q_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+              {
+                "a_i18n": {
+                  "ar": "جميع الطلبات يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز",
+                  "en": "All orders are delivered within 18 hours of confirming the reservation.",
+                },
+                "q_i18n": {
+                  "ar": "شكد يطول الشحن؟",
+                  "en": "How long does delivery take?",
+                },
+              },
+            ],
+            "row_icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/73c12b05-fbb5-4cc7-9a75-f61094855221.svg",
+            "sub_i18n": {
+              "ar": "تواصل معنا إن كانت لديك أي أسئلة وسنعاود الاتصال بك في أقرب وقت ممكن. يمكنك أيضًا التحقق من قسم المساعدة والأسئلة الشائعة.",
+              "en": "Reach out with any question and we'll get back to you as soon as possible — the FAQ section may help too.",
+            },
+            "title_i18n": {
+              "ar": "لديك أية أسئلة ؟ دعنا نساعدك",
+              "en": "Questions? Let us help",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "faq_contact_split",
+        },
+        {
+          "base": {
+            "body_md_i18n": {
+              "ar": "## معلومات التواصل
+
+رقم الهاتف: [0777 970 3832](tel:+9647779703832)
+
+واتساب: [راسلنا على واتساب](https://wa.me/9647779703832)
+
+انستغرام: [@kawkab.brand](https://www.instagram.com/kawkab.brand/)
+
+العنوان: العراق - بغداد - زيونة",
+              "en": "## Contact information
+
+Phone: [0777 970 3832](tel:+9647779703832)
+
+WhatsApp: [Message us on WhatsApp](https://wa.me/9647779703832)
+
+Instagram: [@kawkab.brand](https://www.instagram.com/kawkab.brand/)
+
+Address: Iraq - Baghdad - Zayouna",
+            },
+            "eyebrow_i18n": {
+              "ar": "السياسات",
+              "en": "Policies",
+            },
+            "heading_i18n": {
+              "ar": "سياستنا",
+              "en": "Our policy",
+            },
+            "last_updated_label_i18n": {
+              "ar": "آخر تحديث",
+              "en": "Last updated",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "policy_content",
+        },
+        {
+          "base": {
+            "band_style": "plain",
+            "items": [
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/1be3edb0-56f8-4c0a-b3c9-88637ee49cd3.svg",
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery to every governorate",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/a04ab73b-1d8b-41f4-83fb-5b249bd68616.svg",
+                "label_i18n": {
+                  "ar": "خدمة العملاء",
+                  "en": "Customer care",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/cc287ee8-2cc5-46bf-9354-d0a55d33ba1a.svg",
+                "label_i18n": {
+                  "ar": "متوفر بالعراق",
+                  "en": "Available in Iraq",
+                },
+              },
+              {
+                "icon_url": "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/ac7e449d-f570-4cfb-9e8d-d407fe573a89.svg",
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery",
+                },
+              },
+            ],
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "trust_badge_row",
+        },
+      ],
+    },
+    {
+      "page_id": "policy_shipping",
+      "sections": [
+        {
+          "base": {
+            "body_md_i18n": {
+              "ar": "مرحبًا بكم في شنايدر! نسعى لتقديم تجربة تسوق مريحة وسلسة، وتشمل ذلك خدمة الشحن التي تضمن وصول طلباتكم بأسرع وقت ممكن.
+
+## تفاصيل الشحن
+
+**مدة معالجة الطلبات:**
+تتم معالجة الطلبات خلال يومي عمل (كل ايام الاسبوع) بعد تأكيد الطلب.
+الطلبات المقدمة في عطلة نهاية الأسبوع أو العطلات الرسمية سيتم معالجتها في أول يوم عمل بعدها.
+
+**مدة الشحن:**
+تختلف مدة الشحن بناءً على الموقع الجغرافي، وعادةً ما تتراوح بين 24 ساعة إلى 3 أيام عمل للطلبات المحلية.
+قد تستغرق الطلبات الدولية وقتًا أطول حسب الوجهة وخدمات الشحن المتاحة.
+
+**رسوم الشحن:**
+يتم احتساب رسوم الشحن تلقائيًا عند إتمام الطلب بناءً على رسوم الشحن الثابتة المفروضة من قبل شركة التوصيل (5000 بغداد, 6000 محافظات)
+قد نقدم شحنًا مجانيًا للطلبات التي تتجاوز مبلغًا معينًا (يتم الإعلان عن العروض عبر موقعنا).
+
+**تتبع الشحنات:**
+التواصل معنا على الواتساب [07779703832](https://wa.me/9647779703832) لمتابعة حالة طلبك
+
+## سياسة التسليم
+الدقة في العنوان: يرجى التأكد من إدخال عنوان الشحن بشكل صحيح وكامل لتجنب أي تأخير أو عدم استلام الطلب.
+التوقيع عند الاستلام: قد تتطلب بعض الطلبات توقيع المستلم لضمان التسليم الآمن.
+
+## الشحن الدولي
+يتم شحن الطلبات الدولية وفقًا لقوانين وأنظمة البلد الوجهة.
+يتحمل العميل أي رسوم جمركية أو ضرائب قد تفرضها السلطات المحلية.
+
+## مشاكل الشحن
+إذا واجهت أي مشكلة مع شحنتك، سواء كانت تأخيرًا أو تلفًا، يرجى التواصل معنا عبر البريد الإلكتروني أو الهاتف المخصص لخدمة العملاء، وسنعمل على حل المشكلة في أسرع وقت ممكن.
+
+نشكركم على ثقتكم بمتجرنا! إذا كانت لديكم أي استفسارات إضافية، لا تترددوا في التواصل معنا.",
+            },
+            "eyebrow_i18n": {
+              "ar": "السياسات",
+              "en": "Policies",
+            },
+            "heading_i18n": {
+              "ar": "سياسة الشحن",
+              "en": "Shipping policy",
+            },
+            "last_updated_label_i18n": {
+              "ar": "آخر تحديث",
+              "en": "Last updated",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "policy_content",
+        },
+      ],
+    },
+    {
+      "page_id": "policy_returns",
+      "sections": [
+        {
+          "base": {
+            "body_md_i18n": {
+              "ar": "في شنايدر، رضا العملاء هو أولويتنا. إذا لم تكن راضيًا تمامًا عن مشترياتك، نحن هنا للمساعدة. فيما يلي سياسة الاسترجاع للمشتريات التي تتم في المتجر أو عبر الإنترنت.
+
+## اولاً: الأهلية للاسترجاع
+- يجب التبليغ برغبة الاسترجاع بعد استخدام العطر حصراً خلال 24 ساعة من تاريخ وصول الطلب لضمان تجربة العطر بصورة كاملة
+- يتم الاسترجاع فقط في حالة عدم رضا الزبون عن المنتج او وجود عيب مصنعي للمنتج او ارسال منتج غير صحيح (على الزبون التأكد من البضاعة الواصلة بحضور المندوب) والتأكد من طلبه جيداً قبل الطلب
+- يجب أن تكون السلعة في حالتها الأصلية، غير مستعملة بشدة او متضررة، وغير ممزقة او تالفة، مع وجود جميع البطاقات والتغليف الأصلي
+- يجب تقديم إثبات الشراء (فاتورة أو إيصال)
+
+## ثانيا: السلع غير القابلة للاسترجاع
+- سلع التصفية والسلع الترويجية غير قابلة للاسترجاع
+- عطور العينات والتقسيم غير قابلة للاسترجاع لأسباب تتعلق بالصحة والسلامة.
+
+## ثالثا: طريقة الاسترجاع
+الاسترجاع يتم التواصل المباشر معنا في غضون 24 ساعة من استلام الطلب عن طريق الواتساب من خلال الرقم [07779703832](https://wa.me/9647779703832). يتم ارسال مندوب من شركة التوصيل من قبلنا لأستلام المنتج وتسليم المبلغ او تبديله. يتم التبديل حصراً بعد التأكد ان المنتج بحالته الاصلية خلافه يسقط حق الزبون بالاسترجاع، او الاستبدال
+
+- يتحمل العميل تكاليف الشحن عند إعادة السلع (للمشتريات عبر الإنترنت)
+- استرداد الأموال: بعد استلامنا وفحص السلعة، سيتم إشعارك بقبول أو رفض الاسترجاع
+- اذا تم قبول استرجاعك، سيتم رد المبلغ على طريقة الدفع الأصلية بوجود المندوب مباشرة
+- نقوم بأسترجاع مبلغ الطلب، مع استقطاع مبلغ التوصيل من قبل شركة التوصيل لاعادة المبلغ للزبون، بسبب اعادة ارسال المندوب مرة اخرى للزبون
+
+## الاتصال بنا
+لأي استفسار أو دعم إضافي، يرجى الاتصال بنا عبر رقم الواتساب: [07779703832](https://wa.me/9647779703832)
+نحن في شنايدر نقدر اختيارك للتسوق معنا، ونسعى دائمًا لتقديم أفضل تجربة تسوق لعملائنا.",
+            },
+            "eyebrow_i18n": {
+              "ar": "السياسات",
+              "en": "Policies",
+            },
+            "heading_i18n": {
+              "ar": "سياسة الاسترجاع",
+              "en": "Return and refund policy",
+            },
+            "last_updated": "2024-10-16",
+            "last_updated_label_i18n": {
+              "ar": "آخر تحديث",
+              "en": "Last updated",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "policy_content",
+        },
+      ],
+    },
+    {
+      "page_id": "policy_privacy",
+      "sections": [
+        {
+          "base": {
+            "body_md_i18n": {
+              "ar": "نحن نحترم خصوصيتك ونلتزم بحمايتها. توضح سياسة الخصوصية هذه كيفية جمعنا واستخدامنا ومشاركة وحماية معلوماتك عندما تزور متجرنا أو موقعنا الإلكتروني أو تستخدم خدماتنا
+
+## اولاً: المعلومات التي نقوم بجمعها
+قد نقوم بجمع الأنواع التالية من المعلومات
+- المعلومات الشخصية: الاسم، عنوان البريد الإلكتروني، رقم الهاتف، عنوان السكن, والعنوان البريدي عند قيامك بالشراء، أو الاشتراك في النشرات الإخبارية، أو التواصل معنا
+- بيانات الاستخدام: معلومات حول كيفية استخدامك لموقعنا الالكترونية مثل عنوان الاي بي, نوع المتصفح, والصفحات التي تزورها
+
+## ثانياً: نستخدم المعلومات التي نجمعها للأغراض التالية
+- معالجة الطلبات: لاستخدام معلومات الدفع وتوصيل المشتريات.
+- تحسين تجربة المستخدم: لتحليل كيفية استخدامك لموقعنا الإلكتروني وتحسين خدماتنا ومنتجاتنا
+- التواصل معك: للرد على استفساراتك أو إرسال العروض الترويجية والأخبار التي تهمك (بموافقتك)
+
+## ثالثاً: مشاركة المعلومات
+نحن لا نبيع أو نؤجر بياناتك الشخصية لأي أطراف خارجية. قد نشارك معلوماتك فقط مع
+- مزودي الخدمة: شركات التوصيل لغرض التوصيل او الشحن الذين يساعدوننا في تقديم خدماتنا
+- الأغراض القانونية: إذا طُلب منا ذلك بموجب القانون أو لحماية حقوقنا القانونية
+
+## رابعاً: حماية المعلومات
+نحن نتخذ خطوات تقنية وإدارية لحماية معلوماتك من الوصول غير المصرح به أو التعديل أو الفقد. ومع ذلك، لا يمكننا ضمان أمان كامل نظرًا للطبيعة الإلكترونية للإنترنت.
+
+## خامساً: حقوق المستخدم
+بصفتك مستخدمًا، لديك الحقوق التالية
+- الوصول: يمكنك طلب الوصول إلى المعلومات التي جمعناها عنك
+- التصحيح: طلب تصحيح أي معلومات غير دقيقة أو غير مكتملة
+- الحذف: يمكنك طلب حذف بياناتك في أي وقت، باستثناء ما يُطلب منا الاحتفاظ به قانونيًا
+
+## سادساً: ملفات تعريف الارتباط (Cookies)
+نستخدم ملفات تعريف الارتباط لجمع بيانات الاستخدام ولتحسين تجربتك على موقعنا. يمكنك التحكم في إعدادات ملفات تعريف الارتباط من خلال متصفحك.
+
+## سابعاً: التغييرات على سياسة الخصوصية
+قد نقوم بتحديث هذه السياسة من وقت لآخر. سيتم نشر أي تغييرات على هذه الصفحة مع تحديث تاريخ السريان
+
+## ثامناً: الاتصال بنا
+إذا كان لديك أي استفسارات بخصوص سياسة الخصوصية هذه، يمكنك التواصل معنا عبر الهاتف [07779703832](tel:+9647779703832)
+نشكر لك ثقتك في شنايدر، ونؤكد التزامنا بحماية خصوصيتك وبياناتك الشخصية",
+            },
+            "eyebrow_i18n": {
+              "ar": "السياسات",
+              "en": "Policies",
+            },
+            "heading_i18n": {
+              "ar": "سياسة الخصوصية",
+              "en": "Privacy policy",
+            },
+            "last_updated": "2024-10-16",
+            "last_updated_label_i18n": {
+              "ar": "آخر تحديث",
+              "en": "Last updated",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "policy_content",
+        },
+      ],
+    },
+    {
+      "page_id": "policy_terms",
+      "sections": [
+        {
+          "base": {
+            "body_md_i18n": {
+              "ar": "مرحبًا بك في شنايدر!
+تحكم شروط الخدمة هذه وصولك إلى موقعنا واستخدامك له ولمنتجاتنا وخدماتنا.
+باستخدامك لموقعنا أو شرائك من متجرنا، فإنك توافق على الالتزام بالشروط التالية:
+
+## اولاً: قبول الشروط
+عند استخدامك لموقعنا أو خدماتنا، فإنك تقر بقراءتك وفهمك لهذه الشروط وتوافق على الالتزام بها. إذا كنت لا توافق على أي جزء من هذه الشروط، يرجى عدم استخدام الموقع أو شراء منتجاتنا.
+
+## ثانياً: المشتريات والمدفوعات
+- جميع الأسعار الموضحة على موقعنا الإلكتروني هي أسعار نهائية بالدينار العراقي ولا تضاف عليها أي ضرائب.
+- الدفع يتم نقداً عند الاستلام (الدفع عند الاستلام) بعد فحص المنتج بحضور المندوب.
+- قد تضاف أجور توصيل حسب المحافظة وتُعرض بوضوح قبل تأكيد الطلب. أنت توافق على تقديم معلومات صحيحة ودقيقة عند إتمام الطلب.
+
+## ثالثا: إلغاء الطلبات وتعديلات الأسعار
+نحتفظ بالحق في إلغاء أي طلب أو تعديله إذا كانت المعلومات الخاصة بالمنتج غير دقيقة أو عند حدوث خطأ في التسعير.
+قد نقوم بتعديل الأسعار في أي وقت دون إشعار مسبق.
+
+## رابعاً: الشحن والتسليم
+- يتم شحن المنتجات داخل العراق إلى العنوان الذي تحدده عند إتمام الطلب.
+- نحن لسنا مسؤولين عن أي تأخير في الشحن ناتج عن ظروف خارجة عن إرادتنا مثل مشاكل الشحن أو الجمارك.
+
+## خامساً: حقوق الملكية الفكرية
+جميع المحتويات الموجودة على موقع شنايدر، بما في ذلك النصوص، الصور، والشعارات، هي ملك لشركة شنايدر ومحميّة بموجب قوانين حقوق الملكية الفكرية
+- لا يجوز لك استخدام أو نسخ أي محتوى من الموقع دون إذن كتابي مسبق مكتوب من قبل مدير شركة شنايدر حصرا
+
+## سادساً: سياسة الاستخدام
+يجب عليك استخدام الموقع للأغراض القانونية فقط. يمنع تحميل أو نشر أي محتوى يضر أو ينتهك حقوق الآخرين، أو يتضمن فيروسات أو برامج ضارة.
+- نحن نحتفظ بالحق في إنهاء أو تعليق وصولك إلى الموقع إذا تم انتهاك هذه الشروط.
+
+## سابعاً: التعديلات على الشروط
+- نحن نحتفظ بالحق في تعديل أو تحديث هذه الشروط في أي وقت. سيتم نشر أي تغييرات على هذه الصفحة مع تحديث تاريخ السريان.
+
+## ثامناً: إخلاء المسؤولية
+نحن نقدم الموقع والمنتجات "كما هي" و"حسب توفرها" دون أي ضمانات صحية، صريحة أو ضمنية. نحن غير مسؤولين عن أي أضرار صحية او معنوية او مادية قد تنشأ من استخدامك للموقع أو المنتجات مثل رش العطور بالفم او التعرض لوعكة صحية نتيجة الاستخدام الخاطئ للمنتجات
+
+## تاسعاً: القانون المعمول به
+تخضع هذه الشروط وتفسر وفقًا لقوانين جمهورية العراق. أي نزاع ينشأ عن استخدامك للموقع أو شراء منتجاتنا سيخضع للاختصاص القضائي للمحاكم العراقية.
+
+## عاشراً: الاتصال بنا
+إذا كانت لديك أي استفسارات حول شروط الخدمة هذه، يمكنك التواصل معنا عبر الهاتف: [07779703832](tel:+9647779703832)
+
+نشكرك لاختيارك شنايدر ونتمنى لك تجربة تسوق ممتعة وآمنة!",
+            },
+            "eyebrow_i18n": {
+              "ar": "السياسات",
+              "en": "Policies",
+            },
+            "heading_i18n": {
+              "ar": "الشروط والاحكام",
+              "en": "Terms of service",
+            },
+            "last_updated": "2024-10-16",
+            "last_updated_label_i18n": {
+              "ar": "آخر تحديث",
+              "en": "Last updated",
+            },
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "policy_content",
+        },
+      ],
+    },
+    {
+      "page_id": "not_found",
+      "sections": [],
+    },
+  ],
+  "schedules": [],
+  "schema_version": 2,
+  "segments": [],
+}
+`;

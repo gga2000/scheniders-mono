@@ -389,7 +389,21 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   Interakt is out of scope)*
 
 ### Wave 6 — Platform
-- **W6.1** Niche content packs; signature refactored to direction + pack. *(P4)*
+- **W6.1** Niche content packs — DONE. `lib/store-templates/content-packs/`:
+  semantic `ContentPack` (hero/story/about/founder/pillars/trust/faq/delivery/
+  pdp_policies/spotlights/collections/policies/testimonials/categories/
+  attributes), eight packs, `resolveContentPack` (id | industry slug | DB
+  name | Arabic), `applyContentPack` overlay by section type (covers both the
+  generic directions and the signature's section set; empties fabricated
+  press/stats/reviews). `scheniders-signature.ts` → `buildSignatureDirection(pack,
+  facts?)`: `signatureDirection` (registry, no merchant facts) and
+  `schenidersSignatureTemplate` (Scheniders' facts; parity snapshot taken
+  before the split, ids normalised). `industry-seed-copy.ts` is a thin door onto
+  packs (its invented testimonials removed). `starter-store.ts` stamps
+  `config.template = {direction_id, pack_id, version, applied_at}` and exports
+  `starterTaxonomy`; the seed route accepts `categories`/`attribute_defs` and
+  inserts them under the member's RLS on a fresh seed; wizard copy is
+  "what you sell → pick a look". *(P4)*
 - **W6.2** Template versioning and upgrade migration. *(P6)*
 - **W6.3** AI content seeding at onboarding. *(P8)*
 - **W6.4** Section-level A/B — ALREADY PRESENT, verified: `assignAbArm` +

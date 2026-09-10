@@ -41,9 +41,11 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { resolveContentPack } from "@/lib/store-templates/content-packs";
 import {
     buildStarterStoreConfigV2,
     STARTER_TEMPLATES,
+    starterTaxonomy,
     type WizardIndustry,
 } from "@/lib/starter-store";
 import { cn } from "@/lib/utils";
@@ -203,8 +205,13 @@ export function OnboardingWizard({
         const industryName = vertical
             ? industries.find((i) => i.id === vertical)?.name ?? vertical
             : undefined;
+        // Niche → content pack: the words, the starter categories and the
+        // attributes; the template is only the look.
+        const pack = resolveContentPack(industryName);
+        const taxonomy = starterTaxonomy(pack.id);
         const config = buildStarterStoreConfigV2({
             templateId,
+            packId: pack.id,
             industryId: industryName,
             businessName: businessName.trim(),
             brandColor,
@@ -218,7 +225,12 @@ export function OnboardingWizard({
             const res = await fetch("/api/store-config-v2/seed", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tenant_id: tenantId, config }),
+                body: JSON.stringify({
+                    tenant_id: tenantId,
+                    config,
+                    categories: taxonomy.categories,
+                    attribute_defs: taxonomy.attribute_defs,
+                }),
             });
             if (!res.ok) {
                 const data = (await res.json().catch(() => ({}))) as {
