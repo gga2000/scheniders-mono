@@ -32,6 +32,10 @@ CREATE OR REPLACE FUNCTION public.loyalty_phone_key(_phone text)
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
+-- Pinned: this is IMMUTABLE and used inside an index expression. The body
+-- qualifies public.normalize_phone, but `~` and `||` resolve through
+-- search_path, which the caller controls and where pg_temp is writable.
+SET search_path = public, pg_temp
 AS $$
   SELECT CASE WHEN n ~ '^7[0-9]{9}$' THEN '0' || n END
   FROM (SELECT public.normalize_phone(_phone) AS n) x;
