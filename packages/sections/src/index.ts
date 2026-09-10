@@ -18,6 +18,7 @@ import newsletter_inline from "./newsletter_inline";
 // Hero family
 import hero_split from "./hero_split";
 import hero_marquee from "./hero_marquee";
+import article_index from "./article_index";
 import hero_video from "./hero_video";
 
 // Story family
@@ -120,6 +121,7 @@ export const BUILTIN_SECTIONS = [
   newsletter_inline,
   hero_split,
   hero_marquee,
+  article_index,
   hero_video,
   about_block,
   brand_story,

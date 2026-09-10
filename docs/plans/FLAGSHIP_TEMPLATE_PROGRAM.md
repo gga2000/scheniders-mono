@@ -554,7 +554,44 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   Verified live against the flagship: 5,000 IQD flat shipping, no returns
   policy (unset), no rating (no approved reviews), 5 real FAQ questions,
   collections of 7 and 5 real products. *(E2)*
-- **W7.6** Arabic blog / guides. *(E1)*
+- **W7.6** Arabic guides — DONE. The note said this needed a content engine.
+  It does not: custom pages already are one. A custom page has sections, its
+  own URL, per-page SEO, a hidden flag, the builder, and the preview. Building
+  a second content model beside it would have meant a second editor, a second
+  preview and a second set of bugs.
+  What a guide needs on top of a page is the handful of facts a *list* of them
+  needs. `CustomPage.article` is an optional block — `published_at`, `excerpt`,
+  `cover_url`, `author` — so a page that is not a guide carries nothing and
+  behaves exactly as before. Around it:
+  * **`article_index` section**, listing guides newest-first, hidden until the
+    first one is published. Summaries reach it through the render context the
+    way products do, never the pages themselves: sections get a pruned tenant,
+    and an index of twenty guides must not serialise twenty section trees into
+    the payload of the page that lists them.
+  * **Scheduling comes free.** A date in the future keeps the URL working, so
+    the merchant can preview and share it, and keeps it out of every list and
+    out of the sitemap until its day. An *undated* guide is kept and sorted
+    last rather than dropped.
+  * **`Article` structured data** on a page marked as a guide, and only there.
+    Every field omitted rather than guessed — the tempting ones (an author, a
+    date, the store logo as the image) are exactly the ones that would be lies.
+  * **The editor half**, so the feature is reachable: a "This page is a guide"
+    switch and the four fields, in the custom-pages screen. Unticking removes
+    the block rather than leaving a stale date behind.
+  * **A sitemap, which did not exist at all.** `robots.ts` named none, so every
+    store's products, categories and pages were left entirely to crawl
+    discovery — worst for a guide nobody links to yet. One per tenant, built
+    from the store's own base so a custom-domain store lists its own host.
+    Nothing hidden, noindex, scheduled, or in the cart/checkout funnel.
+    `robots.txt` names it on a store's own host, and honestly names none on
+    the platform root, where one file serves every path-based store at once.
+  * **A live 404 fixed, found while doing this.** The proxy recognises a static
+    asset by the dot in its path and passes it through unrewritten — but
+    `/manifest.webmanifest` and `/sitemap.xml` are real per-tenant routes.
+    Verified against production: `/manifest.webmanifest` returned **404 on a
+    live custom-domain store**, so the W7.4 manifest was unreachable for
+    exactly the stores that have their own domain. The route was right the
+    whole time; nothing routed to it. *(E1)*
 - **W7.7** Video sections wired — DONE. The two video sections existed and
   were registered, but nothing joined them to a merchant. Three real gaps:
   1. **A merchant could not tell the editor what to play.** `.describe("video")`

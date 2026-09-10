@@ -8,6 +8,7 @@
 // is populated as a side effect.
 // =====================================================================
 
+import type { ArticleSummary } from "@scheniders/shared";
 import type { ComponentType } from "react";
 import type { z } from "zod";
 import type { PageId, RuntimeContext } from "@scheniders/shared";
@@ -29,6 +30,13 @@ export interface SectionRenderContext {
   product?: Product;
   /** Single category when on a category landing page. */
   category?: Category;
+  /**
+   * Published articles, newest first — resolved upstream from the config's
+   * custom pages, exactly as `products` and `categories` are. Summaries only:
+   * an index of twenty guides must not serialise twenty section trees into
+   * the payload of the page that lists them.
+   */
+  articles?: ArticleSummary[];
 }
 
 /**

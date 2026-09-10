@@ -138,7 +138,7 @@ const sections = listSections();
 
 describe("the section library", () => {
     it("has every section registered", () => {
-        expect(sections.length).toBeGreaterThanOrEqual(64);
+        expect(sections.length).toBeGreaterThanOrEqual(65);
     });
 
     it("renders every section on every page it claims, in every locale", () => {

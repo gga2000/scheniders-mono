@@ -7,6 +7,7 @@ import {
   resolveVisitorLocale,
   LOCALE_COOKIE,
 } from "@scheniders/shared";
+import { listArticleSummaries } from "@scheniders/shared";
 import { StorefrontGlobals } from "./storefront-globals";
 import { ExperimentBeacon } from "./experiment-beacon";
 import { CartSignal } from "./cart-signal";
@@ -122,6 +123,11 @@ export async function V2Page({
   const sectionCtx: Omit<SectionRenderContext, "runtime"> = {
     ...renderCtx,
     tenant: toSectionTenant(renderCtx.tenant),
+    // Published guides, resolved once here rather than at each of the ~19
+    // routes. Summaries only, for the same reason the tenant is pruned: a
+    // guides list must not serialise the section tree of every guide it
+    // links to into the payload of the page doing the listing.
+    articles: listArticleSummaries(v2.custom_pages, { now: new Date() }),
   };
 
   // EC13: resolve the locale to actually render for THIS visitor — explicit

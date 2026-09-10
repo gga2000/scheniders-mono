@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { useCallback, useState } from "react";
-import { X, Plus, Trash2, FileText, EyeOff, PencilRuler } from "lucide-react";
+import { X, Plus, Trash2, FileText, EyeOff, PencilRuler, BookOpen } from "lucide-react";
 import {
     normalizeSlug,
     validateSlug,
@@ -224,6 +224,113 @@ export function CustomPagesScreen({
                                     <p className="mt-1 text-xs text-muted-foreground">
                                         {p.sections.length} section(s)
                                     </p>
+
+                                    {/* Guide details. A page is an ordinary page until
+                                        the merchant says otherwise; unticking removes
+                                        the whole block, so a page that is not a guide
+                                        carries nothing and behaves exactly as before. */}
+                                    <label className="mt-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            data-testid={`custom-page-is-article-${i}`}
+                                            checked={p.article !== undefined}
+                                            onChange={(e) =>
+                                                updatePage(i, {
+                                                    article: e.target.checked ? {} : undefined,
+                                                })
+                                            }
+                                        />
+                                        <BookOpen className="h-3.5 w-3.5" />
+                                        This page is a guide
+                                    </label>
+
+                                    {p.article && (
+                                        <div
+                                            data-testid={`custom-page-article-${i}`}
+                                            className="mt-2 flex flex-wrap items-end gap-2.5 rounded-lg bg-black/[0.03] p-2.5"
+                                        >
+                                            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                                Published
+                                                <input
+                                                    type="date"
+                                                    dir="ltr"
+                                                    data-testid={`custom-page-article-date-${i}`}
+                                                    value={p.article.published_at ?? ""}
+                                                    onChange={(e) =>
+                                                        updatePage(i, {
+                                                            article: {
+                                                                ...p.article,
+                                                                published_at: e.target.value || undefined,
+                                                            },
+                                                        })
+                                                    }
+                                                    className={cn(inputCls, "w-40")}
+                                                />
+                                            </label>
+                                            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                                Author
+                                                <input
+                                                    type="text"
+                                                    data-testid={`custom-page-article-author-${i}`}
+                                                    value={p.article.author ?? ""}
+                                                    placeholder="Optional"
+                                                    onChange={(e) =>
+                                                        updatePage(i, {
+                                                            article: {
+                                                                ...p.article,
+                                                                author: e.target.value || undefined,
+                                                            },
+                                                        })
+                                                    }
+                                                    className={cn(inputCls, "w-40")}
+                                                />
+                                            </label>
+                                            <label className="flex flex-1 min-w-48 flex-col gap-1 text-xs text-muted-foreground">
+                                                Cover image URL
+                                                <input
+                                                    type="url"
+                                                    dir="ltr"
+                                                    data-testid={`custom-page-article-cover-${i}`}
+                                                    value={p.article.cover_url ?? ""}
+                                                    placeholder="Falls back to the page's social image"
+                                                    onChange={(e) =>
+                                                        updatePage(i, {
+                                                            article: {
+                                                                ...p.article,
+                                                                cover_url: e.target.value || undefined,
+                                                            },
+                                                        })
+                                                    }
+                                                    className={cn(inputCls, "w-full")}
+                                                />
+                                            </label>
+                                            <label className="flex w-full flex-col gap-1 text-xs text-muted-foreground">
+                                                Summary
+                                                <input
+                                                    type="text"
+                                                    data-testid={`custom-page-article-excerpt-${i}`}
+                                                    value={resolveI18n(p.article.excerpt, "ar")}
+                                                    placeholder="One line for the guides list"
+                                                    onChange={(e) =>
+                                                        updatePage(i, {
+                                                            article: {
+                                                                ...p.article,
+                                                                excerpt: e.target.value
+                                                                    ? { ...p.article?.excerpt, ar: e.target.value }
+                                                                    : undefined,
+                                                            },
+                                                        })
+                                                    }
+                                                    className={cn(inputCls, "w-full")}
+                                                />
+                                            </label>
+                                            <p className="w-full text-[11px] text-muted-foreground">
+                                                Guides appear in the “Guides list” section,
+                                                newest first. A date in the future keeps the
+                                                page reachable but out of the list until then.
+                                            </p>
+                                        </div>
+                                    )}
                                 </li>
                             );
                         })}
