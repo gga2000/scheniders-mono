@@ -86,6 +86,30 @@ export interface ProductSearchRow {
     price: number | null;
 }
 
+/**
+ * ORD-A3. The LIST queries read `public.orders` directly; only the two risk
+ * lookups below read `v_orders_with_risk`.
+ *
+ * The view joins `customer_trust` on `normalize_phone(...)` to build one column,
+ * `risk_data`. Postgres cannot prune a join the way it prunes an unused column,
+ * so every read paid for it even after `risk_data` was removed from
+ * LIST_VIEW_COLUMNS. Measured on one 1,000-row page as a real tenant member:
+ * 413.0 ms via the view (seq scan + external merge sort spilling 2.2 MB to disk
+ * + a 345 ms merge join) against 53.6 ms straight from `orders`
+ * (`idx_orders_created_at` index scan) — and `findAll` issues five such pages in
+ * parallel.
+ *
+ * The view also filters `deleted_at IS NULL`, which the table does not, so every
+ * repointed query carries an explicit `.is("deleted_at", null)`. Verified column
+ * delta before switching: the view adds only `risk_data` and omits
+ * `idempotency_key` and `waseet_submit_started_at`, none of which these queries
+ * select.
+ *
+ * Single-row lookups (`findById`, `findByOrderId`, `findByScanRef`) deliberately
+ * stay on the view: they `select("*")`, so consumers may read `risk_data` from
+ * them, and joining for one row is cheap.
+ */
+
 /** The risk assessment `v_orders_with_risk` builds from `customer_trust`. */
 export type OrderRisk = NonNullable<Order["risk_data"]>;
 
@@ -192,9 +216,10 @@ export const orderRepository = {
         //    The count query uses the same view/filter but returns only the count header,
         //    not actual rows — it's very fast (~50-100ms).
         const { count, error: countErr } = await supabase
-            .from("v_orders_with_risk")
+            .from("orders")
             .select("id", { count: "exact", head: true })
-            .eq("is_archived", false);
+            .eq("is_archived", false)
+            .is("deleted_at", null);
 
         if (countErr) {
             diag.log(`[Diag:Repo] findAll COUNT ERR err=${countErr.message} took=${(performance.now() - _t).toFixed(1)}ms`);
@@ -212,9 +237,10 @@ export const orderRepository = {
         const pagePromises = Array.from({ length: pageCount }, (_, i) => {
             const from = i * step;
             return supabase
-                .from("v_orders_with_risk")
+                .from("orders")
                 .select(LIST_VIEW_COLUMNS)
                 .eq("is_archived", false)
+                .is("deleted_at", null)
                 .order("created_at", { ascending: false })
                 .range(from, from + step - 1);
         });
@@ -246,8 +272,9 @@ export const orderRepository = {
      */
     async findChangedSince(sinceTimestamp: string): Promise<Order[]> {
         const { data, error } = await supabase
-            .from("v_orders_with_risk")
+            .from("orders")
             .select(LIST_VIEW_COLUMNS)
+            .is("deleted_at", null)
             .gt("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
@@ -263,9 +290,10 @@ export const orderRepository = {
 
         while (true) {
             const { data, error } = await supabase
-                .from("v_orders_with_risk")
+                .from("orders")
                 .select(LIST_VIEW_COLUMNS)
                 .eq("is_archived", true)
+                .is("deleted_at", null)
                 .order("created_at", { ascending: false })
                 .range(from, from + step - 1);
 
