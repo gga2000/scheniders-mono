@@ -704,6 +704,14 @@ export const STRINGS = {
         upload_image: { en: "Upload image", ar: "رفع صورة", ku: "بارکردنی وێنە" },
         uploading: { en: "Uploading…", ar: "جاري الرفع…", ku: "باردەکرێت…" },
         image_url_placeholder: { en: "https://… or paste an image URL", ar: "https://… أو الصق رابط صورة", ku: "https://… یان بەستەری وێنەیەک دابنێ" },
+        // Video link field. A merchant pastes a link; the editor says back what
+        // it recognised, because a link it cannot read renders no section at all
+        // on the storefront and there is otherwise nothing to see.
+        video_url_placeholder: { en: "Paste a YouTube, Vimeo, or MP4 link", ar: "الصق رابط يوتيوب أو فيميو أو ملف MP4", ku: "بەستەری YouTube، Vimeo، یان MP4 دابنێ" },
+        video_detected_youtube: { en: "YouTube video", ar: "فيديو يوتيوب", ku: "ڤیدیۆی YouTube" },
+        video_detected_vimeo: { en: "Vimeo video", ar: "فيديو فيميو", ku: "ڤیدیۆی Vimeo" },
+        video_detected_file: { en: "Direct video file", ar: "ملف فيديو مباشر", ku: "فایلی ڤیدیۆی ڕاستەوخۆ" },
+        video_unrecognized: { en: "Not a link this can play — the section stays hidden. YouTube, Vimeo, and .mp4 / .webm / .mov links work.", ar: "رابط غير قابل للتشغيل — القسم يبقى مخفي. تشتغل روابط يوتيوب وفيميو وملفات mp4. و webm. و mov.", ku: "بەستەرێک نییە کە بتوانرێت لێبدرێت — بەشەکە شاراوە دەمێنێتەوە. بەستەری YouTube، Vimeo، و .mp4 / .webm / .mov کاردەکەن." },
         // tFormat: {label}
         unsupported_field: { en: "Unsupported field: {label}", ar: "حقل غير مدعوم: {label}", ku: "خانەی پشتگیرینەکراو: {label}" },
         // Breakpoint override editor chrome. tFormat: {bp}

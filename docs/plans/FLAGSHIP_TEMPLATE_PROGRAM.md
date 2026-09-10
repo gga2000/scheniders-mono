@@ -555,7 +555,38 @@ checkout bump, the quantity ladder and the post-purchase upsell.
   policy (unset), no rating (no approved reviews), 5 real FAQ questions,
   collections of 7 and 5 real products. *(E2)*
 - **W7.6** Arabic blog / guides. *(E1)*
-- **W7.7** Video sections wired. *(E4)*
+- **W7.7** Video sections wired — DONE. The two video sections existed and
+  were registered, but nothing joined them to a merchant. Three real gaps:
+  1. **A merchant could not tell the editor what to play.** `.describe("video")`
+     matched no field kind, so a video URL rendered as a bare text box. It is
+     the one field where silence is unaffordable: the storefront renders *no
+     section at all* for a link it cannot play, so pasting an Instagram reel
+     made the section vanish with nothing explaining why. There is now a video
+     control that names what it recognised — YouTube, Vimeo, a direct file — or
+     says plainly that the link will not play. No upload button: tenant assets
+     are capped far below any real clip, so a video lives on a URL.
+  2. **The parser called every unrecognised string a playable file**, putting a
+     black `<video>` box on a live storefront. It also matched `[?&]v=` against
+     the raw string, so `https://example.com/?v=…` parsed as YouTube, and it
+     sent Vimeo's `muted=1` to YouTube — which wants `mute=1` — so every
+     autoplaying YouTube embed was blocked by the browser for being unmuted.
+     Parsing now goes through `URL` in `packages/shared/src/video-embed.ts`,
+     shared by the editor and the storefront so they cannot disagree, and
+     returns `null` rather than guessing. Autoplay forces mute at the source.
+  3. **An embed cost a shopper ~1 MB of player JavaScript on page load**,
+     pressed or not — the most expensive thing on the page on the mobile data
+     plans this store sells over. `video_block` now ships a poster and a play
+     button; the iframe is created on the first click. YouTube posters come
+     from the provider (`i.ytimg.com`, allowlisted for the thumbnail path only).
+     Embeds use `youtube-nocookie.com`.
+  Also: `hero_video` no longer autoplays in the served markup. It renders its
+  poster on the server and starts playback in the browser only once
+  `prefers-reduced-motion` is known — which also makes its `preload="metadata"`
+  really stop at metadata. A YouTube link in a *background* hero falls back to the
+  gradient rather than rendering a player behind a headline. Its headline
+  shadow read `#1a1a1a` — the old candy ink — and now reads `--bk-ink`.
+  `aspect` is a new optional prop so phone-shot portrait footage is not
+  pillarboxed. 43 new tests. *(E4)*
 - **W7.8** Motion identity pass. *(H2)*
 - **W7.9** CI budgets — DONE, reshaped by what is real:
   1. **The suite now runs in CI.** It never did: 1,635 tests existed and every

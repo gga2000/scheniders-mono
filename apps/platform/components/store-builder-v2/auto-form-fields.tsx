@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import type { I18nString, LocaleCode } from "@scheniders/shared";
+import { parseVideoUrl } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
@@ -421,6 +422,17 @@ export function StringControl(p: StringControlProps): ReactElement {
             />
         );
     }
+    if (p.hint === "video") {
+        return (
+            <VideoControl
+                label={p.label}
+                value={p.value}
+                onChange={p.onChange}
+                onClear={p.onClear}
+                testIdBase={p.testIdBase}
+            />
+        );
+    }
     if (p.hint === "multiline") {
         return (
             <div className="space-y-1.5">
@@ -453,6 +465,78 @@ export function StringControl(p: StringControlProps): ReactElement {
                     "transition-colors",
                 )}
             />
+        </div>
+    );
+}
+
+interface VideoControlProps {
+    label: string;
+    value: string;
+    onChange: (next: string) => void;
+    onClear?: () => void;
+    testIdBase: string;
+}
+
+/**
+ * A video link, with the editor saying back what it recognised.
+ *
+ * A video field used to be a bare text box. That is the one field where
+ * silence is unaffordable: a link the storefront cannot read renders **no
+ * section at all**, so a merchant who pastes an Instagram reel or a
+ * half-copied URL sees their section vanish from the page with nothing
+ * anywhere telling them why. Naming the provider — or saying plainly that the
+ * link will not play — turns a mystery into a correction.
+ *
+ * There is no upload button on purpose. Tenant assets are capped well below
+ * the size of any real clip, so a video lives on YouTube, on Vimeo, or on a
+ * URL the merchant already hosts.
+ */
+export function VideoControl(p: VideoControlProps): ReactElement {
+    const locale = useResolvedEditorLocale();
+    const trimmed = p.value.trim();
+    const parsed = trimmed ? parseVideoUrl(trimmed) : null;
+
+    const detected =
+        parsed?.provider === "youtube"
+            ? tx(STRINGS.auto_form.video_detected_youtube, locale)
+            : parsed?.provider === "vimeo"
+              ? tx(STRINGS.auto_form.video_detected_vimeo, locale)
+              : parsed?.provider === "file"
+                ? tx(STRINGS.auto_form.video_detected_file, locale)
+                : null;
+
+    return (
+        <div className="space-y-1.5">
+            <FieldHeader label={p.label} onClear={p.onClear} testIdBase={p.testIdBase} />
+            <input
+                type="url"
+                dir="ltr"
+                data-testid={`${p.testIdBase}-video-input`}
+                value={p.value}
+                onChange={(e) => p.onChange(e.target.value)}
+                placeholder={tx(STRINGS.auto_form.video_url_placeholder, locale)}
+                className={cn(
+                    "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
+                    "transition-colors",
+                )}
+            />
+            {detected && (
+                <p
+                    data-testid={`${p.testIdBase}-video-detected`}
+                    className="text-xs text-emerald-600"
+                >
+                    {detected}
+                </p>
+            )}
+            {trimmed && !parsed && (
+                <p
+                    data-testid={`${p.testIdBase}-video-unrecognized`}
+                    className="text-xs text-amber-600"
+                >
+                    {tx(STRINGS.auto_form.video_unrecognized, locale)}
+                </p>
+            )}
         </div>
     );
 }
