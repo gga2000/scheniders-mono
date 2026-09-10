@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { diag } from "@/lib/diag";
@@ -109,7 +109,12 @@ const SWR_CACHE_KEY = 'schneiders_orders_swr';
 const SWR_TS_KEY = 'schneiders_orders_swr_ts';
 const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
 
-function writeSwrCache(orders: Order[]): void {
+export function writeSwrCache(orders: Order[]): void {
+    // An empty result is not worth caching, and caching it is actively harmful:
+    // hydrating from it makes React Query report `isLoading: false` with no rows,
+    // which is indistinguishable from "this merchant has no orders". See
+    // readSwrCache.
+    if (orders.length === 0) return;
     try {
         // Measure the SYNCHRONOUS main-thread serialization cost + payload size.
         const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
@@ -120,14 +125,21 @@ function writeSwrCache(orders: Order[]): void {
     }
 }
 
-function readSwrCache(): Order[] | null {
+export function readSwrCache(): Order[] | null {
     try {
         const ts = sessionStorage.getItem(SWR_TS_KEY);
         if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
         const raw = sessionStorage.getItem(SWR_CACHE_KEY);
         if (!raw) return null;
         // Measure the SYNCHRONOUS main-thread parse cost (runs during render via initialData).
-        return perfTrace.time('swr-parse', () => JSON.parse(raw) as Order[], () => raw.length);
+        const parsed = perfTrace.time('swr-parse', () => JSON.parse(raw) as Order[], () => raw.length);
+        // An empty cache tells us nothing, and returning it would be worse than
+        // returning nothing: React Query treats `[]` as loaded data, so the page
+        // drops out of its loading state and renders the "No orders yet" empty
+        // state while the real fetch is still in flight. A merchant with 4,778
+        // orders was shown "When you receive orders, they'll appear here".
+        if (!Array.isArray(parsed) || parsed.length === 0) return null;
+        return parsed;
     } catch {
         return null;
     }
@@ -188,10 +200,35 @@ export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: stri
     // The query key deliberately does NOT include the window. Realtime, every
     // mutation, delta sync and the sessionStorage SWR cache all read and write
     // `orderKeys.lists()`; keying per window would scatter those across caches.
-    // The cache holds one window at a time and a change invalidates it.
+    // The cache holds one window at a time and a change re-fetches it.
+    //
+    // Because the key is constant, the window has to reach the fetch some other
+    // way, and a captured closure is not good enough. Filter state settles over
+    // two renders — the defaults (today) first, then the merchant's persisted
+    // filters — so the FIRST fetch would start with today's window, the filters
+    // would then widen to "all", and the in-flight request would resolve and
+    // populate the cache as fresh. One fetch, for a window nobody asked for.
+    //
+    // The list then showed today's rows while the server-computed chips
+    // correctly reported the real filter: "In Transit 103" above an empty list,
+    // righting itself minutes later when something else triggered a refetch.
+    //
+    // Reading the window from a ref at call time means whichever fetch runs uses
+    // the CURRENT window, and refetch (rather than invalidate) guarantees a new
+    // one actually runs when the window changes instead of racing the request
+    // already in flight.
+    const windowRef = useRef(window);
+    windowRef.current = window;
+
     const windowKey = window ? `${window.fromInstant}-${window.toInstant}` : "all";
+    const isFirstWindow = useRef(true);
     useEffect(() => {
-        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        if (isFirstWindow.current) {
+            // Nothing has been fetched yet; the query's own initial fetch covers it.
+            isFirstWindow.current = false;
+            return;
+        }
+        void queryClient.refetchQueries({ queryKey: orderKeys.lists() });
     }, [windowKey, queryClient]);
 
     // Force refetch when trigger changes
@@ -204,7 +241,7 @@ export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: stri
 
     return useQuery({
         queryKey: orderKeys.lists(),
-        queryFn: () => fetchOrders(window),
+        queryFn: () => fetchOrders(windowRef.current),
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
         enabled: !!session && clientReady,

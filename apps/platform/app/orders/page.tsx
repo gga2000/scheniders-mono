@@ -153,6 +153,8 @@ export default function OrdersPage() {
         orders,
         filteredOrders: hookFilteredOrders,
         loading,
+        isRefreshing,
+        ordersPending,
         error,
         updateOrderStatus,
         updateOrder,
@@ -806,7 +808,10 @@ export default function OrdersPage() {
         // Still loading skeleton
     }
 
-    const isInitialLoading = !isMounted || loading;
+    // `loading` misses a pending-but-disabled query — which this one is until the
+    // Supabase client finishes initialising — so without ordersPending the page
+    // fell through to content with zero orders and rendered the empty state.
+    const isInitialLoading = !isMounted || loading || ordersPending;
 
     return (
         <AnimatePresence mode="wait">
@@ -1659,7 +1664,19 @@ export default function OrdersPage() {
                                             {/* Cards View */}
                                             {(viewMode === "cards" || viewMode === "list") && (
                                                 <>
-                                                    {displayedOrders.length === 0 ? (
+                                                    {displayedOrders.length === 0 && (isRefreshing || ordersPending) ? (
+                                                        /* An empty list while rows are still arriving is not an empty
+                                                           list. `loading` covers only the first fetch, so a refetch —
+                                                           after a window change, a reconnect, or a stale SWR
+                                                           hydration — used to fall straight through to the empty
+                                                           state, and a merchant with 4,778 orders was told "No orders
+                                                           yet. When you receive orders, they'll appear here." */
+                                                        <div className="space-y-3" aria-busy="true" aria-live="polite">
+                                                            {[0, 1, 2, 3].map(i => (
+                                                                <div key={i} className="w-full h-24 animate-pulse bg-muted/20 rounded-2xl" />
+                                                            ))}
+                                                        </div>
+                                                    ) : displayedOrders.length === 0 ? (
                                                         <EmptyState
                                                             type={isFirstRun ? "no-orders" : (filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
                                                             searchQuery={filters.searchQuery}
