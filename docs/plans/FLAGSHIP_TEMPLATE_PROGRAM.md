@@ -726,6 +726,20 @@ yet place. Publish discipline: only after the deploy that understands them.
   exists (attribute values / an order bump), so publishing them early is safe.
 - `product_grid` on the catalog page: `enable_filters` is set by
   `deriveCatalogPage`, no config change needed.
+- **`article_index` (W7.6) is deliberately NOT a template update.** The
+  signature direction stays at v2. The section renders nothing until a guide
+  is published, so adding it to the update screen would only put a choice in
+  front of a merchant that changes nothing on their store. It is in the
+  section picker for the moment they write their first guide, and the guide
+  itself is a custom page marked "This page is a guide".
+- **The video sections still need footage (W7.7).** The editor now names what
+  it recognises in a pasted link, so this is a merchant decision, not a code
+  gap. A YouTube or Vimeo link costs the shopper nothing until they press
+  play; a background hero needs a direct file, not a provider link.
+- **Nothing here needs a code deploy to be safe.** Every section added in
+  Wave 7 renders nothing without its data, so the order of publish and deploy
+  only matters for the sections listed above, which is the rule already
+  stated at the top of this section.
 - **Fix a false claim**: the product page's `trust_badge_row` says
   "Free delivery" in English while the Arabic says "توصيل لكل المحافظات" —
   delivery is 5,000 IQD below 75,000. Change the English label; do not ship a
