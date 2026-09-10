@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    INTERAKT_DELIVERY_STATUSES,
+    recordWhatsAppDeliveryReceipt,
+} from "@/lib/whatsapp-delivery-receipts";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -326,42 +330,14 @@ export async function POST(request: NextRequest) {
         // 3. Handle delivery status webhooks
         const webhookType = payload.type || payload.eventType || "";
 
-        // Interakt's exact webhook type names for template messages sent via API
-        const DELIVERY_STATUS_TYPES: Record<string, string> = {
-            "message_api_sent": "sent",
-            "message_api_delivered": "delivered",
-            "message_api_read": "read",
-            "message_api_failed": "failed",
-            // Button click from template
-            "message_api_clicked": "button_clicked",
-        };
+        const mappedStatus = INTERAKT_DELIVERY_STATUSES[webhookType];
 
-        const mappedStatus = DELIVERY_STATUS_TYPES[webhookType];
-
-        // If it's a delivery status event, log it to whatsapp_logs
-        if (mappedStatus && webhookType !== "message_api_clicked") {
-            try {
-                const phone = payload.data?.customer?.phone_number ||
-                    payload.endCustomerPhone ||
-                    "unknown";
-                const callbackData = payload.data?.message?.context?.callback_data ||
-                    payload.data?.callbackData ||
-                    payload.callbackData;
-
-                // Log to whatsapp_logs
-                await supabaseAdmin().from("whatsapp_logs").insert({
-                    order_id: callbackData || "unknown",
-                    phone: phone,
-                    template_name: "cod_order_confirm",
-                    direction: "status_update",
-                    status: mappedStatus,
-                    payload: payload as unknown as Record<string, unknown>,
-                });
-
-                console.log(`[Interakt Webhook] 📊 Delivery status: ${mappedStatus} for phone ${phone}`);
-            } catch (logErr) {
-                console.warn("[Interakt Webhook] Failed to log delivery status:", logErr);
-            }
+        // If it's a delivery status event, log it to whatsapp_logs. OBS-3: the
+        // row written here used to carry no message id and a hardcoded template
+        // name, so it could be counted but never joined to the send.
+        if (mappedStatus) {
+            await recordWhatsAppDeliveryReceipt(payload, mappedStatus);
+            console.log(`[Interakt Webhook] 📊 Delivery status: ${mappedStatus}`);
 
             return NextResponse.json(
                 { success: true, message: `Delivery status "${webhookType}" logged` },

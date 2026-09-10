@@ -57,6 +57,12 @@ export interface OrderItem {
 
 export interface Order {
     id: string;
+    /**
+     * Owning tenant. Optional in this shape because the client rarely reads it —
+     * every client query is already tenant-scoped by RLS — but server code that
+     * writes a related row needs it, and a `select("*")` always returns it.
+     */
+    tenant_id?: string;
     created_at: string;
     updated_at?: string;
     /**

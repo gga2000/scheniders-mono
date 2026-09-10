@@ -9,7 +9,8 @@ import { useOrderStore } from "@/store/use-order-store";
 import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
-import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
+import { Order, PaymentStatus, OrderItem, supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { getBaseOrderId, getStatusLabel } from "@/lib/utils";
@@ -323,6 +324,7 @@ const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFi
 
 export default function OrdersPage() {
     const { sidebarExpanded } = useSidebar();
+    const { tenantId } = useAuth();
     // 🔍 DIAGNOSTIC: Track loading → content transition (one-shot, not per-render)
     const pageMountTime = useRef<number | null>(null);
     const hasLoggedMount = useRef(false);
@@ -1113,6 +1115,34 @@ export default function OrdersPage() {
 
         const companyLabel = company === 'prime' ? 'Prime' : 'Al-Waseet';
 
+        // OBS-3: shipping-submission failure rate was unanswerable because only
+        // successful exports left a trace — `print_batches` is written on
+        // success, and a failure showed a toast and nothing else. Every attempt
+        // is now recorded, including which half of it failed. The tenant is
+        // validated inside the function, not taken on trust.
+        const recordExportOutcome = async (
+            succeeded: boolean,
+            failureStage?: 'file' | 'batch_record',
+            errorMessage?: string,
+        ) => {
+            const { error } = await supabase.rpc('log_shipping_export', {
+                p_tenant_id: tenantId,
+                p_company: company,
+                p_order_count: ids.length,
+                p_succeeded: succeeded,
+                p_failure_stage: failureStage ?? null,
+                p_error_message: errorMessage ?? null,
+            });
+            if (error) {
+                // Never let the audit write change what the operator is told
+                // about their export — report it and carry on.
+                reportOrderError(error, {
+                    operation: "orders-ship-export-outcome-record",
+                    extra: { company, orderCount: ids.length, succeeded },
+                });
+            }
+        };
+
         try {
             // Generate the file before recording the batch. The batch row used to
             // be inserted first, so an export that threw left a committed row
@@ -1136,11 +1166,13 @@ export default function OrdersPage() {
             setSelectedOrders(new Set());
 
             if (batchSuccess) {
+                await recordExportOutcome(true);
                 toast.success(
                     "Export successful",
                     `${ids.length} orders exported via ${companyLabel}`,
                 );
             } else {
+                await recordExportOutcome(false, 'batch_record', batchError || undefined);
                 // The file is already in the operator's hands, so this is not an
                 // export failure — say exactly what did and did not happen.
                 reportOrderError(new Error(batchError || "Failed to create export batch"), {
@@ -1158,6 +1190,11 @@ export default function OrdersPage() {
             setPendingTransitPrevStatuses(previousStatuses);
             setMoveTransitOpen(true);
         } catch (err) {
+            await recordExportOutcome(
+                false,
+                'file',
+                err instanceof Error ? err.message : "Could not complete the export process",
+            );
             toast.error(
                 "Export failed",
                 err instanceof Error ? err.message : "Could not complete the export process"
