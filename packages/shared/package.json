@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.6.1"
+    "tailwind-merge": "^2.6.1",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/react": "^19",
