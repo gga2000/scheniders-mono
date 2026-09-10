@@ -49,7 +49,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     archivedOrderCount = 0,
     onOpenTemplatePanel,
 }: MobileOrderCardProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const orderStatusLabel = useStatusLabel();
     const isReturn = order.is_return;
     const items = getItemsDisplay(order.items || []);
@@ -62,7 +62,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     const isValidPhone2 = phone2 ? validatePhoneDetailed(phone2).isValid : false;
     const governorateCode = getGovernorateCode(order);
     const fullAddress = getFullAddress(order.city, order.address_details);
-    const orderAge = getOrderAge(order.created_at);
+    const orderAge = getOrderAge(order.created_at, language);
 
     // If not explicitly passed, try to extract from order object if available
     const resolvedRiskLevel = riskLevel || order.risk_data?.level;

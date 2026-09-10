@@ -313,6 +313,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
     onMouseLeave,
     onRowDrop,
 }: any) {
+    const { language } = useLanguage();
     const isReturn = order.is_return;
     const isPriority = order.priority === "urgent" || order.priority === "high";
     const rowColor = order.tag_color;
@@ -576,7 +577,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
             {/* Date - Recency + M-D + Time */}
             <div role="cell" className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}>
                 <div className="flex flex-col items-start leading-tight">
-                    <span className="text-[9px] text-muted font-medium">{getOrderAge(order.created_at)}</span>
+                    <span className="text-[9px] text-muted font-medium">{getOrderAge(order.created_at, language)}</span>
                     <span className="text-xs text-gray-700 font-mono">{formatDateShort(order.created_at)}</span>
                     <span className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>
                 </div>
@@ -657,7 +658,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     const { updateOrder, deleteOrder } = useOrdersContext();
     const density = useOrderStore((s) => s.tableDensity);
     const editingCell = useOrderStore((s) => s.editingCell);
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const setEditingCell = useOrderStore((s) => s.setEditingCell);
     const sortConfigs = useOrderStore((s) => s.sortConfigs);
     const hiddenColumns = useOrderStore((s) => s.hiddenColumns);

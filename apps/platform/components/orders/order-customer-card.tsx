@@ -9,6 +9,7 @@ import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, 
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import type { OrderStatus } from "@/lib/supabase";
 import type { Order } from "@/types/order";
+import { formatOrderDateTime, formatOrderDayMonthTime } from "@/lib/order-format-utils";
 
 interface OrderCustomerCardProps {
     isEditing: boolean;
@@ -408,14 +409,7 @@ export function OrderCustomerCard({
                                             ? "text-amber-900 font-semibold"
                                             : "text-foreground"
                                     )}>
-                                        {new Date(order.created_at).toLocaleString('en-US', {
-                                            year: 'numeric',
-                                            month: '2-digit',
-                                            day: '2-digit',
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            hour12: true
-                                        })}
+                                        {formatOrderDateTime(order.created_at)}
                                     </span>
                                     {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                         <span
@@ -424,13 +418,7 @@ export function OrderCustomerCard({
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
                                             <span className="text-amber-500 mr-0.5">was</span>
-                                            {new Date(order.original_created_at).toLocaleString('en-US', {
-                                                month: '2-digit',
-                                                day: '2-digit',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                                hour12: true
-                                            })}
+                                            {formatOrderDayMonthTime(order.original_created_at)}
                                         </span>
                                     )}
                                 </div>

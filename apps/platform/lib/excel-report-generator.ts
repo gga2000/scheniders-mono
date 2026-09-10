@@ -2,6 +2,7 @@
 
 import type ExcelJS from "exceljs";
 import { Order } from "@/lib/supabase";
+import { formatOrderNamedDate } from "@/lib/order-format-utils";
 
 // ============================================
 // TYPES
@@ -351,9 +352,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
             row.getCell(7).value = STATUS_LABELS[order.status] || order.status;
             row.getCell(8).value = (order.payment_status || "pending").toUpperCase();
             row.getCell(9).value = (order.source || "—").toUpperCase();
-            row.getCell(10).value = new Date(order.created_at).toLocaleDateString("en-US", {
-                year: "numeric", month: "short", day: "numeric",
-            });
+            row.getCell(10).value = formatOrderNamedDate(order.created_at);
 
             applyDataRowStyle(row, headers.length, i % 2 === 1);
             applyStatusStyle(row.getCell(7), order.status);

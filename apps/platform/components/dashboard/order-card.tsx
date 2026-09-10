@@ -163,7 +163,7 @@ export const OrderCard = memo(function OrderCard({
     onAddToBlacklist,
     onRemoveFromBlacklist,
 }: OrderCardProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const orderStatusLabel = useStatusLabel();
     const isLoading = loadingId === order.id;
     const isNew = order.status === "new";
@@ -212,7 +212,7 @@ export const OrderCard = memo(function OrderCard({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [actionsOpen]);
 
-    const orderAge = getOrderAge(order.created_at);
+    const orderAge = getOrderAge(order.created_at, language);
     const ageUrgency = getAgeUrgency(order.status, order.created_at);
 
     // Time-based follow-up cue — based on order creation time (how long customer has been waiting)
