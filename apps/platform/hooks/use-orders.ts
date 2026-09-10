@@ -70,11 +70,26 @@ export function useOrders() {
     const ordersWindowRef = useRef(ordersWindow);
     ordersWindowRef.current = ordersWindow;
 
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery(ordersWindow);
+    const { data: cachedOrders, isLoading: queryLoading, isFetching: queryFetching, status: queryStatus, error: queryError } = useOrdersQuery(ordersWindow);
 
     // Single source of truth: React Query cache
     const orders = cachedOrders ?? [];
     const loading = queryLoading;
+    // `loading` is React Query's isLoading, which is only true during the FIRST
+    // fetch of an ENABLED query. Two common states slip past it, and both render
+    // as "we have zero orders" unless they are handled:
+    //
+    //   - a refetch (window change, reconnect, stale SWR hydration) keeps the old
+    //     data — or no data — while new rows are still arriving;
+    //   - a DISABLED query, which this one is until the Supabase client finishes
+    //     initialising, is pending but not fetching, so isLoading is false and
+    //     `data` is undefined.
+    //
+    // A merchant with 4,778 orders was shown "No orders yet. When you receive
+    // orders, they'll appear here." Distinguishing "not loaded" from "loaded and
+    // genuinely empty" is what these two flags are for.
+    const isRefreshing = queryFetching;
+    const ordersPending = queryStatus === "pending";
     const error = queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch orders" : null;
 
     // =============================================
@@ -138,6 +153,8 @@ export function useOrders() {
     const contextValue = useMemo(() => ({
         // Core data
         orders,
+        isRefreshing,
+        ordersPending,
         statusCounts: serverAggregates?.status_counts ?? filterHook.statusCounts,
         // Archive
         archivedOrders,
@@ -237,6 +254,8 @@ export function useOrders() {
         orders,
         archivedOrders,
         loading,
+        isRefreshing,
+        ordersPending,
         error,
         filterHook,
         auxiliaryHook,
