@@ -240,7 +240,7 @@ function ImageGallery({
         <div role="region" aria-roledescription="carousel" aria-label={galleryLabel}>
           <div
             id={trackId}
-            className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory scroll-px-4 scroll-smooth motion-reduce:scroll-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4"
+            className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory scroll-px-4 scroll-smooth motion-reduce:scroll-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4"
           >
             {images.map((img, i) => (
               <div key={i} className="w-[220px] shrink-0 sm:w-[280px] snap-start">

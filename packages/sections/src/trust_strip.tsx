@@ -91,7 +91,7 @@ function TrustStripRender({
   return (
     <Section density="dense" bleed className="text-bk-ink">
       <div className="relative">
-        <ul className="flex gap-3 overflow-x-auto px-4 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ul className="flex gap-3 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {props.pills.map((pill, i) => (
             // Pills are informational, not tappable — no press feedback.
             <li

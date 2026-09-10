@@ -641,7 +641,30 @@ checkout bump, the quantity ladder and the post-purchase upsell.
      `build-manifest.json` carries one empty `/_app` entry).
   4. **Keyboard-a11y budgets deliberately skipped** — standing instruction is
      not to build keyboard-a11y sweeps unless asked. *(P11)*
-- **W7.10** Storybook × variant visual regression. *(P12)*
+- **W7.10** Variant visual regression — DONE, reshaped by what is real.
+  A Storybook screenshot pipeline is the wrong instrument here and would have
+  caught none of the three silent visual failures this program has hit. The
+  template's identity flows entirely through CSS custom properties, so a pixel
+  diff across the six directions would mostly be re-testing the browser, and
+  64 sections × 6 directions is 384 baselines needing image storage, a
+  font-stable runner and a review workflow — infrastructure, for a signal
+  already available more cheaply. (Storybook also lives only in the platform
+  app today, with 2 stories; the storefront and the section library have none.)
+  The actual failures were classes in the shipped HTML that matched **no rule
+  at all**: 45 brand-kit opacity utilities compiled to nothing because Tailwind
+  cannot break a `var()` colour into channels, with no warning and no error.
+  So `apps/storefront/lib/section-class-resolution.test.tsx` renders all 64
+  registered sections across every page each claims and all three locales,
+  collects every class they actually emit, compiles the real stylesheet from
+  the real config, and asserts the two sets line up. Proven rather than
+  asserted: reverting the palette to its old bare-`var()` form fails 7 sections
+  at default props alone. It runs in 2.2s, so it belongs in the suite CI now
+  runs. It found one live defect immediately — `scrollbar-none` is not a class
+  this workspace defines and never was, dead in 7 sections (harmless there, the
+  arbitrary variants beside it do the work) and dead in 2 platform chat views
+  where it rode alone, so those scrollbars were simply visible. Removed from
+  the sections, pointed at the real `scrollbar-hide` utility in the platform.
+  *(P12)*
 
 ## 6. Definition of done (every task)
 
