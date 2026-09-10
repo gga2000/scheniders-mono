@@ -4,6 +4,14 @@ import { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } fr
 import { supabase, type Order, type RejectionReason, type MessageTemplate } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useAuth } from "@/components/auth/auth-provider";
+import { computeCustomerOrderCounts, findOrderDuplicates } from "@/lib/order-duplicates";
+import {
+    sumRealizedRevenue,
+    sumRealizedRevenueForDay,
+    countRealizedForDay,
+    todayBaghdadDayKey,
+    recentBaghdadDayKeys,
+} from "@/lib/order-revenue";
 
 // =============================================
 // ORDER AUXILIARY HOOK
@@ -56,7 +64,14 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
                     setAuxData({
                         rejectionReasons: reasonsRes.data || [],
                         messageTemplates: templatesRes.data || [],
-                        blacklistMap: new Map((blacklistRes.data || []).map((b: BlacklistEntry) => [b.phone, b])),
+                        // ARCH-4: keyed on the normalized phone, not the raw stored
+                        // string. Lookups come from create-order-modal via
+                        // normalizeIraqiPhone ("07…") while entries were stored in
+                        // whatever shape the caller happened to pass, so a
+                        // blacklisted customer saved as "+964…" or "7…" would never
+                        // have matched — the blacklist would silently let the order
+                        // through, which is the one thing it exists to prevent.
+                        blacklistMap: new Map((blacklistRes.data || []).map((b: BlacklistEntry) => [normalizePhoneForSearch(b.phone), b])),
                     });
                 }
             } catch (err) {
@@ -72,11 +87,11 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
     }, []);
 
     function isBlacklisted(phone: string): boolean {
-        return auxData.blacklistMap.has(phone);
+        return auxData.blacklistMap.has(normalizePhoneForSearch(phone));
     }
 
     function getBlacklistEntry(phone: string): BlacklistEntry | null {
-        return auxData.blacklistMap.get(phone) ?? null;
+        return auxData.blacklistMap.get(normalizePhoneForSearch(phone)) ?? null;
     }
 
     async function addToBlacklist(phone: string, reason: string, notes?: string): Promise<void> {
@@ -85,7 +100,7 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         await supabase.from("blacklist").upsert(entry);
         setAuxData(prev => ({
             ...prev,
-            blacklistMap: new Map(prev.blacklistMap).set(phone, entry),
+            blacklistMap: new Map(prev.blacklistMap).set(normalizePhoneForSearch(phone), entry),
         }));
     }
 
@@ -93,7 +108,7 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         await supabase.from("blacklist").delete().eq("phone", phone);
         setAuxData(prev => {
             const updated = new Map(prev.blacklistMap);
-            updated.delete(phone);
+            updated.delete(normalizePhoneForSearch(phone));
             return { ...prev, blacklistMap: updated };
         });
     }
@@ -104,9 +119,14 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
 
     const getCustomerArchivedCount = useCallback((phone: string) => {
         if (!phone) return 0;
-        const normalized = phone.replace(/\s/g, '');
+        // ARCH-4: was stripping spaces only, a third normalization inside this
+        // one file, so an archived order stored as "+964…" did not count towards
+        // a customer looked up as "07…". Uses the shared normalizer like the
+        // history and duplicate helpers below.
+        const normalized = normalizePhoneForSearch(phone);
+        if (!normalized) return 0;
         return archivedOrders.filter(o =>
-            o.is_archived && o.phone.replace(/\s/g, '') === normalized
+            o.is_archived && normalizePhoneForSearch(o.phone) === normalized
         ).length;
     }, [archivedOrders]);
 
@@ -117,102 +137,27 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
-    // Precomputed map for O(1) lookups
-    const customerOrderCountsMap = useMemo(() => {
-        const counts = new Map<string, number>();
-        const processedBaseIds = new Set<string>();
-
-        const getBaseId = (orderId: string | undefined | null): string => {
-            if (!orderId) return '';
-            const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-            if (lfMatch) return lfMatch[1];
-            if (orderId.startsWith('DLV-')) return orderId.replace('DLV-', '');
-            const digits = orderId.match(/\d+/);
-            return digits ? digits[0] : orderId;
-        };
-
-        orders.forEach((order) => {
-            if (order.is_archived || order.is_return) return;
-
-            const normalizedPhone = normalizePhoneForSearch(order.phone);
-            const baseId = getBaseId(order.order_id);
-            const orderDedupKey = `${normalizedPhone}-${baseId}`;
-
-            if (!processedBaseIds.has(orderDedupKey)) {
-                processedBaseIds.add(orderDedupKey);
-                counts.set(normalizedPhone, (counts.get(normalizedPhone) || 0) + 1);
-            }
-        });
-
-        return counts;
-    }, [orders]);
+    // Precomputed map for O(1) lookups. The algorithm lives in
+    // lib/order-duplicates.ts as a pure function so it can be unit-tested and
+    // proven equivalent to the SQL side (public.get_customer_order_counts),
+    // which takes over once the order fetch is windowed.
+    const customerOrderCountsMap = useMemo(
+        () => computeCustomerOrderCounts(orders),
+        [orders],
+    );
 
     const getCustomerOrderCount = useCallback((phone: string, _currentOrderId?: string): number => {
         const normalizedPhone = normalizePhoneForSearch(phone);
         return customerOrderCountsMap.get(normalizedPhone) || 0;
     }, [customerOrderCountsMap]);
 
-    function checkDuplicateOrder(phone: string, items: string[]): Order[] {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const normalizedPhone = normalizePhoneForSearch(phone);
-
-        return orders.filter((order) => {
-            if (normalizePhoneForSearch(order.phone) !== normalizedPhone) return false;
-            if (order.is_return) return false;
-            if (new Date(order.created_at) < sevenDaysAgo) return false;
-
-            const orderItemNames = order.items?.map((i) => i.name.toLowerCase()) || [];
-            const hasSimilarItems = items.some((item) =>
-                orderItemNames.some((oiName) => oiName.includes(item.toLowerCase()))
-            );
-
-            return hasSimilarItems;
-        });
-    }
-
     function getDuplicatesForOrder(orderId: string): Order[] {
         const order = orders.find((o) => o.id === orderId);
         if (!order) return [];
-
-        const PHONE_WINDOW_HOURS = 72;
-        const PRODUCT_WINDOW_DAYS = 7;
-
-        const phoneWindowStart = new Date(order.created_at);
-        phoneWindowStart.setHours(phoneWindowStart.getHours() - PHONE_WINDOW_HOURS);
-
-        const phoneWindowEnd = new Date(order.created_at);
-        phoneWindowEnd.setHours(phoneWindowEnd.getHours() + PHONE_WINDOW_HOURS);
-
-        const productWindowStart = new Date(order.created_at);
-        productWindowStart.setDate(productWindowStart.getDate() - PRODUCT_WINDOW_DAYS);
-
-        const productWindowEnd = new Date(order.created_at);
-        productWindowEnd.setDate(productWindowEnd.getDate() + PRODUCT_WINDOW_DAYS);
-
-        const normalizedOrderPhone = normalizePhoneForSearch(order.phone);
-        const orderItemNames = order.items?.map((i) => i.name.toLowerCase()) || [];
-
-        return orders.filter((o) => {
-            if (o.id === orderId || o.is_return) return false;
-            if (normalizePhoneForSearch(o.phone) !== normalizedOrderPhone) return false;
-
-            const orderDate = new Date(o.created_at);
-
-            if (orderDate >= phoneWindowStart && orderDate <= phoneWindowEnd) {
-                return true;
-            }
-
-            if (orderDate >= productWindowStart && orderDate <= productWindowEnd && orderItemNames.length > 0) {
-                const otherItemNames = o.items?.map((i) => i.name.toLowerCase()) || [];
-                const hasOverlap = orderItemNames.some((item) =>
-                    otherItemNames.some((other) => other.includes(item) || item.includes(other))
-                );
-                if (hasOverlap) return true;
-            }
-
-            return false;
-        });
+        // Algorithm lives in lib/order-duplicates.ts so it is unit-testable and
+        // provably equivalent to public.get_order_duplicate_flags, which takes
+        // over once the order fetch is windowed.
+        return findOrderDuplicates(order, orders) as Order[];
     }
 
     function hasDuplicates(orderId: string): boolean {
@@ -230,22 +175,17 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
     // =============================================
 
     const revenueTrends = useMemo(() => {
-        const trends: { date: string; revenue: number; orders: number }[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            const dateStr = date.toDateString();
-            const dayOrders = orders.filter(o => new Date(o.created_at).toDateString() === dateStr);
-            const dayRevenue = dayOrders
-                .filter(o => (o.status === "delivered" || o.status === "confirmed") && !o.is_return)
-                .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-            trends.push({
-                date: date.toLocaleDateString("en-US", { weekday: "short" }),
-                revenue: dayRevenue,
-                orders: dayOrders.length,
-            });
-        }
-        return trends;
+        // Bucketed on the Baghdad day the revenue was realized, not the day the
+        // order was created, and no longer counting `confirmed` — an order that
+        // has not shipped — as revenue. See lib/order-revenue for the numbers.
+        return recentBaghdadDayKeys(7).map(dayKey => ({
+            date: new Date(`${dayKey}T00:00:00.000Z`).toLocaleDateString("en-GB", {
+                weekday: "short",
+                timeZone: "UTC",
+            }),
+            revenue: sumRealizedRevenueForDay(orders, dayKey),
+            orders: countRealizedForDay(orders, dayKey),
+        }));
     }, [orders]);
 
     const velocityMetrics = useMemo(() => {
@@ -288,19 +228,13 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
             const today = new Date().toDateString();
             return new Date(o.created_at).toDateString() === today;
         }).length,
-        totalRevenue: orders
-            .filter((o) => o.status === "delivered" && !o.is_return)
-            .reduce((sum, o) => sum + (Number(o.price) || 0), 0),
-        todayRevenue: orders
-            .filter((o) => {
-                const today = new Date().toDateString();
-                return (
-                    new Date(o.created_at).toDateString() === today &&
-                    o.status === "delivered" &&
-                    !o.is_return
-                );
-            })
-            .reduce((sum, o) => sum + (Number(o.price) || 0), 0),
+        // One realized-revenue definition, shared with the profit engine: goods
+        // delivered or completed, returns excluded. Previously `delivered` only,
+        // which dropped every order that had moved on to `completed`.
+        totalRevenue: sumRealizedRevenue(orders),
+        // Bucketed on the Baghdad day the money was earned. Bucketing on
+        // `created_at` put 23.3% of a 30-day period's revenue on the wrong day.
+        todayRevenue: sumRealizedRevenueForDay(orders, todayBaghdadDayKey()),
         averageOrderValue:
             orders.length > 0
                 ? orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0) / orders.length
@@ -334,7 +268,6 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         getCustomerHistory,
         getCustomerOrderCount,
         getCustomerArchivedCount,
-        checkDuplicateOrder,
         getDuplicatesForOrder,
         hasDuplicates,
         getCustomerOrders,

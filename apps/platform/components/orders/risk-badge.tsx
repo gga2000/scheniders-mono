@@ -6,6 +6,7 @@ import { AlertOctagon, AlertTriangle, ShieldCheck, Ban, Info, ExternalLink, Pack
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
+import { useOrderStore } from "@/store/use-order-store";
 
 interface RiskBadgeProps {
     level: RiskLevel;
@@ -139,11 +140,12 @@ export function RiskBadge({ level, assessment, customerPhone, className, showLab
                                 <Link
                                     href={searchUrl}
                                     onClick={() => {
-                                        // Update global store if we are already on the orders page
-                                        if (typeof window !== 'undefined') {
-                                            const setLocalSearchQuery = (window as any)._setters?.setLocalSearchQuery;
-                                            if (setLocalSearchQuery) setLocalSearchQuery(customerPhone);
-                                        }
+                                        // Seed the search box so the orders page filters to this
+                                        // customer on arrival, and updates in place when we are
+                                        // already there. This previously reached for a
+                                        // `window._setters` bag that nothing ever assigned, so it
+                                        // silently did nothing; the store is the real owner.
+                                        useOrderStore.getState().setLocalSearchQuery(customerPhone);
                                     }}
                                     className="flex items-center justify-center gap-2 w-full py-2 bg-[var(--background)] hover:bg-[var(--card-border)] border border-[var(--card-border)] rounded-lg text-xs font-bold transition-all text-primary"
                                 >

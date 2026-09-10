@@ -68,9 +68,9 @@ export function BlacklistDialog({
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-            <DialogContent className="max-w-sm" dir="rtl">
+            <DialogContent className="max-w-sm text-right">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-base">
+                    <DialogTitle className="flex flex-row-reverse items-center gap-2 text-base">
                         {mode === "add" ? (
                             <>
                                 <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -101,7 +101,7 @@ export function BlacklistDialog({
                             {/* Reason presets */}
                             <div className="space-y-2">
                                 <Label className="text-xs text-muted">{t("orders.blacklist.reason")} <span className="text-red-500">{t("orders.blacklist.required")}</span></Label>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-row-reverse flex-wrap gap-2">
                                     {REASON_PRESETS.map((preset) => (
                                         <button
                                             key={preset}
@@ -155,7 +155,7 @@ export function BlacklistDialog({
                             {/* Show existing entry info */}
                             {existingEntry && (
                                 <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 space-y-1 text-sm">
-                                    <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400 font-medium">
+                                    <div className="flex flex-row-reverse items-center gap-1.5 text-red-700 dark:text-red-400 font-medium">
                                         <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
                                         <span>{existingEntry.reason}</span>
                                     </div>

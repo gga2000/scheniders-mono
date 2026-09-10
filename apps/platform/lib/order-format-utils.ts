@@ -1,25 +1,70 @@
 import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
+import type { Locale } from "@/lib/i18n";
+
+/**
+ * Merchant-facing dates and times are Baghdad's, not the viewer's.
+ *
+ * I18N-5. `formatShortDate` produced month/day, the American order, which reads
+ * as the wrong date entirely in Iraq: 9/3 is the 9th of March here, not the 3rd
+ * of September. Neither formatter pinned a time zone either, so both rendered in
+ * whatever zone the browser happened to be in — a merchant travelling, or a
+ * server render, could show a different calendar day from the one the order
+ * actually belongs to. Revenue is now bucketed on Baghdad days (see
+ * lib/order-revenue), and what is displayed has to agree with it.
+ */
+const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
+
+const baghdadDayMonth = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "numeric",
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+const baghdadTime = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: BAGHDAD_TIME_ZONE,
+});
 
 export const formatShortDate = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+    // en-GB gives day/month, which is how Iraq writes it.
+    return baghdadDayMonth.format(date);
 };
 
 export const formatTime = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    }).replace(' ', '');
+    return baghdadTime.format(date).replace(/\s/g, "");
 };
 
-export const getOrderAge = (dateStr: string | Date | undefined | null) => {
+/**
+ * How long ago an order arrived, in the reader's language.
+ *
+ * I18N-5: the four strings here were hardcoded English — "5m ago" on an
+ * otherwise-Arabic card, for every merchant, since Arabic is the default
+ * locale. `Intl.RelativeTimeFormat` in narrow style produces exactly the same
+ * English text ("5m ago", "3h ago", "1d ago", "12d ago"), so nothing changes
+ * for an English reader; an Arabic one now reads Arabic.
+ *
+ * Locale defaults to "ar" to match the app default. Components should pass the
+ * active one.
+ */
+const relativeTimeFormatters: Record<Locale, Intl.RelativeTimeFormat> = {
+    en: new Intl.RelativeTimeFormat("en", { numeric: "always", style: "narrow" }),
+    // Latin digits, to match formatIQD and the order numbers beside it.
+    ar: new Intl.RelativeTimeFormat("ar-u-nu-latn", { numeric: "always", style: "narrow" }),
+};
+
+export const getOrderAge = (
+    dateStr: string | Date | undefined | null,
+    locale: Locale = "ar",
+) => {
     if (!dateStr) return "";
     const now = new Date();
     const orderDate = new Date(dateStr);
@@ -29,10 +74,88 @@ export const getOrderAge = (dateStr: string | Date | undefined | null) => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return "1d ago";
-    return `${diffDays}d ago`;
+    const format = relativeTimeFormatters[locale] ?? relativeTimeFormatters.ar;
+    if (diffMins < 60) return format.format(-diffMins, "minute");
+    if (diffHours < 24) return format.format(-diffHours, "hour");
+    return format.format(-diffDays, "day");
+};
+
+/**
+ * A full order timestamp: day, month, year and time, in Baghdad.
+ *
+ * I18N-5: the order detail modal rendered this with `en-US` and 2-digit month
+ * and day, i.e. MM/DD/YYYY — so an order placed on 3 September read as 09/03,
+ * which in Iraq is 9 March. It also pinned no time zone, so the calendar day
+ * could disagree with the Baghdad day the order is bucketed into everywhere
+ * else.
+ */
+const baghdadDateTime = new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+const baghdadDayMonthTime = new Intl.DateTimeFormat("en-GB", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+/** Day, month, year and time — day first, Baghdad. */
+export const formatOrderDateTime = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadDateTime.format(date);
+};
+
+/** Day, month and time, no year — day first, Baghdad. */
+export const formatOrderDayMonthTime = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadDayMonthTime.format(date);
+};
+
+/**
+ * A named-month date for reports: "9 Sep 2026", in Baghdad.
+ *
+ * The month name is unambiguous, but the reports pinned no time zone, so an
+ * order placed late in the Baghdad evening could be reported on the previous
+ * day when the report was generated from a machine west of Baghdad.
+ */
+const baghdadNamedDate = new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+const baghdadNamedDayMonth = new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    day: "numeric",
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+export const formatOrderNamedDate = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadNamedDate.format(date);
+};
+
+export const formatOrderNamedDayMonth = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadNamedDayMonth.format(date);
 };
 
 export const getAgeUrgency = (status: Order["status"], dateStr: string | Date | undefined | null) => {

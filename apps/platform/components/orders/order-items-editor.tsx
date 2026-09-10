@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
+import type { Order, OrderItem } from "@/types/order";
 import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Package, X } from "lucide-react";
@@ -9,9 +10,12 @@ import { DiscountPresetSelector } from "./discount-preset-selector";
 
 interface OrderItemsEditorProps {
     isEditing: boolean;
-    order: any;
-    formData: any;
-    updateFormData: (key: string, value: any) => void;
+    // ARCH-3: these were `any`, which is why every read of `items` below needed
+    // an `as any[]` cast. Typing the props removes the casts rather than
+    // silencing them.
+    order: Order;
+    formData: Partial<Order>;
+    updateFormData: (key: string, value: unknown) => void;
     handleAddItem: () => void;
     handleUpdateItemQuantity: (index: number, newQuantity: number) => void;
     handleRemoveItem: (index: number) => void;
@@ -28,15 +32,18 @@ export function OrderItemsEditor({
 }: OrderItemsEditorProps) {
     const { t } = useLanguage();
 
-    const displayValue = (key: string) => {
+    const displayValue = <K extends keyof Order>(key: K): Order[K] | undefined => {
         if (isEditing && formData[key] !== undefined) {
             return formData[key];
         }
         return order?.[key];
     };
 
+    /** The item list being edited, or the saved one when not editing. */
+    const currentItems = (): OrderItem[] => formData.items ?? order.items ?? [];
+
     const toggleOpenBox = (index: number) => {
-        const items = [...((formData.items || order.items || []) as any[])];
+        const items = [...currentItems()];
         items[index] = { ...items[index], is_open_box: !items[index].is_open_box };
         updateFormData("items", items);
     };
@@ -63,7 +70,7 @@ export function OrderItemsEditor({
                 {(() => {
                     const itemsToShow = isEditing ? (formData.items || order.items || []) : (order.items || []);
                     return itemsToShow.length > 0 ? (
-                        (itemsToShow as any[]).map((item, index) => (
+                        itemsToShow.map((item, index) => (
                             <div key={index} className="flex items-center gap-3 p-3 hover:bg-[var(--background)] transition-colors group">
                                 {/* Product image */}
                                 {item.image_url ? (
@@ -145,10 +152,10 @@ export function OrderItemsEditor({
                 {isEditing && (
                     <div className="px-4 py-3">
                         <DiscountPresetSelector
-                            items={(formData.items || order.items || []) as any[]}
+                            items={currentItems()}
                             currentDiscount={(displayValue("discount_amount") as number) || 0}
                             onDiscountChange={(val) => {
-                                const items = (formData.items || order.items || []) as any[];
+                                const items = currentItems();
                                 const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                                 updateFormData("discount_amount", val);
                                 updateFormData("price", Math.max(0, subtotal - val));
@@ -165,7 +172,7 @@ export function OrderItemsEditor({
                             value={(displayValue("discount_amount") as number) || 0}
                             onChange={(e) => {
                                 const newDiscount = Number(e.target.value) || 0;
-                                const items = (formData.items || order.items || []) as any[];
+                                const items = currentItems();
                                 const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                                 updateFormData("discount_amount", newDiscount);
                                 updateFormData("price", Math.max(0, subtotal - newDiscount));
@@ -195,7 +202,7 @@ export function OrderItemsEditor({
                                 value={(displayValue("price") as number) || 0}
                                 onChange={(e) => {
                                     const newPrice = Number(e.target.value) || 0;
-                                    const items = (formData.items || order.items || []) as any[];
+                                    const items = currentItems();
                                     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                                     updateFormData("price", newPrice);
                                     updateFormData("discount_amount", Math.max(0, subtotal - newPrice));

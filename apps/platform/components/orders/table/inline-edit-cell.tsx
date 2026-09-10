@@ -3,18 +3,24 @@
 import { useState, useRef, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { reportOrderError } from "@/lib/order-telemetry";
 
 interface InlineEditCellProps {
     value: string;
     orderId: string;
     field: string;
-    onSave: (orderId: string, update: Record<string, string>) => Promise<any>;
+    onSave: (orderId: string, update: Record<string, string>) => Promise<unknown>;
     onClose: () => void;
     className?: string;
+    /**
+     * Rejects a value before it is saved. Returning a string shows it and keeps
+     * the field open, so a bad edit cannot be committed by tabbing away.
+     */
+    validate?: (value: string) => string | null;
 }
 
 export const InlineEditCell = memo(function InlineEditCell({
-    value, orderId, field, onSave, onClose, className
+    value, orderId, field, onSave, onClose, className, validate
 }: InlineEditCellProps) {
     const [editValue, setEditValue] = useState(value || "");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -30,12 +36,27 @@ export const InlineEditCell = memo(function InlineEditCell({
             onClose();
             return;
         }
+
+        const problem = validate?.(trimmed);
+        if (problem) {
+            toast.error(problem);
+            inputRef.current?.focus();
+            return;
+        }
+
         try {
             await onSave(orderId, { [field]: trimmed });
             toast.success("Updated");
             onClose();
-        } catch {
-            toast.error("Failed to update");
+        } catch (err) {
+            // Was a bare `catch {}`: the edit failed, the operator saw a generic
+            // toast, and nothing was reported. Keep the field open so the value
+            // is not lost, and record why it failed.
+            reportOrderError(err, { operation: "orders-inline-edit", orderId, extra: { field } });
+            toast.error(
+                "Could not save",
+                err instanceof Error ? err.message : undefined,
+            );
         }
     };
 

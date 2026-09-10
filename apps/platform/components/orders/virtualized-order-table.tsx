@@ -3,7 +3,7 @@
 import { COD_RISK_REASON_LABELS, type CodRiskReason } from "@scheniders/shared";
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatIQD } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/supabase';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
@@ -11,7 +11,8 @@ import { getOrderAge, getStatusBadgeStyle } from '@/lib/order-format-utils';
 import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/ui/empty-states';
 import { OrderContextMenu } from '@/components/orders/table/context-menu';
-import { InlineEditCell } from '@/components/orders/table/inline-edit-cell';
+import { OrderInlineEdit } from '@/components/orders/table/order-inline-edit';
+import { useOrdersContext } from '@/components/providers/orders-provider';
 import { RowHoverPreview } from '@/components/orders/table/hover-preview';
 import { useOrderStore } from '@/store/use-order-store';
 import type { TableDensity } from '@/components/orders/table/density-toggle';
@@ -119,8 +120,6 @@ interface VirtualizedOrderTableProps {
     setShowDuplicateModal: (open: boolean) => void;
     modePrice: number;
     updateOrderStatus: (id: string, status: OrderStatus) => Promise<any>;
-    updateOrder?: (id: string, data: Record<string, any>) => Promise<any>;
-    deleteOrder?: (id: string) => Promise<any>;
     getRiskLevel: (phone: string) => 'low' | 'medium' | 'high' | 'blocked' | null;
     columnFilters: Record<string, string>;
     setColumnFilters: (filters: Record<string, string>) => void;
@@ -315,6 +314,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
     onMouseLeave,
     onRowDrop,
 }: any) {
+    const { language } = useLanguage();
     const isReturn = order.is_return;
     const isPriority = order.priority === "urgent" || order.priority === "high";
     const rowColor = order.tag_color;
@@ -438,12 +438,10 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 onMouseLeave={onMouseLeave}
             >
                 {isEditingField("customer_name") ? (
-                    <InlineEditCell
-                        value={order.customer_name}
+                    <OrderInlineEdit
                         orderId={order.id}
                         field="customer_name"
-                        onSave={updateOrder!}
-                        onClose={() => onStartEdit?.(null, null)}
+                        value={order.customer_name}
                     />
                 ) : (
                     <div className="flex items-center gap-2 min-w-0">
@@ -462,7 +460,19 @@ const VirtualTableRow = memo(function VirtualTableRow({
             </div>
 
             {/* Phone 1 */}
-            <div role="cell" className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}>
+            <div
+                role="cell"
+                className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}
+                onDoubleClick={(e) => { e.stopPropagation(); onStartEdit?.(order.id, "phone"); }}
+            >
+                {isEditingField("phone") ? (
+                    <OrderInlineEdit
+                        orderId={order.id}
+                        field="phone"
+                        value={order.phone || ""}
+                        className="font-mono"
+                    />
+                ) : (
                 <div className="relative inline-flex items-center gap-1 group/phone">
                     <span
                         className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && "text-amber-600 font-bold")}
@@ -480,6 +490,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         <Copy className="w-3 h-3 text-muted" />
                     </button>
                 </div>
+                )}
             </div>
 
             {/* Phone 2 */}
@@ -505,7 +516,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 onDoubleClick={(e) => { e.stopPropagation(); onStartEdit?.(order.id, "city"); }}
             >
                 {isEditingField("city") ? (
-                    <InlineEditCell value={order.city || ""} orderId={order.id} field="city" onSave={updateOrder} onClose={() => onStartEdit?.(null, null)} />
+                    <OrderInlineEdit orderId={order.id} field="city" value={order.city || ""} />
                 ) : (
                     <span className="text-xs text-muted">{order.city || "—"}</span>
                 )}
@@ -517,7 +528,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 onDoubleClick={(e) => { e.stopPropagation(); onStartEdit?.(order.id, "address_details"); }}
             >
                 {isEditingField("address_details") ? (
-                    <InlineEditCell value={order.address_details || ""} orderId={order.id} field="address_details" onSave={updateOrder} onClose={() => onStartEdit?.(null, null)} />
+                    <OrderInlineEdit orderId={order.id} field="address_details" value={order.address_details || ""} />
                 ) : (
                     <span className="text-xs text-muted truncate block w-full" title={order.address_details || ""}>
                         {order.address_details ? order.address_details.replace(order.city || "", "").replace(/^[\s,-]+/, "").trim() || "—" : "—"}
@@ -545,7 +556,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 <div className="flex flex-col items-start gap-0.5">
                     <div className="flex items-center gap-1">
                         <span className={cn("font-mono font-bold whitespace-nowrap", isReturn ? "text-xs text-red-600" : "text-sm text-emerald-600", !isReturn && Math.abs(Number(order.price)) > modePrice && modePrice > 0 && "text-amber-600", !isReturn && Math.abs(Number(order.price)) < modePrice && modePrice > 0 && "text-blue-600")}>
-                            {isReturn && "-"}{Math.abs(Number(order.price)).toLocaleString()} IQD
+                            {isReturn && "-"}{formatIQD(Math.abs(Number(order.price)))}
                         </span>
                         {!isReturn && Math.abs(Number(order.price)) > modePrice && modePrice > 0 && <TrendingUp className="w-3 h-3 text-amber-500" />}
                         {!isReturn && Math.abs(Number(order.price)) < modePrice && modePrice > 0 && <TrendingDown className="w-3 h-3 text-blue-500" />}
@@ -577,7 +588,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
             {/* Date - Recency + M-D + Time */}
             <div role="cell" className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}>
                 <div className="flex flex-col items-start leading-tight">
-                    <span className="text-[9px] text-muted font-medium">{getOrderAge(order.created_at)}</span>
+                    <span className="text-[9px] text-muted font-medium">{getOrderAge(order.created_at, language)}</span>
                     <span className="text-xs text-gray-700 font-mono">{formatDateShort(order.created_at)}</span>
                     <span className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>
                 </div>
@@ -629,8 +640,6 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     setShowDuplicateModal,
     modePrice,
     updateOrderStatus,
-    updateOrder,
-    deleteOrder,
     getRiskLevel,
     columnFilters,
     setColumnFilters,
@@ -653,9 +662,14 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Store state
+    // WF-4: `updateOrder` and `deleteOrder` used to be optional props that the
+    // one place rendering this table never passed, so inline edit, the colour
+    // tag, drag-to-reorder and the context menu's Delete were all dead. Taking
+    // them from the shared orders context leaves no prop to forget.
+    const { updateOrder, deleteOrder } = useOrdersContext();
     const density = useOrderStore((s) => s.tableDensity);
     const editingCell = useOrderStore((s) => s.editingCell);
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const setEditingCell = useOrderStore((s) => s.setEditingCell);
     const sortConfigs = useOrderStore((s) => s.sortConfigs);
     const hiddenColumns = useOrderStore((s) => s.hiddenColumns);
@@ -708,7 +722,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     const handleRowDrop = useCallback((e: React.DragEvent, targetOrderId: string) => {
         e.preventDefault();
         const sourceId = e.dataTransfer.getData('text/plain');
-        if (!sourceId || sourceId === targetOrderId || !updateOrder) return;
+        if (!sourceId || sourceId === targetOrderId) return;
         // Find the target's sequence number and assign it to the source
         const targetOrder = displayedOrders.find(o => o.id === targetOrderId);
         if (targetOrder?.sequence_number) {
@@ -723,12 +737,12 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     }, []);
 
     const handleStartEdit = useCallback((orderId: string | null, field: string | null) => {
-        if (orderId && field && updateOrder) {
+        if (orderId && field) {
             setEditingCell({ orderId, field });
         } else {
             setEditingCell(null);
         }
-    }, [setEditingCell, updateOrder]);
+    }, [setEditingCell]);
 
     const handleContextMenu = useCallback((e: React.MouseEvent, order: Order) => {
         setContextMenu({ x: e.clientX, y: e.clientY, order });

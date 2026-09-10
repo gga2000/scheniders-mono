@@ -14,28 +14,6 @@ export function generateOrderId(): string {
     return `LF-${random}${timestamp}-${year}`;
 }
 
-/**
- * Validate Iraqi phone number
- * Accepts formats: +9647XXXXXXXX, 9647XXXXXXXX, 07XXXXXXXX
- */
-export function validatePhone(phone: string): boolean {
-    if (!phone) return false;
-
-    // Convert Arabic numerals to English numerals
-    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
-
-    // Remove all non-digit and non-plus characters
-    cleaned = cleaned.replace(/[^\d+]/g, '');
-
-    // Check Iraqi formats
-    const patterns = [
-        /^\+9647\d{8}$/,     // +9647XXXXXXXX
-        /^9647\d{8}$/,       // 9647XXXXXXXX
-        /^07\d{8}$/,         // 07XXXXXXXX
-    ];
-
-    return patterns.some(pattern => pattern.test(cleaned));
-}
 
 /**
  * Phone validation result with detailed error information
@@ -198,6 +176,14 @@ export function normalizePhoneForSearch(phone: string | undefined | null): strin
     // Remove all non-digit characters
     cleaned = cleaned.replace(/\D/g, '');
 
+    // Remove the international access code so 00964... reduces to 964... and the
+    // country-code strip below can see it. Without this, 00964 lost only one
+    // leading zero and kept the 964, so it never matched a stored number.
+    // A local Iraqi number never begins 00, so this cannot eat a real prefix.
+    if (cleaned.startsWith('00')) {
+        cleaned = cleaned.substring(2);
+    }
+
     // Remove +964 or 964 prefix
     if (cleaned.startsWith('964')) {
         cleaned = cleaned.substring(3);
@@ -216,8 +202,14 @@ export function normalizePhoneForSearch(phone: string | undefined | null): strin
  * Calculate total price from items array
  */
 export function calculateTotal(items: OrderItem[]): number {
+    // Items come from a jsonb column, so price and quantity can arrive as
+    // strings. Coerce explicitly rather than relying on `*` doing it, and treat
+    // a missing or unparseable value as 0 so one bad line cannot turn the whole
+    // total into NaN.
     return items.reduce((sum, item) => {
-        return sum + (item.price * item.quantity);
+        const price = Number(item?.price) || 0;
+        const quantity = Number(item?.quantity) || 0;
+        return sum + price * quantity;
     }, 0);
 }
 
@@ -261,41 +253,6 @@ export interface ValidationErrors {
     [key: string]: string | undefined;
 }
 
-export function validateOrderForm(data: OrderFormData): ValidationErrors {
-    const errors: ValidationErrors = {};
-
-    // Customer name is required
-    if (!data.customer_name || data.customer_name.trim() === '') {
-        errors.customer_name = 'اسم العميل مطلوب';
-    }
-
-    // Phone is required and must be valid
-    if (!data.phone || data.phone.trim() === '') {
-        errors.phone = 'رقم الهاتف مطلوب';
-    } else if (!validatePhone(data.phone)) {
-        errors.phone = 'رقم الهاتف غير صحيح';
-    }
-
-    // At least one item is required
-    if (!data.items || data.items.length === 0) {
-        errors.items = 'يجب إضافة منتج واحد على الأقل';
-    } else {
-        // Validate each item
-        const invalidItems = data.items.some(item => {
-            return !item.name ||
-                !item.quantity ||
-                item.quantity <= 0 ||
-                !item.price ||
-                item.price <= 0;
-        });
-
-        if (invalidItems) {
-            errors.items = 'جميع المنتجات يجب أن تحتوي على اسم وكمية وسعر صحيح';
-        }
-    }
-
-    return errors;
-}
 
 /**
  * Format phone number to Iraqi standard

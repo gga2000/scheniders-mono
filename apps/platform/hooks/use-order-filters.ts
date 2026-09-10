@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue, useLayoutEffect } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useRef, useLayoutEffect, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
+import { reportOrderError } from "@/lib/order-telemetry";
+import { toast } from "@/hooks/use-toast";
 import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
-    getDefaultFilters,
     loadFilterPresetsFromStorage,
     saveFilterPresetsToStorage,
     createFilterPreset,
+    orderMatchesSearch,
 } from "@/lib/order-filter-utils";
-import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
-import { useOrderStore } from "@/store/use-order-store";
 
 // Normalize Arabic text for fuzzy search:
 // - Remove diacritics (tashkeel)
@@ -35,45 +37,22 @@ function normalizeArabicText(text: string): string {
 // =============================================
 
 interface UseOrderFiltersOptions {
+    /** Filter state is owned by useOrderFilterState so the fetch can read it first. */
+    filters: OrderFilters;
+    setFilters: (f: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => void;
+    clearFilters: () => void;
     orders: Order[];
     archivedOrders: Order[];
 }
 
-export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptions) {
-    const { getPreference, setPreference, userId } = useUserPreferences();
-    const hasLoadedUserPrefs = useRef(false);
+export function useOrderFilters({ orders, archivedOrders, filters, setFilters, clearFilters }: UseOrderFiltersOptions) {
 
-    // =============================================
-    // FILTER STATE
-    // =============================================
-
-    const [filters, setFiltersState] = useState<OrderFilters>(() => {
-        if (typeof window !== "undefined") {
-            try {
-                const stored = localStorage.getItem(`schneiders_prefs_anonymous_orderFilters`);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    // Strip riskLevel — it should not persist across sessions
-                    delete parsed.riskLevel;
-                    return parsed;
-                }
-            } catch {
-                // Fall through to default
-            }
-        }
-        return getDefaultFilters();
-    });
-
-    const setActiveDateRange = useOrderStore(s => s.setActiveDateRange);
-
-    // Sync local date filters to global store for shared context (e.g. Activity Feed)
-    useEffect(() => {
-        setActiveDateRange({
-            startDate: filters.dateFrom || null,
-            endDate: filters.dateTo || null
-        });
-    }, [filters.dateFrom, filters.dateTo, setActiveDateRange]);
-
+    // WF-3: saved views used to live only in localStorage, so they did not follow
+    // a user to another device or browser and were lost when site data was
+    // cleared. They now persist to `filter_presets`, which already existed with
+    // tenant-scoped RLS. localStorage is kept as the initial paint (so the list
+    // is not empty on first render) and as the source for a one-time migration
+    // of views a user had saved before this change.
     const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
         if (typeof window !== "undefined") {
             return loadFilterPresetsFromStorage();
@@ -81,30 +60,61 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         return [];
     });
 
-    // Reload filters when user auth resolves (goes from null to actual userId)
-    useEffect(() => {
-        if (userId && !hasLoadedUserPrefs.current) {
-            const saved = getPreference<OrderFilters>(PREFERENCE_KEYS.ORDER_FILTERS);
-            if (saved) {
-                delete saved.riskLevel;
-                setFiltersState(saved);
-            }
-            hasLoadedUserPrefs.current = true;
-        } else if (!userId) {
-            hasLoadedUserPrefs.current = false;
-        }
-    }, [userId, getPreference]);
+    const { tenantId } = useAuth();
 
-    // Wrapper to persist filters when they change
-    const setFilters = useCallback((newFilters: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => {
-        setFiltersState(prev => {
-            const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
-            // Strip riskLevel from persistence
-            const { riskLevel: _riskLevel, ...persistableFilters } = updated;
-            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
-            return updated;
-        });
-    }, [setPreference]);
+    useEffect(() => {
+        if (!tenantId) return;
+        let cancelled = false;
+
+        (async () => {
+            const { data, error } = await supabase
+                .from("filter_presets")
+                .select("id, name, filters, page, created_by, created_at")
+                .eq("page", "orders")
+                .order("created_at", { ascending: true });
+
+            if (cancelled) return;
+            if (error) {
+                // Keep whatever localStorage gave us rather than blanking the list.
+                reportOrderError(error, { operation: "orders-filter-presets-load", tenantId });
+                return;
+            }
+
+            const remote = (data ?? []) as FilterPreset[];
+
+            // One-time lift of pre-existing local views into the shared table.
+            const local = loadFilterPresetsFromStorage();
+            const missing = local.filter(l => !remote.some(r => r.name === l.name));
+            if (missing.length > 0) {
+                const { error: upErr } = await supabase.from("filter_presets").insert(
+                    missing.map(m => ({
+                        name: m.name,
+                        filters: m.filters,
+                        page: "orders",
+                        created_by: m.created_by ?? null,
+                        tenant_id: tenantId,
+                    })),
+                );
+                if (upErr) {
+                    reportOrderError(upErr, { operation: "orders-filter-presets-migrate", tenantId });
+                } else {
+                    const { data: refreshed } = await supabase
+                        .from("filter_presets")
+                        .select("id, name, filters, page, created_by, created_at")
+                        .eq("page", "orders")
+                        .order("created_at", { ascending: true });
+                    if (!cancelled && refreshed) {
+                        setFilterPresets(refreshed as FilterPreset[]);
+                        return;
+                    }
+                }
+            }
+
+            setFilterPresets(remote);
+        })();
+
+        return () => { cancelled = true; };
+    }, [tenantId]);
 
     const deferredOrders = useDeferredValue(orders);
     const deferredArchivedOrders = useDeferredValue(archivedOrders);
@@ -207,54 +217,11 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                     return false;
                 }
 
-                // Search query
+                // Search query — shared with the mobile screen via
+                // orderMatchesSearch so the two cannot drift. This block used to
+                // be a second, hand-maintained copy of the same predicate.
                 if (activeFilters.searchQuery) {
-                    const rawQuery = activeFilters.searchQuery;
-                    const query = normalizeArabicText(rawQuery);
-                    const queryLower = rawQuery.toLowerCase().trim();
-
-                    // If normalization results in empty string, don't match everything
-                    if (!query && !queryLower) return true;
-
-                    // Name: normalize Arabic for fuzzy matching
-                    const normalizedName = order.customer_name ? normalizeArabicText(order.customer_name) : "";
-                    const matchesName = query && normalizedName ? normalizedName.includes(query) : false;
-
-                    const normalizedPhoneQuery = normalizePhoneForSearch(rawQuery);
-                    const matchesPhone = order.phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.phone).includes(normalizedPhoneQuery) : false;
-                    const matchesSecondaryPhone = order.secondary_phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.secondary_phone).includes(normalizedPhoneQuery) : false;
-
-                    const matchesOrderId = order.order_id?.toLowerCase().includes(queryLower) ?? false;
-                    const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(queryLower) ?? false;
-
-                    const normalizedCity = order.city ? normalizeArabicText(order.city) : "";
-                    const matchesCity = query && normalizedCity ? normalizedCity.includes(query) : false;
-
-                    const normalizedAddress = order.address_details ? normalizeArabicText(order.address_details) : "";
-                    const matchesAddress = query && normalizedAddress ? normalizedAddress.includes(query) : false;
-
-                    const normalizedNotes = order.notes ? normalizeArabicText(order.notes) : "";
-                    const matchesNotes = query && normalizedNotes ? normalizedNotes.includes(query) : false;
-
-                    const matchesSequence = order.sequence_number ? String(order.sequence_number).includes(queryLower) : false;
-
-                    let matchesOriginalOrderId = false;
-                    if (order.original_order_id) {
-                        if (order.original_order_id.toLowerCase().includes(queryLower)) {
-                            matchesOriginalOrderId = true;
-                        } else {
-                            const parentOrder = ordersToFilter.find(o => o.id === order.original_order_id);
-                            if (parentOrder && parentOrder.order_id?.toLowerCase().includes(queryLower)) {
-                                matchesOriginalOrderId = true;
-                            }
-                        }
-                    }
-
-                    const isMatch = matchesName || matchesPhone || matchesSecondaryPhone || matchesOrderId ||
-                        matchesDeliveryId || matchesCity || matchesAddress || matchesNotes ||
-                        matchesSequence || matchesOriginalOrderId;
-
-                    return isMatch;
+                    return orderMatchesSearch(order, activeFilters.searchQuery, ordersToFilter);
                 }
 
                 return true;
@@ -272,10 +239,21 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
             ? [...deferredOrders, ...deferredArchivedOrders]
             : deferredOrders;
 
-        return applyFilters(ordersToFilter, deferredFilters).sort((a, b) => {
+        const filtered = applyFilters(ordersToFilter, deferredFilters);
+
+        // Parsing `created_at` inside the comparator allocated two Date objects
+        // per comparison — on a few thousand orders that is tens of thousands of
+        // allocations for every filter change. Resolve each timestamp once.
+        const createdAtMs = new Map<string, number>();
+        for (const order of filtered) {
+            const parsed = Date.parse(order.created_at);
+            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
+        }
+
+        return filtered.sort((a, b) => {
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0);
         });
     }, [deferredOrders, deferredArchivedOrders, deferredFilters, applyFilters]);
 
@@ -359,8 +337,36 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
     function saveFilterPreset(name: string) {
         const preset = createFilterPreset(name, filters, "orders");
         const updated = [...filterPresets, preset];
+        // Optimistic so the view appears immediately; the row id is replaced by
+        // the server's once the insert returns.
         setFilterPresets(updated);
         saveFilterPresetsToStorage(updated);
+
+        void (async () => {
+            const { data, error } = await supabase
+                .from("filter_presets")
+                .insert({
+                    name: preset.name,
+                    filters: preset.filters,
+                    page: "orders",
+                    created_by: preset.created_by ?? null,
+                    tenant_id: tenantId,
+                })
+                .select("id, name, filters, page, created_by, created_at")
+                .single();
+
+            if (error) {
+                reportOrderError(error, { operation: "orders-filter-preset-save", tenantId });
+                toast.error("Saved view kept on this device only", "It could not be synced to your account.");
+                return;
+            }
+            if (data) {
+                setFilterPresets(prev =>
+                    prev.map(p => (p.id === preset.id ? (data as FilterPreset) : p)),
+                );
+            }
+        })();
+
         return preset;
     }
 
@@ -375,11 +381,15 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
         const updated = filterPresets.filter((p) => p.id !== presetId);
         setFilterPresets(updated);
         saveFilterPresetsToStorage(updated);
+
+        void (async () => {
+            const { error } = await supabase.from("filter_presets").delete().eq("id", presetId);
+            if (error) {
+                reportOrderError(error, { operation: "orders-filter-preset-delete", tenantId });
+            }
+        })();
     }
 
-    function clearFilters() {
-        setFilters({ status: "all" });
-    }
 
     const latestFn = {
         setFilters,

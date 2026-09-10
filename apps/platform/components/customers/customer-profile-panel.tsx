@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
@@ -17,6 +17,7 @@ import { ReorderChoiceDialog } from "./reorder-choice-dialog";
 import { CreateOrderModal } from "../orders/create-order-modal";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { checkOrderIdExists } from "@/app/actions/orders";
+import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -27,6 +28,14 @@ interface CustomerProfilePanelProps {
 export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelProps) {
     const { phone } = customerSummary;
     const { t } = useLanguage();
+    const { session } = useAuth();
+
+    // The server action authenticates the caller and derives their tenant from
+    // this token, so the duplicate check only ever sees this tenant's orders.
+    const checkOrderIdExistsForCaller = useCallback(
+        (orderId: string) => checkOrderIdExists(orderId, undefined, session?.access_token ?? ""),
+        [session?.access_token],
+    );
 
     // Fetch the deep order history and notes for this specific customer
     const { data: deepData, isLoading, isError } = useQuery({
@@ -368,7 +377,7 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
                         setOrderInitialData(null);
                     }}
                     onCreate={createOrder}
-                    checkOrderIdExists={checkOrderIdExists}
+                    checkOrderIdExists={checkOrderIdExistsForCaller}
                     initialData={orderInitialData}
                 />
             )}

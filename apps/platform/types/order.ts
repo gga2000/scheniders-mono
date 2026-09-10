@@ -57,8 +57,27 @@ export interface OrderItem {
 
 export interface Order {
     id: string;
+    /**
+     * Owning tenant. Optional in this shape because the client rarely reads it —
+     * every client query is already tenant-scoped by RLS — but server code that
+     * writes a related row needs it, and a `select("*")` always returns it.
+     */
+    tenant_id?: string;
     created_at: string;
     updated_at?: string;
+    /**
+     * Server-assigned revision counter, incremented by the
+     * `increment_orders_version` BEFORE UPDATE trigger. Used as the
+     * optimistic-concurrency token (see order-repository.update) and for
+     * realtime dedup — a client must never set this itself.
+     */
+    version?: number;
+    /**
+     * Soft-delete timestamp. Rows keep it until the cleanup cron removes them
+     * 30 days later (app/api/cron/cleanup-deleted-orders). `null`/absent means
+     * the order is live.
+     */
+    deleted_at?: string | null;
     order_id: string;
     customer_name: string;
     phone: string;
@@ -94,6 +113,12 @@ export interface Order {
     sequence_number?: number;
     delivered_at?: string;
     cancelled_at?: string;
+    /**
+     * Set by the `trg_order_completed_at` trigger when an order reaches
+     * `completed`. Used as the fallback realized-revenue instant for rows that
+     * completed without a recorded delivery (see lib/order-revenue).
+     */
+    completed_at?: string;
     printed_at?: string;
     print_count?: number;
     last_batch_id?: string;
@@ -199,6 +224,36 @@ export interface OrderFilters {
     /** Sub-filter for the Confirmed / All tabs to narrow to return or replacement orders. */
     orderType?: 'refund' | 'replacement';
 }
+
+/**
+ * What order creation accepts.
+ *
+ * ARCH-3: CreateOrderModal declared `onCreate: (orderData: any) => Promise<any>`,
+ * so every caller had to cast. This mirrors `createOrder` in use-order-crud so
+ * the modal and the hook agree without an `any` in between.
+ */
+type OrderColumnsWithDbDefaults =
+    | "status"
+    | "priority"
+    | "payment_status"
+    | "is_return"
+    | "is_replacement"
+    | "is_archived"
+    // Generated server-side by create_order_atomic from the global counter
+    // (see INT-7), so a caller neither knows nor should invent it.
+    | "order_id";
+
+export type CreateOrderInput =
+    // Columns the database defaults are optional here, so a caller is not made
+    // to invent values Postgres already supplies (verified against the live
+    // schema: status 'new', priority 'normal', payment_status 'cod', and the
+    // three booleans false).
+    Omit<Order, "id" | "created_at" | "updated_at" | OrderColumnsWithDbDefaults> &
+    Partial<Pick<Order, OrderColumnsWithDbDefaults>> & {
+        custom_created_at?: string | null;
+    };
+
+export type CreateOrderResult = { success: boolean; data?: Order; error?: string };
 
 export interface FilterPreset {
     id: string;

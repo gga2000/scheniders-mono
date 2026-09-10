@@ -88,6 +88,20 @@ export function generateExportFilename(
 // =============================================
 
 /**
+ * Quote a value for CSV.
+ *
+ * Cells were wrapped in quotes without escaping the quotes inside them, so a
+ * single `"` in a customer name or address ended the field early and shifted
+ * every remaining column on that row. No live order contains one today, which is
+ * why it had not surfaced, but 11 real orders do contain newlines — those are
+ * only safe because the value is quoted, so the quoting has to be correct.
+ * RFC 4180: double the quote character.
+ */
+function toCsvCell(cell: string | number): string {
+    return `"${String(cell).replace(/"/g, '""')}"`;
+}
+
+/**
  * Export orders to CSV format
  */
 export function exportOrdersToCSV(orders: Order[]): {
@@ -98,7 +112,7 @@ export function exportOrdersToCSV(orders: Order[]): {
 
     const csvContent = [
         ORDER_EXPORT_HEADERS.join(","),
-        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+        ...rows.map((row) => row.map(toCsvCell).join(",")),
     ].join("\n");
 
     downloadFile(

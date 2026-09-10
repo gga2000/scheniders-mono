@@ -39,3 +39,38 @@ export async function restoreDeletedOrder(orderId: string) {
     
     return { success: true };
 }
+
+/**
+ * Restore several soft-deleted orders at once.
+ *
+ * WF-2: bulk delete had no undo, even though the delete is only a soft delete
+ * and the rows sit recoverable until the 30-day purge. Restoring one id at a
+ * time from the client would be a request per order; this is a single statement.
+ *
+ * Tenant scoping comes from RLS: this uses the caller's session client, so the
+ * update can only touch rows in tenants they belong to.
+ */
+export async function restoreDeletedOrders(orderIds: string[]) {
+    if (orderIds.length === 0) return { success: true, restored: 0 };
+
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+        .from("orders")
+        .update({ deleted_at: null })
+        .in("id", orderIds)
+        .not("deleted_at", "is", null)
+        .select("id");
+
+    if (error) {
+        console.error("Failed to restore orders:", error);
+        return { success: false, error: error.message };
+    }
+
+    revalidatePath("/orders");
+    revalidatePath("/orders/trash");
+
+    // `.in()` succeeds even when RLS filters rows out, so report what actually
+    // came back rather than assuming the whole batch was restored.
+    return { success: true, restored: (data ?? []).length };
+}

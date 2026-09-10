@@ -25,7 +25,7 @@ export interface OrderActivityNotification {
  */
 export function useOrderActivityNotifications() {
     const queryClient = useQueryClient();
-    const { activeDateRange } = useOrderStore();
+    const activeDateRange = useOrderStore((state) => state.activeDateRange);
 
     // Fetch notifications from the database based on the active date range
     const { data: notifications = [], isLoading } = useQuery({

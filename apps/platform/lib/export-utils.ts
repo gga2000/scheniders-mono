@@ -1,6 +1,10 @@
 import { Product, Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { extractGovernorate } from "@/lib/address-validator";
+import { computeCodAmount } from "@/lib/order-money";
+
+/** Courier-facing note (Arabic) flagging an order as already paid → collect 0 COD. */
+const PREPAID_NOTE = 'طلب مدفوع مسبقا';
 
 /**
  * Helper to clean phone numbers for export
@@ -77,15 +81,25 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
         // Get product type: Join all item names with ' + ' as requested
         const productType = order.items?.map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
 
+        // Prepaid orders: courier must not collect COD, so the amount is 0 and a
+        // note flags it as already paid for the courier.
+        const isPrepaid = order.payment_status === 'prepaid' || order.payment_status === 'paid';
+        // `price` excludes delivery (see lib/order-money) — the courier must
+        // collect price + delivery_fee, or the merchant eats the delivery.
+        const codAmount = computeCodAmount(order);
+        const notes = isPrepaid
+            ? [PREPAID_NOTE, order.notes].filter(Boolean).join(' - ')
+            : (order.notes || '');
+
         return {
-            'ملاحظات': order.notes || '',
+            'ملاحظات': notes,
             'عدد القطع': totalQuantity,
             'يحتوي على ارجاع بضاعة؟': (order.is_return || order.is_replacement) ? 'Y' : 'N',
             'هاتف المستلم': phone,
             'تفاصيل العنوان': order.address_details || order.city || '',
             'شفرة المحافظة': govCode,
             'أسم المستلم': order.customer_name || '',
-            'المبلغ عراقي': order.price || 0,
+            'المبلغ عراقي': codAmount,
             'رقم الوصل': cleanOrderId,
             'كود الشحنة': '',
             'هاتف المستلم 2': secondaryPhone,
@@ -163,7 +177,15 @@ export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: O
         let govName = '';
         const govCode = order.validated_governorate_code || order.governorate_code || '';
         if (govCode) {
-            const { governorate } = extractGovernorate(govCode, undefined, undefined);
+            // INT-3: the code was passed in the `city` slot. The signature is
+            // extractGovernorate(city?, governorateCode?, addressDetails?), so the
+            // code-resolution branch never ran. That branch is not merely tidier:
+            // 16 of the 18 canonical codes return null from the city slot, and
+            // only BGD and KOT happen to resolve there — which is why a spot-check
+            // with Baghdad looks fine. 214 real orders hold one of the other 16
+            // codes with a city that names no province, and for those the courier
+            // received an empty governorate while the data sat in the row.
+            const { governorate } = extractGovernorate(undefined, govCode, undefined);
             govName = governorate?.nameAr || '';
         }
         if (!govName && order.city) {
@@ -173,6 +195,13 @@ export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: O
 
         const productType = order.items?.map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
 
+        // Same prepaid handling as the Prime CSV: computeCodAmount already
+        // returns 0, and the courier gets an explicit note saying why.
+        const isPrepaid = order.payment_status === 'prepaid' || order.payment_status === 'paid';
+        const xlsxNotes = isPrepaid
+            ? [PREPAID_NOTE, order.notes].filter(Boolean).join(' - ')
+            : (order.notes || '');
+
         return {
             'اسم الزبون': order.customer_name || '',
             'رقم الهاتف الاساسي': phone,
@@ -181,9 +210,9 @@ export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: O
             'المنطقة': order.address_details || '',
             'نوع البضاعه': productType,
             'عدد القطع': totalQuantity,
-            'السعر مع التوصيل': order.price || 0,
+            'السعر مع التوصيل': computeCodAmount(order),
             'حجم الطلب': 'عادي',
-            'الملاحظات': order.notes || '',
+            'الملاحظات': xlsxNotes,
             'نوع الطلب': 'طلب جديد',
         };
     });

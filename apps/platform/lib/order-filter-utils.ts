@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 
 /**
@@ -13,16 +15,66 @@ import { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 // PHONE NORMALIZATION
 // =============================================
 
+// Phone normalization lives in lib/order-utils and is kept in lockstep with the
+// SQL `normalize_phone_for_search` via lib/__fixtures__/phone-normalization.json.
+// This module used to carry its own copy under the same name, which normalized
+// differently — it left Arabic-Indic digits and separators such as "." intact —
+// so a phone typed into the search box was matched by different rules than the
+// ones used for duplicate detection and the database index.
+export { normalizePhoneForSearch };
+
+
 /**
- * Normalize phone number for search comparison
- * Removes common Iraqi country codes and leading zeros
+ * Whether one order matches a free-text search query.
+ *
+ * MOB-2: the mobile screen had its own search — a plain `includes()` over a
+ * concatenated string — so a phone typed with spaces, or an Arabic name spelled
+ * with a different alef, found nothing there while the same query worked on
+ * desktop. Both now call this.
+ *
+ * `orders` is needed only to resolve a return order's parent by UUID so a search
+ * for the parent's human-readable number also finds the return.
  */
-export function normalizePhoneForSearch(phone: string): string {
-    if (!phone) return "";
-    // Remove spaces, dashes, and common prefixes
-    return phone
-        .replace(/[\s\-\(\)]/g, "")
-        .replace(/^(\+964|964|00964|0)/, "");
+export function orderMatchesSearch(
+    order: Order,
+    rawQuery: string,
+    orders: readonly Order[] = [],
+): boolean {
+    const query = normalizeArabicText(rawQuery);
+    const queryLower = rawQuery.toLowerCase().trim();
+
+    // An all-punctuation query normalizes to nothing; matching everything then
+    // would be worse than matching nothing.
+    if (!query && !queryLower) return true;
+
+    const normalizedName = order.customer_name ? normalizeArabicText(order.customer_name) : "";
+    if (query && normalizedName && normalizedName.includes(query)) return true;
+
+    const normalizedPhoneQuery = normalizePhoneForSearch(rawQuery);
+    if (order.phone && normalizedPhoneQuery && normalizePhoneForSearch(order.phone).includes(normalizedPhoneQuery)) return true;
+    if (order.secondary_phone && normalizedPhoneQuery && normalizePhoneForSearch(order.secondary_phone).includes(normalizedPhoneQuery)) return true;
+
+    if (order.order_id?.toLowerCase().includes(queryLower)) return true;
+    if (order.delivery_order_id?.toLowerCase().includes(queryLower)) return true;
+
+    const normalizedCity = order.city ? normalizeArabicText(order.city) : "";
+    if (query && normalizedCity && normalizedCity.includes(query)) return true;
+
+    const normalizedAddress = order.address_details ? normalizeArabicText(order.address_details) : "";
+    if (query && normalizedAddress && normalizedAddress.includes(query)) return true;
+
+    const normalizedNotes = order.notes ? normalizeArabicText(order.notes) : "";
+    if (query && normalizedNotes && normalizedNotes.includes(query)) return true;
+
+    if (order.sequence_number && String(order.sequence_number).includes(queryLower)) return true;
+
+    if (order.original_order_id) {
+        if (order.original_order_id.toLowerCase().includes(queryLower)) return true;
+        const parentOrder = orders.find(o => o.id === order.original_order_id);
+        if (parentOrder?.order_id?.toLowerCase().includes(queryLower)) return true;
+    }
+
+    return false;
 }
 
 /**
@@ -48,188 +100,26 @@ export function normalizeArabicText(text: string): string {
 // =============================================
 
 /**
- * Apply filters to an array of orders
- * This is a pure function that can be used anywhere
+ * Whether one order matches the risk / "flagged" filter.
+ *
+ * MOB-2: this predicate existed twice — once in the desktop page's post-hook
+ * `filteredOrders` memo and once in `MobileOrdersPage` — so the two screens
+ * could disagree about what "flagged" means. They now call this.
+ *
+ * "Flagged" is deliberately not a risk level: it means the order has a data
+ * quality problem, or the customer rejected it. Every other value is the risk
+ * level joined from the database.
  */
-export function applyOrderFilters(
-    orders: Order[],
-    filters: OrderFilters
-): Order[] {
-    return orders.filter((order) => {
-        // Status filter
-        const statusFilter = filters.status as string;
-        if (statusFilter && statusFilter !== "all") {
-            // Special handling for "needs_review" filter
-            if (statusFilter === "needs_review") {
-                const needsReview = checkIfOrderNeedsReview(order);
-                if (!needsReview) return false;
-            } else if (order.status !== statusFilter) {
-                return false;
-            }
-        }
-
-        // Date range filter
-        if (filters.dateFrom) {
-            const orderDate = new Date(order.created_at);
-            const fromDate = new Date(filters.dateFrom);
-            fromDate.setHours(0, 0, 0, 0);
-            if (orderDate < fromDate) return false;
-        }
-        if (filters.dateTo) {
-            const orderDate = new Date(order.created_at);
-            const toDate = new Date(filters.dateTo);
-            toDate.setHours(23, 59, 59, 999);
-            if (orderDate > toDate) return false;
-        }
-
-        // City filter
-        if (filters.city && order.city !== filters.city) {
-            return false;
-        }
-
-        // Product filter
-        if (filters.product) {
-            const hasProduct = order.items?.some((item) =>
-                item.name.toLowerCase().includes(filters.product!.toLowerCase())
-            );
-            if (!hasProduct) return false;
-        }
-
-        // Priority filter
-        if (filters.priority && order.priority !== filters.priority) {
-            return false;
-        }
-
-        // Payment status filter
-        if (filters.paymentStatus && order.payment_status !== filters.paymentStatus) {
-            return false;
-        }
-
-        // Return orders filter
-        if (filters.isReturn !== undefined && order.is_return !== filters.isReturn) {
-            return false;
-        }
-
-        // Search query
-        if (filters.searchQuery) {
-            const rawQuery = filters.searchQuery;
-            const query = normalizeArabicText(rawQuery);
-            const queryLower = rawQuery.toLowerCase().trim();
-
-            // If normalization results in empty string, don't match everything
-            if (!query && !queryLower) return true;
-
-            const normalizedName = order.customer_name ? normalizeArabicText(order.customer_name) : "";
-            const matchesName = query && normalizedName ? normalizedName.includes(query) : false;
-
-            const normalizedPhoneQuery = normalizePhoneForSearch(rawQuery);
-            const matchesPhone = order.phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.phone).includes(normalizedPhoneQuery) : false;
-            const matchesSecondaryPhone = order.secondary_phone && normalizedPhoneQuery ? normalizePhoneForSearch(order.secondary_phone).includes(normalizedPhoneQuery) : false;
-
-            const matchesOrderId = order.order_id?.toLowerCase().includes(queryLower) ?? false;
-            const matchesDeliveryId = order.delivery_order_id?.toLowerCase().includes(queryLower) ?? false;
-
-            const normalizedCity = order.city ? normalizeArabicText(order.city) : "";
-            const matchesCity = query && normalizedCity ? normalizedCity.includes(query) : false;
-
-            const normalizedAddress = order.address_details ? normalizeArabicText(order.address_details) : "";
-            const matchesAddress = query && normalizedAddress ? normalizedAddress.includes(query) : false;
-
-            const normalizedNotes = order.notes ? normalizeArabicText(order.notes) : "";
-            const matchesNotes = query && normalizedNotes ? normalizedNotes.includes(query) : false;
-
-            const matchesSequence = order.sequence_number ? String(order.sequence_number).includes(queryLower) : false;
-
-            // Fix for matching return orders:
-            // order.original_order_id is a UUID. We need to check if the UUID's corresponding order_id matches the query.
-            let matchesOriginalOrderId = false;
-            if (order.original_order_id) {
-                // Direct UUID match (unlikely but possible)
-                if (order.original_order_id.toLowerCase().includes(queryLower)) {
-                    matchesOriginalOrderId = true;
-                } else {
-                    // Look up the parent order in the array to check its human-readable order_id
-                    const parentOrder = orders.find(o => o.id === order.original_order_id);
-                    if (parentOrder && parentOrder.order_id?.toLowerCase().includes(queryLower)) {
-                        matchesOriginalOrderId = true;
-                    }
-                }
-            }
-
-            if (!matchesName && !matchesPhone && !matchesSecondaryPhone && !matchesOrderId && !matchesDeliveryId && !matchesCity && !matchesAddress && !matchesNotes && !matchesSequence && !matchesOriginalOrderId) {
-                return false;
-            }
-        }
-
-        return true;
-    });
-}
-
-/**
- * Check if an order needs manual review
- */
-export function checkIfOrderNeedsReview(order: Order): boolean {
-    // Has warning flags in notes
-    if (order.notes && order.notes.includes("⚠️")) return true;
-
-    // Empty items and not a manual order
-    if (
-        (!order.items || order.items.length === 0) &&
-        order.customer_name !== "Manual Order"
-    ) {
-        return true;
+export function orderMatchesRiskLevel(
+    order: Order,
+    riskLevel: NonNullable<OrderFilters["riskLevel"]>,
+): boolean {
+    if (riskLevel === "flagged") {
+        return isOrderFlagged(order) || order.status === "rejected";
     }
-
-    // Placeholder customer name
-    if (
-        order.customer_name?.startsWith("Customer ") &&
-        order.customer_name !== "Customer"
-    ) {
-        return true;
-    }
-
-    return false;
+    return order.risk_data?.level === riskLevel;
 }
 
-/**
- * Sort orders with pinned orders first, then by date descending
- */
-export function sortOrders(orders: Order[]): Order[] {
-    return [...orders].sort((a, b) => {
-        // Pinned orders always come first
-        if (a.is_pinned && !b.is_pinned) return -1;
-        if (!a.is_pinned && b.is_pinned) return 1;
-        // Then sort by date descending (newest first)
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-}
-
-/**
- * Calculate status counts for a set of orders
- */
-export function calculateStatusCounts(orders: Order[]): Record<string, number> {
-    const counts: Record<string, number> = {
-        all: orders.length,
-        new: 0,
-        contacted: 0,
-        confirmed: 0,
-        in_transit: 0,
-        delivered: 0,
-        completed: 0,
-        rejected: 0,
-        no_response: 0,
-        return_pending: 0,
-        suspended: 0,
-    };
-
-    orders.forEach((order) => {
-        if (counts[order.status] !== undefined) {
-            counts[order.status]++;
-        }
-    });
-
-    return counts;
-}
 
 // =============================================
 // FILTER PRESETS
@@ -280,23 +170,7 @@ export function createFilterPreset(
 // AVAILABLE OPTIONS EXTRACTORS
 // =============================================
 
-/**
- * Get unique cities from orders
- */
-export function getAvailableCities(orders: Order[]): string[] {
-    return [...new Set(orders.map((o) => o.city).filter(Boolean))] as string[];
-}
 
-/**
- * Get unique products from orders
- */
-export function getAvailableProducts(orders: Order[]): string[] {
-    return [
-        ...new Set(
-            orders.flatMap((o) => o.items?.map((i) => i.name) || []).filter(Boolean)
-        ),
-    ] as string[];
-}
 
 // =============================================
 // DATE UTILITIES

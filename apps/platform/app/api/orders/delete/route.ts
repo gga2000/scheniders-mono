@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, createSupabaseServiceClient } from '@/lib/supabase-server';
+import { orderIdsBodySchema, toOrderUuids } from '@/lib/order-api-schemas';
+import { reportOrderError } from '@/lib/order-telemetry';
+
+/** Roles allowed to delete orders. Anything else — including `viewer` and a
+ *  user with no profile row — is denied. */
+const DELETE_ALLOWED_ROLES = ['admin', 'super_admin', 'employee'];
 
 /**
  * POST /api/orders/delete
@@ -38,24 +44,51 @@ export async function POST(request: NextRequest) {
         const t3 = performance.now();
         const { data: profile } = await supabaseAdmin
             .from('user_profiles')
-            .select('role')
+            .select('role, current_tenant_id, is_active')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
         const t4 = performance.now();
         console.log(`[Perf] Admin role check took: ${(t4 - t3).toFixed(2)}ms`);
 
-        if (profile?.role === 'viewer') {
+        // Deactivating a user does not revoke their session, so check it here.
+        if (profile?.is_active === false) {
             return NextResponse.json(
-                { success: false, error: 'Viewers cannot delete orders' },
+                { success: false, error: 'Account deactivated' },
                 { status: 403 }
             );
         }
 
-        const { ids } = await request.json();
-
-        if (!Array.isArray(ids) || ids.length === 0) {
+        // Positive allow-list: a missing profile (role === undefined) must not
+        // fall through the gate the way a `!== 'viewer'` check would.
+        if (!DELETE_ALLOWED_ROLES.includes(profile?.role ?? '')) {
             return NextResponse.json(
-                { success: false, error: 'No order IDs provided' },
+                { success: false, error: 'You do not have permission to delete orders' },
+                { status: 403 }
+            );
+        }
+
+        // Tenant comes from the caller's session, never from the request body.
+        const tenantId = profile?.current_tenant_id as string | undefined;
+        if (!tenantId) {
+            return NextResponse.json(
+                { success: false, error: 'No active tenant' },
+                { status: 400 }
+            );
+        }
+
+        const parsedBody = orderIdsBodySchema.safeParse(await request.json());
+        if (!parsedBody.success) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid request: `ids` must be 1-500 order ids' },
+                { status: 400 }
+            );
+        }
+        // Narrow to real UUIDs: optimistic `temp-*` rows have no server row and
+        // must not fail the rest of the batch.
+        const ids = toOrderUuids(parsedBody.data.ids);
+        if (ids.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'No valid order ids provided' },
                 { status: 400 }
             );
         }
@@ -65,7 +98,8 @@ export async function POST(request: NextRequest) {
         const { data: orderSnapshots } = await supabaseAdmin
             .from('orders')
             .select('id, order_id, customer_name, phone, status, price, items')
-            .in('id', ids);
+            .in('id', ids)
+            .eq('tenant_id', tenantId);
         const t6 = performance.now();
         console.log(`[Perf] Snapshot fetch took: ${(t6 - t5).toFixed(2)}ms`);
 
@@ -80,7 +114,8 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin
             .from('orders')
             .update({ original_order_id: null })
-            .in('original_order_id', ids);
+            .in('original_order_id', ids)
+            .eq('tenant_id', tenantId);
         const t10 = performance.now();
         console.log(`[Perf] FK unlink update took: ${(t10 - t9).toFixed(2)}ms`);
 
@@ -90,6 +125,7 @@ export async function POST(request: NextRequest) {
             .from('orders')
             .update({ deleted_at: new Date().toISOString() })
             .in('id', ids)
+            .eq('tenant_id', tenantId)
             .select('id');
         const t12 = performance.now();
         console.log(`[Perf] Actual delete took: ${(t12 - t11).toFixed(2)}ms`);
@@ -104,26 +140,38 @@ export async function POST(request: NextRequest) {
 
         const deletedIds = (deletedRows || []).map(r => r.id);
         
-        // Log deletion audit to deletion_log table ONLY for successfully deleted orders
+        // Record who deleted what, for the orders that actually got deleted.
+        // Deliberately no customer data: orders are soft-deleted, so the order
+        // row itself is the recovery path and a second copy of names and phones
+        // would be PII duplicated into another table. See OBS-2.
         if (orderSnapshots && deletedIds.length > 0) {
-            const successfullyDeletedSnapshots = orderSnapshots.filter(s => deletedIds.includes(s.id));
-            if (successfullyDeletedSnapshots.length > 0) {
+            const deleted = orderSnapshots.filter(s => deletedIds.includes(s.id));
+            if (deleted.length > 0) {
                 const t7 = performance.now();
                 const { error: logError } = await supabaseAdmin
-                    .from('deletion_log')
+                    .from('order_deletion_log')
                     .insert({
+                        tenant_id: tenantId,
                         deleted_by: user.id,
+                        deleted_by_email: user.email ?? null,
                         deleted_at: new Date().toISOString(),
-                        order_count: successfullyDeletedSnapshots.length,
-                        order_ids: successfullyDeletedSnapshots.map(s => s.id),
-                        order_snapshots: successfullyDeletedSnapshots,
+                        order_count: deleted.length,
+                        order_ids: deleted.map(s => s.id),
+                        order_numbers: deleted.map(s => String(s.order_id)),
                     });
-                    
+
                 const t8 = performance.now();
                 console.log(`[Perf] Audit log insert took: ${(t8 - t7).toFixed(2)}ms`);
                 if (logError) {
-                    // Table may not exist yet - fall back to console logging
-                    console.warn('[Deletion Audit] Could not write to deletion_log table:', logError.message);
+                    // The deletion itself succeeded, so this must not fail the
+                    // request — but a lost audit record was previously only a
+                    // console warning, which is how the trail went missing
+                    // unnoticed for the entire life of the feature.
+                    reportOrderError(new Error(`Deletion audit write failed: ${logError.message}`), {
+                        operation: 'orders-deletion-audit-write',
+                        tenantId,
+                        extra: { orderCount: deleted.length },
+                    });
                 }
             }
         }

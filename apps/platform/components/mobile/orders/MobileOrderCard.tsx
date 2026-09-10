@@ -4,6 +4,8 @@ import React, { memo } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { formatShortDate, formatTime, getOrderAge, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
+import { useLanguage } from "@/hooks/use-language";
+import { ALL_ORDER_STATUSES } from "@/lib/schemas";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
@@ -12,6 +14,7 @@ import { cn, getStatusLabel } from "@/lib/utils";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
+import { useStatusLabel } from "@/hooks/use-status-label";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -46,6 +49,8 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     archivedOrderCount = 0,
     onOpenTemplatePanel,
 }: MobileOrderCardProps) {
+    const { t, language } = useLanguage();
+    const orderStatusLabel = useStatusLabel();
     const isReturn = order.is_return;
     const items = getItemsDisplay(order.items || []);
     const itemsText = items.length > 0
@@ -57,7 +62,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     const isValidPhone2 = phone2 ? validatePhoneDetailed(phone2).isValid : false;
     const governorateCode = getGovernorateCode(order);
     const fullAddress = getFullAddress(order.city, order.address_details);
-    const orderAge = getOrderAge(order.created_at);
+    const orderAge = getOrderAge(order.created_at, language);
 
     // If not explicitly passed, try to extract from order object if available
     const resolvedRiskLevel = riskLevel || order.risk_data?.level;
@@ -114,10 +119,6 @@ export const MobileOrderCard = memo(function MobileOrderCard({
         );
     };
 
-    const ORDER_STATUSES = [
-        "new", "pending_checkout", "contacted", "confirmed", "in_transit", "delivered",
-        "completed", "cancelled", "rejected", "no_response", "return_pending", "suspended"
-    ] as const;
 
     const getStatusIcon = (status: Order["status"]) => {
         switch (status) {
@@ -257,12 +258,12 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         getStatusBadgeStyle(order.status),
                                         isReturn && "bg-rose-100 text-rose-700"
                                     )}>
-                                        {getStatusLabel(order.status, order.is_return || false) || order.status.replace('_', ' ')}
+                                        {orderStatusLabel(order.status, order.is_return || false) || order.status.replace('_', ' ')}
                                     </div>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-[180px] p-2 space-y-1 rounded-xl bg-(--card-bg) border-(--card-border) shadow-xl z-50">
                                     <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">تغيير حالة الطلب</div>
-                                    {ORDER_STATUSES.map((status) => (
+                                    {ALL_ORDER_STATUSES.map((status) => (
                                         <DropdownMenuItem
                                             key={status}
                                             onClick={(e) => {
@@ -276,7 +277,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                             )}
                                         >
                                             {getStatusIcon(status)}
-                                            {getStatusLabel(status, order.is_return || false) || status.replace('_', ' ')}
+                                            {orderStatusLabel(status, order.is_return || false) || status.replace('_', ' ')}
                                             {order.status === status && <CheckCircle className="w-3.5 h-3.5 ml-auto opacity-70" />}
                                         </DropdownMenuItem>
                                     ))}
@@ -307,13 +308,13 @@ export const MobileOrderCard = memo(function MobileOrderCard({
             </div>
 
             {/* Bottom Row: WhatsApp, Items & Price */}
-            <div className="flex items-end justify-between gap-3 mt-1 pt-2 border-t border-(--card-border)/40 w-full" dir="rtl">
+            <div className="flex flex-row-reverse items-end justify-between gap-3 mt-1 pt-2 border-t border-(--card-border)/40 w-full">
 
                 {/* Right Side Group: WhatsApp then Items */}
-                <div className="flex flex-1 min-w-0 items-end justify-start gap-4 text-right">
+                <div className="flex flex-row-reverse flex-1 min-w-0 items-end justify-start gap-4 text-right">
 
                     {/* Touch-optimized Actions (Far Right in RTL) */}
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex flex-row-reverse items-center gap-1.5 shrink-0">
                         {/* Follow-up cue badge */}
                         {needsFollowUp && (
                             <div className={cn(
@@ -323,9 +324,8 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     : "bg-amber-50 text-amber-700 border-amber-300"
                             )}>
                                 {needsDiscount ? <Gift className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
-                                {needsDiscount
-                                    ? `مرت ${Math.floor(hoursSinceCreated)} ساعة (خصم)`
-                                    : `مرت ${Math.floor(hoursSinceCreated)} ساعة (تذكير)`}
+                                {t(needsDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder")
+                                    .replace("{hours}", String(Math.floor(hoursSinceCreated)))}
                             </div>
                         )}
 
@@ -341,7 +341,9 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                         try {
                                             const link = generateWhatsAppLink(
                                                 phone2,
-                                                `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+                                                t("orders.whatsapp.greeting")
+                                                    .replace("{name}", order.customer_name ?? "")
+                                                    .replace("{orderId}", String(order.order_id))
                                             );
                                             window.open(link, "_blank");
                                         } catch (error) {
@@ -351,7 +353,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                 }}
                                 disabled={!isValidPhone2}
                                 className={cn(
-                                    "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
+                                    "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white touch-target-hit",
                                     isValidPhone2
                                         ? "bg-[#1E1E1E] active:scale-95"
                                         : "bg-gray-200 text-gray-400 cursor-not-allowed",
@@ -374,7 +376,9 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     try {
                                         const link = generateWhatsAppLink(
                                             order.phone,
-                                            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
+                                            t("orders.whatsapp.greeting")
+                                                    .replace("{name}", order.customer_name ?? "")
+                                                    .replace("{orderId}", String(order.order_id))
                                         );
                                         window.open(link, "_blank");
                                     } catch (error) {
@@ -384,7 +388,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                             }}
                             disabled={!isValidPhone}
                             className={cn(
-                                "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white",
+                                "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all text-white touch-target-hit",
                                 isValidPhone
                                     ? "bg-[#1E1E1E] active:scale-95"
                                     : "bg-gray-200 text-gray-400 cursor-not-allowed",
@@ -403,11 +407,11 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                     </div>
 
                     {/* Items Description (Left of WhatsApp in RTL) */}
-                    <div className="flex flex-wrap justify-start gap-1.5 w-full pb-px" dir="rtl">
+                    <div className="flex flex-row-reverse flex-wrap justify-start gap-1.5 w-full pb-px text-right">
                         {order.items?.map((item, index) => (
                             <div
                                 key={index}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background rounded-lg text-[11px] font-medium border border-(--card-border)/60 shadow-sm"
+                                className="flex flex-row-reverse items-center gap-1.5 px-2.5 py-1.5 bg-background rounded-lg text-[11px] font-medium border border-(--card-border)/60 shadow-sm"
                             >
                                 <span className="text-foreground line-clamp-1">{item.name}</span>
                                 {item.quantity > 1 && (

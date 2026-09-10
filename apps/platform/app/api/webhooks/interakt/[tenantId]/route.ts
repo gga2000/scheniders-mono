@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import {
+    INTERAKT_DELIVERY_STATUSES,
+    recordWhatsAppDeliveryReceipt,
+} from "@/lib/whatsapp-delivery-receipts";
 
 /**
  * Tenant-specific Interakt Webhook Endpoint
@@ -88,14 +92,13 @@ export async function POST(
         const payload = await request.json() as any;
         const webhookType = payload.type || payload.eventType || "";
 
-        // Delivery status events — just log
-        const DELIVERY_TYPES: Record<string, string> = {
-            message_api_sent: "sent", message_api_delivered: "delivered",
-            message_api_read: "read", message_api_failed: "failed",
-            message_api_clicked: "button_clicked",
-        };
-
-        if (DELIVERY_TYPES[webhookType] && webhookType !== "message_api_clicked") {
+        // Delivery status events. OBS-3: this branch answered "logged" and wrote
+        // nothing, which is why WhatsApp receipts stop dead at 2026-06-01 in the
+        // data — the traffic moved to this endpoint and every delivered, read
+        // and failed receipt since has been discarded.
+        const deliveryStatus = INTERAKT_DELIVERY_STATUSES[webhookType];
+        if (deliveryStatus) {
+            await recordWhatsAppDeliveryReceipt(payload, deliveryStatus, tenantId);
             return NextResponse.json({ success: true, message: `Status "${webhookType}" logged` });
         }
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validatePhoneDetailed } from '@/lib/order-utils';
 
 // =============================================
 // ENUMS & CONSTANTS
@@ -20,6 +21,17 @@ export const OrderStatusEnum = z.enum([
     'pending_checkout',
     'suspended'
 ]);
+
+/**
+ * Every order status, at runtime, derived from the same enum the schemas use.
+ *
+ * MOB-2: the mobile card carried its own hardcoded array that had drifted to 12
+ * of the 14 — it was missing `refund_delivered` and `refund_failed`, so those
+ * statuses could not be set from a phone even though 74 live orders sit in
+ * refund_delivered. Anything listing statuses should read this rather than
+ * writing the list out again.
+ */
+export const ALL_ORDER_STATUSES = OrderStatusEnum.options;
 
 export const OrderPriorityEnum = z.enum(['normal', 'high', 'urgent']);
 export const PaymentStatusEnum = z.enum(['pending', 'cod', 'prepaid', 'partial', 'paid']);
@@ -54,7 +66,18 @@ export const OrderSchema = z.object({
 
     order_id: z.string().optional(), // Auto-generated if not provided
     customer_name: z.string().min(1, "Customer name is required"),
-    phone: z.string().refine((val) => val === '' || val.length >= 10, { message: "Phone number must be valid" }),
+    // ARCH-4: this used to be `val.length >= 10`, which accepted "abcdefghij"
+    // and "0000000000" — the typed boundary that gates order creation performed
+    // no real validation. It now uses validatePhoneDetailed, the same rule the
+    // orders table already uses to flag a number red, so what the UI calls
+    // invalid and what creation rejects are finally the same thing.
+    // Checked against live data first: 4,733 of 4,757 real orders (99.5%) pass
+    // it, so this rejects genuinely malformed input rather than real customers.
+    // Empty stays allowed, as before — requiring a phone is a product decision,
+    // not a validation fix.
+    phone: z.string().refine((val) => val === '' || validatePhoneDetailed(val).isValid, {
+        message: "Phone number must be a valid Iraqi mobile (07XXXXXXXXX)",
+    }),
     secondary_phone: z.string().nullable().optional(),
 
     city: z.string().nullable().optional(),

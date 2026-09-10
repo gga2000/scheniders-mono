@@ -7,11 +7,12 @@ import { useChatStore } from "@/store/use-chat-store";
 import { Popover, PopoverTrigger, PopoverContent } from "@scheniders/ui/popover";
 import { Bell, BellOff, BellRing, Check, CheckCheck, Trash2, Package, RefreshCw, Plus, Clock, Bot, Sparkles, ArrowRight, AtSign } from "lucide-react";
 import { useOrderPushPref } from "@/hooks/use-order-push-pref";
-import { cn, getStatusLabel } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { formatDistanceToNow } from "date-fns";
 import { Order } from "@/lib/supabase";
 import { useLanguage } from "@/components/providers/language-provider";
+import { useStatusLabel } from "@/hooks/use-status-label";
 
 interface NotificationsDropdownProps {
     onOpenChange?: (open: boolean) => void;
@@ -37,6 +38,7 @@ export function NotificationsDropdown({ onOpenChange }: NotificationsDropdownPro
     const totalUnread = unreadCount + mentionUnreadCount;
 
     const { t } = useLanguage();
+    const orderStatusLabel = useStatusLabel();
 
     const handleMentionClick = (mention: (typeof mentions)[number]) => {
         if (mention.conversation_id) openChat(mention.conversation_id);
@@ -289,7 +291,7 @@ export function NotificationsDropdown({ onOpenChange }: NotificationsDropdownPro
                                                                 getStatusBadgeStyle(notification.old_status as Order["status"])
                                                             )}>
                                                                 {notification.old_status === 'new' && <Sparkles className="w-2.5 h-2.5 opacity-70" />}
-                                                                {getStatusLabel(notification.old_status)}
+                                                                {orderStatusLabel(notification.old_status)}
                                                             </div>
                                                             <ArrowRight className="w-3 h-3 text-muted-foreground opacity-50" />
                                                             <div className={cn(
@@ -297,7 +299,7 @@ export function NotificationsDropdown({ onOpenChange }: NotificationsDropdownPro
                                                                 getStatusBadgeStyle(notification.new_status as Order["status"])
                                                             )}>
                                                                 {notification.new_status === 'new' && <Sparkles className="w-2.5 h-2.5 opacity-70" />}
-                                                                {getStatusLabel(notification.new_status)}
+                                                                {orderStatusLabel(notification.new_status)}
                                                             </div>
                                                         </div>
                                                     )}

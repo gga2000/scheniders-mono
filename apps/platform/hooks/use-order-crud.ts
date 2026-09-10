@@ -16,9 +16,13 @@ import {
 } from "@/lib/supabase";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { cleanPhoneForExport } from "@/lib/export-utils";
+import { exportOrders as exportOrdersFromUtils } from "@/lib/order-export-utils";
+import { calculateTotal } from "@/lib/order-utils";
+import type { CreateOrderInput, CreateOrderResult } from "@/types/order";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
-import { splitOrderAction } from "@/app/actions/orders";
+import { splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
+import { MAX_ORDER_IDS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "sonner";
 import {
@@ -28,6 +32,14 @@ import {
     orderKeys
 } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { classifyTransition } from "@/lib/order-status-machine";
+import { reportOrderError } from "@/lib/order-telemetry";
+import { useOrderStore } from "@/store/use-order-store";
+import {
+    summarizeBulkFailures,
+    formatFailedOrderList,
+    findUnaffectedIds,
+} from "@/lib/order-bulk-result";
 
 // =============================================
 // ORDER CRUD HOOK
@@ -41,6 +53,12 @@ interface UndoEntry {
     previousState: Partial<Order>;
     action: string;
     timestamp: Date;
+    /**
+     * The status this action set. Undo only applies while the order is still
+     * on it — otherwise someone else has moved the order on and reverting
+     * would clobber their write.
+     */
+    expectedStatus?: Order["status"];
 }
 
 interface UseOrderCrudOptions {
@@ -68,7 +86,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // Mutations
     const updateStatusMutation = useUpdateStatusMutation();
     const updateOrderMutation = useUpdateOrderMutation();
-    const createOrderMutation = useCreateOrderMutation(tenantId);
+    const createOrderMutation = useCreateOrderMutation();
 
     // Undo stack
     const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -136,6 +154,22 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             status = 'refund_delivered' as Order["status"];
         }
 
+        // COR-3: report a status change that has no legitimate reading — an order
+        // claiming a fulfilment outcome it was never shipped for. Deliberately
+        // reported, not blocked: 60 distinct transitions occur in production in a
+        // six-month window, including corrections that look wrong but are real
+        // work, so refusing them would stop staff mid-shift.
+        if (previousOrder) {
+            const verdict = classifyTransition(previousOrder.status, status);
+            if (verdict.kind === "unusual") {
+                reportOrderError(new Error(`Unusual status transition: ${previousOrder.status} -> ${status}`), {
+                    operation: "orders-unusual-status-transition",
+                    orderId,
+                    extra: { from: previousOrder.status, to: status, reason: verdict.reason },
+                });
+            }
+        }
+
         // Record to undo stack
         if (previousOrder) {
             setUndoStack(prev => [{
@@ -146,6 +180,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 },
                 action: `Changed status to ${status}`,
                 timestamp: new Date(),
+                expectedStatus: status,
             }, ...prev.slice(0, MAX_UNDO_STACK - 1)]);
         }
 
@@ -176,6 +211,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
                     const changedByAvatar = currentProfile?.avatar_url;
 
+                    // Read the concurrency token at FIRE time, not at click time:
+                    // `previousOrder` was snapshotted before the 300ms debounce, so
+                    // a preceding write by this same user may already have advanced
+                    // the version. Using the stale snapshot produced a false
+                    // "modified elsewhere" conflict against ourselves.
+                    const freshOrder = queryClient
+                        .getQueryData<Order[]>(orderKeys.lists())
+                        ?.find(o => o.id === orderId);
+
                     await updateStatusMutation.mutateAsync({
                         orderId,
                         status,
@@ -183,7 +227,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         rejectionReasonId: reasonId,
                         last_status_changed_by_name: changedBy,
                         last_status_changed_by_avatar: changedByAvatar || undefined,
-                        expectedUpdatedAt: previousOrder?.updated_at,
+                        expectedVersion: freshOrder?.version ?? previousOrder?.version,
                     });
                     diag.log(`[Diag:StatusUpdate] MUTATION_OK orderId=${orderId} seq=${mySeq} took=${(performance.now() - _tMut).toFixed(1)}ms`);
 
@@ -272,7 +316,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         });
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>, expectedUpdatedAt?: string, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>, expectedVersion?: number, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
         const _tUpdate = performance.now();
         diag.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')} retry=${retryCount}`);
         try {
@@ -325,13 +369,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 auditChanges = changes;
             }
 
-            // Use passed expectedUpdatedAt or fallback to cache if not provided
-            const conflictCheckTimestamp = expectedUpdatedAt || previousOrder?.updated_at;
+            // Use the caller's expected version, else the one we hold in cache.
+            const conflictCheckVersion = expectedVersion ?? previousOrder?.version;
 
             await updateOrderMutation.mutateAsync({
                 orderId,
                 updates: cleanUpdates,
-                expectedUpdatedAt: conflictCheckTimestamp
+                expectedVersion: conflictCheckVersion
             });
 
             // Record audit trail AFTER successful update (not before!)
@@ -384,7 +428,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         }
     }
 
-    async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at"> & { custom_created_at?: string | null }): Promise<{ success: boolean; data?: Order; error?: string }> {
+    async function createOrder(orderData: CreateOrderInput): Promise<CreateOrderResult> {
         // Extract custom_created_at before passing to mutation (not part of Order schema)
         const { custom_created_at, ...cleanOrderData } = orderData;
 
@@ -572,13 +616,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const originalOrder = orders.find(o => o.id === originalOrderId);
 
-            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems, tenantId);
+            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems, session?.access_token ?? "");
 
             if (result.success) {
                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
 
                 if (originalOrder) {
-                    const calculateTotal = (items: OrderItem[]) => items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
                     const keptTotal = calculateTotal(keptItems);
                     const returnedTotal = calculateTotal(returnedItems);
 
@@ -591,6 +634,32 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             note: `Split order: Kept ${keptItems.length} items (${keptTotal}), Returned ${returnedItems.length} items (${returnedTotal}). New Return Order: ${result.data?.order_id || 'Generated'}`
                         }
                     }, tenantId);
+                }
+
+                // WF-2: split rewrites the original and creates a return order,
+                // and used to be irreversible. split_order_atomic now snapshots
+                // what it overwrote and returns split_log_id, so the undo can be
+                // offered here. It stays valid only while the return order is
+                // untouched — the RPC refuses once it has shipped or refunded,
+                // and says which, rather than silently doing nothing.
+                const splitLogId = (result.data as (Order & { split_log_id?: string }) | undefined)?.split_log_id;
+                if (splitLogId) {
+                    toast.success("Order split", {
+                        description: `A return order was created for ${returnedItems.length} item(s)`,
+                        duration: 20000,
+                        action: {
+                            label: "Undo",
+                            onClick: async () => {
+                                const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
+                                if (!undo.success) {
+                                    toast.error("Could not undo the split", { description: undo.error });
+                                    return;
+                                }
+                                await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                                toast.success("Split undone", { description: "The order is back as it was" });
+                            },
+                        },
+                    });
                 }
 
                 return { success: true };
@@ -669,6 +738,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data) throw new Error("Pin update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: { note: newPinnedState ? 'Pinned order' : 'Unpinned order' },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error toggling pin:", err);
@@ -701,6 +776,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data) throw new Error("Pin update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: { note: isPinned ? 'Pinned order' : 'Unpinned order' },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error setting pin:", err);
@@ -741,6 +822,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data) throw new Error("Review update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: {
+                    order_id: order.order_id,
+                    note: newReviewedState ? 'Marked order reviewed' : 'Marked order not reviewed',
+                },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error toggling reviewed:", err);
@@ -775,6 +865,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             if (error) throw error;
             if (!data || data.length === 0) throw new Error("Verified update failed: write was rejected");
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: orderId,
+                details: {
+                    order_id: order.order_id,
+                    note: `Marked customer verified across ${data.length} orders`,
+                },
+            }, tenantId);
             return { success: true };
         } catch (err) {
             console.error("Error marking as verified customer:", err);
@@ -797,10 +896,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const previousOrders = orders.filter(o => orderIds.includes(o.id));
             const currentStatuses: { [key: string]: Order["status"] } = {};
-            const expectedUpdatedAts: { [key: string]: string } = {};
+            const expectedVersions: { [key: string]: number } = {};
             previousOrders.forEach(o => {
                 currentStatuses[o.id] = o.status;
-                if (o.updated_at) expectedUpdatedAts[o.id] = o.updated_at;
+                if (typeof o.version === "number") expectedVersions[o.id] = o.version;
             });
 
             // Get current user information for attribution
@@ -815,15 +914,26 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 undefined, // rejectionReason
                 changedBy,
                 changedByAvatar || undefined,
-                expectedUpdatedAts
+                expectedVersions
             );
 
             if (successfulOperations.length === 0 && failedOperations.length > 0) {
                 // If everything failed, throw the first error to be caught by the outer catch block
                 throw failedOperations[0].error || new Error("Bulk status update failed completely");
             } else if (failedOperations.length > 0) {
-                console.warn(`[bulkUpdateStatus] ${failedOperations.length} orders failed to update, possibly due to conflicts:`, failedOperations);
-                toast.warning(`${failedOperations.length} orders could not be updated (they may have been modified by someone else)`);
+                // Report what actually happened per order. Blaming every failure
+                // on a concurrent edit hid permission and transport errors, and
+                // naming no orders left no way to know what to retry.
+                const summary = summarizeBulkFailures(
+                    failedOperations,
+                    previousOrders,
+                    orderIds.length,
+                    "updated",
+                );
+                console.warn(`[bulkUpdateStatus] ${summary.title}`, failedOperations);
+                toast.warning(summary.title, { description: summary.description });
+                // Keep the failures selected so a retry does not need reselecting.
+                useOrderStore.getState().setSelectedOrders(new Set(summary.failedIds));
             }
 
             const successfulIds = successfulOperations.map((op: { id: string }) => op.id);
@@ -890,16 +1000,36 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
     async function bulkArchive(orderIds: string[]) {
         try {
-            const { error: updateError } = await supabase
+            // `.in()` succeeds even when RLS filters rows out, so ask which rows
+            // were actually written rather than assuming the whole selection was.
+            const { data: archived, error: updateError } = await supabase
                 .from("orders")
                 .update({ is_archived: true })
-                .in("id", orderIds);
+                .in("id", orderIds)
+                .select("id");
 
             if (updateError) throw updateError;
 
+            const archivedIds = (archived ?? []).map((row) => row.id);
+            const skipped = findUnaffectedIds(orderIds, archivedIds);
+            if (skipped.length > 0) {
+                toast.warning(`${skipped.length} of ${orderIds.length} orders were not archived`, {
+                    description: `Not archived: ${formatFailedOrderList(skipped, orders)}`,
+                });
+            }
+
+            if (archivedIds.length > 0) {
+                activityLogger.log({
+                    action: 'order.edit',
+                    entityType: 'order',
+                    entityId: archivedIds[0],
+                    details: { note: `Archived ${archivedIds.length} orders`, order_ids: archivedIds },
+                }, tenantId);
+            }
+
             // Remove archived orders from active list in cache
-            optimisticUpdate((prev) => prev.filter((order) => !orderIds.includes(order.id)));
-            return { success: true, count: orderIds.length };
+            optimisticUpdate((prev) => prev.filter((order) => !archivedIds.includes(order.id)));
+            return { success: true, count: archivedIds.length };
         } catch (err) {
             console.error("Error archiving orders:", err);
             return {
@@ -911,15 +1041,33 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
     async function bulkUnarchive(orderIds: string[]) {
         try {
-            const { error: updateError } = await supabase
+            const { data: unarchived, error: updateError } = await supabase
                 .from("orders")
                 .update({ is_archived: false })
-                .in("id", orderIds);
+                .in("id", orderIds)
+                .select("id");
 
             if (updateError) throw updateError;
 
+            const unarchivedIds = (unarchived ?? []).map((row) => row.id);
+            const skipped = findUnaffectedIds(orderIds, unarchivedIds);
+            if (skipped.length > 0) {
+                toast.warning(`${skipped.length} of ${orderIds.length} orders were not unarchived`, {
+                    description: `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
+                });
+            }
+
+            if (unarchivedIds.length > 0) {
+                activityLogger.log({
+                    action: 'order.edit',
+                    entityType: 'order',
+                    entityId: unarchivedIds[0],
+                    details: { note: `Unarchived ${unarchivedIds.length} orders`, order_ids: unarchivedIds },
+                }, tenantId);
+            }
+
             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-            return { success: true, count: orderIds.length };
+            return { success: true, count: unarchivedIds.length };
         } catch (err) {
             console.error("Error unarchiving orders:", err);
             return {
@@ -942,25 +1090,40 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             }
 
             const t1 = performance.now();
-            // Use server-side API route with service role to bypass RLS
-            const res = await fetch("/api/orders/delete", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({ ids: uniqueOrderIds }),
-            });
+            // The delete route caps a single request at MAX_ORDER_IDS_PER_REQUEST
+            // ids, so "select all" over a large book is sent in chunks. Each chunk
+            // is independent: a later failure does not undo earlier deletions, and
+            // the caller still receives the true deleted set.
+            const deletedIds = new Set<string>();
+            let chunkError: string | null = null;
 
-            const result = await res.json();
+            for (let i = 0; i < uniqueOrderIds.length; i += MAX_ORDER_IDS_PER_REQUEST) {
+                const chunk = uniqueOrderIds.slice(i, i + MAX_ORDER_IDS_PER_REQUEST);
+                const res = await fetch("/api/orders/delete", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ ids: chunk }),
+                });
+
+                const result = await res.json();
+                if (!result.success) {
+                    chunkError = result.error || "Failed to delete orders";
+                    break;
+                }
+                for (const id of (result.deletedIds || []) as string[]) deletedIds.add(id);
+            }
+
             const t2 = performance.now();
             console.log(`[Perf] Frontend fetch to /api/orders/delete took: ${(t2 - t1).toFixed(2)}ms`);
 
-            if (!result.success) {
-                throw new Error(result.error || "Failed to delete orders");
+            // Only fail outright if nothing at all was deleted; otherwise report
+            // the partial result so the UI can show what actually happened.
+            if (chunkError && deletedIds.size === 0) {
+                throw new Error(chunkError);
             }
-
-            const deletedIds = new Set(result.deletedIds || []);
 
             if (deletedIds.size === 0) {
                 throw new Error("No orders were deleted.");
@@ -1029,62 +1192,16 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // EXPORT
     // =============================================
 
+    /**
+     * ARCH-4: this reimplemented lib/order-export-utils rather than calling it,
+     * and had drifted — it appended a trailing space to every item and to every
+     * TSV cell, and duplicated the header list and the download plumbing. It now
+     * delegates, so the mobile export and the desktop export produce identical
+     * files and the CSV quoting fix applies to both.
+     */
     function exportOrders(orderIds: string[], format: "csv" | "xlsx" = "csv") {
         const ordersToExport = orders.filter((o) => orderIds.includes(o.id));
-
-        const headers = [
-            "Order ID", "Customer Name", "Phone", "City", "Address",
-            "Items", "Total", "Status", "Payment Status", "Created At",
-        ];
-
-        const rows = ordersToExport.map((order) => [
-            order.order_id,
-            order.customer_name,
-            cleanPhoneForExport(order.phone),
-            order.city || "",
-            order.address_details || "",
-            order.items?.map((i) => `${i.name} x${i.quantity} `).join("; ") || "",
-            order.price,
-            order.status,
-            order.payment_status,
-            new Date(order.created_at).toLocaleDateString(),
-        ]);
-
-        if (format === "csv") {
-            const csvContent = [
-                headers.join(","),
-                ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-            ].join("\n");
-
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `orders_export_${new Date().toISOString().split("T")[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            return { success: true, count: ordersToExport.length };
-        }
-
-        const tsvContent = [
-            headers.join("\t"),
-            ...rows.map((row) => row.map((cell) => `${cell} `).join("\t")),
-        ].join("\n");
-
-        const blob = new Blob([tsvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `orders_export_${new Date().toISOString().split("T")[0]}.xls`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        return { success: true, count: ordersToExport.length };
+        return exportOrdersFromUtils(ordersToExport, format);
     }
 
     // =============================================
@@ -1216,78 +1333,78 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 return { success: false, error: "One or both orders not found" };
             }
 
-            const combinedItems = [...(keepOrder.items || [])];
-            for (const archiveItem of archiveOrder.items || []) {
-                const existingItem = combinedItems.find((i) => i.name === archiveItem.name);
-                if (existingItem) {
-                    existingItem.quantity = (existingItem.quantity || 1) + (archiveItem.quantity || 1);
-                } else {
-                    combinedItems.push(archiveItem);
-                }
-            }
-
-            const combinedPrice = (Number(keepOrder.price) || 0) + (Number(archiveOrder.price) || 0);
-            const combinedNotes = [keepOrder.notes, archiveOrder.notes].filter(Boolean).join(' | ');
-
-            const { error: updateError } = await supabase
-                .from("orders")
-                .update({
-                    items: combinedItems,
-                    price: combinedPrice,
-                    notes: combinedNotes || keepOrder.notes,
-                })
-                .eq("id", keepOrderId);
-
-            if (updateError) throw updateError;
-
-            const { error: archiveError } = await supabase
-                .from("orders")
-                .update({
-                    is_archived: true,
-                    notes: `[مدمج مع #${keepOrder.order_id}] ${archiveOrder.notes || ''} `.trim(),
-                    status: "rejected" as Order["status"],
-                    rejection_reason: "duplicate_merged",
-                })
-                .eq("id", archiveOrderId);
-
-            if (archiveError) throw archiveError;
-
-            // Record history for both orders
+            // Single atomic RPC: combining items/money, archiving the duplicate
+            // and writing both history rows now happen in ONE transaction. The
+            // previous three sequential client writes could leave the kept order
+            // holding the combined revenue while the duplicate stayed active.
             const { profile: currentProfile, user: currentUser } = authRef.current;
             const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
 
-            await supabase
-                .from("order_status_history")
-                .insert([
-                    {
-                        order_id: keepOrderId,
-                        changed_by: changedBy,
-                        from_status: keepOrder.status,
-                        to_status: keepOrder.status,
-                        notes: `Merged with #${archiveOrder.order_id}`,
-                        tenant_id: tenantId,
-                    },
-                    {
-                        order_id: archiveOrderId,
-                        changed_by: changedBy,
-                        from_status: archiveOrder.status,
-                        to_status: "rejected",
-                        notes: `Merged into #${keepOrder.order_id}`,
-                        tenant_id: tenantId,
-                    }
-                ]);
+            const { data: mergedOrder, error: mergeError } = await supabase
+                .rpc("merge_orders_atomic", {
+                    _keep_order_id: keepOrderId,
+                    _archive_order_id: archiveOrderId,
+                    _tenant_id: tenantId,
+                    _changed_by: changedBy,
+                });
+
+            if (mergeError) throw mergeError;
+
+            const merged = mergedOrder as (Order & { merge_log_id?: string }) | null;
+            const mergeLogId = merged?.merge_log_id;
 
             // Update React Query cache
             optimisticUpdate((prev) =>
                 prev
                     .map((order) => {
                         if (order.id === keepOrderId) {
-                            return { ...order, items: combinedItems, price: combinedPrice, notes: combinedNotes || order.notes };
+                            // Prefer the authoritative row the RPC returned.
+                            return merged ? { ...order, ...merged } : order;
                         }
                         return order;
                     })
                     .filter((order) => order.id !== archiveOrderId)
             );
+
+            // WF-2: merge sums two orders' money and archives one of them, and
+            // used to be irreversible. merge_orders_atomic now snapshots exactly
+            // the columns it overwrites, so this can be handed straight back as
+            // an undo instead of sending the operator to support.
+            if (mergeLogId) {
+                toast.success("Orders merged", {
+                    description: `${archiveOrder.order_id} merged into ${keepOrder.order_id}`,
+                    duration: 20000,
+                    action: {
+                        label: "Undo",
+                        onClick: async () => {
+                            const { error: undoError } = await supabase.rpc("unmerge_orders_atomic", {
+                                _merge_log_id: mergeLogId,
+                                _tenant_id: tenantId,
+                            });
+                            if (undoError) {
+                                toast.error("Could not undo the merge", { description: undoError.message });
+                                return;
+                            }
+                            await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                            toast.success("Merge undone", { description: "Both orders are back as they were" });
+                        },
+                    },
+                });
+            }
+
+            // Merging combines money and archives the duplicate, so it needs an
+            // audit record naming both sides — previously it left none at all.
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: keepOrderId,
+                details: {
+                    order_id: keepOrder.order_id,
+                    note: `Merged order ${archiveOrder.order_id} into ${keepOrder.order_id}`,
+                    merged_from_order_id: archiveOrder.order_id,
+                    merged_from_id: archiveOrderId,
+                },
+            }, tenantId);
 
             return { success: true };
         } catch (err) {
@@ -1498,12 +1615,32 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         const lastAction = undoStack[0];
 
         try {
-            const { error: updateError } = await supabase
+            // Undo used to write blind on `id` alone, so it would happily revert
+            // a newer change made by someone else. Make it a compare-and-set:
+            // only apply while the order still holds the status this action set.
+            let undoQuery = supabase
                 .from("orders")
                 .update(lastAction.previousState)
                 .eq("id", lastAction.orderId);
 
+            if (lastAction.expectedStatus) {
+                undoQuery = undoQuery.eq("status", lastAction.expectedStatus);
+            }
+
+            const { data: undone, error: updateError } = await undoQuery.select("id");
+
             if (updateError) throw updateError;
+
+            if (!undone || undone.length === 0) {
+                // Nothing matched: the order moved on, or is no longer visible to
+                // this user. Drop the entry so the stack does not keep offering
+                // an undo that can never apply.
+                setUndoStack(prev => prev.slice(1));
+                return {
+                    success: false,
+                    error: "This order has changed since then, so it was not reverted.",
+                };
+            }
 
             // Update React Query cache
             optimisticUpdate((prev) =>

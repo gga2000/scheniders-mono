@@ -128,32 +128,6 @@ export function getOrderValidationErrors(order: Partial<Order>): string[] {
 }
 
 // =============================================
-// ORDER CALCULATIONS
-// =============================================
-
-/**
- * Calculate total price for order items
- */
-export function calculateOrderTotal(
-    items: Order["items"],
-    deliveryFee: number = 0,
-    discount: number = 0
-): number {
-    const itemsTotal = items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-    );
-    return Math.max(0, itemsTotal + deliveryFee - discount);
-}
-
-/**
- * Calculate total quantity of items in an order
- */
-export function calculateTotalQuantity(items: Order["items"]): number {
-    return items.reduce((sum, item) => sum + item.quantity, 0);
-}
-
-// =============================================
 // STATUS UTILITIES
 // =============================================
 
@@ -171,48 +145,3 @@ export function isOrderActive(order: Order): boolean {
     return !order.is_archived && !isOrderFinal(order.status);
 }
 
-/**
- * Get human-readable status label
- */
-export function getStatusLabel(status: Order["status"]): string {
-    const labels: Record<Order["status"], string> = {
-        new: "New",
-        contacted: "Contacted",
-        confirmed: "Confirmed",
-        cancelled: "Cancelled",
-        in_transit: "In Transit",
-        delivered: "Delivered",
-        rejected: "Rejected",
-        completed: "Completed",
-        no_response: "No Response",
-        return_pending: "Return Pending",
-        refund_delivered: "Refund Delivered",
-        refund_failed: "Refund Failed",
-        pending_checkout: "Pending Checkout",
-        suspended: "معلق",
-    };
-    return labels[status] || status;
-}
-
-/**
- * Get status color class
- */
-export function getStatusColor(status: Order["status"]): string {
-    const colors: Record<Order["status"], string> = {
-        new: "bg-blue-100 text-blue-800",
-        contacted: "bg-yellow-100 text-yellow-800",
-        confirmed: "bg-green-100 text-green-800",
-        cancelled: "bg-gray-100 text-gray-800",
-        in_transit: "bg-purple-100 text-purple-800",
-        delivered: "bg-emerald-100 text-emerald-800",
-        rejected: "bg-red-100 text-red-800",
-        completed: "bg-teal-100 text-teal-800",
-        no_response: "bg-orange-100 text-orange-800",
-        return_pending: "bg-pink-100 text-pink-800",
-        refund_delivered: "bg-pink-200 text-pink-900",
-        refund_failed: "bg-red-200 text-red-900",
-        pending_checkout: "bg-indigo-100 text-indigo-800",
-        suspended: "bg-orange-100 text-orange-800",
-    };
-    return colors[status] || "bg-gray-100 text-gray-800";
-}

@@ -1,0 +1,18 @@
+{
+  "_comment": "Shared expectations for phone normalization. The TypeScript implementation (lib/order-utils.ts normalizePhoneForSearch) and the SQL generated column orders.normalized_phone must BOTH satisfy every case. Synthetic numbers only - never put real customer phones here. Shapes chosen to cover every class present in live data: leading-zero (20,223 rows), +964/964 country code (1,732), separators, plus classes that do not occur today (Arabic-Indic digits, 00964) so the two implementations stay pinned together if they ever appear.",
+  "cases": [
+    { "input": "07701234567",        "expected": "7701234567",     "why": "the common Iraqi mobile shape" },
+    { "input": "+9647701234567",     "expected": "7701234567",     "why": "+964 country code - 1,730 live rows" },
+    { "input": "9647701234567",      "expected": "7701234567",     "why": "bare 964 country code" },
+    { "input": "770 123 4567",       "expected": "7701234567",     "why": "spaces, no leading zero" },
+    { "input": "0770-123-4567",      "expected": "7701234567",     "why": "dashes" },
+    { "input": "(0770) 123 4567",    "expected": "7701234567",     "why": "parentheses" },
+    { "input": "٠٧٧٠١٢٣٤٥٦٧",        "expected": "7701234567",     "why": "Arabic-Indic digits - absent from live data, pinned anyway" },
+    { "input": "009647701234567",    "expected": "7701234567",     "why": "00 international access code is stripped first, so the 964 country code is then visible and removed. Fixed 2026-09-09 in BOTH implementations together (TS + migration 20260909100000, which also REINDEXes idx_orders_tenant_normphone). 0 live rows use this shape." },
+    { "input": "0097701234567",      "expected": "97701234567",    "why": "00 is stripped, and what follows is left alone when it is not the 964 country code" },
+    { "input": "9640770123456",      "expected": "770123456",      "why": "964 stripped first, then the leading zero it exposes" },
+    { "input": "964964770123456",    "expected": "964770123456",   "why": "964 is stripped once, not repeatedly" },
+    { "input": "",                   "expected": "",               "why": "empty" },
+    { "input": "abc",                "expected": "",               "why": "no digits at all" }
+  ]
+}

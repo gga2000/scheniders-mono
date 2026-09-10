@@ -87,6 +87,9 @@ export async function dispatchWhatsAppEvent({
         await supabaseAdmin.from("whatsapp_logs").insert({
             order_id: order.order_id,
             order_uuid: order.id,
+            // OBS-3: omitted, so 155 of these rows were invisible to the tenant
+            // that owns them — whatsapp_logs is tenant-scoped by RLS.
+            tenant_id: order.tenant_id ?? null,
             phone: overridePhone || order.phone,
             template_name: templateName,
             direction: "outbound",
@@ -95,6 +98,9 @@ export async function dispatchWhatsAppEvent({
             payload: {
                 templateType,
                 error: result.error,
+                // OBS-3: the provider's response used to arrive here inside
+                // `error` even on success. It has its own field now.
+                response: result.raw,
                 statusCode: result.statusCode,
                 source: "dispatch-event",
             },
@@ -118,6 +124,7 @@ export async function dispatchWhatsAppEvent({
             await supabaseAdmin.from("whatsapp_logs").insert({
                 order_id: order.order_id,
                 order_uuid: order.id,
+                tenant_id: order.tenant_id ?? null,
                 phone: order.secondary_phone,
                 template_name: templateName,
                 direction: "outbound",
