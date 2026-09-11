@@ -556,9 +556,20 @@ describe("trust_badge_row — proof ledge", () => {
     expect(html).not.toContain("2693");
   });
 
+  /** How many badge slots the row actually rendered. */
+  const slotCount = (html: string) =>
+    (html.match(/data-i18n-field="items\[/g) ?? []).length;
+
   it("drops a metric slot when there are no stats at all", () => {
     const html = render(trust_badge_row, ledgeProps);
+    // Counting slots, not just looking for the missing figure: without
+    // stats a metric slot must VANISH. Asserting only that "+2600" is
+    // absent passes even when the slot degrades into a plain badge
+    // labelled "طلب وصل" — a unit with no number, live on the page.
+    expect(slotCount(html)).toBe(2);
     expect(html).not.toContain("+2600");
+    expect(html).not.toContain("طلب وصل");
+    expect(html).not.toContain("محافظة");
     // Static slots survive — they are merchant claims, not derived.
     expect(html).toContain("توصيل خلال ٢٤ ساعة");
     expect(html).toContain("الدفع عند الاستلام");
@@ -568,8 +579,16 @@ describe("trust_badge_row — proof ledge", () => {
     const html = render(trust_badge_row, ledgeProps, {
       public_stats: { completed_orders: 0, customers: 0, governorates_served: 18 },
     });
+    // 3 = two static slots + the one governorate metric that has a value.
+    expect(slotCount(html)).toBe(3);
     expect(html).not.toMatch(/>0</);
+    expect(html).not.toContain("طلب وصل");
     expect(html).toContain("18");
+  });
+
+  it("renders every slot when every metric has a value", () => {
+    const html = render(trust_badge_row, ledgeProps, { public_stats: stats });
+    expect(slotCount(html)).toBe(4);
   });
 
   it("leaves a plain badge row untouched when no item declares a metric", () => {
