@@ -4570,6 +4570,7 @@ export type Database = {
           image_url: string | null
           is_archived: boolean | null
           is_supply: boolean
+          is_filler: boolean
           is_visible: boolean
           license_key_pattern: string | null
           lightfunnels_aliases: string[] | null
@@ -4613,6 +4614,7 @@ export type Database = {
           image_url?: string | null
           is_archived?: boolean | null
           is_supply?: boolean
+          is_filler?: boolean
           is_visible?: boolean
           license_key_pattern?: string | null
           lightfunnels_aliases?: string[] | null
@@ -4656,6 +4658,7 @@ export type Database = {
           image_url?: string | null
           is_archived?: boolean | null
           is_supply?: boolean
+          is_filler?: boolean
           is_visible?: boolean
           license_key_pattern?: string | null
           lightfunnels_aliases?: string[] | null

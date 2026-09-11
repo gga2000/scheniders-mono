@@ -23,6 +23,7 @@ import { StockQuickAdjust } from "./stock-quick-adjust";
 import { QuickActionsMenu } from "./quick-actions-menu";
 import { BundleStockIndicator } from "./bundle-stock-indicator";
 import { HealthScoreBadge } from "./health-score-badge";
+import { FillerBadge } from "./filler-badge";
 import { StockStatusBadges } from "./stock-status-badges";
 import { BatchBadge } from "./batch-tracking/batch-badge";
 import { CategoryCombobox } from "./category-combobox";
@@ -196,6 +197,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 <div className="flex items-center justify-between gap-2">
                     <h3 className="text-base font-bold text-foreground leading-tight line-clamp-2 flex-1 min-w-0">
                         {product.name}
+                        <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
                     </h3>
                     <div className="flex items-center gap-1.5 shrink-0">
                         {product.cost && product.cost > 0 && product.price > 0 && (

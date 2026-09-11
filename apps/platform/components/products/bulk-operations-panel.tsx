@@ -12,6 +12,8 @@ import {
   EyeOff,
   Download,
   Archive,
+  Layers,
+  PackageCheck,
   Loader2,
   AlertTriangle,
   Undo2,
@@ -391,6 +393,33 @@ export function BulkOperationsPanel({
     [selectedIds, tenantId, t, invalidate, onComplete]
   );
 
+  // Filler is an operator-side flag: it never changes what the customer can
+  // buy, only whether staff see the product up front in the order picker.
+  const applyFiller = useCallback(
+    async (filler: boolean) => {
+      setOperating(true);
+      try {
+        await supabase
+          .from("products")
+          .update({ is_filler: filler })
+          .in("id", selectedIds)
+          .eq("tenant_id", tenantId!);
+        toast.success(
+          t(filler ? "products.filler.marked" : "products.filler.unmarked", {
+            count: String(selectedIds.length),
+          })
+        );
+        invalidate();
+        onComplete();
+      } catch {
+        toast.error(t("products.bulk.error") || "Operation failed");
+      } finally {
+        setOperating(false);
+      }
+    },
+    [selectedIds, tenantId, t, invalidate, onComplete]
+  );
+
   const handleExport = useCallback(async () => {
     setOperating(true);
     try {
@@ -730,6 +759,28 @@ export function BulkOperationsPanel({
           {operating ? <Loader2 className="w-4 h-4 animate-spin" /> : <EyeOff className="w-4 h-4" />}
           {t("products.bulk.hideFromStorefront") || "Hide from Storefront"}
         </button>
+      </div>
+
+      <div className="pt-3 border-t border-[var(--card-border)] space-y-3">
+        <p className="text-sm text-muted">{t("products.filler.hint")}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => applyFiller(true)}
+            disabled={operating}
+            className="flex items-center justify-center gap-2 px-4 py-4 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-100 transition-colors disabled:opacity-50"
+          >
+            {operating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+            {t("products.filler.mark")}
+          </button>
+          <button
+            onClick={() => applyFiller(false)}
+            disabled={operating}
+            className="flex items-center justify-center gap-2 px-4 py-4 bg-[var(--background)] border border-[var(--card-border)] text-foreground rounded-xl font-semibold hover:opacity-80 transition-opacity disabled:opacity-50"
+          >
+            {operating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageCheck className="w-4 h-4" />}
+            {t("products.filler.unmark")}
+          </button>
+        </div>
       </div>
     </div>
   );

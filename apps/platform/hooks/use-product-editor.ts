@@ -42,6 +42,7 @@ export interface ProductEditorFormData {
     // Status & display
     status: 'draft' | 'active' | 'archived';
     is_supply: boolean;
+    is_filler: boolean;
     tag_color: string;
 
     // Barcode
@@ -235,6 +236,7 @@ const DEFAULT_FORM_DATA: ProductEditorFormData = {
     reorder_point: null,
     status: "draft",
     is_supply: false,
+    is_filler: false,
     tag_color: "#22c55e",
     barcode: "",
     cost_breakdown_json: null,
@@ -434,6 +436,7 @@ function productToFormData(product: Product): ProductEditorFormData {
         reorder_point: product.reorder_point ?? null,
         status: product.status || (product.is_archived ? "archived" : "active"),
         is_supply: product.is_supply,
+        is_filler: product.is_filler ?? false,
         tag_color: product.tag_color || "#22c55e",
         barcode: product.barcode || "",
         cost_breakdown_json: product.cost_breakdown_json ?? null,
@@ -952,6 +955,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     barcode: formData.barcode || undefined,
                     cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
+                    is_filler: formData.is_filler,
                     slug: formData.slug || undefined,
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
@@ -1028,6 +1032,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     barcode: formData.barcode || undefined,
                     cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
+                    is_filler: formData.is_filler,
                     slug: formData.slug || undefined,
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
@@ -1167,6 +1172,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 image_url: formData.image_url,
                 tag_color: formData.tag_color,
                 is_supply: formData.is_supply,
+                is_filler: formData.is_filler,
                 slug: formData.slug ? `${formData.slug}-copy` : undefined,
                 is_visible: false,
                 display_order: formData.display_order,

@@ -45,6 +45,7 @@ import { useAddCategoryMutation } from "@/hooks/use-categories-query";
 import { CategoryQuickAssignPanel } from "../category-quick-assign-panel";
 import { CategorySuggester } from "../category-suggester";
 import { BulkCategoryConfirmDialog } from "../bulk-category-confirm-dialog";
+import { FillerBadge } from "../filler-badge";
 
 interface CategoryGroupedViewProps {
     products: Product[];
@@ -806,6 +807,7 @@ function MiniProductCard({
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[var(--ink)] truncate">
                     {product.name}
+                    <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs font-semibold text-[var(--foreground)]">
