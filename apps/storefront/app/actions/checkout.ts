@@ -161,7 +161,7 @@ export async function submitCheckout(
   const productIds = Array.from(new Set(payload.items.map((i) => i.product_id)));
   const { data: products, error: productsErr } = await supabase
     .from("products")
-    .select("id, tenant_id, name, short_name, price, website_price, is_visible, is_archived, is_supply")
+    .select("id, tenant_id, name, short_name, price, website_price, status, is_visible, is_archived, is_supply")
     .in("id", productIds)
     .eq("tenant_id", payload.tenantId);
 
@@ -255,10 +255,13 @@ export async function submitCheckout(
       issues.push({ product_id: i.product_id, variant_id: i.variant_id, reason, new_price });
     };
     const product = productMap.get(i.product_id);
-    // Deleted, hidden, archived, or supply (packaging/internal) → not orderable.
+    // Deleted, hidden, draft, archived, or supply (packaging/internal) → not
+    // orderable. status carries the merchant's Draft/Archived choice from the
+    // product editor, which is_visible does not.
     if (
       !product ||
       product.is_archived ||
+      product.status !== "active" ||
       !product.is_visible ||
       (product as { is_supply?: boolean }).is_supply
     ) {

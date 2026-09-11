@@ -268,6 +268,7 @@ export const listProducts = cache(
         )
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
+        .eq("status", "active")
         .eq("is_archived", false)
         .not("is_supply", "is", true) // supplies (packaging, etc.) are never storefront products
         .order("display_order", { ascending: true })
@@ -326,6 +327,7 @@ export const getProductBySlug = cache(
           .select(columns)
           .eq("tenant_id", tenantId)
           .eq("is_visible", true)
+          .eq("status", "active")
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
@@ -465,6 +467,7 @@ export const listProductsInCategory = cache(
           .eq("category_id", categoryId)
           .eq("tenant_id", tenantId)
           .eq("products.is_visible", true)
+          .eq("products.status", "active")
           .eq("products.is_archived", false)
           .not("products.is_supply", "is", true); // exclude supplies
 
