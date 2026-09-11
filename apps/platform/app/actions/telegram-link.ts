@@ -1,18 +1,23 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireTenantAdminFor } from "@/lib/auth/require-action-caller";
 import crypto from "node:crypto";
 
 /**
  * Server actions for managing the Telegram bot ↔ employee account links.
- * The Settings → Team page is already gated to admins, so we follow the
- * existing pattern (e.g. toggleRolePermissionAction) and don't re-verify
- * the caller's role here.
  *
- * Multi-tenant: every code/link row carries tenant_id. Reads are scoped
- * to a tenant by the caller passing the current admin's tenant_id; the
- * service-role client bypasses RLS but we still filter explicitly to
- * prevent cross-tenant leakage.
+ * This comment used to read: "The Settings → Team page is already gated to
+ * admins, so we follow the existing pattern (e.g. toggleRolePermissionAction)
+ * and don't re-verify the caller's role here." That reasoning was wrong, and it
+ * was spreading — a Server Action is an independently addressable HTTP endpoint,
+ * so the page that renders the button is irrelevant to who can POST to it.
+ * (`toggleRolePermissionAction` itself now verifies its caller.)
+ *
+ * Multi-tenant: every code/link row carries tenant_id, and the service-role
+ * client bypasses RLS — so filtering by a caller-supplied tenant_id prevents
+ * nothing on its own. Each action below proves the caller administers that
+ * tenant before it runs.
  */
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no O/0/I/1 confusion
@@ -38,8 +43,12 @@ export interface TelegramLinkStatus {
 
 export async function getTelegramLinkStatusAction(
     targetUserProfileId: string,
-    tenantId: string | null
+    tenantId: string | null,
+    accessToken?: string,
 ): Promise<TelegramLinkStatus> {
+    const auth = await requireTenantAdminFor(accessToken, tenantId);
+    if (!auth.ok) return { linked: false };
+
     const supabase = createSupabaseServiceClient();
 
     let linkQuery = supabase
@@ -72,8 +81,12 @@ export async function getTelegramLinkStatusAction(
 export async function generateTelegramLinkCodeAction(
     targetUserProfileId: string,
     tenantId: string,
-    createdByUserProfileId?: string
+    createdByUserProfileId?: string,
+    accessToken?: string,
 ): Promise<{ success: boolean; code?: string; expires_at?: string; error?: string }> {
+    const auth = await requireTenantAdminFor(accessToken, tenantId);
+    if (!auth.ok) return { success: false, error: auth.error };
+
     const supabase = createSupabaseServiceClient();
 
     if (!tenantId) {
@@ -119,8 +132,12 @@ export async function generateTelegramLinkCodeAction(
 
 export async function unlinkTelegramAction(
     targetUserProfileId: string,
-    tenantId: string | null
+    tenantId: string | null,
+    accessToken?: string,
 ): Promise<{ success: boolean; error?: string }> {
+    const auth = await requireTenantAdminFor(accessToken, tenantId);
+    if (!auth.ok) return { success: false, error: auth.error };
+
     const supabase = createSupabaseServiceClient();
     let query = supabase
         .from("telegram_employee_link")

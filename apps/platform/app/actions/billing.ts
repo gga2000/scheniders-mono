@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireTenantAdminFor } from "@/lib/auth/require-action-caller";
 
 const VALID_PLANS = ["starter", "growth", "professional", "enterprise"] as const;
 
@@ -10,8 +11,13 @@ const VALID_PLANS = ["starter", "growth", "professional", "enterprise"] as const
  */
 export async function changePlanAction(
     tenantId: string,
-    newPlan: string
+    newPlan: string,
+    accessToken?: string,
 ): Promise<{ success: boolean; warning?: string; error?: string }> {
+    // Changes what a tenant is billed, for a tenant id supplied by the caller.
+    const auth = await requireTenantAdminFor(accessToken, tenantId);
+    if (!auth.ok) return { success: false, error: auth.error };
+
     if (!VALID_PLANS.includes(newPlan as (typeof VALID_PLANS)[number])) {
         return { success: false, error: "Invalid plan" };
     }
