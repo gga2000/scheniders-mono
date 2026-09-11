@@ -132,11 +132,23 @@ export function useOrders() {
     // While the cache still holds the complete set, both sides are computable —
     // so verify they agree before the windowed fetch makes the client's version
     // impossible to check. Dev-only; compiles to nothing in production.
+    //
+    // `ordersAreComplete` is the whole precondition and it was missing: with a
+    // date window active — which is the DEFAULT, today — the client's counts
+    // describe the window while the server's describe the whole filter, so they
+    // differ by design. The guard fired on that difference and reported "the
+    // windowed fetch would ship wrong numbers" about the one case where nothing
+    // is wrong, because the page renders the SERVER counts.
+    //
+    // It also had no dependency array, so it re-ran on every render and printed
+    // the same false alarm ten times a page load. A guard that cries wolf on a
+    // healthy page is worse than no guard: it trains you to scroll past the line
+    // that will one day be real.
     useEffect(() => {
-        if (!serverAggregates) return;
+        if (!serverAggregates || !ordersAreComplete) return;
         assertAggregateParity("status counts", filterHook.statusCounts, serverAggregates.status_counts);
         assertAggregateParity("stats", auxiliaryHook.stats as unknown as Record<string, number>, serverAggregates.stats);
-    });
+    }, [serverAggregates, ordersAreComplete, filterHook.statusCounts, auxiliaryHook.stats]);
 
 
     // 4. CRUD — all order mutations, undo, notes, timeline, etc.
