@@ -2637,6 +2637,15 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.productPicker.noProducts": "No products found",
         "orders.productPicker.cancel": "Cancel",
         "orders.productPicker.add": "Add ({count})",
+        "orders.productPicker.fillerGroup": "Filler products",
+        "orders.productPicker.fillerHint": "Orderable, but not in main stock",
+        "products.filler.label": "Filler product",
+        "products.filler.hint": "Customers can order it, but it is not held in main stock",
+        "products.filler.badge": "Filler",
+        "products.filler.mark": "Mark as filler",
+        "products.filler.unmark": "Remove filler mark",
+        "products.filler.marked": "{count} marked as filler",
+        "products.filler.unmarked": "{count} no longer filler",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "Order Confirmation",
@@ -5675,6 +5684,15 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.productPicker.noProducts": "لا توجد منتجات",
         "orders.productPicker.cancel": "إلغاء",
         "orders.productPicker.add": "إضافة ({count})",
+        "orders.productPicker.fillerGroup": "منتجات إضافية",
+        "orders.productPicker.fillerHint": "تنطلب بس مو من المخزن الرئيسي",
+        "products.filler.label": "منتج إضافي",
+        "products.filler.hint": "الزبون يكدر يطلبه، بس مو موجود بالمخزن الرئيسي",
+        "products.filler.badge": "إضافي",
+        "products.filler.mark": "علّمه كمنتج إضافي",
+        "products.filler.unmark": "شيل علامة الإضافي",
+        "products.filler.marked": "تعلّم {count} كمنتجات إضافية",
+        "products.filler.unmarked": "{count} ما عادت إضافية",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "تأكيد الطلب",

@@ -59,6 +59,26 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                         </div>
                     </label>
                 </div>
+
+                {/* Filler toggle — meaningless for a supply, which is never sellable. */}
+                {!formData.is_supply && (
+                    <div className="p-3 bg-[var(--background)] rounded-xl">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.is_filler}
+                                onChange={(e) => updateField("is_filler", e.target.checked)}
+                                className="w-4 h-4 rounded border-2 border-[var(--muted)] text-[var(--pastel-yellow)] focus:ring-[var(--pastel-yellow)] focus:ring-offset-0 bg-transparent cursor-pointer"
+                            />
+                            <div>
+                                <p className="text-sm font-medium text-foreground">Filler product</p>
+                                <p className="text-xs text-muted">
+                                    Customers can order it, but it is not held in main stock — collapsed in the order product picker
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+                )}
             </div>
 
             {/* Visibility (non-supply only) */}

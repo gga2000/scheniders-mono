@@ -36,6 +36,11 @@ export interface Product {
     tag_color?: string;
     is_archived: boolean;
     is_supply: boolean;
+    /** Catalogue filler — orderable by customers, but not held in main stock.
+     *  Collapsed behind a group in the order product picker so staff pick from
+     *  real stock first. Independent of `is_supply` (never sellable),
+     *  `is_visible` (hidden from the store) and `status`. */
+    is_filler?: boolean;
     status: 'draft' | 'active' | 'archived';
     product_type: 'physical' | 'digital' | 'service' | 'bundle';
     // Physical product fields
