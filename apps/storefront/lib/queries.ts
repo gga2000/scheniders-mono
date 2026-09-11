@@ -234,6 +234,66 @@ export const listCategories = cache((tenantId: string): Promise<Category[]> =>
   }),
 );
 
+/**
+ * Live product count per category id.
+ *
+ * Uses the SAME visibility filter as `listProductsInCategory`. If these
+ * two ever diverge, a card advertises "19 عطر" and opens a page listing
+ * a different number — so the filter lives in both places or neither.
+ */
+export const listCategoryProductCounts = cache(
+  (tenantId: string): Promise<Record<string, number>> =>
+    publicCache(["listCategoryProductCounts", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .select("category_id, products!inner(id, is_visible, is_archived, is_supply)")
+        .eq("tenant_id", tenantId)
+        .eq("products.is_visible", true)
+        .eq("products.is_archived", false)
+        .not("products.is_supply", "is", true);
+
+      if (error) {
+        console.error("[queries.listCategoryProductCounts]", error);
+        return {};
+      }
+
+      const counts: Record<string, number> = {};
+      for (const row of (data ?? []) as { category_id: string }[]) {
+        counts[row.category_id] = (counts[row.category_id] ?? 0) + 1;
+      }
+      return counts;
+    }),
+);
+
+export interface TenantPublicStats {
+  completed_orders: number;
+  customers: number;
+  governorates_served: number;
+}
+
+/**
+ * Pre-aggregated public counts. Never reads `orders` — that table is
+ * tenant-private and this runs for anon. Returns null when a tenant has
+ * no stats row yet, and every consumer must drop its slot rather than
+ * render a zero.
+ */
+export const getTenantPublicStats = cache(
+  (tenantId: string): Promise<TenantPublicStats | null> =>
+    publicCache(["getTenantPublicStats", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("tenant_public_stats")
+        .select("completed_orders, customers, governorates_served")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[queries.getTenantPublicStats]", error);
+        return null;
+      }
+      return (data as TenantPublicStats) ?? null;
+    }),
+);
+
 export const getCategoryBySlug = cache(
   (tenantId: string, slug: string): Promise<Category | null> =>
     publicCache(["getCategoryBySlug", tenantId, slug], async (supabase) => {
