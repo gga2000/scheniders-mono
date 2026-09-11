@@ -2646,6 +2646,13 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.filler.unmark": "Remove filler mark",
         "products.filler.marked": "{count} marked as filler",
         "products.filler.unmarked": "{count} no longer filler",
+        "categories.scope.label": "Who this category is for",
+        "categories.scope.internal": "Store only",
+        "categories.scope.internalHint": "For organising stock. Never shown to customers.",
+        "categories.scope.website": "Website only",
+        "categories.scope.websiteHint": "A browse category customers see on the store.",
+        "categories.scope.both": "Both",
+        "categories.scope.bothHint": "Used for staff organisation and shown on the store.",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "Order Confirmation",
@@ -5693,6 +5700,13 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.filler.unmark": "شيل علامة الإضافي",
         "products.filler.marked": "تعلّم {count} كمنتجات إضافية",
         "products.filler.unmarked": "{count} ما عادت إضافية",
+        "categories.scope.label": "هاي الفئة لمنو",
+        "categories.scope.internal": "للمحل بس",
+        "categories.scope.internalHint": "لتنظيم المخزن. ما تبين للزبون أبداً.",
+        "categories.scope.website": "للموقع بس",
+        "categories.scope.websiteHint": "فئة تصفح يشوفها الزبون بالموقع.",
+        "categories.scope.both": "الاثنين",
+        "categories.scope.bothHint": "تنظيم داخلي وتبين بالموقع بنفس الوقت.",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "تأكيد الطلب",

@@ -781,6 +781,7 @@ export type Database = {
           published_at: string | null
           show_in_main_nav: boolean
           show_in_mega_menu: boolean
+          scope: string
           show_in_mobile_drawer: boolean
           slug: string
           status: string
@@ -817,6 +818,7 @@ export type Database = {
           published_at?: string | null
           show_in_main_nav?: boolean
           show_in_mega_menu?: boolean
+          scope?: string
           show_in_mobile_drawer?: boolean
           slug: string
           status?: string
@@ -853,6 +855,7 @@ export type Database = {
           published_at?: string | null
           show_in_main_nav?: boolean
           show_in_mega_menu?: boolean
+          scope?: string
           show_in_mobile_drawer?: boolean
           slug?: string
           status?: string

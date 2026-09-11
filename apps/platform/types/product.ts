@@ -80,6 +80,7 @@ export interface Product {
 export type {
     Category,
     CategoryStatus,
+    CategoryScope,
     NavVariant,
     CategoryPageConfig,
     CategoryPageBlock,
