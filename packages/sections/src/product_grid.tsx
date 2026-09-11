@@ -352,7 +352,11 @@ export function PricePillCard({
         </div>
       </div>
       <h3
-        className="mt-bk-sm px-1 text-center text-sm font-bold leading-tight line-clamp-2 text-balance sm:text-base"
+        // `line-clamp-2` caps the name at two lines but reserves nothing, so
+        // a short name (ايبسكو) sat a full line higher than a long one and the
+        // row went ragged again — 17px apart at 390px. `min-h` of two lines
+        // holds the space; em-based so it follows the size change at `sm`.
+        className="mt-bk-sm px-1 text-center text-sm font-bold leading-tight line-clamp-2 min-h-[2.5em] text-balance sm:text-base"
         style={{
           color: "var(--bk-ink, #1a1a1a)",
           fontFamily: "var(--bk-font-body, inherit)",
@@ -364,7 +368,10 @@ export function PricePillCard({
           four without is four objects, not one shelf. */}
       <div
         data-meta-row
-        className="mt-1 flex min-h-[20px] items-center justify-center"
+        // 22px, not 20: the star row measures 21px, so a 20px floor let the
+        // two cards that have reviews grow 1px taller than the other four —
+        // the exact raggedness this row exists to remove. Measured at 1512.
+        className="mt-1 flex min-h-[22px] items-center justify-center"
       >
         {showStars && (product.review_count ?? 0) > 0 ? (
           <StarRow

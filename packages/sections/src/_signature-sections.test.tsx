@@ -465,6 +465,19 @@ describe("product_grid — buyable shelf", () => {
     expect(rows).toHaveLength(2);
   });
 
+  it("reserves enough height for the tallest thing each row can hold", () => {
+    // Measured in a browser: the star row is 21px, so a 20px floor left the
+    // two cards that have reviews 1px taller than the other four at 1512.
+    // And `line-clamp-2` caps the name at two lines without reserving them,
+    // so a short name (ايبسكو) sat a whole line higher — 17px apart at 390.
+    // Both floors are what make six cards one shelf instead of six objects.
+    const html = render(product_grid, props, {
+      products: [p({ name: "A", bestseller_rank: 1 })],
+    });
+    expect(html).toContain("min-h-[22px]");
+    expect(html).toContain("min-h-[2.5em]");
+  });
+
   it("keeps the new fields out of defaultProps", () => {
     expect(product_grid.defaultProps).not.toHaveProperty("low_stock_threshold");
     expect(product_grid.defaultProps).not.toHaveProperty("show_discount_badge");
