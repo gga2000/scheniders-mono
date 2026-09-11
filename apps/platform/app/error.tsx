@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 export default function Error({
   error,
@@ -11,6 +12,11 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("[platform error]", error);
+    // An error boundary that only logs to the console is a silent one: it
+    // CATCHES the error, so nothing else reports it, and the merchant sees this
+    // screen while Sentry shows nothing. Sentry's automatic instrumentation
+    // cannot see errors an app-router boundary has already swallowed.
+    Sentry.captureException(error, { tags: { boundary: "app-error" } });
   }, [error]);
 
   return (
