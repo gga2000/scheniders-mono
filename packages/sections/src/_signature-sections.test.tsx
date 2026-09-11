@@ -186,12 +186,80 @@ describe("hero_card_float — link CTAs", () => {
 
   it("stacks the photo above the card on mobile and keeps it as the LCP", () => {
     const html = render(hero_card_float, props);
-    expect(html).toMatch(/aspect-\[4\/5\][^"]*sm:absolute/);
+    expect(html).toMatch(/sm:absolute[^"]*aspect-\[5\/4\]/);
     // `priority` surfaces as a preload hint in static SSR output.
     expect(html).toContain('<link rel="preload" as="image"');
     const h1 = html.match(/<h1[^>]*>/)?.[0];
     expect(h1).toContain("text-bk-h1");
     expect(h1).toContain("text-balance");
+  });
+
+  it("crops the mobile photo landscape unless the merchant says otherwise", () => {
+    // A landscape source in a portrait box makes `cover` upscale a
+    // downscaled candidate — a blurred LCP — and slice the subject.
+    expect(render(hero_card_float, props)).toContain("aspect-[5/4]");
+    expect(
+      render(hero_card_float, { ...props, media_ratio: "portrait" as const }),
+    ).toContain("aspect-[4/5]");
+    expect(
+      render(hero_card_float, { ...props, media_ratio: "square" as const }),
+    ).toContain("aspect-square");
+  });
+
+  it("asks for a taller candidate below sm so the LCP is never upscaled", () => {
+    const html = render(hero_card_float, props);
+    expect(html).toContain('sizes="(max-width: 639px) 125vw, 100vw"');
+  });
+
+  it("emits no object-position until a focal point is set", () => {
+    expect(render(hero_card_float, props)).not.toContain("object-position");
+    const shifted = render(hero_card_float, {
+      ...props,
+      focal_x: "left" as const,
+    });
+    expect(shifted).toMatch(/object-position:\s*left center/);
+    const both = render(hero_card_float, {
+      ...props,
+      focal_x: "right" as const,
+      focal_y: "top" as const,
+    });
+    expect(both).toMatch(/object-position:\s*right top/);
+  });
+
+  it("shades only the card's side of the photo, in brand ink not black", () => {
+    const html = render(hero_card_float, {
+      ...props,
+      card_align: "end" as const,
+    });
+    // The old flat wash dulled the product for no gain — the card is opaque.
+    expect(html).not.toContain("bg-black/15");
+    expect(html).toContain("linear-gradient(to left");
+    expect(html).toContain("var(--bk-ink");
+    expect(html).not.toMatch(/linear-gradient\([^)]*rgba?\(0/);
+    expect(
+      render(hero_card_float, { ...props, card_align: "start" as const }),
+    ).toContain("linear-gradient(to right");
+  });
+
+  it("gives both hero CTAs the same edge on mobile", () => {
+    const html = render(hero_card_float, props);
+    const [primary, secondary] = anchors(html);
+    expect(primary).toContain("w-full");
+    expect(primary).toContain("sm:w-auto");
+    expect(secondary).toContain("wa.me/");
+    expect(secondary).toContain("w-full");
+    expect(secondary).toContain("sm:w-auto");
+  });
+
+  it("keeps defaultProps free of the new optional fields", () => {
+    // A required new field silently DROPS the section at parse time for
+    // every store that predates it. These must stay absent + optional.
+    expect(hero_card_float.defaultProps).not.toHaveProperty("media_ratio");
+    expect(hero_card_float.defaultProps).not.toHaveProperty("focal_x");
+    expect(hero_card_float.defaultProps).not.toHaveProperty("focal_y");
+    expect(
+      hero_card_float.schema.safeParse(hero_card_float.defaultProps).success,
+    ).toBe(true);
   });
 });
 

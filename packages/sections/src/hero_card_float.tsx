@@ -2,9 +2,14 @@
 // Section — hero_card_float
 // =====================================================================
 // Photo hero with a floating card anchored to one side (start / center /
-// end) on desktop. On mobile the photo stacks ABOVE the card (4:5) and
-// the card overlaps its bottom edge, so the LCP image is a real picture
-// instead of a 40px sliver behind a full-width card. The card sits on
+// end) on desktop. On mobile the photo stacks ABOVE the card and the
+// card overlaps its bottom edge, so the LCP image is a real picture
+// instead of a 40px sliver behind a full-width card. The mobile crop box
+// defaults to LANDSCAPE (`media_ratio`) because merchant hero photos are
+// overwhelmingly landscape: a portrait box forced `object-cover` to
+// upscale a downscaled landscape source (blurred LCP) and sliced the
+// subject vertically. `focal_x` / `focal_y` move the crop off-centre so
+// the subject survives the card side. The card sits on
 // `--bk-surface`, carries the headline + sub + a pill-shaped primary CTA
 // (shopping-bag icon), and an optional badge chip overlapping its top
 // corner. Carries the same secondary-CTA contract as `hero_image`
@@ -45,6 +50,19 @@ const schema = z.object({
   card_align: z.enum(["start", "center", "end"]),
   /** Optional chip overlapping the card's top corner. */
   badge_i18n: i18nStringOptional,
+  /**
+   * Shape of the stacked photo box on mobile. Landscape when unset —
+   * it matches how merchant hero photos are actually shot, so `cover`
+   * crops a sliver instead of half the frame and never upscales.
+   */
+  media_ratio: z.enum(["landscape", "square", "portrait"]).optional(),
+  /**
+   * Where `object-cover` holds the crop. Unset renders no
+   * `object-position` at all, so existing configs keep the browser
+   * default (`50% 50%`) byte for byte.
+   */
+  focal_x: z.enum(["left", "center", "right"]).optional(),
+  focal_y: z.enum(["top", "center", "bottom"]).optional(),
   // Secondary CTA contract — mirrors `hero_image` exactly so store
   // templates can rely on one hero CTA shape across hero sections.
   secondary_cta_kind: z
@@ -127,6 +145,38 @@ const ALIGN_CLASS: Record<Props["card_align"], string> = {
   end: "sm:justify-end",
 };
 
+/** Mobile crop box. Landscape is the default — see the header note. */
+const MEDIA_RATIO_CLASS: Record<
+  NonNullable<Props["media_ratio"]>,
+  string
+> = {
+  landscape: "aspect-[5/4]",
+  square: "aspect-square",
+  portrait: "aspect-[4/5]",
+};
+
+/**
+ * The desktop scrim runs FROM the card's side, so the photo keeps full
+ * contrast on the side the subject lives on. A flat wash over the whole
+ * frame buys nothing here — the card is an opaque surface — and only
+ * dulls the product.
+ */
+const SCRIM_DIRECTION: Record<Props["card_align"], string> = {
+  start: "to right",
+  center: "to top",
+  end: "to left",
+};
+
+/**
+ * Scrim ink at a given alpha, mixed from the brand token rather than a
+ * literal black: a warm-ink store gets a warm shade, not a grey one.
+ * `color-mix` keeps this a one-liner without needing an `--bk-ink-rgb`
+ * companion token.
+ */
+function scrimInk(alphaPercent: number): string {
+  return `color-mix(in srgb, var(--bk-ink, #1a1a1a) ${alphaPercent}%, transparent)`;
+}
+
 function HeroCardFloatRender({
   props,
   ctx,
@@ -163,6 +213,13 @@ function HeroCardFloatRender({
       : null;
 
   const bgImage = props.bg_image_url;
+  const mediaRatio = props.media_ratio ?? "landscape";
+  // Omit the property entirely when the merchant has not placed a focal
+  // point, so the rendered markup matches pre-`focal_*` output exactly.
+  const objectPosition =
+    props.focal_x || props.focal_y
+      ? `${props.focal_x ?? "center"} ${props.focal_y ?? "center"}`
+      : undefined;
 
   return (
     <Section bleed className="px-0 sm:px-4 py-0 sm:py-6">
@@ -180,7 +237,10 @@ function HeroCardFloatRender({
             data-layer="bg_image"
             data-layer-label="Background image"
             data-layer-kind="image"
-            className="relative aspect-[4/5] w-full sm:absolute sm:inset-0 sm:aspect-auto"
+            className={cn(
+              "relative w-full sm:absolute sm:inset-0 sm:aspect-auto",
+              MEDIA_RATIO_CLASS[mediaRatio],
+            )}
             style={{ backgroundColor: "var(--bk-surface, #fff7ed)" }}
           >
             <Image
@@ -191,11 +251,34 @@ function HeroCardFloatRender({
               // Optimize (AVIF/WebP + srcset) when the host is allowlisted —
               // the hero is the LCP element. Off-allowlist URLs stay raw.
               unoptimized={!isOptimizableImageHost(bgImage)}
-              sizes="100vw"
+              // On mobile the box is 100vw WIDE but `cover` fills it by
+              // HEIGHT for a landscape source, so a plain `100vw` hint
+              // picks a candidate that then gets upscaled — a blurred
+              // LCP. Ask for the next step up below `sm`.
+              sizes="(max-width: 639px) 125vw, 100vw"
               className="absolute inset-0 w-full h-full object-cover"
+              style={objectPosition ? { objectPosition } : undefined}
             />
-            {/* Whisper of shade so the card edge reads on bright photos. */}
-            <div className="absolute inset-0 bg-black/15" />
+            {/* Mobile: the card sits BELOW the photo on an opaque surface,
+                so the photo only needs a fade where the card's top edge
+                overlaps it. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 bottom-0 h-24 sm:hidden"
+              style={{
+                background: `linear-gradient(to top, ${scrimInk(30)}, transparent)`,
+              }}
+            />
+            {/* Desktop: the card floats ON the photo — shade its side only. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 hidden sm:block"
+              style={{
+                background: `linear-gradient(${SCRIM_DIRECTION[props.card_align]}, ${scrimInk(
+                  55,
+                )}, ${scrimInk(12)} 55%, transparent)`,
+              }}
+            />
           </div>
         ) : (
           <div
@@ -277,7 +360,16 @@ function HeroCardFloatRender({
                 <ShoppingBagIcon />
               </StoreLink>
               {whatsappHref && (
-                <WhatsAppButton href={whatsappHref} tone="outline" size="lg">
+                <WhatsAppButton
+                  href={whatsappHref}
+                  tone="outline"
+                  size="lg"
+                  // Matches the primary's `w-full sm:w-auto`: two CTAs
+                  // stacked at different widths read as a ragged edge,
+                  // and the longer label made the SECONDARY the wider
+                  // of the two.
+                  className="w-full sm:w-auto"
+                >
                   <span data-i18n-field="secondary_cta_label_i18n">
                     {secondaryLabel}
                   </span>
