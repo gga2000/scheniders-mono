@@ -536,3 +536,67 @@ describe("category_spotlight_pair — the diptych", () => {
     expect(html).not.toMatch(/absolute right-0 top-1\/2/);
   });
 });
+
+describe("trust_badge_row — proof ledge", () => {
+  const ledgeProps = {
+    band_style: "tinted" as const,
+    items: [
+      { icon_url: "", metric: "completed_orders" as const, label_i18n: { ar: "طلب وصل" } },
+      { icon_url: "", label_i18n: { ar: "توصيل خلال ٢٤ ساعة" } },
+      { icon_url: "", metric: "governorates" as const, label_i18n: { ar: "محافظة" } },
+      { icon_url: "", label_i18n: { ar: "الدفع عند الاستلام" } },
+    ],
+  };
+  const stats = { completed_orders: 2693, customers: 4465, governorates_served: 18 };
+
+  it("renders the rounded-down count and the exact small one", () => {
+    const html = render(trust_badge_row, ledgeProps, { public_stats: stats });
+    expect(html).toContain("+2600");
+    expect(html).toContain("18");
+    expect(html).not.toContain("2693");
+  });
+
+  it("drops a metric slot when there are no stats at all", () => {
+    const html = render(trust_badge_row, ledgeProps);
+    expect(html).not.toContain("+2600");
+    // Static slots survive — they are merchant claims, not derived.
+    expect(html).toContain("توصيل خلال ٢٤ ساعة");
+    expect(html).toContain("الدفع عند الاستلام");
+  });
+
+  it("drops a metric slot whose value is zero rather than printing 0", () => {
+    const html = render(trust_badge_row, ledgeProps, {
+      public_stats: { completed_orders: 0, customers: 0, governorates_served: 18 },
+    });
+    expect(html).not.toMatch(/>0</);
+    expect(html).toContain("18");
+  });
+
+  it("leaves a plain badge row untouched when no item declares a metric", () => {
+    const html = render(trust_badge_row, trust_badge_row.defaultProps, { public_stats: stats });
+    expect(html).not.toContain("+2600");
+    expect(html).toContain("توصيل سريع");
+  });
+
+  it("keeps `metric` out of defaultProps so old configs still parse", () => {
+    for (const item of trust_badge_row.defaultProps.items) {
+      expect(item).not.toHaveProperty("metric");
+    }
+    expect(trust_badge_row.schema.safeParse(trust_badge_row.defaultProps).success).toBe(true);
+  });
+
+  it("lays the ledge on surface-alt, not the accent wash", () => {
+    const html = render(trust_badge_row, { ...ledgeProps, band_style: "ledge" as const }, { public_stats: stats });
+    expect(html).toContain("var(--bk-surface-alt");
+    expect(html).not.toContain("var(--bk-accent, #ffd84a) 12%");
+    expect(html).toContain("sm:divide-x");
+  });
+
+  it("keeps plain and tinted meaning exactly what they meant before", () => {
+    const plain = render(trust_badge_row, { ...trust_badge_row.defaultProps, band_style: "plain" as const });
+    expect(plain).not.toContain("var(--bk-surface-alt");
+    expect(plain).not.toContain("sm:divide-x");
+    const tinted = render(trust_badge_row, { ...trust_badge_row.defaultProps, band_style: "tinted" as const });
+    expect(tinted).toContain("var(--bk-accent, #ffd84a) 12%");
+  });
+});
