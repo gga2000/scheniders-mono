@@ -5,15 +5,17 @@ import { Eye, EyeOff, Pencil, MoreHorizontal, Folder } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import type { Category } from "@scheniders/shared";
+import type { Category, CategoryScope} from "@scheniders/shared";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 import { useCategoryStore } from "@/store/use-category-store";
+import { CategoryScopeControl } from "@/components/products/category-scope-control";
 
 interface CategoryGridViewProps {
   categories: Category[];
   productCountMap: Record<string, number>;
   onEdit: (c: Category) => void;
   onToggleVisibility: (c: Category) => void;
+  onScopeChange: (c: Category, scope: CategoryScope) => void;
   onOpenDetail?: (c: Category) => void;
 }
 
@@ -22,6 +24,7 @@ export function CategoryGridView({
   productCountMap,
   onEdit,
   onToggleVisibility,
+  onScopeChange,
   onOpenDetail,
 }: CategoryGridViewProps) {
   const { t } = useLanguage();
@@ -134,7 +137,11 @@ export function CategoryGridView({
               </div>
             </button>
 
-            <div className="absolute bottom-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-2 end-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <CategoryScopeControl
+                value={c.scope ?? "both"}
+                onChange={(next) => onScopeChange(c, next)}
+              />
               <button
                 type="button"
                 onClick={() => onToggleVisibility(c)}

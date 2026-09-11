@@ -19,7 +19,7 @@ import {
 } from "@/hooks/use-categories-query";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useCategoryStore } from "@/store/use-category-store";
-import type { Category } from "@scheniders/shared";
+import type { Category, CategoryScope} from "@scheniders/shared";
 import { PageTransition } from "@/components/layout/page-transition";
 import {
   CategoryFormModal,
@@ -119,6 +119,11 @@ export function CategoriesTabV2() {
     list = list.filter((c) => filters.statuses.includes(c.status));
 
     if (filters.navOnly) list = list.filter((c) => c.show_in_main_nav);
+    // "both" categories answer to either audience, so they survive a website or
+    // store filter — hiding them would misrepresent what the storefront shows.
+    if (filters.scope === "website") list = list.filter((c) => c.scope !== "internal");
+    else if (filters.scope === "internal") list = list.filter((c) => c.scope !== "website");
+    else if (filters.scope === "both") list = list.filter((c) => c.scope === "both");
     if (filters.parent === "top-level") list = list.filter((c) => !c.parent_id);
     else if (filters.parent === "sub") list = list.filter((c) => !!c.parent_id);
 
@@ -206,6 +211,18 @@ export function CategoriesTabV2() {
       toast.success(t("categories.toast.duplicated") || "Category duplicated");
     },
     [duplicateMutation, t],
+  );
+
+  // Scope is a one-field write, so it commits on click instead of making the
+  // merchant open the edit sheet to change who a category is for.
+  const handleScopeChange = useCallback(
+    async (c: Category, scope: CategoryScope) => {
+      await updateMutation.mutateAsync({
+        id: c.id,
+        data: { scope } as Partial<Category>,
+      });
+    },
+    [updateMutation],
   );
 
   const handleToggleVisibility = useCallback(
@@ -332,6 +349,7 @@ export function CategoriesTabV2() {
             productCountMap={productCountMap}
             onEdit={openEdit}
             onToggleVisibility={handleToggleVisibility}
+            onScopeChange={handleScopeChange}
           />
         ) : viewMode === "tree" ? (
           <CategoryTreeView
@@ -342,6 +360,7 @@ export function CategoriesTabV2() {
             onArchive={handleArchive}
             onDelete={handleDelete}
             onToggleVisibility={handleToggleVisibility}
+            onScopeChange={handleScopeChange}
             onReorder={handleReorder}
           />
         ) : (

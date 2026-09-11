@@ -2653,6 +2653,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "categories.scope.websiteHint": "A browse category customers see on the store.",
         "categories.scope.both": "Both",
         "categories.scope.bothHint": "Used for staff organisation and shown on the store.",
+        "categories.kpi.onWebsite": "On the website",
+        "categories.kpi.inStore": "for the store",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "Order Confirmation",
@@ -5707,6 +5709,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "categories.scope.websiteHint": "فئة تصفح يشوفها الزبون بالموقع.",
         "categories.scope.both": "الاثنين",
         "categories.scope.bothHint": "تنظيم داخلي وتبين بالموقع بنفس الوقت.",
+        "categories.kpi.onWebsite": "بالموقع",
+        "categories.kpi.inStore": "للمحل",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "تأكيد الطلب",
