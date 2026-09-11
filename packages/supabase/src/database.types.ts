@@ -3332,270 +3332,6 @@ export type Database = {
           },
         ]
       }
-      notification_deliveries: {
-        Row: {
-          channel: string
-          created_at: string
-          detail: string | null
-          id: number
-          notification_id: string | null
-          status: string
-          tenant_id: string | null
-          user_id: string | null
-        }
-        Insert: {
-          channel: string
-          created_at?: string
-          detail?: string | null
-          id?: number
-          notification_id?: string | null
-          status: string
-          tenant_id?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          channel?: string
-          created_at?: string
-          detail?: string | null
-          id?: number
-          notification_id?: string | null
-          status?: string
-          tenant_id?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_deliveries_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_feed_state: {
-        Row: {
-          cleared_before: string | null
-          read_before: string | null
-          user_id: string
-        }
-        Insert: {
-          cleared_before?: string | null
-          read_before?: string | null
-          user_id: string
-        }
-        Update: {
-          cleared_before?: string | null
-          read_before?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      notification_mutes: {
-        Row: {
-          created_at: string
-          entity_id: string
-          entity_type: string
-          tenant_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          entity_id: string
-          entity_type: string
-          tenant_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          entity_id?: string
-          entity_type?: string
-          tenant_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_mutes_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_prefs: {
-        Row: {
-          category: string
-          in_app: boolean
-          push: boolean
-          sound: boolean
-          tenant_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          category: string
-          in_app?: boolean
-          push?: boolean
-          sound?: boolean
-          tenant_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          category?: string
-          in_app?: boolean
-          push?: boolean
-          sound?: boolean
-          tenant_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_prefs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_settings: {
-        Row: {
-          digest_last_sent_at: string | null
-          digest_mode: string
-          quiet_end: number
-          quiet_hours_enabled: boolean
-          quiet_start: number
-          tenant_id: string
-          time_zone: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          digest_last_sent_at?: string | null
-          digest_mode?: string
-          quiet_end?: number
-          quiet_hours_enabled?: boolean
-          quiet_start?: number
-          tenant_id: string
-          time_zone?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          digest_last_sent_at?: string | null
-          digest_mode?: string
-          quiet_end?: number
-          quiet_hours_enabled?: boolean
-          quiet_start?: number
-          tenant_id?: string
-          time_zone?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_settings_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_user_state: {
-        Row: {
-          dismissed_at: string | null
-          notification_id: string
-          read_at: string | null
-          user_id: string
-        }
-        Insert: {
-          dismissed_at?: string | null
-          notification_id: string
-          read_at?: string | null
-          user_id: string
-        }
-        Update: {
-          dismissed_at?: string | null
-          notification_id?: string
-          read_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_user_state_notification_id_fkey"
-            columns: ["notification_id"]
-            isOneToOne: false
-            referencedRelation: "notifications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notifications: {
-        Row: {
-          actor_avatar: string | null
-          actor_name: string | null
-          audience: string
-          category: string
-          created_at: string
-          entity_id: string | null
-          entity_label: string | null
-          entity_type: string | null
-          group_key: string | null
-          id: string
-          payload: Json
-          priority: string
-          recipient_id: string | null
-          tenant_id: string
-          type: string
-        }
-        Insert: {
-          actor_avatar?: string | null
-          actor_name?: string | null
-          audience: string
-          category: string
-          created_at?: string
-          entity_id?: string | null
-          entity_label?: string | null
-          entity_type?: string | null
-          group_key?: string | null
-          id?: string
-          payload?: Json
-          priority?: string
-          recipient_id?: string | null
-          tenant_id: string
-          type: string
-        }
-        Update: {
-          actor_avatar?: string | null
-          actor_name?: string | null
-          audience?: string
-          category?: string
-          created_at?: string
-          entity_id?: string | null
-          entity_label?: string | null
-          entity_type?: string | null
-          group_key?: string | null
-          id?: string
-          payload?: Json
-          priority?: string
-          recipient_id?: string | null
-          tenant_id?: string
-          type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       order_deletion_log: {
         Row: {
           deleted_at: string
@@ -3780,10 +3516,65 @@ export type Database = {
           },
         ]
       }
+      order_notification_feed_state: {
+        Row: {
+          cleared_before: string | null
+          read_before: string | null
+          user_id: string
+        }
+        Insert: {
+          cleared_before?: string | null
+          read_before?: string | null
+          user_id: string
+        }
+        Update: {
+          cleared_before?: string | null
+          read_before?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_notification_user_state: {
+        Row: {
+          dismissed_at: string | null
+          notification_id: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          dismissed_at?: string | null
+          notification_id: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          dismissed_at?: string | null
+          notification_id?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_notification_user_state_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "order_notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_notification_user_state_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "order_notifications_feed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_notifications: {
         Row: {
           created_at: string
           id: string
+          is_read: boolean | null
           message: string
           new_status: string | null
           old_status: string | null
@@ -3797,6 +3588,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_read?: boolean | null
           message: string
           new_status?: string | null
           old_status?: string | null
@@ -3810,6 +3602,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_read?: boolean | null
           message?: string
           new_status?: string | null
           old_status?: string | null
@@ -4005,14 +3798,12 @@ export type Database = {
       }
       orders: {
         Row: {
-          ad_channel: string | null
           address_details: string | null
           address_issues: string[] | null
           address_status: string | null
           assigned_at: string | null
           assigned_to: string | null
           attention_reasons: string[] | null
-          attribution: Json | null
           cancelled_at: string | null
           city: string | null
           completed_at: string | null
@@ -4091,14 +3882,12 @@ export type Database = {
           whatsapp_link: string | null
         }
         Insert: {
-          ad_channel?: string | null
           address_details?: string | null
           address_issues?: string[] | null
           address_status?: string | null
           assigned_at?: string | null
           assigned_to?: string | null
           attention_reasons?: string[] | null
-          attribution?: Json | null
           cancelled_at?: string | null
           city?: string | null
           completed_at?: string | null
@@ -4177,14 +3966,12 @@ export type Database = {
           whatsapp_link?: string | null
         }
         Update: {
-          ad_channel?: string | null
           address_details?: string | null
           address_issues?: string[] | null
           address_status?: string | null
           assigned_at?: string | null
           assigned_to?: string | null
           attention_reasons?: string[] | null
-          attribution?: Json | null
           cancelled_at?: string | null
           city?: string | null
           completed_at?: string | null
@@ -8127,6 +7914,31 @@ export type Database = {
           },
         ]
       }
+      order_notifications_feed: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          is_read: boolean | null
+          message: string | null
+          new_status: string | null
+          old_status: string | null
+          order_display_id: string | null
+          order_id: string | null
+          tenant_id: string | null
+          type: string | null
+          user_avatar: string | null
+          user_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_order_confirmations_by_agent: {
         Row: {
           agent: string | null
@@ -8503,15 +8315,7 @@ export type Database = {
         }[]
       }
       check_notification_pipeline: { Args: never; Returns: string }
-      check_order_sla: {
-        Args: {
-          p_hours?: number
-          p_quiet_hours?: number
-          p_window_hours?: number
-        }
-        Returns: number
-      }
-      clear_notification_feed: { Args: never; Returns: undefined }
+      clear_order_notification_feed: { Args: never; Returns: undefined }
       cod_risk_signals: {
         Args: { _address: string; _phone: string; _tenant_id: string }
         Returns: Json
@@ -8719,10 +8523,6 @@ export type Database = {
       }
       get_seed_automation_status: { Args: never; Returns: Json }
       get_user_tenant_ids: { Args: never; Returns: string[] }
-      in_quiet_hours: {
-        Args: { p_tenant_id: string; p_user_id: string }
-        Returns: boolean
-      }
       increment_order_usage: {
         Args: { p_tenant_id: string }
         Returns: undefined
@@ -8770,7 +8570,7 @@ export type Database = {
         Args: { _subtotal: number; _tenant_id: string }
         Returns: number
       }
-      mark_notifications_read: { Args: never; Returns: undefined }
+      mark_order_notifications_read: { Args: never; Returns: undefined }
       merge_orders_atomic: {
         Args: {
           _archive_order_id: string
@@ -8790,44 +8590,6 @@ export type Database = {
       }
       normalize_phone: { Args: { input_phone: string }; Returns: string }
       normalize_phone_for_search: { Args: { _phone: string }; Returns: string }
-      notification_channel_enabled: {
-        Args: {
-          p_category: string
-          p_channel: string
-          p_tenant_id: string
-          p_user_id: string
-        }
-        Returns: boolean
-      }
-      notification_feed: {
-        Args: { p_before?: string; p_filter?: string; p_limit?: number }
-        Returns: {
-          actor_avatar: string
-          actor_name: string
-          category: string
-          created_at: string
-          entity_id: string
-          entity_label: string
-          entity_type: string
-          group_key: string
-          id: string
-          is_read: boolean
-          payload: Json
-          priority: string
-          type: string
-        }[]
-      }
-      notification_stats: {
-        Args: { p_days?: number }
-        Returns: {
-          category: string
-          day: string
-          notifications: number
-          push_failed: number
-          push_sent: number
-        }[]
-      }
-      notification_unread_count: { Args: never; Returns: number }
       order_base_id: { Args: { _order_id: string }; Returns: string }
       order_search_matches: {
         Args: {
@@ -8857,10 +8619,6 @@ export type Database = {
         Returns: undefined
       }
       progress_seed_orders: { Args: never; Returns: undefined }
-      prune_notification_deliveries: {
-        Args: { p_keep_days?: number }
-        Returns: number
-      }
       prune_order_notifications: {
         Args: { p_keep_days?: number }
         Returns: number
@@ -8908,10 +8666,6 @@ export type Database = {
       }
       refresh_customer_aggregates: { Args: never; Returns: undefined }
       refresh_tenant_public_stats: { Args: never; Returns: undefined }
-      resolve_order_creation_actor: {
-        Args: { p_order: Database["public"]["Tables"]["orders"]["Row"] }
-        Returns: Record<string, unknown>
-      }
       resolve_status_actor: {
         Args: { p_changed_by: string }
         Returns: Record<string, unknown>
@@ -8944,7 +8698,6 @@ export type Database = {
         Args: { p_config: Json; p_tenant_id: string }
         Returns: boolean
       }
-      send_notification_digests: { Args: { p_mode: string }; Returns: number }
       split_order_atomic:
         | {
             Args: {
@@ -9028,12 +8781,7 @@ export type Database = {
         | "lost"
       lead_tier: "bronze" | "silver" | "gold" | "diamond" | "legendary"
       member_status: "pending" | "active" | "suspended"
-      plan_tier:
-        | "starter"
-        | "growth"
-        | "professional"
-        | "enterprise"
-        | "internal"
+      plan_tier: "starter" | "growth" | "professional" | "enterprise"
       refund_status: "none" | "pending" | "refunded" | "failed"
       subscription_status:
         | "trialing"
@@ -9220,13 +8968,7 @@ export const Constants = {
       ],
       lead_tier: ["bronze", "silver", "gold", "diamond", "legendary"],
       member_status: ["pending", "active", "suspended"],
-      plan_tier: [
-        "starter",
-        "growth",
-        "professional",
-        "enterprise",
-        "internal",
-      ],
+      plan_tier: ["starter", "growth", "professional", "enterprise"],
       refund_status: ["none", "pending", "refunded", "failed"],
       subscription_status: [
         "trialing",
