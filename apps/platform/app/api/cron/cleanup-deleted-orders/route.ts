@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
 
 // Opt out of caching
@@ -18,10 +19,8 @@ export async function GET(request: Request) {
     try {
         // Verify authorization if it's hitting the endpoint directly (optional depending on your Vercel setup,
         // but it's good practice. Vercel Cron sends a Bearer token matching CRON_SECRET)
-        const authHeader = request.headers.get('authorization');
-        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const denied = requireCronAuth(request);
+        if (denied) return denied;
 
         const supabase = createSupabaseServiceClient();
         
@@ -38,7 +37,7 @@ export async function GET(request: Request) {
         // The job is idempotent, so anything left over is taken by the next run.
         const { data: expiredOrders, error: selectError } = await supabase
             .from('orders')
-            .select('id')
+            .select('id, order_id, tenant_id')
             .not('deleted_at', 'is', null)
             .lt('deleted_at', thresholdIso)
             .order('deleted_at', { ascending: true })
@@ -73,6 +72,39 @@ export async function GET(request: Request) {
         }
 
         const count = deletedOrders?.length || 0;
+
+        // Permanent deletion with no audit trail is not acceptable on the
+        // revenue surface — once these rows are gone, nothing records that they
+        // existed. `order_deletion_log.tenant_id` is NOT NULL and this sweep
+        // spans tenants, so write one row per tenant.
+        const byTenant = new Map<string, { ids: string[]; numbers: string[] }>();
+        for (const order of expiredOrders ?? []) {
+            const tenantId = (order as { tenant_id: string | null }).tenant_id;
+            if (!tenantId) continue;
+            const entry = byTenant.get(tenantId) ?? { ids: [], numbers: [] };
+            entry.ids.push((order as { id: string }).id);
+            entry.numbers.push(String((order as { order_id: string | null }).order_id ?? ''));
+            byTenant.set(tenantId, entry);
+        }
+
+        if (byTenant.size > 0) {
+            const { error: logError } = await supabase.from('order_deletion_log').insert(
+                [...byTenant.entries()].map(([tenantId, entry]) => ({
+                    tenant_id: tenantId,
+                    deleted_by: null,
+                    deleted_by_email: 'cron:cleanup-deleted-orders',
+                    order_count: entry.ids.length,
+                    order_ids: entry.ids,
+                    order_numbers: entry.numbers,
+                }))
+            );
+            // The orders are already gone. A logging failure must be loud, but
+            // must not report the deletion itself as failed.
+            if (logError) {
+                console.error('[Cron: cleanup-deleted-orders] Deletion succeeded but audit log failed:', logError.message);
+            }
+        }
+
         // A full batch means the backlog is not drained yet; the next run continues.
         const hasMore = expiredIds.length === CLEANUP_BATCH_SIZE;
         console.log(`[Cron: cleanup-deleted-orders] Successfully deleted ${count} orders.${hasMore ? ' More remain for the next run.' : ''}`);
@@ -80,6 +112,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             success: true,
             deletedCount: count,
+            tenantsAffected: byTenant.size,
             hasMore,
             threshold: thresholdIso
         });
