@@ -372,7 +372,14 @@ function HeroCardFloatRender({
             {badge && (
               <span
                 data-i18n-field="badge_i18n"
-                className="absolute -top-4 start-6 inline-flex items-center px-4 py-1.5 font-display font-bold text-xs sm:text-sm whitespace-nowrap"
+                // The corner-overlap only works where the card floats free
+                // on the photo. On mobile the card ALREADY overlaps the
+                // photo by 24px, so an absolute 28px chip lands in that
+                // seam — half on the photo, across the card's edge, 12px
+                // off the headline. In flow above the headline it gets the
+                // card's own padding and real breathing room; the overlap
+                // returns at `sm` where there is a clean corner for it.
+                className="mb-3 inline-flex items-center px-4 py-1.5 font-display font-bold text-sm whitespace-nowrap sm:absolute sm:-top-4 sm:mb-0 sm:start-6"
                 style={{
                   backgroundColor: "var(--bk-primary, #ff5a8a)",
                   color: "var(--bk-on-primary, #fff)",

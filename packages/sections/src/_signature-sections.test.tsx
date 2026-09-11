@@ -309,6 +309,27 @@ describe("hero_card_float — link CTAs", () => {
     expect(html).toContain("الدفع عند الاستلام");
   });
 
+  it("keeps the offer chip out of the card/photo seam on mobile", () => {
+    const html = render(
+      hero_card_float,
+      {
+        ...props,
+        offer_badge: "max_discount" as const,
+        badge_i18n: { ar: "خصم لحد {pct}", en: "Up to {pct} off" },
+      },
+      { products: [{ ...baseProduct, price: 38500, compare_at_price: 60000 }] },
+    );
+    const chip = html.match(/<span[^>]*data-i18n-field="badge_i18n"[^>]*>/)?.[0];
+    expect(chip).toBeDefined();
+    // In flow on mobile (the card already overlaps the photo there),
+    // corner-overlapped only from `sm` up where the card floats free.
+    expect(chip).toContain("mb-3");
+    expect(chip).toContain("sm:absolute");
+    expect(chip).toContain("sm:-top-4");
+    expect(chip).toContain("sm:mb-0");
+    expect(chip).not.toMatch(/class="[^"]*(?<!sm:)\babsolute\b/);
+  });
+
   it("keeps defaultProps free of the new optional fields", () => {
     // A required new field silently DROPS the section at parse time for
     // every store that predates it. These must stay absent + optional.
