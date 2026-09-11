@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
-import { orderRepository, type OrderRisk } from "@/lib/repositories/order-repository";
+import { orderSearchRepository, type OrderRisk } from "@/lib/repositories/order-search-repository";
 
 const EMPTY: ReadonlyMap<string, OrderRisk> = new Map();
 
@@ -19,7 +19,7 @@ export function useOrderRiskQuery(): ReadonlyMap<string, OrderRisk> {
     const { session, clientReady } = useAuth();
     const { data } = useQuery({
         queryKey: ["orders", "risk"],
-        queryFn: () => orderRepository.findRiskData(),
+        queryFn: () => orderSearchRepository.findRiskData(),
         enabled: !!session && clientReady,
         staleTime: 5 * 60 * 1000,
     });
@@ -31,7 +31,7 @@ export function useOrderRisk(orderId: string | null | undefined): OrderRisk | nu
     const { session, clientReady } = useAuth();
     const { data } = useQuery({
         queryKey: ["orders", "risk", orderId],
-        queryFn: () => orderRepository.findRiskFor(orderId as string),
+        queryFn: () => orderSearchRepository.findRiskFor(orderId as string),
         enabled: !!session && clientReady && !!orderId,
         staleTime: 5 * 60 * 1000,
     });

@@ -158,14 +158,35 @@ export const formatOrderNamedDayMonth = (dateStr: string | Date | undefined | nu
     return baghdadNamedDayMonth.format(date);
 };
 
-export const getAgeUrgency = (status: Order["status"], dateStr: string | Date | undefined | null) => {
+/**
+ * Colour band for the age badge.
+ *
+ * An order parked for a future date is `scheduled`, not overdue — it is not
+ * work anyone is late on. Once its day arrives the clock starts from that day
+ * rather than from placement, so a postponed order does not surface as stale
+ * the moment it becomes actionable.
+ */
+export const getAgeUrgency = (
+    status: Order["status"],
+    dateStr: string | Date | undefined | null,
+    scheduledDate?: string | Date | null
+) => {
     if (status === "delivered" || status === "rejected") return "none";
     if (!dateStr) return "none";
 
-    const now = new Date();
     const orderDate = new Date(dateStr);
     if (isNaN(orderDate.getTime())) return "none";
-    const diffHours = (now.getTime() - orderDate.getTime()) / 3600000;
+
+    const scheduled = getScheduledState(scheduledDate);
+    if (scheduled === "future") return "scheduled";
+
+    let clockStart = orderDate;
+    if (scheduled === "due") {
+        const dayStart = scheduledDayStart(scheduledDate);
+        if (dayStart && dayStart.getTime() > orderDate.getTime()) clockStart = dayStart;
+    }
+
+    const diffHours = (Date.now() - clockStart.getTime()) / 3600000;
 
     if (diffHours < 2) return "fresh";      // Green - just arrived
     if (diffHours < 4) return "normal";     // Default - normal processing
@@ -337,4 +358,77 @@ export const getDisplayOrderId = (orderId: string) => {
     }
 
     return orderId;
+};
+
+// ---------------------------------------------------------------------------
+// Scheduling (the postpone queue).
+//
+// Merged from the dashboard-audit branch: `main` and that branch each added
+// distinct helpers to this file, so neither side was a superset. `main`'s
+// formatting helpers are kept above; these scheduling ones are appended.
+// `virtualized-order-table.tsx` imports getScheduledState, formatScheduledDate
+// and isScheduledToday from here.
+// ---------------------------------------------------------------------------
+
+const localDayKey = (date: Date = new Date()) => date.toLocaleDateString("en-CA");
+
+const toDayKey = (value: string | Date | undefined | null): string | null => {
+    if (!value) return null;
+    const key = value instanceof Date ? localDayKey(value) : String(value).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null;
+};
+
+export type ScheduledState = "future" | "due";
+
+/**
+ * Where an order sits relative to the day it was scheduled for.
+ * `future` = parked for later, `due` = its day has arrived or passed,
+ * `null` = never scheduled.
+ */
+export const getScheduledState = (
+    scheduledDate: string | Date | undefined | null
+): ScheduledState | null => {
+    const key = toDayKey(scheduledDate);
+    if (!key) return null;
+    return key > localDayKey() ? "future" : "due";
+};
+
+/** Start of the scheduled day in the viewer's timezone. */
+const scheduledDayStart = (scheduledDate: string | Date | undefined | null): Date | null => {
+    const key = toDayKey(scheduledDate);
+    if (!key) return null;
+    const date = new Date(`${key}T00:00:00`);
+    return isNaN(date.getTime()) ? null : date;
+};
+
+/** True when the order is scheduled for the current day. */
+export const isScheduledToday = (scheduledDate: string | Date | undefined | null) => {
+    const key = toDayKey(scheduledDate);
+    return key !== null && key === localDayKey();
+};
+
+/** Statuses where the order is finished and no longer anyone's queue. */
+const SETTLED_STATUSES = new Set<string>([
+    "completed",
+    "delivered",
+    "rejected",
+    "cancelled",
+    "refund_delivered",
+]);
+
+/**
+ * An order whose scheduled day has arrived (or passed) and that still needs
+ * work. This is the "due today" queue — orders that were parked and have now
+ * come back round.
+ */
+export const isScheduleDue = (
+    status: Order["status"],
+    scheduledDate?: string | null
+) => getScheduledState(scheduledDate) === "due" && !SETTLED_STATUSES.has(status);
+
+/** "8 Sep" — the label for the scheduled-date badge. */
+export const formatScheduledDate = (scheduledDate: string | Date | undefined | null) => {
+    const day = scheduledDayStart(scheduledDate);
+    if (!day) return "";
+    return day.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 };

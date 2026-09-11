@@ -7,7 +7,7 @@ import {
     FileSpreadsheet, FileText, Mail, Calendar, Download,
     ChevronRight, Building2, Sparkles, Clock,
 } from "lucide-react";
-import { useOrdersList } from "@/components/providers/orders-provider";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useExpenses } from "@/hooks/use-expenses";
 import { useFinances } from "@/hooks/use-finances";
@@ -76,7 +76,7 @@ const SCHEDULES = [
 ];
 
 export function ReportsTab({ period, dateRangeStrings }: Props) {
-    const { orders } = useOrdersList();
+    const { orders } = useOrdersContext();
     const { products } = useProductsCrud();
     const { expenses } = useExpenses({
         startDate: dateRangeStrings.startDate,

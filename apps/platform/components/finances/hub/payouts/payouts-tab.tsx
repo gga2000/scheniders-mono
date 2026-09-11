@@ -7,7 +7,7 @@ import {
     Wallet, ChevronRight, FileText, ExternalLink, ArrowRight,
 } from "lucide-react";
 import { useWaseet } from "@/hooks/use-waseet";
-import { useOrdersList } from "@/components/providers/orders-provider";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import type { WaseetInvoice } from "@/types/waseet";
 import { SectionCard } from "@/components/finances/hub/primitives/section-card";
 import { FinanceValue } from "@/components/finances/hub/primitives/finance-value";
@@ -26,7 +26,7 @@ interface ReconciliationRow {
 
 export function PayoutsTab() {
     const { fetchInvoices, fetchInvoiceOrders } = useWaseetExtended();
-    const { orders } = useOrdersList();
+    const { orders } = useOrdersContext();
 
     const [invoices, setInvoices] = useState<WaseetInvoice[] | null>(null);
     const [loading, setLoading] = useState(false);

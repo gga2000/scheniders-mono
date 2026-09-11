@@ -18,13 +18,18 @@ const baseOrder = {
     city: "بغداد",
     address_details: "حي العامل",
     created_at: new Date(2026, 8, 7, 2, 46, 0).toISOString(),
-    original_created_at: null,
-    scheduled_date: null,
-    delivery_slot: null,
-    payment_status: "cod",
-    status: "confirmed",
+    original_created_at: undefined,
+    scheduled_date: undefined,
+    delivery_slot: undefined,
+    payment_status: "cod" as const,
+    status: "confirmed" as const,
     price: 44750,
     items: [],
+    // Required on `Order` as of main; the fixture predates them.
+    priority: "normal" as const,
+    is_return: false,
+    is_replacement: false,
+    is_archived: false,
 };
 
 const renderCard = (

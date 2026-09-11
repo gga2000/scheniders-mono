@@ -17,7 +17,7 @@ import type { OrderWindow } from "@/lib/order-window";
  * Excludes detail-only fields to reduce payload size by ~25%.
  * findById still fetches all columns (*) for the detail modal.
  */
-const LIST_VIEW_COLUMNS = `
+export const LIST_VIEW_COLUMNS = `
   id,
   created_at,
   updated_at,

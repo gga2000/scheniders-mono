@@ -29,7 +29,7 @@ import {
 // Hooks
 import { useFinances, DateRange } from "@/hooks/use-finances";
 import { useExpenses } from "@/hooks/use-expenses";
-import { useOrdersList } from "@/components/providers/orders-provider";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useOrderProfits } from "@/hooks/use-order-profits";
 import { useFinancialEpoch, EraMode } from "@/hooks/use-financial-epoch";
@@ -258,7 +258,7 @@ function AnalyticsContent() {
     }, [showFinancialEra, setPreference]);
 
     // Data hooks - single source of truth for orders and products
-    const { orders } = useOrdersList();
+    const { orders } = useOrdersContext();
     const { products } = useProductsCrud();
 
     // =============================================

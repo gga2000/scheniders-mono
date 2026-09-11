@@ -11,7 +11,7 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, OrderItem } from "@/lib/supabase";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
-import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { OrderDialogs } from "@/components/orders/order-dialogs";
 import { OrderBulkDialogs } from "@/components/orders/order-bulk-dialogs";

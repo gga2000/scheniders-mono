@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useOrdersList } from "@/components/providers/orders-provider";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { usePrinting, LabelSettings } from "@/hooks/use-printing";
 import { WaseetSubmitDialog } from "@/components/printing/waseet-submit-dialog";
 import { PrintBatch } from "@/lib/supabase";
@@ -54,7 +54,7 @@ import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export default function PrintingPage() {
-    const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersList();
+    const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
     const printing = usePrinting(orders);
     const { t } = useLanguage();
 

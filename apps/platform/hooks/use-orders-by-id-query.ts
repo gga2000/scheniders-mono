@@ -8,6 +8,8 @@ import { supabase } from "@/lib/supabase";
 /** The fields chat reads off a linked order. Deliberately not `Order`: this row
  *  is six columns, and calling it a full order is how ARCH-D3 happened. */
 export interface LinkedOrder {
+    /** Conflict token — the order write path guards on this, not updated_at. */
+    version?: number;
     id: string;
     order_id: string;
     customer_name: string | null;

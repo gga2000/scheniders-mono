@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import {
-    orderRepository,
+    orderSearchRepository,
     type CustomerSearchRow,
     type OrderSearchRow,
     type ProductSearchRow,
-} from "@/lib/repositories/order-repository";
+} from "@/lib/repositories/order-search-repository";
 
 /** The floor the RPC enforces. Kept in sync so we do not fire a doomed request. */
 const MIN_TERM = 2;
@@ -39,7 +39,7 @@ export function useOrderSearchQuery(term: string, limit = 20): OrderSearchRow[] 
     const debounced = useDebounced(term);
     const { data } = useQuery({
         queryKey: ["orders", "search", debounced, limit],
-        queryFn: () => orderRepository.searchOrders(debounced, limit),
+        queryFn: () => orderSearchRepository.searchOrders(debounced, limit),
         enabled: !!session && clientReady && debounced.trim().length >= MIN_TERM,
         staleTime: 30 * 1000,
     });
@@ -52,7 +52,7 @@ export function useCustomerSearchQuery(term: string, limit = 20): CustomerSearch
     const debounced = useDebounced(term);
     const { data } = useQuery({
         queryKey: ["customers", "search", debounced, limit],
-        queryFn: () => orderRepository.searchCustomers(debounced, limit),
+        queryFn: () => orderSearchRepository.searchCustomers(debounced, limit),
         enabled: !!session && clientReady && debounced.trim().length >= MIN_TERM,
         staleTime: 30 * 1000,
     });
@@ -65,7 +65,7 @@ export function useProductSearchQuery(term: string, limit = 20): ProductSearchRo
     const debounced = useDebounced(term);
     const { data } = useQuery({
         queryKey: ["products", "search", debounced, limit],
-        queryFn: () => orderRepository.searchProducts(debounced, limit),
+        queryFn: () => orderSearchRepository.searchProducts(debounced, limit),
         enabled: !!session && clientReady && debounced.trim().length >= MIN_TERM,
         staleTime: 30 * 1000,
     });
