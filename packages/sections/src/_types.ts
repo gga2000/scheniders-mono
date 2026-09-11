@@ -29,6 +29,21 @@ export interface SectionRenderContext {
   product?: Product;
   /** Single category when on a category landing page. */
   category?: Category;
+  /**
+   * Live product count per category id. Optional: every existing section
+   * and every test builds this context, so a required field would break
+   * all of them at once.
+   */
+  category_product_counts?: Record<string, number>;
+  /**
+   * Pre-aggregated public proof counts. Optional for the same reason,
+   * and absent whenever the tenant has no stats row yet.
+   */
+  public_stats?: {
+    completed_orders: number;
+    customers: number;
+    governorates_served: number;
+  };
 }
 
 /**

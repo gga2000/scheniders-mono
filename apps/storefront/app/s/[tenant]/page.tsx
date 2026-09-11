@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { listProducts, listCategories } from "@/lib/queries";
+import {
+  listProducts,
+  listCategories,
+  listCategoryProductCounts,
+  getTenantPublicStats,
+} from "@/lib/queries";
 import { getTemplate } from "@/templates/registry";
 import type { TemplateName } from "@/lib/types";
 import { buildRuntimeContext, pickV2Page, resolveV2PageMetadata } from "@/lib/storefront-runtime";
@@ -66,9 +71,11 @@ export default async function StorefrontHome({
 
   if (!tenant) notFound();
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, categoryCounts, publicStats] = await Promise.all([
     listProducts(tenant.id, { limit: 24 }),
     listCategories(tenant.id),
+    listCategoryProductCounts(tenant.id),
+    getTenantPublicStats(tenant.id),
   ]);
 
   // Allow ?preview_template=<name> to temporarily override the saved template
@@ -113,7 +120,18 @@ export default async function StorefrontHome({
             websiteJsonLd({ name: tenant.business_name, url: orgUrl }),
           ]}
         />
-        <V2Page v2={v2} page={homePage} runtime={runtime} renderCtx={{ tenant, products, categories }} />
+        <V2Page
+          v2={v2}
+          page={homePage}
+          runtime={runtime}
+          renderCtx={{
+            tenant,
+            products,
+            categories,
+            category_product_counts: categoryCounts,
+            public_stats: publicStats ?? undefined,
+          }}
+        />
       </>
     );
   }
