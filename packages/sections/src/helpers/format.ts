@@ -22,6 +22,41 @@ export function formatPrice(
   return `${n} ${iqdSuffix(locale)}`;
 }
 
+/**
+ * Locale-aware percent, mirroring `formatPrice`: the number carries its
+ * sign as one unit ("36٪" / "36% off" in English), Latin digits either
+ * way. Keeping the sign glued to the number is what lets a caller wrap
+ * the pair in a single `<bdi>` — split them and the bidi algorithm drags
+ * the sign to the far side of the phrase on this LTR page.
+ */
+export function formatPercent(
+  value: number,
+  locale?: "ar" | "en" | "ku",
+): string {
+  const n = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(Math.round(value));
+  return locale === "en" ? `${n}%` : `${n}٪`;
+}
+
+/**
+ * Whole-percent discount, or null when there is no REAL discount to show.
+ *
+ * One place decides what "on sale" means, so a badge can never claim a
+ * saving the cart will not honour. `price` here is the shopper-facing
+ * price (queries.ts already resolves `website_price ?? price`), and a
+ * zero/negative price is treated as no discount rather than 100% off.
+ */
+export function discountPercent(
+  price: number,
+  compareAt?: number | null,
+): number | null {
+  if (compareAt == null) return null;
+  if (!(price > 0)) return null;
+  if (!(compareAt > price)) return null;
+  return Math.round(((compareAt - price) / compareAt) * 100);
+}
+
 export function formatSavings(
   original: number,
   current: number,

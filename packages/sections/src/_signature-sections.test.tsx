@@ -251,12 +251,71 @@ describe("hero_card_float — link CTAs", () => {
     expect(secondary).toContain("sm:w-auto");
   });
 
+  it("puts the real best discount in the offer badge", () => {
+    const onSale: Product[] = [
+      { ...baseProduct, id: `${baseProduct.id.slice(0, -1)}1`, price: 38500, compare_at_price: 60000 },
+      { ...baseProduct, id: `${baseProduct.id.slice(0, -1)}2`, price: 31000, compare_at_price: 45000 },
+    ];
+    const html = render(
+      hero_card_float,
+      {
+        ...props,
+        offer_badge: "max_discount" as const,
+        badge_i18n: { ar: "خصم لحد {pct}", en: "Up to {pct} off" },
+      },
+      { products: onSale },
+    );
+    // 60000 -> 38500 is 36%; 45000 -> 31000 is 31%. The badge takes the best.
+    // The number is isolated so the Arabic percent sign cannot drift off it.
+    // Sign lives INSIDE the isolate, or bidi drags it off its number.
+    expect(html).toContain("خصم لحد <bdi>36٪</bdi>");
+    expect(html).not.toContain("{pct}");
+  });
+
+  it("shows no offer badge when nothing is actually discounted", () => {
+    const template = { ar: "خصم لحد {pct}", en: "Up to {pct} off" };
+    const fullPrice: Product[] = [
+      { ...baseProduct, price: 25000, compare_at_price: null },
+      // compare_at BELOW price is not a discount, and a zero price is not
+      // 100% off — neither may produce a badge.
+      { ...baseProduct, id: `${baseProduct.id.slice(0, -1)}3`, price: 25000, compare_at_price: 20000 },
+      { ...baseProduct, id: `${baseProduct.id.slice(0, -1)}4`, price: 0, compare_at_price: 50000 },
+    ];
+    const html = render(
+      hero_card_float,
+      { ...props, offer_badge: "max_discount" as const, badge_i18n: template },
+      { products: fullPrice },
+    );
+    expect(html).not.toContain("{pct}");
+    expect(html).not.toContain("خصم لحد");
+    expect(html).not.toContain('data-i18n-field="badge_i18n"');
+  });
+
+  it("never leaks the raw {pct} token when the badge is static", () => {
+    const html = render(hero_card_float, {
+      ...props,
+      badge_i18n: { ar: "خصم لحد {pct}", en: "Up to {pct} off" },
+    });
+    // offer_badge unset — no live number exists, so the chip stays away
+    // rather than rendering a placeholder at a shopper.
+    expect(html).not.toContain("{pct}");
+  });
+
+  it("leaves a plain badge untouched when there is no {pct} token", () => {
+    const html = render(hero_card_float, {
+      ...props,
+      badge_i18n: { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
+    });
+    expect(html).toContain("الدفع عند الاستلام");
+  });
+
   it("keeps defaultProps free of the new optional fields", () => {
     // A required new field silently DROPS the section at parse time for
     // every store that predates it. These must stay absent + optional.
     expect(hero_card_float.defaultProps).not.toHaveProperty("media_ratio");
     expect(hero_card_float.defaultProps).not.toHaveProperty("focal_x");
     expect(hero_card_float.defaultProps).not.toHaveProperty("focal_y");
+    expect(hero_card_float.defaultProps).not.toHaveProperty("offer_badge");
     expect(
       hero_card_float.schema.safeParse(hero_card_float.defaultProps).success,
     ).toBe(true);

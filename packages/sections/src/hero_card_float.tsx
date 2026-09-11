@@ -19,7 +19,7 @@
 // =====================================================================
 
 import Image from "next/image";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { StoreLink } from "./helpers/store-context";
@@ -37,6 +37,7 @@ import {
   whatsappDigits,
 } from "./helpers/whatsapp";
 import { isOptimizableImageHost } from "./helpers/image";
+import { discountPercent, formatPercent } from "./helpers/format";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 
@@ -63,6 +64,14 @@ const schema = z.object({
    */
   focal_x: z.enum(["left", "center", "right"]).optional(),
   focal_y: z.enum(["top", "center", "bottom"]).optional(),
+  /**
+   * Turns the corner chip into a LIVE offer badge. `max_discount` reads
+   * the real best discount out of the catalogue on screen, so the chip
+   * can never advertise a saving the cart will not honour, and never
+   * goes stale when prices move. `badge_i18n` carries the wording and
+   * `{pct}` marks where the number lands.
+   */
+  offer_badge: z.enum(["none", "max_discount"]).optional(),
   // Secondary CTA contract — mirrors `hero_image` exactly so store
   // templates can rely on one hero CTA shape across hero sections.
   secondary_cta_kind: z
@@ -145,6 +154,41 @@ const ALIGN_CLASS: Record<Props["card_align"], string> = {
   end: "sm:justify-end",
 };
 
+/** Placeholder the merchant writes into `badge_i18n` for the live number. */
+const PCT_TOKEN = "{pct}";
+
+/**
+ * Badge content: the merchant's wording with `{pct}` swapped for the live
+ * figure. `{pct}` stands for the whole "36٪", sign included — the
+ * merchant writes "خصم لحد {pct}", not "خصم لحد {pct}٪".
+ *
+ * The isolate is not cosmetic, and the sign must live INSIDE it. The page
+ * is LTR in every locale, so an Arabic phrase carrying a Latin number and
+ * a percent sign gets reordered by the bidi algorithm: measured in the
+ * browser, splitting the two renders the chip as [36][٪][خصم لحد]. Kept
+ * together in one `<bdi>` it reads [خصم لحد][36٪]. `formatPrice` pairs a
+ * number with "د.ع" under exactly the same rule.
+ *
+ * Returns null when the template wants a figure and none exists, so a
+ * shopper never sees a stray sign or a raw `{pct}`.
+ */
+function renderBadge(
+  template: string,
+  pct: number | null,
+  locale: SectionRenderContext["runtime"]["locale"],
+): ReactNode {
+  if (!template) return null;
+  if (!template.includes(PCT_TOKEN)) return template;
+  if (pct == null) return null;
+  return template
+    .split(PCT_TOKEN)
+    .flatMap((part, i) =>
+      i === 0
+        ? [part]
+        : [<bdi key={i}>{formatPercent(pct, locale)}</bdi>, part],
+    );
+}
+
 /** Mobile crop box. Landscape is the default — see the header note. */
 const MEDIA_RATIO_CLASS: Record<
   NonNullable<Props["media_ratio"]>,
@@ -188,7 +232,24 @@ function HeroCardFloatRender({
   const headline = resolveI18n(props.headline_i18n, locale);
   const sub = resolveI18n(props.sub_i18n, locale);
   const ctaLabel = resolveI18n(props.cta_label_i18n, locale);
-  const badge = resolveI18n(props.badge_i18n, locale);
+  // Live offer badge. The best discount actually on screen — computed
+  // from the same `price` the cart charges, so the chip cannot promise a
+  // saving that does not exist. No qualifying product means no chip:
+  // rendering the template with the number missing would leave a bare
+  // "%" and a claim with nothing behind it.
+  const maxDiscountPct =
+    props.offer_badge === "max_discount"
+      ? ctx.products.reduce<number | null>((best, product) => {
+          const pct = discountPercent(product.price, product.compare_at_price);
+          if (pct == null) return best;
+          return best == null || pct > best ? pct : best;
+        }, null)
+      : null;
+  const badge = renderBadge(
+    resolveI18n(props.badge_i18n, locale),
+    maxDiscountPct,
+    locale,
+  );
   const secondaryLabel = resolveI18n(props.secondary_cta_label_i18n, locale);
 
   const whatsappHref = (() => {
