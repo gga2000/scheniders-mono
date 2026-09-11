@@ -619,3 +619,81 @@ describe("trust_badge_row — proof ledge", () => {
     expect(tinted).toContain("var(--bk-accent, #ffd84a) 12%");
   });
 });
+
+describe("category_spotlight_pair — occasion triptych", () => {
+  const cats = [
+    { id: "c1", tenant_id: "t", name: "عطور للدوام", slug: "work", description: null, image_url: "https://images.unsplash.com/w", parent_id: null, display_order: 10 },
+    { id: "c2", tenant_id: "t", name: "عطور للطلعات", slug: "outings", description: null, image_url: "https://images.unsplash.com/o", parent_id: null, display_order: 11 },
+    { id: "c3", tenant_id: "t", name: "عطور للمناسبات", slug: "occasions", description: null, image_url: "https://images.unsplash.com/x", parent_id: null, display_order: 12 },
+  ] as never;
+  const counts = { c1: 19, c2: 19, c3: 17 };
+  const srcProps = {
+    ...category_spotlight_pair.defaultProps,
+    source: "categories" as const,
+    category_slugs: ["work", "outings", "occasions"],
+    show_counts: true,
+  };
+
+  it("builds its doors from real categories, in the order given", () => {
+    const html = render(category_spotlight_pair, srcProps, {
+      categories: cats,
+      category_product_counts: counts,
+    });
+    expect(html).toContain("عطور للدوام");
+    expect(html).toContain("عطور للطلعات");
+    expect(html).toContain("عطور للمناسبات");
+    expect(html.indexOf("عطور للدوام")).toBeLessThan(html.indexOf("عطور للمناسبات"));
+  });
+
+  it("labels each door with its real depth", () => {
+    const html = render(category_spotlight_pair, srcProps, {
+      categories: cats,
+      category_product_counts: counts,
+    });
+    expect(html).toContain("19");
+    expect(html).toContain("17");
+  });
+
+  it("omits the count when the category is empty rather than showing 0", () => {
+    const html = render(category_spotlight_pair, srcProps, {
+      categories: cats,
+      category_product_counts: { c1: 19, c2: 19, c3: 0 },
+    });
+    expect(html).not.toMatch(/>0</);
+  });
+
+  it("skips a slug that has no matching category", () => {
+    const html = render(category_spotlight_pair, {
+      ...srcProps,
+      category_slugs: ["work", "does-not-exist"],
+    }, { categories: cats, category_product_counts: counts });
+    expect(html).toContain("عطور للدوام");
+    expect(html).not.toContain("does-not-exist");
+  });
+
+  it("crops portrait, because perfume bottles are vertical", () => {
+    const html = render(category_spotlight_pair, srcProps, {
+      categories: cats,
+      category_product_counts: counts,
+    });
+    expect(html).toContain("aspect-[3/4]");
+    expect(html).not.toContain("aspect-[4/3]");
+  });
+
+  it("falls back to config items untouched when source is unset", () => {
+    const html = render(category_spotlight_pair, {
+      ...category_spotlight_pair.defaultProps,
+      items: [{ image_url: "https://images.unsplash.com/a", label_i18n: { ar: "قديم" }, href: "/categories" }],
+    });
+    expect(html).toContain("قديم");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(category_spotlight_pair.defaultProps).not.toHaveProperty("source");
+    expect(category_spotlight_pair.defaultProps).not.toHaveProperty("category_slugs");
+    expect(category_spotlight_pair.defaultProps).not.toHaveProperty("show_counts");
+    expect(
+      category_spotlight_pair.schema.safeParse(category_spotlight_pair.defaultProps).success,
+    ).toBe(true);
+  });
+});

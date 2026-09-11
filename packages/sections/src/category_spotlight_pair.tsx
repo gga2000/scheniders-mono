@@ -39,6 +39,16 @@ const schema = z.object({
     )
     .min(1)
     .max(4),
+  /**
+   * "categories" builds the cards from the tenant's real categories
+   * instead of hardcoded links, so a door can never point at a category
+   * that has been renamed or emptied. Unset keeps today's behaviour.
+   */
+  source: z.enum(["config", "categories"]).optional(),
+  /** Which categories, in display order. Only read when source is "categories". */
+  category_slugs: z.array(z.string()).max(4).optional(),
+  /** Show the live product count on each card. */
+  show_counts: z.boolean().optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -128,9 +138,34 @@ function CategorySpotlightPair({
   const eyebrow = resolveI18n(props.eyebrow_i18n, locale);
   const title = resolveI18n(props.title_i18n, locale);
 
-  if (!props.items.length) return null;
+  // Resolved doors: either the merchant's hardcoded items, or real
+  // categories looked up by slug. Slugs that match nothing are dropped —
+  // a door to a category that no longer exists is worse than no door.
+  const resolved =
+    props.source === "categories"
+      ? (props.category_slugs ?? [])
+          .map((slug) => ctx.categories.find((c) => c.slug === slug))
+          .filter((c): c is NonNullable<typeof c> => Boolean(c))
+          .map((c) => ({
+            key: c.id,
+            label: c.name,
+            href: `/categories/${c.slug}`,
+            image_url: c.image_url ?? "",
+            count: props.show_counts
+              ? (ctx.category_product_counts?.[c.id] ?? 0)
+              : 0,
+          }))
+      : props.items.map((item, i) => ({
+          key: String(i),
+          label: resolveI18n(item.label_i18n, locale),
+          href: item.href,
+          image_url: item.image_url,
+          count: 0,
+        }));
 
-  const count = Math.min(props.items.length, 4);
+  if (!resolved.length) return null;
+
+  const count = Math.min(resolved.length, 4);
   const cardSizes = CARD_SIZES[count] ?? CARD_SIZES[2];
 
   return (
@@ -192,17 +227,28 @@ function CategorySpotlightPair({
           />
         )}
 
-        <div className={cn("grid gap-bk-sm sm:gap-bk-md", COLS_GRID[count] ?? COLS_GRID[2])}>
-          {props.items.map((item, i) => {
-            const label = resolveI18n(item.label_i18n, locale);
+        <div
+          className={cn(
+            // Mobile: one row that snaps, with the next card peeking so the
+            // third door is discoverable without three screens of stack.
+            "-mx-4 flex snap-x snap-mandatory gap-bk-sm overflow-x-auto px-4 pb-2",
+            "[&>*]:w-[86%] [&>*]:shrink-0 [&>*]:snap-start",
+            // From `sm` it is a plain grid again; nothing scrolls.
+            "sm:mx-0 sm:grid sm:gap-bk-md sm:overflow-visible sm:px-0 sm:pb-0",
+            "sm:[&>*]:w-auto sm:[&>*]:shrink",
+            COLS_GRID[count] ?? COLS_GRID[2],
+          )}
+        >
+          {resolved.map((item) => {
+            const label = item.label;
             return (
               <StoreLink
-                key={i}
+                key={item.key}
                 href={item.href}
                 className={cn("group block", PRESSABLE)}
               >
                 <div
-                  className="relative aspect-[4/3] overflow-hidden"
+                  className="relative aspect-[3/4] overflow-hidden"
                   style={{
                     borderRadius: "var(--bk-radius-card, 1.25rem)",
                     boxShadow:
@@ -265,6 +311,14 @@ function CategorySpotlightPair({
                       <span className="truncate" data-i18n-field="label_i18n">
                         {label}
                       </span>
+                      {item.count > 0 && (
+                        <span
+                          className="shrink-0 opacity-70"
+                          style={{ fontFamily: "var(--bk-font-body, inherit)" }}
+                        >
+                          <bdi>{item.count}</bdi>
+                        </span>
+                      )}
                       <ChevronGlyph className="shrink-0 opacity-70 transition-transform duration-150 motion-reduce:transition-none group-hover:translate-x-0.5" />
                     </span>
                   )}
