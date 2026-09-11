@@ -20,7 +20,7 @@ interface Props {
 const BOT_HANDLE = "Scheniderbot";
 
 export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }: Props) {
-    const { tenantId } = useAuth();
+    const { tenantId, session } = useAuth();
     const [status, setStatus] = useState<TelegramLinkStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -30,7 +30,7 @@ export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }:
     const refresh = useCallback(async () => {
         setLoading(true);
         try {
-            const s = await getTelegramLinkStatusAction(userProfileId, tenantId);
+            const s = await getTelegramLinkStatusAction(userProfileId, tenantId, session?.access_token ?? "");
             setStatus(s);
         } finally {
             setLoading(false);
@@ -47,7 +47,7 @@ export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }:
             return;
         }
         setGenerating(true);
-        const res = await generateTelegramLinkCodeAction(userProfileId, tenantId, currentAdminId);
+        const res = await generateTelegramLinkCodeAction(userProfileId, tenantId, currentAdminId, session?.access_token ?? "");
         setGenerating(false);
         if (res.success) {
             toast.success("تم توليد كود الربط");
@@ -60,7 +60,7 @@ export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }:
     const onUnlink = async () => {
         if (!confirm(`فك ربط ${displayName} عن تليكرام؟`)) return;
         setUnlinking(true);
-        const res = await unlinkTelegramAction(userProfileId, tenantId);
+        const res = await unlinkTelegramAction(userProfileId, tenantId, session?.access_token ?? "");
         setUnlinking(false);
         if (res.success) {
             toast.success("تم فك الربط");

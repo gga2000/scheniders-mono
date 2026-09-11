@@ -64,7 +64,7 @@ const FEATURE_LABELS: Record<string, string> = {
 const TOP_UP_PRESETS = [25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000];
 
 export function BillingSettings() {
-    const { tenantId } = useAuth();
+    const { tenantId, session } = useAuth();
     const { wallet, subscription, usage, allPlans, transactions, isLoading, refetch } = useBilling();
     const [showTopUp, setShowTopUp] = useState(false);
     const [topUpAmount, setTopUpAmount] = useState<number>(100_000);
@@ -74,7 +74,7 @@ export function BillingSettings() {
     const handleSwitchPlan = async (plan: string) => {
         if (!tenantId) return;
         setSwitchingPlan(plan);
-        const result = await changePlanAction(tenantId, plan);
+        const result = await changePlanAction(tenantId, plan, session?.access_token ?? "");
         setSwitchingPlan(null);
         if (result.success) {
             toast.success(`Plan change scheduled to ${plan}`);
@@ -87,7 +87,7 @@ export function BillingSettings() {
     const handleTopUp = async () => {
         if (!tenantId || topUpAmount <= 0) return;
         setIsTopping(true);
-        const result = await topUpWalletAction(tenantId, topUpAmount, "manual");
+        const result = await topUpWalletAction(tenantId, topUpAmount, "manual", undefined, session?.access_token ?? "");
         setIsTopping(false);
         if (result.success) {
             toast.success(`Wallet topped up by ${formatIQD(topUpAmount)}`);
