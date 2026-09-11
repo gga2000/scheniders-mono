@@ -69,9 +69,21 @@ themselves must be unmissable.
   ink. The label sits beneath it, small, in `--bk-ink-soft`.
 - Hairline dividers (`--bk-divider`) between slots on desktop. 2×2 grid on
   mobile, start-aligned so all four share two column edges.
-- Slots: completed orders · customers · governorates · cash on delivery.
-  The fourth stays a reassurance claim; it is the objection a first-time COD
-  buyer actually has, and it is true.
+**Slots.** Four, each answering a *different* shopper question. No two may
+restate each other:
+
+| slot | value | source | answers |
+|---|---|---|---|
+| `+٢٦٠٠ طلب وصل` | 2,693 completed | live | do orders actually arrive? |
+| `توصيل خلال ٢٤ ساعة` | merchant-stated | static | how fast? |
+| `١٨ محافظة` | 18, exact | live | do you reach me? |
+| `الدفع عند الاستلام` | merchant-stated | static | how do I pay? |
+
+Customer count (4,465) is deliberately **not** a slot. Alongside completed
+orders it says the same thing twice — *many people bought* — and the weaker of
+the two: distinct phones include orders that were cancelled, while a completed
+order is proof of delivery, which is the exact anxiety a first-time COD shopper
+has.
 
 **Honesty rules — these are requirements, not polish.**
 
@@ -79,7 +91,8 @@ themselves must be unmissable.
   true between stats refreshes and as the number grows. The rule, stated once
   so it is not reinvented per slot:
   - value ≥ 100 → round **down** to 2 significant figures, prefix `+`
-    (2,693 → `+٢٦٠٠ طلب`; 4,465 → `+٤٤٠٠ زبون`)
+    (2,693 → `+٢٦٠٠ طلب`; 1,940 → `+١٩٠٠`; 2,700 → `+٢٧٠٠`, unchanged when
+    already at the step)
   - value < 100 → render exact, **no** `+` prefix
   - The governorate slot is exact and carries no `+`. 18 is not an
     approximation, it is all of Iraq, and a `+` would make a complete fact look
@@ -90,10 +103,16 @@ themselves must be unmissable.
   `count(distinct …)` returns 19 because 9 orders carry `''`. The true figure is
   18, which is every governorate in Iraq — a stronger claim than the wrong one.
 
-**Not included.** No delivery-speed claim. Average time from `created_at` to
-`completed_at` is **22.1 days**. That likely reflects staff closing orders late
-rather than real transit time, but until that is known, "توصيل سريع" is a claim
-this design will not make.
+**The delivery claim is merchant-authorized and static, not derived.** Real
+delivery is **within 24 hours** (merchant, 2026-09-11). It is written as a
+fixed i18n string in config, never computed.
+
+It must **not** be derived from `completed_at`. Average `created_at` →
+`completed_at` is 22.1 days, which measures how fast staff close tickets, not
+how fast parcels arrive. Anything computing a delivery figure from that column
+would publish a false and much worse number. If a live transit metric is ever
+wanted, the courier status (`waseet_status_text` / `waseet_status_id`) is the
+signal, not `completed_at`.
 
 ---
 
@@ -155,6 +174,9 @@ shopper must never read it. The storefront renders for `anon`.
 - New table `tenant_public_stats`, one row per tenant, holding only aggregates:
   `completed_orders`, `customers`, `governorates_served`, `first_order_at`,
   `refreshed_at`. No order rows, no phones, no addresses, no revenue.
+  `customers` is stored but **not rendered** by this design (see the slot
+  table) — it costs nothing to aggregate and keeps the option open without a
+  second migration.
 - **RLS enabled from creation.** Anon `SELECT` is granted **only** for tenants
   that are already publicly visible, matching the existing
   `public_storefront_read` predicate on `tenants` (trial/active). Anon gets no
@@ -218,8 +240,12 @@ Run from the repo root; **CI does not run tests.**
 4. Remove the duplicate `trust_badge_row` at home position 10 in the same
    publish.
 
-## Open question
+## Resolved
 
-Is the 22.1-day average real transit time, or an artefact of orders being
-closed late? It changes whether a delivery-speed claim can ever appear on this
-site. Not blocking this work — the design makes no speed claim either way.
+**Delivery is within 24 hours** (merchant, 2026-09-11). The 22.1-day
+`created_at` → `completed_at` average is a bookkeeping artefact: orders arrive
+next day and get marked completed weeks later. The ledge states the 24-hour
+fact as static merchant copy and derives nothing from `completed_at`.
+
+Noted for elsewhere, outside this work: any internal metric keyed on
+`completed_at` is measuring ticket-closing lag, not fulfilment.
