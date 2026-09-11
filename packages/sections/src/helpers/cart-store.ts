@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { CartItem } from "@scheniders/shared";
+import { resolveTierPrice } from "@scheniders/shared";
 
 interface CartState {
   items: CartItem[];
@@ -33,6 +34,23 @@ interface CartState {
  * isolated by hostname → they keep the base key. Pure + path-injected so it's
  * unit-testable without a DOM.
  */
+/**
+ * Re-apply the line's own quantity ladder for a new quantity.
+ *
+ * Always computed from `base_price`, so calling it repeatedly is safe. A line
+ * with no `base_price` — one persisted before that field existed — keeps the
+ * price it has: there is nothing to recompute from, and guessing would be
+ * worse than leaving a stale line for the server to correct.
+ */
+function repriced(item: CartItem, quantity: number): CartItem {
+  if (typeof item.base_price !== "number") return { ...item, quantity };
+  return {
+    ...item,
+    quantity,
+    price: resolveTierPrice(item.price_tiers, quantity, item.base_price),
+  };
+}
+
 export function cartKeyFor(baseName: string, pathname: string): string {
   const m = pathname.match(/^\/s\/([^/]+)/);
   return m ? `${baseName}:${decodeURIComponent(m[1])}` : baseName;
@@ -86,9 +104,12 @@ export const useCart = create<CartState>()(
             (i) => i.product_id === item.product_id && i.variant_id === item.variant_id,
           );
           if (existing) {
+            // Adding more of something already in the cart can cross a
+            // quantity break, so the line is repriced at its new total rather
+            // than keeping the price the first unit was added at.
             return {
               items: state.items.map((i) =>
-                i === existing ? { ...i, quantity: i.quantity + item.quantity } : i,
+                i === existing ? repriced(i, i.quantity + item.quantity) : i,
               ),
             };
           }
@@ -105,7 +126,7 @@ export const useCart = create<CartState>()(
           items: state.items
             .map((i) =>
               i.product_id === productId && i.variant_id === variantId
-                ? { ...i, quantity: Math.max(0, qty) }
+                ? repriced(i, Math.max(0, qty))
                 : i,
             )
             .filter((i) => i.quantity > 0),

@@ -104,6 +104,10 @@ export function SchneidersProductCard({
       price: product.price,
       quantity: 1,
       image_url: product.image_url ?? null,
+      // Carried so the cart can apply the ladder if the shopper raises the
+      // quantity there; at one unit the price is the base price.
+      base_price: product.price,
+      ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
     });
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1500);

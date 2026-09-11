@@ -22,7 +22,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVariantStore } from "./helpers/variant-store";
-import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems } from "@scheniders/shared";
+import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import {
   BentoCard,
@@ -143,7 +143,10 @@ export function PdpBuyBoxRender({
 
   const activeVariant =
     variants.find((v) => v.id === variantId) ?? variants[0] ?? null;
-  const unitPrice = activeVariant?.price ?? product.price;
+  const basePrice = activeVariant?.price ?? product.price;
+  // See `pdp_add_to_cart`: the ladder was never applied here either, so the
+  // displayed total and the checkout's disagreed at any tier quantity.
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, basePrice);
   const onSale =
     product.compare_at_price != null && product.compare_at_price > product.price;
   const savings = onSale
@@ -178,6 +181,8 @@ export function PdpBuyBoxRender({
       price: unitPrice,
       quantity: qty,
       image_url: product.image_url ?? null,
+      base_price: basePrice,
+      ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
     });
     trackPixel(
       "AddToCart",

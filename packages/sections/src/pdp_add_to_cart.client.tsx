@@ -13,7 +13,7 @@
 "use client";
 
 import { useState } from "react";
-import { resolveI18n, pixelContentsFromItems } from "@scheniders/shared";
+import { resolveI18n, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import { trackPixel } from "./helpers/pixels";
 import { ChunkyButton, MaterialIcon, WhatsAppIcon } from "./helpers/primitives";
@@ -51,7 +51,12 @@ export function PdpAddToCartRender({
   );
 
   const oos = stockLeftFor(product, chosen.variant) <= 0;
-  const unitPrice = chosen.variant?.price ?? product.price;
+  const basePrice = chosen.variant?.price ?? product.price;
+  // The merchant's quantity ladder, which this section never applied: it sent
+  // the base price for any quantity while the checkout resolved the ladder,
+  // so a shopper buying into a price break was told their prices had changed
+  // on submit.
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, basePrice);
 
   function handleAdd() {
     if (oos) return;
@@ -66,6 +71,8 @@ export function PdpAddToCartRender({
       price: unitPrice,
       quantity: qty,
       image_url: chosen.variant?.image_url ?? product!.image_url ?? null,
+      base_price: basePrice,
+      ...(product!.price_tiers ? { price_tiers: product!.price_tiers } : {}),
     });
     trackPixel(
       "AddToCart",

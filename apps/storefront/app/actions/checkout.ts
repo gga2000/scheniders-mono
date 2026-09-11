@@ -291,8 +291,23 @@ export async function submitCheckout(
     // Then the bump discount, if this line is an add-on to something else in
     // the order. `productIds` is every product in this order, so a bump only
     // discounts when its parent is genuinely present.
+    //
+    // A bump is an offer the shopper *accepts*, not a rule the order triggers.
+    // Only the direct-order form presents one, and only it prices one; the
+    // cart has no bump UI at all. Applying the discount unconditionally
+    // therefore rejected a perfectly ordinary cart: put a parent and its bump
+    // product in the cart independently and the server priced the second line
+    // lower than the cart had, which reads as `price_changed` — so the first
+    // submit failed with "prices changed" when nothing had, on a COD checkout.
+    //
+    // Both prices are legitimate for a bump-eligible line, so the shopper pays
+    // the one they were actually shown. A price that is neither still falls
+    // through to the comparison below, so a tampered line is rejected exactly
+    // as before, and the bump price stays unreachable without its parent.
     const bumpPrice = resolveBumpPrice(bumpOffers, productIds, i.product_id, unitPrice);
-    if (bumpPrice !== null) unitPrice = bumpPrice;
+    if (bumpPrice !== null && Math.round(i.price) === Math.round(bumpPrice)) {
+      unitPrice = bumpPrice;
+    }
     // Price moved since add-to-cart — surface it (don't silently charge a
     // different amount than the shopper saw); they re-confirm at the new price.
     if (Math.round(i.price) !== Math.round(unitPrice)) {
