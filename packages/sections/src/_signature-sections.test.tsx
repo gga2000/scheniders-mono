@@ -378,6 +378,50 @@ describe("product_grid price_pill — priority + sold-out", () => {
   });
 });
 
+describe("product_grid — buyable shelf", () => {
+  const p = (over: Partial<Product>): Product => ({
+    ...baseProduct,
+    id: `11111111-1111-4111-8111-${String(over.bestseller_rank ?? 0).padStart(12, "0")}`,
+    stock_quantity: 50,
+    reserved_quantity: 0,
+    ...over,
+  });
+  const pool = [
+    p({ name: "A", bestseller_rank: 1 }),
+    p({ name: "B", bestseller_rank: 2, stock_quantity: 5, reserved_quantity: 12 }), // oversold
+    p({ name: "C", bestseller_rank: 3 }),
+  ];
+  const props = {
+    ...product_grid.defaultProps,
+    card_style: "price_pill" as const,
+    mode: "auto" as const,
+    query: { sort: "bestsellers" as const, limit: 6, exclude_out_of_stock: true },
+  };
+
+  it("drops an oversold product from an auto grid", () => {
+    const html = render(product_grid, props, { products: pool });
+    expect(html).toContain(">A<");
+    expect(html).toContain(">C<");
+    expect(html).not.toContain(">B<");
+  });
+
+  it("keeps it when the flag is off", () => {
+    const html = render(product_grid, {
+      ...props,
+      query: { sort: "bestsellers" as const, limit: 6 },
+    }, { products: pool });
+    expect(html).toContain(">B<");
+  });
+
+  it("falls back rather than rendering an empty grid", () => {
+    // Category and thank-you pages run this section too. An empty section
+    // is worse than a greyed card.
+    const allOut = [p({ name: "Z", bestseller_rank: 1, stock_quantity: 0 })];
+    const html = render(product_grid, props, { products: allOut });
+    expect(html).toContain(">Z<");
+  });
+});
+
 describe("image_gallery — tokens + carousel semantics", () => {
   it("renders one neutral placeholder frame for the untouched defaults (editor canvas)", () => {
     const html = render(image_gallery, image_gallery.defaultProps);

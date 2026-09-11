@@ -42,6 +42,11 @@ const schema = z.object({
       sort: z.enum(["newest", "bestsellers", "sale"]).optional(),
       category_slug: z.string().optional(),
       limit: z.number().int().positive().optional(),
+      /**
+       * Drop products with nothing left to sell. Opt-in: a category page
+       * whose stock is all gone still wants to show its products.
+       */
+      exclude_out_of_stock: z.boolean().optional(),
     })
     .optional(),
   manual_product_ids: z.array(z.string()).optional(),
@@ -97,6 +102,14 @@ function selectAuto(
     // (storefront populates category lookups upstream so this is mostly a
     // pass-through; refining belongs in the data layer, not here).
     pool = pool.filter((p) => p.category_id === query.category_slug);
+  }
+  if (query?.exclude_out_of_stock) {
+    const buyable = pool.filter(
+      (p) => (p.stock_quantity ?? 0) - (p.reserved_quantity ?? 0) > 0,
+    );
+    // Never let the filter empty a grid — this section also renders on
+    // category, product and checkout_success pages.
+    if (buyable.length > 0) pool = buyable;
   }
   if (query?.sort === "sale") {
     pool = pool.filter(
