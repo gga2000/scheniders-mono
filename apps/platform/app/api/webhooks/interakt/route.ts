@@ -211,22 +211,41 @@ async function findOrder(
         console.warn(`[Interakt Webhook] callback_data UUID not found: ${callbackData}`);
     }
 
-    // Strategy 2: Find the most recent "contacted" order for this phone
+    // Strategy 2: Find the most recent "contacted" order for this phone.
+    //
+    // This route carries no tenant in its URL and runs under the service role,
+    // so this lookup spans EVERY tenant. "Most recent contacted order for this
+    // phone" is only a safe answer while exactly one merchant is waiting on that
+    // number; with two, a customer replying "نعم" to one merchant could confirm
+    // the other merchant's order. 160 phone numbers already exist under more
+    // than one tenant, though none currently has a `contacted` order in more
+    // than one — so this is a latent hazard, not a live one.
+    //
+    // It cannot be tenant-scoped here, because the tenant is genuinely unknown:
+    // that is what /api/webhooks/interakt/[tenantId] is for. What it CAN do is
+    // refuse to guess. Ambiguity resolves to "no match", which leaves the order
+    // for a human, instead of silently confirming the wrong merchant's.
     if (phone) {
         // Normalize the phone for matching
         const standardPhone = formatPhoneToStandard(phone);
 
         const { data, error } = await supabaseAdmin()
             .from("orders")
-            .select("id, order_id, status")
+            .select("id, order_id, status, tenant_id")
             .eq("status", "contacted")
             .or(`phone.eq.${standardPhone},phone.eq.${phone}`)
             .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
+            .limit(5);
 
-        if (!error && data) {
-            return data;
+        if (!error && data && data.length > 0) {
+            const tenants = new Set(data.map(o => o.tenant_id));
+            if (tenants.size > 1) {
+                console.error(
+                    `[Interakt Webhook] Refusing to guess: phone ${phone} has contacted orders in ${tenants.size} tenants`,
+                );
+                return null;
+            }
+            return data[0];
         }
         console.warn(`[Interakt Webhook] No contacted order found for phone: ${phone}`);
     }
