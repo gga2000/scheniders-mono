@@ -1,19 +1,23 @@
-# Orders Page — Approval Ledger
+# Orders Page — SECOND-PASS Ledger (2026-09-09)
+
+> **This is a second pass, not the original.** A prior Orders-page audit ran 2026-08-20 → closed 2026-09-10 (55 findings, PRs #67 and #81 merged and live, 14 migrations applied). Its ledger owns `docs/audits/ORDERS_PAGE_APPROVAL_LEDGER.md` on `main`; these files were renamed so they cannot clobber it. Findings here are numbered `ORD-A*` and are **additional** to that audit's.
+>
+> **This pass ran on `chore/remove-dead-product-cms`, which is 140 commits behind `main`.** Some findings below were therefore measured against stale code — each is re-checked against `main` before being acted on.
 
 Single source of truth for what may and may not be touched on the orders surface.
 
 **Gate — SUPERSEDED 2026-09-10.** Ali granted standing approval for this engagement ("I'm Ali and I approve every change done by you from here on … till the end of this entire work"), overriding §0.5's per-round sentence. Two exceptions still surfaced rather than done silently: destructive data operations, and anything outward-facing (push, deploy, PR). `DENIED` remains permanent.
 
-Report: [ORDERS_PAGE_SOTA_AUDIT_2026-09-09.md](ORDERS_PAGE_SOTA_AUDIT_2026-09-09.md)
+Report: [ORDERS_PAGE_SECOND_PASS_AUDIT_2026-09-09.md](ORDERS_PAGE_SECOND_PASS_AUDIT_2026-09-09.md)
 
 **Audit status: IN PROGRESS.** 12 findings — **1 × P0, 6 × P1, 5 × P2**. **2 FIXED** (ORD-A12 the P0, ORD-A7). Standing approval granted 2026-09-10: the §0.5 per-round gate no longer applies to this engagement. D1, D2 (write path), D3, D9, D10 done; D4/D11 partial; D5 blocked on a login; D6, D7, D12, D13, D14 not started. No verdict yet — see *What I have not audited yet* in the report.
 
 | ID | Title | Severity | Pillar | Status | Date | Round |
 |---|---|:--:|:--:|:--:|---|---|
-| **ORD-A12** | **11 of 13 Server Actions are unauthenticated AND service-role (RLS bypassed)** — orders 4, telegram-link 3, permissions 2, wallet 1, billing 1; several use service-role; `toggleRolePermissionAction`/`toggleUserOverrideAction` grant arbitrary permissions; `createOrderAction` takes a caller-supplied tenant id. Middleware protects nothing by design. | **P0** | P5 | **FIXED** | 2026-09-10 | `d27da8c2` |
+| **ORD-A12** | **11 of 13 Server Actions are unauthenticated AND service-role (RLS bypassed)** — orders 4, telegram-link 3, permissions 2, wallet 1, billing 1; several use service-role; `toggleRolePermissionAction`/`toggleUserOverrideAction` grant arbitrary permissions; `createOrderAction` takes a caller-supplied tenant id. Middleware protects nothing by design. | **P0** | P5 | **FIXED on this branch** | 2026-09-10 | `d27da8c2` |
 | **ORD-A1** | Order-assignment feature is wired into four screens, cannot be invoked, and persists nothing; a Web Worker evaluates mock rules on every orders change | **P1** | P1/P4 | PENDING | 2026-09-09 | — |
-| **ORD-A3** | Every order-list read pays a 345 ms `customer_trust` join for `risk_data`, which the list no longer selects (413 ms → 53.6 ms without it) | **P1** | P2 | PENDING | 2026-09-09 | — |
-| **ORD-A7** | `cleanup-deleted-orders` — unauthenticated-when-`CRON_SECRET`-unset GET that hard-deletes orders across ALL tenants via service_role, unscheduled, unlogged, no LIMIT | **P1** (P0 if the env var is unset) | P5/P1 | **FIXED** | 2026-09-10 | `f25db7fd` |
+| **ORD-A3** | Every order-list read pays a 345 ms `customer_trust` join for `risk_data` (413 ms → 44.8 ms without it) | **P1** | P2 | **FIXED on this branch** | 2026-09-10 | `848afdf6` |
+| **ORD-A7** | `cleanup-deleted-orders` — unauthenticated-when-`CRON_SECRET`-unset GET that hard-deletes orders across ALL tenants via service_role, unscheduled, unlogged, no LIMIT | **P1** (P0 if the env var is unset) | P5/P1 | **FIXED on this branch** | 2026-09-10 | `2d3c03f3` |
 | **ORD-A6** | Optimistic locking is blind on ~30% of orders — the guard keys on `updated_at`, which no write path and no trigger maintains | **P1** | P1 | **FIX EXISTS — BLOCKED ON DEPLOY** | 2026-09-11 | held `d9f2700f` |
 | **ORD-A10** | No order state machine at any layer — 86 distinct transitions observed; `completed` is not terminal; `cancelled → confirmed` and `rejected → new` seen this month; ~880 self-transitions in the audit log | **P1** | P1 | PENDING | 2026-09-09 | — |
 | **ORD-A11** | Delta sync misses any change that leaves `updated_at` untouched; strict `.gt()` boundary drops rows in the watermark's own tick | **P1** | P1/P6 | **FIX EXISTS — BLOCKED ON DEPLOY** | 2026-09-11 | held `d9f2700f` |
@@ -46,6 +50,16 @@ Report: [ORDERS_PAGE_SOTA_AUDIT_2026-09-09.md](ORDERS_PAGE_SOTA_AUDIT_2026-09-09
 | `lookup_order` taking a client-supplied `tenant_id` | **Sound.** Requires order number + matching phone, trial/active tenants only, four coarse fields, `LIMIT 1`. |
 | **Tenant isolation, all 11 orders tables** | **Proven clean.** As a tenant employee: `orders` 4,781, `order_status_history` 12,003, `order_notifications` 12,306, `activity_logs` 7,450, `order_reasons` 26, `blacklist` 1, others 0 — **0 foreign-tenant rows in every table**. As `anon`: **all 11 denied** (fails closed on `get_user_tenant_ids`). |
 | `customer_aggregates` flagged `SECURITY DEFINER` by the advisor (**ERROR**) | **False alarm, proven.** `anon` → permission denied; employee → 4,238 rows, 1 tenant, 0 foreign rows. It wraps a matview, which cannot carry RLS, so the tenant predicate is inside the view. **Do not flip it to `security_invoker`** — that breaks the orders and customers read paths. |
+
+## Re-checked against `main` on 2026-09-11 — three corrections to this ledger
+
+This pass ran on a branch **140 commits behind `main`**. Re-checking every finding against `origin/main` changed three of them:
+
+- **ORD-A6 / ORD-A11 are already FIXED AND DEPLOYED**, not "blocked on deploy" as I recorded an hour earlier. The prior audit applied `trg_orders_updated_at` (migration `20260822150000`) on **2026-09-10**, after the code was live — the exact ordering its header demanded. Concurrency runs on `version` now. **Nothing is outstanding for either.**
+- **The `permissions.ts` half of ORD-A12 is already fixed on `main`.** It has a `requireAdmin(accessToken)` helper that verifies the token and checks the role before writing, and its header independently documents the missing-tenant-column problem I raised as ORD-A13. I said "the P0 is live in production" — **for the permissions actions that was wrong**, and this is the correction.
+- **What IS still unauthenticated on `main`:** `wallet.ts` (1 action), `billing.ts` (1), `telegram-link.ts` (3) — **5 actions, all building a service-role client with zero caller checks**. `topUpWalletAction(tenantId, amountIqd, …)` credits up to 10,000,000 IQD to a caller-supplied tenant. That half of ORD-A12 is genuinely live.
+
+My fixes for A12, A7 and A3 are **not** on `main` (verified: main still has the conditional cron guard and 13 view reads). They sit on a stale branch and need to reach `main` to matter.
 
 ## Fix ordering constraint — SUPERSEDED 2026-09-11, and my prescription was wrong
 
