@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: vi.fn(),
 }));
+// The cron guard now fails CLOSED, so these tests present the real calling
+// convention — a configured secret plus a matching Bearer header — instead of
+// relying on the check disabling itself when no secret was set.
+vi.mock("@/lib/env", () => ({ env: { CRON_SECRET: "test-cron-secret" } }));
 vi.mock("@/lib/abandoned-cart-sender", () => ({
     sendCartRecoveryMessage: vi.fn(),
 }));
@@ -10,6 +14,13 @@ vi.mock("@/lib/abandoned-cart-sender", () => ({
 import { GET } from "./route";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { sendCartRecoveryMessage } from "@/lib/abandoned-cart-sender";
+
+/** A request carrying the cron secret, as Vercel Cron sends it. */
+function authedRequest() {
+    return new Request("http://x/api/cron/abandoned-cart-recovery", {
+        headers: { authorization: "Bearer test-cron-secret" },
+    });
+}
 
 function makeClient(carts: unknown[], tenants: unknown[]) {
     const updateEq = vi.fn(() => Promise.resolve({ error: null }));
@@ -61,7 +72,7 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
             success: true,
         });
 
-        const res = await GET(new Request("http://x/api/cron/abandoned-cart-recovery"));
+        const res = await GET(authedRequest());
         const json = await res.json();
         expect(json.sent).toBe(1);
         expect(json.skipped).toBe(0);
@@ -85,10 +96,26 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
         );
         (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
 
-        const res = await GET(new Request("http://x/api/cron/abandoned-cart-recovery"));
+        const res = await GET(authedRequest());
         const json = await res.json();
         expect(json.sent).toBe(0);
         expect(json.skipped).toBe(1);
+        expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
+    });
+
+    it("THE RISK: refuses an unauthenticated caller", async () => {
+        const res = await GET(new Request("http://x/api/cron/abandoned-cart-recovery"));
+        expect(res.status).toBe(401);
+        expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
+    });
+
+    it("refuses a caller presenting the wrong secret", async () => {
+        const res = await GET(
+            new Request("http://x/api/cron/abandoned-cart-recovery", {
+                headers: { authorization: "Bearer wrong" },
+            }),
+        );
+        expect(res.status).toBe(401);
         expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
     });
 });
