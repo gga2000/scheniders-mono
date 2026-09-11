@@ -26,7 +26,12 @@ import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { RevealMore } from "./helpers/reveal-more";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { chromeString } from "./helpers/chrome-strings";
-import { formatPrice, formatCount } from "./helpers/format";
+import {
+  formatPrice,
+  formatCount,
+  discountPercent,
+  formatPercent,
+} from "./helpers/format";
 import { cn, PRESSABLE } from "./helpers/utils";
 import type { Product } from "./types";
 import { i18nStringOptional } from "./_schema";
@@ -72,6 +77,14 @@ const schema = z.object({
    *  plus a small "(N)" count — and only for products that actually have
    *  reviews (products without `review_count` show no stars at all). */
   show_stars: z.boolean().optional(),
+  /** Percentage-off chip on the photo, for products with a real saving. */
+  show_discount_badge: z.boolean().optional(),
+  /**
+   * Badge a product at or below this many units remaining. Unset means no
+   * badge. Real stock only — a sold-out or oversold product is excluded
+   * from the grid, never badged.
+   */
+  low_stock_threshold: z.number().int().positive().optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -211,17 +224,34 @@ export function PricePillCard({
   locale,
   priority = false,
   showStars = false,
+  showDiscountBadge = false,
+  lowStockThreshold,
 }: {
   product: Product;
   locale: LocaleCode;
   priority?: boolean;
   showStars?: boolean;
+  showDiscountBadge?: boolean;
+  lowStockThreshold?: number;
 }) {
   const t = locale !== "en";
   const compareAt = product.compare_at_price;
   const onSale = compareAt != null && compareAt > product.price;
   const inStock =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
+  // One definition of "on sale", shared with the hero offer chip, so a
+  // card and the hero can never disagree about a saving.
+  const pct = showDiscountBadge
+    ? discountPercent(product.price, compareAt)
+    : null;
+  const remaining =
+    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+  // A sold-out or oversold product is excluded from the grid, never
+  // badged — and a negative remainder must never reach the page.
+  const lowStock =
+    lowStockThreshold != null && remaining > 0 && remaining <= lowStockThreshold
+      ? remaining
+      : null;
 
   return (
     <StoreLink
@@ -274,6 +304,19 @@ export function PricePillCard({
               {t ? "نفد المخزون" : "Sold out"}
             </span>
           )}
+          {pct != null && (
+            <span
+              className="absolute top-3 start-3 z-10 inline-flex items-center px-3 py-1 font-display font-bold text-xs"
+              style={{
+                backgroundColor: "var(--bk-primary, #ff5a8a)",
+                color: "var(--bk-on-primary, #fff)",
+                borderRadius: "var(--bk-radius-pill, 9999px)",
+                fontFamily: "var(--bk-font-display, inherit)",
+              }}
+            >
+              <bdi>{formatPercent(pct, locale)}</bdi>
+            </span>
+          )}
           {/* Price pill — bold sale price + smaller struck compare-at. */}
           <div className="absolute inset-x-0 bottom-2 flex justify-center px-2">
             <span
@@ -317,12 +360,34 @@ export function PricePillCard({
       >
         {product.name}
       </h3>
-      {showStars && (product.review_count ?? 0) > 0 && (
-        <StarRow
-          rating={product.avg_rating ?? 0}
-          count={product.review_count ?? 0}
-        />
-      )}
+      {/* Always rendered, even when empty: two cards with a star row and
+          four without is four objects, not one shelf. */}
+      <div
+        data-meta-row
+        className="mt-1 flex min-h-[20px] items-center justify-center"
+      >
+        {showStars && (product.review_count ?? 0) > 0 ? (
+          <StarRow
+            rating={product.avg_rating ?? 0}
+            count={product.review_count ?? 0}
+          />
+        ) : lowStock != null ? (
+          <span
+            data-low-stock
+            className="font-body text-xs font-semibold"
+            style={{
+              color: "var(--bk-danger, #e2574c)",
+              fontFamily: "var(--bk-font-body, inherit)",
+            }}
+          >
+            {locale === "en" ? (
+              <>only <bdi>{lowStock}</bdi> left</>
+            ) : (
+              <>باقي <bdi>{lowStock}</bdi> بس</>
+            )}
+          </span>
+        ) : null}
+      </div>
     </StoreLink>
   );
 }
@@ -378,6 +443,8 @@ function ProductGridRender({
         locale={locale}
         priority={cardPriority(i)}
         showStars={props.show_stars === true}
+        showDiscountBadge={props.show_discount_badge === true}
+        lowStockThreshold={props.low_stock_threshold}
       />
     ));
 

@@ -420,6 +420,56 @@ describe("product_grid — buyable shelf", () => {
     const html = render(product_grid, props, { products: allOut });
     expect(html).toContain(">Z<");
   });
+
+  it("chips the real discount, and nothing when there is no saving", () => {
+    const onSale = p({ name: "S", bestseller_rank: 1, price: 36750, compare_at_price: 45000 });
+    const flat = p({ name: "F", bestseller_rank: 2, price: 48000, compare_at_price: null });
+    const html = render(product_grid, { ...props, show_discount_badge: true }, {
+      products: [onSale, flat],
+    });
+    // 45000 -> 36750 is 18%.
+    expect(html).toContain("18٪");
+    expect(html).not.toContain("0٪");
+  });
+
+  it("badges low stock only at or below the threshold", () => {
+    const low = p({ name: "L", bestseller_rank: 1, stock_quantity: 3, reserved_quantity: 0 });
+    const fine = p({ name: "N", bestseller_rank: 2, stock_quantity: 4, reserved_quantity: 0 });
+    const html = render(product_grid, { ...props, low_stock_threshold: 3 }, {
+      products: [low, fine],
+    });
+    const badges = html.match(/data-low-stock/g) ?? [];
+    expect(badges).toHaveLength(1);
+  });
+
+  it("never badges a negative remainder as a number", () => {
+    const oversold = p({ name: "O", bestseller_rank: 1, stock_quantity: 5, reserved_quantity: 12 });
+    const html = render(product_grid, {
+      ...props,
+      low_stock_threshold: 3,
+      query: { sort: "bestsellers" as const, limit: 6 },
+    }, { products: [oversold] });
+    expect(html).not.toContain("-7");
+    expect(html).not.toContain("data-low-stock");
+  });
+
+  it("reserves the meta row so cards share a baseline", () => {
+    // Two of eight cards having a star row and six not is what made the
+    // old row read as separate objects rather than one shelf.
+    const withReviews = p({ name: "R", bestseller_rank: 1, review_count: 6, avg_rating: 5 });
+    const without = p({ name: "W", bestseller_rank: 2, review_count: 0 });
+    const html = render(product_grid, { ...props, show_stars: true }, {
+      products: [withReviews, without],
+    });
+    const rows = html.match(/data-meta-row/g) ?? [];
+    expect(rows).toHaveLength(2);
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(product_grid.defaultProps).not.toHaveProperty("low_stock_threshold");
+    expect(product_grid.defaultProps).not.toHaveProperty("show_discount_badge");
+    expect(product_grid.schema.safeParse(product_grid.defaultProps).success).toBe(true);
+  });
 });
 
 describe("image_gallery — tokens + carousel semantics", () => {
