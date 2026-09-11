@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { listCategories } from "@/lib/queries";
-import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
+import {
+  pickV2Page,
+  buildRuntimeContext,
+  resolveV2PageMetadata,
+} from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
@@ -18,7 +22,17 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return { title: "Track Order — Schneiders", ...resolveV2PageMetadata(v2, "track", v2?.default_locale ?? "ar") };
+  const locale = v2?.default_locale ?? "ar";
+  // Fallback title mirrors cart/checkout: localised page name + the
+  // tenant's own name — never the platform brand.
+  const pageName = locale === "en" ? "Track order" : "تتبّع الطلب";
+  const fallbackTitle = tenant
+    ? `${pageName} — ${tenant.business_name}`
+    : pageName;
+  return {
+    title: fallbackTitle,
+    ...resolveV2PageMetadata(v2, "track", locale),
+  };
 }
 
 export default async function TrackPage({
@@ -39,15 +53,31 @@ export default async function TrackPage({
   const v2Page = pickV2Page(v2, "track");
   if (v2 && v2Page) {
     const categories = await listCategories(tenant.id);
-    const runtime = buildRuntimeContext({ pageId: "track", locale: v2.default_locale ?? "ar", now: new Date() });
-    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+    const runtime = buildRuntimeContext({
+      pageId: "track",
+      locale: v2.default_locale ?? "ar",
+      now: new Date(),
+    });
+    return (
+      <V2Page
+        v2={v2}
+        page={v2Page}
+        runtime={runtime}
+        renderCtx={{ tenant, products: [], categories }}
+      />
+    );
   }
 
   const categories = await listCategories(tenant.id);
   const wa = tenant.store_config?.contact?.whatsapp_number ?? null;
 
   return (
-    <SchneidersPageShell tenant={tenant} categories={categories} showBack promo="📦 Track your order in real time ✨">
+    <SchneidersPageShell
+      tenant={tenant}
+      categories={categories}
+      showBack
+      promo="📦 Track your order in real time ✨"
+    >
       <PageHeader
         title="Track Your Order"
         subtitle="No login needed. Just your phone number."

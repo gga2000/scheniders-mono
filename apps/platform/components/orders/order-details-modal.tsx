@@ -12,11 +12,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@scheniders/ui/dialog";
-import { formatIQD, formatDate, generateWhatsAppLink, getStatusLabel, getBaseOrderId } from "@/lib/utils";
+import { formatIQD, formatDate, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import type { Order, OrderStatusHistory, OrderNote, MessageTemplate, OrderItem } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { usePrompt } from "@scheniders/ui/prompt-dialog";
 import { OrderTimeline } from "./order-timeline";
@@ -29,6 +30,7 @@ import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
 import { SplitOrderDialog } from "./split-order-dialog";
 import { CreateOrderModal } from "./create-order-modal";
+import type { CreateOrderModalInitialData } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderDetailsForm, useOrderIdEdit } from "@/hooks/use-order-details-form";
 import { useOrderDetailsState } from "@/hooks/use-order-details-state";
@@ -37,9 +39,7 @@ import { useStartOrderConversation } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
 
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
-import { OrderAssignment, OrderDuty } from "@/lib/team-types";
 import { AvatarPill } from "@/components/ui/avatar-pill";
-import { AssignmentPopover } from "@/components/orders/assignment-popover";
 import {
     MapPin,
     Phone,
@@ -79,12 +79,13 @@ import {
     Ban,
 } from "lucide-react";
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
+import { useStatusLabel } from "@/hooks/use-status-label";
 
 interface OrderDetailsModalProps {
     order: Order | null;
     open: boolean;
     onClose: () => void;
-    onUpdate: (orderId: string, updates: Partial<Order>, updated_at?: string) => Promise<{ success: boolean; error?: string }>;
+    onUpdate: (orderId: string, updates: Partial<Order>, expectedVersion?: number) => Promise<{ success: boolean; error?: string }>;
     onStatusUpdate?: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
@@ -92,8 +93,6 @@ interface OrderDetailsModalProps {
     onCreateReturn?: (orderId: string, data: { return_amount: number; reason: string; deductDeliveryFee?: boolean }) => Promise<{ success: boolean; error?: string }>;
     onCreateReplacement?: (orderId: string, data: { old_items: OrderItem[]; new_items: OrderItem[]; deductDeliveryFee?: boolean; notes?: string }) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
-    assignments?: OrderAssignment[];
-    onAssignDuty?: (orderId: string, duty: OrderDuty, employeeId: string) => void;
     onOpenTemplatePanel?: (order: Order) => void;
     messageTemplates?: MessageTemplate[];
 }
@@ -110,8 +109,6 @@ export function OrderDetailsModal({
     onCreateReturn,
     onCreateReplacement,
     checkOrderIdExists,
-    assignments = [],
-    onAssignDuty,
     onOpenTemplatePanel,
     messageTemplates,
 }: OrderDetailsModalProps) {
@@ -121,6 +118,7 @@ export function OrderDetailsModal({
     const governorates = getAllGovernorateCodes();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
+    const orderStatusLabel = useStatusLabel();
     const { promptUser, PromptComponent } = usePrompt();
 
     // Sync local state with prop updates
@@ -217,7 +215,7 @@ export function OrderDetailsModal({
     const quickActions = [
         {
             status: "new" as Order["status"],
-            label: getStatusLabel("new"),
+            label: orderStatusLabel("new"),
             icon: Clock,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -226,7 +224,7 @@ export function OrderDetailsModal({
         },
         {
             status: "pending_checkout" as Order["status"],
-            label: getStatusLabel("pending_checkout"),
+            label: orderStatusLabel("pending_checkout"),
             icon: ShoppingCart,
             bgColor: "bg-pink-100",
             textColor: "text-pink-900",
@@ -235,7 +233,7 @@ export function OrderDetailsModal({
         },
         {
             status: "contacted" as Order["status"],
-            label: getStatusLabel("contacted"),
+            label: orderStatusLabel("contacted"),
             icon: PhoneCall,
             bgColor: "bg-[var(--pastel-yellow)]",
             textColor: "text-amber-900",
@@ -244,7 +242,7 @@ export function OrderDetailsModal({
         },
         {
             status: "confirmed" as Order["status"],
-            label: getStatusLabel("confirmed"),
+            label: orderStatusLabel("confirmed"),
             icon: CheckCircle,
             bgColor: "bg-[var(--pastel-green)]",
             textColor: "text-green-900",
@@ -253,7 +251,7 @@ export function OrderDetailsModal({
         },
         {
             status: "in_transit" as Order["status"],
-            label: getStatusLabel("in_transit"),
+            label: orderStatusLabel("in_transit"),
             icon: Truck,
             bgColor: "bg-blue-100",
             textColor: "text-blue-900",
@@ -262,7 +260,7 @@ export function OrderDetailsModal({
         },
         {
             status: "delivered" as Order["status"],
-            label: getStatusLabel("delivered"),
+            label: orderStatusLabel("delivered"),
             icon: CheckCheck,
             bgColor: "bg-[var(--pastel-mint)]",
             textColor: "text-teal-900",
@@ -271,7 +269,7 @@ export function OrderDetailsModal({
         },
         {
             status: "completed" as Order["status"],
-            label: getStatusLabel("completed"),
+            label: orderStatusLabel("completed"),
             icon: CheckCircle,
             bgColor: "bg-green-100",
             textColor: "text-green-900",
@@ -280,7 +278,7 @@ export function OrderDetailsModal({
         },
         {
             status: "cancelled" as Order["status"],
-            label: getStatusLabel("cancelled"),
+            label: orderStatusLabel("cancelled"),
             icon: XCircle,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -289,7 +287,7 @@ export function OrderDetailsModal({
         },
         {
             status: "rejected" as Order["status"],
-            label: getStatusLabel("rejected"),
+            label: orderStatusLabel("rejected"),
             icon: XCircle,
             bgColor: "bg-[var(--pastel-pink)]",
             textColor: "text-rose-900",
@@ -298,7 +296,7 @@ export function OrderDetailsModal({
         },
         {
             status: "no_response" as Order["status"],
-            label: getStatusLabel("no_response"),
+            label: orderStatusLabel("no_response"),
             icon: PhoneOff,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -307,7 +305,7 @@ export function OrderDetailsModal({
         },
         {
             status: "return_pending" as Order["status"],
-            label: getStatusLabel("return_pending"),
+            label: orderStatusLabel("return_pending"),
             icon: RotateCcw,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -316,7 +314,7 @@ export function OrderDetailsModal({
         },
         {
             status: "suspended" as Order["status"],
-            label: getStatusLabel("suspended"),
+            label: orderStatusLabel("suspended"),
             icon: Pause,
             bgColor: "bg-purple-100",
             textColor: "text-purple-900",
@@ -338,7 +336,9 @@ export function OrderDetailsModal({
 
     // Reorder functionality
     const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
-    const [orderInitialData, setOrderInitialData] = useState<Record<string, unknown> | null>(null);
+    // ARCH-3: was Record<string, unknown>, which forced an `as any` at the
+    // call site. Typed to what CreateOrderModal actually accepts.
+    const [orderInitialData, setOrderInitialData] = useState<CreateOrderModalInitialData | null>(null);
     const { createOrder } = useOrderCrud();
 
     const handleReorder = () => {
@@ -412,9 +412,14 @@ export function OrderDetailsModal({
     const handleSendTemplate = async () => {
         setIsSendingTemplate(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const response = await fetch("/api/webhooks/interakt/send", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    // The send endpoint now requires a signed-in caller.
+                    ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                },
                 body: JSON.stringify({ order }),
             });
 
@@ -455,7 +460,7 @@ export function OrderDetailsModal({
     const row1Group1 = [
         {
             status: "pending_checkout" as Order["status"],
-            label: getStatusLabel("pending_checkout"),
+            label: orderStatusLabel("pending_checkout"),
             icon: ShoppingCart,
             bgColor: "bg-pink-100",
             textColor: "text-pink-900",
@@ -463,7 +468,7 @@ export function OrderDetailsModal({
         },
         {
             status: "new" as Order["status"],
-            label: getStatusLabel("new"),
+            label: orderStatusLabel("new"),
             icon: Clock,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -471,7 +476,7 @@ export function OrderDetailsModal({
         },
         {
             status: "contacted" as Order["status"],
-            label: getStatusLabel("contacted"),
+            label: orderStatusLabel("contacted"),
             icon: PhoneCall,
             bgColor: "bg-[var(--pastel-yellow)]",
             textColor: "text-amber-900",
@@ -482,7 +487,7 @@ export function OrderDetailsModal({
     const row1Group2 = [
         {
             status: "confirmed" as Order["status"],
-            label: getStatusLabel("confirmed"),
+            label: orderStatusLabel("confirmed"),
             icon: CheckCircle,
             bgColor: "bg-[var(--pastel-green)]",
             textColor: "text-green-900",
@@ -490,7 +495,7 @@ export function OrderDetailsModal({
         },
         {
             status: "in_transit" as Order["status"],
-            label: getStatusLabel("in_transit"),
+            label: orderStatusLabel("in_transit"),
             icon: Truck,
             bgColor: "bg-blue-100",
             textColor: "text-blue-900",
@@ -501,7 +506,7 @@ export function OrderDetailsModal({
     const row1Group3 = [
         {
             status: "return_pending" as Order["status"],
-            label: getStatusLabel("return_pending"),
+            label: orderStatusLabel("return_pending"),
             icon: RotateCcw,
             bgColor: "bg-orange-100",
             textColor: "text-orange-900",
@@ -513,7 +518,7 @@ export function OrderDetailsModal({
     const row2Group1 = [
         {
             status: "cancelled" as Order["status"],
-            label: getStatusLabel("cancelled"),
+            label: orderStatusLabel("cancelled"),
             icon: XCircle,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -521,7 +526,7 @@ export function OrderDetailsModal({
         },
         {
             status: "rejected" as Order["status"],
-            label: getStatusLabel("rejected"),
+            label: orderStatusLabel("rejected"),
             icon: XCircle,
             bgColor: "bg-[var(--pastel-pink)]",
             textColor: "text-rose-900",
@@ -529,7 +534,7 @@ export function OrderDetailsModal({
         },
         {
             status: "no_response" as Order["status"],
-            label: getStatusLabel("no_response"),
+            label: orderStatusLabel("no_response"),
             icon: PhoneOff,
             bgColor: "bg-gray-100",
             textColor: "text-gray-700",
@@ -540,7 +545,7 @@ export function OrderDetailsModal({
     const row2Group2 = [
         {
             status: "delivered" as Order["status"],
-            label: getStatusLabel("delivered"),
+            label: orderStatusLabel("delivered"),
             icon: CheckCheck,
             bgColor: "bg-[var(--pastel-mint)]",
             textColor: "text-teal-900",
@@ -548,7 +553,7 @@ export function OrderDetailsModal({
         },
         {
             status: "completed" as Order["status"],
-            label: getStatusLabel("completed"),
+            label: orderStatusLabel("completed"),
             icon: CheckCircle,
             bgColor: "bg-green-100",
             textColor: "text-green-900",
@@ -559,7 +564,7 @@ export function OrderDetailsModal({
     const row2Group3 = [
         {
             status: "suspended" as Order["status"],
-            label: getStatusLabel("suspended"),
+            label: orderStatusLabel("suspended"),
             icon: Pause,
             bgColor: "bg-purple-100",
             textColor: "text-purple-900",
@@ -616,7 +621,7 @@ export function OrderDetailsModal({
                                                 getStatusBadgeStyle()
                                             )}
                                         >
-                                            {getStatusLabel(order.status)}
+                                            {orderStatusLabel(order.status)}
                                         </button>
 
                                         {/* Status Dropdown Menu */}
@@ -1608,11 +1613,9 @@ export function OrderDetailsModal({
                         setShowCreateOrderModal(false);
                         setOrderInitialData(null);
                     }}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onCreate={createOrder as any}
+                    onCreate={createOrder}
                     checkOrderIdExists={checkOrderIdExists}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    initialData={orderInitialData as any}
+                    initialData={orderInitialData ?? undefined}
                 />
             )}
 

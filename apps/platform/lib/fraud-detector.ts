@@ -40,16 +40,56 @@ function tierToRiskLevel(tier: TrustTier): RiskLevel {
     }
 }
 
+/** Same shape as the module client, so a service-role client fits. */
+type TrustLookupClient = typeof supabase;
+
+/**
+ * How a server-side caller reaches `customer_trust`.
+ *
+ * The module-level `supabase` client above is the browser one. It carries the
+ * signed-in user's session, and the `tenant_isolation_all` policy on
+ * `customer_trust` scopes the read through `get_user_tenant_ids()`. From a
+ * route handler or a cron there is no session, `anon` has no EXECUTE on that
+ * function, and every lookup failed with `42501: permission denied` — silently,
+ * because the failure path returns a default assessment.
+ */
+export interface TrustLookupOptions {
+    /** A server-side (service-role) client. The browser omits this. */
+    client?: TrustLookupClient;
+    /**
+     * Required whenever `client` is given. A service-role client bypasses RLS,
+     * and RLS is the only thing scoping this table to one merchant, so the
+     * tenant has to come back explicitly or the read is a cross-tenant leak.
+     */
+    tenantId?: string | null;
+}
+
 class TrustEngine {
-    async assessCustomerTrust(phone: string): Promise<TrustAssessment> {
+    async assessCustomerTrust(phone: string, options?: TrustLookupOptions): Promise<TrustAssessment> {
         try {
             const normalizedPhone = this.normalizePhone(phone);
 
-            const { data, error } = await supabase
+            // A caller that brings its own client is bypassing RLS, so it must
+            // also bring the tenant. Reading unscoped would hand one merchant
+            // another merchant's customers; refusing loses a risk flag, which is
+            // the far cheaper failure.
+            if (options?.client && !options.tenantId) {
+                console.error(
+                    "[TrustEngine] Refusing an unscoped lookup: a caller-supplied client must also supply tenantId",
+                );
+                return this.getDefaultAssessment();
+            }
+
+            const client: TrustLookupClient = options?.client ?? supabase;
+            const base = client
                 .from("customer_trust")
                 .select("*")
-                .eq("phone", normalizedPhone)
-                .maybeSingle();
+                .eq("phone", normalizedPhone);
+
+            // Redundant under RLS in the browser, load-bearing under service role.
+            const { data, error } = await (
+                options?.tenantId ? base.eq("tenant_id", options.tenantId) : base
+            ).maybeSingle();
 
             if (error) {
                 console.error("[TrustEngine] DB Lookup Error:", error);

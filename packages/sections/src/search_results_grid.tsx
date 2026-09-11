@@ -1,73 +1,32 @@
 // =====================================================================
 // Section — search_results_grid
 // =====================================================================
-// Renders product search results. Reads `?q=` from `window.location` on
-// the client; on the server we fall back to the full product list so
-// SSR has something to paint. Matches against product `name`, `sku`,
-// and (when present) `description`.
+// Renders product search results. The query arrives server-side as
+// `ctx.runtime.search_query` (the storefront /search route copies `?q=`
+// into the runtime), so the SSR pass already paints the filtered list —
+// no flash of the full catalogue, no layout shift after hydration
+// (P0-7 / P2-27). Matches every whitespace-separated token against
+// product `name`, `sku` and (when present) `description`. A plain GET
+// search form sits at the top so the page works without a header search
+// (and without JS); it is prefilled with the current query.
 // =====================================================================
 
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
-import {
-  BentoCard,
-  ChunkyButton,
-  Section,
-  WhatsAppIcon,
-} from "./helpers/primitives";
-import { SchneidersProductCard } from "./helpers/product-card";
-import { isPlausiblePhone } from "./helpers/whatsapp";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
-import type { SectionDefinition, SectionRenderContext } from "./_types";
-
-/** Sky "personal shopper" help card shown under the results (and the empty
- *  state) — a friendly WhatsApp escape hatch when search comes up short. */
-function HelpCard({
-  locale,
-  phone,
-}: {
-  locale: "ar" | "en" | "ku";
-  phone: string | null;
-}) {
-  const t = locale !== "en";
-  return (
-    <BentoCard bg="sky" size="md" rotate={-1} className="mt-bk-md p-bk-lg text-center">
-      <h3 className="font-display font-black text-xl uppercase">
-        {t ? "ما لقيت اللي تبحث عنه؟" : "Can't find what you want?"}
-      </h3>
-      <p className="mt-bk-2xs font-body text-sm text-bk-ink-soft">
-        {t
-          ? "فريق التسوّق الشخصي جاهز لمساعدتك في إيجاد القطعة المثالية."
-          : "Our personal shoppers are ready to help you find the perfect piece."}
-      </p>
-      {isPlausiblePhone(phone) && (
-        <a
-          href={`https://wa.me/${phone!.replace(/\D/g, "")}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-bk-sm inline-block"
-        >
-          <ChunkyButton type="button" bg="mint" size="md">
-            <WhatsAppIcon className="h-5 w-5" />
-            {t ? "اسألنا" : "Ask us"}
-          </ChunkyButton>
-        </a>
-      )}
-    </BentoCard>
-  );
-}
+import type { SectionDefinition } from "./_types";
+import { SearchResultsGridRender } from "./search_results_grid.client";
 
 const schema = z.object({
   empty_state_message_i18n: i18nStringSchema,
   cols_mobile: z.union([z.literal(1), z.literal(2)]),
   cols_desktop: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+  /** Mirrors product_grid: "standard" = bento card, "price_pill" = soft
+   *  rounded photo card. Optional so stored configs keep parsing. */
+  card_style: z.enum(["standard", "price_pill"]).optional(),
 });
 
-type Props = z.infer<typeof schema>;
+export type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   empty_state_message_i18n: {
@@ -78,104 +37,13 @@ const defaultProps: Props = {
   cols_desktop: 4,
 };
 
-function SearchResultsGridRender({
-  props,
-  ctx,
-}: {
-  props: Props;
-  ctx: SectionRenderContext;
-}) {
-  const locale = ctx.runtime.locale;
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const update = () => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        setQuery((params.get("q") ?? "").trim());
-      } catch {
-        setQuery("");
-      }
-    };
-    update();
-    window.addEventListener("popstate", update);
-    return () => window.removeEventListener("popstate", update);
-  }, []);
-
-  const results = useMemo(() => {
-    if (!query) return ctx.products;
-    const needle = query.toLowerCase();
-    return ctx.products.filter((p) => {
-      const hay = [
-        p.name,
-        p.sku ?? "",
-        (p as unknown as { description?: string | null }).description ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [ctx.products, query]);
-
-  const emptyMessage = resolveI18n(props.empty_state_message_i18n, locale);
-  const phone =
-    (ctx.tenant as { contact_phone?: string | null } | undefined)
-      ?.contact_phone ?? null;
-
-  const mobileCols =
-    props.cols_mobile === 1 ? "grid-cols-1" : "grid-cols-2";
-  const desktopCols =
-    props.cols_desktop === 2
-      ? "sm:grid-cols-2"
-      : props.cols_desktop === 3
-        ? "sm:grid-cols-3"
-        : "sm:grid-cols-4";
-
-  if (results.length === 0) {
-    return (
-      <Section density="dense">
-        <BentoCard bg="cream" size="md" className="p-bk-xl text-center">
-          <p className="font-display font-black text-xl uppercase text-bk-ink">
-            {emptyMessage}
-          </p>
-          {query && (
-            <p className="mt-bk-xs font-body text-sm text-bk-ink-soft">
-              {locale !== "en" ? `بحثت عن: "${query}"` : `Searched for: "${query}"`}
-            </p>
-          )}
-        </BentoCard>
-        <HelpCard locale={locale} phone={phone} />
-      </Section>
-    );
-  }
-
-  return (
-    <Section density="dense">
-      {query && (
-        <p className="mb-bk-md font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
-          {locale !== "en"
-            ? `${results.length} نتيجة لـ "${query}"`
-            : `${results.length} results for "${query}"`}
-        </p>
-      )}
-      <div className={`grid ${mobileCols} ${desktopCols} gap-bk-sm sm:gap-bk-md`}>
-        {results.map((p, i) => (
-          <SchneidersProductCard key={p.id} product={p} index={i} />
-        ))}
-      </div>
-      <HelpCard locale={locale} phone={phone} />
-    </Section>
-  );
-}
-
 const definition: SectionDefinition<Props> = {
   type: "search_results_grid",
   category: "page",
   name: { en: "Search results", ar: "نتائج البحث" },
   description: {
-    en: "Search results grid filtered by ?q= with empty-state fallback.",
-    ar: "شبكة نتائج البحث المفلترة من ?q= مع حالة فارغة.",
+    en: "Search form + results grid filtered server-side from ?q= with empty-state fallback.",
+    ar: "نموذج بحث وشبكة نتائج مفلترة من ?q= على الخادم مع حالة فارغة.",
   },
   thumbnail: "/sections/search_results_grid.svg",
   valid_on: ["search"],

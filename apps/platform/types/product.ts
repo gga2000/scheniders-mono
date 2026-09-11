@@ -17,6 +17,10 @@ export interface Product {
     created_at: string;
     updated_at?: string;
     name: string;
+    /** Internal ops name snapshotted into orders.items[].name (orders page,
+     *  printing, labels, WhatsApp templates). `name` stays the customer-facing
+     *  marketing title on the storefront. Falls back to `name` when empty. */
+    short_name?: string | null;
     description?: string;
     sku?: string;
     lightfunnels_aliases?: string[];
@@ -32,6 +36,11 @@ export interface Product {
     tag_color?: string;
     is_archived: boolean;
     is_supply: boolean;
+    /** Catalogue filler — orderable by customers, but not held in main stock.
+     *  Collapsed behind a group in the order product picker so staff pick from
+     *  real stock first. Independent of `is_supply` (never sellable),
+     *  `is_visible` (hidden from the store) and `status`. */
+    is_filler?: boolean;
     status: 'draft' | 'active' | 'archived';
     product_type: 'physical' | 'digital' | 'service' | 'bundle';
     // Physical product fields

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, Search, X, Check, Plus, Minus } from "lucide-react";
+import { Package, Search, X, Check, Plus, Minus, ChevronDown, ChevronLeft, Layers } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import type { Product } from "@/lib/supabase";
@@ -27,13 +27,32 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
     const { t } = useLanguage();
 
-    // Only show active (non-archived) products that are not supplies
-    const filteredProducts = useMemo(() => {
-        const activeProducts = products.filter(p => !p.is_archived && !p.is_supply);
-        if (!search.trim()) return activeProducts;
-        const searchLower = search.toLowerCase();
-        return activeProducts.filter(p => p.name.toLowerCase().includes(searchLower));
+    const [fillerOpen, setFillerOpen] = useState(false);
+
+    // Only show active (non-archived) products that are not supplies, split by
+    // whether the shop actually keeps them in stock. Filler is catalogue depth —
+    // orderable, but staff should reach real stock first, so it gets tucked
+    // behind a collapsed group rather than padding out the everyday list.
+    const { mainProducts, fillerProducts } = useMemo(() => {
+        const sellable = products.filter(p => !p.is_archived && !p.is_supply);
+        const searchLower = search.trim().toLowerCase();
+        const matched = searchLower
+            ? sellable.filter(p => p.name.toLowerCase().includes(searchLower))
+            : sellable;
+        return {
+            mainProducts: matched.filter(p => !p.is_filler),
+            fillerProducts: matched.filter(p => p.is_filler),
+        };
     }, [products, search]);
+
+    const totalShown = mainProducts.length + fillerProducts.length;
+    const selectedFillerCount = fillerProducts.reduce(
+        (n, p) => n + (selectedProducts.has(p.id) ? 1 : 0), 0
+    );
+    // Derived, not stored: searching a real product name and being told there
+    // is nothing — with the answer one collapsed click away — is the failure
+    // this guards against.
+    const fillerExpanded = fillerOpen || (search.trim().length > 0 && mainProducts.length === 0);
 
     const toggleProduct = (product: Product) => {
         setSelectedProducts(prev => {
@@ -72,7 +91,9 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
         selectedProducts.forEach(({ product, quantity, isOpenBox }) => {
             onSelect({
                 product_id: product.id,
-                name: product.name,
+                // Order snapshots carry the internal ops name; the marketing
+                // title (products.name) stays customer-facing on the storefront.
+                name: product.short_name?.trim() || product.name,
                 price: product.price,
                 quantity: quantity,
                 image_url: product.image_url || "",
@@ -87,6 +108,110 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
         setSearch("");
         setSelectedProducts(new Map());
         onClose();
+    };
+
+    // One renderer for both lists — main stock and filler rows are identical;
+    // only where they sit differs.
+    const renderRow = (product: Product) => {
+        const isSelected = selectedProducts.has(product.id);
+        const selectedData = selectedProducts.get(product.id);
+
+        return (
+            <div
+                key={product.id}
+                className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer",
+                    isSelected
+                        ? "bg-[var(--pastel-green-light)] ring-1 ring-green-300"
+                        : "hover:bg-[var(--background)]"
+                )}
+                onClick={() => !isSelected && toggleProduct(product)}
+            >
+                {/* Product Image */}
+                {product.image_url ? (
+                    <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-12 h-12 rounded-lg object-cover shrink-0"
+                    />
+                ) : (
+                    <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: product.tag_color || '#e5e7eb' }}
+                    >
+                        <Package className="w-5 h-5 text-white/80" />
+                    </div>
+                )}
+
+                {/* Product Info */}
+                <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-foreground truncate">{product.name}</p>
+                    <p className="text-sm font-mono text-green-700 font-bold">{formatIQD(product.price)}</p>
+                    {isSelected && selectedData && (
+                        <div className="flex items-center gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                                type="button"
+                                onClick={() => setOpenBox(product.id, false)}
+                                className={cn(
+                                    "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                    !selectedData.isOpenBox
+                                        ? "bg-green-600 text-white"
+                                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                )}
+                            >
+                                جديد
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setOpenBox(product.id, true)}
+                                className={cn(
+                                    "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                    selectedData.isOpenBox
+                                        ? "bg-amber-500 text-white"
+                                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                )}
+                            >
+                                علبة مفتوحة{product.open_box_quantity > 0 ? ` (${product.open_box_quantity})` : ""}
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Quantity Controls or Checkbox */}
+                {isSelected && selectedData ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center bg-white border border-[var(--card-border)] rounded-lg overflow-hidden">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, -1); }}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+                            >
+                                <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-8 text-center text-sm font-bold">{selectedData.quantity}</span>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, 1); }}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); toggleProduct(product); }}
+                            className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); toggleProduct(product); }}
+                        className="w-8 h-8 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 flex items-center justify-center transition-colors shrink-0"
+                    >
+                        <Plus className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+        );
     };
 
     const totalSelected = selectedProducts.size;
@@ -128,7 +253,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                             </div>
                             <div>
                                 <h3 className="font-bold text-foreground">{t("orders.productPicker.title")}</h3>
-                                <p className="text-xs text-muted">{filteredProducts.length} {t("orders.productPicker.product")} • {totalSelected} {t("orders.productPicker.selected")}</p>
+                                <p className="text-xs text-muted">{totalShown} {t("orders.productPicker.product")} • {totalSelected} {t("orders.productPicker.selected")}</p>
                             </div>
                         </div>
                         <button
@@ -148,8 +273,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder={t("orders.productPicker.search")}
-                                className="w-full h-10 pr-10 pl-4 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pastel-green)] focus:border-transparent"
-                                dir="rtl"
+                                className="w-full h-10 pr-10 pl-4 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm text-right focus:outline-none focus:ring-2 focus:ring-[var(--pastel-green)] focus:border-transparent"
                             />
                         </div>
                     </div>
@@ -160,114 +284,48 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                             <div className="flex items-center justify-center py-12">
                                 <div className="w-6 h-6 border-2 border-gray-200 border-t-green-500 rounded-full animate-spin" />
                             </div>
-                        ) : filteredProducts.length === 0 ? (
+                        ) : totalShown === 0 ? (
                             <div className="text-center py-12 text-muted">
                                 <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
                                 <p className="text-sm">{t("orders.productPicker.noProducts")}</p>
                             </div>
                         ) : (
                             <div className="p-2 space-y-1.5">
-                                {filteredProducts.map((product) => {
-                                    const isSelected = selectedProducts.has(product.id);
-                                    const selectedData = selectedProducts.get(product.id);
+                                {mainProducts.map(renderRow)}
 
-                                    return (
-                                        <div
-                                            key={product.id}
-                                            className={cn(
-                                                "flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer",
-                                                isSelected
-                                                    ? "bg-[var(--pastel-green-light)] ring-1 ring-green-300"
-                                                    : "hover:bg-[var(--background)]"
-                                            )}
-                                            onClick={() => !isSelected && toggleProduct(product)}
+                                {fillerProducts.length > 0 && (
+                                    <div className="pt-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFillerOpen(!fillerExpanded)}
+                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-[var(--background)] hover:bg-[var(--card-border)] transition-colors text-right"
                                         >
-                                            {/* Product Image */}
-                                            {product.image_url ? (
-                                                <img
-                                                    src={product.image_url}
-                                                    alt={product.name}
-                                                    className="w-12 h-12 rounded-lg object-cover shrink-0"
-                                                />
-                                            ) : (
-                                                <div
-                                                    className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
-                                                    style={{ backgroundColor: product.tag_color || '#e5e7eb' }}
-                                                >
-                                                    <Package className="w-5 h-5 text-white/80" />
-                                                </div>
-                                            )}
+                                            {fillerExpanded
+                                                ? <ChevronDown className="w-4 h-4 text-muted shrink-0" />
+                                                : <ChevronLeft className="w-4 h-4 text-muted shrink-0" />}
+                                            <Layers className="w-4 h-4 text-muted shrink-0" />
+                                            <span className="flex-1 min-w-0">
+                                                <span className="block text-sm font-semibold text-foreground truncate">
+                                                    {t("orders.productPicker.fillerGroup")} ({fillerProducts.length})
+                                                    {selectedFillerCount > 0 && (
+                                                        <span className="mr-1.5 text-green-700">
+                                                            • {selectedFillerCount} {t("orders.productPicker.selected")}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="block text-[11px] text-muted truncate">
+                                                    {t("orders.productPicker.fillerHint")}
+                                                </span>
+                                            </span>
+                                        </button>
 
-                                            {/* Product Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-sm text-foreground truncate">{product.name}</p>
-                                                <p className="text-sm font-mono text-green-700 font-bold">{formatIQD(product.price)}</p>
-                                                {isSelected && selectedData && (
-                                                    <div className="flex items-center gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setOpenBox(product.id, false)}
-                                                            className={cn(
-                                                                "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
-                                                                !selectedData.isOpenBox
-                                                                    ? "bg-green-600 text-white"
-                                                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                                                            )}
-                                                        >
-                                                            جديد
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setOpenBox(product.id, true)}
-                                                            className={cn(
-                                                                "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
-                                                                selectedData.isOpenBox
-                                                                    ? "bg-amber-500 text-white"
-                                                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                                                            )}
-                                                        >
-                                                            علبة مفتوحة{product.open_box_quantity > 0 ? ` (${product.open_box_quantity})` : ""}
-                                                        </button>
-                                                    </div>
-                                                )}
+                                        {fillerExpanded && (
+                                            <div className="mt-1.5 space-y-1.5">
+                                                {fillerProducts.map(renderRow)}
                                             </div>
-
-                                            {/* Quantity Controls or Checkbox */}
-                                            {isSelected && selectedData ? (
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    <div className="flex items-center bg-white border border-[var(--card-border)] rounded-lg overflow-hidden">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, -1); }}
-                                                            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-                                                        >
-                                                            <Minus className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <span className="w-8 text-center text-sm font-bold">{selectedData.quantity}</span>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, 1); }}
-                                                            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-                                                        >
-                                                            <Plus className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); toggleProduct(product); }}
-                                                        className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); toggleProduct(product); }}
-                                                    className="w-8 h-8 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 flex items-center justify-center transition-colors shrink-0"
-                                                >
-                                                    <Plus className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

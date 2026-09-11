@@ -20,6 +20,8 @@ import { Order } from "@/lib/supabase";
 import { generatePDFReport } from "@/lib/pdf-report-generator";
 import { generateExcelReport } from "@/lib/excel-report-generator";
 import { toast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { orderRepository } from "@/lib/repositories/order-repository";
 
 // ============================================
 // TYPES
@@ -30,7 +32,6 @@ interface ExportReportModalProps {
     onClose: () => void;
     filteredOrders: Order[];
     selectedOrderIds: Set<string>;
-    allOrders: Order[];
     currentDateFrom?: string;
     currentDateTo?: string;
 }
@@ -69,14 +70,6 @@ function getThisMonthRange(): { from: string; to: string } {
     return { from: fmt(start), to: fmt(now) };
 }
 
-function filterOrdersByDateRange(orders: Order[], from: string, to: string): Order[] {
-    const fromDate = new Date(from + "T00:00:00");
-    const toDate = new Date(to + "T23:59:59");
-    return orders.filter((o) => {
-        const d = new Date(o.created_at);
-        return d >= fromDate && d <= toDate;
-    });
-}
 
 // ============================================
 // COMPONENT
@@ -87,7 +80,6 @@ export function ExportReportModal({
     onClose,
     filteredOrders,
     selectedOrderIds,
-    allOrders,
     currentDateFrom,
     currentDateTo,
 }: ExportReportModalProps) {
@@ -104,6 +96,35 @@ export function ExportReportModal({
         return 3;
     }, [format, scope]);
 
+    // Scopes that mean "everything matching this range", not "whatever the page
+    // has loaded". These are fetched from the server: the orders list is being
+    // moved to a windowed fetch, and reading the in-memory array here would
+    // silently shrink a "this month" or "all orders" export to the loaded
+    // window — wrong numbers in a reporting file, with no error shown.
+    const serverScopeRange = useMemo(() => {
+        switch (scope) {
+            case "today": return getTodayRange();
+            case "this_week": return getThisWeekRange();
+            case "this_month": return getThisMonthRange();
+            case "all": return { from: undefined, to: undefined };
+            default: return null;
+        }
+    }, [scope]);
+
+    const {
+        data: serverScopedOrders,
+        isFetching: isFetchingScope,
+        isError: scopeFetchFailed,
+    } = useQuery({
+        queryKey: ["orders", "export-scope", serverScopeRange?.from ?? "all", serverScopeRange?.to ?? "all"],
+        queryFn: () => orderRepository.findForExport({
+            dateFrom: serverScopeRange?.from,
+            dateTo: serverScopeRange?.to,
+        }),
+        enabled: open && serverScopeRange !== null,
+        staleTime: 60_000,
+    });
+
     // Get orders based on scope
     const scopedOrders = useMemo(() => {
         if (!scope) return [];
@@ -112,24 +133,36 @@ export function ExportReportModal({
                 return filteredOrders.filter((o) => selectedOrderIds.has(o.id));
             case "current_view":
                 return filteredOrders;
-            case "today": {
-                const { from, to } = getTodayRange();
-                return filterOrdersByDateRange(allOrders, from, to);
-            }
-            case "this_week": {
-                const { from, to } = getThisWeekRange();
-                return filterOrdersByDateRange(allOrders, from, to);
-            }
-            case "this_month": {
-                const { from, to } = getThisMonthRange();
-                return filterOrdersByDateRange(allOrders, from, to);
-            }
+            case "today":
+            case "this_week":
+            case "this_month":
             case "all":
-                return allOrders;
+                return serverScopedOrders ?? [];
             default:
                 return filteredOrders;
         }
-    }, [scope, filteredOrders, selectedOrderIds, allOrders]);
+    }, [scope, filteredOrders, selectedOrderIds, serverScopedOrders]);
+
+    // The picker advertises a count per scope. Those must describe the server's
+    // data, not the loaded window, or the picker promises one number and the
+    // generated file contains another.
+    const { data: scopeCounts } = useQuery({
+        queryKey: ["orders", "export-scope-counts"],
+        queryFn: async () => {
+            const today = getTodayRange();
+            const week = getThisWeekRange();
+            const month = getThisMonthRange();
+            const [todayCount, weekCount, monthCount, allCount] = await Promise.all([
+                orderRepository.countForExport({ dateFrom: today.from, dateTo: today.to }),
+                orderRepository.countForExport({ dateFrom: week.from, dateTo: week.to }),
+                orderRepository.countForExport({ dateFrom: month.from, dateTo: month.to }),
+                orderRepository.countForExport({}),
+            ]);
+            return { today: todayCount, this_week: weekCount, this_month: monthCount, all: allCount };
+        },
+        enabled: open,
+        staleTime: 60_000,
+    });
 
     // Get date range for report header
     const dateRange = useMemo(() => {
@@ -176,7 +209,10 @@ export function ExportReportModal({
     }, [scope]);
 
     const handleGenerate = useCallback(async () => {
-        if (!format || !scope || scopedOrders.length === 0) return;
+        // Never build a file from a half-loaded scope — that would silently
+        // export fewer orders than the merchant asked for.
+        if (!format || !scope || isFetchingScope || scopeFetchFailed) return;
+        if (scopedOrders.length === 0) return;
 
         setIsGenerating(true);
 
@@ -213,7 +249,7 @@ export function ExportReportModal({
         } finally {
             setIsGenerating(false);
         }
-    }, [format, scope, scopedOrders, reportTitle, dateRange, reportType]);
+    }, [format, scope, scopedOrders, reportTitle, dateRange, reportType, isFetchingScope, scopeFetchFailed]);
 
     const handleClose = useCallback(() => {
         setFormat(null);
@@ -234,7 +270,7 @@ export function ExportReportModal({
     // ============================================
     // SCOPE OPTIONS
     // ============================================
-    const scopeOptions: { id: ExportScope; label: string; sublabel: string; count: number; icon: React.ReactNode; disabled?: boolean }[] = [
+    const scopeOptions: { id: ExportScope; label: string; sublabel: string; count: number | null; icon: React.ReactNode; disabled?: boolean }[] = [
         {
             id: "selected",
             label: "Selected Orders",
@@ -254,28 +290,28 @@ export function ExportReportModal({
             id: "today",
             label: "Today",
             sublabel: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
-            count: filterOrdersByDateRange(allOrders, ...Object.values(getTodayRange()) as [string, string]).length,
+            count: scopeCounts?.today ?? null,
             icon: <Calendar className="w-5 h-5" />,
         },
         {
             id: "this_week",
             label: "This Week",
             sublabel: "Saturday to today",
-            count: filterOrdersByDateRange(allOrders, ...Object.values(getThisWeekRange()) as [string, string]).length,
+            count: scopeCounts?.this_week ?? null,
             icon: <Calendar className="w-5 h-5" />,
         },
         {
             id: "this_month",
             label: "This Month",
             sublabel: new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-            count: filterOrdersByDateRange(allOrders, ...Object.values(getThisMonthRange()) as [string, string]).length,
+            count: scopeCounts?.this_month ?? null,
             icon: <Calendar className="w-5 h-5" />,
         },
         {
             id: "all",
             label: "All Orders",
-            sublabel: `${allOrders.length} total orders`,
-            count: allOrders.length,
+            sublabel: scopeCounts ? `${scopeCounts.all} total orders` : "every order",
+            count: scopeCounts?.all ?? null,
             icon: <Sparkles className="w-5 h-5" />,
         },
     ];
@@ -474,7 +510,7 @@ export function ExportReportModal({
                                                         ? "bg-amber-200 dark:bg-[#EFFF00]/30 text-amber-800 dark:text-[#EFFF00]"
                                                         : "bg-gray-200 dark:bg-[#444] text-gray-600 dark:text-[#aaa]"
                                                 )}>
-                                                    {option.count}
+                                                    {option.count ?? "…"}
                                                 </div>
                                                 <ChevronRight className={cn(
                                                     "w-4 h-4 transition-transform text-muted-foreground",
@@ -536,7 +572,7 @@ export function ExportReportModal({
                                         <div className="flex items-center justify-between">
                                             <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">Orders</span>
                                             <span className="text-sm font-bold text-amber-600 dark:text-[#EFFF00]">
-                                                {scopedOrders.length} orders
+                                                {isFetchingScope ? "counting…" : `${scopedOrders.length} orders`}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between">
@@ -579,12 +615,12 @@ export function ExportReportModal({
                                     {/* Generate Button */}
                                     <button
                                         onClick={handleGenerate}
-                                        disabled={isGenerating || scopedOrders.length === 0}
+                                        disabled={isGenerating || isFetchingScope || scopeFetchFailed || scopedOrders.length === 0}
                                         className={cn(
                                             "w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2",
                                             generationComplete
                                                 ? "bg-emerald-500 text-white"
-                                                : isGenerating
+                                                : (isGenerating || isFetchingScope)
                                                     ? "bg-gray-200 dark:bg-[#333] text-muted-foreground cursor-wait"
                                                     : scopedOrders.length === 0
                                                         ? "bg-gray-200 dark:bg-[#333] text-gray-400 cursor-not-allowed"
@@ -595,6 +631,16 @@ export function ExportReportModal({
                                             <>
                                                 <CheckCircle2 className="w-5 h-5" />
                                                 Downloaded!
+                                            </>
+                                        ) : scopeFetchFailed ? (
+                                            <>
+                                                <X className="w-5 h-5" />
+                                                Couldn&apos;t load orders — try again
+                                            </>
+                                        ) : isFetchingScope ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                Loading orders...
                                             </>
                                         ) : isGenerating ? (
                                             <>

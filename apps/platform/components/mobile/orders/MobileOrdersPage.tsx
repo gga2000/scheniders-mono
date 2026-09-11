@@ -1,17 +1,16 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useOrdersList } from "@/components/providers/orders-provider";
-import { useOrderRiskQuery } from "@/hooks/use-order-risk-query";
+import { orderMatchesSearch, orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useShallow } from "zustand/react/shallow";
 import { useSidebar } from "@/components/layout/dashboard-layout";
 import { MobileOrdersList } from "./MobileOrdersList";
 import { MobileSearchModal } from "./MobileSearchModal";
 import { MobileFilterModal } from "./MobileFilterModal";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { Order } from "@/lib/supabase";
-import { OrderAssignment, mockAssignments } from "@/lib/team-types";
-import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft } from "lucide-react";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
@@ -37,10 +36,10 @@ export function MobileOrdersPage() {
         getCustomerOrderCount,
         hasDuplicates,
         exportOrders,
-    } = useOrdersList();
-    // PERF-D1: risk loads on the routes that render it, not on every route.
-    const riskByOrderId = useOrderRiskQuery();
+    } = useOrdersContext();
 
+    // Selected through `useShallow`; a bare `useOrderStore()` subscribes to the
+    // whole store and re-renders this screen on every unrelated store change.
     const {
         localSearchQuery,
         setLocalSearchQuery,
@@ -48,11 +47,22 @@ export function MobileOrdersPage() {
         filterDuplicatesOnly,
         sortConfig,
         setIsCreateModalOpen,
-        selectAll,
         groupBy,
         setGroupBy,
         setFilterDuplicatesOnly,
-    } = useOrderStore();
+    } = useOrderStore(
+        useShallow((state) => ({
+            localSearchQuery: state.localSearchQuery,
+            setLocalSearchQuery: state.setLocalSearchQuery,
+            columnFilters: state.columnFilters,
+            filterDuplicatesOnly: state.filterDuplicatesOnly,
+            sortConfig: state.sortConfig,
+            setIsCreateModalOpen: state.setIsCreateModalOpen,
+            groupBy: state.groupBy,
+            setGroupBy: state.setGroupBy,
+            setFilterDuplicatesOnly: state.setFilterDuplicatesOnly,
+        })),
+    );
 
     const { setMobileMenuOpen } = useSidebar();
 
@@ -62,53 +72,52 @@ export function MobileOrdersPage() {
     const [templatePanelOpen, setTemplatePanelOpen] = useState(false);
     const [orderForTemplate, setOrderForTemplate] = useState<Order | null>(null);
 
-    const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
 
     // --- Pagination State ---
     const ITEMS_PER_PAGE = 50;
     const [currentPage, setCurrentPage] = useState(1);
 
-    const handleAssignDuty = React.useCallback((orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => {
-        setAssignments(prev => {
-            const filtered = prev.filter(a => !(a.order_id === orderId && a.duty === duty));
-            return [...filtered, {
-                id: `a_${Date.now()}`,
-                order_id: orderId,
-                employee_id: employeeId,
-                duty,
-                assigned_at: new Date().toISOString(),
-                status: 'pending'
-            }];
-        });
-    }, []);
 
     // Apply same filtering logic as desktop (Phase 4 placeholder/integration)
     const filteredOrders = useMemo(() => {
         let result = [...hookFilteredOrders];
 
-        // Global Search
+        // MOB-2: this was a plain `includes()` over a concatenated string, so a
+        // phone typed with spaces or an Arabic name spelled with a different alef
+        // matched on desktop but not here. Both screens now share one predicate.
         if (localSearchQuery) {
-            const lowerQuery = localSearchQuery.toLowerCase();
-            result = result.filter((o) => {
-                const searchStr = `${o.customer_name || ""} ${o.phone || ""} ${o.city || ""} ${o.order_id || ""} ${o.sequence_number || ""} ${o.notes || ""}`.toLowerCase();
-                return searchStr.includes(lowerQuery);
-            });
+            result = result.filter((o) => orderMatchesSearch(o, localSearchQuery, hookFilteredOrders));
         }
 
-        // Status / Risk level filters
-        if (filters.riskLevel) {
-            if (filters.riskLevel === "flagged") {
-                result = result.filter((o) => isOrderFlagged(o) || o.status === "rejected");
-            } else {
-                result = result.filter((o) => riskByOrderId.get(o.id)?.level === filters.riskLevel);
-            }
+        // Risk / flagged filter — shared with the desktop page via
+        // orderMatchesRiskLevel so the two screens cannot disagree about what
+        // "flagged" means. This was the last predicate still duplicated here.
+        const riskLevel = filters.riskLevel;
+        if (riskLevel) {
+            result = result.filter((o) => orderMatchesRiskLevel(o, riskLevel));
         }
 
-        // Default sorting: Newest first
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Default sorting: Newest first. Timestamps resolved once rather than
+        // parsed twice per comparison, matching the desktop list.
+        const createdAtMs = new Map<string, number>();
+        for (const order of result) {
+            const parsed = Date.parse(order.created_at);
+            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
+        }
+        result.sort((a, b) => (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0));
 
         return result;
     }, [hookFilteredOrders, localSearchQuery, filters.riskLevel]);
+
+    // ARCH-6: the order store is module-level, so an open modal, a bulk
+    // selection or a half-finished inline edit outlived this page and came back
+    // on the next visit — with a stale order snapshot behind it. Clear the
+    // transient half on unmount; view preferences and filters persist as before.
+    useEffect(() => {
+        return () => {
+            useOrderStore.getState().resetTransientState();
+        };
+    }, []);
 
     // Reset to page 1 when filters change
     useEffect(() => {
@@ -136,12 +145,12 @@ export function MobileOrdersPage() {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-background pb-6">
+        <div className="flex flex-col min-h-screen bg-background pb-safe">
             {/* Sticky Header */}
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-[var(--card-border)] px-4 py-3 flex flex-col gap-3">
+            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-[var(--card-border)] px-4 pb-3 pt-safe flex flex-col gap-3">
 
                 {/* Unified Search Bar */}
-                <div className="flex items-center w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden h-12 relative" dir="rtl">
+                <div className="flex flex-row-reverse items-center w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden h-12 relative">
 
                     {/* Create Order Button */}
                     <button
@@ -177,7 +186,7 @@ export function MobileOrdersPage() {
 
                     {/* Search Segment (Middle/Right) */}
                     <div
-                        className="flex-1 h-full px-3 flex items-center gap-2 cursor-pointer text-muted-foreground hover:bg-muted/30 transition-colors"
+                        className="flex-1 h-full px-3 flex flex-row-reverse items-center gap-2 cursor-pointer text-muted-foreground hover:bg-muted/30 transition-colors text-right"
                         onClick={() => setSearchModalOpen(true)}
                     >
                         <Search className="w-4 h-4 shrink-0" />
@@ -186,15 +195,21 @@ export function MobileOrdersPage() {
                         </span>
                     </div>
 
-                    {/* Number Badge / Select All (Far Left in RTL) */}
+                    {/* Number badge — clears the search and the status filter.
+                        MOB-1: this also called selectAll(), but mobile renders no
+                        bulk action bar and no per-row selection toggle, so the
+                        selection went into the store where nothing could act on
+                        it. Tapping a control labelled "Select All" and getting
+                        nothing is worse than the control not claiming to do it,
+                        so the dead call is gone and the label now matches the
+                        behaviour. Mobile bulk actions remain unbuilt. */}
                     <button
                         onClick={() => {
                             setLocalSearchQuery('');
                             setFilters({ ...filters, status: "all" });
-                            selectAll(filteredOrders.map(o => o.id));
                         }}
                         className="h-full px-4 flex items-center justify-center bg-gradient-to-l from-amber-500/10 to-transparent border-r border-[var(--card-border)] text-amber-600 hover:bg-amber-500/20 transition-colors"
-                        title="Select All / Clear Search"
+                        title="Clear search and filters"
                     >
                         <span className="text-sm font-bold font-mono">{filteredOrders.length}</span>
                     </button>
@@ -257,8 +272,6 @@ export function MobileOrdersPage() {
                     onDelete={deleteOrder}
                     onCreateReturn={createReturnOrder}
                     checkOrderIdExists={checkOrderIdExists}
-                    assignments={assignments.filter(a => a.order_id === selectedOrder.id)}
-                    onAssignDuty={handleAssignDuty}
                     messageTemplates={messageTemplates}
                     onOpenTemplatePanel={(o) => {
                         setOrderForTemplate(o);

@@ -36,6 +36,7 @@ interface ProductFormData {
     image_url?: string;
     tag_color?: string; // Custom color for product tag display
     is_supply?: boolean;
+    is_filler?: boolean;
     // Storefront fields
     slug?: string;
     is_visible?: boolean;

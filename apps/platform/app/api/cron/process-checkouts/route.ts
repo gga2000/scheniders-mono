@@ -134,6 +134,7 @@ async function processCheckoutQueue(): Promise<NextResponse> {
  * Manual trigger (UI button) or Vercel Cron.
  */
 export async function GET(request: Request) {
+    // Verify cron secret (Vercel automatically sends this)
     const denied = requireCronAuth(request);
     if (denied) return denied;
 

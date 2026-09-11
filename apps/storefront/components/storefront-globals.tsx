@@ -1,4 +1,8 @@
-"use client";
+// Server component: slot lookup + default-instance synthesis need nothing
+// from the browser, and rendering through the server `RenderSection` keeps
+// the section registry (and the 30-odd server-safe sections) out of the
+// client bundle. Interactive chrome (site_header etc.) stays a client
+// component on its own — the boundary is per section module.
 import { RenderSection, getSection } from "@scheniders/sections";
 import { isSectionEnabled } from "@scheniders/shared";
 import type { GlobalSections, RuntimeContext, SectionInstance } from "@scheniders/shared";

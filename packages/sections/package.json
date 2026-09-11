@@ -11,6 +11,7 @@
     "./helpers/product-card": "./src/helpers/product-card.tsx",
     "./helpers/store-context": "./src/helpers/store-context.tsx",
     "./helpers/cart-store": "./src/helpers/cart-store.ts",
+    "./helpers/pixels": "./src/helpers/pixels.ts",
     "./helpers/utils": "./src/helpers/utils.ts"
   },
   "scripts": {

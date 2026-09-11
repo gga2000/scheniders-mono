@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
+import type { OrderWindow } from "@/lib/order-window";
 
 /**
  * OrderRepository — Centralized data access for orders.
@@ -16,18 +17,12 @@ import { diag } from "@/lib/diag";
  * Excludes detail-only fields to reduce payload size by ~25%.
  * findById still fetches all columns (*) for the detail modal.
  */
-// `delivered_at` / `completed_at` are here because realized revenue and cycle time
-// are dated by when an order was DELIVERED, not created (COR-D1). Without them the
-// client engine reads null for every order and reports zero revenue. The Orders
-// audit hit the same gap from the other side: its COR-4 could not bucket by
-// delivered_at precisely because this list never selected it.
-// NOTE: this string is sent verbatim as a PostgREST `select=` — no SQL comments.
-export const LIST_VIEW_COLUMNS = `
+const LIST_VIEW_COLUMNS = `
   id,
   created_at,
   updated_at,
+  version,
   original_created_at,
-  scheduled_date,
   order_id,
   customer_name,
   phone,
@@ -38,8 +33,6 @@ export const LIST_VIEW_COLUMNS = `
   items,
   price,
   status,
-  delivered_at,
-  completed_at,
   priority,
   payment_status,
   delivery_fee,
@@ -53,157 +46,33 @@ export const LIST_VIEW_COLUMNS = `
   tag_color,
   notes,
   internal_notes,
+  risk_data,
   contact_count,
   last_contacted_at,
   rejection_reason,
   needs_attention,
   attention_reasons,
   last_status_changed_by_name,
-  last_status_changed_by_avatar
+  last_status_changed_by_avatar,
+  delivered_at,
+  completed_at
 `.trim();
 
-export interface OrderSearchRow {
-    id: string;
-    order_id: string;
-    customer_name: string | null;
-    phone: string | null;
-    city: string | null;
-    status: string;
-    price: number | null;
-    governorate_code: string | null;
-    created_at: string;
-}
-
-export interface CustomerSearchRow {
-    customer_phone: string;
-    latest_name: string | null;
-    total_orders: number;
-}
-
-export interface ProductSearchRow {
-    id: string;
-    name: string;
-    price: number | null;
-}
-
 /**
- * ORD-A3. The LIST queries read `public.orders` directly; only the two risk
- * lookups below read `v_orders_with_risk`.
- *
- * The view joins `customer_trust` on `normalize_phone(...)` to build one column,
- * `risk_data`. Postgres cannot prune a join the way it prunes an unused column,
- * so every read paid for it even after `risk_data` was removed from
- * LIST_VIEW_COLUMNS. Measured on one 1,000-row page as a real tenant member:
- * 413.0 ms via the view (seq scan + external merge sort spilling 2.2 MB to disk
- * + a 345 ms merge join) against 53.6 ms straight from `orders`
- * (`idx_orders_created_at` index scan) — and `findAll` issues five such pages in
- * parallel.
- *
- * The view also filters `deleted_at IS NULL`, which the table does not, so every
- * repointed query carries an explicit `.is("deleted_at", null)`. Verified column
- * delta before switching: the view adds only `risk_data` and omits
- * `idempotency_key` and `waseet_submit_started_at`, none of which these queries
- * select.
- *
- * Single-row lookups (`findById`, `findByOrderId`, `findByScanRef`) deliberately
- * stay on the view: they `select("*")`, so consumers may read `risk_data` from
- * them, and joining for one row is cheap.
+ * Columns needed to build an export file. The list view deliberately omits some
+ * of these to keep the page payload down, but `lib/export-utils.ts` reads them:
+ * without `validated_governorate_code` and `is_replacement` they arrive
+ * `undefined`, so every export silently fell back to the raw governorate code
+ * and marked replacement orders as NOT containing returned goods.
  */
-
-/** The risk assessment `v_orders_with_risk` builds from `customer_trust`. */
-export type OrderRisk = NonNullable<Order["risk_data"]>;
+const EXPORT_VIEW_COLUMNS = `
+${LIST_VIEW_COLUMNS},
+  validated_governorate_code,
+  is_replacement,
+  delivery_order_id
+`.trim();
 
 export const orderRepository = {
-    /**
-     * Risk assessments keyed by order id.
-     *
-     * PERF-D1: this was a column on the shared list fetch, where it cost 28.2%
-     * of the payload (2,803,916 of 9,951,233 bytes on the largest tenant) on
-     * every route in the app — while only the orders route and the returns
-     * panel ever read it. It now loads on its own, for the routes that render it.
-     */
-    async findRiskData(): Promise<Map<string, OrderRisk>> {
-        const _t = performance.now();
-        const { data, error } = await supabase
-            .from("v_orders_with_risk")
-            .select("id, risk_data")
-            .eq("is_archived", false);
-        if (error) {
-            diag.log(`[Diag:Repo] findRiskData ERR err=${error.message}`);
-            throw error;
-        }
-        const map = new Map<string, OrderRisk>();
-        for (const row of (data ?? []) as { id: string; risk_data: OrderRisk | null }[]) {
-            if (row.risk_data) map.set(row.id, row.risk_data);
-        }
-        diag.log(`[Diag:Repo] findRiskData OK rows=${map.size} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return map;
-    },
-
-    /**
-     * Server-side order search. Returns matches, not the book.
-     *
-     * PERF-D1: global-search and chat's #ref search each filtered all ~4,700
-     * orders in the browser, which is why the whole book had to be resident on
-     * every route. See migration 20260909130000 — the 2-character floor and the
-     * 50-row clamp are enforced in SQL, not here.
-     */
-    async searchOrders(term: string, limit = 20): Promise<OrderSearchRow[]> {
-        const { data, error } = await supabase.rpc("search_orders", { p_term: term, p_limit: limit });
-        if (error) throw error;
-        return (data ?? []) as OrderSearchRow[];
-    },
-
-    /**
-     * Customer search, from the tenant-scoped aggregates view.
-     *
-     * This also FIXES a defect: the old client-side version counted a customer's
-     * orders from whatever happened to be loaded, so "N orders" was the number of
-     * matches, not the number of orders. `total_orders` is the real count.
-     */
-    async searchCustomers(term: string, limit = 20): Promise<CustomerSearchRow[]> {
-        const t = term.trim();
-        if (t.length < 2) return [];
-        const { data, error } = await supabase
-            .from("customer_aggregates")
-            .select("customer_phone, latest_name, total_orders")
-            .or(`latest_name.ilike.%${t}%,customer_phone.ilike.%${t}%`)
-            .limit(limit);
-        if (error) throw error;
-        return (data ?? []) as CustomerSearchRow[];
-    },
-
-    /**
-     * Product search, from `products`.
-     *
-     * The old version scanned every order's `items` array to discover product
-     * names — it could only find a product that had already been ordered, and it
-     * priced it from the line rather than the catalogue.
-     */
-    async searchProducts(term: string, limit = 20): Promise<ProductSearchRow[]> {
-        const t = term.trim();
-        if (t.length < 2) return [];
-        const { data, error } = await supabase
-            .from("products")
-            .select("id, name, price")
-            .eq("is_archived", false)
-            .ilike("name", `%${t}%`)
-            .limit(limit);
-        if (error) throw error;
-        return (data ?? []) as ProductSearchRow[];
-    },
-
-    /** One order's risk assessment — for detail panels, which need exactly one. */
-    async findRiskFor(orderId: string): Promise<OrderRisk | null> {
-        const { data, error } = await supabase
-            .from("v_orders_with_risk")
-            .select("risk_data")
-            .eq("id", orderId)
-            .maybeSingle();
-        if (error) throw error;
-        return ((data as { risk_data: OrderRisk | null } | null)?.risk_data) ?? null;
-    },
-
     /** Fetch all active (non-archived) orders, newest first.
      *  Uses a count query + parallel page fetches to cut latency in half. */
     async findAll(): Promise<Order[]> {
@@ -216,10 +85,9 @@ export const orderRepository = {
         //    The count query uses the same view/filter but returns only the count header,
         //    not actual rows — it's very fast (~50-100ms).
         const { count, error: countErr } = await supabase
-            .from("orders")
+            .from("v_orders_with_risk")
             .select("id", { count: "exact", head: true })
-            .eq("is_archived", false)
-            .is("deleted_at", null);
+            .eq("is_archived", false);
 
         if (countErr) {
             diag.log(`[Diag:Repo] findAll COUNT ERR err=${countErr.message} took=${(performance.now() - _t).toFixed(1)}ms`);
@@ -237,10 +105,9 @@ export const orderRepository = {
         const pagePromises = Array.from({ length: pageCount }, (_, i) => {
             const from = i * step;
             return supabase
-                .from("orders")
+                .from("v_orders_with_risk")
                 .select(LIST_VIEW_COLUMNS)
                 .eq("is_archived", false)
-                .is("deleted_at", null)
                 .order("created_at", { ascending: false })
                 .range(from, from + step - 1);
         });
@@ -266,16 +133,148 @@ export const orderRepository = {
     },
 
     /**
+     * Fetch orders for an export file, straight from the server.
+     *
+     * Exports must never be limited to whatever the page happens to have
+     * loaded: "this month" or "all orders" has to mean what it says, even once
+     * the list fetch is windowed. Tenant scoping comes from RLS on
+     * `v_orders_with_risk` (security_invoker), same as every other read here.
+     */
+    async findForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<Order[]> {
+        const _t = performance.now();
+        const step = 1000;
+        const fromTs = opts.dateFrom ? `${opts.dateFrom}T00:00:00.000Z` : null;
+        const toTs = opts.dateTo ? `${opts.dateTo}T23:59:59.999Z` : null;
+
+        let countQuery = supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false);
+        if (fromTs) countQuery = countQuery.gte("created_at", fromTs);
+        if (toTs) countQuery = countQuery.lte("created_at", toTs);
+
+        const { count, error: countErr } = await countQuery;
+        if (countErr) throw countErr;
+
+        const totalRows = count ?? 0;
+        if (totalRows === 0) return [];
+
+        const pageCount = Math.ceil(totalRows / step);
+        const pages = await Promise.all(
+            Array.from({ length: pageCount }, (_, i) => {
+                let q = supabase
+                    .from("v_orders_with_risk")
+                    .select(EXPORT_VIEW_COLUMNS)
+                    .eq("is_archived", false);
+                if (fromTs) q = q.gte("created_at", fromTs);
+                if (toTs) q = q.lte("created_at", toTs);
+                return q
+                    .order("created_at", { ascending: false })
+                    .range(i * step, i * step + step - 1);
+            }),
+        );
+
+        let rows: unknown[] = [];
+        for (const { data, error } of pages) {
+            if (error) throw error;
+            if (data) rows = rows.concat(data);
+        }
+
+        diag.log(`[Diag:Repo] findForExport rows=${rows.length} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return rows.map(row => normalizeOrder(row as Order));
+    },
+
+    /**
+     * Fetch only the orders inside the active window.
+     *
+     * Replaces `findAll()`'s whole-book download for the common case. Takes the
+     * same `OrderWindow` the realtime predicate uses (lib/order-window.ts), so
+     * the rows fetched and the rows realtime is willing to add can never drift
+     * apart. A null window means "no date filter" and falls back to findAll().
+     *
+     * Rides idx_orders_tenant_active_created — measured 0.388 ms / 47 buffers for
+     * 50 rows, against 4,019 kB for the full book.
+     */
+    async findWindow(window: OrderWindow): Promise<Order[]> {
+        if (!window) return this.findAll();
+
+        const _t = performance.now();
+        const step = 1000;
+        const fromIso = new Date(window.fromInstant).toISOString();
+        const toIso = new Date(window.toInstant).toISOString();
+
+        // Count first, then page through ALL of them.
+        //
+        // Deliberately NOT a bare `.limit(n)`: truncating would leave the list
+        // showing 1,000 rows while the server-computed status chips report the
+        // real total, i.e. the list silently disagreeing with its own counts.
+        // The payload win comes from the window being narrow (the default view
+        // is a single day), never from dropping rows the merchant filtered for.
+        const { count, error: countErr } = await supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false)
+            .gte("created_at", fromIso)
+            .lte("created_at", toIso);
+        if (countErr) throw countErr;
+
+        const totalRows = count ?? 0;
+        if (totalRows === 0) return [];
+
+        const pageCount = Math.ceil(totalRows / step);
+        const pages = await Promise.all(
+            Array.from({ length: pageCount }, (_, i) =>
+                supabase
+                    .from("v_orders_with_risk")
+                    .select(LIST_VIEW_COLUMNS)
+                    .eq("is_archived", false)
+                    .gte("created_at", fromIso)
+                    .lte("created_at", toIso)
+                    .order("created_at", { ascending: false })
+                    .range(i * step, i * step + step - 1),
+            ),
+        );
+
+        let rows: unknown[] = [];
+        for (const { data, error } of pages) {
+            if (error) throw error;
+            if (data) rows = rows.concat(data);
+        }
+
+        diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
+        return rows.map(row => normalizeOrder(row as Order));
+    },
+
+    /**
+     * Row count for an export scope, without transferring any rows.
+     *
+     * The export scope picker advertises "this month — N orders" before the
+     * merchant commits. Those numbers have to describe the server's data, not
+     * the window the page happens to hold, or the picker promises one thing and
+     * the file delivers another.
+     */
+    async countForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<number> {
+        let q = supabase
+            .from("v_orders_with_risk")
+            .select("id", { count: "exact", head: true })
+            .eq("is_archived", false);
+        if (opts.dateFrom) q = q.gte("created_at", `${opts.dateFrom}T00:00:00.000Z`);
+        if (opts.dateTo) q = q.lte("created_at", `${opts.dateTo}T23:59:59.999Z`);
+        const { count, error } = await q;
+        if (error) throw error;
+        return count ?? 0;
+    },
+
+    /**
      * Incremental sync: fetch only orders modified after a given timestamp.
      * Returns both active and newly-archived orders so the client can
      * update its cache accordingly.
      */
     async findChangedSince(sinceTimestamp: string): Promise<Order[]> {
         const { data, error } = await supabase
-            .from("orders")
+            .from("v_orders_with_risk")
             .select(LIST_VIEW_COLUMNS)
-            .is("deleted_at", null)
-            .gt("updated_at", sinceTimestamp)
+            .gte("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
         if (error) throw error;
@@ -290,10 +289,9 @@ export const orderRepository = {
 
         while (true) {
             const { data, error } = await supabase
-                .from("orders")
+                .from("v_orders_with_risk")
                 .select(LIST_VIEW_COLUMNS)
                 .eq("is_archived", true)
-                .is("deleted_at", null)
                 .order("created_at", { ascending: false })
                 .range(from, from + step - 1);
 
@@ -385,18 +383,25 @@ export const orderRepository = {
         return data ? normalizeOrder(data as unknown as Order) : null;
     },
 
-    /** Update an order by ID. Verifies the write actually affected a row. Supports conflict detection via expectedUpdatedAt. */
-    async update(id: string, updates: Partial<Order>, expectedUpdatedAt?: string): Promise<Order> {
+    /**
+     * Update an order by ID. Verifies the write actually affected a row.
+     *
+     * Conflict detection uses `version`, not `updated_at`: `version` is
+     * incremented server-side by the `increment_orders_version` trigger on every
+     * UPDATE, so it always moves. `updated_at` was not maintained on platform
+     * writes, which silently disabled this guard entirely (CON-1).
+     */
+    async update(id: string, updates: Partial<Order>, expectedVersion?: number): Promise<Order> {
         const _t = performance.now();
-        diag.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')} expectedUpdatedAt=${expectedUpdatedAt}`);
-        
+        diag.log(`[Diag:Repo] update START orderId=${id} fields=${Object.keys(updates).join(',')} expectedVersion=${expectedVersion}`);
+
         let query = supabase
             .from("orders")
             .update(updates)
             .eq("id", id);
-            
-        if (expectedUpdatedAt) {
-            query = query.eq("updated_at", expectedUpdatedAt);
+
+        if (typeof expectedVersion === "number") {
+            query = query.eq("version", expectedVersion);
         }
 
         const { data, error } = await query
@@ -404,7 +409,7 @@ export const orderRepository = {
             .maybeSingle();
 
         if (error) {
-            if (expectedUpdatedAt && error.code === 'PGRST116') {
+            if (typeof expectedVersion === "number" && error.code === 'PGRST116') {
                 diag.log(`[Diag:Repo] update CONFLICT orderId=${id} (PGRST116) took=${(performance.now() - _t).toFixed(1)}ms`);
                 throw new Error("CONFLICT_DETECTED");
             }
@@ -413,7 +418,7 @@ export const orderRepository = {
         }
         
         if (!data) {
-            if (expectedUpdatedAt) {
+            if (typeof expectedVersion === "number") {
                 diag.log(`[Diag:Repo] update CONFLICT orderId=${id} took=${(performance.now() - _t).toFixed(1)}ms`);
                 throw new Error("CONFLICT_DETECTED");
             }
@@ -435,7 +440,7 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAt?: string,
+        expectedVersion?: number,
         rejectionReasonId?: string
     ): Promise<Order> {
         const updateData: Partial<Order> = { status };
@@ -464,7 +469,7 @@ export const orderRepository = {
         const MAX_RETRIES = 2;
         let lastError: unknown;
 
-        diag.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status} expectedUpdatedAt=${expectedUpdatedAt}`);
+        diag.log(`[Diag:Repo] updateStatus START orderId=${id} status=${status} expectedVersion=${expectedVersion}`);
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
                 const t0 = performance.now();
@@ -475,8 +480,8 @@ export const orderRepository = {
                     .update(updateData)
                     .eq("id", id);
                     
-                if (expectedUpdatedAt) {
-                    query = query.eq("updated_at", expectedUpdatedAt);
+                if (typeof expectedVersion === "number") {
+                    query = query.eq("version", expectedVersion);
                 }
                 
                 const supabasePromise = query
@@ -491,7 +496,7 @@ export const orderRepository = {
                 const elapsed = Math.round(performance.now() - t0);
 
                 if (error) {
-                    if (expectedUpdatedAt && error.code === 'PGRST116') {
+                    if (typeof expectedVersion === "number" && error.code === 'PGRST116') {
                         diag.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms (PGRST116)`);
                         throw new Error("CONFLICT_DETECTED");
                     }
@@ -499,7 +504,7 @@ export const orderRepository = {
                     throw error;
                 }
                 if (!data) {
-                    if (expectedUpdatedAt) {
+                    if (typeof expectedVersion === "number") {
                         diag.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms`);
                         throw new Error("CONFLICT_DETECTED");
                     }
@@ -511,7 +516,24 @@ export const orderRepository = {
             } catch (err) {
                 lastError = err;
                 diag.warn(`[updateStatus] attempt ${attempt + 1} error for ${id}:`, err instanceof Error ? err.message : err);
-                
+
+                // A CONFLICT after a retry is usually OUR OWN earlier attempt that
+                // committed before its response arrived (network timeout). Re-read
+                // the row: if it already carries the status we were setting, the
+                // write landed and this is a false conflict. Anything else is a
+                // genuine concurrent edit and must still surface.
+                if (err instanceof Error && err.message === "CONFLICT_DETECTED" && attempt > 0) {
+                    const { data: current } = await supabase
+                        .from("orders")
+                        .select("*")
+                        .eq("id", id)
+                        .maybeSingle();
+                    if (current && current.status === status) {
+                        diag.log(`[updateStatus] CONFLICT resolved: our own write had already landed for ${id}`);
+                        return normalizeOrder(current);
+                    }
+                }
+
                 // Do not retry on intentional application errors or data conflicts
                 if (err instanceof Error && (err.message === "CONFLICT_DETECTED" || err.message.includes("row not found"))) {
                     throw err;
@@ -529,7 +551,7 @@ export const orderRepository = {
 
     /**
      * Update order status in bulk. Includes retry mechanism per-order
-     * and conflict detection if expectedUpdatedAts is provided.
+     * and conflict detection if expectedVersions is provided.
      * Keeps track of successful and failed operations.
      */
     async bulkUpdateStatus(
@@ -538,7 +560,7 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAts?: Record<string, string>
+        expectedVersions?: Record<string, number>
     ): Promise<{
         successfulOperations: { id: string, order: Order }[],
         failedOperations: { id: string, error: unknown }[]
@@ -547,7 +569,7 @@ export const orderRepository = {
         
         const results = await Promise.allSettled(
             orderIds.map(async id => {
-                const expectedAt = expectedUpdatedAts ? expectedUpdatedAts[id] : undefined;
+                const expectedAt = expectedVersions ? expectedVersions[id] : undefined;
                 const order = await this.updateStatus(
                     id, 
                     status, 

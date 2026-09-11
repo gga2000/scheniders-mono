@@ -14,9 +14,10 @@ import { toast } from "@/hooks/use-toast";
 import type { ReturnItemDestination, ReturnDestination } from "@/lib/returns/process-return";
 import { extractScannedOrderId } from "@/lib/scan-utils";
 import { useOrderReasons } from "@/hooks/use-order-reasons";
-import { getStatusLabel, formatIQD, cn } from "@/lib/utils";
+import { formatIQD, cn } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import type { Order } from "@/types/order";
+import { useStatusLabel } from "@/hooks/use-status-label";
 
 const DOT: Record<string, string> = {
     needs_action: "#f0b400",
@@ -34,6 +35,7 @@ export function ReturnsCockpitModal({
     onOpenOrder?: (order: Order) => void;
 }) {
     const { profile, user, tenantId } = useAuth();
+    const orderStatusLabel = useStatusLabel();
     const session = useReturnsSession(open);
     const processReturn = useProcessReturn();
     const undoReturn = useUndoReturn();
@@ -88,7 +90,7 @@ export function ReturnsCockpitModal({
                     </div>
                     {i.order && (
                         <div className={cn("flex items-center gap-1.5 mt-0.5 text-[10px] flex-wrap", isSel ? "text-white/70" : "text-muted")}>
-                            <span className={cn("px-1.5 py-0.5 rounded-full font-semibold", getStatusBadgeStyle(i.order.status))}>{getStatusLabel(i.order.status, i.order.is_return)}</span>
+                            <span className={cn("px-1.5 py-0.5 rounded-full font-semibold", getStatusBadgeStyle(i.order.status))}>{orderStatusLabel(i.order.status, i.order.is_return)}</span>
                             <span>{itemCount} item{itemCount === 1 ? "" : "s"}</span>
                             {i.order.city && <span>· {i.order.city}</span>}
                             <span>· {formatIQD(i.order.price || 0)}</span>

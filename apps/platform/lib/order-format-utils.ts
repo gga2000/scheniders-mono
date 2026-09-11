@@ -1,146 +1,171 @@
 import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
+import type { Locale } from "@/lib/i18n";
+
+/**
+ * Merchant-facing dates and times are Baghdad's, not the viewer's.
+ *
+ * I18N-5. `formatShortDate` produced month/day, the American order, which reads
+ * as the wrong date entirely in Iraq: 9/3 is the 9th of March here, not the 3rd
+ * of September. Neither formatter pinned a time zone either, so both rendered in
+ * whatever zone the browser happened to be in — a merchant travelling, or a
+ * server render, could show a different calendar day from the one the order
+ * actually belongs to. Revenue is now bucketed on Baghdad days (see
+ * lib/order-revenue), and what is displayed has to agree with it.
+ */
+const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
+
+const baghdadDayMonth = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "numeric",
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+const baghdadTime = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: BAGHDAD_TIME_ZONE,
+});
 
 export const formatShortDate = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+    // en-GB gives day/month, which is how Iraq writes it.
+    return baghdadDayMonth.format(date);
 };
 
 export const formatTime = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    }).replace(' ', '');
+    return baghdadTime.format(date).replace(/\s/g, "");
 };
 
 /**
- * Local calendar day as "YYYY-MM-DD", the same shape `orders.scheduled_date` uses.
- * Compared as strings so no timezone conversion can shift the day.
+ * How long ago an order arrived, in the reader's language.
+ *
+ * I18N-5: the four strings here were hardcoded English — "5m ago" on an
+ * otherwise-Arabic card, for every merchant, since Arabic is the default
+ * locale. `Intl.RelativeTimeFormat` in narrow style produces exactly the same
+ * English text ("5m ago", "3h ago", "1d ago", "12d ago"), so nothing changes
+ * for an English reader; an Arabic one now reads Arabic.
+ *
+ * Locale defaults to "ar" to match the app default. Components should pass the
+ * active one.
  */
-const localDayKey = (date: Date = new Date()) => date.toLocaleDateString("en-CA");
-
-const toDayKey = (value: string | Date | undefined | null): string | null => {
-    if (!value) return null;
-    const key = value instanceof Date ? localDayKey(value) : String(value).slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null;
+const relativeTimeFormatters: Record<Locale, Intl.RelativeTimeFormat> = {
+    en: new Intl.RelativeTimeFormat("en", { numeric: "always", style: "narrow" }),
+    // Latin digits, to match formatIQD and the order numbers beside it.
+    ar: new Intl.RelativeTimeFormat("ar-u-nu-latn", { numeric: "always", style: "narrow" }),
 };
 
-export type ScheduledState = "future" | "due";
-
-/**
- * Where an order sits relative to the day it was scheduled for.
- * `future` = parked for later, `due` = its day has arrived or passed,
- * `null` = never scheduled.
- */
-export const getScheduledState = (
-    scheduledDate: string | Date | undefined | null
-): ScheduledState | null => {
-    const key = toDayKey(scheduledDate);
-    if (!key) return null;
-    return key > localDayKey() ? "future" : "due";
-};
-
-/** Start of the scheduled day in the viewer's timezone. */
-const scheduledDayStart = (scheduledDate: string | Date | undefined | null): Date | null => {
-    const key = toDayKey(scheduledDate);
-    if (!key) return null;
-    const date = new Date(`${key}T00:00:00`);
-    return isNaN(date.getTime()) ? null : date;
-};
-
-/** True when the order is scheduled for the current day. */
-export const isScheduledToday = (scheduledDate: string | Date | undefined | null) => {
-    const key = toDayKey(scheduledDate);
-    return key !== null && key === localDayKey();
-};
-
-/** Statuses where the order is finished and no longer anyone's queue. */
-const SETTLED_STATUSES = new Set<string>([
-    "completed",
-    "delivered",
-    "rejected",
-    "cancelled",
-    "refund_delivered",
-]);
-
-/**
- * An order whose scheduled day has arrived (or passed) and that still needs
- * work. This is the "due today" queue — orders that were parked and have now
- * come back round.
- */
-export const isScheduleDue = (
-    status: Order["status"],
-    scheduledDate?: string | null
-) => getScheduledState(scheduledDate) === "due" && !SETTLED_STATUSES.has(status);
-
-/** "8 Sep" — the label for the scheduled-date badge. */
-export const formatScheduledDate = (scheduledDate: string | Date | undefined | null) => {
-    const day = scheduledDayStart(scheduledDate);
-    if (!day) return "";
-    return day.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-};
-
-const formatSpan = (ms: number) => {
-    const mins = Math.floor(ms / 60000);
-    const hours = Math.floor(ms / 3600000);
-    const days = Math.floor(ms / 86400000);
-
-    if (mins < 60) return `${mins}m`;
-    if (hours < 24) return `${hours}h`;
-    if (days === 1) return "1d";
-    return `${days}d`;
-};
-
-/**
- * Human age of an order. Never renders a negative span: a timestamp ahead of
- * the clock reads "in 3h", not "-180m ago". `created_at` is guarded against
- * future values in the database, so this only absorbs client clock skew.
- */
-export const getOrderAge = (dateStr: string | Date | undefined | null) => {
+export const getOrderAge = (
+    dateStr: string | Date | undefined | null,
+    locale: Locale = "ar",
+) => {
     if (!dateStr) return "";
+    const now = new Date();
     const orderDate = new Date(dateStr);
     if (isNaN(orderDate.getTime())) return "";
+    const diffMs = now.getTime() - orderDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-    const diffMs = Date.now() - orderDate.getTime();
-    if (diffMs < 0) return `in ${formatSpan(-diffMs)}`;
-    return `${formatSpan(diffMs)} ago`;
+    const format = relativeTimeFormatters[locale] ?? relativeTimeFormatters.ar;
+    if (diffMins < 60) return format.format(-diffMins, "minute");
+    if (diffHours < 24) return format.format(-diffHours, "hour");
+    return format.format(-diffDays, "day");
 };
 
 /**
- * Colour band for the age badge.
+ * A full order timestamp: day, month, year and time, in Baghdad.
  *
- * An order parked for a future date is `scheduled`, not overdue — it is not
- * work anyone is late on. Once its day arrives the clock starts from that day
- * rather than from placement, so a postponed order does not surface as stale
- * the moment it becomes actionable.
+ * I18N-5: the order detail modal rendered this with `en-US` and 2-digit month
+ * and day, i.e. MM/DD/YYYY — so an order placed on 3 September read as 09/03,
+ * which in Iraq is 9 March. It also pinned no time zone, so the calendar day
+ * could disagree with the Baghdad day the order is bucketed into everywhere
+ * else.
  */
-export const getAgeUrgency = (
-    status: Order["status"],
-    dateStr: string | Date | undefined | null,
-    scheduledDate?: string | Date | null
-) => {
+const baghdadDateTime = new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+const baghdadDayMonthTime = new Intl.DateTimeFormat("en-GB", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+/** Day, month, year and time — day first, Baghdad. */
+export const formatOrderDateTime = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadDateTime.format(date);
+};
+
+/** Day, month and time, no year — day first, Baghdad. */
+export const formatOrderDayMonthTime = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadDayMonthTime.format(date);
+};
+
+/**
+ * A named-month date for reports: "9 Sep 2026", in Baghdad.
+ *
+ * The month name is unambiguous, but the reports pinned no time zone, so an
+ * order placed late in the Baghdad evening could be reported on the previous
+ * day when the report was generated from a machine west of Baghdad.
+ */
+const baghdadNamedDate = new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+const baghdadNamedDayMonth = new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    day: "numeric",
+    timeZone: BAGHDAD_TIME_ZONE,
+});
+
+export const formatOrderNamedDate = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadNamedDate.format(date);
+};
+
+export const formatOrderNamedDayMonth = (dateStr: string | Date | undefined | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    return baghdadNamedDayMonth.format(date);
+};
+
+export const getAgeUrgency = (status: Order["status"], dateStr: string | Date | undefined | null) => {
     if (status === "delivered" || status === "rejected") return "none";
     if (!dateStr) return "none";
 
+    const now = new Date();
     const orderDate = new Date(dateStr);
     if (isNaN(orderDate.getTime())) return "none";
-
-    const scheduled = getScheduledState(scheduledDate);
-    if (scheduled === "future") return "scheduled";
-
-    let clockStart = orderDate;
-    if (scheduled === "due") {
-        const dayStart = scheduledDayStart(scheduledDate);
-        if (dayStart && dayStart.getTime() > orderDate.getTime()) clockStart = dayStart;
-    }
-
-    const diffHours = (Date.now() - clockStart.getTime()) / 3600000;
+    const diffHours = (now.getTime() - orderDate.getTime()) / 3600000;
 
     if (diffHours < 2) return "fresh";      // Green - just arrived
     if (diffHours < 4) return "normal";     // Default - normal processing

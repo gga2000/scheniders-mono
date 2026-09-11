@@ -21,6 +21,7 @@ export interface ProductOptionFormData {
 export interface ProductEditorFormData {
     // Basic info
     name: string;
+    short_name: string;
     description: string;
     short_description: string;
     sku: string;
@@ -41,6 +42,7 @@ export interface ProductEditorFormData {
     // Status & display
     status: 'draft' | 'active' | 'archived';
     is_supply: boolean;
+    is_filler: boolean;
     tag_color: string;
 
     // Barcode
@@ -221,6 +223,7 @@ export interface BundleItemFormData {
 
 const DEFAULT_FORM_DATA: ProductEditorFormData = {
     name: "",
+    short_name: "",
     description: "",
     short_description: "",
     sku: "",
@@ -233,6 +236,7 @@ const DEFAULT_FORM_DATA: ProductEditorFormData = {
     reorder_point: null,
     status: "draft",
     is_supply: false,
+    is_filler: false,
     tag_color: "#22c55e",
     barcode: "",
     cost_breakdown_json: null,
@@ -419,6 +423,7 @@ function calculateVariantDiff(
 function productToFormData(product: Product): ProductEditorFormData {
     return {
         name: product.name,
+        short_name: product.short_name || "",
         description: product.description || "",
         short_description: product.short_description || "",
         sku: product.sku || "",
@@ -431,6 +436,7 @@ function productToFormData(product: Product): ProductEditorFormData {
         reorder_point: product.reorder_point ?? null,
         status: product.status || (product.is_archived ? "archived" : "active"),
         is_supply: product.is_supply,
+        is_filler: product.is_filler ?? false,
         tag_color: product.tag_color || "#22c55e",
         barcode: product.barcode || "",
         cost_breakdown_json: product.cost_breakdown_json ?? null,
@@ -935,6 +941,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
             if (mode === "create") {
                 const newProduct = await addProduct({
                     name: formData.name,
+                    short_name: formData.short_name.trim() || null,
                     description: formData.description,
                     sku: formData.sku || undefined,
                     price: formData.price,
@@ -948,6 +955,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     barcode: formData.barcode || undefined,
                     cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
+                    is_filler: formData.is_filler,
                     slug: formData.slug || undefined,
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
@@ -1010,6 +1018,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
             } else if (product) {
                 await updateProduct(product.id, {
                     name: formData.name,
+                    short_name: formData.short_name.trim() || null,
                     description: formData.description,
                     sku: formData.sku || undefined,
                     price: formData.price,
@@ -1023,6 +1032,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     barcode: formData.barcode || undefined,
                     cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
+                    is_filler: formData.is_filler,
                     slug: formData.slug || undefined,
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
@@ -1150,6 +1160,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         try {
             const newProduct = await addProduct({
                 name: `Copy of ${formData.name}`,
+                short_name: formData.short_name.trim() ? `Copy of ${formData.short_name.trim()}` : null,
                 description: formData.description,
                 sku: formData.sku ? `${formData.sku}-copy` : undefined,
                 price: formData.price,
@@ -1161,6 +1172,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 image_url: formData.image_url,
                 tag_color: formData.tag_color,
                 is_supply: formData.is_supply,
+                is_filler: formData.is_filler,
                 slug: formData.slug ? `${formData.slug}-copy` : undefined,
                 is_visible: false,
                 display_order: formData.display_order,

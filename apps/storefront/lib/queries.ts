@@ -2,6 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "./supabase/server";
 import type { Tables } from "@scheniders/supabase";
+import type { ProductReview } from "@scheniders/shared";
 import type { Product, Category, ProductVariant } from "./types";
 
 type PublicClient = ReturnType<typeof createSupabasePublicClient>;
@@ -87,10 +88,11 @@ export const listProducts = cache(
       let q = supabase
         .from("products")
         .select(
-          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at",
+          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank",
         )
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
+        .eq("status", "active")
         .eq("is_archived", false)
         .not("is_supply", "is", true) // supplies (packaging, etc.) are never storefront products
         .order("display_order", { ascending: true })
@@ -128,7 +130,7 @@ export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
     publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
       const columns =
-        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at";
+        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank";
 
       // The dynamic route param can arrive still percent-encoded, so a non-ASCII
       // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
@@ -143,6 +145,7 @@ export const getProductBySlug = cache(
           .select(columns)
           .eq("tenant_id", tenantId)
           .eq("is_visible", true)
+          .eq("status", "active")
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
@@ -158,6 +161,36 @@ export const getProductBySlug = cache(
       }
 
       return null;
+    }),
+);
+
+/** Newest-first cap for the SSR review list — the section paints these in
+ *  the first HTML; anything beyond is pagination territory, not first paint. */
+const SSR_REVIEW_LIMIT = 20;
+
+/**
+ * P1-13: the approved reviews of ONE product, resolved server-side so the
+ * product page can hand them to the reviews section (no client fetch, no
+ * layout jump). Same columns, filters and ordering as `/api/reviews` GET —
+ * tenant-scoped, approved only, newest first — on the anon client under the
+ * `reviews_public_read` RLS policy, inside the shared 60s catalog cache.
+ */
+export const listApprovedReviews = cache(
+  (tenantId: string, productId: string): Promise<ProductReview[]> =>
+    publicCache(["listApprovedReviews", tenantId, productId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("product_reviews")
+        .select("id,product_id,rating,title,body,author_name,photo_urls,created_at")
+        .eq("tenant_id", tenantId)
+        .eq("product_id", productId)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(SSR_REVIEW_LIMIT);
+      if (error) {
+        console.error("[queries.listApprovedReviews]", error);
+        return [];
+      }
+      return data ?? [];
     }),
 );
 
@@ -233,11 +266,12 @@ export const listProductsInCategory = cache(
         let q = supabase
           .from("product_categories")
           .select(
-            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at)",
+            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank)",
           )
           .eq("category_id", categoryId)
           .eq("tenant_id", tenantId)
           .eq("products.is_visible", true)
+          .eq("products.status", "active")
           .eq("products.is_archived", false)
           .not("products.is_supply", "is", true); // exclude supplies
 

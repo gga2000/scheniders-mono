@@ -4,29 +4,17 @@
 // Sticky bottom CTA bar (mobile only). Renders a primary action button
 // plus an optional secondary kind (WhatsApp, call, or none). When
 // `show_total` is enabled and the bar is on the cart/checkout page,
-// the live cart subtotal is read from `useCart()`.
+// the live cart subtotal is read from `useCart()`. With
+// `show_product_price` on a product page, the product's own price sits
+// beside the primary button and the bar steps aside while the in-page
+// order form's submit button is on screen (no duplicate CTA).
 // =====================================================================
 
-"use client";
-
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
-import {
-  ChunkyButton,
-  MaterialIcon,
-  WhatsAppIcon,
-} from "./helpers/primitives";
-import { StoreLink } from "./helpers/store-context";
-import { formatPrice } from "./helpers/format";
-import { useCart } from "./helpers/cart-store";
-import {
-  resolveTenantWhatsapp,
-  resolveTenantPhone,
-  whatsappDigits,
-} from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
-import type { SectionDefinition, SectionRenderContext } from "./_types";
+import type { SectionDefinition } from "./_types";
+import { StickyCtaBarRender } from "./sticky_cta_bar.client";
 
 const schema = z.object({
   primary_label_i18n: i18nStringSchema,
@@ -37,9 +25,21 @@ const schema = z.object({
   /** Point this bar's WhatsApp/call button at a different number than the
    *  store-wide one (store_config.contact.whatsapp_number). Empty = inherit. */
   whatsapp_override: z.string().optional(),
+  /** "link" (default) navigates to `primary_href`. "scroll_to_form" scrolls
+   *  to the in-page order form instead — the right choice on a funnel PDP
+   *  whose only purchase path is the inline COD form (a link to /checkout
+   *  there is a dead end into an empty cart). */
+  primary_kind: z.enum(["link", "scroll_to_form"]).optional(),
+  /** Element id targeted by `scroll_to_form`. Omitted = "direct-order"
+   *  (the id pdp_direct_order gives its form). */
+  scroll_target_id: z.string().optional(),
+  /** Product page only: show the product's live price (compare-at struck
+   *  through when on sale) beside the primary button, and hide the bar
+   *  while the in-page form's own submit button is visible. Default off. */
+  show_product_price: z.boolean().optional(),
 });
 
-type Props = z.infer<typeof schema>;
+export type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   primary_label_i18n: { en: "Continue", ar: "متابعة" },
@@ -47,93 +47,12 @@ const defaultProps: Props = {
   secondary_label_i18n: { en: "Chat", ar: "تواصل" },
   secondary_kind: "whatsapp",
   show_total: false,
+  show_product_price: false,
 };
-
-function StickyCtaBarRender({
-  props,
-  ctx,
-}: {
-  props: Props;
-  ctx: SectionRenderContext;
-}) {
-  const locale = ctx.runtime.locale;
-  const primaryLabel = resolveI18n(props.primary_label_i18n, locale);
-  const secondaryLabel = resolveI18n(props.secondary_label_i18n, locale);
-  const subtotal = useCart((s) => s.getTotal());
-  const itemCount = useCart((s) => s.getItemCount());
-
-  // Resolve through the canonical store contact so this bar uses the same
-  // store-wide WhatsApp number as every other section (with an optional
-  // per-bar override).
-  const waNumber = resolveTenantWhatsapp(ctx.tenant, props.whatsapp_override);
-  const callNumber = resolveTenantPhone(ctx.tenant, props.whatsapp_override);
-
-  const secondaryHref = (() => {
-    if (props.secondary_kind === "whatsapp" && waNumber) {
-      return `https://wa.me/${whatsappDigits(waNumber)}`;
-    }
-    if (props.secondary_kind === "call" && callNumber) {
-      return `tel:${callNumber}`;
-    }
-    return null;
-  })();
-
-  if (!primaryLabel || !props.primary_href) return null;
-
-  return (
-    <div
-      className="fixed bottom-0 inset-x-0 z-40 sm:hidden bg-white/95 backdrop-blur p-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]"
-      style={{
-        borderTop:
-          "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
-      }}
-      role="region"
-      aria-label={locale !== "en" ? "إجراءات سريعة" : "Quick actions"}
-    >
-      {props.show_total && (
-        <div className="flex flex-col leading-tight pl-1">
-          <span className="font-label font-bold text-[10px] uppercase tracking-[0.2em] text-bk-ink-faint">
-            {locale !== "en"
-              ? `${itemCount} عنصر`
-              : `${itemCount} item${itemCount === 1 ? "" : "s"}`}
-          </span>
-          <span className="font-display font-black text-base">
-            <bdi>{formatPrice(subtotal, locale)}</bdi>
-          </span>
-        </div>
-      )}
-      {secondaryHref && (
-        <a
-          href={secondaryHref}
-          target={props.secondary_kind === "whatsapp" ? "_blank" : undefined}
-          rel={
-            props.secondary_kind === "whatsapp"
-              ? "noopener noreferrer"
-              : undefined
-          }
-          aria-label={secondaryLabel || props.secondary_kind || "secondary"}
-        >
-          <ChunkyButton type="button" bg="mint" size="md">
-            {props.secondary_kind === "whatsapp" ? (
-              <WhatsAppIcon className="w-5 h-5" />
-            ) : (
-              <MaterialIcon name="call" />
-            )}
-            {secondaryLabel}
-          </ChunkyButton>
-        </a>
-      )}
-      <StoreLink href={props.primary_href} className="flex-1">
-        <ChunkyButton bg="pink" size="md" fullWidth>
-          {primaryLabel}
-        </ChunkyButton>
-      </StoreLink>
-    </div>
-  );
-}
 
 const definition: SectionDefinition<Props> = {
   type: "sticky_cta_bar",
+  overlay: true,
   category: "conversion",
   name: { en: "Sticky CTA bar", ar: "شريط زر سفلي" },
   description: {

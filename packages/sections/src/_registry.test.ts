@@ -55,6 +55,7 @@ const EXPECTED_TYPES = [
   "checkout_order_summary",
   "track_order_lookup",
   "order_tracker",
+  "order_confirmation",
   // Content variety
   "category_grid",
   "feature_grid",
@@ -87,9 +88,9 @@ const EXPECTED_TYPES = [
 ];
 
 describe("section registry", () => {
-  it("registers exactly 60 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(60);
-    expect(listSections()).toHaveLength(60);
+  it("registers exactly 61 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(61);
+    expect(listSections()).toHaveLength(61);
   });
 
   it("each section's defaultProps validates against its own schema", () => {

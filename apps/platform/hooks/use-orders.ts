@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
 
@@ -15,6 +15,7 @@ import { useRealtimeHeartbeat } from "@/hooks/use-realtime-heartbeat";
 // React Query hooks for caching
 import {
     useOrdersQuery,
+    ordersCacheIsCompleteSet,
     useArchivedOrdersQuery,
     syncOrdersDelta,
     orderKeys,
@@ -22,6 +23,10 @@ import {
 } from "@/hooks/use-orders-query";
 
 import { useEffect } from "react";
+import { useOrderFilterState } from "@/hooks/use-order-filter-state";
+import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
+import { assertAggregateParity } from "@/lib/order-aggregate-parity";
+import { windowFromDateFilter } from "@/lib/order-window";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -34,7 +39,7 @@ import { useEffect } from "react";
 // via queryClient.setQueryData / invalidateQueries.
 // =============================================
 
-export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}) {
+export function useOrders() {
     // =============================================
     // REACT QUERY INTEGRATION FOR CACHING
     // =============================================
@@ -49,13 +54,42 @@ export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}
         }
     });
 
-    const { data: cachedOrders, isLoading: queryLoading, error: queryError } = useOrdersQuery(undefined, listEnabled);
+    // Filter state is resolved BEFORE the fetch. `useOrderFilters` derives its
+    // lists from the orders that come back, so it cannot also own the filter the
+    // fetch depends on — that was circular, and it is what blocked windowing.
+    const { filters, setFilters, clearFilters } = useOrderFilterState();
+
+    // The window the fetch will load, derived from the merchant's date filter.
+    // Realtime and the bulk-scope guards read the same value, so what is fetched,
+    // what realtime will add, and what "all visible" means can never disagree.
+    const ordersWindow = useMemo(
+        () => windowFromDateFilter(filters.dateFrom, filters.dateTo),
+        [filters.dateFrom, filters.dateTo],
+    );
+    const ordersAreComplete = ordersCacheIsCompleteSet(ordersWindow);
+    const ordersWindowRef = useRef(ordersWindow);
+    ordersWindowRef.current = ordersWindow;
+
+    const { data: cachedOrders, isLoading: queryLoading, isFetching: queryFetching, status: queryStatus, error: queryError } = useOrdersQuery(ordersWindow);
 
     // Single source of truth: React Query cache
     const orders = cachedOrders ?? [];
-    // A subscriber has asked for the list but the fetch has not started yet:
-    // report loading, or consumers flash an empty state for a tick.
-    const loading = queryLoading || (listEnabled && cachedOrders === undefined);
+    const loading = queryLoading;
+    // `loading` is React Query's isLoading, which is only true during the FIRST
+    // fetch of an ENABLED query. Two common states slip past it, and both render
+    // as "we have zero orders" unless they are handled:
+    //
+    //   - a refetch (window change, reconnect, stale SWR hydration) keeps the old
+    //     data — or no data — while new rows are still arriving;
+    //   - a DISABLED query, which this one is until the Supabase client finishes
+    //     initialising, is pending but not fetching, so isLoading is false and
+    //     `data` is undefined.
+    //
+    // A merchant with 4,778 orders was shown "No orders yet. When you receive
+    // orders, they'll appear here." Distinguishing "not loaded" from "loaded and
+    // genuinely empty" is what these two flags are for.
+    const isRefreshing = queryFetching;
+    const ordersPending = queryStatus === "pending";
     const error = queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch orders" : null;
 
     // =============================================
@@ -67,10 +101,11 @@ export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}
     const archivedOrders = cachedArchivedOrders ?? [];
 
     // 1. Filters — filter state, presets, persistence, derived lists
-    const filterHook = useOrderFilters({ orders, archivedOrders });
+    const filterHook = useOrderFilters({ orders, archivedOrders, filters, setFilters, clearFilters });
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
+        getWindow: () => ordersWindowRef.current,
         onReconnect: () => {
             // Reconnect: flush any missed events via an incremental delta sync,
             // not a full-table refetch.
@@ -84,8 +119,25 @@ export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}
         return () => setOrderBatcher(null);
     }, [batcherRef]);
 
+    // Server-computed aggregates. These describe the whole filter, not the rows
+    // that happen to be loaded, which is what lets the fetch narrow to a window
+    // without the status chips and stat cards quietly reporting the window's
+    // numbers as if they were the filter's.
+    const { data: serverAggregates } = useOrdersAggregates(filters);
+
+
     // 3. Auxiliary — reference data, customer helpers, stats
     const auxiliaryHook = useOrderAuxiliary({ orders, archivedOrders });
+
+    // While the cache still holds the complete set, both sides are computable —
+    // so verify they agree before the windowed fetch makes the client's version
+    // impossible to check. Dev-only; compiles to nothing in production.
+    useEffect(() => {
+        if (!serverAggregates) return;
+        assertAggregateParity("status counts", filterHook.statusCounts, serverAggregates.status_counts);
+        assertAggregateParity("stats", auxiliaryHook.stats as unknown as Record<string, number>, serverAggregates.stats);
+    });
+
 
     // 4. CRUD — all order mutations, undo, notes, timeline, etc.
     const crudHook = useOrderCrud({ orders });
@@ -101,21 +153,25 @@ export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}
     const contextValue = useMemo(() => ({
         // Core data
         orders,
-        statusCounts: filterHook.statusCounts,
+        isRefreshing,
+        ordersPending,
+        statusCounts: serverAggregates?.status_counts ?? filterHook.statusCounts,
         // Archive
         archivedOrders,
         fetchArchivedOrders: crudHook.fetchArchivedOrders,
         filteredOrders: filterHook.filteredOrders,
         loading,
         error,
-        stats: auxiliaryHook.stats,
+        // Server supplies the headline numbers; the client keeps the parts it
+        // still derives locally (velocity, peak hour, revenue trends).
+        stats: serverAggregates ? { ...auxiliaryHook.stats, ...serverAggregates.stats } : auxiliaryHook.stats,
 
         // Reference data
         rejectionReasons: auxiliaryHook.rejectionReasons,
         messageTemplates: auxiliaryHook.messageTemplates,
         filterPresets: filterHook.filterPresets,
-        availableCities: filterHook.availableCities,
-        availableProducts: filterHook.availableProducts,
+        availableCities: serverAggregates?.cities ?? filterHook.availableCities,
+        availableProducts: serverAggregates?.products ?? filterHook.availableProducts,
         availableProductsInView: filterHook.availableProductsInView,
 
         // Filters
@@ -154,8 +210,10 @@ export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}
         createReturnOrder: crudHook.createReturnOrder,
         createReplacementOrder: crudHook.createReplacementOrder,
 
+        /** True while the cached list is the complete filtered set (see ORDERS_CACHE_IS_COMPLETE_SET). */
+        ordersAreComplete,
+
         // Detection & history
-        checkDuplicateOrder: auxiliaryHook.checkDuplicateOrder,
         getDuplicatesForOrder: auxiliaryHook.getDuplicatesForOrder,
         hasDuplicates: auxiliaryHook.hasDuplicates,
         getCustomerHistory: auxiliaryHook.getCustomerHistory,
@@ -196,6 +254,8 @@ export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}
         orders,
         archivedOrders,
         loading,
+        isRefreshing,
+        ordersPending,
         error,
         filterHook,
         auxiliaryHook,

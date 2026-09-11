@@ -15,19 +15,21 @@ export const maxDuration = 30; // 30 seconds max
  */
 export async function GET(request: Request) {
     try {
-        // ORD-A7: this used to skip the check entirely when CRON_SECRET was
-        // unset. It now fails closed. The x-vercel-cron fallback is kept
-        // because this route is genuinely scheduled, but it is only consulted
-        // AFTER a secret is known to be configured — an inbound header alone
-        // can no longer authorise a service-role status sweep.
+        // Verify cron secret for security (optional but recommended)
+        const authHeader = request.headers.get('authorization');
+        // Fails closed: an unset secret means misconfigured, not public. The
+        // x-vercel-cron fallback below is kept because this route is genuinely
+        // scheduled, but it is only consulted AFTER a secret is known to be
+        // configured — an inbound header alone can no longer authorise a
+        // service-role status sweep.
         const cronSecret = env.CRON_SECRET;
         if (!cronSecret) {
             console.error('[Cron: auto-no-response] CRON_SECRET is not set — refusing to run.');
             return NextResponse.json({ error: 'Endpoint is not configured.' }, { status: 503 });
         }
 
-        const authHeader = request.headers.get('authorization');
         if (authHeader !== `Bearer ${cronSecret}`) {
+            // Allow Vercel's internal cron requests
             const isVercelCron = request.headers.get('x-vercel-cron') === '1';
             if (!isVercelCron) {
                 return NextResponse.json(

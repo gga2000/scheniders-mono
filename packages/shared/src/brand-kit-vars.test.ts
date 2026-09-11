@@ -6,7 +6,13 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_BRAND_KIT } from "./types/store-config-v2-resolver";
 import type { BrandKit } from "./types/store-config-v2";
 
-import { BK_VAR_NAMES, buildBrandKitFontsUrl, buildBrandKitVars } from "./brand-kit-vars";
+import {
+  BK_VAR_NAMES,
+  BRAND_KIT_FONT_WEIGHTS,
+  buildBrandKitFontsUrl,
+  buildBrandKitVars,
+  fontStack,
+} from "./brand-kit-vars";
 
 /** Shallow-clone the empty brand kit so individual tests can mutate safely. */
 function cloneKit(): BrandKit {
@@ -27,10 +33,10 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-duration-base": "250ms",
         "--bk-duration-fast": "150ms",
         "--bk-focus-ring": "rgb(255 90 138 / 0.5)",
-        "--bk-font-body": "'DM Sans', 'DM Sans', 'Noto Sans Arabic', sans-serif",
-        "--bk-font-body-ar": "'DM Sans', 'DM Sans', 'Noto Sans Arabic', sans-serif",
-        "--bk-font-display": "'Bricolage Grotesque', 'Bricolage Grotesque', 'Noto Sans Arabic', sans-serif",
-        "--bk-font-display-ar": "'Bricolage Grotesque', 'Bricolage Grotesque', 'Noto Sans Arabic', sans-serif",
+        "--bk-font-body": "var(--font-dm-sans, 'DM Sans'), var(--font-dm-sans, 'DM Sans'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
+        "--bk-font-body-ar": "var(--font-dm-sans, 'DM Sans'), var(--font-dm-sans, 'DM Sans'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
+        "--bk-font-display": "var(--font-bricolage, 'Bricolage Grotesque'), var(--font-bricolage, 'Bricolage Grotesque'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
+        "--bk-font-display-ar": "var(--font-bricolage, 'Bricolage Grotesque'), var(--font-bricolage, 'Bricolage Grotesque'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
         "--bk-ink": "#1a1a1a",
         "--bk-ink-faint": "rgb(26 26 26 / 0.38)",
         "--bk-ink-soft": "rgb(26 26 26 / 0.7)",
@@ -216,17 +222,50 @@ describe("buildBrandKitVars — interaction-state tokens", () => {
   });
 });
 
+describe("fontStack — self-hosted faces resolve through their next/font variable", () => {
+  it("maps Cairo (scheniders_signature) to --font-cairo with the plain name as fallback", () => {
+    expect(fontStack("Cairo", "Bricolage Grotesque", "display")).toBe(
+      "var(--font-cairo, 'Cairo'), var(--font-bricolage, 'Bricolage Grotesque'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
+    );
+  });
+
+  it("leaves Google-hosted families as quoted names but keeps the self-hosted Arabic tail", () => {
+    expect(fontStack("Space Grotesk", "DM Sans", "body")).toBe(
+      "'Space Grotesk', var(--font-dm-sans, 'DM Sans'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
+    );
+  });
+
+  it("prepends the Arabic pairing through the same mapping", () => {
+    const k = cloneKit();
+    k.typography.display_ar = "Cairo";
+    k.typography.body_ar = "Tajawal";
+    const v = buildBrandKitVars(k, { locale: "ar" }) as Record<string, string>;
+    expect(v["--bk-font-display"]).toMatch(/^var\(--font-cairo, 'Cairo'\), /);
+    expect(v["--bk-font-body"]).toMatch(/^'Tajawal', /);
+  });
+});
+
 describe("buildBrandKitFontsUrl", () => {
   it("returns null when both fonts are already in the skip set", () => {
     expect(buildBrandKitFontsUrl(EMPTY_BRAND_KIT)).toBeNull();
   });
 
-  it("emits a Google Fonts URL for a non-default display font", () => {
+  it("skips Cairo and Noto Sans Arabic — self-hosted by the root layout", () => {
+    const k = cloneKit();
+    k.typography.display = "Cairo";
+    k.typography.body = "Cairo";
+    k.typography.display_ar = "Cairo";
+    k.typography.body_ar = "Noto Sans Arabic";
+    expect(buildBrandKitFontsUrl(k)).toBeNull();
+  });
+
+  it("emits a Google Fonts URL for a non-default display font with the 400-900 weight range", () => {
     const k = cloneKit();
     k.typography.display = "Space Grotesk";
     const url = buildBrandKitFontsUrl(k);
     expect(url).not.toBeNull();
-    expect(url).toContain("family=Space+Grotesk:wght@400;500;600;700");
+    expect(BRAND_KIT_FONT_WEIGHTS).toBe("400;500;600;700;800;900");
+    expect(url).toContain(`family=Space+Grotesk:wght@${BRAND_KIT_FONT_WEIGHTS}`);
     expect(url).toContain("display=swap");
   });
 

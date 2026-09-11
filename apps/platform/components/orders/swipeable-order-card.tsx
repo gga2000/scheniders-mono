@@ -8,6 +8,7 @@ import { OrderCard } from "./order-card";
 import { CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 interface SwipeableOrderCardProps {
     order: Order;
@@ -18,20 +19,6 @@ interface SwipeableOrderCardProps {
     riskAssessment?: any; // Pass through risk assessment
     // ... all other props pass through
     [key: string]: any;
-    //
-    // ARCH-D3 — this index signature is load-bearing and hides real defects. Typing
-    // it as `OrderCardProps` (attempted 2026-09-09) surfaced three immediately:
-    //   1. callers pass `order.risk_data` where OrderCard's prop type declares
-    //      `TrustAssessment`; OrderCard then reads
-    //      `historicalData.rejectedCustomerFaultCount` / `.refundCount`, which
-    //      v_orders_with_risk never supplies — so those badges cannot render;
-    //   2. `onAssignDuty` is passed with a third `employeeId` the prop type does not
-    //      declare, and OrderCard never calls it at all (zero call sites) — dead
-    //      plumbing to the mock-backed assignment system;
-    //   3. the page passes `getCustomerOrderCount`, which is not a prop OrderCard has
-    //      (it reads `customerOrderCount`) — silently ignored.
-    // Reconciling ~34 props against a 2,437-line Orders component needs that
-    // surface's owner; the findings are recorded in the dashboard audit ledger.
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -54,14 +41,28 @@ export const SwipeableOrderCard = memo(function SwipeableOrderCard(props: Swipea
     const canConfirm = order.status === "new" || order.status === "contacted";
     const canCancel = ["new", "contacted", "confirmed", "in_transit"].includes(order.status);
 
-    const handleDragEnd = async (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const handleDragEnd = async (_: unknown, info: PanInfo) => {
         const offset = info.offset.x;
 
         if (offset > SWIPE_THRESHOLD && canConfirm) {
-            // Swiped Right -> Confirm
+            // MOB-5: swiping right committed a status change silently, while
+            // swiping left opened a reason dialog — an accidental brush of the
+            // card confirmed an order with no acknowledgement and nothing on
+            // screen to reverse it. The gesture is kept (it is the point of the
+            // card) but it now announces itself and offers the inverse, using
+            // the status the order was actually on rather than assuming "new".
+            const previousStatus = order.status;
             await onStatusUpdate(order.id, "confirmed");
+            toast.success("Order confirmed", {
+                description: `#${order.order_id} — swiped right`,
+                duration: 10000,
+                action: {
+                    label: "Undo",
+                    onClick: () => onStatusUpdate(order.id, previousStatus),
+                },
+            });
         } else if (offset < -SWIPE_THRESHOLD && canCancel) {
-            // Swiped Left -> Cancel/Reject
+            // Swiped Left -> Cancel/Reject (already asks for a reason)
             if (onCancelWithReason) onCancelWithReason(order);
         }
     };

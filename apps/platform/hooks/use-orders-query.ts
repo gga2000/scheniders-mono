@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { diag } from "@/lib/diag";
@@ -8,8 +8,11 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
+import type { CreateOrderInput } from "@/types/order";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
+import type { OrderWindow } from "@/lib/order-window";
+import { reportOrderError } from "@/lib/order-telemetry";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -106,7 +109,12 @@ const SWR_CACHE_KEY = 'schneiders_orders_swr';
 const SWR_TS_KEY = 'schneiders_orders_swr_ts';
 const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
 
-function writeSwrCache(orders: Order[]): void {
+export function writeSwrCache(orders: Order[]): void {
+    // An empty result is not worth caching, and caching it is actively harmful:
+    // hydrating from it makes React Query report `isLoading: false` with no rows,
+    // which is indistinguishable from "this merchant has no orders". See
+    // readSwrCache.
+    if (orders.length === 0) return;
     try {
         // Measure the SYNCHRONOUS main-thread serialization cost + payload size.
         const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
@@ -117,25 +125,45 @@ function writeSwrCache(orders: Order[]): void {
     }
 }
 
-function readSwrCache(): Order[] | null {
+export function readSwrCache(): Order[] | null {
     try {
         const ts = sessionStorage.getItem(SWR_TS_KEY);
         if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
         const raw = sessionStorage.getItem(SWR_CACHE_KEY);
         if (!raw) return null;
         // Measure the SYNCHRONOUS main-thread parse cost (runs during render via initialData).
-        return perfTrace.time('swr-parse', () => JSON.parse(raw) as Order[], () => raw.length);
+        const parsed = perfTrace.time('swr-parse', () => JSON.parse(raw) as Order[], () => raw.length);
+        // An empty cache tells us nothing, and returning it would be worse than
+        // returning nothing: React Query treats `[]` as loaded data, so the page
+        // drops out of its loading state and renders the "No orders yet" empty
+        // state while the real fetch is still in flight. A merchant with 4,778
+        // orders was shown "When you receive orders, they'll appear here".
+        if (!Array.isArray(parsed) || parsed.length === 0) return null;
+        return parsed;
     } catch {
         return null;
     }
 }
 
+/**
+ * Whether a cache holding `window` is the COMPLETE set matching the merchant's
+ * filters, or only a slice of it.
+ *
+ * A null window means no date filter is active, so the fetch loaded everything.
+ * Any other window is by definition a subset — and the actions that mean "act on
+ * everything I can see" (ship-with-no-selection, select-all) must refuse rather
+ * than silently operate on whichever rows happened to load.
+ */
+export function ordersCacheIsCompleteSet(window: OrderWindow): boolean {
+    return window === null;
+}
+
 // Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
-async function fetchOrders(): Promise<Order[]> {
+async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
-    const result = await orderRepository.findAll();
+    const result = await orderRepository.findWindow(window);
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
@@ -165,9 +193,43 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  *
  * @param refetchTrigger - Optional trigger to force refetch
  */
-export function useOrdersQuery(refetchTrigger?: string, enabled: boolean = true) {
+export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: string) {
     const queryClient = useQueryClient();
     const { session, clientReady } = useAuth();
+
+    // The query key deliberately does NOT include the window. Realtime, every
+    // mutation, delta sync and the sessionStorage SWR cache all read and write
+    // `orderKeys.lists()`; keying per window would scatter those across caches.
+    // The cache holds one window at a time and a change re-fetches it.
+    //
+    // Because the key is constant, the window has to reach the fetch some other
+    // way, and a captured closure is not good enough. Filter state settles over
+    // two renders — the defaults (today) first, then the merchant's persisted
+    // filters — so the FIRST fetch would start with today's window, the filters
+    // would then widen to "all", and the in-flight request would resolve and
+    // populate the cache as fresh. One fetch, for a window nobody asked for.
+    //
+    // The list then showed today's rows while the server-computed chips
+    // correctly reported the real filter: "In Transit 103" above an empty list,
+    // righting itself minutes later when something else triggered a refetch.
+    //
+    // Reading the window from a ref at call time means whichever fetch runs uses
+    // the CURRENT window, and refetch (rather than invalidate) guarantees a new
+    // one actually runs when the window changes instead of racing the request
+    // already in flight.
+    const windowRef = useRef(window);
+    windowRef.current = window;
+
+    const windowKey = window ? `${window.fromInstant}-${window.toInstant}` : "all";
+    const isFirstWindow = useRef(true);
+    useEffect(() => {
+        if (isFirstWindow.current) {
+            // Nothing has been fetched yet; the query's own initial fetch covers it.
+            isFirstWindow.current = false;
+            return;
+        }
+        void queryClient.refetchQueries({ queryKey: orderKeys.lists() });
+    }, [windowKey, queryClient]);
 
     // Force refetch when trigger changes
     useEffect(() => {
@@ -179,14 +241,10 @@ export function useOrdersQuery(refetchTrigger?: string, enabled: boolean = true)
 
     return useQuery({
         queryKey: orderKeys.lists(),
-        queryFn: fetchOrders,
+        queryFn: () => fetchOrders(windowRef.current),
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
-        //
-        // PERF-D1: `enabled` is the subscriber gate. OrdersProvider sits in the
-        // ROOT layout, so without it this ~7 MB fetch ran on every route in the
-        // app — including routes that never read an order.
-        enabled: !!session && clientReady && enabled,
+        enabled: !!session && clientReady,
         // SWR: Hydrate from sessionStorage immediately (shows data in <5ms).
         // React Query knows the real age via initialDataUpdatedAt, so it will
         // refetch in the background if the cached data is stale (>30s old).
@@ -242,8 +300,8 @@ export function useUpdateOrderMutation() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, updates, expectedUpdatedAt }: { orderId: string; updates: Partial<Order>; expectedUpdatedAt?: string }) => {
-            const data = await orderRepository.update(orderId, updates, expectedUpdatedAt);
+        mutationFn: async ({ orderId, updates, expectedVersion }: { orderId: string; updates: Partial<Order>; expectedVersion?: number }) => {
+            const data = await orderRepository.update(orderId, updates, expectedVersion);
             return { orderId, updates, data };
         },
         // Optimistic update - update cache immediately
@@ -279,7 +337,11 @@ export function useUpdateOrderMutation() {
         },
         onError: (err, variables, context) => {
             diag.log(`[Diag:RQ:UpdateMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} rollingBack=${!!context?.previousOrders}`);
-            console.error(`[UpdateOrder] onError for ${variables.orderId}:`, err);
+            reportOrderError(err, {
+                operation: "updateOrder",
+                orderId: variables.orderId,
+                extra: { fields: Object.keys(variables.updates ?? {}) },
+            });
 
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
@@ -310,7 +372,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId,
             last_status_changed_by_name,
             last_status_changed_by_avatar,
-            expectedUpdatedAt,
+            expectedVersion,
         }: {
             orderId: string;
             status: Order["status"];
@@ -318,7 +380,7 @@ export function useUpdateStatusMutation() {
             rejectionReasonId?: string;
             last_status_changed_by_name?: string;
             last_status_changed_by_avatar?: string;
-            expectedUpdatedAt?: string;
+            expectedVersion?: number;
         }) => {
             const data = await orderRepository.updateStatus(
                 orderId,
@@ -326,7 +388,7 @@ export function useUpdateStatusMutation() {
                 rejectionReason,
                 last_status_changed_by_name,
                 last_status_changed_by_avatar,
-                expectedUpdatedAt,
+                expectedVersion,
                 rejectionReasonId
             );
             return { orderId, status, data };
@@ -355,7 +417,11 @@ export function useUpdateStatusMutation() {
                                     ? order.rejection_reason
                                     : undefined,
                             delivered_at: status === "delivered" ? new Date().toISOString() : order.delivered_at,
-                            updated_at: new Date().toISOString(),
+                            // Deliberately NOT stamping `updated_at` here: a
+                            // client-clock value would be compared against real
+                            // server timestamps by the realtime dedup and could
+                            // suppress genuine incoming events. onSuccess writes
+                            // the authoritative server row moments later.
                             last_status_changed_by_name,
                             last_status_changed_by_avatar,
                         } as Order)
@@ -387,6 +453,8 @@ export function useUpdateStatusMutation() {
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't rollback — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) return;
+
+            reportOrderError(err, { operation: "updateOrderStatus", orderId: variables.orderId, extra: { status: variables.status } });
 
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
@@ -422,7 +490,9 @@ export function usePrefetchOrders() {
     return () => {
         queryClient.prefetchQuery({
             queryKey: orderKeys.lists(),
-            queryFn: fetchOrders,
+            // Prefetch on hover has no filter context; it warms the unwindowed
+            // list and the real query replaces it with the active window.
+            queryFn: () => fetchOrders(null),
             // Match staleTime from useOrdersQuery
             staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });
@@ -437,7 +507,7 @@ export function useDeleteOrderMutation() {
 
     return useMutation({
         mutationFn: async (orderId: string) => {
-            await orderRepository.update(orderId, { deleted_at: new Date().toISOString() } as any);
+            await orderRepository.update(orderId, { deleted_at: new Date().toISOString() });
             return orderId;
         },
         onMutate: async (orderId) => {
@@ -454,6 +524,7 @@ export function useDeleteOrderMutation() {
             return { previousOrders };
         },
         onError: (err, variables, context) => {
+            reportOrderError(err, { operation: "deleteOrder", orderId: variables });
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
@@ -465,12 +536,15 @@ export function useDeleteOrderMutation() {
 /**
  * useCreateOrderMutation - Optimistic create
  */
-export function useCreateOrderMutation(tenantId: string | null) {
+export function useCreateOrderMutation() {
     const queryClient = useQueryClient();
+    // The server action derives the tenant from this token — the client no
+    // longer tells the server which tenant to write into.
+    const { session } = useAuth();
 
     return useMutation({
-        mutationFn: async (orderData: Omit<Order, "id" | "created_at" | "updated_at">) => {
-            const result = await createOrderAction(orderData, tenantId);
+        mutationFn: async (orderData: CreateOrderInput) => {
+            const result = await createOrderAction(orderData, session?.access_token ?? "");
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 throw new Error(result.error || "Failed to create order");
@@ -511,6 +585,7 @@ export function useCreateOrderMutation(tenantId: string | null) {
             }
         },
         onError: (err, _variables, context) => {
+            reportOrderError(err, { operation: "createOrder" });
             if (context?.previousOrders) {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }

@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    INTERAKT_DELIVERY_STATUSES,
+    recordWhatsAppDeliveryReceipt,
+} from "@/lib/whatsapp-delivery-receipts";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -207,22 +211,41 @@ async function findOrder(
         console.warn(`[Interakt Webhook] callback_data UUID not found: ${callbackData}`);
     }
 
-    // Strategy 2: Find the most recent "contacted" order for this phone
+    // Strategy 2: Find the most recent "contacted" order for this phone.
+    //
+    // This route carries no tenant in its URL and runs under the service role,
+    // so this lookup spans EVERY tenant. "Most recent contacted order for this
+    // phone" is only a safe answer while exactly one merchant is waiting on that
+    // number; with two, a customer replying "نعم" to one merchant could confirm
+    // the other merchant's order. 160 phone numbers already exist under more
+    // than one tenant, though none currently has a `contacted` order in more
+    // than one — so this is a latent hazard, not a live one.
+    //
+    // It cannot be tenant-scoped here, because the tenant is genuinely unknown:
+    // that is what /api/webhooks/interakt/[tenantId] is for. What it CAN do is
+    // refuse to guess. Ambiguity resolves to "no match", which leaves the order
+    // for a human, instead of silently confirming the wrong merchant's.
     if (phone) {
         // Normalize the phone for matching
         const standardPhone = formatPhoneToStandard(phone);
 
         const { data, error } = await supabaseAdmin()
             .from("orders")
-            .select("id, order_id, status")
+            .select("id, order_id, status, tenant_id")
             .eq("status", "contacted")
             .or(`phone.eq.${standardPhone},phone.eq.${phone}`)
             .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
+            .limit(5);
 
-        if (!error && data) {
-            return data;
+        if (!error && data && data.length > 0) {
+            const tenants = new Set(data.map(o => o.tenant_id));
+            if (tenants.size > 1) {
+                console.error(
+                    `[Interakt Webhook] Refusing to guess: phone ${phone} has contacted orders in ${tenants.size} tenants`,
+                );
+                return null;
+            }
+            return data[0];
         }
         console.warn(`[Interakt Webhook] No contacted order found for phone: ${phone}`);
     }
@@ -326,42 +349,14 @@ export async function POST(request: NextRequest) {
         // 3. Handle delivery status webhooks
         const webhookType = payload.type || payload.eventType || "";
 
-        // Interakt's exact webhook type names for template messages sent via API
-        const DELIVERY_STATUS_TYPES: Record<string, string> = {
-            "message_api_sent": "sent",
-            "message_api_delivered": "delivered",
-            "message_api_read": "read",
-            "message_api_failed": "failed",
-            // Button click from template
-            "message_api_clicked": "button_clicked",
-        };
+        const mappedStatus = INTERAKT_DELIVERY_STATUSES[webhookType];
 
-        const mappedStatus = DELIVERY_STATUS_TYPES[webhookType];
-
-        // If it's a delivery status event, log it to whatsapp_logs
-        if (mappedStatus && webhookType !== "message_api_clicked") {
-            try {
-                const phone = payload.data?.customer?.phone_number ||
-                    payload.endCustomerPhone ||
-                    "unknown";
-                const callbackData = payload.data?.message?.context?.callback_data ||
-                    payload.data?.callbackData ||
-                    payload.callbackData;
-
-                // Log to whatsapp_logs
-                await supabaseAdmin().from("whatsapp_logs").insert({
-                    order_id: callbackData || "unknown",
-                    phone: phone,
-                    template_name: "cod_order_confirm",
-                    direction: "status_update",
-                    status: mappedStatus,
-                    payload: payload as unknown as Record<string, unknown>,
-                });
-
-                console.log(`[Interakt Webhook] 📊 Delivery status: ${mappedStatus} for phone ${phone}`);
-            } catch (logErr) {
-                console.warn("[Interakt Webhook] Failed to log delivery status:", logErr);
-            }
+        // If it's a delivery status event, log it to whatsapp_logs. OBS-3: the
+        // row written here used to carry no message id and a hardcoded template
+        // name, so it could be counted but never joined to the send.
+        if (mappedStatus) {
+            await recordWhatsAppDeliveryReceipt(payload, mappedStatus);
+            console.log(`[Interakt Webhook] 📊 Delivery status: ${mappedStatus}`);
 
             return NextResponse.json(
                 { success: true, message: `Delivery status "${webhookType}" logged` },

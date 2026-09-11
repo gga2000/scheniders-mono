@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import {
+    INTERAKT_DELIVERY_STATUSES,
+    recordWhatsAppDeliveryReceipt,
+} from "@/lib/whatsapp-delivery-receipts";
 
 /**
  * Tenant-specific Interakt Webhook Endpoint
@@ -88,14 +92,13 @@ export async function POST(
         const payload = await request.json() as any;
         const webhookType = payload.type || payload.eventType || "";
 
-        // Delivery status events — just log
-        const DELIVERY_TYPES: Record<string, string> = {
-            message_api_sent: "sent", message_api_delivered: "delivered",
-            message_api_read: "read", message_api_failed: "failed",
-            message_api_clicked: "button_clicked",
-        };
-
-        if (DELIVERY_TYPES[webhookType] && webhookType !== "message_api_clicked") {
+        // Delivery status events. OBS-3: this branch answered "logged" and wrote
+        // nothing, which is why WhatsApp receipts stop dead at 2026-06-01 in the
+        // data — the traffic moved to this endpoint and every delivered, read
+        // and failed receipt since has been discarded.
+        const deliveryStatus = INTERAKT_DELIVERY_STATUSES[webhookType];
+        if (deliveryStatus) {
+            await recordWhatsAppDeliveryReceipt(payload, deliveryStatus, tenantId);
             return NextResponse.json({ success: true, message: `Status "${webhookType}" logged` });
         }
 
@@ -159,6 +162,31 @@ export async function POST(
             changed_by: "whatsapp_bot",
             tenant_id: tenantId,
         });
+
+        // Record what the customer actually said.
+        //
+        // This route never wrote to whatsapp_logs at all. It confirms the order
+        // correctly — that has always worked — but since Interakt moved to the
+        // per-tenant URL there has been no `inbound` row since 2026-06-01, while
+        // 1,017 were recorded before it. So the reply that moved an order is not
+        // recoverable, and the OBS-3 WhatsApp views, which read this table,
+        // undercount every customer reply.
+        //
+        // Non-critical: a logging failure must never cost the order update that
+        // already succeeded above.
+        try {
+            await supabaseAdmin().from("whatsapp_logs").insert({
+                order_id: order.order_id,
+                order_uuid: order.id,
+                phone: phone || "unknown",
+                template_name: "cod_order_confirm",
+                direction: "inbound",
+                status: "received",
+                payload: payload as unknown as Record<string, unknown>,
+            });
+        } catch (logErr) {
+            console.warn("[Interakt Webhook] Failed to log inbound message:", logErr);
+        }
 
         return NextResponse.json({
             success: true,

@@ -8,11 +8,10 @@
 // cross-origin boundary; the merchant trades isolation for compatibility.
 // =====================================================================
 
-"use client";
-
 import { z } from "zod";
 import { registerSection } from "./_registry";
-import type { SectionDefinition, SectionRenderContext } from "./_types";
+import type { SectionDefinition } from "./_types";
+import { HtmlEmbedRender } from "./html_embed.client";
 
 const pillBg = z.enum(["mint", "butter", "sky", "lilac", "pink"]);
 
@@ -22,7 +21,7 @@ const schema = z.object({
   bg: pillBg.optional(),
 });
 
-type Props = z.infer<typeof schema>;
+export type Props = z.infer<typeof schema>;
 
 const PLACEHOLDER_HTML = `<!doctype html>
 <html>
@@ -57,38 +56,6 @@ const defaultProps: Props = {
   html: PLACEHOLDER_HTML,
   height_px: 400,
 };
-
-function HtmlEmbedRender({
-  props,
-}: {
-  props: Props;
-  ctx: SectionRenderContext;
-}): React.ReactElement {
-  const bgClass = props.bg ? `bg-candy-${props.bg}` : undefined;
-  return (
-    <section className={bgClass ? `${bgClass} py-6` : "py-6"}>
-      {/*
-        SECURITY (EC6): NO allow-same-origin. With `srcdoc`, allow-same-origin
-        would put the embed in the PARENT origin — embedded JS could read the
-        storefront's cookies / localStorage (cart, auth) and skim checkout
-        input. Legit embeds (YouTube/Twitter) load their own cross-origin
-        `src` inside the snippet, so they work fine in an opaque-origin
-        sandbox. This section is also excluded from cart/checkout via valid_on.
-      */}
-      <iframe
-        title="Custom HTML embed"
-        srcDoc={props.html}
-        sandbox="allow-scripts allow-popups allow-forms"
-        style={{
-          border: 0,
-          width: "100%",
-          height: `${props.height_px}px`,
-          display: "block",
-        }}
-      />
-    </section>
-  );
-}
 
 const definition: SectionDefinition<Props> = {
   type: "html_embed",

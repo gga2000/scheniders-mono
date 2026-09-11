@@ -4,61 +4,24 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useOrdersList } from "@/components/providers/orders-provider";
-import { useOrderRiskQuery } from "@/hooks/use-order-risk-query";
+import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
-import { Order, PaymentStatus, OrderItem } from "@/lib/supabase";
-import type { OrderFilters } from "@/types/order";
-import { normalizePhoneForSearch } from "@/lib/order-utils";
-import { isOrderFlagged } from "@/lib/data-quality-utils";
-import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
-import { getBaseOrderId } from "@/lib/utils";
-import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
-import { OrderAssignment, mockAssignments } from "@/lib/team-types";
+import { Order, OrderItem } from "@/lib/supabase";
+import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { OrderDialogs } from "@/components/orders/order-dialogs";
+import { OrderBulkDialogs } from "@/components/orders/order-bulk-dialogs";
+import { useOrderBulkOperations } from "@/hooks/use-order-bulk-operations";
+import { reportOrderError } from "@/lib/order-telemetry";
 
-const OrderDetailsModal = dynamic(
-    () => import("@/components/orders/order-details-modal").then(mod => ({ default: mod.OrderDetailsModal })),
-    { loading: () => null, ssr: false }
-);
-const CreateOrderModal = dynamic(
-    () => import("@/components/orders/create-order-modal").then(mod => ({ default: mod.CreateOrderModal })),
-    { loading: () => null, ssr: false }
-);
-const ReturnsCockpitModal = dynamic(
-    () => import("@/components/returns/returns-cockpit-modal").then(mod => ({ default: mod.ReturnsCockpitModal })),
-    { loading: () => null, ssr: false }
-);
-const BarcodeScanner = dynamic(
-    () => import("@/components/products/barcode-scanner").then(mod => ({ default: mod.BarcodeScanner })),
-    { loading: () => null, ssr: false }
-);
 // Dynamic imports for other heavy components
-const FloatingActionBar = dynamic(
-    () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
-    { ssr: false, loading: () => <div className="hidden" /> }
-);
 const WorkflowTabs = dynamic(
     () => import("@/components/orders/workflow-tabs").then(mod => ({ default: mod.WorkflowTabs })),
     { ssr: false, loading: () => <div className="w-full h-96 animate-pulse bg-muted/20 rounded-2xl" /> }
-);
-const DuplicateComparisonModal = dynamic(
-    () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
-    { loading: () => null, ssr: false }
-);
-const ExportReportModal = dynamic(
-    () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
-    { loading: () => null, ssr: false }
-);
-const WhatsAppTemplatePanel = dynamic(
-    () => import("@/components/orders/whatsapp-template-panel").then(mod => ({ default: mod.WhatsAppTemplatePanel })),
-    { loading: () => null, ssr: false }
-);
-const SplitOrderDialog = dynamic(
-    () => import("@/components/orders/split-order-dialog").then(mod => ({ default: mod.SplitOrderDialog })),
-    { loading: () => null, ssr: false }
 );
 const VirtualizedOrderList = dynamic(
     () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
@@ -68,28 +31,15 @@ const DateRangePicker = dynamic(
     () => import("@scheniders/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
     { ssr: false, loading: () => <div className="w-full h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
+import { GlobalSearchField } from "@/components/orders/global-search-field";
+import { OrdersAnalyticsPanel } from "@/components/orders/orders-analytics-panel";
+import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
 import { EmptyState } from "@/components/ui/empty-states";
 import { StaggerContainer, StaggerItem, EASE_CHROME, EASE_PANEL, EASE_CROSSFADE } from "@/components/layout/page-transition";
 import { useSidebar } from "@/components/layout/dashboard-layout";
 const SavedViewsTabs = dynamic(
     () => import("@/components/orders/saved-views-tabs").then(mod => ({ default: mod.SavedViewsTabs })),
     { ssr: false, loading: () => <div className="w-48 h-10 animate-pulse bg-muted/20 rounded-xl" /> }
-);
-const OrderConfirmationCard = dynamic(
-    () => import("@/components/orders/order-confirmation-card").then(mod => ({ default: mod.OrderConfirmationCard })),
-    { ssr: false, loading: () => <div className="hidden" /> }
-);
-const CancellationReasonDialog = dynamic(
-    () => import("@/components/orders/cancellation-reason-dialog").then(mod => ({ default: mod.CancellationReasonDialog })),
-    { loading: () => null, ssr: false }
-);
-const ShipExportConfirmationDialog = dynamic(
-    () => import("@/components/orders/ship-export-confirmation-dialog").then(mod => ({ default: mod.ShipExportConfirmationDialog })),
-    { loading: () => null, ssr: false }
-);
-const MoveToTransitDialog = dynamic(
-    () => import("@/components/orders/move-to-transit-dialog").then(mod => ({ default: mod.MoveToTransitDialog })),
-    { loading: () => null, ssr: false }
 );
 const StickyFilterBar = dynamic(
     () => import("@/components/orders/sticky-filter-bar").then(mod => ({ default: mod.StickyFilterBar })),
@@ -115,20 +65,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { OrderPipeline } from "@/components/orders/order-pipeline";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Search,
     Plus,
     Download,
-    Upload,
     Package,
     CheckSquare,
-    ChevronDown,
     MapPin,
-    CreditCard,
     CalendarDays,
-    X,
     BarChart3,
-    Bookmark,
-    Save,
     Trash2,
     LayoutGrid,
     Table,
@@ -141,152 +84,17 @@ import {
     Rows3,
     Archive,
     RotateCcw,
-    TrendingUp,
-    ShieldCheck,
     Minimize2,
     Maximize2,
     Truck,
-    Sparkles,
-    PhoneCall,
-    CheckCircle2,
-    Activity,
-    AlertTriangle,
-    MessageCircle,
     PackageX,
-    ScanBarcode,
-    ChevronsDownUp,
-    ChevronsUpDown,
 } from "lucide-react";
-import { extractScannedOrderId } from "@/lib/scan-utils";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
+import { canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { notificationService } from "@/lib/notification-service";
-import { mockAssignmentRules } from "@/lib/team-types";
-import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
-import { toast, dismissToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 
-import { ErrorBoundary } from "@scheniders/ui/error-boundary";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
-interface GlobalSearchFieldProps {
-    filters: { searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string };
-    setFilters: React.Dispatch<React.SetStateAction<{ searchQuery?: string; searchIncludesArchive?: boolean; dateFrom?: string; dateTo?: string }>>;
-    inputClassName?: string;
-    onScannerOpen?: () => void;
-    /** Optional sub-filters toggle rendered next to the scanner button. When wired, it shows/hides the TYPE+PRODUCTS rows in the sticky filter bar. */
-    subFiltersOpen?: boolean;
-    onToggleSubFilters?: () => void;
-}
-
-const GlobalSearchField = React.memo(function GlobalSearchField({ filters, setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen, subFiltersOpen, onToggleSubFilters }: GlobalSearchFieldProps) {
-    const localSearchQuery = useOrderStore((s) => s.localSearchQuery);
-    const setLocalSearchQuery = useOrderStore((s) => s.setLocalSearchQuery);
-    const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
-    const { t } = useLanguage();
-
-    // Track the previous search state to know when user starts/clears a search
-    const prevSearchRef = React.useRef<string>("");
-
-    useEffect(() => {
-        const prevSearch = prevSearchRef.current;
-        // Normalize scanned/pasted QR ("QR:{id}|PHONE:..") down to the order id; plain text passes through.
-        const newSearch = extractScannedOrderId(debouncedSearchQuery);
-
-        if (newSearch === (filters.searchQuery || "")) return; // No change needed
-
-        if (newSearch && !prevSearch) {
-            // User STARTED searching — clear date range so all orders are searchable
-            setFilters((prev) => ({
-                ...prev,
-                searchQuery: newSearch,
-                dateFrom: undefined,
-                dateTo: undefined,
-            }));
-        } else if (!newSearch && prevSearch) {
-            // User CLEARED search — restore today's date range
-            const todayStr = (() => {
-                const d = new Date();
-                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-            })();
-            setFilters((prev) => ({
-                ...prev,
-                searchQuery: undefined,
-                dateFrom: todayStr,
-                dateTo: todayStr,
-            }));
-        } else {
-            // Search query changed but not starting/stopping — just update searchQuery
-            setFilters((prev) => ({ ...prev, searchQuery: newSearch || undefined }));
-        }
-
-        prevSearchRef.current = newSearch;
-    }, [debouncedSearchQuery, setFilters, filters.searchQuery]);
-
-    return (
-        <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-subtle)]" />
-            <input
-                type="text"
-                placeholder={t ? t("orders.searchPlaceholder") : "Search orders..."}
-                value={localSearchQuery}
-                onChange={(e) => setLocalSearchQuery(e.target.value)}
-                className={inputClassName}
-            />
-            {/* Sub-filters toggle — sits to the left of the scanner so the user
-                can show/hide the TYPE + PRODUCTS rows without leaving the search bar. */}
-            {onToggleSubFilters && (
-                <button
-                    onClick={onToggleSubFilters}
-                    title={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
-                    aria-label={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
-                    aria-pressed={!!subFiltersOpen}
-                    className={cn(
-                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",
-                        subFiltersOpen
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200"
-                            : "text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
-                        // Shift left of the scanner: scanner sits at right-9 (when query) or right-2; place this 9 left of that.
-                        localSearchQuery ? "right-[4.5rem]" : "right-11"
-                    )}
-                >
-                    {subFiltersOpen ? (
-                        <ChevronsDownUp className="w-4 h-4" />
-                    ) : (
-                        <ChevronsUpDown className="w-4 h-4" />
-                    )}
-                </button>
-            )}
-            {/* Scanner button — shifts left when archive button is also visible */}
-            {onScannerOpen && (
-                <button
-                    onClick={onScannerOpen}
-                    title="Scan barcode"
-                    className={cn(
-                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
-                        localSearchQuery ? "right-9" : "right-2"
-                    )}
-                >
-                    <ScanBarcode className="w-4 h-4" />
-                </button>
-            )}
-            {localSearchQuery && (
-                <button
-                    onClick={() => setFilters((prev) => ({ ...prev, searchIncludesArchive: !prev.searchIncludesArchive }))}
-                    className={cn(
-                        "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all flex items-center gap-1",
-                        filters.searchIncludesArchive
-                            ? "bg-orange-100 text-orange-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                            : "text-muted-foreground hover:bg-amber-100/40"
-                    )}
-                    title="Include Archive in Search"
-                >
-                    <Archive className="w-3.5 h-3.5" />
-                    {filters.searchIncludesArchive && <span className="text-[10px] sm:hidden font-bold pr-1">{t("orders.filter.archivedIncluded")}</span>}
-                </button>
-            )}
-        </div>
-    );
-});
 
 export default function OrdersPage() {
     const { sidebarExpanded } = useSidebar();
@@ -345,12 +153,11 @@ export default function OrdersPage() {
         orders,
         filteredOrders: hookFilteredOrders,
         loading,
+        isRefreshing,
+        ordersPending,
         error,
         updateOrderStatus,
         updateOrder,
-        createOrder,
-        createReturnOrder,
-        createReplacementOrder,
         isBlacklisted,
         getBlacklistEntry,
         addToBlacklist,
@@ -358,32 +165,22 @@ export default function OrdersPage() {
         stats,
         availableCities,
         availableProducts,
-        availableProductsInView,
         filters,
         setFilters,
         clearFilters,
-        bulkUpdateStatus,
-        bulkArchive,
-        bulkUnarchive,
-        bulkDelete,
-        createBatch,
         filterPresets,
         saveFilterPreset,
         loadFilterPreset,
         deleteFilterPreset,
-        getOrderTimeline,
         hasDuplicates,
         getCustomerHistory,
         getCustomerOrderCount,
         mergeOrders,
         fetchOrders: refreshOrders,
-        getOrderNotes,
         // Pin & Clone
         togglePin,
         toggleReviewed,
-        markAsVerifiedCustomer,
         cloneOrder,
-        deleteOrder,
         // Archive
         archivedOrders,
         fetchArchivedOrders,
@@ -392,41 +189,21 @@ export default function OrdersPage() {
         undoLastAction,
         canUndo,
         // Check order ID
-        checkOrderIdExists,
         // Duplicate management
-        getCustomerOrders,
-        dismissDuplicate,
         statusCounts,
+        ordersAreComplete,
         // Message templates
         messageTemplates,
-    } = useOrdersList();
+    } = useOrdersContext();
 
-    // PERF-D1: risk assessments no longer ride on every order row. They load
-    // here, on the one route that filters and renders them.
-    const riskByOrderId = useOrderRiskQuery();
-
-    // Apply drill-through query params from the dashboard (one-time on mount).
-    // DV-D2: `status` was already honoured; `city`, `product` and `search` exist in
-    // OrderFilters but were never read from the URL, so the dashboard could only
-    // ever hand over a status. A merchant who spotted a bad city or a slow product
-    // had to re-find it by hand.
+    // Apply ?status= query param from dashboard card clicks (one-time on mount)
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const params = new URLSearchParams(window.location.search);
-
         const statusParam = params.get('status');
-        const cityParam = params.get('city');
-        const productParam = params.get('product');
-        const searchParam = params.get('search');
-        if (!statusParam && !cityParam && !productParam && !searchParam) return;
-
-        setFilters(prev => ({
-            ...prev,
-            ...(statusParam ? { status: statusParam as OrderFilters['status'] } : {}),
-            ...(cityParam ? { city: cityParam } : {}),
-            ...(productParam ? { product: productParam } : {}),
-            ...(searchParam ? { searchQuery: searchParam } : {}),
-        }));
+        if (statusParam) {
+            setFilters(prev => ({ ...prev, status: statusParam as 'new' | 'confirmed' | 'rejected' | 'all' }));
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // run once on mount
 
@@ -436,6 +213,10 @@ export default function OrdersPage() {
     const { t } = useLanguage();
 
     // ── Zustand Store (replaces ~35 useState calls) ──
+    // Selected through `useShallow` rather than destructured off the bare store:
+    // a no-selector `useOrderStore()` compares whole-state identity, so every
+    // keystroke re-rendered this entire component and defeated the memo on
+    // GlobalSearchField.
     const {
         // View preferences
         viewMode, setViewMode,
@@ -449,31 +230,27 @@ export default function OrdersPage() {
         setSoundEnabled,
         // Filter UI
         showFilters, setShowFilters,
-        showPresets, setShowPresets,
-        newPresetName, setNewPresetName,
         groupBy, setGroupBy,
         filterDuplicatesOnly, setFilterDuplicatesOnly,
-        filterDueToday, setFilterDueToday,
         sortConfig, sortConfigs, toggleSort,
         columnFilters, setColumnFilters,
         openFilterColumn, setOpenFilterColumn,
         activePresetId, setActivePresetId,
         // Modals
-        isModalOpen, setIsModalOpen,
-        selectedOrder, setSelectedOrder,
-        isCreateModalOpen, setIsCreateModalOpen,
-        showDuplicateModal, setShowDuplicateModal,
-        duplicateOrder, setDuplicateOrder,
-        cancelDialogOpen, setCancelDialogOpen,
-        orderToCancel, setOrderToCancel,
-        rejectDialogOpen, setRejectDialogOpen,
-        orderToReject, setOrderToReject,
-        templatePanelOpen, setTemplatePanelOpen,
-        orderForTemplate, setOrderForTemplate,
-        setIsImportModalOpen,
-        isExportModalOpen, setIsExportModalOpen,
+        setIsModalOpen,
+        setSelectedOrder,
+        setIsCreateModalOpen,
+        setShowDuplicateModal,
+        setDuplicateOrder,
+        setCancelDialogOpen,
+        setOrderToCancel,
+        setRejectDialogOpen,
+        setOrderToReject,
+        setTemplatePanelOpen,
+        setOrderForTemplate,
+        setIsExportModalOpen,
         splitOrderDialog, setSplitOrderDialog,
-        screenshotOrder, setScreenshotOrder,
+        setScreenshotOrder,
         showDatePicker, setShowDatePicker,
         datePickerPos, setDatePickerPos,
         // Selection
@@ -481,10 +258,92 @@ export default function OrdersPage() {
         showArchived, setShowArchived,
         loadingId, setLoadingId,
         // Transient
-        isFilterPanelAnimating, setIsFilterPanelAnimating,
         isHeaderAnimating, setIsHeaderAnimating,
         notificationsEnabled, setNotificationsEnabled,
-    } = useOrderStore();
+    } = useOrderStore(
+        useShallow((s) => ({
+            viewMode: s.viewMode,
+            setViewMode: s.setViewMode,
+            compactView: s.compactView,
+            setCompactView: s.setCompactView,
+            compactGrid: s.compactGrid,
+            setCompactGrid: s.setCompactGrid,
+            actionDock: s.actionDock,
+            showSearchBar: s.showSearchBar,
+            setShowSearchBar: s.setShowSearchBar,
+            analyticsLevel: s.analyticsLevel,
+            setAnalyticsLevel: s.setAnalyticsLevel,
+            toolbarCollapsed: s.toolbarCollapsed,
+            toggleToolbarCollapse: s.toggleToolbarCollapse,
+            workflowMode: s.workflowMode,
+            toggleWorkflowMode: s.toggleWorkflowMode,
+            setSoundEnabled: s.setSoundEnabled,
+            showFilters: s.showFilters,
+            setShowFilters: s.setShowFilters,
+            showPresets: s.showPresets,
+            setShowPresets: s.setShowPresets,
+            newPresetName: s.newPresetName,
+            setNewPresetName: s.setNewPresetName,
+            groupBy: s.groupBy,
+            setGroupBy: s.setGroupBy,
+            filterDuplicatesOnly: s.filterDuplicatesOnly,
+            setFilterDuplicatesOnly: s.setFilterDuplicatesOnly,
+            sortConfig: s.sortConfig,
+            sortConfigs: s.sortConfigs,
+            toggleSort: s.toggleSort,
+            columnFilters: s.columnFilters,
+            setColumnFilters: s.setColumnFilters,
+            openFilterColumn: s.openFilterColumn,
+            setOpenFilterColumn: s.setOpenFilterColumn,
+            activePresetId: s.activePresetId,
+            setActivePresetId: s.setActivePresetId,
+            isModalOpen: s.isModalOpen,
+            setIsModalOpen: s.setIsModalOpen,
+            selectedOrder: s.selectedOrder,
+            setSelectedOrder: s.setSelectedOrder,
+            isCreateModalOpen: s.isCreateModalOpen,
+            setIsCreateModalOpen: s.setIsCreateModalOpen,
+            showDuplicateModal: s.showDuplicateModal,
+            setShowDuplicateModal: s.setShowDuplicateModal,
+            duplicateOrder: s.duplicateOrder,
+            setDuplicateOrder: s.setDuplicateOrder,
+            cancelDialogOpen: s.cancelDialogOpen,
+            setCancelDialogOpen: s.setCancelDialogOpen,
+            orderToCancel: s.orderToCancel,
+            setOrderToCancel: s.setOrderToCancel,
+            rejectDialogOpen: s.rejectDialogOpen,
+            setRejectDialogOpen: s.setRejectDialogOpen,
+            orderToReject: s.orderToReject,
+            setOrderToReject: s.setOrderToReject,
+            templatePanelOpen: s.templatePanelOpen,
+            setTemplatePanelOpen: s.setTemplatePanelOpen,
+            orderForTemplate: s.orderForTemplate,
+            setOrderForTemplate: s.setOrderForTemplate,
+            setIsImportModalOpen: s.setIsImportModalOpen,
+            isExportModalOpen: s.isExportModalOpen,
+            setIsExportModalOpen: s.setIsExportModalOpen,
+            splitOrderDialog: s.splitOrderDialog,
+            setSplitOrderDialog: s.setSplitOrderDialog,
+            screenshotOrder: s.screenshotOrder,
+            setScreenshotOrder: s.setScreenshotOrder,
+            showDatePicker: s.showDatePicker,
+            setShowDatePicker: s.setShowDatePicker,
+            datePickerPos: s.datePickerPos,
+            setDatePickerPos: s.setDatePickerPos,
+            selectedOrders: s.selectedOrders,
+            setSelectedOrders: s.setSelectedOrders,
+            showArchived: s.showArchived,
+            setShowArchived: s.setShowArchived,
+            loadingId: s.loadingId,
+            setLoadingId: s.setLoadingId,
+            isFilterPanelAnimating: s.isFilterPanelAnimating,
+            setIsFilterPanelAnimating: s.setIsFilterPanelAnimating,
+            isHeaderAnimating: s.isHeaderAnimating,
+            setIsHeaderAnimating: s.setIsHeaderAnimating,
+            notificationsEnabled: s.notificationsEnabled,
+            setNotificationsEnabled: s.setNotificationsEnabled,
+        })),
+    );
 
     // Sync local search input when filters.searchQuery is cleared externally (e.g. "clear filters" button)
     useEffect(() => {
@@ -497,8 +356,7 @@ export default function OrdersPage() {
     const debouncedColumnFilters = useDebounce(columnFilters, 300);
 
     // Domain state (stays local — not UI state)
-    const [assignments, setAssignments] = useState<OrderAssignment[]>(mockAssignments);
-    const { splitOrder } = useOrdersList();
+    const { splitOrder } = useOrdersContext();
 
     const handleSplitOrder = async (keptItems: OrderItem[], returnedItems: OrderItem[]) => {
         if (!splitOrderDialog.order) return;
@@ -539,8 +397,15 @@ export default function OrdersPage() {
                 // Order was deleted or doesn't exist
                 toast.error("Order not found", "This order may have been deleted.");
             }
-        } catch {
-            // Network or DB error — open modal with the data we already have
+        } catch (err) {
+            // Falling back to the list row is better than refusing to open, but
+            // it was previously silent: the operator edited a possibly-stale
+            // record with no idea the refresh had failed.
+            reportOrderError(err, { operation: "orders-view-details-fetch", orderId: order.id });
+            toast.warning(
+                "Showing the last known details",
+                "This order could not be refreshed, so it may be out of date.",
+            );
             setSelectedOrder(order);
             setIsModalOpen(true);
         }
@@ -558,52 +423,33 @@ export default function OrdersPage() {
             } else {
                 setSelectedOrder(order);
             }
-        } catch {
+        } catch (err) {
+            // Same silent-stale path as handleViewDetails, reached from the table.
+            reportOrderError(err, { operation: "orders-select-order-fetch", orderId: order.id });
+            toast.warning(
+                "Showing the last known details",
+                "This order could not be refreshed, so it may be out of date.",
+            );
             setSelectedOrder(order);
         }
     }, [setSelectedOrder]);
 
-    const handleAssignDuty = useCallback((orderId: string, duty: 'confirmation' | 'fulfillment', employeeId: string) => {
-        setAssignments(prev => {
-            const filtered = prev.filter(a => !(a.order_id === orderId && a.duty === duty));
-            return [...filtered, {
-                id: crypto.randomUUID(),
-                order_id: orderId,
-                employee_id: employeeId,
-                duty,
-                assigned_at: new Date().toISOString(),
-                status: 'pending'
-            }];
-        });
-        toast.success(`Assigned to ${duty}`);
-    }, []);
 
-    // Evaluate Auto-Assignments when orders change or load (Optimized: Web Worker)
+
+    // A tenant with no orders at all must not be told its filters matched nothing.
+    // `hasFilters` counts the date range, so "no filters" here means the full window.
+    const emptyStateHasFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
+    const isFirstRun = (orders?.length ?? 0) === 0 && !filters.searchQuery && !emptyStateHasFilters;
+
+    // ARCH-6: the order store is module-level, so an open modal, a bulk
+    // selection or a half-finished inline edit outlived this page and came back
+    // on the next visit — with a stale order snapshot behind it. Clear the
+    // transient half on unmount; view preferences and filters persist as before.
     useEffect(() => {
-        if (!orders || orders.length === 0) return;
-
-        // Run off-main-thread to avoid blocking React rendering
-        const worker = new Worker('/workers/assignment-worker.js');
-
-        worker.onmessage = (e) => {
-            const { type, payload } = e.data;
-            if (type === 'ASSIGNMENTS_RESULT' && payload.length > 0) {
-                setAssignments(prev => [...prev, ...payload]);
-            }
-            worker.terminate();
+        return () => {
+            useOrderStore.getState().resetTransientState();
         };
-
-        worker.postMessage({
-            type: 'EVALUATE_ASSIGNMENTS',
-            payload: {
-                orders,
-                rules: mockAssignmentRules,
-                currentAssignments: assignments
-            }
-        });
-
-        return () => worker.terminate();
-    }, [orders, assignments]);
+    }, []);
 
     // Get workflow templates for the template panel
     const workflowTemplates = useMemo(() =>
@@ -677,14 +523,11 @@ export default function OrdersPage() {
     }, [toggleToolbarCollapse]);
 
 
-    // Removed Batch Risk Assessment as risk data is now joined at DB level
-    const riskLoading = false; // Always false since data is already loaded
 
     // Defer heavy list inputs to prevent main-thread blocking during concurrent renders
     const defHookFilteredOrders = React.useDeferredValue(hookFilteredOrders);
     const defColumnFilters = React.useDeferredValue(debouncedColumnFilters);
     const defFilterDuplicatesOnly = React.useDeferredValue(filterDuplicatesOnly);
-    const defFilterDueToday = React.useDeferredValue(filterDueToday);
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
@@ -713,15 +556,10 @@ export default function OrdersPage() {
             });
         });
 
-        // 1.2. Apply Risk/Flagged Filter
+        // 1.2. Apply Risk/Flagged Filter — the predicate itself lives in
+        // lib/order-filter-utils so the mobile screen runs the same one.
         if (defRiskLevel) {
-            if (defRiskLevel === 'flagged') {
-                // "Flagged" = data quality issues OR rejected orders
-                result = result.filter(o => isOrderFlagged(o) || o.status === 'rejected');
-            } else {
-                // Other risk levels use the embedded database risk data
-                result = result.filter((o) => riskByOrderId.get(o.id)?.level === defRiskLevel);
-            }
+            result = result.filter(o => orderMatchesRiskLevel(o, defRiskLevel));
         }
 
         // 1.5. Apply Duplicates-Only Filter
@@ -729,26 +567,22 @@ export default function OrdersPage() {
             result = result.filter(o => getCustomerOrderCount(o.phone) > 1);
         }
 
-        // 1.6. Apply Due-Today Filter — orders that were parked for a later day
-        //      and whose day has now arrived.
-        if (defFilterDueToday) {
-            result = result.filter(o => isScheduleDue(o.status, o.scheduled_date));
-        }
-
         // 2. Sort
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
+
+        // Same reason as in use-order-filters: the comparator ran `new Date()`
+        // twice per comparison. Resolve each order's timestamp once up front.
+        const createdAtMs = new Map<string, number>();
+        for (const order of result) {
+            const parsed = Date.parse(order.created_at);
+            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
+        }
+        const createdAt = (order: Order) => createdAtMs.get(order.id) ?? 0;
 
         result.sort((a, b) => {
             // Priority: Pinned first
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
-
-            // Orders parked for a future day are not today's work. They sink below
-            // the live queue instead of riding the top of the list, which is what
-            // happened while postponing meant forward-dating created_at.
-            const aParked = getScheduledState(a.scheduled_date) === "future";
-            const bParked = getScheduledState(b.scheduled_date) === "future";
-            if (aParked !== bParked) return aParked ? 1 : -1;
 
             // Multi-column sort
             for (const sc of activeSorts) {
@@ -757,7 +591,7 @@ export default function OrdersPage() {
 
                 if (sc.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
                 if (sc.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
-                if (sc.key === 'created_at') { aVal = new Date(a.created_at).getTime(); bVal = new Date(b.created_at).getTime(); }
+                if (sc.key === 'created_at') { aVal = createdAt(a); bVal = createdAt(b); }
 
                 if (aVal != null && bVal != null && aVal < bVal) return sc.direction === 'asc' ? -1 : 1;
                 if (aVal != null && bVal != null && aVal > bVal) return sc.direction === 'asc' ? 1 : -1;
@@ -766,34 +600,30 @@ export default function OrdersPage() {
             if (activeSorts.length > 0) return 0;
 
             // Default sort: Newest first
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return createdAt(b) - createdAt(a);
         });
         return result;
-    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel]);
+    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel]);
 
     const defOrders = React.useDeferredValue(orders);
 
-    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders)
+    // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
+    // Counted with the same predicate the filter uses, so the number on the card
+    // can never disagree with the list you get after clicking it.
     const flaggedCount = useMemo(() => {
-        return defHookFilteredOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+        return defHookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [defHookFilteredOrders]);
-
-    // Orders parked for a later day whose day has arrived — the "due today" queue.
-    const dueTodayCount = useMemo(() => {
-        if (!defOrders) return 0;
-        return defOrders.filter(o => isScheduleDue(o.status, o.scheduled_date)).length;
-    }, [defOrders]);
 
     // Calculate global risk count for the key filter button (all orders)
     const totalRiskCount = useMemo(() => {
         if (!defOrders) return 0;
-        return defOrders.filter(o => isOrderFlagged(o) || o.status === 'rejected').length;
+        return defOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [defOrders]);
 
     // Scroll to top when filters change to prevent empty list illusion
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [filters, filterDuplicatesOnly, filterDueToday]);
+    }, [filters, filterDuplicatesOnly]);
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
@@ -830,301 +660,21 @@ export default function OrdersPage() {
         }
     }, [filteredOrders]);
 
-    const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+    // ARCH-1: every bulk operation — the status handlers, archive, the soft
+    // delete and its undo, the courier export and the post-export prompt — used
+    // to sit inline here. It is one concern with its own state, so it moved to
+    // its own hook rather than being split between a file that holds the state
+    // and a file that renders it.
+    const bulk = useOrderBulkOperations();
+    const {
+        isBulkProcessing,
+        bulkActions,
+        setShipConfirmCompany,
+        setShipConfirmOpen,
+        setShipConfirmKey,
+    } = bulk;
 
-    const withProcessing = async (
-        action: () => Promise<{ success: boolean; error?: string } | undefined>,
-        fallbackMsg: string,
-        successMsg: string,
-        onSuccess?: () => void
-    ) => {
-        if (isBulkProcessing) return;
-        setIsBulkProcessing(true);
-        const pt = t("orders.processing");
-        const loadingMsg = (pt && pt !== "orders.processing") ? pt : fallbackMsg;
-        const toastId = toast.loading(loadingMsg);
-        try {
-            const result = await action();
-            dismissToast(toastId);
-            if (result?.success || result === undefined) {
-                toast.success(successMsg);
-                if (onSuccess) onSuccess();
-            } else {
-                toast.error(t("toast.updateFailed"), result?.error || "Unknown error");
-            }
-        } catch (error) {
-            dismissToast(toastId);
-            toast.error(t("toast.updateFailed"), String(error));
-        } finally {
-            setIsBulkProcessing(false);
-        }
-    };
-
-    // Handle bulk actions
-    const handleBulkConfirm = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "confirmed"),
-            `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkDeliver = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "delivered"),
-            `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkReject = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "rejected"),
-            `Updating ${ids.length} orders...`,
-            t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkArchive = async () => {
-        if (isBulkProcessing) return;
-        const ids = Array.from(selectedOrders);
-        setIsBulkProcessing(true);
-        const pt = t("orders.processing");
-        const loadingMsg = (pt && pt !== "orders.processing") ? pt : `Archiving ${ids.length} orders...`;
-        const toastId = toast.loading(loadingMsg);
-        try {
-            const result = await bulkArchive(ids);
-            dismissToast(toastId);
-            if (result?.success || result === undefined) {
-                setSelectedOrders(new Set());
-                toast({
-                    title: t("toast.ordersArchived"),
-                    description: t("toast.ordersArchivedDesc").replace("{count}", String(ids.length)),
-                    variant: "success",
-                    action: {
-                        label: t("toast.undo") || "Undo",
-                        onClick: async () => {
-                            const undoRes = await bulkUnarchive(ids);
-                            if (undoRes.success) {
-                                toast.success(t("toast.ordersRestored") || "Restored", t("toast.ordersRestoredDesc") || "Orders returned to the active list");
-                            } else {
-                                toast.error(t("toast.updateFailed"), undoRes.error);
-                            }
-                        }
-                    }
-                });
-            }
-            else if (result?.error) toast.error(t("toast.archiveFailed"), result.error);
-        } finally {
-            setIsBulkProcessing(false);
-        }
-    };
-
-    // Delete confirmation dialog state
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-    const [deleteCountdown, setDeleteCountdown] = useState(5);
-    const [isDeleting, setIsDeleting] = useState(false);
-    // Ship export confirmation dialog state
-    const [shipConfirmOpen, setShipConfirmOpen] = useState(false);
-    const [shipConfirmCompany, setShipConfirmCompany] = useState<'prime' | 'waseet'>('prime');
-    const [shipConfirmKey, setShipConfirmKey] = useState(0);
-    // Post-export: prompt to move newly-exported orders from Confirmed → In Transit
-    const [moveTransitOpen, setMoveTransitOpen] = useState(false);
-    const [pendingTransitIds, setPendingTransitIds] = useState<string[]>([]);
-    const [pendingTransitPrevStatuses, setPendingTransitPrevStatuses] = useState<{ id: string; status: string }[]>([]);
     const [showMapPanel, setShowMapPanel] = useState(false);
-
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (deleteConfirmOpen && deleteCountdown > 0) {
-            timer = setTimeout(() => setDeleteCountdown(prev => prev - 1), 1000);
-        }
-        return () => clearTimeout(timer);
-    }, [deleteConfirmOpen, deleteCountdown]);
-
-    const handleBulkDelete = async () => {
-        setDeleteCountdown(5);
-        setDeleteConfirmOpen(true);
-    };
-
-    const executeDelete = async () => {
-        setIsDeleting(true);
-        const ids = Array.from(selectedOrders);
-        const toastId = toast.loading(`Deleting ${ids.length} orders...`);
-        const result = await bulkDelete(ids);
-        dismissToast(toastId);
-        setIsDeleting(false);
-        setDeleteConfirmOpen(false);
-        setDeleteCountdown(5);
-
-        if (!result.success && (!result.count || result.count === 0)) {
-            toast.error(t("toast.deleteFailed"), result.error || t("toast.deleteFailedDesc"));
-            return;
-        }
-
-        const deletedCount = result.count || 0;
-        if (deletedCount < ids.length) {
-            const deletedIdSet = new Set(result.deletedIds || []);
-            setSelectedOrders(new Set(ids.filter(id => !deletedIdSet.has(id))));
-
-            toast.warning(
-                `Partially deleted`,
-                `${deletedCount} of ${ids.length} orders were deleted. Remaining orders stayed selected.`
-            );
-            return;
-        }
-
-        toast.success(t("toast.ordersDeleted"), t("toast.ordersDeletedDesc").replace("{count}", String(deletedCount)));
-        setSelectedOrders(new Set());
-    };
-
-    // Additional bulk status handlers
-    // Additional bulk status handlers
-    const handleBulkNew = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "new"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkContacted = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "contacted"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkInTransit = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "in_transit"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkCompleted = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "completed"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleBulkNoResponse = async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, "no_response"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"),
-            () => setSelectedOrders(new Set())
-        );
-    };
-
-    const handleShipExport = async (company: 'prime' | 'waseet') => {
-        const ids = selectedOrders.size > 0
-            ? Array.from(selectedOrders)
-            : filteredOrders.map(o => o.id);
-
-        if (ids.length === 0) {
-            toast.warning("No orders selected", "Select orders before exporting");
-            return;
-        }
-
-        let ordersToExport: Order[] = [];
-        if (selectedOrders.size > 0) {
-            ordersToExport = orders.filter(o => selectedOrders.has(o.id));
-        } else {
-            ordersToExport = filteredOrders;
-        }
-
-        const companyLabel = company === 'prime' ? 'Prime' : 'Al-Waseet';
-
-        try {
-            const batchName = `${companyLabel} Export ${new Date().toLocaleDateString('en-GB')}`;
-            const { success: batchSuccess, error: batchError } = await createBatch(
-                batchName,
-                ids,
-                company,
-                "invoice"
-            );
-
-            if (batchSuccess) {
-                if (company === 'prime') {
-                    await exportOrdersToPrimeCSV(ids, ordersToExport);
-                } else {
-                    await exportOrdersToWaseetXLSX(ids, ordersToExport);
-                }
-
-                // Capture previous statuses for undo capability
-                const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
-                setSelectedOrders(new Set());
-
-                toast.success(
-                    "Export successful",
-                    `${ids.length} orders exported via ${companyLabel}`,
-                );
-
-                // Prompt to move the exported orders to In Transit
-                setPendingTransitIds(ids);
-                setPendingTransitPrevStatuses(previousStatuses);
-                setMoveTransitOpen(true);
-            } else {
-                throw new Error(batchError || "Failed to create export batch");
-            }
-        } catch (err) {
-            toast.error(
-                "Export failed",
-                err instanceof Error ? err.message : "Could not complete the export process"
-            );
-        }
-    };
-
-    const handleConfirmMoveToTransit = async () => {
-        const ids = pendingTransitIds;
-        const previousStatuses = pendingTransitPrevStatuses;
-        if (ids.length === 0) return;
-
-        await bulkUpdateStatus(ids, "in_transit");
-        toast({
-            title: `${ids.length} orders moved to In Transit`,
-            description: "Click undo to restore previous statuses",
-            variant: "success",
-            duration: 20000,
-            action: {
-                label: "Undo",
-                onClick: async () => {
-                    const byStatus = new Map<string, string[]>();
-                    previousStatuses.forEach(({ id, status }) => {
-                        const group = byStatus.get(status) || [];
-                        group.push(id);
-                        byStatus.set(status, group);
-                    });
-                    for (const [status, orderIds] of byStatus) {
-                        await bulkUpdateStatus(orderIds, status as Order["status"]);
-                    }
-                    toast.success("Undone", `${ids.length} orders restored to their previous statuses`);
-                }
-            }
-        });
-        setPendingTransitIds([]);
-        setPendingTransitPrevStatuses([]);
-    };
 
     // Defer heavy array processing for analytics to keep UI responsive
     const deferredFilteredOrders = React.useDeferredValue(filteredOrders);
@@ -1144,6 +694,31 @@ export default function OrdersPage() {
     // Switch between regular and archived orders
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
     const deferredDisplayedOrders = React.useDeferredValue(displayedOrders);
+
+    // Risk data by phone, built once. These lookups are called once per rendered
+    // row, and each used to be a `.find()` over the whole list — O(rows x visible)
+    // on every render. Mirrors the O(1) map `getCustomerOrderCount` already uses.
+    const riskByPhone = useMemo(() => {
+        const map = new Map<string, Order["risk_data"]>();
+        for (const o of deferredDisplayedOrders) {
+            if (o.phone && !map.has(o.phone)) map.set(o.phone, o.risk_data);
+        }
+        return map;
+    }, [deferredDisplayedOrders]);
+
+    const getRiskAssessmentByPhone = useCallback(
+        (phone: string) => riskByPhone.get(phone),
+        [riskByPhone],
+    );
+
+    const getRiskLevelByPhone = useCallback(
+        (phone: string): "low" | "medium" | "high" | "blocked" => {
+            const level = riskByPhone.get(phone)?.level || "low";
+            return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
+        },
+        [riskByPhone],
+    );
+
 
     const groupedOrders = useMemo(() => {
         if (groupBy === 'none') {
@@ -1233,7 +808,10 @@ export default function OrdersPage() {
         // Still loading skeleton
     }
 
-    const isInitialLoading = !isMounted || loading;
+    // `loading` misses a pending-but-disabled query — which this one is until the
+    // Supabase client finishes initialising — so without ordersPending the page
+    // fell through to content with zero orders and rendered the empty state.
+    const isInitialLoading = !isMounted || loading || ordersPending;
 
     return (
         <AnimatePresence mode="wait">
@@ -1852,7 +1430,16 @@ export default function OrdersPage() {
                                                                         initial={{ opacity: 0, scale: 0.8 }}
                                                                         animate={{ opacity: 1, scale: 1 }}
                                                                         exit={{ opacity: 0, scale: 0.8 }}
-                                                                        onClick={async () => { await undoLastAction(); }}
+                                                                        onClick={async () => {
+                                                                            // The result was discarded, so a refused undo looked
+                                                                            // identical to a successful one.
+                                                                            const result = await undoLastAction();
+                                                                            if (result.success) {
+                                                                                toast.success("Undone", result.undoneAction);
+                                                                            } else if (result.error) {
+                                                                                toast.warning("Nothing was undone", result.error);
+                                                                            }
+                                                                        }}
                                                                         className="p-2.5 rounded-xl bg-lime-100/50 text-lime-700 hover:bg-lime-100 transition-all shadow-sm"
                                                                         title="Undo Last Action"
                                                                     >
@@ -1926,213 +1513,14 @@ export default function OrdersPage() {
                                             {/* Old Saved Views Location Removed */}
 
                                             {/* Collapsible Analytics Panel */}
-                                            <AnimatePresence initial={false}>
-                                                {analyticsLevel >= 1 && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="space-y-4 pb-6">
-                                                            {/* Main Stats Grid */}
-
-                                                            <ErrorBoundary name="Analytics Dashboard">
-                                                                {/* Main Stats Grid */}
-                                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                                                                    {/* New Orders - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <Sparkles className="w-16 h-16 text-rose-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600">
-                                                                                    <Sparkles className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">{t("orders.status.new")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{statusCounts.new || 0}</h3>
-                                                                                <span className="text-sm font-medium text-rose-600/80">orders</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Contacted - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <PhoneCall className="w-16 h-16 text-amber-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600">
-                                                                                    <PhoneCall className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">{t("orders.status.contacted")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{statusCounts.contacted || 0}</h3>
-                                                                                <span className="text-sm font-medium text-amber-600/80">active</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Confirmed - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-violet-50 to-purple-100/50 border border-violet-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <CheckCircle2 className="w-16 h-16 text-violet-500 rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-violet-100 text-violet-600">
-                                                                                    <CheckCircle2 className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">{t("orders.status.confirmed")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{statusCounts.confirmed || 0}</h3>
-                                                                                <span className="text-sm font-medium text-violet-600/80">ready</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* In Transit - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
-                                                                            <Truck className="w-16 h-16 text-orange-500 -rotate-12 group-hover:scale-110 group-hover:translate-x-2 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-orange-100 text-orange-600">
-                                                                                    <Truck className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">{t("orders.status.inTransit")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{statusCounts.in_transit || 0}</h3>
-                                                                                <span className="text-sm font-medium text-orange-600/80">shipped</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Conversion Rate - Premium Card */}
-                                                                    <div className="relative overflow-hidden rounded-2xl orders-analytics-card bg-white/60 backdrop-blur-md border border-white/40 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group ring-1 ring-black/5">
-                                                                        <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
-                                                                            <TrendingUp className="w-16 h-16 text-emerald-500 -rotate-12 group-hover:scale-110 transition-transform duration-500" />
-                                                                        </div>
-                                                                        <div className="p-5 relative z-10">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
-                                                                                    <TrendingUp className="w-4 h-4" />
-                                                                                </div>
-                                                                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{t("orders.stats.conversion")}</span>
-                                                                            </div>
-                                                                            <div className="flex items-end gap-2">
-                                                                                <h3 className="text-3xl font-bold text-foreground dark:text-white">{stats.conversionRate.toFixed(1)}%</h3>
-                                                                            </div>
-                                                                            {/* Animated Progress Bar */}
-                                                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                                                                <div
-                                                                                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out relative"
-                                                                                    style={{ width: `${stats.conversionRate}%` }}
-                                                                                >
-                                                                                    <div className="absolute inset-0 bg-white/30 w-full animate-[shimmer_2s_infinite]" />
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Revenue Trends & Velocity Metrics Row (only at level 2) */}
-                                                                {analyticsLevel >= 2 && (
-                                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                                        {/* Operational Velocity */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <Activity className="w-16 h-16 text-blue-500 rotate-12" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.operationalVelocity")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.confirmSpeed")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.deliverySpeed")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.peakHour")}</span>
-                                                                                    <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{stats.peakTime}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Needs Attention */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <AlertTriangle className="w-16 h-16 text-red-500 -rotate-12" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.needsAttention")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center group/item hover:bg-rose-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, riskLevel: 'flagged' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <ShieldCheck className="w-4 h-4 text-rose-600" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.flagged")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-rose-600">{flaggedCount}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center group/item hover:bg-red-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, priority: 'urgent' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.urgent")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-red-600">{stats.urgentOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center group/item hover:bg-orange-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'no_response' })}>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="w-2 h-2 rounded-full bg-orange-400" />
-                                                                                        <span className="text-sm text-foreground/70">{t("orders.stats.noResponse")}</span>
-                                                                                    </div>
-                                                                                    <span className="font-bold text-orange-600">{stats.noResponseOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100 group/item hover:bg-yellow-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'return_pending' })}>
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.returnsPending")}</span>
-                                                                                    <span className="font-bold text-yellow-600">{stats.returnPendingOrders}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Business Pulse */}
-                                                                        <div className="pastel-card p-5 relative overflow-hidden group">
-                                                                            <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                                                <BarChart3 className="w-16 h-16 text-emerald-500 rotate-6" />
-                                                                            </div>
-                                                                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">{t("orders.stats.businessPulse")}</h4>
-                                                                            <div className="space-y-4 relative z-10">
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.revenue")}</span>
-                                                                                    <span className="font-bold text-emerald-600">{formatIQD(stats.todayRevenue)}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.ordersCount")}</span>
-                                                                                    <span className="font-bold text-foreground">{stats.todayOrders}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
-                                                                                    <span className="text-sm text-foreground/70">{t("orders.stats.avgOrderValue")}</span>
-                                                                                    <span className="font-bold text-foreground">{formatIQD(stats.averageOrderValue)}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </ErrorBoundary>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            <OrdersAnalyticsPanel
+                                                analyticsLevel={analyticsLevel}
+                                                stats={stats}
+                                                statusCounts={statusCounts}
+                                                filters={filters}
+                                                setFilters={setFilters}
+                                                flaggedCount={flaggedCount}
+                                            />
 
                                             {/* Order Pipeline — collapsible funnel overview, sits above the search bar (hidden by default) */}
                                             <AnimatePresence initial={false}>
@@ -2158,333 +1546,15 @@ export default function OrdersPage() {
                                             </AnimatePresence>
 
                                             {/* Filters & Search Bar */}
-                                            <AnimatePresence initial={false}>
-                                                {showSearchBar && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
-                                                        onAnimationStart={() => setIsFilterPanelAnimating(true)}
-                                                        onAnimationComplete={() => setIsFilterPanelAnimating(false)}
-                                                        className={cn(
-                                                            isFilterPanelAnimating ? "overflow-hidden" : "overflow-visible"
-                                                        )}
-                                                    >
-                                                        <div className="pastel-card p-6 space-y-4 orders-search-panel">
-                                                            <div className="flex flex-col lg:flex-row gap-4">
-                                                                <GlobalSearchField
-                                                                    filters={filters}
-                                                                    setFilters={setFilters}
-                                                                    onScannerOpen={() => setIsScannerOpen(true)}
-                                                                    subFiltersOpen={showSubFilters}
-                                                                    onToggleSubFilters={toggleSubFilters}
-                                                                    inputClassName="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
-                                                                />
-                                                                {/* Sort dropdown removed in favor of column sorting */}
-                                                            </div>
-
-                                                            {!isMobile && (
-                                                                <StickyFilterBar
-                                                                    filters={filters}
-                                                                    setFilters={setFilters}
-                                                                    statusCounts={statusCounts}
-                                                                    productsInView={availableProductsInView}
-                                                                    totalRiskCount={totalRiskCount}
-                                                                    showFilters={showFilters}
-                                                                    setShowFilters={setShowFilters}
-                                                                    hasActiveFilters={hasActiveFilters}
-                                                                    groupBy={groupBy}
-                                                                    setGroupBy={setGroupBy}
-                                                                    filterDuplicatesOnly={filterDuplicatesOnly}
-                                                                    setFilterDuplicatesOnly={setFilterDuplicatesOnly}
-                                                                    filterDueToday={filterDueToday}
-                                                                    setFilterDueToday={setFilterDueToday}
-                                                                    dueTodayCount={dueTodayCount}
-                                                                    showSubFilters={showSubFilters}
-                                                                    isMobile={false}
-                                                                />
-                                                            )}
-
-                                                            {/* Advanced Filters Panel */}
-                                                            <AnimatePresence>
-                                                                {showFilters && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        className="overflow-hidden"
-                                                                    >
-                                                                        <div className="pt-4 border-t border-[var(--card-border)] space-y-4">
-                                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                                                {/* City Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.city")}</label>
-                                                                                    <div className="relative">
-                                                                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.city || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, city: e.target.value || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allCities")}</option>
-                                                                                            {availableCities.map((city) => (
-                                                                                                <option key={city} value={city}>{city}</option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* Product Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.product")}</label>
-                                                                                    <div className="relative">
-                                                                                        <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.product || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, product: e.target.value || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allProducts")}</option>
-                                                                                            {availableProducts.map((product) => (
-                                                                                                <option key={product} value={product}>{product}</option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* Payment Status Filter */}
-                                                                                <div>
-                                                                                    <label className="text-xs text-muted font-medium block mb-1.5">{t("orders.filter.payment")}</label>
-                                                                                    <div className="relative">
-                                                                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                                                                        <select
-                                                                                            value={filters.paymentStatus || ""}
-                                                                                            onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
-                                                                                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all appearance-none cursor-pointer"
-                                                                                        >
-                                                                                            <option value="">{t("orders.filter.allPayments")}</option>
-                                                                                            <option value="cod">{t("orders.filter.paymentCoD")}</option>
-                                                                                            <option value="prepaid">{t("orders.filter.paymentPrepaid")}</option>
-                                                                                            <option value="pending">{t("orders.filter.paymentPending")}</option>
-                                                                                            <option value="partial">{t("orders.filter.paymentPartial")}</option>
-                                                                                        </select>
-                                                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                            {/* Filter Actions Row */}
-                                                                            <div className="flex flex-wrap items-center gap-3">
-                                                                                {/* Clear Filters Button */}
-                                                                                {hasActiveFilters && (
-                                                                                    <button
-                                                                                        onClick={clearFilters}
-                                                                                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
-                                                                                    >
-                                                                                        <X className="w-3.5 h-3.5" />
-                                                                                        Clear all filters
-                                                                                    </button>
-                                                                                )}
-
-                                                                                {/* Toggle Presets */}
-                                                                                <button
-                                                                                    onClick={() => setShowPresets(!showPresets)}
-                                                                                    className={cn(
-                                                                                        "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all",
-                                                                                        showPresets || filterPresets.length > 0
-                                                                                            ? "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                                                                            : "text-muted hover:text-foreground hover:bg-gray-50"
-                                                                                    )}
-                                                                                >
-                                                                                    <Bookmark className="w-3.5 h-3.5" />
-                                                                                    Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
-                                                                                </button>
-                                                                            </div>
-
-                                                                            {/* Filter Presets Panel */}
-                                                                            <AnimatePresence>
-                                                                                {showPresets && (
-                                                                                    <motion.div
-                                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                                        className="overflow-hidden"
-                                                                                    >
-                                                                                        <div className="pt-3 border-t border-dashed border-[var(--card-border)] space-y-3">
-                                                                                            {/* Save Current Filter */}
-                                                                                            {hasActiveFilters && (
-                                                                                                <div className="flex gap-2">
-                                                                                                    <input
-                                                                                                        type="text"
-                                                                                                        placeholder="Name this filter..."
-                                                                                                        value={newPresetName}
-                                                                                                        onChange={(e) => setNewPresetName(e.target.value)}
-                                                                                                        className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"
-                                                                                                    />
-                                                                                                    <button
-                                                                                                        onClick={() => {
-                                                                                                            if (newPresetName.trim()) {
-                                                                                                                saveFilterPreset(newPresetName.trim());
-                                                                                                                setNewPresetName("");
-                                                                                                            }
-                                                                                                        }}
-                                                                                                        disabled={!newPresetName.trim()}
-                                                                                                        className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
-                                                                                                    >
-                                                                                                        <Save className="w-3.5 h-3.5" />
-                                                                                                        Save
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            )}
-
-                                                                                            {/* Saved Presets List */}
-                                                                                            {filterPresets.length > 0 ? (
-                                                                                                <div className="flex flex-wrap gap-2">
-                                                                                                    {filterPresets.map((preset) => (
-                                                                                                        <div
-                                                                                                            key={preset.id}
-                                                                                                            className="flex items-center gap-1 pl-3 pr-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg group"
-                                                                                                        >
-                                                                                                            <button
-                                                                                                                onClick={() => loadFilterPreset(preset.id)}
-                                                                                                                className="text-sm text-purple-700 hover:text-purple-900 font-medium"
-                                                                                                            >
-                                                                                                                {preset.name}
-                                                                                                            </button>
-                                                                                                            <button
-                                                                                                                onClick={() => deleteFilterPreset(preset.id)}
-                                                                                                                className="p-1 text-purple-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
-                                                                                                            >
-                                                                                                                <Trash2 className="w-3 h-3" />
-                                                                                                            </button>
-                                                                                                        </div>
-                                                                                                    ))}
-                                                                                                </div>
-                                                                                            ) : (
-                                                                                                <p className="text-xs text-muted">{t("orders.filter.noSavedFilters")}</p>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    </motion.div>
-                                                                                )}
-                                                                            </AnimatePresence>
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-
-                                                            <AnimatePresence>
-                                                                {selectedOrders.size > 0 && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: "auto" }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        className={cn("flex items-center gap-3 pt-4 border-t border-[var(--card-border)] overflow-x-auto scrollbar-hide", isBulkProcessing && "pointer-events-none opacity-50")}
-                                                                    >
-                                                                        <span className="text-sm text-muted whitespace-nowrap">{selectedOrders.size} {t("orders.selected")}</span>
-
-                                                                        {/* Primary Actions */}
-                                                                        <button
-                                                                            onClick={handleBulkConfirm}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-green)] text-green-900 text-sm font-medium hover:bg-[var(--pastel-green-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.confirm")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkDeliver}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-purple)] text-purple-900 text-sm font-medium hover:bg-[var(--pastel-purple-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.deliver")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkReject}
-                                                                            className="px-3 py-1.5 rounded-lg bg-[var(--pastel-pink)] text-rose-900 text-sm font-medium hover:bg-[var(--pastel-pink-light)] transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.reject")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkArchive}
-                                                                            className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.archive")}
-                                                                        </button>
-
-                                                                        {/* WhatsApp Bulk Send */}
-                                                                        <button
-                                                                            onClick={() => setTemplatePanelOpen(true)}
-                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap flex items-center gap-1.5"
-                                                                        >
-                                                                            <MessageCircle className="w-4 h-4" />
-                                                                            {t("orders.bulk.sendTemplate") || "إرسال رسالة واتساب"}
-                                                                        </button>
-
-                                                                        {/* Divider */}
-                                                                        <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                                        {/* Status Change Buttons */}
-                                                                        <button
-                                                                            onClick={handleBulkNew}
-                                                                            className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.new")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkContacted}
-                                                                            className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.contacted")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkInTransit}
-                                                                            className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.inTransit")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkCompleted}
-                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium hover:bg-emerald-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.completed")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                const ids = Array.from(selectedOrders);
-                                                                                withProcessing(
-                                                                                    () => bulkUpdateStatus(ids, "suspended"),
-                                                                                    `Updating ${ids.length} orders...`,
-                                                                                    t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Suspended"),
-                                                                                    () => setSelectedOrders(new Set())
-                                                                                );
-                                                                            }}
-                                                                            className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-700 text-sm font-medium hover:bg-orange-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.suspended")}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleBulkNoResponse}
-                                                                            className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.status.noResponse")}
-                                                                        </button>
-
-                                                                        {/* Divider */}
-                                                                        <div className="h-6 w-px bg-[var(--card-border)] flex-shrink-0" />
-
-                                                                        {/* Destructive Action */}
-                                                                        <button
-                                                                            onClick={handleBulkDelete}
-                                                                            className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-all whitespace-nowrap"
-                                                                        >
-                                                                            {t("orders.bulk.delete")}
-                                                                        </button>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            <OrdersFilterBar
+                                                bulkActions={bulkActions}
+                                                isBulkProcessing={isBulkProcessing}
+                                                hasActiveFilters={hasActiveFilters}
+                                                totalRiskCount={totalRiskCount}
+                                                showSubFilters={showSubFilters}
+                                                toggleSubFilters={toggleSubFilters}
+                                                onOpenScanner={() => setIsScannerOpen(true)}
+                                            />
 
                                             {/* Mobile Sticky Filter Bar - Rendered outside overflow-hidden container */}
                                             {isMobile && showSearchBar && (
@@ -2500,9 +1570,6 @@ export default function OrdersPage() {
                                                     setGroupBy={setGroupBy}
                                                     filterDuplicatesOnly={filterDuplicatesOnly}
                                                     setFilterDuplicatesOnly={setFilterDuplicatesOnly}
-                                                    filterDueToday={filterDueToday}
-                                                    setFilterDueToday={setFilterDueToday}
-                                                    dueTodayCount={dueTodayCount}
                                                     showSubFilters={showSubFilters}
                                                     isMobile={true}
                                                 />
@@ -2569,7 +1636,12 @@ export default function OrdersPage() {
                                                         )}
                                                     >
                                                         <span className="font-semibold">{selectedOrders.size} orders selected</span>
-                                                        {selectedOrders.size < filteredOrders.length && filteredOrders.length > PAGE_SELECT_LIMIT && (
+                                                        {canOfferSelectAll({
+                                                            selectedCount: selectedOrders.size,
+                                                            loadedCount: filteredOrders.length,
+                                                            pageSelectLimit: PAGE_SELECT_LIMIT,
+                                                            ordersAreComplete,
+                                                        }) && (
                                                             <button
                                                                 onClick={() => {
                                                                     useOrderStore.getState().selectAll(filteredOrders.map(o => o.id));
@@ -2592,81 +1664,84 @@ export default function OrdersPage() {
                                             {/* Cards View */}
                                             {(viewMode === "cards" || viewMode === "list") && (
                                                 <>
-                                                    {displayedOrders.length === 0 ? (
+                                                    {displayedOrders.length === 0 && (isRefreshing || ordersPending) ? (
+                                                        /* An empty list while rows are still arriving is not an empty
+                                                           list. `loading` covers only the first fetch, so a refetch —
+                                                           after a window change, a reconnect, or a stale SWR
+                                                           hydration — used to fall straight through to the empty
+                                                           state, and a merchant with 4,778 orders was told "No orders
+                                                           yet. When you receive orders, they'll appear here." */
+                                                        <div className="space-y-3" aria-busy="true" aria-live="polite">
+                                                            {[0, 1, 2, 3].map(i => (
+                                                                <div key={i} className="w-full h-24 animate-pulse bg-muted/20 rounded-2xl" />
+                                                            ))}
+                                                        </div>
+                                                    ) : displayedOrders.length === 0 ? (
                                                         <EmptyState
-                                                            type={(filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
+                                                            type={isFirstRun ? "no-orders" : (filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
                                                             searchQuery={filters.searchQuery}
-                                                            hasFilters={!!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority)}
+                                                            hasFilters={emptyStateHasFilters}
                                                         />
                                                     ) : compactView >= 1 && compactGrid ? (
-                                                        /* Grid layout for compact views */
-                                                        <div className={cn(
-                                                            "grid gap-2",
-                                                            compactView === 2
-                                                                ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-                                                                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-                                                        )}>
-                                                            {displayedOrders.map((order) => {
-                                                                const customerOrders = getCustomerHistory(order.phone);
-                                                                const orderCount = getCustomerOrderCount(order.phone, order.order_id);
-                                                                const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
-
-                                                                return (
-                                                                    <SwipeableOrderCard
-                                                                        key={order.id}
-                                                                        order={order}
-                                                                        loadingId={loadingId}
-                                                                        onStatusUpdate={handleStatusUpdate}
-                                                                        onViewDetails={handleViewDetails}
-                                                                        onSplit={() => setSplitOrderDialog({ open: true, order })}
-                                                                        isBlacklisted={isBlacklisted(order.phone)}
-                                                                        blacklistEntry={getBlacklistEntry(order.phone)}
-                                                                        onAddToBlacklist={addToBlacklist}
-                                                                        onRemoveFromBlacklist={removeFromBlacklist}
-                                                                        riskLevel={(riskByOrderId.get(order.id)?.level || "low") as "low" | "medium" | "high" | "blocked"}
-                                                                        riskAssessment={riskByOrderId.get(order.id)}
-                                                                        customerOrderCount={orderCount}
-                                                                        archivedOrderCount={getCustomerArchivedCount(order.phone)}
-                                                                        previousOrder={previousOrder}
-                                                                        onMergeWithPrevious={async (keepId: string, archiveId: string) => {
-                                                                            await mergeOrders(keepId, archiveId);
-                                                                        }}
-                                                                        onShowDuplicates={(o: Order) => {
-                                                                            setDuplicateOrder(o);
-                                                                            setShowDuplicateModal(true);
-                                                                        }}
-                                                                        hasDuplicates={hasDuplicates(order.id)}
-                                                                        getCustomerOrderCount={(phone: string) => getCustomerOrderCount(phone, order.order_id)}
-                                                                        onTogglePin={(id: string) => togglePin(id)}
-                                                                        onClone={(o: Order) => cloneOrder(o.id)}
-                                                                        onScreenshot={() => setScreenshotOrder(order)}
-                                                                        onCancelWithReason={(o: Order) => {
-                                                                            setOrderToCancel(o);
-                                                                            setCancelDialogOpen(true);
-                                                                        }}
-                                                                        onRejectWithReason={(o: Order) => {
-                                                                            setOrderToReject(o);
-                                                                            setRejectDialogOpen(true);
-                                                                        }}
-                                                                        onToggleReviewed={toggleReviewed}
-                                                                        returnOrderInfo={getReturnOrderInfo(order.id)}
-                                                                        originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
-                                                                        compact={compactView}
-                                                                        actionDock={actionDock}
-                                                                        gridMode={true}
-                                                                        onOpenTemplatePanel={(o: Order) => {
-                                                                            setOrderForTemplate(o);
-                                                                            setTemplatePanelOpen(true);
-                                                                        }}
-                                                                        messageTemplates={workflowTemplates}
-                                                                        isSelected={selectedOrders.has(order.id)}
-                                                                        onToggleSelection={toggleOrderSelection}
-                                                                        assignments={assignments.filter(a => a.order_id === order.id)}
-                                                                        onAssignDuty={handleAssignDuty}
-                                                                    />
-                                                                );
-                                                            })}
-                                                        </div>
+                                                        /* PERF-2: the compact grid used to render every filtered
+                                                           order at once. It is the same virtualized list as below,
+                                                           in grid mode — `content-visibility` is deliberately not
+                                                           applied any more, because it would make the virtualizer
+                                                           measure the placeholder height instead of the card. */
+                                                        <VirtualizedOrderList
+                                                            orders={displayedOrders}
+                                                            gridMode
+                                                            gridClassName={cn(
+                                                                "grid gap-2",
+                                                                compactView === 2
+                                                                    ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                                                                    : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                                                            )}
+                                                            loadingId={loadingId}
+                                                            selectedOrders={selectedOrders}
+                                                            messageTemplates={workflowTemplates}
+                                                            onStatusUpdate={handleStatusUpdate}
+                                                            onViewDetails={handleViewDetails}
+                                                            onToggleSelection={toggleOrderSelection}
+                                                            onTogglePin={togglePin}
+                                                            onCloneOrder={cloneOrder}
+                                                            onScreenshot={setScreenshotOrder}
+                                                            onCancelWithReason={(o) => {
+                                                                setOrderToCancel(o);
+                                                                setCancelDialogOpen(true);
+                                                            }}
+                                                            onRejectWithReason={(o) => {
+                                                                setOrderToReject(o);
+                                                                setRejectDialogOpen(true);
+                                                            }}
+                                                            onToggleReviewed={toggleReviewed}
+                                                            onOpenTemplatePanel={(o) => {
+                                                                setOrderForTemplate(o);
+                                                                setTemplatePanelOpen(true);
+                                                            }}
+                                                            onShowDuplicates={(o) => {
+                                                                setDuplicateOrder(o);
+                                                                setShowDuplicateModal(true);
+                                                            }}
+                                                            onMergeWithPrevious={async (keepId, archiveId) => {
+                                                                await mergeOrders(keepId, archiveId);
+                                                            }}
+                                                            isBlacklisted={isBlacklisted}
+                                                            getBlacklistEntry={getBlacklistEntry}
+                                                            onAddToBlacklist={addToBlacklist}
+                                                            onRemoveFromBlacklist={removeFromBlacklist}
+                                                            getRiskAssessment={getRiskAssessmentByPhone}
+                                                            getCustomerOrderCount={getCustomerOrderCount}
+                                                            getCustomerArchivedCount={getCustomerArchivedCount}
+                                                            getCustomerHistory={getCustomerHistory}
+                                                            getReturnOrderInfo={getReturnOrderInfo}
+                                                            getOriginalOrderInfo={getOriginalOrderInfo}
+                                                            compactView={compactView}
+                                                            actionDock={actionDock}
+                                                            getRiskLevel={getRiskLevelByPhone}
+                                                            hasDuplicates={hasDuplicates}
+                                                            onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
+                                                        />
                                                     ) : displayedOrders.length >= 10 ? (
                                                         /* Use virtualized list for 50+ orders */
                                                         <VirtualizedOrderList
@@ -2704,10 +1779,7 @@ export default function OrdersPage() {
                                                             getBlacklistEntry={getBlacklistEntry}
                                                             onAddToBlacklist={addToBlacklist}
                                                             onRemoveFromBlacklist={removeFromBlacklist}
-                                                            getRiskAssessment={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                return order ? riskByOrderId.get(order.id) : undefined;
-                                                            }}
+                                                            getRiskAssessment={getRiskAssessmentByPhone}
                                                             getCustomerOrderCount={getCustomerOrderCount}
                                                             getCustomerArchivedCount={getCustomerArchivedCount}
                                                             getCustomerHistory={getCustomerHistory}
@@ -2715,15 +1787,9 @@ export default function OrdersPage() {
                                                             getOriginalOrderInfo={getOriginalOrderInfo}
                                                             compactView={compactView}
                                                             actionDock={actionDock}
-                                                            getRiskLevel={(phone) => {
-                                                                const order = displayedOrders.find(o => o.phone === phone);
-                                                                const level = (order ? riskByOrderId.get(order.id)?.level : undefined) || "low";
-                                                                return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                            }}
+                                                            getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
-                                                            assignments={assignments}
-                                                            onAssignDuty={handleAssignDuty}
                                                         />
                                                     ) : (
                                                         /* Use animated list for <50 orders */
@@ -2745,8 +1811,8 @@ export default function OrdersPage() {
                                                                             blacklistEntry={getBlacklistEntry(order.phone)}
                                                                             onAddToBlacklist={addToBlacklist}
                                                                             onRemoveFromBlacklist={removeFromBlacklist}
-                                                                            riskLevel={(riskByOrderId.get(order.id)?.level || "low") as "low" | "medium" | "high" | "blocked"}
-                                                                            riskAssessment={riskByOrderId.get(order.id)}
+                                                                            riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
+                                                                            riskAssessment={order.risk_data}
                                                                             customerOrderCount={orderCount}
                                                                             archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                             previousOrder={previousOrder}
@@ -2781,9 +1847,7 @@ export default function OrdersPage() {
                                                                             messageTemplates={workflowTemplates}
                                                                             isSelected={selectedOrders.has(order.id)}
                                                                             onToggleSelection={toggleOrderSelection}
-                                                                            assignments={assignments.filter(a => a.order_id === order.id)}
-                                                                            onAssignDuty={handleAssignDuty}
-                                                                        />
+                                                                            />
                                                                     </StaggerItem>
                                                                 );
                                                             })}
@@ -2811,11 +1875,7 @@ export default function OrdersPage() {
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
                                                     updateOrderStatus={updateOrderStatus}
-                                                    getRiskLevel={(phone) => {
-                                                        const order = displayedOrders.find(o => o.phone === phone);
-                                                        const level = (order ? riskByOrderId.get(order.id)?.level : undefined) || "low";
-                                                        return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
-                                                    }}
+                                                    getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
                                                     setColumnFilters={setColumnFilters}
                                                     openFilterColumn={openFilterColumn}
@@ -2852,324 +1912,32 @@ export default function OrdersPage() {
                         </AnimatePresence>
                     </div>
 
-                    {/* Modals */}
-                    <OrderDetailsModal
-                        order={selectedOrder ? (orders.find((o: Order) => o.id === selectedOrder.id) ?? selectedOrder) : null}
-                        open={isModalOpen}
-                        onClose={() => {
-                            setIsModalOpen(false);
-                            setSelectedOrder(null);
-                        }}
-                        onUpdate={updateOrder}
-                        onStatusUpdate={updateOrderStatus}
-                        onGetTimeline={getOrderTimeline}
-                        onGetNotes={getOrderNotes}
-                        onDelete={deleteOrder}
-                        onCreateReturn={createReturnOrder}
-                        onCreateReplacement={createReplacementOrder}
-                        checkOrderIdExists={checkOrderIdExists}
-                        assignments={selectedOrder ? assignments.filter(a => a.order_id === selectedOrder.id) : []}
-                        onAssignDuty={handleAssignDuty}
-                        onOpenTemplatePanel={(o) => {
-                            setOrderForTemplate(o);
-                            setTemplatePanelOpen(true);
-                        }}
-                        messageTemplates={workflowTemplates}
-                    />
-                    <CreateOrderModal
-                        open={isCreateModalOpen}
-                        onClose={() => setIsCreateModalOpen(false)}
-                        onCreate={createOrder}
-                        checkOrderIdExists={checkOrderIdExists}
-                        getBlacklistEntry={getBlacklistEntry}
+                    {/*
+                        ARCH-1: the modal tail — 325 lines of dialogs — used to sit
+                        here. It is now two components split by what they act on: one
+                        order, or a selection. Both read the store and the orders
+                        context directly, because that is where their state already
+                        lived; only what the page genuinely owns is passed in.
+                    */}
+                    <OrderDialogs
+                        isMounted={isMounted}
+                        isReturnsOpen={isReturnsOpen}
+                        setIsReturnsOpen={setIsReturnsOpen}
+                        isScannerOpen={isScannerOpen}
+                        setIsScannerOpen={setIsScannerOpen}
+                        workflowTemplates={workflowTemplates}
+                        displayedOrders={displayedOrders}
+                        onSplitConfirm={handleSplitOrder}
+                        onStatusUpdate={handleStatusUpdate}
                     />
 
-                    {isMounted && (
-                        <ReturnsCockpitModal
-                            open={isReturnsOpen}
-                            onClose={() => setIsReturnsOpen(false)}
-                            onOpenOrder={(order) => {
-                                setSelectedOrder(order);
-                                setIsModalOpen(true);
-                                setIsReturnsOpen(false);
-                            }}
-                        />
-                    )}
-
-                    {isMounted && (
-                        <BarcodeScanner
-                            isOpen={isScannerOpen}
-                            onClose={() => setIsScannerOpen(false)}
-                            onScan={(code) => {
-                                // Push the scanned code into the search; GlobalSearchField will
-                                // normalize "QR:{id}|PHONE:..." → order id before applying.
-                                useOrderStore.getState().setLocalSearchQuery(code);
-                                setIsScannerOpen(false);
-                            }}
-                        />
-                    )}
-
-                    {/* Duplicate Comparison Modal */}
-                    {
-                        duplicateOrder && (
-                            <DuplicateComparisonModal
-                                open={showDuplicateModal}
-                                onClose={() => {
-                                    setShowDuplicateModal(false);
-                                    setDuplicateOrder(null);
-                                }}
-                                currentOrder={duplicateOrder}
-                                duplicateOrders={orders.filter(o =>
-                                    o.id !== duplicateOrder.id &&
-                                    normalizePhoneForSearch(o.phone) === normalizePhoneForSearch(duplicateOrder.phone) &&
-                                    !o.is_return
-                                )}
-                                onMerge={async (targetId, sourceId) => {
-                                    const result = await mergeOrders(targetId, sourceId);
-                                    return result;
-                                }}
-                                onMarkAsSameCustomer={(orderId) => {
-                                    // Mark this customer as verified returning customer
-                                    markAsVerifiedCustomer(orderId);
-                                    setShowDuplicateModal(false);
-                                    setDuplicateOrder(null);
-                                }}
-                                onCancelOrder={async (orderId) => {
-                                    const result = await updateOrderStatus(orderId, "cancelled", "Cancelled via duplicate comparison");
-                                    return result;
-                                }}
-                                onViewOrder={(order) => {
-                                    setShowDuplicateModal(false);
-                                    setDuplicateOrder(null);
-                                    setSelectedOrder(order);
-                                    setIsModalOpen(true);
-                                }}
-                                onDismissDuplicate={async (phone, notes) => {
-                                    await dismissDuplicate(phone, notes);
-                                }}
-                                onFilterDuplicates={() => {
-                                    setFilterDuplicatesOnly(true);
-                                }}
-                                isBlacklisted={isBlacklisted}
-                                getCustomerOrders={getCustomerOrders}
-                            />
-                        )
-                    }
-
-                    {/* Split Order Dialog */}
-                    {splitOrderDialog.open && splitOrderDialog.order && (
-                        <SplitOrderDialog
-                            order={splitOrderDialog.order}
-                            open={splitOrderDialog.open}
-                            onClose={() => setSplitOrderDialog({ open: false, order: null })}
-                            onConfirm={handleSplitOrder}
-                        />
-                    )}
-
-                    {/* WhatsApp Template Panel */}
-                    {(orderForTemplate || (templatePanelOpen && selectedOrders.size > 0)) && (
-                        <WhatsAppTemplatePanel
-                            open={templatePanelOpen}
-                            onClose={() => {
-                                setTemplatePanelOpen(false);
-                                setOrderForTemplate(null);
-                            }}
-                            order={orderForTemplate || undefined}
-                            bulkOrders={!orderForTemplate ? displayedOrders.filter(o => selectedOrders.has(o.id)) : undefined}
-                            templates={workflowTemplates}
-                        />
-                    )}
-
-                    <FloatingActionBar
-                        selectedCount={selectedOrders.size}
-                        onConfirm={handleBulkConfirm}
-                        onReject={handleBulkReject}
-                        onArchive={handleBulkArchive}
-                        onDelete={handleBulkDelete}
-                        disabled={isBulkProcessing}
-                    />
-
-
-                    {/* Bulk Processing Overlay */}
-                    <AnimatePresence>
-                        {isBulkProcessing && (
-                            <motion.div
-                                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                                animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
-                                exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                                className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/20 pointer-events-none"
-                            >
-                                <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.9, opacity: 0 }}
-                                    className="bg-white/90 dark:bg-black/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 dark:border-white/10 flex flex-col items-center gap-6"
-                                >
-                                    <div className="relative">
-                                        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
-                                        <div className="relative bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
-                                            <svg className="w-10 h-10 text-blue-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div className="text-center space-y-1">
-                                        <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                            {t("orders.processing") !== "orders.processing" ? t("orders.processing") : "Processing..."}
-                                        </h3>
-                                        <p className="text-sm font-medium text-muted-foreground">
-                                            Please wait while we update your orders
-                                        </p>
-                                    </div>
-                                </motion.div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    <OrderBulkDialogs bulk={bulk} />
 
                     {/* Scroll to Top Button */}
                     <ScrollToTopButton />
 
                     {/* Monthly Backup Reminder */}
                     <BackupPrompt />
-
-                    {/* Order Confirmation Screenshot Modal */}
-                    <AnimatePresence>
-                        {screenshotOrder && (
-                            <OrderConfirmationCard
-                                order={screenshotOrder}
-                                onClose={() => setScreenshotOrder(null)}
-                            />
-                        )}
-                    </AnimatePresence>
-
-
-                    {/* Export Report Modal */}
-                    <ExportReportModal
-                        open={isExportModalOpen}
-                        onClose={() => setIsExportModalOpen(false)}
-                        filteredOrders={filteredOrders}
-                        selectedOrderIds={selectedOrders}
-                        allOrders={orders}
-                        currentDateFrom={filters.dateFrom}
-                        currentDateTo={filters.dateTo}
-                    />
-
-                    {/* Cancellation Reason Dialog */}
-                    <CancellationReasonDialog
-                        open={cancelDialogOpen}
-                        onClose={() => {
-                            setCancelDialogOpen(false);
-                            setOrderToCancel(null);
-                        }}
-                        onConfirm={async (reason, reasonId) => {
-                            if (orderToCancel) {
-                                await handleStatusUpdate(orderToCancel.id, "cancelled", reason, reasonId);
-                            }
-                        }}
-                        customerName={orderToCancel?.customer_name}
-                        orderId={orderToCancel?.sequence_number ? String(orderToCancel.sequence_number) : orderToCancel?.order_id}
-                        type="cancel"
-                    />
-
-                    {/* Rejection Reason Dialog */}
-                    <CancellationReasonDialog
-                        open={rejectDialogOpen}
-                        onClose={() => {
-                            setRejectDialogOpen(false);
-                            setOrderToReject(null);
-                        }}
-                        onConfirm={async (reason, reasonId) => {
-                            if (orderToReject) {
-                                await handleStatusUpdate(orderToReject.id, "rejected", reason, reasonId);
-                            }
-                        }}
-                        customerName={orderToReject?.customer_name}
-                        orderId={orderToReject?.sequence_number ? String(orderToReject.sequence_number) : orderToReject?.order_id}
-                        type="reject"
-                    />
-
-                    {/* Delete Confirmation Dialog */}
-                    <Dialog open={deleteConfirmOpen} onOpenChange={(open) => {
-                        if (!isDeleting) {
-                            setDeleteConfirmOpen(open);
-                            if (!open) setDeleteCountdown(5);
-                        }
-                    }}>
-                        <DialogContent className="md:max-w-md" aria-describedby="delete-confirm-desc">
-                            <DialogHeader>
-                                <DialogTitle className="text-red-600">
-                                    {t("orders.deleteConfirm.title")}
-                                </DialogTitle>
-                                <DialogDescription id="delete-confirm-desc">
-                                    {t("orders.deleteConfirm.description").replace("{count}", String(selectedOrders.size))}
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="py-2">
-                                <div className="max-h-48 overflow-y-auto p-3 bg-rose-50 rounded-xl border border-rose-100">
-                                    <ul className="space-y-2">
-                                        {Array.from(selectedOrders).map(id => {
-                                            const order = orders.find(o => o.id === id);
-                                            return order ? (
-                                                <li key={id} className="text-sm text-rose-900 flex justify-between items-center bg-white/50 p-2 rounded-lg border border-rose-100/50">
-                                                    <span className="font-medium truncate max-w-[200px]">{order.customer_name}</span>
-                                                    <span className="text-rose-600 font-mono text-xs font-bold px-2 py-0.5 bg-rose-100 rounded-md">#{getBaseOrderId(order.order_id)}</span>
-                                                </li>
-                                            ) : null;
-                                        })}
-                                    </ul>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <button
-                                    onClick={() => {
-                                        setDeleteConfirmOpen(false);
-                                        setDeleteCountdown(5);
-                                    }}
-                                    disabled={isDeleting}
-                                    className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
-                                >
-                                    {t("common.cancel")}
-                                </button>
-                                <button
-                                    onClick={executeDelete}
-                                    disabled={deleteCountdown > 0 || isDeleting}
-                                    className={cn(
-                                        "px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2",
-                                        deleteCountdown > 0
-                                            ? "bg-red-200 text-red-400 cursor-not-allowed"
-                                            : "bg-red-600 text-white hover:bg-red-700"
-                                    )}
-                                >
-                                    {deleteCountdown > 0 ? t("orderDetail.waitDelete").replace("{n}", String(deleteCountdown)) : isDeleting ? t("common.deleting") : t("orders.deleteConfirm.button").replace("{count}", String(selectedOrders.size))}
-                                </button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-
-                    {/* Ship Export Confirmation Dialog */}
-                    <ShipExportConfirmationDialog
-                        key={shipConfirmKey}
-                        open={shipConfirmOpen}
-                        onOpenChange={setShipConfirmOpen}
-                        company={shipConfirmCompany}
-                        orders={selectedOrders.size > 0
-                            ? orders.filter(o => selectedOrders.has(o.id))
-                            : filteredOrders
-                        }
-                        currentTab={filters.status || 'all'}
-                        hasSelection={selectedOrders.size > 0}
-                        onConfirmExport={() => handleShipExport(shipConfirmCompany)}
-                    />
-
-                    {/* Post-export: prompt to move exported orders to In Transit */}
-                    <MoveToTransitDialog
-                        open={moveTransitOpen}
-                        onOpenChange={setMoveTransitOpen}
-                        count={pendingTransitIds.length}
-                        onConfirm={handleConfirmMoveToTransit}
-                    />
-
                 </motion.div>
             )}
         </AnimatePresence>

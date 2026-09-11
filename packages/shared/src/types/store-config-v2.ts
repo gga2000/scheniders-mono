@@ -521,6 +521,17 @@ export interface RuntimeContext {
   /** Current product/category if applicable. */
   product_id?: string;
   category_id?: string;
+  /**
+   * Order number the shopper just placed (thank-you page `?order=`). Read by
+   * `order_confirmation`; absent everywhere else.
+   */
+  order_number?: string;
+  /**
+   * Server-side search query (search page `?q=`, trimmed). Read by
+   * `search_results_grid` so results are filtered in the SSR pass instead of
+   * after hydration.
+   */
+  search_query?: string;
   /** Current server time — used for time_window matching. */
   now: Date;
 }

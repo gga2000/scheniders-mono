@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { StockIndicator } from "./stock-indicator";
 import { QuickActionsMenu } from "./quick-actions-menu";
 import { HealthScoreBadge } from "./health-score-badge";
+import { FillerBadge } from "./filler-badge";
 import { CategoryCombobox } from "./category-combobox";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { useUpdateProductMutation } from "@/hooks/use-products-query";
@@ -138,6 +139,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <h3 className="font-bold text-foreground truncate">{product.name}</h3>
+                        <FillerBadge isFiller={product.is_filler} className="shrink-0" />
                         {/* Inline category picker — click chip to change this product's category. */}
                         <div className="relative flex-shrink-0">
                             <button

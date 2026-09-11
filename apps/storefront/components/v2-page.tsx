@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import { cookies, headers } from "next/headers";
-import { RenderPage } from "@scheniders/sections";
+import { RenderPage, toSectionTenant } from "@scheniders/sections";
 import {
   assignAbArm,
   evaluateSegments,
@@ -31,17 +32,23 @@ import type { SectionRenderContext } from "@scheniders/sections";
  *  - sb_src: first-touch traffic source
  *  - sb_cart: cart total + timestamp, written client-side by <CartSignal>
  *  - sb_gov: governorate from last placed order (set by checkout orders route)
- *  - breakpoint: from runtime context */
+ *  - breakpoint: from runtime context
+ *
+ *  `lead` renders between the header chrome and the page body, with the
+ *  locale-resolved runtime — for route-owned content that is not a section
+ *  (the catalogue page's h1, the 404 fallback copy). */
 export async function V2Page({
   v2,
   page,
   runtime,
   renderCtx,
+  lead,
 }: {
   v2: StoreConfigV2;
   page: PageConfig;
   runtime: RuntimeContext;
   renderCtx: Omit<SectionRenderContext, "runtime">;
+  lead?: (runtime: RuntimeContext) => ReactNode;
 }) {
   const c = await cookies();
 
@@ -75,10 +82,19 @@ export async function V2Page({
   const cartRaw = c.get("sb_cart")?.value;
   if (cartRaw) {
     try {
-      const parsed = JSON.parse(decodeURIComponent(cartRaw)) as { total?: number; ts?: number };
+      const parsed = JSON.parse(decodeURIComponent(cartRaw)) as {
+        total?: number;
+        ts?: number;
+      };
       if (typeof parsed.total === "number") cartTotal = parsed.total;
-      if (typeof parsed.ts === "number") minutesSinceCart = Math.max(0, Math.floor((Date.now() - parsed.ts) / 60000));
-    } catch { /* malformed cookie — ignore, keep defaults */ }
+      if (typeof parsed.ts === "number")
+        minutesSinceCart = Math.max(
+          0,
+          Math.floor((Date.now() - parsed.ts) / 60000),
+        );
+    } catch {
+      /* malformed cookie — ignore, keep defaults */
+    }
   }
   const govRaw = c.get("sb_gov")?.value;
 
@@ -89,11 +105,23 @@ export async function V2Page({
     cart_total_iqd: cartTotal,
     minutes_since_cart_activity: minutesSinceCart,
     traffic_source: trafficSource,
-    ...(govRaw ? { governorate: govRaw as SegmentEvalContext["governorate"] } : {}),
+    ...(govRaw
+      ? { governorate: govRaw as SegmentEvalContext["governorate"] }
+      : {}),
     breakpoint: runtime.breakpoint,
   };
 
   const audienceSegments = evaluateSegments(v2.segments ?? [], segmentCtx);
+
+  // Sections only ever see the pruned tenant. `renderCtx.tenant` arrives as
+  // the full storefront row (store_config, store_config_v2, draft…); every
+  // client section's `ctx` is serialised into the RSC payload, so handing it
+  // the whole row would ship the entire page tree to the browser on every
+  // request. `toSectionTenant` keeps exactly the fields sections read.
+  const sectionCtx: Omit<SectionRenderContext, "runtime"> = {
+    ...renderCtx,
+    tenant: toSectionTenant(renderCtx.tenant),
+  };
 
   // EC13: resolve the locale to actually render for THIS visitor — explicit
   // switcher cookie, else Accept-Language, else the store default — constrained
@@ -111,6 +139,10 @@ export async function V2Page({
     locale: resolvedLocale,
     ab_test_arms: abArms,
     audience_segments: audienceSegments,
+    // The remembered governorate (sb_gov cookie, set at checkout) is the only
+    // prefill the COD forms use — the select otherwise starts empty so a
+    // shopper outside Baghdad can't submit with the wrong fee by default.
+    ...(govRaw ? { governorate: govRaw as RuntimeContext["governorate"] } : {}),
   };
 
   return (
@@ -123,14 +155,15 @@ export async function V2Page({
       <StorefrontGlobals
         globals={v2.globals}
         runtime={enrichedRuntime}
-        renderCtx={renderCtx}
+        renderCtx={sectionCtx}
         slots={["promo_bar", "header"]}
       />
-      <RenderPage page={page} runtime={enrichedRuntime} renderCtx={renderCtx} />
+      {lead ? lead(enrichedRuntime) : null}
+      <RenderPage page={page} runtime={enrichedRuntime} renderCtx={sectionCtx} />
       <StorefrontGlobals
         globals={v2.globals}
         runtime={enrichedRuntime}
-        renderCtx={renderCtx}
+        renderCtx={sectionCtx}
         slots={["footer"]}
       />
       {/* Sticky bottom bar — fixed-position, so DOM order after the footer is
@@ -140,7 +173,7 @@ export async function V2Page({
       <StorefrontGlobals
         globals={v2.globals}
         runtime={enrichedRuntime}
-        renderCtx={renderCtx}
+        renderCtx={sectionCtx}
         slots={["sticky_bottom_bar"]}
       />
     </>

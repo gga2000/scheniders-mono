@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { normalizeIraqiMobile, isValidIraqiMobile } from "./phone";
+import {
+  normalizeIraqiMobile,
+  isValidIraqiMobile,
+  formatIraqiPhoneDisplay,
+} from "./phone";
 
 describe("normalizeIraqiMobile (EC23)", () => {
   it("accepts the local 07XXXXXXXXX form", () => {
@@ -36,5 +40,19 @@ describe("isValidIraqiMobile", () => {
     expect(isValidIraqiMobile("+9647701234567")).toBe(true);
     expect(isValidIraqiMobile("0000000000")).toBe(false);
     expect(isValidIraqiMobile(undefined)).toBe(false);
+  });
+});
+
+describe("formatIraqiPhoneDisplay", () => {
+  it("groups a normalised Iraqi mobile as 07XX XXX XXXX", () => {
+    expect(formatIraqiPhoneDisplay("07779703832")).toBe("0777 970 3832");
+    expect(formatIraqiPhoneDisplay("+9647779703832")).toBe("0777 970 3832");
+    expect(formatIraqiPhoneDisplay("00964 777 970 3832")).toBe("0777 970 3832");
+    expect(formatIraqiPhoneDisplay("0777-970-3832")).toBe("0777 970 3832");
+  });
+
+  it("leaves non-mobile numbers untouched (trimmed)", () => {
+    expect(formatIraqiPhoneDisplay(" 01 234 5678 ")).toBe("01 234 5678");
+    expect(formatIraqiPhoneDisplay("+1 555 0100")).toBe("+1 555 0100");
   });
 });

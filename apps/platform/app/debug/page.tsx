@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from "@/lib/supabase";
 import { Card } from '@scheniders/ui/card';
 import { Button } from '@scheniders/ui/button';
 import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
@@ -26,7 +27,15 @@ export default function WebhookDebugPage() {
     const processCheckouts = async () => {
         setProcessing(true);
         try {
-            const response = await fetch('/api/cron/process-checkouts-manual');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('❌ Sign in first — this endpoint now requires an authenticated user.');
+                setProcessing(false);
+                return;
+            }
+            const response = await fetch('/api/cron/process-checkouts-manual', {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
             const data = await response.json();
             alert(`✅ Processed ${data.processed || 0} checkout(s)\n${data.failed || 0} failed`);
             fetchStatus(); // Refresh status

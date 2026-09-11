@@ -1,41 +1,72 @@
 "use server";
 
-import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
+import type { CreateOrderInput } from "@/types/order";
 import { Order, OrderItem } from "@/lib/supabase";
 import { canCreateOrder } from "@/lib/tenant";
+import { createOrderForTenant } from "@/lib/order-service";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
-import { createOrderCore } from "@/lib/orders/create-order-core";
-import { authFailure, requireTenantMember } from "@/lib/auth/require-caller";
+
+// =============================================
+// CALLER RESOLUTION
+// =============================================
 
 /**
- * ORD-A12. Every export here is a public HTTP endpoint.
+ * Server actions are public POST endpoints — anyone who can read the client
+ * bundle can invoke them. Every mutating action below therefore verifies the
+ * caller's access token and derives the tenant from their own profile.
  *
- * A Next.js Server Action is addressable independently of the component that
- * imports it — the action id ships in the client bundle and anyone can POST to
- * it with arbitrary arguments. These actions build a service-role client, which
- * bypasses RLS, and they take `tenantId` as a parameter. Until this change none
- * of them checked the caller, so any signed-in user could create orders in, and
- * bill, any tenant.
- *
- * `requireTenantMember` establishes the caller from the SESSION COOKIE — which
- * cannot be supplied as an argument — and proves membership of the tenant the
- * arguments name. Never trust the argument on its own.
+ * The tenant is NEVER taken from an argument: a client-supplied tenant id let
+ * any signed-in user write into any other tenant, and a null one skipped the
+ * pause / plan-limit / wallet-charge guards entirely.
  */
+type Caller = { userId: string; tenantId: string; role: string };
+
+/** Roles permitted to mutate orders. `viewer` is read-only. */
+const ORDER_WRITE_ROLES = ["admin", "super_admin", "employee"];
+
+async function resolveCaller(
+    accessToken: string | undefined,
+): Promise<{ caller: Caller } | { error: string }> {
+    if (!accessToken) return { error: "Unauthorized" };
+
+    const { user, error } = await verifyAccessToken(accessToken);
+    if (error || !user) return { error: "Unauthorized" };
+
+    const supabase = createSupabaseServiceClient();
+    const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("current_tenant_id, role, is_active")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    // Deactivating a user is a soft flag and does not revoke their existing
+    // session, so the check has to happen on every call.
+    if (profile?.is_active === false) return { error: "Account deactivated" };
+
+    const tenantId = profile?.current_tenant_id as string | undefined;
+    if (!tenantId) return { error: "No active tenant" };
+
+    // Deny by default: an absent/NULL role must not inherit write access.
+    return {
+        caller: {
+            userId: user.id,
+            tenantId,
+            role: (profile?.role as string) ?? "",
+        },
+    };
+}
 
 // =============================================
 // CHECK LIMITS (called from UI before showing create modal)
 // =============================================
 
 export async function checkOrderLimitsAction(
-    tenantId: string
+    accessToken: string,
 ): Promise<{ allowed: boolean; reason?: string; warning?: string }> {
-    try {
-        await requireTenantMember(tenantId);
-    } catch (err) {
-        if (authFailure(err)) return { allowed: false, reason: "Not authorised for this account." };
-        throw err;
-    }
-    return canCreateOrder(tenantId);
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { allowed: false, reason: resolved.error };
+    return canCreateOrder(resolved.caller.tenantId);
 }
 
 // =============================================
@@ -43,59 +74,59 @@ export async function checkOrderLimitsAction(
 // =============================================
 
 export async function createOrderAction(
-    orderData: Omit<Order, "id" | "created_at" | "updated_at">,
-    tenantId: string | null,
-    retryCount = 0
+    orderData: CreateOrderInput,
+    accessToken: string,
 ): Promise<{ success: boolean; data?: Order; error?: string; warning?: string }> {
-    // Creating an order charges the tenant's wallet and consumes plan quota, so
-    // the caller must be a member of the tenant they are billing.
-    try {
-        if (!tenantId) return { success: false, error: "No account specified." };
-        await requireTenantMember(tenantId);
-    } catch (err) {
-        const denied = authFailure(err);
-        if (denied) return denied;
-        throw err;
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+
+    const { tenantId, role } = resolved.caller;
+    if (!ORDER_WRITE_ROLES.includes(role)) {
+        return { success: false, error: "You do not have permission to create orders" };
     }
-    return createOrderCore(orderData, tenantId, retryCount);
+
+    return createOrderForTenant(orderData, tenantId);
 }
+
+// =============================================
+// SPLIT ORDER
+// =============================================
 
 export async function splitOrderAction(
     originalOrderId: string,
     keptItems: OrderItem[],
     returnedItems: OrderItem[],
-    tenantId: string | null
+    accessToken: string,
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
-    try {
-        if (!tenantId) return { success: false, error: "No account specified." };
-        await requireTenantMember(tenantId);
-    } catch (err) {
-        const denied = authFailure(err);
-        if (denied) return denied;
-        throw err;
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+
+    const { tenantId, role } = resolved.caller;
+    if (!ORDER_WRITE_ROLES.includes(role)) {
+        return { success: false, error: "You do not have permission to split orders" };
     }
 
     const supabase = createSupabaseServiceClient();
 
     try {
         // Splitting creates a new return-order row (a write). Block when paused.
-        if (tenantId) {
-            try {
-                await assertNotBlocked(tenantId, "new_orders");
-            } catch (err) {
-                if (err instanceof TenantBlockedError) {
-                    return {
-                        success: false,
-                        error: err.restrictions.reason
-                            || "New orders are paused for this account.",
-                    };
-                }
-                throw err;
+        try {
+            await assertNotBlocked(tenantId, "new_orders");
+        } catch (err) {
+            if (err instanceof TenantBlockedError) {
+                return {
+                    success: false,
+                    error: err.restrictions.reason
+                        || "New orders are paused for this account.",
+                };
             }
+            throw err;
         }
-        // We delegate the split operation to our new atomic PostgreSQL RPC
-        // which encapsulates fetching, calculating, updating, and inserting inside
-        // a SERIALIZABLE transaction via row locks.
+
+        // We delegate the split operation to our atomic PostgreSQL RPC which
+        // encapsulates fetching, calculating, updating, and inserting inside a
+        // SERIALIZABLE transaction via row locks. The tenant passed here is the
+        // caller's own — the RPC's membership guard rejects anything else.
         const { data: createdReturnOrder, error: splitError } = await supabase
             .rpc('split_order_atomic', {
                 _original_order_id: originalOrderId,
@@ -117,42 +148,67 @@ export async function splitOrderAction(
 }
 
 // =============================================
-// POST-CREATION: Charge wallet + increment usage
-// =============================================
-
-// =============================================
 // CHECK ORDER ID EXISTS
 // =============================================
 
-export async function checkOrderIdExists(orderId: string, excludeUuid?: string, tenantId?: string | null): Promise<boolean> {
-    // ORD-A12: `tenantId` was optional, and omitting it queried every tenant's
-    // orders through a service-role client — a cross-tenant existence oracle
-    // for any order id. It is now required and authorised.
-    if (!tenantId) return false;
-    try {
-        await requireTenantMember(tenantId);
-    } catch {
-        return false;
-    }
+export async function checkOrderIdExists(
+    orderId: string,
+    excludeUuid: string | undefined,
+    accessToken: string,
+): Promise<boolean> {
+    // Never answer "false" (i.e. "this id is free") when we could not actually
+    // check — the caller renders that as an "available" badge and the insert
+    // then fails on the global unique index. Surface the failure instead.
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) throw new Error(resolved.error);
 
     const supabase = createSupabaseServiceClient();
 
-    try {
-        let query = supabase
-            .from("orders")
-            .select("id")
-            .eq("order_id", orderId);
+    // NOTE: `orders_order_id_key` is a GLOBAL unique index (not per-tenant), so
+    // this existence check must be global too — scoping it to the caller's tenant
+    // would report a taken order_id as free and fail the insert on 23505.
+    let query = supabase
+        .from("orders")
+        .select("id")
+        .eq("order_id", orderId);
 
-        if (excludeUuid) {
-            query = query.neq("id", excludeUuid);
-        }
-
-        query = query.eq("tenant_id", tenantId);
-
-        const { data, error } = await query;
-        if (error) throw error;
-        return data && data.length > 0;
-    } catch {
-        return false;
+    if (excludeUuid) {
+        query = query.neq("id", excludeUuid);
     }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data.length > 0;
+}
+
+/**
+ * Reverse a split, restoring the original order and retracting the return it
+ * created.
+ *
+ * WF-2: only valid while that return order is untouched — the RPC refuses once
+ * it has moved off `rejected`, been sent to a courier, or had a refund recorded,
+ * because by then the split reflects something that already happened.
+ */
+export async function unsplitOrderAction(
+    splitLogId: string,
+    accessToken: string,
+): Promise<{ success: boolean; error?: string }> {
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+
+    const { tenantId, role } = resolved.caller;
+    if (!ORDER_WRITE_ROLES.includes(role)) {
+        return { success: false, error: "You do not have permission to undo a split" };
+    }
+
+    const supabase = createSupabaseServiceClient();
+    const { error } = await supabase.rpc("unsplit_order_atomic", {
+        _split_log_id: splitLogId,
+        _tenant_id: tenantId,
+    });
+
+    if (error) {
+        return { success: false, error: error.message };
+    }
+    return { success: true };
 }

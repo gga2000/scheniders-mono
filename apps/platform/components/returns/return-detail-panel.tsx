@@ -10,11 +10,12 @@ import type { ReturnDestination, ReturnItemDestination } from "@/lib/returns/pro
 import { useOrderReasons } from "@/hooks/use-order-reasons";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import type { RiskLevel } from "@/lib/fraud-detector";
-import { getStatusLabel, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
+import { useStatusLabel } from "@/hooks/use-status-label";
 
 const DESTS: { key: ReturnDestination; label: string }[] = [
     { key: "restock", label: "Restock" },
@@ -41,6 +42,7 @@ export function ReturnDetailPanel({
 }) {
     const { reasons } = useOrderReasons("reject", { enabledOnly: true });
     const { profile, user, tenantId } = useAuth();
+    const orderStatusLabel = useStatusLabel();
     const [reasonLabel, setReasonLabel] = useState<string>(defaultReasonLabel || "");
     const [orderDest, setOrderDest] = useState<ReturnDestination>("restock");
     const items = useMemo<OrderItem[]>(() => order.items || [], [order]);
@@ -54,7 +56,7 @@ export function ReturnDetailPanel({
     const rawRisk = useOrderRisk(order.id)?.level;
     const riskLevel = (rawRisk === "medium" || rawRisk === "high" || rawRisk === "blocked"
         ? rawRisk : rawRisk === "flagged" ? "high" : "low") as RiskLevel;
-    const statusLabel = getStatusLabel(order.status, order.is_return);
+    const statusLabel = orderStatusLabel(order.status, order.is_return);
     const priorReason = order.status === "rejected" && order.rejection_reason ? order.rejection_reason : null;
 
     useEffect(() => {

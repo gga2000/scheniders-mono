@@ -1,5 +1,6 @@
 import Script from "next/script";
 import type { AnalyticsConfig } from "@scheniders/shared";
+import { PixelRouteChange } from "./pixel-route-change";
 
 /**
  * Injects Meta / TikTok / Google Analytics / Snapchat / GTM pixels.
@@ -10,6 +11,10 @@ import type { AnalyticsConfig } from "@scheniders/shared";
  *
  * If `gtm_container_id` is set, individual pixels are skipped (the merchant
  * is presumed to be loading them through Tag Manager instead).
+ *
+ * The inline scripts fire the first PageView on document load; the small
+ * `PixelRouteChange` client island re-fires it on App Router navigations
+ * (P2-29) and is only mounted when a direct pixel is actually configured.
  */
 /**
  * Rejects empty, placeholder, and malformed pixel IDs so a misconfigured
@@ -87,9 +92,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .filter((v) => v && isPlausiblePixelId("tiktok", v));
   const ga = gaRaw && isPlausiblePixelId("ga", gaRaw) ? gaRaw : undefined;
   const snap = snapRaw && isPlausiblePixelId("snap", snapRaw) ? snapRaw : undefined;
+  // GA4's own enhanced measurement already tracks history changes, so the
+  // route-change island only serves the pixels whose SDKs don't.
+  const needsRouteChangePageView = Boolean(meta) || tiktokIds.length > 0 || Boolean(snap);
 
   return (
     <>
+      {needsRouteChangePageView && <PixelRouteChange />}
       {meta && (
         <Script
           id="meta-pixel"

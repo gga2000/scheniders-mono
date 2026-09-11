@@ -605,6 +605,7 @@ function extractCoreKeyword(lightfunnelsName: string): string {
 async function findProductBySku(sku: string | undefined, lightfunnelsName: string): Promise<{
     id: string;
     name: string;
+    short_name?: string | null;
     image_url?: string;
     tag_color?: string;
 } | null> {
@@ -612,7 +613,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
     if (sku) {
         const { data: skuMatch } = await supabase
             .from('products')
-            .select('id, name, image_url, tag_color')
+            .select('id, name, short_name, image_url, tag_color')
             .eq('sku', sku)
             .single();
 
@@ -622,7 +623,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
     // Fetch all products once for matching strategies
     const { data: allProducts } = await supabase
         .from('products')
-        .select('id, name, image_url, tag_color, lightfunnels_aliases');
+        .select('id, name, short_name, image_url, tag_color, lightfunnels_aliases');
 
     if (!allProducts || allProducts.length === 0) return null;
 
@@ -640,6 +641,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
                 return {
                     id: product.id,
                     name: product.name,
+                    short_name: product.short_name,
                     image_url: product.image_url,
                     tag_color: product.tag_color,
                 };
@@ -669,6 +671,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
             return {
                 id: product.id,
                 name: product.name,
+                short_name: product.short_name,
                 image_url: product.image_url,
                 tag_color: product.tag_color,
             };
@@ -700,6 +703,7 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
             return {
                 id: product.id,
                 name: product.name,
+                short_name: product.short_name,
                 image_url: product.image_url,
                 tag_color: product.tag_color,
             };
@@ -781,7 +785,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
                 // This ensures we use our app's short names and images, not LightFunnels' full titles
                 if (product) {
                     return {
-                        name: product.name, // Use our short name (e.g., "برسيفيرون" instead of "عطر برسيفيرون الفاخر من باريس كورنر للرجال")
+                        // Snapshot the internal ops name (e.g., "برسيفيرون" instead of
+                        // "عطر برسيفيرون الفاخر من باريس كورنر للرجال"). products.name is the
+                        // customer-facing marketing title; products.short_name is what
+                        // employees read on orders, printing, labels and WhatsApp templates.
+                        name: product.short_name?.trim() || product.name,
                         quantity: item.quantity,
                         price: item.price,
                         sku: item.sku || undefined,
@@ -821,8 +829,18 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
         }
 
         // Assess customer risk (fraud detection) before creating order
-        // This checks for previous rejections and adds attention flags
-        const riskAssessment = await fraudDetector.assessCustomerTrust(formattedPhone);
+        // This checks for previous rejections and adds attention flags.
+        //
+        // The service-role client and the tenant are passed explicitly: this runs
+        // with no user session, so the browser client this used to fall back on
+        // failed every lookup with `42501: permission denied for function
+        // get_user_tenant_ids` and quietly returned a default assessment. The
+        // effect was that `previous_rejection` was never flagged on an incoming
+        // order, no matter how many deliveries that customer had refused.
+        const riskAssessment = await fraudDetector.assessCustomerTrust(formattedPhone, {
+            client: supabase,
+            tenantId,
+        });
 
         // Add attention flags for high-risk customers with previous rejections
         if (riskAssessment.historicalData.rejectedCustomerFaultCount > 0) {

@@ -12,6 +12,7 @@ import { Input } from "@scheniders/ui/input";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Label } from "@scheniders/ui/label";
 import { formatIQD, cn } from "@/lib/utils";
+import { toWholeIqd } from "@/lib/order-money";
 import { getAllGovernorateCodes } from "@/lib/address-validator";
 import {
     calculateTotal,
@@ -20,6 +21,7 @@ import {
     type ValidationErrors,
 } from "@/lib/order-utils";
 import type { OrderItem } from "@/lib/supabase";
+import type { CreateOrderInput, CreateOrderResult, OrderSource } from "@/types/order";
 import { useAuth } from "@/components/auth/auth-provider";
 import { checkOrderLimitsAction } from "@/app/actions/orders";
 import { toast } from "sonner";
@@ -69,13 +71,18 @@ const TikTokIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+/** Prefill accepted by the create-order modal, exported so callers can type
+ *  their own state instead of casting at the call site. */
+export type CreateOrderModalInitialData = Partial<
+    OrderFormData & { secondary_phone?: string; source?: OrderSource; order_id?: string }
+>;
+
 interface CreateOrderModalProps {
     open: boolean;
     onClose: () => void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onCreate: (orderData: any) => Promise<any>;
+    onCreate: (orderData: CreateOrderInput) => Promise<CreateOrderResult>;
     checkOrderIdExists?: (orderId: string) => Promise<boolean>;
-    initialData?: Partial<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>;
+    initialData?: CreateOrderModalInitialData;
     getBlacklistEntry?: (phone: string) => BlacklistEntry | null;
 }
 
@@ -97,11 +104,11 @@ export function CreateOrderModal({
     initialData,
     getBlacklistEntry,
 }: CreateOrderModalProps) {
-    const { session, tenantId } = useAuth();
+    const { session } = useAuth();
     const [limitWarning, setLimitWarning] = useState<string | null>(null);
     const [limitBlocked, setLimitBlocked] = useState<string | null>(null);
     const [orderType, setOrderType] = useState<OrderType>("delivery");
-    const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: string; order_id?: string }>({
+    const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: OrderSource; order_id?: string }>({
         customer_name: initialData?.customer_name || "",
         phone: initialData?.phone || "",
         secondary_phone: initialData?.secondary_phone || "",
@@ -134,10 +141,11 @@ export function CreateOrderModal({
 
     // Check plan limits when modal opens
     useEffect(() => {
-        if (open && tenantId) {
+        if (open && session?.access_token) {
             setLimitWarning(null);
             setLimitBlocked(null);
-            checkOrderLimitsAction(tenantId).then((result) => {
+            // The action resolves the tenant from the session token itself.
+            checkOrderLimitsAction(session.access_token).then((result) => {
                 if (!result.allowed) {
                     setLimitBlocked(result.reason ?? "Order limit reached");
                 } else if (result.warning) {
@@ -145,7 +153,7 @@ export function CreateOrderModal({
                 }
             }).catch(() => { /* non-critical */ });
         }
-    }, [open, tenantId]);  
+    }, [open, session?.access_token]);
 
     // Sync formData with initialData only when modal first opens
     useEffect(() => {
@@ -235,9 +243,16 @@ export function CreateOrderModal({
         setIsCheckingId(true);
 
         const timer = setTimeout(async () => {
-            const exists = await checkOrderIdExists(id);
-            setOrderIdStatus(exists ? "exists" : "available");
-            setIsCheckingId(false);
+            try {
+                const exists = await checkOrderIdExists(id);
+                setOrderIdStatus(exists ? "exists" : "available");
+            } catch {
+                // Could not verify (expired session / network) — stay silent
+                // rather than claiming the id is available.
+                setOrderIdStatus("idle");
+            } finally {
+                setIsCheckingId(false);
+            }
         }, 500);
 
         return () => clearTimeout(timer);
@@ -357,7 +372,7 @@ export function CreateOrderModal({
                     toast.warning('لم يتم العثور على بيانات في الصورة. الرجاء التحقق من الصورة والمحاولة مرة أخرى.');
                 }
             } else {
-                console.error("Failed to analyze image:", result.error, result.details);
+                console.error("Failed to analyze image:", result.error);
                 toast.error(`حدث خطأ أثناء تحليل الصورة: ${result.error || 'خطأ غير معروف'}`);
             }
         } catch (error) {
@@ -433,7 +448,11 @@ export function CreateOrderModal({
             // Calculate total price from items
             const itemsTotal = formData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const actualDeliveryFee = orderType === "shop" ? 0 : (includeDeliveryFee ? deliveryFee : 0);
-            const finalPrice = Math.max(0, itemsTotal - discount + actualDeliveryFee);
+            // `price` stores the discounted line-item subtotal WITHOUT delivery —
+            // the canonical convention shared with the storefront and every
+            // courier export (see lib/order-money). Delivery rides along in
+            // `delivery_fee`; the courier collects price + delivery_fee.
+            const finalPrice = Math.max(0, itemsTotal - discount);
 
 
             const result = await onCreate({
@@ -453,10 +472,11 @@ export function CreateOrderModal({
 
             if (result.success) {
                 const orderId = result.data?.order_id || '';
+                const createdOrderId = result.data?.id;
                 toast.success(`تم إنشاء الطلب ${orderId ? `#${orderId}` : 'بنجاح'}`, {
-                    action: result.data?.id ? {
+                    action: createdOrderId ? {
                         label: "عرض الطلب",
-                        onClick: () => { window.location.href = `/orders?highlight=${result.data.id}`; }
+                        onClick: () => { window.location.href = `/orders?highlight=${createdOrderId}`; }
                     } : undefined,
                 });
 
@@ -796,7 +816,7 @@ export function CreateOrderModal({
                                             const entry = normalizedPhone && getBlacklistEntry ? getBlacklistEntry(normalizedPhone) : null;
                                             if (!entry) return null;
                                             return (
-                                                <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-lg px-3 py-2.5 mt-1" dir="rtl">
+                                                <div className="flex flex-row-reverse items-start gap-2 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-lg px-3 py-2.5 mt-1 text-right">
                                                     <Ban className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                                                     <div className="text-xs space-y-0.5">
                                                         <p className="font-bold text-red-700 dark:text-red-400">⛔ هذا الرقم في القائمة السوداء</p>
@@ -1029,7 +1049,7 @@ export function CreateOrderModal({
                                                             <Input
                                                                 type="number"
                                                                 value={item.price}
-                                                                onChange={(e) => updateItem(index, "price", parseFloat(e.target.value) || 0)}
+                                                                onChange={(e) => updateItem(index, "price", toWholeIqd(e.target.value))}
                                                                 className="w-20 h-5 text-[10px] px-1.5 rounded border-green-300"
                                                                 autoFocus
                                                                 onBlur={() => setEditingPriceIndex(null)}
@@ -1110,7 +1130,7 @@ export function CreateOrderModal({
                                                 type="number"
                                                 min="0"
                                                 value={discount}
-                                                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                                onChange={(e) => setDiscount(toWholeIqd(e.target.value))}
                                                 className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right"
                                                 placeholder="0"
                                             />
@@ -1134,7 +1154,7 @@ export function CreateOrderModal({
                                                         type="number"
                                                         min="0"
                                                         value={deliveryFee}
-                                                        onChange={(e) => setDeliveryFee(parseFloat(e.target.value) || 0)}
+                                                        onChange={(e) => setDeliveryFee(toWholeIqd(e.target.value))}
                                                         className="w-20 h-6 rounded border-blue-200 bg-white text-[10px] font-mono text-right"
                                                     />
                                                 )}
@@ -1150,8 +1170,8 @@ export function CreateOrderModal({
                                                     min="0"
                                                     value={total}
                                                     onChange={(e) => {
-                                                        const newTotal = parseFloat(e.target.value) || 0;
-                                                        const newDiscount = Math.max(0, subtotal + actualDeliveryFee - newTotal);
+                                                        const newTotal = toWholeIqd(e.target.value);
+                                                        const newDiscount = Math.max(0, Math.round(subtotal + actualDeliveryFee - newTotal));
                                                         setDiscount(newDiscount);
                                                     }}
                                                     className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right font-bold text-green-700"
@@ -1281,8 +1301,20 @@ export function CreateOrderModal({
                                 discount_amount: 0,
                                 delivery_fee: 0,
                                 is_shop_order: false,
-                                status: 'pending',
+                                // ARCH-3: this was 'pending', which is not an
+                                // OrderStatus. OrderSchema validates status against
+                                // the enum, so every order this path created was
+                                // rejected with a validation error — the bulk image
+                                // upload could not create anything. Surfaced only
+                                // once `onCreate` stopped being typed `any`.
+                                status: 'new',
                                 source: 'whatsapp',
+                                priority: 'normal',
+                                payment_status: 'cod',
+                                is_return: false,
+                                is_replacement: false,
+                                is_archived: false,
+                                order_id: '',
                             });
                             
                             if (result?.success) {

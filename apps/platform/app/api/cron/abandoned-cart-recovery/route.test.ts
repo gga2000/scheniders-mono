@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: vi.fn(),
 }));
-// ORD-A7: the guard now fails CLOSED, so these tests must present the real
-// calling convention (a configured secret + a matching Bearer header) instead
-// of relying on the check disabling itself when the secret was absent.
+// The cron guard now fails CLOSED, so these tests present the real calling
+// convention — a configured secret plus a matching Bearer header — instead of
+// relying on the check disabling itself when no secret was set.
 vi.mock("@/lib/env", () => ({ env: { CRON_SECRET: "test-cron-secret" } }));
 vi.mock("@/lib/abandoned-cart-sender", () => ({
     sendCartRecoveryMessage: vi.fn(),

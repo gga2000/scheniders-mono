@@ -15,6 +15,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
 import type { Order } from "@/types/order";
+import { computeCodAmount } from "@/lib/order-money";
 import type {
     WaseetApiResult,
     WaseetCity,
@@ -494,14 +495,16 @@ export function mapOrderToWaseet(
     // 5. Items count (sum of quantities)
     const itemsNumber = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
 
-    // 6. Price — Al-Waseet wants the amount the courier COLLECTS: line-item
-    // subtotal + delivery − discount (the coupon the customer applied). Without
-    // subtracting the discount the courier would collect the full amount.
-    const price = Math.round(
-        (order.price || 0) + (order.delivery_fee || 0) - (order.discount_amount || 0),
-    );
-    if (price <= 0) {
-        errors.push(`Invalid price: ${price} (order.price=${order.price}, delivery_fee=${order.delivery_fee}, discount=${order.discount_amount})`);
+    // 6. Price — Al-Waseet wants the amount the courier COLLECTS. `order.price`
+    // is already net of the discount (see lib/order-money), so the COD amount is
+    // price + delivery_fee; subtracting discount_amount here deducted it twice.
+    const price = computeCodAmount(order);
+    // A prepaid order legitimately collects 0 — the customer has already paid,
+    // so rejecting 0 here would make prepaid orders unshippable. Any OTHER
+    // order with nothing to collect is a data problem worth surfacing.
+    const isPrepaidOrder = order.payment_status === "prepaid" || order.payment_status === "paid";
+    if (price < 0 || (price === 0 && !isPrepaidOrder)) {
+        errors.push(`Invalid price: ${price} (order.price=${order.price}, delivery_fee=${order.delivery_fee}, payment_status=${order.payment_status})`);
     }
 
     // 7. Replacement flag

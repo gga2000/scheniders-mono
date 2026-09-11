@@ -2,22 +2,36 @@
 // Section — trust_strip
 // =====================================================================
 // Horizontal, scrollable row of trust pills (e.g. "Cash on delivery",
-// "Same-day Baghdad", "1-year warranty"). Each pill carries its own
-// background colour + optional Material Symbols icon name.
+// "Same-day Baghdad", "1-year warranty"). Each pill carries an optional
+// Material Symbols icon name and a tint. Tints map onto brand-kit
+// semantic tokens (not the Candy palette) so any kit renders the strip
+// as its own; the legacy `bg` values are kept so stored configs parse.
 // =====================================================================
 
+import type { CSSProperties } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
-import {
-  Section,
-  TrustPill,
-  MaterialIcon,
-} from "./helpers/primitives";
+import { Section, MaterialIcon } from "./helpers/primitives";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 
 const pillBg = z.enum(["mint", "butter", "sky", "lilac", "pink"]);
+
+type PillBg = z.infer<typeof pillBg>;
+
+/**
+ * Legacy Candy tint → semantic token. Soft `color-mix` tints (not solid
+ * fills) keep ink text readable on every kit — a calm kit's `--bk-success`
+ * is a dark green that would fail contrast under ink at full strength.
+ */
+const PILL_TINT: Record<PillBg, string> = {
+  mint: "color-mix(in srgb, var(--bk-success, #7cf0bd) 18%, transparent)",
+  butter: "color-mix(in srgb, var(--bk-accent, #ffd84a) 18%, transparent)",
+  sky: "var(--bk-surface-alt, #f7f4ee)",
+  lilac: "var(--bk-surface-alt, #f7f4ee)",
+  pink: "color-mix(in srgb, var(--bk-primary, #ff5a8a) 14%, transparent)",
+};
 
 const schema = z.object({
   pills: z.array(
@@ -56,6 +70,16 @@ const defaultProps: Props = {
   ],
 };
 
+function pillStyle(bg: PillBg): CSSProperties {
+  return {
+    backgroundColor: PILL_TINT[bg],
+    color: "var(--bk-ink, #1a1a1a)",
+    border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
+    borderRadius: "var(--bk-radius-pill, 9999px)",
+    boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+  };
+}
+
 function TrustStripRender({
   props,
   ctx,
@@ -67,27 +91,22 @@ function TrustStripRender({
   return (
     <Section density="dense" bleed className="text-bk-ink">
       <div className="relative">
-        <div className="flex gap-3 overflow-x-auto px-4 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ul className="flex gap-3 overflow-x-auto px-4 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {props.pills.map((pill, i) => (
-            <span
+            // Pills are informational, not tappable — no press feedback.
+            <li
               key={`${i}-${resolveI18n(pill.label_i18n, "en")}`}
               data-i18n-field={`pills[${i}].label_i18n`}
-              className="inline-flex active:scale-95 transition-transform"
+              className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 font-label text-xs font-bold bk-caps sm:text-sm"
+              style={pillStyle(pill.bg ?? "mint")}
             >
-              <TrustPill
-                bg={pill.bg ?? "mint"}
-                rotate={i % 2 === 0 ? -1 : 1}
-                icon={
-                  pill.icon ? (
-                    <MaterialIcon name={pill.icon} className="text-base" />
-                  ) : undefined
-                }
-              >
-                {resolveI18n(pill.label_i18n, locale)}
-              </TrustPill>
-            </span>
+              {pill.icon ? (
+                <MaterialIcon name={pill.icon} className="text-base" />
+              ) : null}
+              {resolveI18n(pill.label_i18n, locale)}
+            </li>
           ))}
-        </div>
+        </ul>
         {/* Right-edge scroll-fade affordance — signals more pills to the right. */}
         <div
           aria-hidden="true"

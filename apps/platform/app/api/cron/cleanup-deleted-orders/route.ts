@@ -1,51 +1,29 @@
 import { NextResponse } from 'next/server';
+import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
 
 // Opt out of caching
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-/** Matches the comment below, and the batch size the original claimed but never enforced. */
-const MAX_DELETIONS_PER_RUN = 1000;
+/** Rows removed per run. Bounds the statement so a backlog cannot time it out. */
+const CLEANUP_BATCH_SIZE = 1000;
 
 /**
  * GET /api/cron/cleanup-deleted-orders
- *
- * Permanently deletes orders soft-deleted more than 30 days ago. Uses the
- * service_role key, so RLS does not apply and this runs across EVERY tenant.
- *
- * ORD-A7. The authorization used to read:
- *
- *     if (process.env.CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`)
- *
- * — so when `CRON_SECRET` was unset the check was skipped entirely and this
- * became an unauthenticated, cross-tenant, permanent delete reachable with a
- * plain GET. `CRON_SECRET` is `.optional()` in env.ts and appears in no
- * .env.example, and this project has previously lost environment variables in
- * production without anyone noticing. The guard now fails CLOSED: no secret
- * configured means the endpoint refuses to run at all, matching the strict form
- * already used by trial-suspend and subscription-renew.
+ * 
+ * Scheduled job to permanently delete orders that have been soft-deleted
+ * for more than 30 days. Uses the service_role key to bypass RLS.
  */
 export async function GET(request: Request) {
     try {
-        const cronSecret = process.env.CRON_SECRET;
-        if (!cronSecret) {
-            // Fail closed. A destructive endpoint with no configured secret is
-            // misconfigured, not "open by default".
-            console.error('[Cron: cleanup-deleted-orders] CRON_SECRET is not set — refusing to run.');
-            return NextResponse.json(
-                { error: 'Endpoint is not configured.' },
-                { status: 503 }
-            );
-        }
-
-        const authHeader = request.headers.get('authorization');
-        if (authHeader !== `Bearer ${cronSecret}`) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        // Verify authorization if it's hitting the endpoint directly (optional depending on your Vercel setup,
+        // but it's good practice. Vercel Cron sends a Bearer token matching CRON_SECRET)
+        const denied = requireCronAuth(request);
+        if (denied) return denied;
 
         const supabase = createSupabaseServiceClient();
-
+        
         // Calculate the threshold date (30 days ago)
         const thresholdDate = new Date();
         thresholdDate.setDate(thresholdDate.getDate() - 30);
@@ -53,31 +31,39 @@ export async function GET(request: Request) {
 
         console.log(`[Cron: cleanup-deleted-orders] Starting cleanup for orders soft-deleted before ${thresholdIso}`);
 
-        // Read the batch FIRST, so the deletion can be bounded and recorded.
-        // The original deleted everything matching in one unbounded statement
-        // while its comment claimed a 1000-row batch.
-        const { data: doomed, error: selectError } = await supabase
+        // The comment here used to promise a 1000-row batch that the query never
+        // enforced, so a single run tried to delete the entire backlog in one
+        // statement. Pick the batch explicitly, oldest first, then delete by id.
+        // The job is idempotent, so anything left over is taken by the next run.
+        const { data: expiredOrders, error: selectError } = await supabase
             .from('orders')
             .select('id, order_id, tenant_id')
             .not('deleted_at', 'is', null)
             .lt('deleted_at', thresholdIso)
-            .limit(MAX_DELETIONS_PER_RUN);
+            .order('deleted_at', { ascending: true })
+            .limit(CLEANUP_BATCH_SIZE);
 
         if (selectError) {
-            console.error('[Cron: cleanup-deleted-orders] Error selecting orders:', selectError.message);
+            console.error('[Cron: cleanup-deleted-orders] Error selecting expired orders:', selectError.message);
             return NextResponse.json({ error: selectError.message }, { status: 500 });
         }
 
-        if (!doomed || doomed.length === 0) {
-            return NextResponse.json({ success: true, deletedCount: 0, threshold: thresholdIso });
-        }
+        const expiredIds = (expiredOrders ?? []).map((order) => order.id);
 
-        const ids = doomed.map((o) => o.id as string);
+        if (expiredIds.length === 0) {
+            console.log('[Cron: cleanup-deleted-orders] Nothing to clean up.');
+            return NextResponse.json({
+                success: true,
+                deletedCount: 0,
+                hasMore: false,
+                threshold: thresholdIso
+            });
+        }
 
         const { data: deletedOrders, error } = await supabase
             .from('orders')
             .delete()
-            .in('id', ids)
+            .in('id', expiredIds)
             .select('id');
 
         if (error) {
@@ -88,15 +74,16 @@ export async function GET(request: Request) {
         const count = deletedOrders?.length || 0;
 
         // Permanent deletion with no audit trail is not acceptable on the
-        // revenue surface. `order_deletion_log.tenant_id` is NOT NULL and this
-        // sweep spans tenants, so record one row per tenant.
+        // revenue surface — once these rows are gone, nothing records that they
+        // existed. `order_deletion_log.tenant_id` is NOT NULL and this sweep
+        // spans tenants, so write one row per tenant.
         const byTenant = new Map<string, { ids: string[]; numbers: string[] }>();
-        for (const o of doomed) {
-            const tenantId = o.tenant_id as string | null;
+        for (const order of expiredOrders ?? []) {
+            const tenantId = (order as { tenant_id: string | null }).tenant_id;
             if (!tenantId) continue;
             const entry = byTenant.get(tenantId) ?? { ids: [], numbers: [] };
-            entry.ids.push(o.id as string);
-            entry.numbers.push(String(o.order_id ?? ''));
+            entry.ids.push((order as { id: string }).id);
+            entry.numbers.push(String((order as { order_id: string | null }).order_id ?? ''));
             byTenant.set(tenantId, entry);
         }
 
@@ -111,21 +98,23 @@ export async function GET(request: Request) {
                     order_numbers: entry.numbers,
                 }))
             );
-            // The orders are already gone; a logging failure must be loud but
-            // must not present the deletion as failed.
+            // The orders are already gone. A logging failure must be loud, but
+            // must not report the deletion itself as failed.
             if (logError) {
                 console.error('[Cron: cleanup-deleted-orders] Deletion succeeded but audit log failed:', logError.message);
             }
         }
 
-        console.log(`[Cron: cleanup-deleted-orders] Successfully deleted ${count} orders across ${byTenant.size} tenant(s).`);
+        // A full batch means the backlog is not drained yet; the next run continues.
+        const hasMore = expiredIds.length === CLEANUP_BATCH_SIZE;
+        console.log(`[Cron: cleanup-deleted-orders] Successfully deleted ${count} orders.${hasMore ? ' More remain for the next run.' : ''}`);
 
         return NextResponse.json({
             success: true,
             deletedCount: count,
             tenantsAffected: byTenant.size,
-            threshold: thresholdIso,
-            batchLimit: MAX_DELETIONS_PER_RUN,
+            hasMore,
+            threshold: thresholdIso
         });
     } catch (error) {
         console.error('[Cron: cleanup-deleted-orders] Unhandled error:', error);

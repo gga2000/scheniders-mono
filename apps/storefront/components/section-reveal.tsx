@@ -35,7 +35,12 @@ export function SectionReveal() {
     }
 
     const sections = Array.from(
-      document.querySelectorAll<HTMLElement>(".schn-section"),
+      // Overlay sections (sticky bar, exit-intent) are skipped: the reveal
+      // `transform` would become the containing block for their
+      // `position: fixed` root and drag it off-screen.
+      document.querySelectorAll<HTMLElement>(
+        ".schn-section:not([data-section-overlay])",
+      ),
     );
     if (sections.length === 0) return;
 

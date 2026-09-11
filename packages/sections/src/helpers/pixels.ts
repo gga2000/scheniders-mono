@@ -2,10 +2,11 @@
 // Marketing-pixel client tracker (app-agnostic)
 // =====================================================================
 // Fires standard events on whatever pixels the host page initialised (Meta
-// `fbq`, TikTok `ttq`). Pure window guards — in the platform editor preview
-// neither global exists, so every call is a safe no-op. The pixel <Script>
-// init + PageView live in the storefront layout; this only adds the funnel
-// events (ViewContent / AddToCart / InitiateCheckout / Purchase).
+// `fbq`, TikTok `ttq`, Snap `snaptr`). Pure window guards — in the platform
+// editor preview none of the globals exist, so every call is a safe no-op.
+// The pixel <Script> init + first PageView live in the storefront layout;
+// this adds the funnel events (ViewContent / AddToCart / InitiateCheckout /
+// Purchase) and the client-navigation PageView re-fire (P2-29).
 // =====================================================================
 
 import type { PixelEventData } from "@scheniders/shared";
@@ -27,7 +28,9 @@ const TIKTOK_EVENT: Record<PixelEvent, string> = {
 type Fbq = (...args: unknown[]) => void;
 interface Ttq {
   track: (name: string, data?: unknown, opts?: unknown) => void;
+  page?: () => void;
 }
+type Snaptr = (...args: unknown[]) => void;
 
 function getFbq(): Fbq | undefined {
   const f = (globalThis as { fbq?: unknown }).fbq;
@@ -36,6 +39,25 @@ function getFbq(): Fbq | undefined {
 function getTtq(): Ttq | undefined {
   const t = (globalThis as { ttq?: { track?: unknown } }).ttq;
   return t && typeof t.track === "function" ? (t as Ttq) : undefined;
+}
+function getSnaptr(): Snaptr | undefined {
+  const s = (globalThis as { snaptr?: unknown }).snaptr;
+  return typeof s === "function" ? (s as Snaptr) : undefined;
+}
+
+/**
+ * Page-view re-fire for client-side navigations. The inline pixel scripts
+ * already send the first PageView on document load, so callers must skip
+ * the initial render and only call this on a real route change. Each
+ * pixel is fired only when its global was initialised — a store with no
+ * TikTok id never sees `ttq` on window, so nothing fires for it.
+ */
+export function trackPageView(): void {
+  if (typeof window === "undefined") return;
+  getFbq()?.("track", "PageView");
+  const ttq = getTtq();
+  if (ttq && typeof ttq.page === "function") ttq.page();
+  getSnaptr()?.("track", "PAGE_VIEW");
 }
 
 export function trackPixel(
@@ -68,11 +90,21 @@ export function trackPixel(
 
   const ttq = getTtq();
   if (ttq) {
+    // TikTok's Events API wants `content_id` + `content_type` on every
+    // event (its console warns "missing content_id" otherwise, and the
+    // catalogue match for Purchase/ViewContent silently fails). Single-item
+    // events carry the product id at the top level; multi-line carts are a
+    // `product_group` whose ids live in `contents[]`.
+    const single =
+      data.content_ids.length === 1 ? data.content_ids[0] : undefined;
     ttq.track(
       TIKTOK_EVENT[event],
       {
+        ...(single ? { content_id: single } : {}),
+        content_type: single ? "product" : "product_group",
         contents: data.contents.map((c) => ({
           content_id: c.id,
+          content_type: "product",
           quantity: c.quantity,
           price: c.item_price,
         })),

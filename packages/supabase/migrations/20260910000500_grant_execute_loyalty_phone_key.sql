@@ -1,0 +1,29 @@
+-- Restore order writes for merchants.
+--
+-- The loyalty migrations applied on 2026-09-09 (20260909225706 and the two that
+-- follow it) added a functional index on `orders`:
+--
+--   CREATE INDEX idx_orders_tenant_phone_key
+--     ON public.orders (tenant_id, loyalty_phone_key(phone))
+--     WHERE deleted_at IS NULL;
+--
+-- but granted EXECUTE on `loyalty_phone_key(text)` to `postgres` and
+-- `service_role` only. Postgres checks EXECUTE on a function used in an index
+-- expression whenever a row is written into that index, so from the moment the
+-- index existed every INSERT and UPDATE on `orders` performed as `authenticated`
+-- — which is every edit a merchant makes from the app, since those go through
+-- PostgREST — failed with:
+--
+--   42501: permission denied for function loyalty_phone_key
+--
+-- Reproduced in a browser against the live project: a name edit on an order
+-- returned 403 from PATCH /rest/v1/orders and the change was rolled back.
+--
+-- `authenticated` only. Order inserts from the storefront run through
+-- SECURITY DEFINER RPCs owned by `postgres`, which already has EXECUTE, and
+-- `anon` cannot write `orders` at all (the sole INSERT policy requires a tenant
+-- from get_user_tenant_ids(), which is empty for anon).
+--
+-- The function takes a phone and returns a derived key, so it exposes nothing a
+-- caller did not already supply.
+GRANT EXECUTE ON FUNCTION public.loyalty_phone_key(text) TO authenticated;

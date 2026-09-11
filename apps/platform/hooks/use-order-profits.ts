@@ -22,8 +22,14 @@ export function useOrderProfits(
     /**
      * Find product by name, SKU, or alias
      */
-    const findProduct = useCallback((itemName: string, itemSku?: string): Product | null => {
-        if (!itemName && !itemSku) return null;
+    const findProduct = useCallback((itemName: string, itemSku?: string, itemProductId?: string): Product | null => {
+        if (!itemName && !itemSku && !itemProductId) return null;
+
+        // Most reliable: the order item's snapshotted product_id.
+        if (itemProductId) {
+            const byId = products.find(p => p.id === itemProductId);
+            if (byId) return byId;
+        }
 
         // First try exact SKU match
         if (itemSku) {
@@ -33,9 +39,11 @@ export function useOrderProfits(
             if (bySkuExact) return bySkuExact;
         }
 
-        // Try exact name match
+        // Try exact name match — item snapshots carry the internal short_name
+        // when the merchant set one, so match against both columns.
         const byNameExact = products.find(
-            p => p.name.toLowerCase() === itemName.toLowerCase()
+            p => p.name.toLowerCase() === itemName.toLowerCase() ||
+                p.short_name?.toLowerCase() === itemName.toLowerCase()
         );
         if (byNameExact) return byNameExact;
 
@@ -74,7 +82,7 @@ export function useOrderProfits(
         const matchedProducts: Product[] = [];
 
         items.forEach(item => {
-            const product = findProduct(item.name, item.sku);
+            const product = findProduct(item.name, item.sku, item.product_id);
             if (product) {
                 productCost += (product.cost || 0) * item.quantity;
                 if (!matchedProducts.find(p => p.id === product.id)) {
@@ -308,7 +316,7 @@ export function useOrderProfits(
             if (!originalOrder?.items) return;
 
             originalOrder.items.forEach(item => {
-                const product = findProduct(item.name, item.sku);
+                const product = findProduct(item.name, item.sku, item.product_id);
                 const key = product?.name || item.name;
 
                 const existing = productStats.get(key) || {
