@@ -68,7 +68,12 @@ export async function GET(
         lang: locale,
         ...(colors?.surface ? { background_color: colors.surface } : {}),
         ...(colors?.primary ? { theme_color: colors.primary } : {}),
-        ...(icon ? { icons: [{ src: icon, sizes: "any", type: "image/png", purpose: "any" }] } : {}),
+        // No `type`: the logo is whatever the merchant uploaded, and claiming
+        // `image/png` for a JPEG or an SVG makes Chrome discard the icon —
+        // which loses the install prompt this whole route exists to earn. The
+        // member is optional precisely so a server that does not know can stay
+        // quiet and let the browser sniff the bytes.
+        ...(icon ? { icons: [{ src: icon, sizes: "any", purpose: "any" }] } : {}),
     };
 
     return NextResponse.json(manifest, {

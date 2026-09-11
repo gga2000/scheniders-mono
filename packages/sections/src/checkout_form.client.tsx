@@ -91,8 +91,7 @@ const STRINGS = {
   referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M", ku: "نموونە: AB3K7M"},
   referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك", ku: "{amount} داشکاندن بە کۆدی هاوڕێکەت"},
   referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز.", ku: "ئەم کۆدە ناناسین."},
-  referralSelf: { en: "That's your own code — share it with a friend instead.", ar: "هذا رمزك انت — شاركه مع صديق.", ku: "ئەمە کۆدی خۆتە — بیدە بە هاوڕێیەک."},
-  referralNotFirst: { en: "A friend's code works on your first order only.", ar: "رمز الصديق يشتغل بس على أول طلب.", ku: "کۆدی هاوڕێ تەنها بۆ یەکەم داواکاری کار دەکات."},
+  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم.", ku: "ئەم کۆدە لەگەڵ ئەم ژمارەیە کار ناکات."},
   enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط", ku: "ژمارەی خاڵەکان بنووسە"},
   placeOrder: { en: "Place order", ar: "أكّد الطلب", ku: "داواکاری پشتڕاست بکەرەوە"},
   placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…", ku: "داواکارییەکەت پشتڕاست دەکرێتەوە…"},
@@ -243,7 +242,7 @@ export function CheckoutFormRender({
     | { kind: "idle" }
     | { kind: "checking" }
     | { kind: "valid"; pct: number; max: number | null }
-    | { kind: "invalid"; reason: "unknown" | "self" | "not_first_order" | "off" }
+    | { kind: "invalid"; reason: "unknown" | "ineligible" | "off" }
   >({ kind: "idle" });
   const tenantId = ctx.tenant.id;
   const commerceRef = {
@@ -317,7 +316,7 @@ export function CheckoutFormRender({
             const reason = d?.reason;
             setReferralState({
               kind: "invalid",
-              reason: reason === "self" || reason === "not_first_order" || reason === "off" ? reason : "unknown",
+              reason: reason === "ineligible" || reason === "off" ? reason : "unknown",
             });
           }
         })
@@ -1027,11 +1026,9 @@ export function CheckoutFormRender({
                       ? "…"
                       : referralState.kind === "valid"
                         ? s("referralOff").replace("{amount}", `−${formatPrice(referralAmount, locale)}`)
-                        : referralState.reason === "self"
-                          ? s("referralSelf")
-                          : referralState.reason === "not_first_order"
-                            ? s("referralNotFirst")
-                            : s("referralUnknown")}
+                        : referralState.reason === "ineligible"
+                          ? s("referralIneligible")
+                          : s("referralUnknown")}
                   </p>
                 )}
               </div>

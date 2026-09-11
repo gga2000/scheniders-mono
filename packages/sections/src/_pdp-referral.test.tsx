@@ -48,7 +48,10 @@ beforeEach(() => {
         const code = u.searchParams.get("code");
         const phone = u.searchParams.get("phone");
         body = code !== "AB3K7M" ? { valid: false, reason: "unknown" }
-          : phone === "07701111111" ? { valid: false, reason: "self" }
+          // The API no longer distinguishes *why* a phone is ineligible — that
+          // was an oracle over a stranger's order history. See the note in
+          // `app/api/referral/validate/route.ts`.
+          : phone === "07701111111" ? { valid: false, reason: "ineligible" }
           : { valid: true, friend_discount_pct: 10, friend_max_discount_iqd: 5000 };
       }
       return Promise.resolve(new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } }));
@@ -75,14 +78,14 @@ describe("pdp_direct_order referral field (W5.3)", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("remembers a captured code from an earlier page and explains a rejected one", async () => {
+  it("remembers a captured code from an earlier page and says a rejected one will not work", async () => {
     writeCapturedReferral(TENANT, "AB3K7M");
     render(element());
     fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, { target: { value: "07701111111" } });
     await flush();
     const status = document.querySelector("[data-referral-state]") as HTMLElement;
     expect(status.dataset.referralState).toBe("invalid");
-    expect(status.textContent).toContain("هذا رمزك انت");
+    expect(status.textContent).toContain("هذا الرمز ما ينفع مع هذا الرقم");
     fireEvent.change(document.querySelector('input[name="referral_code"]') as HTMLInputElement, { target: { value: "ZZZZZZ" } });
     await flush();
     expect((document.querySelector("[data-referral-state]") as HTMLElement).textContent).toContain("ما نعرف هذا الرمز");

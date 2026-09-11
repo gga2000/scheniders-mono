@@ -316,6 +316,12 @@ export async function submitCheckout(
   // Subtotal of line items (server-verified prices — never the client's).
   const subtotal = verifiedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
+  // The lines the shopper actually bought, before the server appends anything
+  // of its own. Every engine that asks "what did they buy?" has to read this,
+  // not `verifiedItems` — a line the server added cannot also be evidence that
+  // the shopper earned something.
+  const paidItems = [...verifiedItems];
+
   // Free gift. Added HERE, by the server, from the verified subtotal — a
   // zero-price line accepted from the client would be a free item anyone
   // could post. The subtotal above excludes the gift by construction (it is
@@ -381,7 +387,13 @@ export async function submitCheckout(
   // order's total discount_amount alongside any coupon, so the recorded total
   // and the courier-collected amount both reflect them.
   const bundleSummary = computeBundleDiscounts(
-    verifiedItems,
+    // `paidItems`, not `verifiedItems`: the free gift is appended above as a
+    // zero-price line, and a bundle only checks that its products are present.
+    // A merchant bundle naming the gift would therefore complete itself and
+    // pay out a discount the shopper never earned — funded by the merchant,
+    // and invisible to the storefront, which cannot know the gift is coming
+    // and so displays no such saving.
+    paidItems,
     tenant.store_config_v2?.commerce?.bundles,
   );
   // Loyalty: redeem the points the customer chose to spend. Re-resolve against

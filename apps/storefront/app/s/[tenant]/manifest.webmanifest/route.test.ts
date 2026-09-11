@@ -10,7 +10,9 @@ import { GET } from "./route";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import { headers } from "next/headers";
 
-type Manifest = Record<string, unknown> & { icons?: { src: string }[] };
+type Manifest = Record<string, unknown> & {
+    icons?: { src: string; type?: string }[];
+};
 
 /** `storeBase: null` means path mode (the proxy sent no x-store-base). */
 function withHeaders(storeBase: string | null) {
@@ -129,5 +131,32 @@ describe("GET /s/[tenant]/manifest.webmanifest", () => {
         const res = await call("__domain__shop.iq");
         expect(res.status).toBe(200);
         expect(vi.mocked(getTenantByCustomDomain)).toHaveBeenCalledWith("shop.iq");
+    });
+});
+
+describe("the icon does not claim a type it cannot know", () => {
+    it.each([
+        "https://cdn.example/logo.png",
+        "https://cdn.example/logo.jpg",
+        "https://cdn.example/logo.svg",
+        "https://cdn.example/logo",
+    ])("omits `type` for %s", async (logo_url) => {
+        // Claiming `image/png` for a JPEG or an SVG makes Chrome discard the
+        // icon, which loses the install prompt this route exists to earn.
+        // `type` is optional so a server that does not know can stay quiet.
+        vi.mocked(getTenantBySlug).mockResolvedValue(
+            tenant({
+                store_config_v2: {
+                    default_locale: "ar",
+                    brand_kit: {
+                        identity: { name: "شنايدر", logo_url },
+                        colors: {},
+                    },
+                },
+            }) as never,
+        );
+        const m = (await (await call()).json()) as Manifest;
+        expect(m.icons?.[0].src).toBe(logo_url);
+        expect(m.icons?.[0].type).toBeUndefined();
     });
 });

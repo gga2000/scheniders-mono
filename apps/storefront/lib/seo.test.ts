@@ -144,3 +144,36 @@ describe("itemListJsonLd", () => {
         expect(itemListJsonLd({ name: "عطور", items: [] })).toBeUndefined();
     });
 });
+
+describe("shippingDetailsJsonLd — a max that is not a number", () => {
+    it("states the min alone rather than a null max", () => {
+        // An unusable max used to serialise as `"maxValue": null`, which is a
+        // malformed Offer — Google reads a broken shipping rate, not a missing
+        // one, and a wrong field is worse than an absent one.
+        const out = shippingDetailsJsonLd({
+            minFeeIqd: 5000,
+            maxFeeIqd: Number.NaN,
+        }) as { shippingRate: Record<string, unknown> };
+        expect(out.shippingRate.value).toBe(5000);
+        expect(out.shippingRate).not.toHaveProperty("maxValue");
+        expect(JSON.stringify(out)).not.toContain("null");
+    });
+
+    it("ignores a max below the min", () => {
+        const out = shippingDetailsJsonLd({
+            minFeeIqd: 5000,
+            maxFeeIqd: 1000,
+        }) as { shippingRate: Record<string, unknown> };
+        expect(out.shippingRate.value).toBe(5000);
+        expect(out.shippingRate).not.toHaveProperty("maxValue");
+    });
+
+    it("still states a real range", () => {
+        const out = shippingDetailsJsonLd({
+            minFeeIqd: 5000,
+            maxFeeIqd: 10000,
+        }) as { shippingRate: Record<string, unknown> };
+        expect(out.shippingRate.minValue).toBe(5000);
+        expect(out.shippingRate.maxValue).toBe(10000);
+    });
+});
