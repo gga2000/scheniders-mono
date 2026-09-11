@@ -16,6 +16,8 @@ import countdown_announcement from "./countdown_announcement";
 import hero_card_float from "./hero_card_float";
 import product_grid from "./product_grid";
 import image_gallery from "./image_gallery";
+import trust_badge_row from "./trust_badge_row";
+import category_spotlight_pair from "./category_spotlight_pair";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 
@@ -437,5 +439,100 @@ describe("formatCount (Intl.PluralRules)", () => {
     expect(
       formatCount(2, "en", { one: "1 review", other: "{count} reviews" }),
     ).toBe("2 reviews");
+  });
+});
+
+describe("trust_badge_row — one object, one measure", () => {
+  const props = {
+    ...trust_badge_row.defaultProps,
+    items: trust_badge_row.defaultProps.items.map((it, i) => ({
+      ...it,
+      icon_url: `https://cdn.example.com/icon-${i}.svg`,
+    })),
+  };
+
+  it("seats every merchant icon on an identical disc", () => {
+    const html = render(trust_badge_row, props);
+    // Merchant SVGs differ in stroke weight and optical size; the disc is
+    // what makes four of them read as a set instead of clipart.
+    const discs = html.match(/h-11 w-11 shrink-0 items-center justify-center rounded-full/g);
+    expect(discs).toHaveLength(props.items.length);
+    expect(html).toContain("var(--bk-accent");
+    // Icon sits INSIDE the disc, at a uniform size.
+    expect(html).toMatch(/rounded-full"[^>]*>[\s\S]{0,200}?class="h-6 w-6 object-contain"/);
+  });
+
+  it("start-aligns each badge so the mobile columns share an edge", () => {
+    const html = render(trust_badge_row, props);
+    // Centring per cell put the four discs at four different x positions,
+    // because the labels differ in width.
+    expect(html).toContain("justify-start");
+    expect(html).not.toContain("items-center justify-center gap-3");
+  });
+
+  it("puts the gutter outside the measure, like every other section", () => {
+    const html = render(trust_badge_row, props);
+    // `px-4` INSIDE `max-w-6xl` made this row 1120px against everything
+    // else's 1152 — the page lined up with nothing.
+    expect(html).toContain('class="px-4"');
+    expect(html).toContain('class="mx-auto max-w-6xl"');
+    expect(html).not.toContain("mx-auto max-w-6xl px-4");
+  });
+});
+
+describe("category_spotlight_pair — the diptych", () => {
+  const props = {
+    ...category_spotlight_pair.defaultProps,
+    items: [
+      { image_url: "https://images.unsplash.com/a", label_i18n: { ar: "عطور مختارة" }, href: "/categories/picked" },
+      { image_url: "https://images.unsplash.com/b", label_i18n: { ar: "الاكثر مبيعاً" }, href: "/categories/top" },
+    ],
+  };
+
+  it("shares the page's content measure at 2-up", () => {
+    const html = render(category_spotlight_pair, props);
+    // max-w-3xl left the cards at 376px inside a 1512px viewport.
+    expect(html).toContain("max-w-6xl");
+    expect(html).not.toContain("max-w-3xl");
+  });
+
+  it("derives the image width hint from the column count", () => {
+    const two = render(category_spotlight_pair, props);
+    expect(two).toContain('sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 576px"');
+    const four = render(category_spotlight_pair, {
+      ...props,
+      items: [...props.items, ...props.items].map((it, i) => ({ ...it, href: `/c/${i}` })),
+    });
+    expect(four).toContain('sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 288px"');
+    // The old blanket hint over-fetched at every count but 2.
+    expect(two).not.toContain("33vw");
+  });
+
+  it("anchors the label to the card's start corner, never floating at centre", () => {
+    const html = render(category_spotlight_pair, props);
+    // Centred, the label covered the product it was selling.
+    expect(html).toContain("bottom-4 start-4");
+    expect(html).not.toContain("bottom-4 left-1/2");
+    expect(html).not.toContain("-translate-x-1/2");
+  });
+
+  it("scrims in brand ink, not black", () => {
+    const html = render(category_spotlight_pair, props);
+    expect(html).not.toContain("from-black/25");
+    expect(html).toMatch(/linear-gradient\(to top[^"]*var\(--bk-ink/);
+  });
+
+  it("keeps the decorative side art hugging the cards, not the viewport", () => {
+    const html = render(category_spotlight_pair, {
+      ...props,
+      side_image_left_url: "https://images.unsplash.com/l",
+      side_image_right_url: "https://images.unsplash.com/r",
+    });
+    // Pinned to a bare full-width parent it sat at the viewport edges,
+    // 356px adrift of the band it was supposed to flank.
+    expect(html).toContain("-left-28");
+    expect(html).toContain("-right-28");
+    expect(html).not.toMatch(/absolute left-0 top-1\/2/);
+    expect(html).not.toMatch(/absolute right-0 top-1\/2/);
   });
 });

@@ -82,34 +82,46 @@ function TrustBadgeRowRender({
           : undefined
       }
     >
-      <div className="mx-auto max-w-6xl px-4">
+      {/* Gutter OUTSIDE the measure, the way `Section` does it — with
+          `px-4` inside `max-w-6xl` this row came out 1120px wide against
+          every other section's 1152, so nothing on the page lined up. */}
+      <div className="px-4">
+        <div className="mx-auto max-w-6xl">
         <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:flex sm:flex-wrap sm:items-center sm:justify-evenly sm:gap-6">
           {props.items.map((item, i) => {
             const label = resolveI18n(item.label_i18n, locale);
             return (
               <div
                 key={`${i}-${label}`}
-                className="flex items-center justify-center gap-3"
+                // Start-aligned, not centred: in the 2x2 mobile grid each
+                // cell centring its own content put the four discs at four
+                // different x positions (38/222/34/207 at 390px), because
+                // the labels differ in width. Repeated rows share an edge.
+                className="flex items-center justify-start gap-3"
               >
-                {item.icon_url ? (
-                  /* eslint-disable-next-line @next/next/no-img-element -- merchant-supplied icon URLs (usually SVG) aren't next/image remote-pattern candidates */
-                  /* Eager: this row sits under the hero, above the fold. */
-                  <img
-                    src={item.icon_url}
-                    alt=""
-                    className="h-10 w-10 shrink-0 object-contain"
-                  />
-                ) : (
-                  /* Empty icon slot (editor placeholder) — keep the layout. */
-                  <span
-                    aria-hidden="true"
-                    className="h-10 w-10 shrink-0 rounded-full"
-                    style={{
-                      backgroundColor:
-                        "color-mix(in srgb, var(--bk-accent, #ffd84a) 24%, transparent)",
-                    }}
-                  />
-                )}
+                {/* Merchant icons arrive as unrelated SVGs — different
+                    stroke weights, different optical sizes — so four of
+                    them in a row read as clipart rather than a set. The
+                    tinted disc is what makes them one object: identical
+                    size, identical ground, whatever the artwork does. */}
+                <span
+                  aria-hidden="true"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor:
+                      "color-mix(in srgb, var(--bk-accent, #ffd84a) 14%, transparent)",
+                  }}
+                >
+                  {item.icon_url && (
+                    /* eslint-disable-next-line @next/next/no-img-element -- merchant-supplied icon URLs (usually SVG) aren't next/image remote-pattern candidates */
+                    /* Eager: this row sits under the hero, above the fold. */
+                    <img
+                      src={item.icon_url}
+                      alt=""
+                      className="h-6 w-6 object-contain"
+                    />
+                  )}
+                </span>
                 <span
                   data-i18n-field={`items[${i}].label_i18n`}
                   className="font-body text-sm font-semibold sm:text-base"
@@ -123,6 +135,7 @@ function TrustBadgeRowRender({
               </div>
             );
           })}
+          </div>
         </div>
       </div>
     </Section>
