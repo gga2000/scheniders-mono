@@ -121,14 +121,14 @@ async function loadOffers(
   // storefront applies everywhere else.
   const { data: products } = await svc
     .from("products")
-    .select("id, name, short_name, image_url, price, website_price, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
+    .select("id, name, short_name, image_url, price, website_price, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
     .in("id", offers.map((o) => o.product_id))
     .eq("tenant_id", tenantId);
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
 
   return offers.flatMap((offer) => {
     const p = byId.get(offer.product_id);
-    if (!p || p.is_archived || !p.is_visible || (p as { is_supply?: boolean }).is_supply) return [];
+    if (!p || p.is_archived || p.status !== "active" || !p.is_visible || (p as { is_supply?: boolean }).is_supply) return [];
     if ((p.stock_quantity ?? 0) - (p.reserved_quantity ?? 0) <= 0) return [];
     const base = Number(p.website_price ?? p.price) || 0;
     if (base <= 0) return [];

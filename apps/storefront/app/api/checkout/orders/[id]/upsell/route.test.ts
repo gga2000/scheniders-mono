@@ -47,7 +47,9 @@ function freshOrder(over: Record<string, unknown> = {}) {
 }
 
 const bump = { product_id: PARENT, bump_product_id: ADDON, discount_percentage: 20, headline: null, description: null, is_active: true, display_order: 0 };
-const addon = { id: ADDON, name: "Addon", short_name: null, image_url: null, price: 10000, website_price: null, is_visible: true, is_archived: false, is_supply: false, stock_quantity: 5, reserved_quantity: 0 };
+const addon = { id: ADDON, name: "Addon", short_name: null, image_url: null, price: 10000, website_price: null, status: "active", is_visible: true, is_archived: false, is_supply: false, stock_quantity: 5, reserved_quantity: 0 };
+// products.status is NOT NULL in the database, so a row is never statusless.
+const draftAddon = { ...addon, status: "draft" };
 
 const ctx = { params: Promise.resolve({ id: ORDER }) };
 const getReq = (phone = PHONE) =>
@@ -69,6 +71,15 @@ describe("GET /upsell", () => {
     const body = await res.json();
     expect(body.offers).toHaveLength(1);
     expect(body.offers[0]).toMatchObject({ product_id: ADDON, base_price: 10000, offer_price: 8000 });
+  });
+
+  it("does not offer an add-on the merchant set back to Draft", async () => {
+    vi.mocked(createSupabaseServiceClient).mockReturnValue(
+      makeSvc({ orders: freshOrder(), product_order_bumps: [bump], products: [draftAddon] }) as never,
+    );
+    const res = await GET(getReq(), ctx);
+    expect(res.status).toBe(200);
+    expect((await res.json()).offers).toHaveLength(0);
   });
 
   it("is a 404 for the wrong phone — indistinguishable from no such order", async () => {

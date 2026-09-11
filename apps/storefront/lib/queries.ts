@@ -177,6 +177,7 @@ async function withOrderBumps(
     .in("id", bumpIds)
     .eq("tenant_id", tenantId)
     .eq("is_visible", true)
+    .eq("status", "active")
     .eq("is_archived", false)
     .not("is_supply", "is", true);
 

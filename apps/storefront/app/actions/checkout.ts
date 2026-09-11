@@ -354,13 +354,14 @@ export async function submitCheckout(
     if (!alreadyInOrder) {
       const { data: gift } = await supabase
         .from("products")
-        .select("id, name, short_name, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
+        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
         .eq("id", giftId)
         .eq("tenant_id", payload.tenantId)
         .maybeSingle();
       const giftInStock =
         gift &&
         !gift.is_archived &&
+        gift.status === "active" &&
         gift.is_visible &&
         !(gift as { is_supply?: boolean }).is_supply &&
         (gift.stock_quantity ?? 0) - (gift.reserved_quantity ?? 0) > 0;

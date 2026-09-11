@@ -83,3 +83,29 @@ describe("checkout refuses non-active products", () => {
     expect(source).toMatch(/product\.status\s*!==\s*"active"/);
   });
 });
+
+// A free gift and a post-purchase upsell put a product in front of the buyer
+// and into the order just as surely as the cart does, so Draft has to stop
+// them too. Each entry names a file and the identifier it reads the row into.
+const ORDERABLE_PATHS: { file: string; binding: string }[] = [
+  { file: "app/actions/checkout.ts", binding: "gift" },
+  { file: "app/api/checkout/orders/[id]/upsell/route.ts", binding: "p" },
+];
+
+describe.each(ORDERABLE_PATHS)("$file gates on status", ({ file, binding }) => {
+  const source = read(file);
+
+  it("selects status on the row it validates", () => {
+    const selects = [...source.matchAll(/\.select\("([^"]*is_visible[^"]*)"\)/g)];
+    expect(selects.length).toBeGreaterThan(0);
+    for (const [, columns] of selects) {
+      expect(columns, `a select reads is_visible but not status: ${columns}`).toContain("status");
+    }
+  });
+
+  it(`checks ${binding}.status before offering the product`, () => {
+    const positive = new RegExp(`${binding}\\.status\\s*===\\s*"active"`);
+    const negative = new RegExp(`${binding}\\.status\\s*!==\\s*"active"`);
+    expect(positive.test(source) || negative.test(source)).toBe(true);
+  });
+});
