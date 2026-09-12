@@ -3,6 +3,8 @@ import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/in
 import type { Order } from "@/types/order";
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { resolveCallerTenant } from "@/lib/auth/require-caller";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -10,17 +12,75 @@ const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 export async function POST(request: NextRequest) {
     try {
         const payload = await request.json();
-        const order = payload.order as Order;
         const overridePhone = payload.overridePhone as string | undefined;
         const templateType = (payload.templateType as TemplateType) || 'confirmation';
         const discountPercent = payload.discountPercent as number | undefined;
         const customPrice = payload.customPrice as number | undefined;
 
-        if (!order || !order.id || !order.phone) {
+        const submittedOrder = payload.order as Order | undefined;
+        if (!submittedOrder?.id) {
             return NextResponse.json(
                 { success: false, error: "Invalid order data" },
                 { status: 400 }
             );
+        }
+
+        // This route sends WhatsApp messages with the service-role key. It sits
+        // under /api, which the middleware excludes, so without this check it was
+        // an open relay: anyone could POST an arbitrary order body — any phone
+        // number, any message variables — and have it sent on the tenant's
+        // account. Establish the caller from their session cookie, which the
+        // client cannot forge, unlike the request body.
+        let callerTenantId: string;
+        try {
+            const { tenantId } = await resolveCallerTenant();
+            callerTenantId = tenantId;
+        } catch {
+            return NextResponse.json(
+                { success: false, error: "Not authorized" },
+                { status: 401 }
+            );
+        }
+
+        // Re-read the order from the database rather than trusting the body. The
+        // submitted object decides the recipient phone and the template variables,
+        // so taking it at face value would let a member of one tenant message
+        // anyone at all.
+        const { data: storedOrder, error: orderErr } = await supabaseAdmin()
+            .from("orders")
+            .select("*")
+            .eq("id", submittedOrder.id)
+            .eq("tenant_id", callerTenantId)
+            .single();
+
+        if (orderErr || !storedOrder) {
+            return NextResponse.json(
+                { success: false, error: "Order not found" },
+                { status: 404 }
+            );
+        }
+
+        const order = storedOrder as Order;
+        if (!order.phone) {
+            return NextResponse.json(
+                { success: false, error: "Order has no phone number" },
+                { status: 400 }
+            );
+        }
+
+        // An override may only redirect the message to one of the order's own
+        // numbers (the panel uses it to reach the secondary line). Left open, an
+        // authenticated user could send the tenant's templates to any number.
+        if (overridePhone) {
+            const allowed = [order.phone, order.secondary_phone]
+                .filter(Boolean)
+                .map(p => normalizePhoneForSearch(p as string));
+            if (!allowed.includes(normalizePhoneForSearch(overridePhone))) {
+                return NextResponse.json(
+                    { success: false, error: "Phone does not belong to this order" },
+                    { status: 400 }
+                );
+            }
         }
 
         const templateName = TEMPLATE_NAMES[templateType];
