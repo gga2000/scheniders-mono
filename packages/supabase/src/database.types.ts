@@ -3780,56 +3780,6 @@ export type Database = {
           },
         ]
       }
-      order_notifications: {
-        Row: {
-          created_at: string
-          id: string
-          message: string
-          new_status: string | null
-          old_status: string | null
-          order_display_id: string
-          order_id: string | null
-          tenant_id: string
-          type: string
-          user_avatar: string | null
-          user_name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          message: string
-          new_status?: string | null
-          old_status?: string | null
-          order_display_id: string
-          order_id?: string | null
-          tenant_id: string
-          type: string
-          user_avatar?: string | null
-          user_name: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          message?: string
-          new_status?: string | null
-          old_status?: string | null
-          order_display_id?: string
-          order_id?: string | null
-          tenant_id?: string
-          type?: string
-          user_avatar?: string | null
-          user_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_notifications_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       order_reasons: {
         Row: {
           aliases: string[]
