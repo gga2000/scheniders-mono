@@ -400,9 +400,19 @@ export function useStoreBuilderV2(
     // `!hasPublished` dirty state back to false on mount (config === load
     // snapshot) and a first-time merchant lands on a disabled Publish button.
     const everPublishedRef = useRef<boolean>(hasPublished);
+    // A store that ALREADY HAS a draft also always has something to publish —
+    // a draft is unpublished work by definition. Without this the effect below
+    // compares the loaded draft against itself on mount, finds no diff, and
+    // flips the correct `initiallyDirty` state back to false: a merchant with
+    // saved-but-unpublished changes lands on a disabled Publish button and can
+    // only escape it by making a throwaway edit. Cleared on publish and on
+    // revert, the two points where the draft genuinely stops existing.
+    const unpublishedDraftRef = useRef<boolean>(initiallyDirty);
     useEffect(() => {
         set_has_unpublished_changes(
-            serializedConfig !== initialSerializedRef.current || !everPublishedRef.current,
+            serializedConfig !== initialSerializedRef.current ||
+                !everPublishedRef.current ||
+                unpublishedDraftRef.current,
         );
     }, [serializedConfig]);
 
@@ -632,6 +642,9 @@ export function useStoreBuilderV2(
             set_last_saved_at(new Date());
             initialSerializedRef.current = JSON.stringify(config);
             everPublishedRef.current = true;
+            // The draft is nulled server-side by the publish RPC, so it is no
+            // longer a standing reason to keep Publish enabled.
+            unpublishedDraftRef.current = false;
             set_has_unpublished_changes(false);
             if (typeof window !== "undefined") {
                 try {
@@ -686,6 +699,7 @@ export function useStoreBuilderV2(
             setConfigState(published);
             initialSerializedRef.current = JSON.stringify(published);
             everPublishedRef.current = true; // a published config just loaded
+            unpublishedDraftRef.current = false; // the draft was discarded
             set_has_unpublished_changes(false);
             // The draft is nulled server-side — stop any pending autosave/retry
             // from resurrecting it.
