@@ -16,6 +16,7 @@ import countdown_announcement from "./countdown_announcement";
 import hero_card_float from "./hero_card_float";
 import product_grid from "./product_grid";
 import image_gallery from "./image_gallery";
+import testimonial_cards from "./testimonial_cards";
 import trust_badge_row from "./trust_badge_row";
 import category_spotlight_pair from "./category_spotlight_pair";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -802,5 +803,58 @@ describe("category_spotlight_pair — occasion triptych", () => {
     expect(
       category_spotlight_pair.schema.safeParse(category_spotlight_pair.defaultProps).success,
     ).toBe(true);
+  });
+});
+
+describe("testimonial_cards — the quote is the content", () => {
+  const props = testimonial_cards.defaultProps;
+
+  it("leads with the quote, not the name", () => {
+    const html = render(testimonial_cards, props);
+    // A testimonial where the customer's name outranks what they said
+    // buries the only thing the section exists to deliver.
+    expect(html.indexOf("<blockquote")).toBeLessThan(html.indexOf("<figcaption"));
+  });
+
+  it("sets the quote in full ink and the attribution in muted ink", () => {
+    const html = render(testimonial_cards, props);
+    const quote = html.slice(html.indexOf("<blockquote"), html.indexOf("</blockquote>"));
+    const caption = html.slice(html.indexOf("<figcaption"), html.indexOf("</figcaption>"));
+    expect(quote).toContain("var(--bk-ink,");
+    expect(quote).not.toContain("var(--bk-ink-soft");
+    expect(caption).toContain("var(--bk-ink-soft");
+  });
+
+  it("anchors the attribution to the card's bottom edge", () => {
+    // Quotes run 28 to 146 characters. Without a bottom anchor the short
+    // one leaves a hollow box instead of deliberate space.
+    const html = render(testimonial_cards, props);
+    expect(html).toContain("justify-between");
+  });
+
+  it("gives each name an initial disc", () => {
+    const html = render(testimonial_cards, props);
+    const discs = html.match(/data-initial/g) ?? [];
+    expect(discs).toHaveLength(props.items.length);
+    // First letter of "محمد علي".
+    expect(html).toContain(">م<");
+  });
+
+  it("never implies a verification it cannot make", () => {
+    // These came from WhatsApp. There is no purchase record behind them.
+    const html = render(testimonial_cards, props);
+    expect(html).not.toMatch(/verified|موثق|مشتري مؤكد/i);
+  });
+
+  it("keeps the decorative side art hugging the cards, not the viewport", () => {
+    const html = render(testimonial_cards, {
+      ...props,
+      side_image_left_url: "https://images.unsplash.com/l",
+      side_image_right_url: "https://images.unsplash.com/r",
+    });
+    expect(html).not.toMatch(/absolute left-2 top-1\/2/);
+    expect(html).not.toMatch(/absolute right-2 top-1\/2/);
+    expect(html).toContain("-left-20");
+    expect(html).toContain("-right-20");
   });
 });
