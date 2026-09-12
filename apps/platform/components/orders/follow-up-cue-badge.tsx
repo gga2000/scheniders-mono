@@ -32,6 +32,13 @@ export function FollowUpCueBadge({ state, hoursSinceCreated, className }: Follow
     const sender = state.sentBy;
     const ago = sentAgoLabel(sender?.at);
 
+    // Someone (or the system) messaged this customer, but not the message that is
+    // due now. The cue stays loud — the work is still owed — while the face says
+    // the customer has already heard from us, which changes how the agent opens.
+    const earlier = !sender ? state.lastContactBy : undefined;
+    const earlierAgo = sentAgoLabel(earlier?.at);
+    const earlierLabel = SENT_LABEL[state.sentType ?? "manual"] ?? SENT_LABEL.manual;
+
     // Nothing is due — this is purely a record of contact that already happened
     // (a manual send, or a confirmation). Compact: a face and when, no alarm text.
     if (!state.kind) {
@@ -72,7 +79,9 @@ export function FollowUpCueBadge({ state, hoursSinceCreated, className }: Follow
             title={
                 sender
                     ? `${isDiscount ? "أُرسل الخصم" : "أُرسل التذكير"} بواسطة ${sender.name}${ago ? ` · ${ago}` : ""}`
-                    : undefined
+                    : earlier
+                        ? `آخر تواصل: ${earlierLabel} بواسطة ${earlier.name}${earlierAgo ? ` · ${earlierAgo}` : ""}`
+                        : undefined
             }
         >
             {isDiscount ? <Gift className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
@@ -82,6 +91,15 @@ export function FollowUpCueBadge({ state, hoursSinceCreated, className }: Follow
                 <span className="mr-0.5 flex items-center gap-1 border-r border-emerald-300/70 pr-1.5 dark:border-emerald-500/30">
                     <Check className="h-3 w-3" />
                     <SenderAvatar sender={sender} tone="emerald" />
+                </span>
+            )}
+
+            {earlier && (
+                <span
+                    data-followup-earlier="true"
+                    className="mr-0.5 flex items-center gap-1 border-r border-black/10 pr-1.5 opacity-70 dark:border-white/20"
+                >
+                    <SenderAvatar sender={earlier} tone="neutral" />
                 </span>
             )}
         </div>

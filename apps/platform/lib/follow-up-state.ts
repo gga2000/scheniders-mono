@@ -28,6 +28,13 @@ export interface FollowUpState {
     kind: "reminder" | "discount" | null;
     /** Set when the due follow-up has gone out, or when `kind` is null. */
     sentBy?: FollowUpSender;
+    /**
+     * Who last contacted this customer at all, whatever they sent. Set even when
+     * it does not discharge the follow-up that is due, because "the system
+     * already messaged them 21 hours ago" changes how an agent opens the
+     * conversation even though the discount still has to go out.
+     */
+    lastContactBy?: FollowUpSender;
     /** What was actually sent last — not necessarily what is due. */
     sentType?: FollowUpKind;
 }
@@ -89,6 +96,7 @@ export function followUpState(
         // With nothing due, any recorded contact is worth showing — that is the
         // whole point of attributing a manual send.
         sentBy: kind ? (followUpAlreadySent(order, kind) ? sender : undefined) : sender,
+        lastContactBy: sender,
         sentType: order.last_followup_type,
     };
 }

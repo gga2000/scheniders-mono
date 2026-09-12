@@ -154,6 +154,15 @@ export async function dispatchWhatsAppEvent({
             contact_count: newContactCount,
             last_contacted_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            // Nothing reaches this function except automation — the LightFunnels
+            // webhook's immediate confirmation and cart recovery. Recording it
+            // under the same 'bot' sentinel the cron uses means the card can say
+            // "the system already messaged this customer" instead of leaving a
+            // blank where an agent looks for one.
+            last_followup_by_name: "الإرسال التلقائي",
+            last_followup_by_avatar: "bot",
+            last_followup_at: new Date().toISOString(),
+            last_followup_type: templateType,
         })
         .eq("id", order.id);
 

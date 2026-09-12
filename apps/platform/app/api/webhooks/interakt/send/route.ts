@@ -32,9 +32,11 @@ export async function POST(request: NextRequest) {
         // account. Establish the caller from their session cookie, which the
         // client cannot forge, unlike the request body.
         let callerTenantId: string;
+        let callerUserId: string;
         try {
-            const { tenantId } = await resolveCallerTenant();
+            const { tenantId, caller } = await resolveCallerTenant();
             callerTenantId = tenantId;
+            callerUserId = caller.userId;
         } catch {
             return NextResponse.json(
                 { success: false, error: "Not authorized" },
@@ -104,6 +106,12 @@ export async function POST(request: NextRequest) {
                     customPrice,
                     error: result.error,
                     statusCode: result.statusCode,
+                    // Which path sent it, and on whose behalf. Without these the
+                    // log cannot tell an agent's send apart from an automatic
+                    // one after the fact, which is why the sends already on
+                    // record could not be attributed.
+                    source: "interakt-send",
+                    sentByUserId: callerUserId,
                 },
             });
         } catch (logErr) {
@@ -131,6 +139,19 @@ export async function POST(request: NextRequest) {
             // Update status to "contacted" if not already beyond that stage
             const shouldUpdateStatus = previousStatus !== "contacted" && previousStatus !== "confirmed" && previousStatus !== "cancelled";
 
+            // Who sent it, taken from the session rather than from the client.
+            // Stamping it here rather than in the browser is what makes the
+            // card's avatar trustworthy and complete: every entry point reaches
+            // this route, including the ones that never call `useRecordContact`.
+            const { data: senderProfile } = await supabaseAdmin()
+                .from("user_profiles")
+                .select("display_name, avatar_url")
+                .eq("id", callerUserId)
+                .maybeSingle();
+
+            const senderName = (senderProfile as { display_name?: string | null } | null)?.display_name?.trim();
+            const senderAvatar = (senderProfile as { avatar_url?: string | null } | null)?.avatar_url ?? null;
+
             await supabaseAdmin()
                 .from("orders")
                 .update({
@@ -138,6 +159,16 @@ export async function POST(request: NextRequest) {
                     contact_count: newContactCount,
                     last_contacted_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
+                    // A send with no name behind it would render an empty avatar,
+                    // which reads worse than no badge at all.
+                    ...(senderName
+                        ? {
+                            last_followup_by_name: senderName,
+                            last_followup_by_avatar: senderAvatar,
+                            last_followup_at: new Date().toISOString(),
+                            last_followup_type: templateType,
+                        }
+                        : {}),
                 })
                 .eq("id", order.id);
 

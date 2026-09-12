@@ -82,14 +82,28 @@ describe("FollowUpCueBadge", () => {
 
     it("keeps nagging when the follow-up that went out was a different kind", () => {
         // A reminder went out earlier; the order has since aged into needing a
-        // discount, which nobody has sent.
+        // discount, which nobody has sent. The cue stays loud — the work is still
+        // owed — but the earlier sender is shown muted, because "this customer has
+        // already heard from us" changes how the agent opens.
         const { container } = renderCue({
             last_followup_type: "reminder",
             last_followup_by_name: "علي",
             last_followup_by_avatar: "https://example.com/ali.png",
         });
 
-        expect(container.querySelector('img[alt="علي"]')).toBeNull();
+        expect(container.querySelector(".animate-pulse")).toBeTruthy();
+        expect(container.querySelector('[data-followup-sent="true"]')).toBeNull();
+
+        const earlier = container.querySelector('[data-followup-earlier="true"]');
+        expect(earlier).toBeTruthy();
+        expect(earlier?.querySelector('img[alt="علي"]')).toBeTruthy();
+        expect(container.querySelector('[data-followup-kind="discount"]')?.getAttribute("title"))
+            .toContain("آخر تواصل: أُرسل التذكير بواسطة علي");
+    });
+
+    it("shows no earlier face when nobody has contacted the customer at all", () => {
+        const { container } = renderCue({});
+        expect(container.querySelector('[data-followup-earlier="true"]')).toBeNull();
         expect(container.querySelector(".animate-pulse")).toBeTruthy();
     });
 

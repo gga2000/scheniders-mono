@@ -165,3 +165,39 @@ describe("followUpState — contact recorded with nothing due", () => {
         expect(state?.sentType).toBe("manual");
     });
 });
+
+describe("followUpState — earlier contact of a different kind", () => {
+    it("reports who last contacted the customer even when the due message is still owed", () => {
+        // The discount has not gone out, so the cue must stay loud — but the
+        // customer has already heard from the system, and the agent needs to know
+        // that before opening with "your order was received".
+        const state = followUpState(
+            order({
+                last_followup_type: "confirmation",
+                last_followup_by_name: "الإرسال التلقائي",
+                last_followup_by_avatar: "bot",
+            }),
+            { needsReminder: false, needsDiscount: true },
+        );
+
+        expect(state?.kind).toBe("discount");
+        expect(state?.sentBy).toBeUndefined();
+        expect(state?.lastContactBy?.name).toBe("الإرسال التلقائي");
+        expect(state?.lastContactBy?.isBot).toBe(true);
+    });
+
+    it("leaves the last contact unset when nobody has made any", () => {
+        const state = followUpState(order(), { needsReminder: true, needsDiscount: false });
+        expect(state?.kind).toBe("reminder");
+        expect(state?.lastContactBy).toBeUndefined();
+    });
+
+    it("reports the same sender in both fields once the due message is the one that was sent", () => {
+        const state = followUpState(
+            order({ last_followup_type: "discount", last_followup_by_name: "علي" }),
+            { needsReminder: false, needsDiscount: true },
+        );
+        expect(state?.sentBy?.name).toBe("علي");
+        expect(state?.lastContactBy?.name).toBe("علي");
+    });
+});
