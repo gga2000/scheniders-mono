@@ -307,6 +307,8 @@ function AppearanceControl({
 }) {
     const [open, setOpen] = useState(false);
     const [emoji, setEmoji] = useState(reason.emoji ?? "");
+    const [popPos, setPopPos] = useState<{ top: number; right: number } | null>(null);
+    const btnRef = useRef<HTMLButtonElement>(null);
     useEffect(() => setEmoji(reason.emoji ?? ""), [reason.emoji]);
 
     const dot = reasonColorDot(reason.color);
@@ -316,11 +318,20 @@ function AppearanceControl({
         if (v !== (reason.emoji ?? "")) onUpdate({ emoji: v || null });
     };
 
+    const handleToggle = () => {
+        if (!open && btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setPopPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+        }
+        setOpen((v) => !v);
+    };
+
     return (
-        <div className="relative shrink-0">
+        <div className="shrink-0">
             <button
+                ref={btnRef}
                 type="button"
-                onClick={() => setOpen((v) => !v)}
+                onClick={handleToggle}
                 title="المظهر (رمز ولون)"
                 className="w-8 h-8 rounded-md flex items-center justify-center text-muted hover:bg-[var(--background)] transition-colors"
             >
@@ -333,10 +344,13 @@ function AppearanceControl({
                 )}
             </button>
 
-            {open && (
+            {open && popPos && (
                 <>
-                    <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-                    <div className="absolute z-20 top-9 right-0 w-44 p-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-xl space-y-2.5">
+                    <div className="fixed inset-0 z-[90]" onClick={() => setOpen(false)} />
+                    <div
+                        className="fixed z-[100] w-44 p-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-xl space-y-2.5"
+                        style={{ top: popPos.top, right: popPos.right }}
+                    >
                         <input
                             value={emoji}
                             onChange={(e) => setEmoji(e.target.value)}

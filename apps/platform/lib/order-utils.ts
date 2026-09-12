@@ -151,6 +151,18 @@ export function formatPhoneForDisplay(phone: string | undefined | null): string 
 }
 
 /**
+ * Group an Iraqi phone into 4-3-4 for on-screen reading: 07802301677 -> "0780 230 1677".
+ * Falls back to the plain display form when the number is not a standard 11-digit local one.
+ */
+export function formatPhoneGrouped(phone: string | undefined | null): string {
+    const cleaned = formatPhoneForDisplay(phone);
+    if (cleaned.length === 11 && cleaned.startsWith('0')) {
+        return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+    }
+    return cleaned;
+}
+
+/**
  * Normalize phone input to standard Iraqi format (07XXXXXXXXX)
  * Accepts:
  *   - Arabic numerals (٠٧٨٠٢٣٠١٦٧٧)

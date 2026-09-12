@@ -1,13 +1,64 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
-import { formatPhoneForDisplay, validatePhoneDetailed } from "@/lib/order-utils";
+import { formatPhoneGrouped, validatePhoneDetailed } from "@/lib/order-utils";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X } from "lucide-react";
+import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X, ArrowUpDown, BadgeCheck } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import type { OrderStatus } from "@/lib/supabase";
+import { isWhatsAppSlot, swapPhones, type WhatsAppSlot } from "@/lib/whatsapp-contact";
+
+/**
+ * "The customer told us to reach them here." Green + the WhatsApp glyph so it
+ * reads the same way it does on the orders list.
+ */
+function WhatsAppBadge() {
+    return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal text-emerald-700">
+            <BadgeCheck className="h-3 w-3" />
+            واتساب
+        </span>
+    );
+}
+
+/** Marks (or unmarks) one slot as the number the customer asked to be contacted on. */
+function DesignateWhatsAppButton({
+    active,
+    disabled,
+    onClick,
+}: {
+    active: boolean;
+    disabled?: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={cn(
+                "h-9 w-9 flex-shrink-0 rounded-lg border transition-all flex items-center justify-center",
+                disabled
+                    ? "border-[var(--card-border)] bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : active
+                        ? "border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600"
+                        : "border-[var(--card-border)] bg-[var(--background)] text-muted hover:border-emerald-400 hover:text-emerald-600",
+            )}
+            title={
+                disabled
+                    ? "أدخل الرقم أولاً"
+                    : active
+                        ? "إلغاء تحديده كرقم واتساب"
+                        : "اجعله رقم الواتساب المعتمد"
+            }
+            aria-pressed={active}
+        >
+            <BadgeCheck className="h-4 w-4" />
+        </button>
+    );
+}
 
 interface OrderCustomerCardProps {
     isEditing: boolean;
@@ -17,6 +68,10 @@ interface OrderCustomerCardProps {
     onStatusUpdate?: (orderId: string, status: OrderStatus, reason?: string) => Promise<{ success: boolean; error?: string }>;
     isUpdatingStatus: boolean;
     handleStatusChange: (status: OrderStatus) => void;
+    /** Lets the view-mode "add a WhatsApp number" shortcut drop straight into editing. */
+    onRequestEdit?: () => void;
+    /** Called after a manual WhatsApp send so the order can record who made contact. */
+    onContactRecorded?: (orderId: string) => void;
 }
 
 export function OrderCustomerCard({
@@ -26,10 +81,15 @@ export function OrderCustomerCard({
     updateFormData,
     onStatusUpdate,
     isUpdatingStatus,
-    handleStatusChange
+    handleStatusChange,
+    onRequestEdit,
+    onContactRecorded
 }: OrderCustomerCardProps) {
     const { t } = useLanguage();
     const governorates = getAllGovernorateCodes();
+    // Passed in rather than hooked here: this card is presentational and is
+    // rendered in tests without an AuthProvider.
+    const recordContact = (orderId: string) => onContactRecorded?.(orderId);
 
     const scheduledDate: string | null = (
         isEditing && formData.scheduled_date !== undefined ? formData.scheduled_date : order?.scheduled_date
@@ -49,6 +109,29 @@ export function OrderCustomerCard({
         return order?.[key];
     };
 
+    // The two phone controls read through `displayValue` so they behave the same
+    // in edit mode (pending form state) and view mode (saved order).
+    const currentPhones = {
+        phone: (displayValue("phone") || "") as string,
+        secondary_phone: (displayValue("secondary_phone") || "") as string,
+        whatsapp_contact_slot: (displayValue("whatsapp_contact_slot") || null) as WhatsAppSlot | null,
+    };
+
+    const handleSwapPhones = () => {
+        const swapped = swapPhones(currentPhones);
+        updateFormData("phone", swapped.phone);
+        updateFormData("secondary_phone", swapped.secondary_phone ?? "");
+        updateFormData("whatsapp_contact_slot", swapped.whatsapp_contact_slot);
+    };
+
+    /** Toggle: designating the slot that is already designated clears it. */
+    const handleDesignateWhatsApp = (slot: WhatsAppSlot) => {
+        updateFormData(
+            "whatsapp_contact_slot",
+            currentPhones.whatsapp_contact_slot === slot ? null : slot,
+        );
+    };
+
     const handleWhatsApp = () => {
         try {
             const link = generateWhatsAppLink(
@@ -56,6 +139,7 @@ export function OrderCustomerCard({
                 `مرحباً، بخصوص طلب ${order.order_id}`
             );
             const newWindow = window.open(link, "_blank");
+            recordContact(order.id);
 
             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                 navigator.clipboard.writeText(link).then(() => {
@@ -78,6 +162,7 @@ export function OrderCustomerCard({
                 `مرحباً، بخصوص طلب ${order.order_id}`
             );
             const newWindow = window.open(link, "_blank");
+            recordContact(order.id);
 
             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                 navigator.clipboard.writeText(link).then(() => {
@@ -249,6 +334,24 @@ export function OrderCustomerCard({
                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                             <Phone className="w-3 h-3" />
                             {t("orderDetail.primaryPhone")}
+                            {isWhatsAppSlot(currentPhones, "primary") && <WhatsAppBadge />}
+                            {isEditing && (
+                                <button
+                                    type="button"
+                                    onClick={handleSwapPhones}
+                                    disabled={!currentPhones.secondary_phone.trim()}
+                                    className={cn(
+                                        "ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal transition-colors",
+                                        currentPhones.secondary_phone.trim()
+                                            ? "text-foreground/70 hover:bg-[var(--background)] hover:text-foreground"
+                                            : "text-muted/50 cursor-not-allowed",
+                                    )}
+                                    title="تبديل الرقم الأساسي والثانوي"
+                                >
+                                    <ArrowUpDown className="h-3 w-3" />
+                                    تبديل
+                                </button>
+                            )}
                             {!isEditing && !validatePhoneDetailed(order.phone).isValid && (
                                 <span className="relative flex h-2.5 w-2.5 ml-1">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -294,9 +397,16 @@ export function OrderCustomerCard({
                                         )}
                                         dir="ltr"
                                     >
-                                        {formatPhoneForDisplay(order.phone) || "—"}
+                                        {formatPhoneGrouped(order.phone) || "—"}
                                     </span>
                                 </div>
+                            )}
+                            {isEditing && (
+                                <DesignateWhatsAppButton
+                                    active={isWhatsAppSlot(currentPhones, "primary")}
+                                    disabled={!currentPhones.phone.trim()}
+                                    onClick={() => handleDesignateWhatsApp("primary")}
+                                />
                             )}
                             <button
                                 type="button"
@@ -319,6 +429,7 @@ export function OrderCustomerCard({
                         <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
                             <Phone className="w-3 h-3" />
                             {t("orderDetail.secondaryPhone")}
+                            {isWhatsAppSlot(currentPhones, "secondary") && <WhatsAppBadge />}
                             {!isEditing && order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && (
                                 <span className="relative flex h-2.5 w-2.5 ml-1">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -365,9 +476,16 @@ export function OrderCustomerCard({
                                         )}
                                         dir="ltr"
                                     >
-                                        {formatPhoneForDisplay(order.secondary_phone) || "—"}
+                                        {formatPhoneGrouped(order.secondary_phone) || "—"}
                                     </span>
                                 </div>
+                            )}
+                            {isEditing && (
+                                <DesignateWhatsAppButton
+                                    active={isWhatsAppSlot(currentPhones, "secondary")}
+                                    disabled={!currentPhones.secondary_phone.trim()}
+                                    onClick={() => handleDesignateWhatsApp("secondary")}
+                                />
                             )}
                             {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
                                 <button
@@ -381,6 +499,18 @@ export function OrderCustomerCard({
                             )}
                         </div>
                     </div>
+
+                    {/* View mode has no inputs, so offer the one-click way in. */}
+                    {!isEditing && onRequestEdit && !order.whatsapp_contact_slot && (
+                        <button
+                            type="button"
+                            onClick={onRequestEdit}
+                            className="md:col-span-2 inline-flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-emerald-300 px-3 py-2 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
+                        >
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                            {order.secondary_phone ? "تحديد رقم الواتساب" : "إضافة رقم واتساب"}
+                        </button>
+                    )}
                 </div>
 
                 {/* Row 4: Date, Delivery ID, Source */}

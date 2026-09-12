@@ -7,6 +7,8 @@ import type { Order, OrderStatus } from '@/lib/supabase';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
 import { getOrderAge, getScheduledState, formatScheduledDate, isScheduledToday, getStatusBadgeStyle } from '@/lib/order-format-utils';
+import { formatPhoneGrouped } from '@/lib/order-utils';
+import { isWhatsAppSlot } from '@/lib/whatsapp-contact';
 import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/ui/empty-states';
 import { OrderContextMenu } from '@/components/orders/table/context-menu';
@@ -54,15 +56,6 @@ const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0);
     return parts[0].charAt(0) + parts[parts.length - 1].charAt(0);
-};
-
-// Format phone for display: 0780 230 1677
-const formatPhoneDisplay = (phone: string) => {
-    const cleaned = phone.replace(/^\+964/, "0").replace(/^964/, "0");
-    if (cleaned.length === 11 && cleaned.startsWith("0")) {
-        return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
-    }
-    return cleaned;
 };
 
 // Format date without year: M-DD
@@ -113,7 +106,7 @@ interface VirtualizedOrderTableProps {
     togglePin: (id: string) => void;
     setSelectedOrder: (order: Order) => void;
     setIsModalOpen: (open: boolean) => void;
-    phoneCounts: Map<string, number>;
+    getDuplicateWindowAlert?: (orderId: string) => import("@/lib/duplicate-window").DuplicateWindowAlert | undefined;
     setDuplicateOrder: (order: Order) => void;
     setShowDuplicateModal: (open: boolean) => void;
     modePrice: number;
@@ -292,6 +285,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
     scrollMargin,
     isSelected,
     isDuplicate,
+    duplicateSeverity,
     modePrice,
     togglePin,
     toggleOrderSelection,
@@ -454,14 +448,24 @@ const VirtualTableRow = memo(function VirtualTableRow({
             <div role="cell" className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}>
                 <div className="relative inline-flex items-center gap-1 group/phone">
                     <span
-                        className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && "text-amber-600 font-bold")}
+                        className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && (duplicateSeverity === "critical" ? "text-rose-600 font-bold" : "text-amber-600 font-bold"), isWhatsAppSlot(order, "primary") && validatePhoneDetailed(order.phone).isValid && !isDuplicate && "text-emerald-600 font-bold")}
                         onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); }}
                     >
-                        {formatPhoneDisplay(order.phone)}
+                        {formatPhoneGrouped(order.phone)}
                     </span>
                     {isDuplicate && (
-                        <button onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }} className="p-0.5 rounded hover:bg-amber-100 transition-colors" title="View duplicate orders">
-                            <CopyPlus className="w-3 h-3 text-amber-500" />
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }}
+                            className={cn(
+                                "inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold transition-colors",
+                                duplicateSeverity === "critical"
+                                    ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                                    : "bg-amber-100 text-amber-700 hover:bg-amber-200",
+                            )}
+                            title="طلب مكرر خلال 48 ساعة"
+                        >
+                            <CopyPlus className="w-3 h-3" />
+                            مكرر
                         </button>
                     )}
                     {!validatePhoneDetailed(order.phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
@@ -476,10 +480,10 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 {order.secondary_phone ? (
                     <div className="relative inline-flex items-center gap-1 cursor-pointer group/phone2">
                         <span
-                            className={cn("font-mono text-xs hover:text-green-600 transition-colors", !validatePhoneDetailed(order.secondary_phone).isValid ? "text-red-600 font-bold" : "text-muted")}
+                            className={cn("font-mono text-xs hover:text-green-600 transition-colors", !validatePhoneDetailed(order.secondary_phone).isValid ? "text-red-600 font-bold" : "text-muted", isWhatsAppSlot(order, "secondary") && validatePhoneDetailed(order.secondary_phone).isValid && "text-emerald-600 font-bold")}
                             onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.secondary_phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); }}
                         >
-                            {formatPhoneDisplay(order.secondary_phone)}
+                            {formatPhoneGrouped(order.secondary_phone)}
                         </span>
                         {!validatePhoneDetailed(order.secondary_phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
                     </div>
@@ -594,6 +598,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
         prevProps.displayIndex === nextProps.displayIndex &&
         prevProps.isSelected === nextProps.isSelected &&
         prevProps.isDuplicate === nextProps.isDuplicate &&
+        prevProps.duplicateSeverity === nextProps.duplicateSeverity &&
         prevProps.modePrice === nextProps.modePrice &&
         prevProps.isFlashing === nextProps.isFlashing &&
         prevProps.isFocused === nextProps.isFocused &&
@@ -619,7 +624,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     togglePin,
     setSelectedOrder,
     setIsModalOpen,
-    phoneCounts,
+    getDuplicateWindowAlert,
     setDuplicateOrder,
     setShowDuplicateModal,
     modePrice,
@@ -1094,7 +1099,11 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
 
                             const order = item.data;
                             const isSelected = selectedOrders.has(order.id);
-                            const isDuplicate = phoneCounts.get(order.phone.replace(/\s/g, ''))! > 1;
+                            // Was `phoneCounts > 1`, which counted repeats *within the current
+                            // filtered view* — every returning customer lit up. Use the real
+                            // 48h window alert instead.
+                            const duplicateAlert = getDuplicateWindowAlert?.(order.id);
+                            const isDuplicate = !!duplicateAlert;
 
                             return (
                                 <VirtualTableRow
@@ -1105,6 +1114,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                     scrollMargin={scrollMargin}
                                     isSelected={isSelected}
                                     isDuplicate={isDuplicate}
+                                    duplicateSeverity={duplicateAlert?.severity}
                                     modePrice={modePrice}
                                     togglePin={togglePin}
                                     toggleOrderSelection={toggleOrderSelection}

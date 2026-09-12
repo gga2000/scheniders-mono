@@ -292,7 +292,7 @@ export function CancellationReasonDialog({
                                                     aria-checked={isSelected}
                                                     aria-label={reason.label_ar}
                                                     className={cn(
-                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--card-bg)]",
+                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--card-bg)]",
                                                         isReject
                                                             ? "focus-visible:ring-orange-400"
                                                             : "focus-visible:ring-rose-400",
@@ -303,51 +303,12 @@ export function CancellationReasonDialog({
                                                             : "bg-[var(--background)] hover:bg-gray-100 dark:hover:bg-white/5 text-foreground",
                                                     )}
                                                 >
-                                                    <span
-                                                        className={cn(
-                                                            "w-9 h-9 rounded-full grid place-items-center shrink-0 transition-colors",
-                                                            isSelected
-                                                                ? isReject
-                                                                    ? "bg-orange-500 text-white dark:bg-orange-400 dark:text-orange-950"
-                                                                    : "bg-rose-500 text-white dark:bg-rose-400 dark:text-rose-950"
-                                                                : "bg-[var(--card-bg)] border border-[var(--card-border)]",
-                                                        )}
-                                                    >
-                                                        {isSelected ? (
-                                                            <Check className="w-4 h-4" />
-                                                        ) : reason.emoji ? (
-                                                            <span className="text-lg leading-none">{reason.emoji}</span>
-                                                        ) : (
-                                                            <span
-                                                                className={cn(
-                                                                    "w-3 h-3 rounded-full",
-                                                                    reasonColorDot(reason.color) ?? "bg-muted/40",
-                                                                )}
-                                                            />
-                                                        )}
-                                                    </span>
-
-                                                    <span className="flex-1 min-w-0 font-medium truncate" title={reason.label_ar}>
-                                                        {reason.label_ar}
-                                                    </span>
-
+                                                    {/* Bar + count — left side, matching Arabic visual convention */}
                                                     {!reason.requires_note && count > 0 && (
                                                         <span
                                                             className="flex items-center gap-1.5 shrink-0 w-20"
                                                             title={`${count} مرة`}
                                                         >
-                                                            <span
-                                                                className={cn(
-                                                                    "text-[11px] font-semibold tabular-nums",
-                                                                    isTop
-                                                                        ? isReject
-                                                                            ? "text-orange-600 dark:text-orange-400"
-                                                                            : "text-rose-600 dark:text-rose-400"
-                                                                        : "text-muted",
-                                                                )}
-                                                            >
-                                                                {count}
-                                                            </span>
                                                             <span className="flex-1 h-1.5 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
                                                                 <span
                                                                     className={cn(
@@ -360,8 +321,49 @@ export function CancellationReasonDialog({
                                                                     }}
                                                                 />
                                                             </span>
+                                                            <span
+                                                                className={cn(
+                                                                    "text-[11px] font-semibold tabular-nums",
+                                                                    isTop
+                                                                        ? isReject
+                                                                            ? "text-orange-600 dark:text-orange-400"
+                                                                            : "text-rose-600 dark:text-rose-400"
+                                                                        : "text-muted",
+                                                                )}
+                                                            >
+                                                                {count}
+                                                            </span>
                                                         </span>
                                                     )}
+
+                                                    <span className="flex-1 min-w-0 font-medium truncate text-right" title={reason.label_ar}>
+                                                        {reason.label_ar}
+                                                    </span>
+
+                                                    {/* Indicator dot — right side */}
+                                                    <span
+                                                        className={cn(
+                                                            "w-8 h-8 rounded-full grid place-items-center shrink-0 transition-colors",
+                                                            isSelected
+                                                                ? isReject
+                                                                    ? "bg-orange-500 text-white dark:bg-orange-400 dark:text-orange-950"
+                                                                    : "bg-rose-500 text-white dark:bg-rose-400 dark:text-rose-950"
+                                                                : "bg-transparent",
+                                                        )}
+                                                    >
+                                                        {isSelected ? (
+                                                            <Check className="w-4 h-4" />
+                                                        ) : reason.emoji ? (
+                                                            <span className="text-lg leading-none">{reason.emoji}</span>
+                                                        ) : (
+                                                            <span
+                                                                className={cn(
+                                                                    "w-3 h-3 rounded-full",
+                                                                    reasonColorDot(reason.color) ?? "bg-gray-300 dark:bg-gray-600",
+                                                                )}
+                                                            />
+                                                        )}
+                                                    </span>
                                                 </motion.button>
                                             );
                                         })}

@@ -21,8 +21,10 @@ import { toast } from "@/hooks/use-toast";
 import { usePrompt } from "@scheniders/ui/prompt-dialog";
 import { OrderTimeline } from "./order-timeline";
 import { PresenceAvatarGroup } from "./presence-avatar-group";
+import { OrderThreadCloseButton } from "./order-thread-close-button";
 import { ProductPicker } from "./product-picker";
 import { OrderCustomerCard } from "./order-customer-card";
+import { useRecordContact } from "@/hooks/use-record-contact";
 import { OrderItemsEditor } from "./order-items-editor";
 import { OrderNotes } from "./order-notes";
 import { DiscountPresetSelector } from "./discount-preset-selector";
@@ -127,6 +129,8 @@ export function OrderDetailsModal({
     useEffect(() => {
         setOrder(propOrder);
     }, [propOrder]);
+
+    const recordContact = useRecordContact();
 
     const {
         isEditing,
@@ -836,6 +840,8 @@ export function OrderDetailsModal({
                                     <MessageCircle className="h-3.5 w-3.5" />
                                     {t("chat.discussOrder", "Discuss")}
                                 </button>
+                                {/* Close / reopen the order's thread from the order itself */}
+                                <OrderThreadCloseButton orderId={order.id} />
                                 {/* Edit Button */}
                                 {!isEditing && (
                                     <button
@@ -1420,6 +1426,8 @@ export function OrderDetailsModal({
                                 onStatusUpdate={onStatusUpdate}
                                 isUpdatingStatus={isUpdatingStatus}
                                 handleStatusChange={handleStatusChange}
+                                onRequestEdit={handleEdit}
+                                onContactRecorded={recordContact}
                             />
 
                             {/* Products Card */}

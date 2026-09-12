@@ -3,7 +3,9 @@ import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
 import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { fetchCheckoutById, getSavedAccessToken } from "./lightfunnels-api";
+import { fetchCheckoutById, fetchOrderAttributionById, getSavedAccessToken } from "./lightfunnels-api";
+import { parseAdAttribution, type AdAttribution, type UtmPair } from "./ad-attribution";
+import { mergeOrderItems } from "./merge-order-items";
 import { fraudDetector } from "./fraud-detector";
 import type { OrderItem } from "./supabase";
 
@@ -93,6 +95,8 @@ export interface LightFunnelsWebhookPayload {
         checkout?: {
             _id?: number; // The original checkout ID if this order came from a checkout
         };
+        /** Ad attribution pairs: [{k:"source",v:"fb"},{k:"medium",v:"Facebook_Mobile_Reels"},…] */
+        utm?: UtmPair[];
     };
 }
 
@@ -102,6 +106,8 @@ export interface LightFunnelsWebhookPayload {
 export interface LightFunnelsWebhook {
     order_id: string;
     order_number: string;
+    /** LightFunnels global node id ("order_hnIxTFem…"), for API follow-ups. */
+    lf_node_id?: string;
     is_checkout: boolean; // true if this is an abandoned checkout, false if completed order
     checkout_id?: string; // The original checkout ID if this order came from a checkout
     customer: {
@@ -124,6 +130,8 @@ export interface LightFunnelsWebhook {
     created_at?: string;
     notes?: string;
     payment_method?: string;
+    /** Which ad channel the customer came from, when the payload carried it. */
+    attribution?: AdAttribution;
 }
 
 /**
@@ -323,14 +331,18 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         } else {
             // Order format: flat items array
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            items = node.items.map((item: any) => ({
+            // LightFunnels lists one entry per unit and sends no quantity field, so
+            // three of the same perfume arrive as three lines of 1. Merge them, or
+            // the card reads as three different products.
+            items = mergeOrderItems(node.items.map((item: any) => ({
                 name: item.title || item.name || 'Unknown Product',
                 quantity: 1,
                 price: item.price || 0,
                 sku: item.sku,
                 image_url: item.image?.path,
                 product_id: item.product_id,
-            }));
+                variant_id: item.variant_id,
+            })));
         }
 
         // Calculate total (checkouts don't have total field)
@@ -349,6 +361,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         const normalized: LightFunnelsWebhook = {
             order_id: String(node._id || node.id),
             order_number: node.name || String(node._id || node.id),
+            lf_node_id: typeof node.id === 'string' ? node.id : undefined,
             is_checkout: isCheckout,
             checkout_id: originalCheckoutId,
             customer: {
@@ -364,6 +377,9 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             created_at: node.created_at,
             notes: node.notes,
             payment_method: paymentMethod,
+            // Absent when the webhook payload omits `utm`; the caller then asks the
+            // API for it rather than losing the channel.
+            attribution: parseAdAttribution(node.utm),
         };
 
         console.log("Parsed:", normalized.is_checkout ? "Checkout" : "Order", normalized.order_number);
@@ -433,7 +449,7 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
 
         // Map items - Checkouts via API return 'variants' array
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const items = (checkout.variants || []).map((v: any) => {
+        const items = mergeOrderItems((checkout.variants || []).map((v: any) => {
             const item = v.variant;
             return {
                 name: item.title || item.name || 'Unknown Product',
@@ -442,8 +458,9 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
                 sku: item.sku,
                 image_url: item.image?.path,
                 product_id: item.product_id,
+                variant_id: item.id,
             };
-        });
+        }));
 
         // Calculate total
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -849,6 +866,26 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             ? `[سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
             : webhook.notes?.trim() || null;
 
+        // Ad attribution: prefer what the webhook already carried, otherwise ask the
+        // API. Losing the channel is worse than one extra request, and a failure
+        // here must never stop the order from landing.
+        let attribution = webhook.attribution;
+        if (!attribution && webhook.lf_node_id) {
+            try {
+                const token = await getSavedAccessToken(supabase);
+                if (token) {
+                    const utm = await fetchOrderAttributionById(webhook.lf_node_id, token);
+                    attribution = parseAdAttribution(utm);
+                }
+            } catch (attrErr) {
+                console.error("[Webhook] Could not resolve ad attribution:", attrErr);
+            }
+        }
+
+        // findProductBySku above rewrites LightFunnels' long titles to our short
+        // names, which can make two lines that looked different become identical.
+        const mergedItems = mergeOrderItems(items);
+
         const orderData = {
             // Use Lightfunnels order ID directly
             order_id: lightfunnelsOrderId,
@@ -858,7 +895,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             city: webhook.customer.city?.trim() || null,
             governorate_code: addressValidation.governorate?.code || null,
             address_details: webhook.customer.address?.trim() || null,
-            items,
+            items: mergedItems,
             price: webhook.total,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             status: orderStatus as any,
@@ -867,6 +904,10 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             is_return: false,
             is_archived: false,
             source: 'lightfunnels' as const,
+            // `source` says which system sent the order; these say which ad the
+            // customer actually clicked.
+            attribution: attribution ?? null,
+            ad_channel: attribution?.channel ?? null,
             whatsapp_link: generateWhatsAppLink(formattedPhone, whatsappMessage),
             notes: notesText,
             needs_attention: attentionReasons.length > 0,

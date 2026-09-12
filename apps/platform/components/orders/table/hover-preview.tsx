@@ -6,6 +6,7 @@ import type { Order } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { getStatusLabel } from "@/lib/utils";
 import { Phone, MapPin, FileText, Package, Clock } from "lucide-react";
+import { formatPhoneGrouped } from "@/lib/order-utils";
 
 interface HoverPreviewProps {
     order: Order;
@@ -32,7 +33,7 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
             {/* Phone */}
             <div className="flex items-center gap-1.5 text-xs text-muted mb-1.5">
                 <Phone className="w-3 h-3" />
-                <span className="font-mono">{order.phone}</span>
+                <span className="font-mono" dir="ltr">{formatPhoneGrouped(order.phone)}</span>
             </div>
 
             {/* Address */}

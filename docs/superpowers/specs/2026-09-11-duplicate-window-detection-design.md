@@ -1,7 +1,7 @@
 # 48-Hour Duplicate-Order Detection — Design
 
 **Date:** 2026-09-11
-**Status:** Approved (design), not yet implemented
+**Status:** Implemented 2026-09-11. Amended 2026-09-12 — see "Amendment" at the end.
 **Area:** `apps/platform` — orders page
 
 ## Problem
@@ -228,3 +228,26 @@ the affected pairs, then proceeds with the full set or aborts. It does not promp
 | `components/orders/virtualized-order-table.tsx` | repoint tinting to the alert |
 | `app/orders/page.tsx` | intercept in `handleStatusUpdate` + bulk confirm |
 | `lib/i18n.ts` | banner and dialog strings (en + ar) |
+
+
+## Amendment — 2026-09-12: matching across both numbers
+
+The shipped design grouped orders by the **primary** phone only. Live data broke
+it within a day: orders `3260911003` and `3260911004` carried the same two numbers
+in opposite slots (an agent had swapped them with the new swap control), so they
+landed in separate groups and never matched. The pre-existing ±72h engine has the
+same blind spot.
+
+**Changed:** an order is now indexed under *both* of its numbers, and two orders
+are twins when they share **any** number. Matching stays pairwise — no transitive
+chaining, so an order sharing a line with A and a different line with B does not
+marry A to B.
+
+**Added to the alert:** `sharedNumber` and `matchedOnPrimary`. When the two orders
+do not both lead with the shared number, the banner names it ("عبر الرقم …") —
+without that the agent sees two different phone numbers on the two cards and
+writes the alert off as a false positive.
+
+**Known trade-off:** two genuinely different customers who share one line (a
+household phone, a shop's landline entered as a secondary) now match. The existing
+`mark as same customer` control silences it per order.

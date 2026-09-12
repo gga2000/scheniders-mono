@@ -32,6 +32,7 @@ export const LIST_VIEW_COLUMNS = `
   customer_name,
   phone,
   secondary_phone,
+  whatsapp_contact_slot,
   city,
   governorate_code,
   address_details,
@@ -59,7 +60,13 @@ export const LIST_VIEW_COLUMNS = `
   needs_attention,
   attention_reasons,
   last_status_changed_by_name,
-  last_status_changed_by_avatar
+  last_status_changed_by_avatar,
+  last_followup_by_name,
+  last_followup_by_avatar,
+  last_followup_at,
+  last_followup_type,
+  attribution,
+  ad_channel
 `.trim();
 
 export interface OrderSearchRow {

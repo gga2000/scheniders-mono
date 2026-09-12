@@ -118,3 +118,102 @@ describe("OrderCustomerCard scheduling", () => {
         expect((within(dialog).getByRole("button", { name: "9" }) as HTMLButtonElement).disabled).toBe(true);
     });
 });
+
+describe("OrderCustomerCard WhatsApp contact designation", () => {
+    const withSecondary = { secondary_phone: "07811262261" };
+
+    it("badges the designated number in view mode", () => {
+        renderCard({ ...withSecondary, whatsapp_contact_slot: "secondary" });
+        expect(screen.getAllByText("واتساب").length).toBeGreaterThan(0);
+    });
+
+    it("offers the shortcut into editing only while nothing is designated", () => {
+        const { rerender } = render(
+            <LanguageProvider>
+                <OrderCustomerCard
+                    isEditing={false}
+                    order={{ ...baseOrder, ...withSecondary }}
+                    formData={{}}
+                    updateFormData={vi.fn()}
+                    isUpdatingStatus={false}
+                    handleStatusChange={() => {}}
+                    onRequestEdit={vi.fn()}
+                />
+            </LanguageProvider>,
+        );
+        expect(screen.getByText("تحديد رقم الواتساب")).toBeTruthy();
+
+        rerender(
+            <LanguageProvider>
+                <OrderCustomerCard
+                    isEditing={false}
+                    order={{ ...baseOrder, ...withSecondary, whatsapp_contact_slot: "primary" }}
+                    formData={{}}
+                    updateFormData={vi.fn()}
+                    isUpdatingStatus={false}
+                    handleStatusChange={() => {}}
+                    onRequestEdit={vi.fn()}
+                />
+            </LanguageProvider>,
+        );
+        expect(screen.queryByText("تحديد رقم الواتساب")).toBeNull();
+    });
+
+    it("labels the shortcut as adding a number when there is no secondary", () => {
+        render(
+            <LanguageProvider>
+                <OrderCustomerCard
+                    isEditing={false}
+                    order={baseOrder}
+                    formData={{}}
+                    updateFormData={vi.fn()}
+                    isUpdatingStatus={false}
+                    handleStatusChange={() => {}}
+                    onRequestEdit={vi.fn()}
+                />
+            </LanguageProvider>,
+        );
+        expect(screen.getByText("إضافة رقم واتساب")).toBeTruthy();
+    });
+
+    it("swaps both numbers and carries the designation with the number", () => {
+        const { updateFormData } = renderCard(
+            { ...withSecondary, whatsapp_contact_slot: "secondary" },
+            { isEditing: true },
+        );
+
+        fireEvent.click(screen.getByTitle("تبديل الرقم الأساسي والثانوي"));
+
+        expect(updateFormData).toHaveBeenCalledWith("phone", "07811262261");
+        expect(updateFormData).toHaveBeenCalledWith("secondary_phone", "07727838391");
+        // The customer's chosen line became the primary, so the slot must follow it.
+        expect(updateFormData).toHaveBeenCalledWith("whatsapp_contact_slot", "primary");
+    });
+
+    it("cannot swap when there is no secondary number to promote", () => {
+        renderCard({}, { isEditing: true });
+        expect(screen.getByTitle("تبديل الرقم الأساسي والثانوي").hasAttribute("disabled")).toBe(true);
+    });
+
+    it("designates a slot, and un-designates it on a second press", () => {
+        const { updateFormData } = renderCard(withSecondary, { isEditing: true });
+        // Both slots offer the toggle when both hold a number; the first is primary.
+        const toggles = screen.getAllByTitle("اجعله رقم الواتساب المعتمد");
+        expect(toggles).toHaveLength(2);
+        fireEvent.click(toggles[0]);
+        expect(updateFormData).toHaveBeenCalledWith("whatsapp_contact_slot", "primary");
+
+        cleanup();
+        const second = renderCard(
+            { ...withSecondary, whatsapp_contact_slot: "primary" },
+            { isEditing: true },
+        );
+        fireEvent.click(screen.getByTitle("إلغاء تحديده كرقم واتساب"));
+        expect(second.updateFormData).toHaveBeenCalledWith("whatsapp_contact_slot", null);
+    });
+
+    it("disables designating a slot with no number behind it", () => {
+        renderCard({}, { isEditing: true });
+        expect(screen.getByTitle("أدخل الرقم أولاً").hasAttribute("disabled")).toBe(true);
+    });
+});

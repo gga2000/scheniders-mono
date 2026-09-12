@@ -1,5 +1,7 @@
 import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
+import { mergeOrderItems } from "@/lib/merge-order-items";
+import type { OrderItem } from "@/types/order";
 
 export const formatShortDate = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
@@ -149,9 +151,16 @@ export const getAgeUrgency = (
     return "stale";                         // Red - very old
 };
 
-export const getItemsDisplay = (items: Array<{ name: string; quantity: number; image_url?: string; tag_color?: string | null; is_open_box?: boolean; is_ai_extracted?: boolean }>) => {
+/**
+ * Card-ready item lines, with repeated units collapsed.
+ *
+ * Merging here (and not only at ingestion) is what fixes the orders already
+ * stored with one line per unit — LightFunnels sent them that way for months,
+ * and the card showed "بيرسيفيرون ×1" three times instead of "×3".
+ */
+export const getItemsDisplay = (items: Array<{ name: string; quantity: number; price?: number; sku?: string; product_id?: string; variant_id?: string; image_url?: string; tag_color?: string | null; is_open_box?: boolean; is_ai_extracted?: boolean }>) => {
     if (!items || items.length === 0) return [];
-    return items.map(item => ({
+    return mergeOrderItems(items as OrderItem[]).map(item => ({
         name: item.name,
         quantity: item.quantity,
         image_url: item.image_url,
