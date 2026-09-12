@@ -42,10 +42,40 @@ export function useMentionNotifications() {
     }, [user?.id, qc, instanceId]);
 
     const unreadCount = useMemo(() => mentions.filter((m) => !m.is_read).length, [mentions]);
+
     const markAsRead = useCallback(async (id: string) => {
         await supabase.from("chat_notifications").update({ is_read: true }).eq("id", id);
         qc.invalidateQueries({ queryKey: chatKeys.mentions() });
     }, [qc]);
 
-    return { mentions, unreadCount, markAsRead };
+    // Bulk actions scope by recipient_id rather than by the ids currently loaded,
+    // so they clear the whole backlog instead of just the visible page. RLS
+    // restricts both to the caller's own rows regardless.
+    const markAllAsRead = useCallback(async () => {
+        if (!user?.id) return;
+        const { error } = await supabase
+            .from("chat_notifications")
+            .update({ is_read: true })
+            .eq("recipient_id", user.id)
+            .eq("is_read", false);
+        if (error) throw error;
+        qc.invalidateQueries({ queryKey: chatKeys.mentions() });
+    }, [qc, user?.id]);
+
+    /**
+     * Mentions had no delete path at all — chat_notifications carried SELECT and
+     * UPDATE policies but no DELETE, so nothing could remove them from the feed.
+     * Each row belongs to exactly one recipient, so deleting your own is safe.
+     */
+    const clearAll = useCallback(async () => {
+        if (!user?.id) return;
+        const { error } = await supabase
+            .from("chat_notifications")
+            .delete()
+            .eq("recipient_id", user.id);
+        if (error) throw error;
+        qc.invalidateQueries({ queryKey: chatKeys.mentions() });
+    }, [qc, user?.id]);
+
+    return { mentions, unreadCount, markAsRead, markAllAsRead, clearAll };
 }

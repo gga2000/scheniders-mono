@@ -388,7 +388,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         {/* Presence · Chat · Notifications */}
                         <LivePresenceStack />
                         <ChatTrigger />
-                        <NotificationsDropdown onOpenChange={setNotifOpen} />
+                        <NotificationsDropdown onOpenChange={setNotifOpen} ownsTitleBadge />
 
                         {/* Overflow: Theme + Language */}
                         <DropdownMenu>
