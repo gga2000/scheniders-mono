@@ -248,6 +248,10 @@ export const listCategoryProductCounts = cache(
         .from("product_categories")
         .select("category_id, products!inner(id, is_visible, is_archived, is_supply)")
         .eq("tenant_id", tenantId)
+        // Draft products are hidden everywhere else on the storefront; a
+        // count that includes them advertises "19 عطر" on a card whose
+        // own page then lists fewer.
+        .eq("products.status", "active")
         .eq("products.is_visible", true)
         .eq("products.is_archived", false)
         .not("products.is_supply", "is", true);
@@ -285,6 +289,10 @@ export const getMaxDiscountPercent = cache(
         .from("products")
         .select("price, website_price, compare_at_price")
         .eq("tenant_id", tenantId)
+        // A draft product is not for sale, so its discount is not a real
+        // offer — advertising "up to N% off" from one would promise a
+        // saving on something a shopper cannot buy.
+        .eq("status", "active")
         .eq("is_visible", true)
         .eq("is_archived", false)
         .not("is_supply", "is", true)
