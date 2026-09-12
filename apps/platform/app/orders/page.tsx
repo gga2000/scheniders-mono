@@ -166,7 +166,7 @@ import { formatIQD } from "@/lib/utils";
 import { notificationService } from "@/lib/notification-service";
 import { mockAssignmentRules } from "@/lib/team-types";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
-import { toast, dismissToast } from "@/hooks/use-toast";
+import { toast, dismissToast, updateToast } from "@/hooks/use-toast";
 
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
@@ -874,19 +874,28 @@ export default function OrdersPage() {
     const [duplicateConfirmPairs, setDuplicateConfirmPairs] = useState<{ order: Order; twin: Order }[]>([]);
     const [pendingConfirm, setPendingConfirm] = useState<(() => void) | null>(null);
 
+    /**
+     * Run a bulk action as background work.
+     *
+     * The only thing on screen is a loading toast that counts orders off as they
+     * settle — no modal, no dimmed page. A bulk update is not something the
+     * employee needs to watch: they keep scrolling, reading and selecting while
+     * it runs. Re-entry is blocked by `isBulkProcessing`, which also disables the
+     * bulk bar, so "not blocking the page" never means "fire the same batch twice".
+     */
     const withProcessing = async (
-        action: () => Promise<{ success: boolean; error?: string } | undefined>,
-        fallbackMsg: string,
+        action: (onProgress: (done: number, total: number) => void) => Promise<{ success: boolean; error?: string } | undefined>,
+        loadingMsg: string,
         successMsg: string,
         onSuccess?: () => void
     ) => {
         if (isBulkProcessing) return;
         setIsBulkProcessing(true);
-        const pt = t("orders.processing");
-        const loadingMsg = (pt && pt !== "orders.processing") ? pt : fallbackMsg;
         const toastId = toast.loading(loadingMsg);
         try {
-            const result = await action();
+            const result = await action((done, total) => {
+                updateToast(toastId, { description: `${done} / ${total}` });
+            });
             dismissToast(toastId);
             if (result?.success || result === undefined) {
                 toast.success(successMsg);
@@ -907,8 +916,8 @@ export default function OrdersPage() {
         const ids = Array.from(selectedOrders);
 
         const runBulk = () => withProcessing(
-            () => bulkUpdateStatus(ids, "confirmed"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "confirmed", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
             () => setSelectedOrders(new Set())
         );
@@ -932,8 +941,8 @@ export default function OrdersPage() {
     const handleBulkDeliver = async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "delivered"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "delivered", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
             () => setSelectedOrders(new Set())
         );
@@ -942,8 +951,8 @@ export default function OrdersPage() {
     const handleBulkReject = async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "rejected"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "rejected", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
             () => setSelectedOrders(new Set())
         );
@@ -953,8 +962,7 @@ export default function OrdersPage() {
         if (isBulkProcessing) return;
         const ids = Array.from(selectedOrders);
         setIsBulkProcessing(true);
-        const pt = t("orders.processing");
-        const loadingMsg = (pt && pt !== "orders.processing") ? pt : `Archiving ${ids.length} orders...`;
+        const loadingMsg = t("orders.bulk.archiving").replace("{count}", String(ids.length));
         const toastId = toast.loading(loadingMsg);
         try {
             const result = await bulkArchive(ids);
@@ -1047,8 +1055,8 @@ export default function OrdersPage() {
     const handleBulkNew = async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "new"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "new", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "New"),
             () => setSelectedOrders(new Set())
         );
@@ -1057,8 +1065,8 @@ export default function OrdersPage() {
     const handleBulkContacted = async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "contacted"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "contacted", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Contacted"),
             () => setSelectedOrders(new Set())
         );
@@ -1067,8 +1075,8 @@ export default function OrdersPage() {
     const handleBulkInTransit = async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "in_transit"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "in_transit", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "In Transit"),
             () => setSelectedOrders(new Set())
         );
@@ -1077,8 +1085,8 @@ export default function OrdersPage() {
     const handleBulkCompleted = async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "completed"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "completed", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Completed"),
             () => setSelectedOrders(new Set())
         );
@@ -1087,8 +1095,8 @@ export default function OrdersPage() {
     const handleBulkNoResponse = async () => {
         const ids = Array.from(selectedOrders);
         withProcessing(
-            () => bulkUpdateStatus(ids, "no_response"),
-            `Updating ${ids.length} orders...`,
+            onProgress => bulkUpdateStatus(ids, "no_response", onProgress),
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
             t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "No Response"),
             () => setSelectedOrders(new Set())
         );
@@ -2511,8 +2519,8 @@ export default function OrdersPage() {
                                                                             onClick={() => {
                                                                                 const ids = Array.from(selectedOrders);
                                                                                 withProcessing(
-                                                                                    () => bulkUpdateStatus(ids, "suspended"),
-                                                                                    `Updating ${ids.length} orders...`,
+                                                                                    onProgress => bulkUpdateStatus(ids, "suspended", onProgress),
+                                                                                    t("orders.bulk.updating").replace("{count}", String(ids.length)),
                                                                                     t("toast.statusUpdatedDescCount").replace("{count}", String(ids.length)).replace("{status}", "Suspended"),
                                                                                     () => setSelectedOrders(new Set())
                                                                                 );
@@ -3074,43 +3082,6 @@ export default function OrdersPage() {
                         disabled={isBulkProcessing}
                     />
 
-
-                    {/* Bulk Processing Overlay */}
-                    <AnimatePresence>
-                        {isBulkProcessing && (
-                            <motion.div
-                                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                                animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
-                                exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                                className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/20 pointer-events-none"
-                            >
-                                <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.9, opacity: 0 }}
-                                    className="bg-white/90 dark:bg-black/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 dark:border-white/10 flex flex-col items-center gap-6"
-                                >
-                                    <div className="relative">
-                                        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
-                                        <div className="relative bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
-                                            <svg className="w-10 h-10 text-blue-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div className="text-center space-y-1">
-                                        <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                            {t("orders.processing") !== "orders.processing" ? t("orders.processing") : "Processing..."}
-                                        </h3>
-                                        <p className="text-sm font-medium text-muted-foreground">
-                                            Please wait while we update your orders
-                                        </p>
-                                    </div>
-                                </motion.div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
 
                     {/* Scroll to Top Button */}
                     <ScrollToTopButton />

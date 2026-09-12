@@ -786,7 +786,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // BULK OPERATIONS
     // =============================================
 
-    async function bulkUpdateStatus(orderIds: string[], status: Order["status"]) {
+    async function bulkUpdateStatus(
+        orderIds: string[],
+        status: Order["status"],
+        onProgress?: (done: number, total: number) => void
+    ) {
         try {
             const previousOrders = orders.filter(o => orderIds.includes(o.id));
             const currentStatuses: { [key: string]: Order["status"] } = {};
@@ -808,7 +812,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 undefined, // rejectionReason
                 changedBy,
                 changedByAvatar || undefined,
-                expectedUpdatedAts
+                expectedUpdatedAts,
+                onProgress
             );
 
             if (successfulOperations.length === 0 && failedOperations.length > 0) {

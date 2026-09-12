@@ -545,25 +545,35 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedUpdatedAts?: Record<string, string>
+        expectedUpdatedAts?: Record<string, string>,
+        /** Called as each order settles, so the caller can show real progress. */
+        onProgress?: (done: number, total: number) => void
     ): Promise<{
         successfulOperations: { id: string, order: Order }[],
         failedOperations: { id: string, error: unknown }[]
     }> {
         diag.log(`[Diag:Repo] bulkUpdateStatus START count=${orderIds.length} status=${status}`);
         
+        let settled = 0;
         const results = await Promise.allSettled(
             orderIds.map(async id => {
                 const expectedAt = expectedUpdatedAts ? expectedUpdatedAts[id] : undefined;
-                const order = await this.updateStatus(
-                    id, 
-                    status, 
-                    rejectionReason, 
-                    last_status_changed_by_name, 
-                    last_status_changed_by_avatar, 
-                    expectedAt
-                );
-                return { id, order };
+                try {
+                    const order = await this.updateStatus(
+                        id,
+                        status,
+                        rejectionReason,
+                        last_status_changed_by_name,
+                        last_status_changed_by_avatar,
+                        expectedAt
+                    );
+                    return { id, order };
+                } finally {
+                    // Counted for failures too: progress measures work done, not
+                    // work that succeeded, so the number never stalls on an error.
+                    settled++;
+                    onProgress?.(settled, orderIds.length);
+                }
             })
         );
         
