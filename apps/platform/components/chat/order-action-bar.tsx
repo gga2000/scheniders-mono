@@ -1,6 +1,6 @@
 // apps/platform/components/chat/order-action-bar.tsx
-import type { LinkedOrder } from "@/hooks/use-orders-by-id-query";
 "use client";
+import type { LinkedOrder } from "@/hooks/use-orders-by-id-query";
 import { useState } from "react";
 import { Check, ChevronDown, UserPlus, CheckCircle, Circle } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@scheniders/ui";
