@@ -383,7 +383,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 const { profile: currentProfile, user: currentUser } = authRef.current;
                 const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
 
-                supabase
+                const { error: detailHistoryError } = await supabase
                     .from("order_status_history")
                     .insert([{
                         order_id: orderId,
@@ -393,9 +393,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         notes: `Updated: ${auditChanges.join(', ')}`,
                         changed_by: changedBy,
                         tenant_id: tenantId,
-                    }]).then(({ error }) => {
-                        if (error) console.error("Failed to record detail history:", error);
-                    });
+                    }]);
+
+                if (detailHistoryError) {
+                    console.error("Failed to record detail history:", detailHistoryError);
+                    toast.error("Changes saved, but the audit entry could not be recorded");
+                }
             }
 
             diag.log(`[Diag:UpdateOrder] MUTATION_OK orderId=${orderId} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
@@ -546,21 +549,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 tenantId
             );
 
-            // Record initial status change to history (fire-and-forget — don't block the modal)
-            supabase
-                .from("order_status_history")
-                .insert([{
-                    order_id: data.id,
-                    changed_by: changedBy,
-                    from_status: null,
-                    to_status: cleanOrderData.status || "new",
-                    changed_at: new Date().toISOString(),
-                    notes: 'Order Created',
-                    tenant_id: tenantId,
-                }])
-                .then(({ error: historyError }) => {
-                    if (historyError) console.error("Failed to record initial status history:", historyError);
-                });
+            // The initial history row is written by the `trg_log_order_creation_history`
+            // trigger on `orders`, not here. Writing it client-side only covered
+            // orders created through this form — LightFunnels webhook ingestion wrote
+            // none at all (35.7% coverage vs 100% for every other source). Doing it in
+            // the database covers every ingestion path, including ones added later.
 
             return { success: true, data };
         } catch (err) {

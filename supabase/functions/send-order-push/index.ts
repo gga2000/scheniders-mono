@@ -1,13 +1,18 @@
 // supabase/functions/send-order-push/index.ts
 //
-// Web-push sender for NEW ORDER alerts. Invoked on an orders INSERT by a DB
-// trigger (pg_net) with an `Authorization: Bearer <EDGE_PUSH_SECRET>` header.
-// Fans the push out to every ACTIVE tenant member of the order's tenant who has
-// a push subscription (push is opt-in per user), honours global DND, sends a
-// Web Push to each, and prunes expired (404/410) subscriptions.
+// Web-push sender for ALL notification categories.
 //
-// Reuses the chat push secrets (EDGE_PUSH_SECRET / VAPID_*) and the
-// chat_push_subscriptions table. Inert until VAPID is set ({skipped:"no_vapid"}).
+// Invoked by the `trg_dispatch_notification` trigger on `public.notifications`
+// with an `Authorization: Bearer <EDGE_PUSH_SECRET>` header. The dispatcher has
+// already resolved WHO should receive this — audience, per-category push
+// preference, Do Not Disturb, quiet hours, digest mode, mutes and
+// self-suppression are all decided in SQL — so this function only has to turn
+// one notification into one message, deliver it, and record what happened.
+//
+// (It kept its original name so `chat_push_config.order_function_url` and the
+// deployed URL stay valid; it is no longer order-specific.)
+//
+// Inert until VAPID is configured ({skipped:"no_vapid"}).
 
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -24,92 +29,274 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
 }
 
 const json = (body: unknown, status = 200): Response =>
-    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+    });
 
-interface OrderRow {
-    id?: string;
+interface DispatchPayload {
+    notification_id?: string;
     tenant_id?: string;
-    customer_name?: string | null;
-    sequence_number?: number | string | null;
-    price?: number | string | null;
+    type?: string;
+    category?: string;
+    actor_name?: string | null;
+    entity_type?: string | null;
+    entity_id?: string | null;
+    entity_label?: string | null;
+    payload?: Record<string, unknown> | null;
     priority?: string | null;
+    recipients?: string[];
+}
+
+interface PushAction {
+    action: string;
+    title: string;
+}
+
+interface Composed {
+    title: string;
+    body: string;
+    url: string;
+    actions: PushAction[];
+}
+
+/** One notification -> the title/body/target/actions a person actually sees. */
+function compose(n: DispatchPayload): Composed {
+    const ref = n.entity_label ?? "";
+    const who = (n.actor_name ?? "").trim();
+    const p = n.payload ?? {};
+    const urgent = n.priority === "urgent";
+    const num = (v: unknown) => (typeof v === "number" ? v : 0);
+    const str = (v: unknown) => (typeof v === "string" ? v : "");
+
+    // Acting straight from the notification beats opening the app to act.
+    const orderActions: PushAction[] = [
+        { action: "open", title: "Open" },
+        { action: "confirm", title: "Confirm" },
+    ];
+
+    switch (n.type) {
+        case "order.created":
+            return {
+                title: urgent ? "🔥 URGENT order" : "🛒 New order",
+                body: who ? `${ref} created by ${who}` : `${ref} created`,
+                url: "/orders",
+                actions: orderActions,
+            };
+        case "order.status_changed": {
+            const from = str(p.old_status);
+            const to = str(p.new_status);
+            return {
+                title: `Order ${ref}`,
+                body: from && to
+                    ? `${from} → ${to}${who ? ` · ${who}` : ""}`
+                    : `status changed${who ? ` · ${who}` : ""}`,
+                url: "/orders",
+                actions: [{ action: "open", title: "Open" }],
+            };
+        }
+        case "order.updated":
+            return {
+                title: `Order ${ref}`,
+                body: who ? `updated by ${who}` : "updated",
+                url: "/orders",
+                actions: [{ action: "open", title: "Open" }],
+            };
+        case "order.bulk_status_changed":
+            return {
+                title: "Orders updated",
+                body: `${num(p.count)} orders moved to ${str(p.new_status)}`,
+                url: "/orders",
+                actions: [{ action: "open", title: "Open" }],
+            };
+        case "order.sla_breached":
+            return {
+                title: "⏱ Orders waiting",
+                body: `${num(p.count)} orders untouched for over ${num(p.hours)}h`,
+                url: "/orders",
+                actions: [{ action: "open", title: "Review" }],
+            };
+        case "inventory.out_of_stock":
+            return {
+                title: "⚠️ Out of stock",
+                body: `${ref} has run out`,
+                url: "/products",
+                actions: [{ action: "open", title: "Restock" }],
+            };
+        case "inventory.low_stock":
+            return {
+                title: "Low stock",
+                body: `${ref} — ${num(p.stock)} left`,
+                url: "/products",
+                actions: [{ action: "open", title: "Restock" }],
+            };
+        case "inventory.bulk_low":
+            return {
+                title: "Low stock",
+                body: `${num(p.count)} products need restocking`,
+                url: "/products",
+                actions: [{ action: "open", title: "Review" }],
+            };
+        case "delivery.export_failed":
+            return {
+                title: "⚠️ Shipping export failed",
+                body: `${ref}: ${num(p.order_count)} orders not sent`,
+                url: "/orders",
+                actions: [{ action: "open", title: "Retry" }],
+            };
+        case "finance.wallet_empty":
+            return {
+                title: "⚠️ Wallet empty",
+                body: "New orders will stop until it is topped up",
+                url: "/settings",
+                actions: [{ action: "open", title: "Top up" }],
+            };
+        case "finance.wallet_low":
+            return {
+                title: "Wallet running low",
+                body: `Balance ${num(p.balance)} IQD`,
+                url: "/settings",
+                actions: [{ action: "open", title: "Top up" }],
+            };
+        case "customer.review_created":
+            return {
+                title: `New ${num(p.rating)}★ review`,
+                body: `${ref}${str(p.preview) ? ` — ${str(p.preview)}` : ""}`,
+                url: "/store/reviews",
+                actions: [{ action: "open", title: "Read" }],
+            };
+        case "customer.cart_recovered":
+            return {
+                title: "Cart recovered",
+                body: `An abandoned cart came back (${num(p.subtotal)} IQD)`,
+                url: "/store/recovery",
+                actions: [],
+            };
+        case "team.member_joined":
+            return { title: "New teammate", body: `${ref} joined`, url: "/team", actions: [] };
+        case "team.role_changed":
+            return {
+                title: "Role changed",
+                body: `${ref} is now ${str(p.new_role)}`,
+                url: "/team",
+                actions: [],
+            };
+        case "chat.mention":
+        case "chat.message":
+            return {
+                title: who ? `${who} mentioned you` : "New mention",
+                body: str(p.preview).slice(0, 140) || "You were mentioned",
+                url: "/",
+                actions: [{ action: "open", title: "Reply" }],
+            };
+        case "digest":
+            return {
+                title: "Your summary",
+                body: `${num(p.count)} new notifications`,
+                url: "/",
+                actions: [],
+            };
+        default:
+            return {
+                title: "Scheniders",
+                body: [who, ref].filter(Boolean).join(" · ") || "New activity",
+                url: "/",
+                actions: [],
+            };
+    }
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
     if (req.method !== "POST") return json({ error: "method" }, 405);
 
-    // Auth: only the DB trigger (with the shared secret) may invoke this.
+    // Only the database trigger, holding the shared secret, may invoke this.
     const authHeader = req.headers.get("authorization") ?? "";
     if (!EDGE_PUSH_SECRET || authHeader !== `Bearer ${EDGE_PUSH_SECRET}`) {
         return json({ error: "unauthorized" }, 401);
     }
     if (!VAPID_PUBLIC || !VAPID_PRIVATE) return json({ skipped: "no_vapid" });
 
-    let payloadIn: { record?: OrderRow } & OrderRow;
+    let n: DispatchPayload;
     try {
-        payloadIn = await req.json();
+        const raw = await req.json();
+        n = (raw?.record ?? raw) as DispatchPayload;
     } catch {
         return json({ error: "bad_body" }, 400);
     }
-    // pg_net sends the row directly; a DB webhook would wrap it in { record }.
-    const row: OrderRow = payloadIn.record ?? payloadIn;
-    const { tenant_id, customer_name, sequence_number, price, priority } = row;
-    if (!tenant_id) return json({ skipped: "no_tenant" });
+
+    const recipients = Array.isArray(n.recipients) ? n.recipients.filter(Boolean) : [];
+    if (recipients.length === 0) return json({ sent: 0, skipped: "no_recipients" });
 
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Recipients: active members of this tenant.
-    const { data: members } = await sb
-        .from("tenant_members").select("user_id").eq("tenant_id", tenant_id).eq("status", "active");
-    const userIds = (members ?? []).map((m) => m.user_id as string);
-    if (userIds.length === 0) return json({ sent: 0 });
-
-    // Drop users in global Do-Not-Disturb.
-    const { data: dndRows } = await sb
-        .from("chat_user_status").select("user_id").eq("dnd", true).in("user_id", userIds);
-    const dnd = new Set((dndRows ?? []).map((r) => r.user_id as string));
-    const afterDnd = userIds.filter((u) => !dnd.has(u));
-    if (afterDnd.length === 0) return json({ sent: 0, skipped: "all_dnd" });
-
-    // Per-user opt-out of new-order push (chat_notification_prefs kind='order_alert'
-    // level='none'; no row = opted in). Lets a user keep chat push but mute orders.
-    const { data: optRows } = await sb
-        .from("chat_notification_prefs").select("user_id")
-        .eq("tenant_id", tenant_id).eq("kind", "order_alert").eq("level", "none").in("user_id", afterDnd);
-    const optedOut = new Set((optRows ?? []).map((r) => r.user_id as string));
-    const recipients = afterDnd.filter((u) => !optedOut.has(u));
-    if (recipients.length === 0) return json({ sent: 0, skipped: "all_opted_out" });
-
     const { data: subs } = await sb
-        .from("chat_push_subscriptions").select("id, endpoint, p256dh, auth").in("user_id", recipients);
+        .from("chat_push_subscriptions")
+        .select("id, user_id, endpoint, p256dh, auth")
+        .in("user_id", recipients);
+
     if (!subs || subs.length === 0) return json({ sent: 0 });
 
-    const who = (customer_name ?? "").trim() || "A customer";
-    const num = sequence_number !== null && sequence_number !== undefined ? ` #${sequence_number}` : "";
-    const amount = price !== null && price !== undefined && `${price}` !== "" ? ` · IQD ${price}` : "";
-    const title =
-        priority === "urgent" ? "🔥 URGENT Order!" : priority === "high" ? "⚡ High Priority Order!" : "🛒 New Order!";
-
-    const body = JSON.stringify({
+    const { title, body, url, actions } = compose(n);
+    const message = JSON.stringify({
         title,
-        body: `${who} placed order${num}${amount}`,
-        url: "/orders",
+        body,
+        url,
+        actions,
+        // The service worker keeps an urgent notification on screen until it is
+        // dismissed (requireInteraction), so it needs the priority.
+        priority: n.priority ?? "normal",
+        notificationId: n.notification_id ?? null,
+        // Collapses repeated alerts about the same thing into one OS notification
+        // instead of stacking them.
+        tag: n.entity_id ? `${n.entity_type ?? "item"}:${n.entity_id}` : n.notification_id,
     });
 
+    // Recorded so a channel that stops working is visible, rather than only
+    // noticed when somebody reports silence.
+    const deliveries: Record<string, unknown>[] = [];
     let sent = 0;
+    let pruned = 0;
+
     for (const s of subs) {
         try {
             await webpush.sendNotification(
                 { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-                body,
+                message,
             );
             sent++;
+            deliveries.push({
+                notification_id: n.notification_id ?? null,
+                tenant_id: n.tenant_id ?? null,
+                user_id: s.user_id,
+                channel: "push",
+                status: "sent",
+            });
         } catch (e) {
             const code = (e as { statusCode?: number }).statusCode;
-            if (code === 404 || code === 410) {
+            // 404/410 mean the browser threw the subscription away.
+            const dead = code === 404 || code === 410;
+            if (dead) {
                 await sb.from("chat_push_subscriptions").delete().eq("id", s.id);
+                pruned++;
             }
+            deliveries.push({
+                notification_id: n.notification_id ?? null,
+                tenant_id: n.tenant_id ?? null,
+                user_id: s.user_id,
+                channel: "push",
+                status: dead ? "pruned" : "failed",
+                detail: `status ${code ?? "unknown"}`,
+            });
         }
     }
-    return json({ sent });
+
+    if (deliveries.length > 0) {
+        // Telemetry must never fail the send it is describing.
+        await sb.from("notification_deliveries").insert(deliveries).then(
+            () => undefined,
+            () => undefined,
+        );
+    }
+
+    return json({ sent, pruned });
 });
