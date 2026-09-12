@@ -234,6 +234,120 @@ export const listCategories = cache((tenantId: string): Promise<Category[]> =>
   }),
 );
 
+/**
+ * Live product count per category id.
+ *
+ * Uses the SAME visibility filter as `listProductsInCategory`. If these
+ * two ever diverge, a card advertises "19 عطر" and opens a page listing
+ * a different number — so the filter lives in both places or neither.
+ */
+export const listCategoryProductCounts = cache(
+  (tenantId: string): Promise<Record<string, number>> =>
+    publicCache(["listCategoryProductCounts", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .select("category_id, products!inner(id, is_visible, is_archived, is_supply)")
+        .eq("tenant_id", tenantId)
+        // Draft products are hidden everywhere else on the storefront; a
+        // count that includes them advertises "19 عطر" on a card whose
+        // own page then lists fewer.
+        .eq("products.status", "active")
+        .eq("products.is_visible", true)
+        .eq("products.is_archived", false)
+        .not("products.is_supply", "is", true);
+
+      if (error) {
+        console.error("[queries.listCategoryProductCounts]", error);
+        return {};
+      }
+
+      const counts: Record<string, number> = {};
+      for (const row of (data ?? []) as { category_id: string }[]) {
+        counts[row.category_id] = (counts[row.category_id] ?? 0) + 1;
+      }
+      return counts;
+    }),
+);
+
+/**
+ * Best discount in the WHOLE catalogue, as a whole percent.
+ *
+ * The hero's "up to N% off" is a claim about everything the shop sells,
+ * so it must not be derived from whatever slice of products a grid on
+ * the page happened to load. At 43 visible products against a 24-product
+ * fetch, a deeper discount outside that slice would be silently
+ * understated. Mirrors `discountPercent` in the sections package: a
+ * non-positive price, or a compare-at at or below it, is not a discount.
+ *
+ * Returns null when nothing is on sale, so the caller drops the claim
+ * rather than rendering a zero.
+ */
+export const getMaxDiscountPercent = cache(
+  (tenantId: string): Promise<number | null> =>
+    publicCache(["getMaxDiscountPercent", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("price, website_price, compare_at_price")
+        .eq("tenant_id", tenantId)
+        // A draft product is not for sale, so its discount is not a real
+        // offer — advertising "up to N% off" from one would promise a
+        // saving on something a shopper cannot buy.
+        .eq("status", "active")
+        .eq("is_visible", true)
+        .eq("is_archived", false)
+        .not("is_supply", "is", true)
+        .not("compare_at_price", "is", null);
+
+      if (error) {
+        console.error("[queries.getMaxDiscountPercent]", error);
+        return null;
+      }
+
+      let best: number | null = null;
+      for (const row of (data ?? []) as {
+        price: number | null;
+        website_price: number | null;
+        compare_at_price: number | null;
+      }[]) {
+        const price = row.website_price ?? row.price ?? 0;
+        const compareAt = row.compare_at_price ?? 0;
+        if (!(price > 0) || !(compareAt > price)) continue;
+        const pct = Math.round(((compareAt - price) / compareAt) * 100);
+        if (best === null || pct > best) best = pct;
+      }
+      return best;
+    }),
+);
+
+export interface TenantPublicStats {
+  completed_orders: number;
+  customers: number;
+  governorates_served: number;
+}
+
+/**
+ * Pre-aggregated public counts. Never reads `orders` — that table is
+ * tenant-private and this runs for anon. Returns null when a tenant has
+ * no stats row yet, and every consumer must drop its slot rather than
+ * render a zero.
+ */
+export const getTenantPublicStats = cache(
+  (tenantId: string): Promise<TenantPublicStats | null> =>
+    publicCache(["getTenantPublicStats", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("tenant_public_stats")
+        .select("completed_orders, customers, governorates_served")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[queries.getTenantPublicStats]", error);
+        return null;
+      }
+      return (data as TenantPublicStats) ?? null;
+    }),
+);
+
 export const getCategoryBySlug = cache(
   (tenantId: string, slug: string): Promise<Category | null> =>
     publicCache(["getCategoryBySlug", tenantId, slug], async (supabase) => {

@@ -39,6 +39,16 @@ const schema = z.object({
     )
     .min(1)
     .max(4),
+  /**
+   * "categories" builds the cards from the tenant's real categories
+   * instead of hardcoded links, so a door can never point at a category
+   * that has been renamed or emptied. Unset keeps today's behaviour.
+   */
+  source: z.enum(["config", "categories"]).optional(),
+  /** Which categories, in display order. Only read when source is "categories". */
+  category_slugs: z.array(z.string()).max(4).optional(),
+  /** Show the live product count on each card. */
+  show_counts: z.boolean().optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -60,6 +70,11 @@ const defaultProps: Props = {
   ],
 };
 
+/** Scrim ink at a given alpha, mixed from the brand token, never black. */
+function scrimInk(alphaPercent: number): string {
+  return `color-mix(in srgb, var(--bk-ink, #1a1a1a) ${alphaPercent}%, transparent)`;
+}
+
 function ChevronGlyph({ className }: { className?: string }) {
   return (
     <svg
@@ -79,11 +94,37 @@ function ChevronGlyph({ className }: { className?: string }) {
   );
 }
 
-const COLS: Record<number, string> = {
-  1: "grid-cols-1 max-w-md",
-  2: "grid-cols-1 sm:grid-cols-2 max-w-3xl",
-  3: "grid-cols-1 sm:grid-cols-3 max-w-5xl",
-  4: "grid-cols-2 lg:grid-cols-4 max-w-6xl",
+// The page has one content measure (`max-w-6xl`, what trust_badge_row
+// already uses); only the hero bleeds wider. A 2-up pair at `max-w-3xl`
+// left the cards at 376px inside a 1512px viewport — small, and aligned
+// to nothing above or below it.
+// Width and column count are separate now: the decorative side art has
+// to be positioned against the SAME box the cards occupy, so the band
+// wrapper needs the measure on its own.
+const COLS_WIDTH: Record<number, string> = {
+  1: "max-w-xl",
+  2: "max-w-6xl",
+  3: "max-w-6xl",
+  4: "max-w-6xl",
+};
+
+const COLS_GRID: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-3",
+  4: "grid-cols-2 lg:grid-cols-4",
+};
+
+/**
+ * Per-card width hint. The old blanket "33vw" was only accidentally
+ * close for a 2-up grid and over-fetched everywhere else; these follow
+ * the column count against the same `max-w-6xl` (1152px) measure.
+ */
+const CARD_SIZES: Record<number, string> = {
+  1: "(max-width: 640px) 100vw, 576px",
+  2: "(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 576px",
+  3: "(max-width: 640px) 100vw, (max-width: 1200px) 33vw, 384px",
+  4: "(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 288px",
 };
 
 function CategorySpotlightPair({
@@ -97,9 +138,35 @@ function CategorySpotlightPair({
   const eyebrow = resolveI18n(props.eyebrow_i18n, locale);
   const title = resolveI18n(props.title_i18n, locale);
 
-  if (!props.items.length) return null;
+  // Resolved doors: either the merchant's hardcoded items, or real
+  // categories looked up by slug. Slugs that match nothing are dropped —
+  // a door to a category that no longer exists is worse than no door.
+  const resolved =
+    props.source === "categories"
+      ? (props.category_slugs ?? [])
+          .map((slug) => ctx.categories.find((c) => c.slug === slug))
+          .filter((c): c is NonNullable<typeof c> => Boolean(c))
+          .map((c) => ({
+            key: c.id,
+            label: c.name,
+            href: `/categories/${c.slug}`,
+            image_url: c.image_url ?? "",
+            count: props.show_counts
+              ? (ctx.category_product_counts?.[c.id] ?? 0)
+              : 0,
+          }))
+      : props.items.map((item, i) => ({
+          key: String(i),
+          label: resolveI18n(item.label_i18n, locale),
+          href: item.href,
+          image_url: item.image_url,
+          count: 0,
+        }));
 
-  const cols = COLS[Math.min(props.items.length, 4)] ?? COLS[2];
+  if (!resolved.length) return null;
+
+  const count = Math.min(resolved.length, 4);
+  const cardSizes = CARD_SIZES[count] ?? CARD_SIZES[2];
 
   return (
     <Section>
@@ -130,8 +197,11 @@ function CategorySpotlightPair({
         />
       )}
 
-      {/* Card band, flanked by decorative side art on wide screens */}
-      <div className="relative">
+      {/* Card band, flanked by decorative side art on wide screens.
+          The wrapper carries the SAME max-width as the grid so the art
+          hugs the cards — pinned to the bare `relative` parent it sat at
+          the viewport edges, 356px adrift of what it was flanking. */}
+      <div className={cn("relative mx-auto", COLS_WIDTH[count] ?? COLS_WIDTH[2])}>
         {props.side_image_left_url && (
           <Image
             src={props.side_image_left_url}
@@ -141,7 +211,7 @@ function CategorySpotlightPair({
             unoptimized
             sizes="96px"
             aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-1/2 hidden h-20 w-20 -translate-y-1/2 object-contain lg:block"
+            className="pointer-events-none absolute -left-28 top-1/2 hidden h-20 w-20 -translate-y-1/2 object-contain xl:block"
           />
         )}
         {props.side_image_right_url && (
@@ -153,21 +223,32 @@ function CategorySpotlightPair({
             unoptimized
             sizes="96px"
             aria-hidden="true"
-            className="pointer-events-none absolute right-0 top-1/2 hidden h-20 w-20 -translate-y-1/2 object-contain lg:block"
+            className="pointer-events-none absolute -right-28 top-1/2 hidden h-20 w-20 -translate-y-1/2 object-contain xl:block"
           />
         )}
 
-        <div className={`mx-auto grid ${cols} gap-bk-sm sm:gap-bk-md`}>
-          {props.items.map((item, i) => {
-            const label = resolveI18n(item.label_i18n, locale);
+        <div
+          className={cn(
+            // Mobile: one row that snaps, with the next card peeking so the
+            // third door is discoverable without three screens of stack.
+            "-mx-4 flex snap-x snap-mandatory gap-bk-sm overflow-x-auto px-4 pb-2",
+            "[&>*]:w-[86%] [&>*]:shrink-0 [&>*]:snap-start",
+            // From `sm` it is a plain grid again; nothing scrolls.
+            "sm:mx-0 sm:grid sm:gap-bk-md sm:overflow-visible sm:px-0 sm:pb-0",
+            "sm:[&>*]:w-auto sm:[&>*]:shrink",
+            COLS_GRID[count] ?? COLS_GRID[2],
+          )}
+        >
+          {resolved.map((item) => {
+            const label = item.label;
             return (
               <StoreLink
-                key={i}
+                key={item.key}
                 href={item.href}
                 className={cn("group block", PRESSABLE)}
               >
                 <div
-                  className="relative aspect-[4/3] overflow-hidden"
+                  className="relative aspect-[3/4] overflow-hidden"
                   style={{
                     borderRadius: "var(--bk-radius-card, 1.25rem)",
                     boxShadow:
@@ -182,7 +263,7 @@ function CategorySpotlightPair({
                       alt={label}
                       fill
                       unoptimized={!isOptimizableImageHost(item.image_url)}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      sizes={cardSizes}
                       className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105"
                     />
                   ) : (
@@ -196,11 +277,28 @@ function CategorySpotlightPair({
                       }}
                     />
                   )}
-                  {/* Soft bottom scrim keeps the pill legible on any photo. */}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent" />
+                  {/* Bottom scrim keeps the pill legible on any photo, in
+                      brand ink rather than a literal black so a warm-ink
+                      store gets warm shade. Taller and stronger than the
+                      old wash: the pill now sits in the corner, where a
+                      third of the frame at 25% left it floating. */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+                    style={{
+                      background: `linear-gradient(to top, ${scrimInk(55)}, ${scrimInk(
+                        18,
+                      )} 45%, transparent)`,
+                    }}
+                  />
                   {label && (
                     <span
-                      className="absolute bottom-4 left-1/2 inline-flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-0.5"
+                      // Anchored to the card's bottom-start corner, not
+                      // floated at centre. Centre put the label over the
+                      // subject — on the best-sellers card it covered the
+                      // bottles it was selling — and gave it no edge to
+                      // line up with. Both cards now place it identically.
+                      className="absolute bottom-4 start-4 inline-flex max-w-[calc(100%-2rem)] items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-0.5"
                       style={{
                         backgroundColor: "var(--bk-surface, #ffffff)",
                         color: "var(--bk-ink, #1a1a1a)",
@@ -213,6 +311,14 @@ function CategorySpotlightPair({
                       <span className="truncate" data-i18n-field="label_i18n">
                         {label}
                       </span>
+                      {item.count > 0 && (
+                        <span
+                          className="shrink-0 opacity-70"
+                          style={{ fontFamily: "var(--bk-font-body, inherit)" }}
+                        >
+                          <bdi>{item.count}</bdi>
+                        </span>
+                      )}
                       <ChevronGlyph className="shrink-0 opacity-70 transition-transform duration-150 motion-reduce:transition-none group-hover:translate-x-0.5" />
                     </span>
                   )}

@@ -90,30 +90,6 @@ function TestimonialCards({
 
   return (
     <Section className="relative">
-      {/* Decorative side art — band edges, large screens only. */}
-      {props.side_image_left_url && (
-        <Image
-          src={props.side_image_left_url}
-          alt=""
-          width={64}
-          height={64}
-          unoptimized
-          aria-hidden="true"
-          className="pointer-events-none absolute left-2 top-1/2 hidden w-12 -translate-y-1/2 object-contain lg:block xl:w-16"
-        />
-      )}
-      {props.side_image_right_url && (
-        <Image
-          src={props.side_image_right_url}
-          alt=""
-          width={64}
-          height={64}
-          unoptimized
-          aria-hidden="true"
-          className="pointer-events-none absolute right-2 top-1/2 hidden w-12 -translate-y-1/2 object-contain lg:block xl:w-16"
-        />
-      )}
-
       <CenteredSectionHeader
         eyebrow={
           eyebrow ? (
@@ -138,15 +114,42 @@ function TestimonialCards({
         titleField="title_i18n"
       />
 
+      {/* The band carries the SAME measure as the cards, so the decorative
+          art hangs just outside THEM. Pinned to the full-width Section it
+          sat at the viewport edges — 350px adrift of what it flanked. */}
+      <div className="relative mx-auto max-w-5xl">
+        {props.side_image_left_url && (
+          <Image
+            src={props.side_image_left_url}
+            alt=""
+            width={64}
+            height={64}
+            unoptimized
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-20 top-1/2 hidden w-12 -translate-y-1/2 object-contain xl:block xl:w-16"
+          />
+        )}
+        {props.side_image_right_url && (
+          <Image
+            src={props.side_image_right_url}
+            alt=""
+            width={64}
+            height={64}
+            unoptimized
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-20 top-1/2 hidden w-12 -translate-y-1/2 object-contain xl:block xl:w-16"
+          />
+        )}
+
       {/* Cards — 3-up desktop, stacked mobile. `pt` clears the pins. */}
-      <div className="mx-auto grid max-w-5xl grid-cols-1 gap-bk-md pt-5 md:grid-cols-3 md:gap-bk-lg">
+      <div className="grid grid-cols-1 gap-bk-md pt-5 md:grid-cols-3 md:gap-bk-lg">
         {props.items.map((item, i) => {
           const name = resolveI18n(item.name_i18n, locale);
           const quote = resolveI18n(item.quote_i18n, locale);
           return (
             <figure
               key={`${i}-${name}`}
-              className="relative flex flex-col items-center gap-2 px-6 pb-8 pt-9 text-center"
+              className="relative flex h-full flex-col items-start justify-between px-6 pb-6 pt-9 text-start"
               style={{
                 backgroundColor: "var(--bk-surface, #ffffff)",
                 borderRadius: "var(--bk-radius-card, 1.25rem)",
@@ -159,29 +162,52 @@ function TestimonialCards({
                 className="absolute -top-4 left-1/2 h-10 w-4 -translate-x-1/2 rounded-full"
                 style={{ backgroundColor: "var(--bk-accent, #ffd84a)" }}
               />
-              <figcaption
-                data-i18n-field={`items[${i}].name_i18n`}
-                className="font-display text-lg font-black"
-                style={{
-                  color: "var(--bk-ink, #1a1a1a)",
-                  fontFamily: "var(--bk-font-display, inherit)",
-                }}
-              >
-                {name}
-              </figcaption>
+              {/* Quote first, in full ink. The name used to lead in bold
+                  display while the testimony sat at 65% opacity — the
+                  quietest text in a section that exists to deliver it. */}
               <blockquote
                 data-i18n-field={`items[${i}].quote_i18n`}
-                className="font-body text-sm leading-relaxed text-pretty sm:text-base"
+                className="font-body text-base leading-relaxed text-pretty sm:text-lg"
                 style={{
-                  color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
+                  color: "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-body, inherit)",
                 }}
               >
                 {quote}
               </blockquote>
+              {/* Attribution, anchored to the bottom edge by the figure's
+                  `justify-between`. Quotes here run 28 to 146 characters;
+                  without the anchor the short one leaves a hollow card
+                  instead of deliberate space. */}
+              <figcaption className="mt-4 flex items-center gap-2">
+                <span
+                  data-initial
+                  aria-hidden="true"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-sm font-black"
+                  style={{
+                    backgroundColor:
+                      "color-mix(in srgb, var(--bk-accent, #ffd84a) 35%, transparent)",
+                    color: "var(--bk-ink, #1a1a1a)",
+                    fontFamily: "var(--bk-font-display, inherit)",
+                  }}
+                >
+                  {[...name][0] ?? ""}
+                </span>
+                <span
+                  data-i18n-field={`items[${i}].name_i18n`}
+                  className="font-body text-sm font-semibold"
+                  style={{
+                    color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
+                    fontFamily: "var(--bk-font-body, inherit)",
+                  }}
+                >
+                  {name}
+                </span>
+              </figcaption>
             </figure>
           );
         })}
+        </div>
       </div>
     </Section>
   );

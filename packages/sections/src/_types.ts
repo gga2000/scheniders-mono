@@ -29,6 +29,30 @@ export interface SectionRenderContext {
   product?: Product;
   /** Single category when on a category landing page. */
   category?: Category;
+  /**
+   * Live product count per category id. Optional: every existing section
+   * and every test builds this context, so a required field would break
+   * all of them at once.
+   */
+  category_product_counts?: Record<string, number>;
+  /**
+   * Best discount across the WHOLE catalogue, as a whole percent.
+   *
+   * A hero claiming "up to N% off" describes everything the shop sells,
+   * not the products this page happened to load. Resolved upstream so
+   * the claim cannot drift with a grid's fetch limit. Absent when
+   * nothing is on sale.
+   */
+  max_discount_percent?: number;
+  /**
+   * Pre-aggregated public proof counts. Optional for the same reason,
+   * and absent whenever the tenant has no stats row yet.
+   */
+  public_stats?: {
+    completed_orders: number;
+    customers: number;
+    governorates_served: number;
+  };
 }
 
 /**

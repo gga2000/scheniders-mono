@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import {
   createSupabaseServerClient,
   createSupabasePublicClient,
+  createSupabaseServiceClient,
 } from "./supabase/server";
 import { redactServerOnlyConfig } from "@scheniders/shared";
 import type { Tables } from "@scheniders/supabase";
@@ -165,7 +166,17 @@ export const getTenantByCustomDomain = cache(
  */
 export const getTenantForPreview = cache(async (slug: string): Promise<Tenant | null> => {
   if (!slug) return null;
-  const supabase = await createSupabaseServerClient();
+  // Service role, NOT the anon client. `anon_revoke_tenant_draft`
+  // (2026-08-17) revoked anon's column privilege on
+  // `store_config_v2_draft` so an unpublished store cannot be scraped —
+  // which left this resolver asking for a column its own client may not
+  // read, and every preview died on "42501 permission denied for table
+  // tenants". The route is token-gated (HMAC, and the token's tenant_id
+  // must match the resolved tenant), so reading the draft with elevated
+  // rights here is the intended design, not a shortcut.
+  // Cross-version cast (see ServerClientLike) — same runtime API.
+  const supabase =
+    createSupabaseServiceClient() as unknown as ServerClientLike;
   return selectTenant(supabase, { kind: "slug", value: slug }, { includeDraft: true });
 });
 
@@ -178,7 +189,10 @@ export const getTenantForPreview = cache(async (slug: string): Promise<Tenant | 
 export const getTenantByCustomDomainForPreview = cache(
   async (domain: string): Promise<Tenant | null> => {
     if (!domain) return null;
-    const supabase = await createSupabaseServerClient();
+    // Service role for the same reason as `getTenantForPreview`.
+    // Cross-version cast (see ServerClientLike) — same runtime API.
+    const supabase =
+      createSupabaseServiceClient() as unknown as ServerClientLike;
     const { data } = await supabase
       .from("tenant_domains")
       .select("tenant_id")

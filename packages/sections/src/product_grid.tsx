@@ -26,7 +26,12 @@ import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { RevealMore } from "./helpers/reveal-more";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { chromeString } from "./helpers/chrome-strings";
-import { formatPrice, formatCount } from "./helpers/format";
+import {
+  formatPrice,
+  formatCount,
+  discountPercent,
+  formatPercent,
+} from "./helpers/format";
 import { cn, PRESSABLE } from "./helpers/utils";
 import type { Product } from "./types";
 import { i18nStringOptional } from "./_schema";
@@ -42,6 +47,11 @@ const schema = z.object({
       sort: z.enum(["newest", "bestsellers", "sale"]).optional(),
       category_slug: z.string().optional(),
       limit: z.number().int().positive().optional(),
+      /**
+       * Drop products with nothing left to sell. Opt-in: a category page
+       * whose stock is all gone still wants to show its products.
+       */
+      exclude_out_of_stock: z.boolean().optional(),
     })
     .optional(),
   manual_product_ids: z.array(z.string()).optional(),
@@ -67,6 +77,14 @@ const schema = z.object({
    *  plus a small "(N)" count — and only for products that actually have
    *  reviews (products without `review_count` show no stars at all). */
   show_stars: z.boolean().optional(),
+  /** Percentage-off chip on the photo, for products with a real saving. */
+  show_discount_badge: z.boolean().optional(),
+  /**
+   * Badge a product at or below this many units remaining. Unset means no
+   * badge. Real stock only — a sold-out or oversold product is excluded
+   * from the grid, never badged.
+   */
+  low_stock_threshold: z.number().int().positive().optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -97,6 +115,14 @@ function selectAuto(
     // (storefront populates category lookups upstream so this is mostly a
     // pass-through; refining belongs in the data layer, not here).
     pool = pool.filter((p) => p.category_id === query.category_slug);
+  }
+  if (query?.exclude_out_of_stock) {
+    const buyable = pool.filter(
+      (p) => (p.stock_quantity ?? 0) - (p.reserved_quantity ?? 0) > 0,
+    );
+    // Never let the filter empty a grid — this section also renders on
+    // category, product and checkout_success pages.
+    if (buyable.length > 0) pool = buyable;
   }
   if (query?.sort === "sale") {
     pool = pool.filter(
@@ -133,7 +159,15 @@ function selectAuto(
   return pool;
 }
 
-function selectProducts(props: Props, ctx: SectionRenderContext): Product[] {
+/**
+ * Exported so a page can emit structured data for EXACTLY the products
+ * this grid renders. Re-deriving that list in the page is how a schema
+ * block ends up describing a different set than the one on screen.
+ */
+export function selectProducts(
+  props: Props,
+  ctx: SectionRenderContext,
+): Product[] {
   const byId = new Map(ctx.products.map((p) => [p.id, p]));
   if (props.mode === "manual") {
     return (props.manual_product_ids ?? [])
@@ -198,17 +232,34 @@ export function PricePillCard({
   locale,
   priority = false,
   showStars = false,
+  showDiscountBadge = false,
+  lowStockThreshold,
 }: {
   product: Product;
   locale: LocaleCode;
   priority?: boolean;
   showStars?: boolean;
+  showDiscountBadge?: boolean;
+  lowStockThreshold?: number;
 }) {
   const t = locale !== "en";
   const compareAt = product.compare_at_price;
   const onSale = compareAt != null && compareAt > product.price;
   const inStock =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
+  // One definition of "on sale", shared with the hero offer chip, so a
+  // card and the hero can never disagree about a saving.
+  const pct = showDiscountBadge
+    ? discountPercent(product.price, compareAt)
+    : null;
+  const remaining =
+    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+  // A sold-out or oversold product is excluded from the grid, never
+  // badged — and a negative remainder must never reach the page.
+  const lowStock =
+    lowStockThreshold != null && remaining > 0 && remaining <= lowStockThreshold
+      ? remaining
+      : null;
 
   return (
     <StoreLink
@@ -261,6 +312,19 @@ export function PricePillCard({
               {t ? "نفد المخزون" : "Sold out"}
             </span>
           )}
+          {pct != null && (
+            <span
+              className="absolute top-3 start-3 z-10 inline-flex items-center px-3 py-1 font-display font-bold text-xs"
+              style={{
+                backgroundColor: "var(--bk-primary, #ff5a8a)",
+                color: "var(--bk-on-primary, #fff)",
+                borderRadius: "var(--bk-radius-pill, 9999px)",
+                fontFamily: "var(--bk-font-display, inherit)",
+              }}
+            >
+              <bdi>{formatPercent(pct, locale)}</bdi>
+            </span>
+          )}
           {/* Price pill — bold sale price + smaller struck compare-at. */}
           <div className="absolute inset-x-0 bottom-2 flex justify-center px-2">
             <span
@@ -296,7 +360,11 @@ export function PricePillCard({
         </div>
       </div>
       <h3
-        className="mt-bk-sm px-1 text-center text-sm font-bold leading-tight line-clamp-2 text-balance sm:text-base"
+        // `line-clamp-2` caps the name at two lines but reserves nothing, so
+        // a short name (ايبسكو) sat a full line higher than a long one and the
+        // row went ragged again — 17px apart at 390px. `min-h` of two lines
+        // holds the space; em-based so it follows the size change at `sm`.
+        className="mt-bk-sm px-1 text-center text-sm font-bold leading-tight line-clamp-2 min-h-[2.5em] text-balance sm:text-base"
         style={{
           color: "var(--bk-ink, #1a1a1a)",
           fontFamily: "var(--bk-font-body, inherit)",
@@ -304,12 +372,37 @@ export function PricePillCard({
       >
         {product.name}
       </h3>
-      {showStars && (product.review_count ?? 0) > 0 && (
-        <StarRow
-          rating={product.avg_rating ?? 0}
-          count={product.review_count ?? 0}
-        />
-      )}
+      {/* Always rendered, even when empty: two cards with a star row and
+          four without is four objects, not one shelf. */}
+      <div
+        data-meta-row
+        // 22px, not 20: the star row measures 21px, so a 20px floor let the
+        // two cards that have reviews grow 1px taller than the other four —
+        // the exact raggedness this row exists to remove. Measured at 1512.
+        className="mt-1 flex min-h-[22px] items-center justify-center"
+      >
+        {showStars && (product.review_count ?? 0) > 0 ? (
+          <StarRow
+            rating={product.avg_rating ?? 0}
+            count={product.review_count ?? 0}
+          />
+        ) : lowStock != null ? (
+          <span
+            data-low-stock
+            className="font-body text-xs font-semibold"
+            style={{
+              color: "var(--bk-danger, #e2574c)",
+              fontFamily: "var(--bk-font-body, inherit)",
+            }}
+          >
+            {locale === "en" ? (
+              <>only <bdi>{lowStock}</bdi> left</>
+            ) : (
+              <>باقي <bdi>{lowStock}</bdi> بس</>
+            )}
+          </span>
+        ) : null}
+      </div>
     </StoreLink>
   );
 }
@@ -365,6 +458,8 @@ function ProductGridRender({
         locale={locale}
         priority={cardPriority(i)}
         showStars={props.show_stars === true}
+        showDiscountBadge={props.show_discount_badge === true}
+        lowStockThreshold={props.low_stock_threshold}
       />
     ));
 
