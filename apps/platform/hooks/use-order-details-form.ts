@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Order, OrderItem } from "@/lib/supabase";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { normalizeWhatsAppSlot } from "@/lib/whatsapp-contact";
 import { toast } from "@/hooks/use-toast";
 import { getBaseOrderId } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
             customer_name: order.customer_name,
             phone: formatPhoneForDisplay(order.phone),
             secondary_phone: formatPhoneForDisplay(order.secondary_phone) || "",
+            whatsapp_contact_slot: order.whatsapp_contact_slot ?? null,
             city: order.city || "",
             governorate_code: order.governorate_code || "",
             address_details: order.address_details || "",
@@ -78,6 +80,16 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
                 }
             } else {
                 delete (dataToSave as Record<string, unknown>).created_at;
+            }
+
+            // Clearing (or swapping away) the number a designation points at must drop
+            // the designation, or the write fails `orders_whatsapp_slot_has_number_check`.
+            if ("whatsapp_contact_slot" in dataToSave || "secondary_phone" in dataToSave || "phone" in dataToSave) {
+                dataToSave.whatsapp_contact_slot = normalizeWhatsAppSlot({
+                    phone: (dataToSave.phone ?? order.phone ?? "") as string,
+                    secondary_phone: (dataToSave.secondary_phone ?? order.secondary_phone ?? "") as string,
+                    whatsapp_contact_slot: (dataToSave.whatsapp_contact_slot ?? order.whatsapp_contact_slot ?? null) as "primary" | "secondary" | null,
+                });
             }
 
             // Remove read-only fields that should never be updated

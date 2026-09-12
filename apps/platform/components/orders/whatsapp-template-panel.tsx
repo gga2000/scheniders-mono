@@ -29,6 +29,7 @@ import { processEmojis } from "@/lib/emoji-shortcodes";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRecordContact } from "@/hooks/use-record-contact";
 
 interface WhatsAppTemplatePanelProps {
     open: boolean;
@@ -120,6 +121,7 @@ export function WhatsAppTemplatePanel({
     const previewOrder = targetOrders[0] || null;
 
     const [selectedType, setSelectedType] = useState<'confirmation' | 'reminder' | 'discount'>('confirmation');
+    const recordFollowUpSender = useRecordContact();
     const [showPreview, setShowPreview] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [discountPercent, setDiscountPercent] = useState(10);
@@ -236,6 +238,7 @@ export function WhatsAppTemplatePanel({
         if (onContactSent) {
             onContactSent(previewOrder.id, newCount);
         }
+        recordFollowUpSender(previewOrder.id, selectedType);
         onClose();
     };
 
@@ -279,6 +282,7 @@ export function WhatsAppTemplatePanel({
                     if (onContactSent) {
                         onContactSent(target.id, newCount);
                     }
+                    recordFollowUpSender(target.id, selectedType);
                     if (onStatusUpdate) {
                         onStatusUpdate(target.id, "contacted");
                     }

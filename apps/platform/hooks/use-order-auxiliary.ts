@@ -3,6 +3,11 @@
 import { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } from "react";
 import { supabase, type Order, type RejectionReason, type MessageTemplate } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import {
+    buildDuplicateWindowIndex,
+    committedTwinBlockingConfirm,
+    type DuplicateWindowAlert,
+} from "@/lib/duplicate-window";
 import { useAuth } from "@/components/auth/auth-provider";
 
 // =============================================
@@ -219,6 +224,31 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
         return getDuplicatesForOrder(orderId).length > 0;
     }
 
+    // =============================================
+    // 48-HOUR DUPLICATE WINDOW
+    //
+    // Separate from the ±72h `getDuplicatesForOrder` above, which stays as-is for
+    // the comparison modal and the "duplicates only" filter. This one is narrower,
+    // status-aware, and drives the loud card treatment + the confirm guard.
+    // =============================================
+
+    const duplicateWindowIndex = useMemo(
+        () => buildDuplicateWindowIndex(orders),
+        [orders],
+    );
+
+    const getDuplicateWindowAlert = useCallback(
+        (orderId: string): DuplicateWindowAlert | undefined => duplicateWindowIndex.get(orderId),
+        [duplicateWindowIndex],
+    );
+
+    /** The already-committed twin that makes confirming `orderId` a double-dispatch. */
+    const getConfirmBlockingTwin = useCallback(
+        (orderId: string): Order | undefined =>
+            committedTwinBlockingConfirm(orderId, duplicateWindowIndex),
+        [duplicateWindowIndex],
+    );
+
     function getCustomerOrders(phone: string): Order[] {
         const normalizedPhone = normalizePhoneForSearch(phone);
         if (!normalizedPhone) return [];
@@ -365,6 +395,13 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
 
         // Stats
         stats,
+
+        // 48h duplicate window (identity-stable via useMemo/useCallback, so these
+        // stay outside the `stableAPI` proxy — consumers need them to change when
+        // the order book changes).
+        duplicateWindowIndex,
+        getDuplicateWindowAlert,
+        getConfirmBlockingTwin,
 
         // Stable Functions
         ...stableAPI,

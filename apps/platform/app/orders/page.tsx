@@ -48,6 +48,9 @@ const DuplicateComparisonModal = dynamic(
     () => import("@/components/orders/duplicate-comparison-modal").then(mod => ({ default: mod.DuplicateComparisonModal })),
     { loading: () => null, ssr: false }
 );
+import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
+import { useRecordContact } from "@/hooks/use-record-contact";
+import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 const ExportReportModal = dynamic(
     () => import("@/components/orders/export-report-modal").then(mod => ({ default: mod.ExportReportModal })),
     { loading: () => null, ssr: false }
@@ -373,6 +376,8 @@ export default function OrdersPage() {
         deleteFilterPreset,
         getOrderTimeline,
         hasDuplicates,
+        getDuplicateWindowAlert,
+        getConfirmBlockingTwin,
         getCustomerHistory,
         getCustomerOrderCount,
         mergeOrders,
@@ -686,6 +691,9 @@ export default function OrdersPage() {
     const defFilterDuplicatesOnly = React.useDeferredValue(filterDuplicatesOnly);
     const defFilterDueToday = React.useDeferredValue(filterDueToday);
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
+    // Which ad channel the list is pinned to (null = every channel).
+    const [adChannelFilter, setAdChannelFilter] = useState<string | null>(null);
+    const defAdChannelFilter = React.useDeferredValue(adChannelFilter);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
 
@@ -722,6 +730,11 @@ export default function OrdersPage() {
                 // Other risk levels use the embedded database risk data
                 result = result.filter((o) => riskByOrderId.get(o.id)?.level === defRiskLevel);
             }
+        }
+
+        // 1.4. Apply Ad-Channel Filter — "show me only what Instagram brought in".
+        if (defAdChannelFilter) {
+            result = result.filter(o => o.ad_channel === defAdChannelFilter);
         }
 
         // 1.5. Apply Duplicates-Only Filter
@@ -769,7 +782,7 @@ export default function OrdersPage() {
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
         return result;
-    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel]);
+    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel, defAdChannelFilter]);
 
     const defOrders = React.useDeferredValue(orders);
 
@@ -793,9 +806,9 @@ export default function OrdersPage() {
     // Scroll to top when filters change to prevent empty list illusion
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [filters, filterDuplicatesOnly, filterDueToday]);
+    }, [filters, filterDuplicatesOnly, filterDueToday, adChannelFilter]);
 
-    const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
+    const runStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
         try {
             const result = await updateOrderStatus(orderId, status, reason, reasonId);
@@ -809,6 +822,25 @@ export default function OrdersPage() {
         } finally {
             setLoadingId(null);
         }
+    };
+
+    /**
+     * Confirming an order whose 48h twin is already committed sends a second courier
+     * to the same customer. Every confirm path funnels through here, so this is the
+     * one place the guard has to live.
+     */
+    const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
+        if (status === "confirmed") {
+            const order = orders.find(o => o.id === orderId);
+            const twin = getConfirmBlockingTwin(orderId);
+            if (order && twin) {
+                setDuplicateConfirmPairs([{ order, twin }]);
+                setPendingConfirm(() => () => { void runStatusUpdate(orderId, status, reason, reasonId); });
+                setDuplicateConfirmOpen(true);
+                return;
+            }
+        }
+        await runStatusUpdate(orderId, status, reason, reasonId);
     };
 
     const toggleOrderSelection = useCallback((orderId: string) => {
@@ -831,6 +863,16 @@ export default function OrdersPage() {
     }, [filteredOrders]);
 
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+    // Stamps who contacted the customer after a manual WhatsApp send. Lives here
+    // because the cards are presentational and render without providers in tests.
+    const recordContact = useRecordContact();
+
+    // Duplicate confirm guard: the pairs that triggered it, and the original
+    // confirm to run if the user proceeds anyway.
+    const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
+    const [duplicateConfirmPairs, setDuplicateConfirmPairs] = useState<{ order: Order; twin: Order }[]>([]);
+    const [pendingConfirm, setPendingConfirm] = useState<(() => void) | null>(null);
 
     const withProcessing = async (
         action: () => Promise<{ success: boolean; error?: string } | undefined>,
@@ -863,12 +905,28 @@ export default function OrdersPage() {
     // Handle bulk actions
     const handleBulkConfirm = async () => {
         const ids = Array.from(selectedOrders);
-        withProcessing(
+
+        const runBulk = () => withProcessing(
             () => bulkUpdateStatus(ids, "confirmed"),
             `Updating ${ids.length} orders...`,
             t("toast.ordersConfirmedDesc").replace("{count}", String(ids.length)),
             () => setSelectedOrders(new Set())
         );
+
+        const pairs = ids.flatMap(id => {
+            const order = orders.find(o => o.id === id);
+            const twin = getConfirmBlockingTwin(id);
+            return order && twin ? [{ order, twin }] : [];
+        });
+
+        if (pairs.length > 0) {
+            setDuplicateConfirmPairs(pairs);
+            setPendingConfirm(() => runBulk);
+            setDuplicateConfirmOpen(true);
+            return;
+        }
+
+        runBulk();
     };
 
     const handleBulkDeliver = async () => {
@@ -1129,17 +1187,9 @@ export default function OrdersPage() {
     // Defer heavy array processing for analytics to keep UI responsive
     const deferredFilteredOrders = React.useDeferredValue(filteredOrders);
 
-    // Calculate duplicate phone map for ghost detection
-    const phoneCounts = useMemo(() => {
-        const counts = new Map<string, number>();
-        deferredFilteredOrders.forEach(o => {
-            if (o.phone && !o.is_return) {
-                const normalized = o.phone.replace(/\s/g, '');
-                counts.set(normalized, (counts.get(normalized) || 0) + 1);
-            }
-        });
-        return counts;
-    }, [deferredFilteredOrders]);
+    // `phoneCounts` lived here: it counted repeat phones within the *filtered view*,
+    // so ordinary returning customers were styled as duplicates. The table now reads
+    // the real 48h window alert instead.
 
     // Switch between regular and archived orders
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
@@ -2206,6 +2256,16 @@ export default function OrdersPage() {
                                                                 />
                                                             )}
 
+                                                            {/* Which ad channel brought these orders in. Counts follow the
+                                                                current status tab and date range, so they always describe
+                                                                what is actually on screen. */}
+                                                            <AdChannelFilter
+                                                                orders={hookFilteredOrders}
+                                                                selected={adChannelFilter}
+                                                                onSelect={setAdChannelFilter}
+                                                                className="px-1 pt-1"
+                                                            />
+
                                                             {/* Advanced Filters Panel */}
                                                             <AnimatePresence>
                                                                 {showFilters && (
@@ -2636,6 +2696,8 @@ export default function OrdersPage() {
                                                                             setShowDuplicateModal(true);
                                                                         }}
                                                                         hasDuplicates={hasDuplicates(order.id)}
+                                                                        duplicateAlert={getDuplicateWindowAlert(order.id)}
+                                                                        onContactRecorded={recordContact}
                                                                         getCustomerOrderCount={(phone: string) => getCustomerOrderCount(phone, order.order_id)}
                                                                         onTogglePin={(id: string) => togglePin(id)}
                                                                         onClone={(o: Order) => cloneOrder(o.id)}
@@ -2721,6 +2783,8 @@ export default function OrdersPage() {
                                                                 return (level === "flagged" ? "high" : level) as "low" | "medium" | "high" | "blocked";
                                                             }}
                                                             hasDuplicates={hasDuplicates}
+                                                            getDuplicateWindowAlert={getDuplicateWindowAlert}
+                                                            onContactRecorded={recordContact}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                             assignments={assignments}
                                                             onAssignDuty={handleAssignDuty}
@@ -2757,6 +2821,9 @@ export default function OrdersPage() {
                                                                                 setDuplicateOrder(o);
                                                                                 setShowDuplicateModal(true);
                                                                             }}
+                                                                            hasDuplicates={hasDuplicates(order.id)}
+                                                                            duplicateAlert={getDuplicateWindowAlert(order.id)}
+                                                                            onContactRecorded={recordContact}
                                                                             onTogglePin={togglePin}
                                                                             onCloneOrder={cloneOrder}
                                                                             onScreenshot={setScreenshotOrder}
@@ -2806,7 +2873,7 @@ export default function OrdersPage() {
                                                     togglePin={togglePin}
                                                     setSelectedOrder={setSelectedOrderWithFetch}
                                                     setIsModalOpen={setIsModalOpen}
-                                                    phoneCounts={phoneCounts}
+                                                    getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                     setDuplicateOrder={setDuplicateOrder}
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
@@ -2908,6 +2975,24 @@ export default function OrdersPage() {
                             }}
                         />
                     )}
+
+                    {/* Duplicate confirm guard — blocks a second committed order in 48h */}
+                    <DuplicateConfirmDialog
+                        open={duplicateConfirmOpen}
+                        onOpenChange={(open) => {
+                            setDuplicateConfirmOpen(open);
+                            if (!open) setPendingConfirm(null);
+                        }}
+                        pairs={duplicateConfirmPairs}
+                        onConfirmAnyway={() => {
+                            pendingConfirm?.();
+                            setPendingConfirm(null);
+                        }}
+                        onCompare={(o: Order) => {
+                            setDuplicateOrder(o);
+                            setShowDuplicateModal(true);
+                        }}
+                    />
 
                     {/* Duplicate Comparison Modal */}
                     {

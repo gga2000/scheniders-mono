@@ -158,6 +158,9 @@ export function useOrders({ listEnabled = true }: { listEnabled?: boolean } = {}
         checkDuplicateOrder: auxiliaryHook.checkDuplicateOrder,
         getDuplicatesForOrder: auxiliaryHook.getDuplicatesForOrder,
         hasDuplicates: auxiliaryHook.hasDuplicates,
+        // 48h status-aware duplicate window (loud card banner + confirm guard)
+        getDuplicateWindowAlert: auxiliaryHook.getDuplicateWindowAlert,
+        getConfirmBlockingTwin: auxiliaryHook.getConfirmBlockingTwin,
         getCustomerHistory: auxiliaryHook.getCustomerHistory,
         getCustomerOrderCount: auxiliaryHook.getCustomerOrderCount,
         getCustomerArchivedCount: auxiliaryHook.getCustomerArchivedCount,

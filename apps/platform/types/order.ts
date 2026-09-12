@@ -63,6 +63,8 @@ export interface Order {
     customer_name: string;
     phone: string;
     secondary_phone?: string;
+    /** Which number the customer asked to be contacted on. Null = never stated. */
+    whatsapp_contact_slot?: 'primary' | 'secondary' | null;
     city?: string;
     governorate_code?: string;
     address_details?: string;
@@ -91,6 +93,9 @@ export interface Order {
     is_pinned?: boolean;
     delivery_slot?: DeliverySlot;
     source?: OrderSource;
+    /** Which ad the customer clicked — `source` only says which system sent the order. */
+    attribution?: import('@/lib/ad-attribution').AdAttribution | null;
+    ad_channel?: string | null;
     sequence_number?: number;
     delivered_at?: string;
     cancelled_at?: string;
@@ -122,6 +127,11 @@ export interface Order {
     };
     last_status_changed_by_name?: string;
     last_status_changed_by_avatar?: string;
+    /** Who sent the last reminder/discount follow-up. `_avatar` is "bot" for automated sends. */
+    last_followup_by_name?: string;
+    last_followup_by_avatar?: string;
+    last_followup_at?: string;
+    last_followup_type?: 'reminder' | 'discount' | 'confirmation' | 'manual';
     is_test?: boolean;
     // Delivery company tracking
     delivery_company?: 'prime' | 'waseet' | null;

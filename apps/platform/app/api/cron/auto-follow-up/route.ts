@@ -157,6 +157,24 @@ export async function POST(request: Request) {
         tenant_id: order.tenant_id,
     });
 
+    // Attribute the send so the card's follow-up cue shows a bot glyph rather than
+    // going quiet or implying a human handled it. 'bot' is the same sentinel
+    // last_status_changed_by_avatar already uses.
+    const { error: attributionErr } = await supabaseAdmin()
+        .from("orders")
+        .update({
+            last_followup_by_name: "الإرسال التلقائي",
+            last_followup_by_avatar: "bot",
+            last_followup_at: new Date().toISOString(),
+            last_followup_type: templateType,
+        })
+        .eq("id", orderUuid);
+
+    if (attributionErr) {
+        // The message is already out — never fail the send over bookkeeping.
+        console.error("[Auto Follow-up] Failed to record follow-up attribution:", attributionErr);
+    }
+
     console.log(`[Auto Follow-up] ${templateType} sent for ${order.order_id} (count: ${contactCount} → ${newContactCount})`);
 
     // If this was a reminder, schedule the discount follow-up

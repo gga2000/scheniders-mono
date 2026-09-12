@@ -32,6 +32,8 @@ interface VirtualizedOrderListProps {
     getRiskLevel: (phone: string) => RiskLevel;
     getRiskAssessment?: (phone: string) => any; // New helper for full assessment
     hasDuplicates?: (orderId: string) => boolean;
+    getDuplicateWindowAlert?: (orderId: string) => import("@/lib/duplicate-window").DuplicateWindowAlert | undefined;
+    onContactRecorded?: (orderId: string) => void;
     getCustomerOrderCount: (phone: string, orderId: string) => number;
     getCustomerArchivedCount: (phone: string) => number;
     getCustomerHistory: (phone: string) => Order[];
@@ -82,6 +84,8 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getRiskLevel,
     getRiskAssessment,
     hasDuplicates,
+    getDuplicateWindowAlert,
+    onContactRecorded,
     onSplitOrder,
     assignments = [],
     onAssignDuty,
@@ -174,6 +178,8 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                                 customerOrderCount={orderCount}
                                 archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                 hasDuplicates={hasDuplicates?.(order.id) || false}
+                                duplicateAlert={getDuplicateWindowAlert?.(order.id)}
+                                onContactRecorded={onContactRecorded}
                                 previousOrder={previousOrder}
                                 onMergeWithPrevious={onMergeWithPrevious}
                                 onShowDuplicates={onShowDuplicates}
