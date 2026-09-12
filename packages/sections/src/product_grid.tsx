@@ -159,7 +159,15 @@ function selectAuto(
   return pool;
 }
 
-function selectProducts(props: Props, ctx: SectionRenderContext): Product[] {
+/**
+ * Exported so a page can emit structured data for EXACTLY the products
+ * this grid renders. Re-deriving that list in the page is how a schema
+ * block ends up describing a different set than the one on screen.
+ */
+export function selectProducts(
+  props: Props,
+  ctx: SectionRenderContext,
+): Product[] {
   const byId = new Map(ctx.products.map((p) => [p.id, p]));
   if (props.mode === "manual") {
     return (props.manual_product_ids ?? [])

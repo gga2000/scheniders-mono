@@ -155,6 +155,63 @@ export function productJsonLd(opts: {
   };
 }
 
+/**
+ * `ItemList` for a merchandising grid (home best-sellers, a category page).
+ *
+ * Each entry points at the product's own page, where the full `Product`
+ * markup already lives — the list says "these products, in this order", it
+ * does not restate them. A second copy of every Product on a listing page
+ * is what gets structured data flagged as mismatched.
+ *
+ * Returns null for an empty list: a schema block describing nothing is
+ * worse than no schema block.
+ */
+export function itemListJsonLd(opts: {
+  name: string;
+  items: { name: string; url: string }[];
+}): JsonLdObject | null {
+  if (!opts.items.length) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: opts.name,
+    numberOfItems: opts.items.length,
+    itemListElement: opts.items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      url: item.url,
+    })),
+  };
+}
+
+/**
+ * `FAQPage` from the questions actually rendered on the page.
+ *
+ * On expectations: Google restricted FAQ rich results to government and
+ * health sites in 2023, so this will NOT put an accordion under the blue
+ * links for a shop. It is still worth emitting — answer engines read it
+ * and it costs nothing — but it is not a rankings play.
+ *
+ * A pair is dropped unless BOTH question and answer carry text, so the
+ * markup can never describe a question the page does not answer.
+ */
+export function faqJsonLd(
+  items: { question: string; answer: string }[],
+): JsonLdObject | null {
+  const usable = items.filter((i) => i.question.trim() && i.answer.trim());
+  if (!usable.length) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: usable.map((i) => ({
+      "@type": "Question",
+      name: i.question,
+      acceptedAnswer: { "@type": "Answer", text: i.answer },
+    })),
+  };
+}
+
 export function breadcrumbJsonLd(
   items: { name: string; url: string }[],
 ): JsonLdObject {

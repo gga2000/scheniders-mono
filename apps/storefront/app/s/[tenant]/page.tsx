@@ -13,6 +13,10 @@ import { buildRuntimeContext, pickV2Page, resolveV2PageMetadata } from "@/lib/st
 import { V2Page } from "@/components/v2-page";
 import { JsonLd } from "@/components/json-ld";
 import {
+  buildGridItemList,
+  buildFaqSchema,
+} from "@/lib/page-structured-data";
+import {
   getStorefrontBase,
   ogLocaleFor,
   organizationJsonLd,
@@ -107,30 +111,37 @@ export default async function StorefrontHome({
     const orgUrl = baseUrl || origin || "/";
     const logo =
       tenant.store_config?.logo_url ?? tenant.branding?.logo_url ?? null;
+    const renderCtx = {
+      tenant,
+      products,
+      categories,
+      category_product_counts: categoryCounts,
+      public_stats: publicStats ?? undefined,
+    };
+    // Structured data is derived from the sections the page ACTUALLY
+    // renders — the grid's own `selectProducts`, the FAQ's own items — so
+    // the markup can never describe a different set than the one on
+    // screen. Anything unresolvable yields null and is dropped.
+    const structuredData = [
+      organizationJsonLd({
+        name: tenant.business_name,
+        url: orgUrl,
+        logo,
+        phone: tenant.contact_phone ?? null,
+      }),
+      websiteJsonLd({ name: tenant.business_name, url: orgUrl }),
+      buildGridItemList(homePage, renderCtx, runtime, orgUrl),
+      buildFaqSchema(homePage, runtime),
+    ].filter((d): d is NonNullable<typeof d> => d !== null);
+
     return (
       <>
-        <JsonLd
-          data={[
-            organizationJsonLd({
-              name: tenant.business_name,
-              url: orgUrl,
-              logo,
-              phone: tenant.contact_phone ?? null,
-            }),
-            websiteJsonLd({ name: tenant.business_name, url: orgUrl }),
-          ]}
-        />
+        <JsonLd data={structuredData} />
         <V2Page
           v2={v2}
           page={homePage}
           runtime={runtime}
-          renderCtx={{
-            tenant,
-            products,
-            categories,
-            category_product_counts: categoryCounts,
-            public_stats: publicStats ?? undefined,
-          }}
+          renderCtx={renderCtx}
         />
       </>
     );

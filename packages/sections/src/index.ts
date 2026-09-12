@@ -107,6 +107,8 @@ export type {
   Category,
 } from "./types";
 export { toSectionTenant } from "./helpers/section-tenant";
+/** Lets a page emit structured data for the exact products a grid renders. */
+export { selectProducts } from "./product_grid";
 
 /** All built-in section definitions, in registration order. */
 export const BUILTIN_SECTIONS = [
