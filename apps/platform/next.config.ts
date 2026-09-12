@@ -98,6 +98,14 @@ const nextConfig: NextConfig = {
     return config;
   },
 
+  // Reviews and cart recovery moved inside the Store section; keep old links alive.
+  async redirects() {
+    return [
+      { source: '/reviews', destination: '/store/reviews', permanent: false },
+      { source: '/recovery', destination: '/store/recovery', permanent: false },
+    ];
+  },
+
   // Edge Caching Strategy
   async headers() {
     return [

@@ -7,8 +7,6 @@ import {
     ChevronRight,
     X,
     LogOut,
-    Star,
-    ShoppingCart,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -32,59 +30,89 @@ import {
     AnimatedTeamIcon,
     AnimatedVaultIcon,
     AnimatedStoreIcon,
-    AnimatedSettingsIcon,
 } from "./animated-nav-icons";
 
 const ANIMATED_ICON_KEYS = new Set([
     "nav.dashboard", "nav.orders", "nav.customers", "nav.products",
     "nav.finances", "nav.reports", "nav.printing", "nav.team",
-    "nav.vault", "nav.store", "nav.settings",
+    "nav.vault", "nav.store",
 ]);
 
-const NAV_ITEMS = [
-    { key: "nav.dashboard", icon: AnimatedDashboardIcon, href: "/" },
-    { key: "nav.orders", icon: AnimatedOrdersIcon, href: "/orders" },
-    { key: "nav.customers", icon: AnimatedCustomersIcon, href: "/customers" },
+type NavItem = {
+    key: string;
+    icon: ComponentType<{ className?: string; active?: boolean }>;
+    href: string;
+    subItems?: { key: string; label: string; href: string; tab: string }[];
+};
+
+/**
+ * The nav used to be one flat 13-item list under a single "General" header, with
+ * Settings duplicating the gear in the account strip. Grouping by what an item is
+ * *for* keeps each run scannable; headers reuse the existing "General" styling.
+ */
+const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
     {
-        key: "nav.products",
-        icon: AnimatedProductsIcon,
-        href: "/products",
-        subItems: [
-            { key: "nav.allProducts", label: "All Products", href: "/products", tab: "products" },
-            { key: "nav.categories", label: "Categories", href: "/products?tab=categories", tab: "categories" },
-            { key: "nav.qcQuarantine", label: "QC Quarantine", href: "/products?tab=quarantine", tab: "quarantine" },
-            { key: "nav.internalSupplies", label: "Internal Supplies", href: "/products?tab=supplies", tab: "supplies" },
-        ]
+        titleKey: "nav.general",
+        items: [
+            { key: "nav.dashboard", icon: AnimatedDashboardIcon, href: "/" },
+            { key: "nav.orders", icon: AnimatedOrdersIcon, href: "/orders" },
+            { key: "nav.customers", icon: AnimatedCustomersIcon, href: "/customers" },
+            {
+                key: "nav.products",
+                icon: AnimatedProductsIcon,
+                href: "/products",
+                subItems: [
+                    { key: "nav.allProducts", label: "All Products", href: "/products", tab: "products" },
+                    { key: "nav.categories", label: "Categories", href: "/products?tab=categories", tab: "categories" },
+                    { key: "nav.qcQuarantine", label: "QC Quarantine", href: "/products?tab=quarantine", tab: "quarantine" },
+                    { key: "nav.internalSupplies", label: "Internal Supplies", href: "/products?tab=supplies", tab: "supplies" },
+                ],
+            },
+            { key: "nav.printing", icon: AnimatedPrintingIcon, href: "/printing" },
+        ],
     },
     {
-        key: "nav.finances",
-        icon: AnimatedFinancesIcon,
-        href: "/finances",
-        subItems: [
-            { key: "nav.financesOverview", label: "Overview", href: "/finances", tab: "overview" },
-            { key: "nav.financesRevenue", label: "Revenue & Profit", href: "/finances?tab=revenue", tab: "revenue" },
-            { key: "nav.financesCash", label: "Cash & COD", href: "/finances?tab=cash", tab: "cash" },
-            { key: "nav.financesExpenses", label: "Expenses", href: "/finances?tab=expenses", tab: "expenses" },
-            { key: "nav.financesPayouts", label: "Payouts", href: "/finances?tab=payouts", tab: "payouts" },
-            { key: "nav.financesInvoices", label: "Invoices", href: "/finances?tab=invoices", tab: "invoices" },
-            { key: "nav.financesRefunds", label: "Refunds & Returns", href: "/finances?tab=refunds", tab: "refunds" },
-            { key: "nav.financesCustomers", label: "Customers", href: "/finances?tab=customers", tab: "customers" },
-            { key: "nav.financesProducts", label: "Products", href: "/finances?tab=products", tab: "products" },
-            { key: "nav.financesPrint", label: "Print & Ship", href: "/finances?tab=print", tab: "print" },
-            { key: "nav.financesForecasts", label: "Forecasts", href: "/finances?tab=forecasts", tab: "forecasts" },
-            { key: "nav.financesReports", label: "Exports", href: "/finances?tab=reports", tab: "reports" },
-            { key: "nav.financesSalaries", label: "Salaries", href: "/finances?tab=salaries", tab: "salaries" },
-        ]
+        titleKey: "nav.groupMoney",
+        items: [
+            {
+                key: "nav.finances",
+                icon: AnimatedFinancesIcon,
+                href: "/finances",
+                subItems: [
+                    // Ordered the way money actually moves: what came in, what is owed, what went out.
+                    { key: "nav.financesOverview", label: "Overview", href: "/finances", tab: "overview" },
+                    { key: "nav.financesRevenue", label: "Revenue & Profit", href: "/finances?tab=revenue", tab: "revenue" },
+                    { key: "nav.financesCash", label: "Cash & COD", href: "/finances?tab=cash", tab: "cash" },
+                    { key: "nav.financesInvoices", label: "Invoices", href: "/finances?tab=invoices", tab: "invoices" },
+                    { key: "nav.financesPayouts", label: "Payouts", href: "/finances?tab=payouts", tab: "payouts" },
+                    { key: "nav.financesRefunds", label: "Refunds & Returns", href: "/finances?tab=refunds", tab: "refunds" },
+                    { key: "nav.financesExpenses", label: "Expenses", href: "/finances?tab=expenses", tab: "expenses" },
+                    { key: "nav.financesSalaries", label: "Salaries", href: "/finances?tab=salaries", tab: "salaries" },
+                    { key: "nav.financesPrint", label: "Print & Ship", href: "/finances?tab=print", tab: "print" },
+                    { key: "nav.financesCustomers", label: "Customers", href: "/finances?tab=customers", tab: "customers" },
+                    { key: "nav.financesProducts", label: "Products", href: "/finances?tab=products", tab: "products" },
+                    { key: "nav.financesForecasts", label: "Forecasts", href: "/finances?tab=forecasts", tab: "forecasts" },
+                    { key: "nav.financesReports", label: "Exports", href: "/finances?tab=reports", tab: "reports" },
+                ],
+            },
+            { key: "nav.reports", icon: AnimatedReportsIcon, href: "/reports" },
+        ],
     },
-    { key: "nav.reports", icon: AnimatedReportsIcon, href: "/reports" },
-    { key: "nav.printing", icon: AnimatedPrintingIcon, href: "/printing" },
-    { key: "nav.team", icon: AnimatedTeamIcon, href: "/team" },
-    { key: "nav.vault", icon: AnimatedVaultIcon, href: "/vault" },
-    { key: "nav.store", icon: AnimatedStoreIcon, href: "/store" },
-    { key: "nav.reviews", icon: Star, href: "/reviews" },
-    { key: "nav.recovery", icon: ShoppingCart, href: "/recovery" },
-    { key: "nav.settings", icon: AnimatedSettingsIcon, href: "/settings" },
+    {
+        titleKey: "nav.groupWorkspace",
+        items: [
+            // Store owns its own sub-navigation in-page (Command Center / Editor /
+            // Reviews / Cart Recovery), so the sidebar keeps a single entry.
+            { key: "nav.store", icon: AnimatedStoreIcon, href: "/store" },
+            { key: "nav.team", icon: AnimatedTeamIcon, href: "/team" },
+            { key: "nav.vault", icon: AnimatedVaultIcon, href: "/vault" },
+        ],
+    },
 ];
+
+// Flat list for the mobile drawer and for stable per-item shine offsets.
+const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap(section => section.items);
+
 
 interface SidebarProps {
     collapsed: boolean;
@@ -139,6 +167,160 @@ export function Sidebar({
     const headerVariants = {
         collapsed: { opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.16, ease: [0.65, 0, 0.35, 1] as const } },
         expanded: { opacity: 1, height: "auto" as const, marginBottom: 12, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const, delay: 0.05 } },
+    };
+
+    const renderNavItem = (item: NavItem, index: number) => {
+        const isActive = pathname === item.href || (item.subItems && pathname.startsWith(item.href));
+        // Stagger shine per item with pseudo-random offsets so they never sweep together
+        const shineDelay = `${((index * 2.137) % 9).toFixed(2)}s`;
+        return (
+            <div key={item.href} className="flex flex-col">
+                <TransitionLink
+                    href={item.href}
+                    prefetch={true}
+                    onMouseEnter={() => {
+                        // Intent-based rigorous prefetching
+                        if (["/", "/orders", "/finances", "/printing"].includes(item.href)) prefetchOrders();
+                        if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
+                        if (["/products", "/finances"].includes(item.href)) prefetchProducts();
+                    }}
+                    className={cn(
+                        "flex items-center py-2.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                        collapsed
+                            ? "justify-center w-full"
+                            : "gap-3 px-3",
+                        isActive
+                            ? "bg-white/10 text-white"
+                            : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
+                    )}
+                    title={collapsed ? t(item.key) : undefined}
+                >
+                    <motion.span
+                        transition={sidebarSpring}
+                        className="nav-icon-shine flex-shrink-0 inline-flex items-center justify-center w-[22px] h-[22px]"
+                        style={{ ['--shine-delay' as string]: shineDelay }}
+                    >
+                        {ANIMATED_ICON_KEYS.has(item.key) ? (
+                            (() => {
+                                const AnimIcon = item.icon as ComponentType<{ className?: string; active?: boolean }>;
+                                return (
+                                    <AnimIcon
+                                        className={cn(
+                                            "w-[22px] h-[22px] transition-colors",
+                                            isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
+                                        )}
+                                        active={isActive || undefined}
+                                    />
+                                );
+                            })()
+                        ) : (
+                            <motion.span
+                                key={isActive ? `${item.href}-on` : `${item.href}-off`}
+                                initial={isActive ? { scale: 0.55, rotate: -14 } : false}
+                                animate={{ scale: 1, rotate: 0 }}
+                                transition={{ type: "spring", stiffness: 480, damping: 14, mass: 0.7 }}
+                                className="inline-flex"
+                            >
+                                <item.icon className={cn(
+                                    "w-[22px] h-[22px] transition-colors",
+                                    isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
+                                )} />
+                            </motion.span>
+                        )}
+                    </motion.span>
+
+                    <motion.span
+                        initial={false}
+                        animate={collapsed ? "collapsed" : "expanded"}
+                        variants={labelVariants}
+                        className="font-medium text-[15px] whitespace-nowrap overflow-hidden inline-block"
+                    >
+                        {t(item.key)}
+                    </motion.span>
+
+                    <AnimatePresence initial={false}>
+                        {isActive && !collapsed && (
+                            <motion.div
+                                key="dot-inline"
+                                initial={{ opacity: 0, scale: 0.4 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.4 }}
+                                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                                className="ml-auto w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9),0_0_18px_rgba(52,211,153,0.5)]"
+                            />
+                        )}
+                        {isActive && collapsed && (
+                            <motion.div
+                                key="dot-corner"
+                                initial={{ opacity: 0, scale: 0.4 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.4 }}
+                                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+                                className="absolute right-1.5 top-1.5 w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9),0_0_18px_rgba(52,211,153,0.5)]"
+                            />
+                        )}
+                    </AnimatePresence>
+                </TransitionLink>
+
+                {/* Sub Navigation for Desktop Sidebar */}
+                <AnimatePresence initial={false}>
+                    {item.subItems && isActive && !collapsed && !isMobile && (
+                        <motion.div
+                            key="subnav"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                            className="overflow-hidden"
+                        >
+                            <div className="relative mt-3 mb-0">
+                                <div className="absolute left-[22px] top-0 bottom-3 w-[2px] bg-white/10 rounded-full" />
+                                <motion.div
+                                    initial="hidden"
+                                    animate="visible"
+                                    variants={{
+                                        hidden: {},
+                                        visible: { transition: { staggerChildren: 0.04, delayChildren: 0.08 } },
+                                    }}
+                                    className="flex flex-col gap-0 pl-[42px] pr-3"
+                                >
+                                    {item.subItems.map(subItem => {
+                                        const isSubActive = currentTab === subItem.tab;
+                                        return (
+                                            <motion.div
+                                                key={subItem.href}
+                                                variants={{
+                                                    hidden: { opacity: 0, x: -6 },
+                                                    visible: { opacity: 1, x: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+                                                }}
+                                            >
+                                                <TransitionLink
+                                                    href={subItem.href}
+                                                    className={cn(
+                                                        "text-[14px] py-1.5 px-3 rounded-xl transition-all relative flex items-center group",
+                                                        isSubActive
+                                                            ? "text-white bg-white/10 font-medium shadow-sm ring-1 ring-white/5"
+                                                            : "text-zinc-400 hover:text-white hover:bg-white/5"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "absolute -left-[22px] w-[6px] h-[6px] rounded-full transition-all duration-300 ring-[4px] ring-[#1E1E1E]",
+                                                        isSubActive
+                                                            ? "bg-[#E4B5D1] shadow-[0_0_10px_rgba(228,181,209,0.8)] scale-110"
+                                                            : "bg-zinc-700 group-hover:bg-zinc-500"
+                                                    )} />
+                                                    {t(subItem.key)}
+                                                </TransitionLink>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </motion.div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        );
     };
 
     // Desktop sidebar
@@ -196,168 +378,19 @@ export function Sidebar({
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
-                    <motion.div
-                        initial={false}
-                        animate={collapsed ? "collapsed" : "expanded"}
-                        variants={headerVariants}
-                        className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-1 overflow-hidden mb-3"
-                    >
-                        {t("nav.general")}
-                    </motion.div>
-
-                    {NAV_ITEMS.map((item, index) => {
-                        const isActive = pathname === item.href || (item.subItems && pathname.startsWith(item.href));
-                        // Stagger shine per item with pseudo-random offsets so they never sweep together
-                        const shineDelay = `${((index * 2.137) % 9).toFixed(2)}s`;
-                        return (
-                            <div key={item.href} className="flex flex-col">
-                                <TransitionLink
-                                    href={item.href}
-                                    prefetch={true}
-                                    onMouseEnter={() => {
-                                        // Intent-based rigorous prefetching
-                                        if (["/", "/orders", "/finances", "/printing"].includes(item.href)) prefetchOrders();
-                                        if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
-                                        if (["/products", "/finances"].includes(item.href)) prefetchProducts();
-                                    }}
-                                    className={cn(
-                                        "flex items-center py-2.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
-                                        collapsed
-                                            ? "justify-center w-full"
-                                            : "gap-3 px-3",
-                                        isActive
-                                            ? "bg-white/10 text-white"
-                                            : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
-                                    )}
-                                    title={collapsed ? t(item.key) : undefined}
-                                >
-                                    <motion.span
-                                        transition={sidebarSpring}
-                                        className="nav-icon-shine flex-shrink-0 inline-flex items-center justify-center w-[22px] h-[22px]"
-                                        style={{ ['--shine-delay' as string]: shineDelay }}
-                                    >
-                                        {ANIMATED_ICON_KEYS.has(item.key) ? (
-                                            (() => {
-                                                const AnimIcon = item.icon as ComponentType<{ className?: string; active?: boolean }>;
-                                                return (
-                                                    <AnimIcon
-                                                        className={cn(
-                                                            "w-[22px] h-[22px] transition-colors",
-                                                            isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
-                                                        )}
-                                                        active={isActive || undefined}
-                                                    />
-                                                );
-                                            })()
-                                        ) : (
-                                            <motion.span
-                                                key={isActive ? `${item.href}-on` : `${item.href}-off`}
-                                                initial={isActive ? { scale: 0.55, rotate: -14 } : false}
-                                                animate={{ scale: 1, rotate: 0 }}
-                                                transition={{ type: "spring", stiffness: 480, damping: 14, mass: 0.7 }}
-                                                className="inline-flex"
-                                            >
-                                                <item.icon className={cn(
-                                                    "w-[22px] h-[22px] transition-colors",
-                                                    isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
-                                                )} />
-                                            </motion.span>
-                                        )}
-                                    </motion.span>
-
-                                    <motion.span
-                                        initial={false}
-                                        animate={collapsed ? "collapsed" : "expanded"}
-                                        variants={labelVariants}
-                                        className="font-medium text-[15px] whitespace-nowrap overflow-hidden inline-block"
-                                    >
-                                        {t(item.key)}
-                                    </motion.span>
-
-                                    <AnimatePresence initial={false}>
-                                        {isActive && !collapsed && (
-                                            <motion.div
-                                                key="dot-inline"
-                                                initial={{ opacity: 0, scale: 0.4 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.4 }}
-                                                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                                                className="ml-auto w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9),0_0_18px_rgba(52,211,153,0.5)]"
-                                            />
-                                        )}
-                                        {isActive && collapsed && (
-                                            <motion.div
-                                                key="dot-corner"
-                                                initial={{ opacity: 0, scale: 0.4 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.4 }}
-                                                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-                                                className="absolute right-1.5 top-1.5 w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9),0_0_18px_rgba(52,211,153,0.5)]"
-                                            />
-                                        )}
-                                    </AnimatePresence>
-                                </TransitionLink>
-
-                                {/* Sub Navigation for Desktop Sidebar */}
-                                <AnimatePresence initial={false}>
-                                    {item.subItems && isActive && !collapsed && !isMobile && (
-                                        <motion.div
-                                            key="subnav"
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: "auto" }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="relative mt-3 mb-0">
-                                                <div className="absolute left-[22px] top-0 bottom-3 w-[2px] bg-white/10 rounded-full" />
-                                                <motion.div
-                                                    initial="hidden"
-                                                    animate="visible"
-                                                    variants={{
-                                                        hidden: {},
-                                                        visible: { transition: { staggerChildren: 0.04, delayChildren: 0.08 } },
-                                                    }}
-                                                    className="flex flex-col gap-0 pl-[42px] pr-3"
-                                                >
-                                                    {item.subItems.map(subItem => {
-                                                        const isSubActive = currentTab === subItem.tab;
-                                                        return (
-                                                            <motion.div
-                                                                key={subItem.href}
-                                                                variants={{
-                                                                    hidden: { opacity: 0, x: -6 },
-                                                                    visible: { opacity: 1, x: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
-                                                                }}
-                                                            >
-                                                                <TransitionLink
-                                                                    href={subItem.href}
-                                                                    className={cn(
-                                                                        "text-[14px] py-1.5 px-3 rounded-xl transition-all relative flex items-center group",
-                                                                        isSubActive
-                                                                            ? "text-white bg-white/10 font-medium shadow-sm ring-1 ring-white/5"
-                                                                            : "text-zinc-400 hover:text-white hover:bg-white/5"
-                                                                    )}
-                                                                >
-                                                                    <div className={cn(
-                                                                        "absolute -left-[22px] w-[6px] h-[6px] rounded-full transition-all duration-300 ring-[4px] ring-[#1E1E1E]",
-                                                                        isSubActive
-                                                                            ? "bg-[#E4B5D1] shadow-[0_0_10px_rgba(228,181,209,0.8)] scale-110"
-                                                                            : "bg-zinc-700 group-hover:bg-zinc-500"
-                                                                    )} />
-                                                                    {t(subItem.key)}
-                                                                </TransitionLink>
-                                                            </motion.div>
-                                                        );
-                                                    })}
-                                                </motion.div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        );
-                    })}
+                    {NAV_SECTIONS.map((section, sectionIndex) => (
+                        <div key={section.titleKey} className={sectionIndex > 0 ? (collapsed ? "mt-2" : "mt-5") : undefined}>
+                            <motion.div
+                                initial={false}
+                                animate={collapsed ? "collapsed" : "expanded"}
+                                variants={headerVariants}
+                                className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-1 overflow-hidden mb-3"
+                            >
+                                {t(section.titleKey)}
+                            </motion.div>
+                            {section.items.map(item => renderNavItem(item, NAV_ITEMS.indexOf(item)))}
+                        </div>
+                    ))}
                 </nav>
 
                 {/* User Section */}
@@ -530,41 +563,44 @@ export function Sidebar({
 
                         {/* Navigation */}
                         <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
-                            <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
-                                {t("nav.general")}
-                            </div>
-
-                            {NAV_ITEMS.map((item) => {
-                                const isActive = pathname === item.href;
-                                return (
-                                    <TransitionLink
-                                        key={item.href}
-                                        href={item.href}
-                                        prefetch={true}
-                                        onClick={handleNavClick}
-                                        onMouseEnter={() => {
-                                            // Intent-based rigorous prefetching
-                                            if (["/", "/orders", "/finances", "/printing"].includes(item.href)) prefetchOrders();
-                                            if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
-                                            if (["/products", "/finances"].includes(item.href)) prefetchProducts();
-                                        }}
-                                        className={cn(
-                                            "flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200",
-                                            isActive
-                                                ? "bg-white/10 text-white"
-                                                : "text-zinc-400 hover:text-white hover:bg-white/5"
-                                        )}
-                                    >
-                                        <item.icon className="w-5 h-5 flex-shrink-0" />
-                                        <span className="font-medium text-base">
-                                            {t(item.key)}
-                                        </span>
-                                        {isActive && (
-                                            <div className="ml-auto w-2 h-2 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                                        )}
-                                    </TransitionLink>
-                                );
-                            })}
+                            {NAV_SECTIONS.map((section, sectionIndex) => (
+                                <div key={section.titleKey} className={sectionIndex > 0 ? "mt-5" : undefined}>
+                                    <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
+                                        {t(section.titleKey)}
+                                    </div>
+                                    {section.items.map((item) => {
+                                        const isActive = pathname === item.href;
+                                        return (
+                                        <TransitionLink
+                                            key={item.href}
+                                            href={item.href}
+                                            prefetch={true}
+                                            onClick={handleNavClick}
+                                            onMouseEnter={() => {
+                                                // Intent-based rigorous prefetching
+                                                if (["/", "/orders", "/finances", "/printing"].includes(item.href)) prefetchOrders();
+                                                if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
+                                                if (["/products", "/finances"].includes(item.href)) prefetchProducts();
+                                            }}
+                                            className={cn(
+                                                "flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200",
+                                                isActive
+                                                    ? "bg-white/10 text-white"
+                                                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                                            )}
+                                        >
+                                            <item.icon className="w-5 h-5 flex-shrink-0" />
+                                            <span className="font-medium text-base">
+                                                {t(item.key)}
+                                            </span>
+                                            {isActive && (
+                                                <div className="ml-auto w-2 h-2 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
+                                            )}
+                                        </TransitionLink>
+                                        );
+                                    })}
+                                </div>
+                            ))}
                         </nav>
 
                         {/* Mobile User Section */}

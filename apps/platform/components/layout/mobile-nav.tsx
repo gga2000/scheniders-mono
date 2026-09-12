@@ -15,8 +15,6 @@ import {
     Store,
     Layers,
     Wallet,
-    Star,
-    ShoppingCart,
 } from "lucide-react";
 import { TransitionLink as Link } from "./transition-link";
 import { usePathname } from "next/navigation";
@@ -36,9 +34,8 @@ const MORE_NAV_ITEMS = [
     { key: "nav.printing", icon: Printer, href: "/printing" },
     { key: "nav.team", icon: UsersRound, href: "/team" },
     { key: "nav.vault", icon: Database, href: "/vault" },
+    // Reviews and cart recovery are tabs inside Store now, not destinations of their own.
     { key: "nav.store", icon: Store, href: "/store" },
-    { key: "nav.reviews", icon: Star, href: "/reviews" },
-    { key: "nav.recovery", icon: ShoppingCart, href: "/recovery" },
     { key: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
