@@ -68,7 +68,16 @@ self.addEventListener('push', (event) => {
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
         tag: payload.tag || undefined,
-        data: { conversationId: payload.conversationId || null, url: payload.url || null },
+        // Buttons let someone act without opening the app first. Chrome shows at
+        // most two; anything beyond that is silently dropped, so the sender only
+        // ever supplies two.
+        actions: Array.isArray(payload.actions) ? payload.actions.slice(0, 2) : undefined,
+        requireInteraction: payload.priority === 'urgent',
+        data: {
+            conversationId: payload.conversationId || null,
+            url: payload.url || null,
+            notificationId: payload.notificationId || null,
+        },
     };
     event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -78,11 +87,20 @@ self.addEventListener('push', (event) => {
 // off the conversationId to the app via postMessage.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Where each action button leads. Unlisted actions fall back to the
+// notification's own url, so adding a button never breaks an old client.
+const ACTION_ROUTES = {
+    confirm: '/orders?focus=confirm',
+};
+
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const data = event.notification.data || {};
     const conversationId = data.conversationId;
-    const url = data.url;
+    // An action button can send the viewer somewhere other than the default
+    // target — "Top up" belongs on billing, not on the orders list.
+    const action = event.action || '';
+    const url = action && ACTION_ROUTES[action] ? ACTION_ROUTES[action] : data.url;
 
     event.waitUntil(
         self.clients
@@ -94,6 +112,9 @@ self.addEventListener('notificationclick', (event) => {
                         client.focus();
                         if (conversationId) {
                             client.postMessage({ type: 'open-conversation', conversationId });
+                        } else if (action) {
+                            client.postMessage({ type: 'notification-action', action, url });
+                            if (url && 'navigate' in client) client.navigate(url);
                         } else if (url && 'navigate' in client) {
                             client.navigate(url);
                         }
