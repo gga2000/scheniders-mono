@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue, useLayoutEffect } from "react";
 import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { getWorkDayKey } from "@/lib/order-format-utils";
 import {
     getDefaultFilters,
     loadFilterPresetsFromStorage,
@@ -165,18 +166,19 @@ export function useOrderFilters({ orders, archivedOrders }: UseOrderFiltersOptio
                     if (!isReplacement) return false;
                 }
 
-                // Date range filter
-                if (activeFilters.dateFrom) {
-                    const orderDate = new Date(order.created_at);
-                    const fromDate = new Date(activeFilters.dateFrom);
-                    fromDate.setHours(0, 0, 0, 0);
-                    if (orderDate < fromDate) return false;
-                }
-                if (activeFilters.dateTo) {
-                    const orderDate = new Date(order.created_at);
-                    const toDate = new Date(activeFilters.dateTo);
-                    toDate.setHours(23, 59, 59, 999);
-                    if (orderDate > toDate) return false;
+                // Date range filter — measured on the day the order is *worked*,
+                // so an order postponed to the 15th leaves today's queue and turns
+                // up under the 15th. Compared as "YYYY-MM-DD" strings because
+                // `scheduled_date` is a date-only column: no timezone conversion
+                // can shift it onto the neighbouring day.
+                const workDay = getWorkDayKey(order);
+                if (workDay) {
+                    if (activeFilters.dateFrom && workDay < String(activeFilters.dateFrom).slice(0, 10)) {
+                        return false;
+                    }
+                    if (activeFilters.dateTo && workDay > String(activeFilters.dateTo).slice(0, 10)) {
+                        return false;
+                    }
                 }
 
                 // City filter

@@ -81,6 +81,29 @@ export const isScheduleDue = (
     scheduledDate?: string | null
 ) => getScheduledState(scheduledDate) === "due" && !SETTLED_STATUSES.has(status);
 
+/**
+ * The calendar day an order belongs to as *work*, as "YYYY-MM-DD".
+ *
+ * Postponing never moves `created_at` — a database trigger forbids forward-dating
+ * it, and rewriting it would falsify when the order actually arrived. But the
+ * orders page's date range is a work queue, not an archive: an order parked for
+ * the 15th belongs to the 15th's list, not to the day it happened to come in.
+ * Without this, scheduling an order gave it a badge and left it sitting under
+ * today, invisible on the day it was scheduled for.
+ *
+ * Returns null only when neither date is usable, in which case callers should
+ * leave the order in view rather than hide it on a parsing failure.
+ */
+export const getWorkDayKey = (
+    order: Pick<Order, "created_at"> & { scheduled_date?: string | null }
+): string | null => {
+    const scheduled = toDayKey(order.scheduled_date);
+    if (scheduled) return scheduled;
+
+    const created = new Date(order.created_at);
+    return isNaN(created.getTime()) ? null : localDayKey(created);
+};
+
 /** "8 Sep" — the label for the scheduled-date badge. */
 export const formatScheduledDate = (scheduledDate: string | Date | undefined | null) => {
     const day = scheduledDayStart(scheduledDate);

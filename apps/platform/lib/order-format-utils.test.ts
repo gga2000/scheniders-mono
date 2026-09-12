@@ -6,6 +6,7 @@ import {
     formatScheduledDate,
     isScheduleDue,
     isScheduledToday,
+    getWorkDayKey,
 } from "@/lib/order-format-utils";
 
 // Local 2:00 PM on 7 Sep 2026. Built from local parts so the assertions hold
@@ -139,5 +140,48 @@ describe("due-today queue", () => {
 
     it("excludes orders that were never scheduled", () => {
         expect(isScheduleDue("confirmed", null)).toBe(false);
+    });
+});
+
+describe("work day", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+    });
+    afterEach(() => vi.useRealTimers());
+
+    // Local noon, so the day key is the same whether the runner reads it as
+    // local or drifts an hour either way.
+    const createdOn = (year: number, month: number, day: number) =>
+        new Date(year, month - 1, day, 12, 0, 0).toISOString();
+
+    it("uses the scheduled day when the order was parked", () => {
+        expect(
+            getWorkDayKey({ created_at: createdOn(2026, 9, 12), scheduled_date: "2026-09-15" }),
+        ).toBe("2026-09-15");
+    });
+
+    it("falls back to the day the order arrived", () => {
+        expect(getWorkDayKey({ created_at: createdOn(2026, 9, 12) })).toBe("2026-09-12");
+        expect(
+            getWorkDayKey({ created_at: createdOn(2026, 9, 12), scheduled_date: null }),
+        ).toBe("2026-09-12");
+    });
+
+    it("reads the arrival day in local time, not UTC", () => {
+        // 11 PM local on the 12th is already the 13th in UTC east of Greenwich
+        // and still the 12th west of it. The employee's calendar is the local one.
+        const lateEvening = new Date(2026, 8, 12, 23, 0, 0);
+        expect(getWorkDayKey({ created_at: lateEvening.toISOString() })).toBe("2026-09-12");
+    });
+
+    it("returns null when neither date is usable", () => {
+        expect(getWorkDayKey({ created_at: "not a date" })).toBeNull();
+    });
+
+    it("ignores a scheduled value that is not a day key", () => {
+        expect(
+            getWorkDayKey({ created_at: createdOn(2026, 9, 12), scheduled_date: "soon" }),
+        ).toBe("2026-09-12");
     });
 });

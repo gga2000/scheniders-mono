@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { supabase, Order, OrderFilters, PrintBatch } from "@/lib/supabase";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX, cleanPhoneForExport } from "@/lib/export-utils";
+import { getWorkDayKey } from "@/lib/order-format-utils";
 
 // =============================================
 // TYPES
@@ -107,20 +108,14 @@ export function usePrinting(orders: Order[]) {
                 // City filter
                 if (filters.city && order.city !== filters.city) return false;
 
-                // Date range filter - use local timezone
-                if (filters.dateFrom) {
-                    const orderDate = new Date(order.created_at);
-                    // Parse as local date at start of day (midnight local time)
-                    const [year, month, day] = filters.dateFrom.split('-').map(Number);
-                    const fromDate = new Date(year, month - 1, day, 0, 0, 0, 0);
-                    if (orderDate < fromDate) return false;
-                }
-                if (filters.dateTo) {
-                    const orderDate = new Date(order.created_at);
-                    // Parse as local date at end of day (23:59:59.999 local time)
-                    const [year, month, day] = filters.dateTo.split('-').map(Number);
-                    const toDate = new Date(year, month - 1, day, 23, 59, 59, 999);
-                    if (orderDate > toDate) return false;
+                // Date range filter, on the day the order is *worked*: an order
+                // postponed to the 15th belongs to the 15th's print run, not to
+                // the day it arrived. Day keys are compared as strings, so no
+                // timezone conversion can shift one onto the neighbouring day.
+                const workDay = getWorkDayKey(order);
+                if (workDay) {
+                    if (filters.dateFrom && workDay < filters.dateFrom.slice(0, 10)) return false;
+                    if (filters.dateTo && workDay > filters.dateTo.slice(0, 10)) return false;
                 }
 
                 // Priority filter
