@@ -265,6 +265,52 @@ export const listCategoryProductCounts = cache(
     }),
 );
 
+/**
+ * Best discount in the WHOLE catalogue, as a whole percent.
+ *
+ * The hero's "up to N% off" is a claim about everything the shop sells,
+ * so it must not be derived from whatever slice of products a grid on
+ * the page happened to load. At 43 visible products against a 24-product
+ * fetch, a deeper discount outside that slice would be silently
+ * understated. Mirrors `discountPercent` in the sections package: a
+ * non-positive price, or a compare-at at or below it, is not a discount.
+ *
+ * Returns null when nothing is on sale, so the caller drops the claim
+ * rather than rendering a zero.
+ */
+export const getMaxDiscountPercent = cache(
+  (tenantId: string): Promise<number | null> =>
+    publicCache(["getMaxDiscountPercent", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("price, website_price, compare_at_price")
+        .eq("tenant_id", tenantId)
+        .eq("is_visible", true)
+        .eq("is_archived", false)
+        .not("is_supply", "is", true)
+        .not("compare_at_price", "is", null);
+
+      if (error) {
+        console.error("[queries.getMaxDiscountPercent]", error);
+        return null;
+      }
+
+      let best: number | null = null;
+      for (const row of (data ?? []) as {
+        price: number | null;
+        website_price: number | null;
+        compare_at_price: number | null;
+      }[]) {
+        const price = row.website_price ?? row.price ?? 0;
+        const compareAt = row.compare_at_price ?? 0;
+        if (!(price > 0) || !(compareAt > price)) continue;
+        const pct = Math.round(((compareAt - price) / compareAt) * 100);
+        if (best === null || pct > best) best = pct;
+      }
+      return best;
+    }),
+);
+
 export interface TenantPublicStats {
   completed_orders: number;
   customers: number;

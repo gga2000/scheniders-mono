@@ -6,6 +6,7 @@ import {
   listCategories,
   listCategoryProductCounts,
   getTenantPublicStats,
+  getMaxDiscountPercent,
 } from "@/lib/queries";
 import { getTemplate } from "@/templates/registry";
 import type { TemplateName } from "@/lib/types";
@@ -75,12 +76,14 @@ export default async function StorefrontHome({
 
   if (!tenant) notFound();
 
-  const [products, categories, categoryCounts, publicStats] = await Promise.all([
-    listProducts(tenant.id, { limit: 24 }),
-    listCategories(tenant.id),
-    listCategoryProductCounts(tenant.id),
-    getTenantPublicStats(tenant.id),
-  ]);
+  const [products, categories, categoryCounts, publicStats, maxDiscountPct] =
+    await Promise.all([
+      listProducts(tenant.id, { limit: 24 }),
+      listCategories(tenant.id),
+      listCategoryProductCounts(tenant.id),
+      getTenantPublicStats(tenant.id),
+      getMaxDiscountPercent(tenant.id),
+    ]);
 
   // Allow ?preview_template=<name> to temporarily override the saved template
   // (used by the admin template picker's live preview iframe).
@@ -116,6 +119,7 @@ export default async function StorefrontHome({
       products,
       categories,
       category_product_counts: categoryCounts,
+      max_discount_percent: maxDiscountPct ?? undefined,
       public_stats: publicStats ?? undefined,
     };
     // Structured data is derived from the sections the page ACTUALLY

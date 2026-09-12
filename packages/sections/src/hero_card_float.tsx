@@ -232,19 +232,25 @@ function HeroCardFloatRender({
   const headline = resolveI18n(props.headline_i18n, locale);
   const sub = resolveI18n(props.sub_i18n, locale);
   const ctaLabel = resolveI18n(props.cta_label_i18n, locale);
-  // Live offer badge. The best discount actually on screen — computed
-  // from the same `price` the cart charges, so the chip cannot promise a
-  // saving that does not exist. No qualifying product means no chip:
-  // rendering the template with the number missing would leave a bare
-  // "%" and a claim with nothing behind it.
+  // Live offer badge, computed from the same `price` the cart charges, so
+  // the chip cannot promise a saving that does not exist. No qualifying
+  // product means no chip: rendering the template without the number
+  // would leave a bare sign and a claim with nothing behind it.
+  //
+  // "Up to N% off" describes the WHOLE catalogue, so it prefers the
+  // catalogue-wide figure resolved upstream. The fallback keeps older
+  // callers working but can only see this page's slice — at 43 visible
+  // products behind a 24-product fetch it would silently understate a
+  // deeper discount sitting outside that slice.
   const maxDiscountPct =
-    props.offer_badge === "max_discount"
-      ? ctx.products.reduce<number | null>((best, product) => {
+    props.offer_badge !== "max_discount"
+      ? null
+      : (ctx.max_discount_percent ??
+        ctx.products.reduce<number | null>((best, product) => {
           const pct = discountPercent(product.price, product.compare_at_price);
           if (pct == null) return best;
           return best == null || pct > best ? pct : best;
-        }, null)
-      : null;
+        }, null));
   const badge = renderBadge(
     resolveI18n(props.badge_i18n, locale),
     maxDiscountPct,

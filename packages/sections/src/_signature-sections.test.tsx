@@ -275,6 +275,39 @@ describe("hero_card_float — link CTAs", () => {
     expect(html).not.toContain("{pct}");
   });
 
+  it("prefers the catalogue-wide discount over the loaded slice", () => {
+    // The page loads 24 of 43 products. A deeper discount outside that
+    // slice must still be what "up to N%" reports, or the hero silently
+    // understates the moment the catalogue outgrows the fetch limit.
+    const sliceOnly: Product[] = [
+      { ...baseProduct, price: 90, compare_at_price: 100 }, // 10% in-slice
+    ];
+    const html = render(
+      hero_card_float,
+      {
+        ...props,
+        offer_badge: "max_discount" as const,
+        badge_i18n: { ar: "خصم لحد {pct}", en: "Up to {pct} off" },
+      },
+      { products: sliceOnly, max_discount_percent: 36 },
+    );
+    expect(html).toContain("36٪");
+    expect(html).not.toContain("10٪");
+  });
+
+  it("falls back to the loaded products when no catalogue figure is given", () => {
+    const html = render(
+      hero_card_float,
+      {
+        ...props,
+        offer_badge: "max_discount" as const,
+        badge_i18n: { ar: "خصم لحد {pct}", en: "Up to {pct} off" },
+      },
+      { products: [{ ...baseProduct, price: 90, compare_at_price: 100 }] },
+    );
+    expect(html).toContain("10٪");
+  });
+
   it("shows no offer badge when nothing is actually discounted", () => {
     const template = { ar: "خصم لحد {pct}", en: "Up to {pct} off" };
     const fullPrice: Product[] = [

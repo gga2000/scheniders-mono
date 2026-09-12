@@ -58,6 +58,7 @@ import {
   getCategoryBySlug,
   listCategoryProductCounts,
   getTenantPublicStats,
+  getMaxDiscountPercent,
 } from "@/lib/queries";
 import { StoreBaseProvider } from "@/lib/store-context";
 // Import from the barrel (not RenderSection directly) so the section
@@ -349,9 +350,10 @@ export default async function PreviewPage({
   let category: Category | undefined;
   let products: Product[] = [];
   const categories: Category[] = await listCategories(tenant.id);
-  const [categoryCounts, publicStats] = await Promise.all([
+  const [categoryCounts, publicStats, maxDiscountPct] = await Promise.all([
     listCategoryProductCounts(tenant.id),
     getTenantPublicStats(tenant.id),
+    getMaxDiscountPercent(tenant.id),
   ]);
 
   switch (pageId) {
@@ -495,6 +497,7 @@ export default async function PreviewPage({
             product,
             category,
             category_product_counts: categoryCounts,
+            max_discount_percent: maxDiscountPct ?? undefined,
             public_stats: publicStats ?? undefined,
           }}
         />
