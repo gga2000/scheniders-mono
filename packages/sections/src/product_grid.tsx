@@ -24,6 +24,7 @@ import { StoreLink } from "./helpers/store-context";
 import { SchneidersProductCard } from "./helpers/product-card";
 import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { RevealMore } from "./helpers/reveal-more";
+import { CatalogGrid } from "./helpers/catalog-grid";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { chromeString } from "./helpers/chrome-strings";
 import {
@@ -77,6 +78,15 @@ const schema = z.object({
    *  plus a small "(N)" count — and only for products that actually have
    *  reviews (products without `review_count` show no stars at all). */
   show_stars: z.boolean().optional(),
+  /**
+   * Full-catalogue mode: category chips with live counts, sort, a
+   * median-derived price split and load-more, over everything loaded.
+   * Unset leaves today's markup byte-identical, including the existing
+   * category-page reveal branch.
+   */
+  catalog_controls: z.boolean().optional(),
+  /** Cards revealed per page in catalogue mode. Defaults to 12. */
+  catalog_page_size: z.number().int().positive().optional(),
   /** Percentage-off chip on the photo, for products with a real saving. */
   show_discount_badge: z.boolean().optional(),
   /**
@@ -523,7 +533,31 @@ function ProductGridRender({
             />
           )
         )}
-        {category && pageSize && pillItems.length > pageSize ? (
+        {props.catalog_controls ? (
+          // Full-catalogue mode: chips, sort, price split and load-more over
+          // everything already loaded. Cards are still rendered here, so the
+          // catalogue can never fork the card design.
+          <div data-layer="cards" data-layer-label="Product cards">
+            <CatalogGrid
+              products={pillItems}
+              categories={ctx.categories}
+              categoryProductIds={ctx.category_product_ids}
+              locale={locale}
+              pageSize={props.catalog_page_size ?? 12}
+              renderCard={(product, i) => (
+                <PricePillCard
+                  key={product.id}
+                  product={product}
+                  locale={locale}
+                  priority={cardPriority(i)}
+                  showStars={props.show_stars === true}
+                  showDiscountBadge={props.show_discount_badge === true}
+                  lowStockThreshold={props.low_stock_threshold}
+                />
+              )}
+            />
+          </div>
+        ) : category && pageSize && pillItems.length > pageSize ? (
           <div data-layer="cards" data-layer-label="Product cards">
             <RevealMore
               initial={pageSize}

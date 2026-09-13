@@ -896,3 +896,67 @@ describe("testimonial_cards — the quote is the content", () => {
     expect(html).toContain("-right-20");
   });
 });
+
+describe("product_grid — catalogue controls", () => {
+  const cat = (id: string, name: string) =>
+    ({ id, tenant_id: "t", name, slug: id, description: null, image_url: null, parent_id: null, display_order: 0 }) as never;
+  const prod = (id: string, over: Partial<Product> = {}) =>
+    ({ ...baseProduct, id, name: id, price: 40000, ...over }) as Product;
+
+  const products = [prod("a", { price: 30000 }), prod("b", { price: 60000 }), prod("c", { price: 90000 })];
+  const categories = [cat("work", "دوام"), cat("empty", "فاضي")] as never;
+  // "gone" is a member row whose product is not in the catalogue (archived,
+  // hidden, a supply item). A count taken from this list reads 3; the chip
+  // must read what it actually yields, which is 2.
+  const ids = { work: ["a", "b", "gone"] };
+  const props = {
+    ...product_grid.defaultProps,
+    card_style: "price_pill" as const,
+    catalog_controls: true,
+  };
+
+  it("renders the rail, the sort control and the result count", () => {
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    expect(html).toContain("data-catalog-grid");
+    expect(html).toContain("data-catalog-sort");
+    expect(html).toContain("data-result-count");
+  });
+
+  it("shows a chip's count as the number of cards that chip yields", () => {
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    // The count and the filtered list come from one function, so the chip
+    // cannot advertise a membership row whose product never renders.
+    expect(html).toMatch(/دوام[\s\S]{0,200}?>2</);
+    expect(html).not.toMatch(/دوام[\s\S]{0,200}?>3</);
+  });
+
+  it("does not render a chip that would open onto nothing", () => {
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    expect(html).not.toContain("فاضي");
+  });
+
+  it("never spends the buy-yellow on a filter chip", () => {
+    // --bk-primary means "act". Diluting it across controls weakens the one
+    // colour that carries the purchase. Every chip is the aria-pressed
+    // control, so read the style off those elements rather than guessing at
+    // a slice of the markup.
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    const chipStyles = [...html.matchAll(/aria-pressed="[^"]*"[^>]*style="([^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(chipStyles.length).toBeGreaterThan(0);
+    for (const style of chipStyles) expect(style).not.toContain("--bk-primary");
+  });
+
+  it("leaves markup untouched when catalog_controls is unset", () => {
+    const html = render(product_grid, { ...product_grid.defaultProps, card_style: "price_pill" as const }, { products, categories });
+    expect(html).not.toContain("data-catalog-grid");
+    expect(html).not.toContain("data-load-more");
+  });
+
+  it("keeps the catalogue fields out of defaultProps", () => {
+    expect(product_grid.defaultProps).not.toHaveProperty("catalog_controls");
+    expect(product_grid.defaultProps).not.toHaveProperty("catalog_page_size");
+    expect(product_grid.schema.safeParse(product_grid.defaultProps).success).toBe(true);
+  });
+});
