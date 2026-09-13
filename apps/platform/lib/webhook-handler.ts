@@ -483,6 +483,10 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
             created_at: checkout.created_at,
             notes: undefined,
             payment_method: 'cod', // Checkouts are typically COD
+            // A checkout carries the same `utm` list an order does. Skipping it
+            // here is why every order recovered from a checkout arrived with no
+            // channel — 441 of them before this was caught.
+            attribution: parseAdAttribution(checkout.utm),
         };
     } catch (error) {
         console.error("Error parsing checkout:", error);

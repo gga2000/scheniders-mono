@@ -317,6 +317,10 @@ const CHECKOUTS_QUERY = `
                 node {
                     _id
                     id
+                    utm {
+                        k
+                        v
+                    }
                     created_at(format: "YYYY-MM-DD HH:mm:ss")
                     updated_at(format: "YYYY-MM-DD HH:mm:ss")
                     total
