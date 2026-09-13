@@ -56,7 +56,7 @@ import {
   listCategories,
   getProductBySlug,
   getCategoryBySlug,
-  listCategoryProductCounts,
+  listCategoryProductIds,
   getTenantPublicStats,
   getMaxDiscountPercent,
 } from "@/lib/queries";
@@ -350,8 +350,8 @@ export default async function PreviewPage({
   let category: Category | undefined;
   let products: Product[] = [];
   const categories: Category[] = await listCategories(tenant.id);
-  const [categoryCounts, publicStats, maxDiscountPct] = await Promise.all([
-    listCategoryProductCounts(tenant.id),
+  const [categoryProductIds, publicStats, maxDiscountPct] = await Promise.all([
+    listCategoryProductIds(tenant.id),
     getTenantPublicStats(tenant.id),
     getMaxDiscountPercent(tenant.id),
   ]);
@@ -496,7 +496,7 @@ export default async function PreviewPage({
             categories,
             product,
             category,
-            category_product_counts: categoryCounts,
+            category_product_ids: categoryProductIds,
             max_discount_percent: maxDiscountPct ?? undefined,
             public_stats: publicStats ?? undefined,
           }}

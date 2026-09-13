@@ -30,11 +30,13 @@ export interface SectionRenderContext {
   /** Single category when on a category landing page. */
   category?: Category;
   /**
-   * Live product count per category id. Optional: every existing section
-   * and every test builds this context, so a required field would break
-   * all of them at once.
+   * Live product ids per category id — the single source for both a
+   * category's count (array length) and for filtering the catalogue.
+   * Membership, not `product.category_id`: a product belongs to up to six
+   * categories, so the primary field filters wrongly. Optional because
+   * every section and every test constructs this context.
    */
-  category_product_counts?: Record<string, number>;
+  category_product_ids?: Record<string, string[]>;
   /**
    * Best discount across the WHOLE catalogue, as a whole percent.
    *

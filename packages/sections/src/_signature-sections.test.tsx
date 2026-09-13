@@ -767,7 +767,12 @@ describe("category_spotlight_pair — occasion triptych", () => {
     { id: "c2", tenant_id: "t", name: "عطور للطلعات", slug: "outings", description: null, image_url: "https://images.unsplash.com/o", parent_id: null, display_order: 11 },
     { id: "c3", tenant_id: "t", name: "عطور للمناسبات", slug: "occasions", description: null, image_url: "https://images.unsplash.com/x", parent_id: null, display_order: 12 },
   ] as never;
-  const counts = { c1: 19, c2: 19, c3: 17 };
+  // Membership, not counts — the count is the array length.
+  const counts = {
+    c1: Array.from({ length: 19 }, (_, i) => `w${i}`),
+    c2: Array.from({ length: 19 }, (_, i) => `o${i}`),
+    c3: Array.from({ length: 17 }, (_, i) => `x${i}`),
+  };
   const srcProps = {
     ...category_spotlight_pair.defaultProps,
     source: "categories" as const,
@@ -778,7 +783,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("builds its doors from real categories, in the order given", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: counts,
+      category_product_ids: counts,
     });
     expect(html).toContain("عطور للدوام");
     expect(html).toContain("عطور للطلعات");
@@ -789,7 +794,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("labels each door with its real depth", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: counts,
+      category_product_ids: counts,
     });
     expect(html).toContain("19");
     expect(html).toContain("17");
@@ -798,7 +803,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("omits the count when the category is empty rather than showing 0", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: { c1: 19, c2: 19, c3: 0 },
+      category_product_ids: { c1: counts.c1, c2: counts.c2, c3: [] },
     });
     expect(html).not.toMatch(/>0</);
   });
@@ -807,7 +812,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
     const html = render(category_spotlight_pair, {
       ...srcProps,
       category_slugs: ["work", "does-not-exist"],
-    }, { categories: cats, category_product_counts: counts });
+    }, { categories: cats, category_product_ids: counts });
     expect(html).toContain("عطور للدوام");
     expect(html).not.toContain("does-not-exist");
   });
@@ -815,7 +820,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("crops portrait, because perfume bottles are vertical", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: counts,
+      category_product_ids: counts,
     });
     expect(html).toContain("aspect-[3/4]");
     expect(html).not.toContain("aspect-[4/3]");
