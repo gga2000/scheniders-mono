@@ -3465,6 +3465,7 @@ export type Database = {
         Row: {
           digest_last_sent_at: string | null
           digest_mode: string
+          locale: string
           quiet_end: number
           quiet_hours_enabled: boolean
           quiet_start: number
@@ -3476,6 +3477,7 @@ export type Database = {
         Insert: {
           digest_last_sent_at?: string | null
           digest_mode?: string
+          locale?: string
           quiet_end?: number
           quiet_hours_enabled?: boolean
           quiet_start?: number
@@ -3487,6 +3489,7 @@ export type Database = {
         Update: {
           digest_last_sent_at?: string | null
           digest_mode?: string
+          locale?: string
           quiet_end?: number
           quiet_hours_enabled?: boolean
           quiet_start?: number
