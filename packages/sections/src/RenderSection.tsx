@@ -64,7 +64,13 @@ function RenderSectionImpl({
     props: unknown;
     ctx: SectionRenderContext;
   }>;
-  const wrapperStyle: React.CSSProperties = { position: "relative" };
+  // Chrome that anchors to the viewport needs the sticky on the wrapper —
+  // see SectionDefinition.stickyWrapper for why the inner element cannot
+  // hold it. Everything else keeps the plain relative box.
+  const stickyChrome = def.stickyWrapper?.(parsed.data) === true;
+  const wrapperStyle: React.CSSProperties = stickyChrome
+    ? { position: "sticky", top: 0, zIndex: 40 }
+    : { position: "relative" };
   if (instance.spacing) {
     if (typeof instance.spacing.top_px === "number") {
       wrapperStyle.marginTop = `${instance.spacing.top_px}px`;
@@ -80,6 +86,7 @@ function RenderSectionImpl({
       data-section-type={instance.type}
       data-section-enabled={instance.enabled ? "true" : "false"}
       data-section-overlay={def.overlay ? "true" : undefined}
+      data-section-chrome={stickyChrome ? "true" : undefined}
       style={wrapperStyle}
     >
       <SectionErrorBoundary sectionType={instance.type}>

@@ -90,6 +90,21 @@ export interface SectionDefinition<Props> {
    *  transform — both create a containing block that re-anchors `fixed`
    *  descendants to the section box (the bar then renders off-screen). */
   overlay?: boolean;
+  /**
+   * The section anchors itself to the top of the viewport (a sticky site
+   * header). RenderSection must lift the sticky onto the SECTION WRAPPER
+   * rather than leave it on the element inside.
+   *
+   * A sticky element only travels inside its parent's content box, and a
+   * per-section wrapper is exactly the height of the section it wraps — so
+   * `position: sticky` on the inner element has nowhere to go and scrolls
+   * away as if it were static. Moving it to the wrapper lets it travel the
+   * full height of the page container instead.
+   *
+   * A predicate rather than a flag: stickiness is a merchant setting, so
+   * only an instance that actually asked for it should get the treatment.
+   */
+  stickyWrapper?: (props: Props) => boolean;
 }
 
 /** Convenience alias for the registry — props are erased to `unknown`. */

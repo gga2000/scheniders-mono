@@ -37,9 +37,12 @@ export function SectionReveal() {
     const sections = Array.from(
       // Overlay sections (sticky bar, exit-intent) are skipped: the reveal
       // `transform` would become the containing block for their
-      // `position: fixed` root and drag it off-screen.
+      // `position: fixed` root and drag it off-screen. Sticky chrome (the
+      // site header) is skipped too — the wrapper IS the sticky element,
+      // and animating its transform fights the stick. A site header should
+      // not fade in on scroll anyway; it is already on screen.
       document.querySelectorAll<HTMLElement>(
-        ".schn-section:not([data-section-overlay])",
+        ".schn-section:not([data-section-overlay]):not([data-section-chrome])",
       ),
     );
     if (sections.length === 0) return;

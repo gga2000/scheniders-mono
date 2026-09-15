@@ -70,6 +70,10 @@ const definition: SectionDefinition<Props> = {
   valid_on: [],
   schema,
   defaultProps,
+  // The wrapper carries the sticky, not the <header> inside it: a sticky
+  // element cannot travel outside its parent's box, and that box is exactly
+  // the header's own height.
+  stickyWrapper: (props) => props.sticky === true,
   render: SiteHeaderRender,
 };
 
