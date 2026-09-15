@@ -219,6 +219,40 @@ describe("deriveCatalogPage (P0-3)", () => {
       deriveCatalogPage(makeV2([])).sections[0].base.card_style,
     ).toBeUndefined();
   });
+
+  it("turns on the catalogue controls for a price_pill grid", () => {
+    // /products is the whole shop. Chips, sort, a price split and load-more
+    // are what make 43 products navigable on a phone.
+    const v2 = makeV2([{ page_id: "category", sections: [categoryGrid] }]);
+    expect(deriveCatalogPage(v2).sections[0].base.catalog_controls).toBe(true);
+
+    // And on the fallback path, wherever the kit resolves to price_pill.
+    const calm = makeV2([], {
+      brand_kit: { shape: { rotation_intensity: "none" } },
+    } as unknown as Partial<StoreConfigV2>);
+    expect(deriveCatalogPage(calm).sections[0].base.catalog_controls).toBe(
+      true,
+    );
+  });
+
+  it("leaves a standard grid alone", () => {
+    // The "standard" card style has no catalogue implementation — it has its
+    // own FilterableProductGrid — so setting the flag there would be a
+    // promise the section cannot keep.
+    const standard = {
+      ...categoryGrid,
+      base: { ...categoryGrid.base, card_style: "standard" },
+    };
+    const v2 = makeV2([{ page_id: "category", sections: [standard] }]);
+    expect(deriveCatalogPage(v2).sections[0].base).not.toHaveProperty(
+      "catalog_controls",
+    );
+    // Same for the fallback when the kit does not resolve to price_pill.
+    expect(deriveCatalogPage(makeV2([])).sections[0].base).not.toHaveProperty(
+      "catalog_controls",
+    );
+  });
+
 });
 
 describe("resolveTenantKeyFromHeaders (404 tenant recovery)", () => {

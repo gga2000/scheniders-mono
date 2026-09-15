@@ -79,10 +79,11 @@ const schema = z.object({
    *  reviews (products without `review_count` show no stars at all). */
   show_stars: z.boolean().optional(),
   /**
-   * Full-catalogue mode: category chips with live counts, sort, a
-   * median-derived price split and load-more, over everything loaded.
-   * Unset leaves today's markup byte-identical, including the existing
-   * category-page reveal branch.
+   * Full-catalogue mode (price_pill only): category chips with live counts,
+   * sort, a median-derived price split and load-more, over everything
+   * loaded. Unset leaves today's markup byte-identical, including the
+   * existing category-page reveal branch. The "standard" card style has its
+   * own FilterableProductGrid on category pages and is left alone.
    */
   catalog_controls: z.boolean().optional(),
   /** Cards revealed per page in catalogue mode. Defaults to 12. */

@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { resolveI18n } from "@scheniders/shared";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { listProducts, listCategories } from "@/lib/queries";
+import {
+  listProducts,
+  listCategories,
+  listCategoryProductIds,
+} from "@/lib/queries";
 import {
   buildRuntimeContext,
   deriveCatalogPage,
@@ -37,9 +41,12 @@ export default async function AllProductsPage({ params }: Props) {
   const tenant = await resolveTenant(tenantParam);
   if (!tenant) notFound();
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, categoryProductIds] = await Promise.all([
     listProducts(tenant.id),
     listCategories(tenant.id),
+    // Products belong to up to six categories, so the chip rail needs the
+    // join table — products.category_id is only the primary one.
+    listCategoryProductIds(tenant.id),
   ]);
 
   const v2 = tenant.store_config_v2 ?? null;
@@ -60,7 +67,12 @@ export default async function AllProductsPage({ params }: Props) {
         v2={v2}
         page={deriveCatalogPage(v2)}
         runtime={runtime}
-        renderCtx={{ tenant, products, categories }}
+        renderCtx={{
+          tenant,
+          products,
+          categories,
+          category_product_ids: categoryProductIds,
+        }}
         lead={(rt) => (
           <h1 className="sr-only">{resolveI18n(CATALOG_HEADING, rt.locale)}</h1>
         )}
