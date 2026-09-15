@@ -7,6 +7,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { diag } from "@/lib/diag";
+import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/components/providers/language-provider";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -54,6 +57,7 @@ export interface WebPushState {
 
 export function useWebPush(): WebPushState {
     const { session } = useAuth();
+    const { t } = useLanguage();
 
     const [permission, setPermission] = useState<NotificationPermission | null>(null);
     const [subscribed, setSubscribed] = useState(false);
@@ -85,8 +89,10 @@ export function useWebPush(): WebPushState {
                 const reg = await navigator.serviceWorker.ready;
                 const sub = await reg.pushManager.getSubscription();
                 if (!cancelled) setSubscribed(sub !== null);
-            } catch {
-                // Non-critical — just leave subscribed=false.
+            } catch (e) {
+                // Non-critical, but log it: a failure here makes the control
+                // render as "off" when it may not be.
+                diag.warn(`[push] could not read existing subscription: ${String(e)}`);
             }
         })();
         return () => {
@@ -118,13 +124,16 @@ export function useWebPush(): WebPushState {
                 ) as ArrayBuffer,
             });
 
-            // 4. POST the subscription to our API.
+            // 4. POST the subscription to our API. Until this succeeds the
+            //    server cannot push to this browser, so it is not "subscribed".
             const token = session?.access_token;
-            if (!token) return;
+            if (!token) {
+                throw new Error("no access token — sign-in has not finished loading");
+            }
 
             const json = sub.toJSON();
             const keys = json.keys as { p256dh: string; auth: string } | undefined;
-            await fetch("/api/chat/push/subscribe", {
+            const res = await fetch("/api/chat/push/subscribe", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -138,13 +147,27 @@ export function useWebPush(): WebPushState {
                 }),
             });
 
+            // The response used to be ignored: a 401 or 500 still flipped the
+            // control to "on" while the server had no subscription row, so push
+            // silently reached nobody and the UI insisted it was working.
+            if (!res.ok) {
+                throw new Error(`subscribe endpoint returned ${res.status} ${(await res.text()).slice(0, 200)}`);
+            }
+
             setSubscribed(true);
-        } catch {
-            // Non-fatal — user can retry.
+        } catch (e) {
+            // Never swallow this. A failure here is indistinguishable from
+            // "nothing happened" for the person clicking the switch.
+            const reason = e instanceof Error ? e.message : String(e);
+            diag.warn(`[push] enable failed: ${reason}`);
+            toast.error(
+                t("notifications.pushEnableFailed", "Couldn't turn on notifications"),
+                reason,
+            );
         } finally {
             setBusy(false);
         }
-    }, [supported, configured, vapidKey, busy, session]);
+    }, [supported, configured, vapidKey, busy, session, t]);
 
     const disable = useCallback(async () => {
         if (!supported || !configured || busy) return;
@@ -173,12 +196,17 @@ export function useWebPush(): WebPushState {
             }
 
             setSubscribed(false);
-        } catch {
-            // Non-fatal.
+        } catch (e) {
+            const reason = e instanceof Error ? e.message : String(e);
+            diag.warn(`[push] disable failed: ${reason}`);
+            toast.error(
+                t("notifications.pushDisableFailed", "Couldn't turn off notifications"),
+                reason,
+            );
         } finally {
             setBusy(false);
         }
-    }, [supported, configured, busy, session]);
+    }, [supported, configured, busy, session, t]);
 
     return {
         supported,
