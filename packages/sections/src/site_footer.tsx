@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
-import type { SectionDefinition } from "./_types";
+import type { SectionDefinition, SectionRenderContext } from "./_types";
 import { SiteFooterRender } from "./site_footer.client";
 
 const navLinkSchema = z.object({
@@ -109,6 +109,39 @@ const defaultProps: Props = {
   show_cod_badge: true,
 };
 
+/**
+ * Server half: strips the newsletter's success line before the footer's
+ * client component ever sees it.
+ *
+ * That line is where merchants put the reward the signup was offered for
+ * ("your code is WELCOME15"). `SiteFooterRender` is a client component, so
+ * every prop it receives is serialized into the RSC payload of every page
+ * the footer appears on — the coupon was readable in the page source
+ * without subscribing. The copy now travels back with the successful
+ * `/api/newsletter` response instead.
+ *
+ * The field stays in the schema and in stored config: only the value is
+ * withheld from the client. A merchant still edits it in the inspector,
+ * but no longer by clicking the rendered line in the preview.
+ */
+export function withoutNewsletterReward(props: Props): Props {
+  if (!props.newsletter?.success_i18n) return props;
+  return {
+    ...props,
+    newsletter: { ...props.newsletter, success_i18n: undefined },
+  };
+}
+
+function SiteFooterWithoutReward({
+  props,
+  ctx,
+}: {
+  props: Props;
+  ctx: SectionRenderContext;
+}) {
+  return <SiteFooterRender props={withoutNewsletterReward(props)} ctx={ctx} />;
+}
+
 const definition: SectionDefinition<Props> = {
   type: "site_footer",
   category: "page",
@@ -122,7 +155,7 @@ const definition: SectionDefinition<Props> = {
   valid_on: [],
   schema,
   defaultProps,
-  render: SiteFooterRender,
+  render: SiteFooterWithoutReward,
 };
 
 registerSection(definition);
