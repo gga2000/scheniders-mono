@@ -78,22 +78,24 @@ function InfoPanelNewsletterForm({
   copy,
   placeholder,
   buttonLabel,
-  successMessage,
   tenantId,
 }: {
   locale: "ar" | "en" | "ku";
   copy: string | null;
   placeholder: string;
   buttonLabel: string;
-  /** Custom success line (e.g. carrying a coupon code); falls back to the
-   *  generic localized confirmation. */
-  successMessage: string | null;
   tenantId: string;
 }) {
   const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
     "idle",
   );
   const [email, setEmail] = useState("");
+  // The merchant's confirmation line — which often carries the coupon the
+  // signup was offered for — arrives with the success response. It is
+  // deliberately NOT a prop: a prop would be serialized into the page
+  // payload of every page the footer appears on, and anyone reading the
+  // source could take the coupon without ever subscribing.
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   // Only surface the invalid state once the visitor has interacted with the
   // field (blurred or attempted submit) — avoids yelling at an empty input.
   const [touched, setTouched] = useState(false);
@@ -119,6 +121,12 @@ function InfoPanelNewsletterForm({
       });
       setStatus(res.ok ? "ok" : "error");
       if (res.ok) {
+        const body: unknown = await res.json().catch(() => null);
+        const message =
+          body && typeof body === "object" && "message" in body
+            ? (body as { message?: unknown }).message
+            : null;
+        setSuccessMessage(typeof message === "string" && message ? message : null);
         setEmail("");
         setTouched(false);
       }
@@ -434,11 +442,6 @@ export function SiteFooterRender({
                 newsletter.button_i18n
                   ? resolveI18n(newsletter.button_i18n, locale)
                   : chromeString("newsletter_button", locale)
-              }
-              successMessage={
-                newsletter.success_i18n
-                  ? resolveI18n(newsletter.success_i18n, locale) || null
-                  : null
               }
               tenantId={ctx.tenant.id}
             />

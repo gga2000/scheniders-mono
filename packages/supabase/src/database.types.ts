@@ -3465,6 +3465,7 @@ export type Database = {
         Row: {
           digest_last_sent_at: string | null
           digest_mode: string
+          locale: string
           quiet_end: number
           quiet_hours_enabled: boolean
           quiet_start: number
@@ -3476,6 +3477,7 @@ export type Database = {
         Insert: {
           digest_last_sent_at?: string | null
           digest_mode?: string
+          locale?: string
           quiet_end?: number
           quiet_hours_enabled?: boolean
           quiet_start?: number
@@ -3487,6 +3489,7 @@ export type Database = {
         Update: {
           digest_last_sent_at?: string | null
           digest_mode?: string
+          locale?: string
           quiet_end?: number
           quiet_hours_enabled?: boolean
           quiet_start?: number
@@ -3773,56 +3776,6 @@ export type Database = {
           },
           {
             foreignKeyName: "order_notes_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      order_notifications: {
-        Row: {
-          created_at: string
-          id: string
-          message: string
-          new_status: string | null
-          old_status: string | null
-          order_display_id: string
-          order_id: string | null
-          tenant_id: string
-          type: string
-          user_avatar: string | null
-          user_name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          message: string
-          new_status?: string | null
-          old_status?: string | null
-          order_display_id: string
-          order_id?: string | null
-          tenant_id: string
-          type: string
-          user_avatar?: string | null
-          user_name: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          message?: string
-          new_status?: string | null
-          old_status?: string | null
-          order_display_id?: string
-          order_id?: string | null
-          tenant_id?: string
-          type?: string
-          user_avatar?: string | null
-          user_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_notifications_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

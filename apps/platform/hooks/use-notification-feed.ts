@@ -90,8 +90,8 @@ function toFeedNotification(row: Record<string, unknown>): FeedNotification | nu
 }
 
 export function useNotificationFeed(filter: NotificationFilter = "all") {
-    const { user, profile } = useAuth();
-    const { t } = useLanguage();
+    const { user, profile, tenantId } = useAuth();
+    const { t, language } = useLanguage();
     const queryClient = useQueryClient();
     const userId = user?.id;
     const feedKey = notificationKeys.feed(userId, filter);
@@ -154,6 +154,28 @@ export function useNotificationFeed(filter: NotificationFilter = "all") {
             return typeof count === "number" ? count : 0;
         },
     });
+
+    /**
+     * Record which language this person reads. The in-app feed renders in the
+     * browser's language, but push copy is composed server-side in the edge
+     * function, which has no other way to know — so it would otherwise go out in
+     * English to everyone.
+     */
+    useEffect(() => {
+        if (!userId || !tenantId) return;
+        if (language !== "ar" && language !== "en") return;
+        let cancelled = false;
+        void (async () => {
+            const { error } = await supabase.from("notification_settings").upsert(
+                { user_id: userId, tenant_id: tenantId, locale: language },
+                { onConflict: "user_id,tenant_id" },
+            );
+            if (error && !cancelled) {
+                diag.warn(`[notifications] locale sync failed: ${error.message}`);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [userId, tenantId, language]);
 
     const invalidateAll = useCallback(() => {
         void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
