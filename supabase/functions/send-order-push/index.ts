@@ -359,20 +359,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 status: "sent",
             });
         } catch (e) {
-            const code = (e as { statusCode?: number }).statusCode;
+            const err = e as { statusCode?: number; body?: unknown; message?: string };
+            const code = err.statusCode;
             // 404/410 mean the browser threw the subscription away.
             const dead = code === 404 || code === 410;
             if (dead) {
                 await sb.from("chat_push_subscriptions").delete().eq("id", s.id);
                 pruned++;
             }
+            // Record WHY, not just the code. A bare "410" cannot distinguish a
+            // genuinely expired subscription from a VAPID key that does not match
+            // the one the browser subscribed with — the push service says so in
+            // the body, and without it the next failure is another guess.
+            const reason = typeof err.body === "string" && err.body.trim()
+                ? err.body.trim()
+                : err.message ?? "";
             deliveries.push({
                 notification_id: n.notification_id ?? null,
                 tenant_id: n.tenant_id ?? null,
                 user_id: s.user_id,
                 channel: "push",
                 status: dead ? "pruned" : "failed",
-                detail: `status ${code ?? "unknown"}`,
+                detail: `status ${code ?? "unknown"}${reason ? ` — ${reason.slice(0, 300)}` : ""}`,
             });
         }
     }
