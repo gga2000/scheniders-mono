@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { exportReportsToCSV, exportReportsToExcel, printOperationalReport } from "@/lib/reports-export";
 import { calculateSourcePerformance, calculatePeriodComparison } from "@/lib/analytics/source-metrics";
+import { calculateChannelPerformance } from "@/lib/analytics/channel-metrics";
 import { calculateReturnAnalytics } from "@/lib/analytics/reports-calculations";
 import { CustomDatePicker } from "@/components/reports/custom-date-picker";
 
@@ -62,6 +63,11 @@ const SourcePerformance = dynamic(
     { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
 );
 
+const ChannelPerformance = dynamic(
+    () => import("@/components/reports/channel-performance").then(mod => ({ default: mod.ChannelPerformance })),
+    { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
+);
+
 const PeriodComparison = dynamic(
     () => import("@/components/reports/period-comparison").then(mod => ({ default: mod.PeriodComparison })),
     { loading: () => <div className="h-48 animate-pulse bg-white/5 rounded-3xl" /> }
@@ -102,6 +108,13 @@ export default function ReportsPage() {
 
     const periodComparison = useMemo(() =>
         calculatePeriodComparison(orders, dateRange),
+        [orders, dateRange]
+    );
+
+    // Which ad network the orders came from — `source` alone only ever says
+    // "lightfunnels", which cannot settle a budget question.
+    const channelMetrics = useMemo(() =>
+        calculateChannelPerformance(orders, dateRange),
         [orders, dateRange]
     );
 
@@ -312,6 +325,9 @@ export default function ReportsPage() {
                     />
                     <SourcePerformance data={sourceMetrics} />
                 </div>
+
+                {/* Ad-Channel Performance (Full Width) */}
+                <ChannelPerformance data={channelMetrics} />
 
                 {/* Batch Analytics (Full Width) */}
                 <BatchAnalytics
