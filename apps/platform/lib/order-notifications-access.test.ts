@@ -104,12 +104,21 @@ describe("order notifications access path", () => {
         expect(dropdown).toContain("orderRepository.findById");
     });
 
-    it("mention bulk actions scope by recipient, not by loaded ids", () => {
+    /**
+     * Mentions read the same unified feed as the bell. They used to live in
+     * `chat_notifications` with a tenant-wide `is_read` column; bulk actions now
+     * go through the server-stamped watermark RPCs, so they clear the whole
+     * backlog rather than the page that happens to be loaded.
+     */
+    it("mentions read the unified feed, not the legacy chat table", () => {
         const mentionSource = fs.readFileSync(
             path.join(APP_ROOT, "hooks/chat/use-mention-notifications.ts"),
             "utf8",
         );
-        expect(mentionSource).toContain('.eq("recipient_id", user.id)');
-        expect(mentionSource).toContain(".delete()");
+        expect(mentionSource).toContain('rpc("notification_feed"');
+        expect(mentionSource).not.toContain('from("chat_notifications")');
+        // Bulk actions must not be bounded by the loaded page.
+        expect(mentionSource).toContain("mark_notifications_read");
+        expect(mentionSource).toContain("clear_notification_feed");
     });
 });
