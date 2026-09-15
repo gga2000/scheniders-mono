@@ -1,7 +1,7 @@
 // apps/platform/components/chat/order-thread-card.tsx
+"use client";
 import type { LinkedOrder } from "@/hooks/use-orders-by-id-query";
 import type { OrderStatus } from "@/types/order";
-"use client";
 import { Phone } from "lucide-react";
 import { useOrderForConversation } from "@/hooks/chat/use-order-actions";
 import { useConversations } from "@/hooks/chat/use-conversations";
