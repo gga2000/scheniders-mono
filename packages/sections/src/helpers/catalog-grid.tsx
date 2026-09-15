@@ -14,8 +14,8 @@
 // is a hairline outline.
 // =====================================================================
 
-import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import type { Category, Product } from "../types";
@@ -38,6 +38,7 @@ const T = {
   under: { ar: "أقل من", en: "Under" },
   over: { ar: "وأكثر", en: "and up" },
   sort: { ar: "ترتيب", en: "Sort" },
+  price: { ar: "السعر", en: "Price" },
   empty: { ar: "ما لكينا عطور بهذا الفلتر.", en: "No perfumes match this filter." },
 } as const;
 
@@ -114,29 +115,59 @@ function Chip({
   );
 }
 
+/**
+ * One product and the card already rendered for it.
+ *
+ * The card arrives as a rendered element rather than a render function: this
+ * is a client component, and a function prop cannot cross the server/client
+ * boundary — React throws "Functions cannot be passed directly to Client
+ * Components". Passing elements keeps card rendering with the page, so the
+ * catalogue never forks the card design, and every card stays a server
+ * component.
+ */
+export interface CatalogItem {
+  product: Product;
+  card: ReactNode;
+}
+
 export function CatalogGrid({
-  products,
+  items,
   categories,
   categoryProductIds,
   locale,
   pageSize = 12,
-  renderCard,
 }: {
-  products: Product[];
+  items: CatalogItem[];
   categories: Category[];
   categoryProductIds?: Record<string, string[]>;
   locale: LocaleCode;
   pageSize?: number;
-  /** The page owns card rendering so the catalogue never forks card design. */
-  renderCard: (product: Product, index: number) => React.ReactNode;
 }) {
-  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const products = useMemo(() => items.map((i) => i.product), [items]);
+  const cardById = useMemo(
+    () => new Map(items.map((i) => [i.product.id, i.card])),
+    [items],
+  );
+  // The URL carries the category's slug so a shared link reads as the
+  // category it opens. State holds that handle and the id is derived, which
+  // keeps both effects below independent of `categories`.
+  const [categoryHandle, setCategoryHandle] = useState<string | null>(null);
   const [sort, setSort] = useState<CatalogSort>("bestsellers");
   const [price, setPrice] = useState<"under" | "over" | null>(null);
   const [shown, setShown] = useState(pageSize);
   const [shownFor, setShownFor] = useState(() =>
     viewKey(null, "bestsellers", null, pageSize),
   );
+
+  const categoryId = useMemo(() => {
+    if (!categoryHandle) return null;
+    const match = categories.find(
+      (c) => c.slug === categoryHandle || c.id === categoryHandle,
+    );
+    return match?.id ?? null;
+  }, [categoryHandle, categories]);
+  /** What a chip puts in the URL: its slug, or its id when it has none. */
+  const handleOf = (c: Category) => c.slug ?? c.id;
 
   // Read state back out of the URL on mount so a filtered view survives a
   // share, a reload, and — the one that matters on mobile — the back button
@@ -151,7 +182,7 @@ export function CatalogGrid({
     const cat = q.get("cat");
     const s = q.get("sort") as CatalogSort | null;
     const pr = q.get("price");
-    if (cat) setCategoryId(cat);
+    if (cat) setCategoryHandle(cat);
     if (s && (SORTS as readonly string[]).includes(s)) setSort(s);
     if (pr === "under" || pr === "over") setPrice(pr);
   }, []);
@@ -159,7 +190,7 @@ export function CatalogGrid({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const q = new URLSearchParams(window.location.search);
-    categoryId ? q.set("cat", categoryId) : q.delete("cat");
+    categoryHandle ? q.set("cat", categoryHandle) : q.delete("cat");
     sort === "bestsellers" ? q.delete("sort") : q.set("sort", sort);
     price ? q.set("price", price) : q.delete("price");
     const next = q.toString();
@@ -168,7 +199,7 @@ export function CatalogGrid({
       "",
       next ? `${window.location.pathname}?${next}` : window.location.pathname,
     );
-  }, [categoryId, sort, price]);
+  }, [categoryHandle, sort, price]);
 
   const threshold = useMemo(
     () => priceSplitFrom(products.map((p) => p.price)),
@@ -194,6 +225,7 @@ export function CatalogGrid({
     return categories
       .map((c) => ({
         id: c.id,
+        handle: handleOf(c),
         label: c.name,
         count: applyCatalog(products, { ...base, categoryId: c.id }).length,
       }))
@@ -270,7 +302,7 @@ export function CatalogGrid({
             label={t("all", locale)}
             count={allCount}
             active={categoryId === null}
-            onClick={() => setCategoryId(null)}
+            onClick={() => setCategoryHandle(null)}
           />
           {chips.map((c) => (
             <Chip
@@ -278,7 +310,9 @@ export function CatalogGrid({
               label={c.label}
               count={c.count}
               active={categoryId === c.id}
-              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
+              onClick={() =>
+                setCategoryHandle(categoryId === c.id ? null : c.handle)
+              }
             />
           ))}
         </div>
@@ -287,6 +321,16 @@ export function CatalogGrid({
           <div className="flex flex-wrap items-center gap-2">
             {threshold != null && (
               <>
+                {/* Named, because a price chip and a category chip look the
+                    same but mean different things. Without the label the row
+                    reads as two more categories. */}
+                <span
+                  data-price-label
+                  className="font-body text-xs"
+                  style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
+                >
+                  {t("price", locale)}
+                </span>
                 <Chip
                   label={`${t("under", locale)} ${formatPrice(threshold, locale)}`}
                   active={price === "under"}
@@ -304,7 +348,7 @@ export function CatalogGrid({
                 type="button"
                 data-clear-filters
                 onClick={() => {
-                  setCategoryId(null);
+                  setCategoryHandle(null);
                   setPrice(null);
                 }}
                 className={cn("font-body text-sm underline underline-offset-4", PRESSABLE)}
@@ -326,7 +370,9 @@ export function CatalogGrid({
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4">
-          {page.map((product, i) => renderCard(product, i))}
+          {page.map((product) => (
+            <Fragment key={product.id}>{cardById.get(product.id)}</Fragment>
+          ))}
         </div>
       )}
 

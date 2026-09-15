@@ -25,7 +25,7 @@ const product = (id: string, price: number): Product =>
   ({ id, name: id, price, stock_quantity: 5, reserved_quantity: 0 }) as Product;
 
 const category = (id: string, name: string): Category =>
-  ({ id, name, slug: id, display_order: 0 }) as Category;
+  ({ id, name, slug: `${id}-perfumes`, display_order: 0 }) as Category;
 
 // Five products, two categories. "night" has three members plus one row for a
 // product that is not in the catalogue.
@@ -45,16 +45,15 @@ const categoryProductIds = {
 function mount(pageSize = 12) {
   return render(
     <CatalogGrid
-      products={products}
+      // Cards arrive rendered, exactly as a server component hands them over.
+      items={products.map((p) => ({
+        product: p,
+        card: <div data-card={p.id}>{p.name}</div>,
+      }))}
       categories={categories}
       categoryProductIds={categoryProductIds}
       locale={"ar" as never}
       pageSize={pageSize}
-      renderCard={(p) => (
-        <div key={p.id} data-card={p.id}>
-          {p.name}
-        </div>
-      )}
     />,
   );
 }
@@ -118,7 +117,8 @@ describe("CatalogGrid", () => {
   it("writes the filter into the URL and clears it again", () => {
     const { container } = mount();
     fireEvent.click(chip("ليلي"));
-    expect(window.location.search).toContain("cat=night");
+    // The slug, not the uuid: a shared link should read as what it opens.
+    expect(window.location.search).toContain("cat=night-perfumes");
     press(container.querySelector<HTMLButtonElement>("[data-clear-filters]"));
     expect(window.location.search).not.toContain("cat=");
   });
@@ -126,10 +126,41 @@ describe("CatalogGrid", () => {
   it("restores the filter from the URL on mount", () => {
     // The case that matters on a phone: tap a product, press back. Without
     // this the shopper lands on an unfiltered catalogue and has to start over.
-    window.history.replaceState(null, "", "/?cat=night&sort=price_desc");
+    window.history.replaceState(
+      null,
+      "",
+      "/?cat=night-perfumes&sort=price_desc",
+    );
     const { container } = mount();
     expect(cards(container)).toEqual(["p3", "p2", "p1"]);
     expect(chip("ليلي").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("names the price axis so it does not read as two more categories", () => {
+    const { container } = mount();
+    const label = container.querySelector("[data-price-label]");
+    expect(label?.textContent).toBe("السعر");
+    // And it sits with the price chips, not with the category rail.
+    expect(label?.parentElement?.textContent).toContain("أقل من");
+  });
+
+  it("still resolves a category that has no slug", () => {
+    // Slug is optional on Category. Falling back to the id keeps the chip
+    // working instead of silently filtering to nothing.
+    const slugless = { id: "night", name: "ليلي", display_order: 0 } as Category;
+    window.history.replaceState(null, "", "/?cat=night");
+    const { container } = render(
+      <CatalogGrid
+        items={products.map((p) => ({
+          product: p,
+          card: <div data-card={p.id}>{p.name}</div>,
+        }))}
+        categories={[slugless]}
+        categoryProductIds={categoryProductIds}
+        locale={"ar" as never}
+      />,
+    );
+    expect(cards(container)).toEqual(["p1", "p2", "p3"]);
   });
 
   it("counts every chip against the price filter that is already on", () => {

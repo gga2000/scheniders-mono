@@ -540,22 +540,16 @@ function ProductGridRender({
           // catalogue can never fork the card design.
           <div data-layer="cards" data-layer-label="Product cards">
             <CatalogGrid
-              products={pillItems}
+              // The same `cards` the other branches render, so the catalogue
+              // cannot fork the card design — and they stay server components.
+              items={pillItems.map((product, i) => ({
+                product,
+                card: cards[i],
+              }))}
               categories={ctx.categories}
               categoryProductIds={ctx.category_product_ids}
               locale={locale}
               pageSize={props.catalog_page_size ?? 12}
-              renderCard={(product, i) => (
-                <PricePillCard
-                  key={product.id}
-                  product={product}
-                  locale={locale}
-                  priority={cardPriority(i)}
-                  showStars={props.show_stars === true}
-                  showDiscountBadge={props.show_discount_badge === true}
-                  lowStockThreshold={props.low_stock_threshold}
-                />
-              )}
             />
           </div>
         ) : category && pageSize && pillItems.length > pageSize ? (
