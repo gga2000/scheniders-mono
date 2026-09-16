@@ -30,7 +30,10 @@ const product = (over: Partial<Product> = {}): Product =>
     ...over,
   }) as Product;
 
-function render(p: Product, opts: { showDiscountBadge?: boolean } = {}): string {
+function render(
+  p: Product,
+  opts: { showDiscountBadge?: boolean; showStars?: boolean } = {},
+): string {
   return renderToStaticMarkup(
     React.createElement(
       StoreBaseProvider,
@@ -39,6 +42,7 @@ function render(p: Product, opts: { showDiscountBadge?: boolean } = {}): string 
         product: p,
         locale: "ar" as never,
         showDiscountBadge: opts.showDiscountBadge ?? true,
+        showStars: opts.showStars ?? false,
       }),
     ),
   );
@@ -149,5 +153,19 @@ describe("PricePillCard", () => {
     const seal = html.slice(html.indexOf("data-discount-seal"));
     expect(seal).toContain(">24<");
     expect(seal).toContain(">٪<");
+  });
+
+  it("keeps the star row from shifting the meta row off the shelf line", () => {
+    // The meta row is bottom-anchored, so anything the star row adds to its
+    // own box moves where that row starts. A stray mt-1 inside it put the
+    // rating 4px higher than the low-stock line on the card beside it —
+    // measured 379 vs 383 across one row at 1512.
+    const html = render(
+      product({ review_count: 6, avg_rating: 5 }),
+      { showStars: true },
+    );
+    const meta = html.slice(html.indexOf("data-meta-row"));
+    const inner = meta.slice(meta.indexOf("<div", meta.indexOf(">")));
+    expect(inner.slice(0, 120)).not.toMatch(/\bmt-\d/);
   });
 });

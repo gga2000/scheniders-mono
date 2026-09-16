@@ -221,7 +221,10 @@ function productCountLabel(count: number, locale: LocaleCode): string {
  *  decoration. */
 function StarRow({ rating, count }: { rating: number; count: number }) {
   return (
-    <div className="mt-1 flex items-center justify-start gap-1">
+    // No top margin: the meta row that holds this already has its own, and
+    // a second one made the star row start 4px higher than the low-stock
+    // line beside it — the row stopped lining up across the shelf.
+    <div className="flex items-center justify-start gap-1">
       <Stars value={rating} size={12} label={`${rating.toFixed(1)} / 5`} />
       <span
         className="text-[11px] font-medium tabular-nums"
@@ -422,7 +425,11 @@ export function PricePillCard({
               statement. Now the card says it outright. */}
           <div
             data-price-line
-            className="flex flex-col items-start gap-1"
+            // Adjacent, not pushed to opposite edges. `justify-between`
+            // threw the old price at the far side of the card, where it read
+            // as a separate fact rather than the thing the new price is
+            // being compared against.
+            className="flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-4 sm:gap-y-1"
           >
             <div className="flex flex-col gap-0.5">
               <span
@@ -449,11 +456,11 @@ export function PricePillCard({
               </span>
             </div>
             {onSale && (
-              // Caption and value on ONE line here. Stacked, the old price
-              // took two of its own and the well became a five-line list;
-              // the price you pay is the headline, the old price is a
-              // footnote to it.
-              <div className="flex items-baseline gap-1.5">
+              // Caption above its value, exactly like the paid price beside
+              // it. Trailing the number instead made the two captions relate
+              // to their figures differently, which is what stopped the
+              // block reading as one comparison.
+              <div className="flex items-baseline gap-1.5 sm:flex-col sm:items-start sm:gap-0.5">
                 <span
                   data-price-caption
                   className="font-body text-[10px] font-semibold tracking-wide"
