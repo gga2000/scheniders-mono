@@ -233,10 +233,21 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
 }
 
 /**
- * Soft rounded product card ("price_pill" style): the photo fills a surface
- * rounded card, a surface pill overlays the photo bottom (bold sale price +
- * smaller struck compare-at), and the name sits centered BELOW the card.
- * Entirely brand-kit-token driven — no candy/bento chrome.
+ * Product card, editorial plate.
+ *
+ * The photograph is never covered. On a perfume store the bottle IS the
+ * product, and the old layout floated a price pill across the bottom of
+ * every one of them — legibility depending on whatever the photo happened
+ * to be, and the thing being sold obscured.
+ *
+ * Below the photo the three numbers read as one thought: the price you pay,
+ * the price crossed out, and what that saves you in dinars. The saving used
+ * to be stated twice in two disconnected places (a percent chip on the
+ * photo, a struck price in the pill) and never in money, which is the
+ * figure a shopper actually weighs.
+ *
+ * The name takes the display face: it is the product, not a caption. Entirely
+ * brand-kit-token driven — no candy/bento chrome.
  */
 export function PricePillCard({
   product,
@@ -259,10 +270,15 @@ export function PricePillCard({
   const inStock =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
   // One definition of "on sale", shared with the hero offer chip, so a
-  // card and the hero can never disagree about a saving.
-  const pct = showDiscountBadge
-    ? discountPercent(product.price, compareAt)
-    : null;
+  // card and the hero can never disagree about a saving. Computed whatever
+  // the badge setting: `showDiscountBadge` decides whether to PAINT the
+  // marker, never whether a discount exists — the saving line reads the
+  // same value, so the two can never contradict each other.
+  const pct = discountPercent(product.price, compareAt);
+  const saved =
+    pct != null && compareAt != null
+      ? formatSavings(compareAt, product.price, locale)
+      : null;
   const remaining =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
   // A sold-out or oversold product is excluded from the grid, never
