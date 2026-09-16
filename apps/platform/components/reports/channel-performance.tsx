@@ -63,7 +63,9 @@ export function ChannelPerformance({ data }: ChannelPerformanceProps) {
                     </div>
                     <div className="text-left" dir="ltr">
                         <div className="text-xl font-bold text-foreground tabular-nums">{formatIQD(totalRevenue)}</div>
-                        <div className="text-xs text-muted tabular-nums">{totalOrders} orders</div>
+                        <div className="text-xs text-muted">
+                            <span className="tabular-nums" dir="ltr">{totalOrders}</span> طلب
+                        </div>
                     </div>
                 </div>
 
@@ -85,9 +87,13 @@ export function ChannelPerformance({ data }: ChannelPerformanceProps) {
                                     />
                                 </div>
 
-                                <div className="flex items-center gap-4 text-xs tabular-nums" dir="ltr">
-                                    <span className="font-bold text-foreground">{formatIQD(row.realizedRevenue)}</span>
-                                    <span className="text-muted">{row.orders} orders</span>
+                                <div className="flex items-center gap-4 text-xs">
+                                    <span className="font-bold text-foreground tabular-nums" dir="ltr">
+                                        {formatIQD(row.realizedRevenue)}
+                                    </span>
+                                    <span className="text-muted">
+                                        <span className="tabular-nums" dir="ltr">{row.orders}</span> طلب
+                                    </span>
                                 </div>
                             </div>
 
@@ -98,15 +104,15 @@ export function ChannelPerformance({ data }: ChannelPerformanceProps) {
                                 />
                             </div>
 
-                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted tabular-nums" dir="ltr">
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
                                 <span title="نسبة الطلبات من إجمالي الطلبات المنسوبة">
-                                    {row.share.toFixed(0)}% of orders
+                                    <span className="tabular-nums" dir="ltr">{row.share.toFixed(0)}%</span> من الطلبات
                                 </span>
                                 <span title="نسبة التسليم من الطلبات المؤكدة">
-                                    {row.deliveryRate.toFixed(0)}% delivered
+                                    <span className="tabular-nums" dir="ltr">{row.deliveryRate.toFixed(0)}%</span> تسليم
                                 </span>
                                 <span title="الإيراد المحقق لكل طلب">
-                                    {formatIQD(Math.round(row.revenuePerOrder))} / order
+                                    <span className="tabular-nums" dir="ltr">{formatIQD(Math.round(row.revenuePerOrder))}</span> لكل طلب
                                 </span>
                             </div>
                         </div>
