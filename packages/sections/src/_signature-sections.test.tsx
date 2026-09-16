@@ -461,11 +461,9 @@ describe("product_grid — buyable shelf", () => {
     const html = render(product_grid, { ...props, show_discount_badge: true }, {
       products: [onSale, flat],
     });
-    // 45000 -> 36750 is 18%. The seal renders the number and the sign as
-    // separate glyph runs so it can size them differently, so assert the
-    // runs rather than a contiguous "18٪".
-    expect(html).toContain(">18<");
-    expect(html).toContain(">٪<");
+    // 45000 -> 36750 is 18%. The seal keeps the sign attached to its
+    // number, so the contiguous string is the thing to assert.
+    expect(html).toContain(">18٪<");
     // The flat-priced product gets no seal at all — not a "0٪" one.
     expect(html.match(/data-discount-seal/g) ?? []).toHaveLength(1);
   });

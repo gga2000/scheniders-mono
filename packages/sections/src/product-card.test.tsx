@@ -146,13 +146,18 @@ describe("PricePillCard", () => {
     expect(photo).toContain("<h3");
   });
 
-  it("splits the seal into its number and its sign", () => {
-    // The seal sizes them differently. Splitting the formatted string keeps
-    // one source of truth rather than re-deriving the sign by hand.
+  it("keeps the percent sign attached to its number in the seal", () => {
+    // Split onto its own line the sign floated loose under the figure and
+    // read as a stray glyph. This project has already had to fix a percent
+    // sign separated from its number once, in the hero badge.
     const html = render(product());
-    const seal = html.slice(html.indexOf("data-discount-seal"));
-    expect(seal).toContain(">24<");
-    expect(seal).toContain(">٪<");
+    // Bound the slice to the seal itself. Running it to the end of the
+    // document made the label assertion pass on "قبل الخصم" in the price
+    // block below, which contains "خصم" as a substring.
+    const start = html.indexOf("data-discount-seal");
+    const seal = html.slice(start, html.indexOf("data-scrim", start));
+    expect(seal).toContain(">24٪<");
+    expect(seal).toContain(">خصم<");
   });
 
   it("keeps the star row from shifting the meta row off the shelf line", () => {
