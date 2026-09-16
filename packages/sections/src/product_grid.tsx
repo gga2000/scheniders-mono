@@ -31,6 +31,7 @@ import {
   formatCount,
   discountPercent,
   formatPercent,
+  formatSavings,
 } from "./helpers/format";
 import { cn, PRESSABLE } from "./helpers/utils";
 import type { Product } from "./types";
@@ -209,7 +210,7 @@ function productCountLabel(count: number, locale: LocaleCode): string {
  *  decoration. */
 function StarRow({ rating, count }: { rating: number; count: number }) {
   return (
-    <div className="mt-1 flex items-center justify-center gap-1">
+    <div className="mt-1 flex items-center justify-start gap-1">
       <Stars value={rating} size={12} label={`${rating.toFixed(1)} / 5`} />
       <span
         className="text-[11px] font-medium tabular-nums"
@@ -222,9 +223,20 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
 }
 
 /**
- * Soft rounded product card ("price_pill" style): the photo fills a surface
- * rounded card, a surface pill overlays the photo bottom (bold sale price +
- * smaller struck compare-at), and the name sits centered BELOW the card.
+ * Product card — editorial plate.
+ *
+ * The photograph is never covered. On a perfume store the bottle IS the
+ * product, and the previous layout floated a price pill across the bottom
+ * of every one of them: legibility depended on whatever the photo happened
+ * to be, and the thing being sold was obscured.
+ *
+ * Below the photo the three numbers read as one thought — what you pay, the
+ * price struck through, and what that saves you in dinars. The saving used
+ * to be stated twice in two disconnected places (a percent chip floating on
+ * the photo, a struck price inside the pill) and never in money, which is
+ * the figure a shopper actually weighs.
+ *
+ * The name takes the display face: it is the product, not a caption.
  * Entirely brand-kit-token driven — no candy/bento chrome.
  */
 export function PricePillCard({
@@ -249,9 +261,14 @@ export function PricePillCard({
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
   // One definition of "on sale", shared with the hero offer chip, so a
   // card and the hero can never disagree about a saving.
-  const pct = showDiscountBadge
-    ? discountPercent(product.price, compareAt)
-    : null;
+  // `showDiscountBadge` decides whether to PAINT the marker, never whether a
+  // discount exists — the saving line below reads the same value, so the two
+  // can never contradict each other about the same product.
+  const pct = discountPercent(product.price, compareAt);
+  const saved =
+    pct != null && compareAt != null
+      ? formatSavings(compareAt, product.price, locale)
+      : null;
   const remaining =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
   // A sold-out or oversold product is excluded from the grid, never
@@ -312,51 +329,21 @@ export function PricePillCard({
               {t ? "نفد المخزون" : "Sold out"}
             </span>
           )}
-          {pct != null && (
+          {showDiscountBadge && pct != null && (
+            // Ink, not the buy-yellow: the marker states a fact about the
+            // price. The yellow means "act" and is spent on the CTA.
             <span
-              className="absolute top-3 start-3 z-10 inline-flex items-center px-3 py-1 font-display font-bold text-xs"
+              className="absolute top-3 start-3 z-10 inline-flex items-center px-2.5 py-1 font-label text-[11px] font-bold tabular-nums"
               style={{
-                backgroundColor: "var(--bk-primary, #ff5a8a)",
-                color: "var(--bk-on-primary, #fff)",
+                backgroundColor: "var(--bk-ink, #1a1a1a)",
+                color: "var(--bk-surface, #ffffff)",
                 borderRadius: "var(--bk-radius-pill, 9999px)",
-                fontFamily: "var(--bk-font-display, inherit)",
+                fontFamily: "var(--bk-font-body, inherit)",
               }}
             >
               <bdi>{formatPercent(pct, locale)}</bdi>
             </span>
           )}
-          {/* Price pill — bold sale price + smaller struck compare-at. */}
-          <div className="absolute inset-x-0 bottom-2 flex justify-center px-2">
-            <span
-              className="inline-flex max-w-full items-baseline gap-1.5 rounded-full px-3 py-1.5"
-              style={{
-                backgroundColor: "var(--bk-surface, #ffffff)",
-                boxShadow:
-                  "var(--bk-shadow-button, 0 2px 8px rgb(26 26 26 / 0.12))",
-              }}
-            >
-              <span
-                className="whitespace-nowrap text-sm font-black tabular-nums"
-                style={{
-                  color: "var(--bk-ink, #1a1a1a)",
-                  fontFamily: "var(--bk-font-display, inherit)",
-                }}
-              >
-                <bdi>{formatPrice(product.price, locale)}</bdi>
-              </span>
-              {onSale && (
-                <span
-                  className="whitespace-nowrap text-[11px] font-medium line-through tabular-nums"
-                  style={{
-                    color: "var(--bk-ink-soft, rgb(26 26 26 / 0.55))",
-                    fontFamily: "var(--bk-font-body, inherit)",
-                  }}
-                >
-                  <bdi>{formatPrice(compareAt, locale)}</bdi>
-                </span>
-              )}
-            </span>
-          </div>
         </div>
       </div>
       <h3
@@ -364,14 +351,67 @@ export function PricePillCard({
         // a short name (ايبسكو) sat a full line higher than a long one and the
         // row went ragged again — 17px apart at 390px. `min-h` of two lines
         // holds the space; em-based so it follows the size change at `sm`.
-        className="mt-bk-sm px-1 text-center text-sm font-bold leading-tight line-clamp-2 min-h-[2.5em] text-balance sm:text-base"
+        //
+        // Display face, start-aligned: the name is the product, not a
+        // caption under a picture.
+        className="mt-bk-sm px-1 text-start text-[15px] font-semibold leading-snug tracking-[-0.01em] line-clamp-2 min-h-[2.5em] text-balance sm:text-base"
         style={{
           color: "var(--bk-ink, #1a1a1a)",
-          fontFamily: "var(--bk-font-body, inherit)",
+          fontFamily: "var(--bk-font-display, inherit)",
         }}
       >
         {product.name}
       </h3>
+      {/* The price line. What you pay leads; the old price follows it,
+          struck and quiet. Baseline-aligned so the two sit on one line
+          instead of reading as two separate facts. */}
+      <div
+        data-price-line
+        className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-1"
+      >
+        <span
+          className="whitespace-nowrap text-base font-bold tabular-nums sm:text-lg"
+          style={{
+            color: "var(--bk-ink, #1a1a1a)",
+            fontFamily: "var(--bk-font-display, inherit)",
+          }}
+        >
+          <bdi>{formatPrice(product.price, locale)}</bdi>
+        </span>
+        {onSale && (
+          <span
+            data-compare-at
+            className="whitespace-nowrap text-xs font-medium line-through tabular-nums"
+            style={{
+              // ink-soft, not ink-faint: at 0.38 alpha the struck price
+              // measured 2.04:1 on the card and the saving simply did not
+              // register. The discount has to be readable to land.
+              color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+              fontFamily: "var(--bk-font-body, inherit)",
+            }}
+          >
+            <bdi>{formatPrice(compareAt, locale)}</bdi>
+          </span>
+        )}
+      </div>
+      {/* What the sale is worth, in money. "24٪" is abstract; "وفّر 11,750
+          د.ع" is the number a shopper actually weighs. Same two inputs as
+          the percent marker, so the card cannot contradict itself. */}
+      {saved != null && (
+        <p
+          data-saving
+          className="mt-1 px-1 font-body text-xs font-semibold"
+          style={{
+            // Full ink, quiet by size rather than by fade. --bk-accent
+            // measured 1.75:1 here (it is the brand yellow, on a near-white
+            // card) and it belongs to acting, not to stating a fact.
+            color: "var(--bk-ink, #1a1a1a)",
+            fontFamily: "var(--bk-font-body, inherit)",
+          }}
+        >
+          {chromeString("save_prefix", locale)} <bdi>{saved}</bdi>
+        </p>
+      )}
       {/* Always rendered, even when empty: two cards with a star row and
           four without is four objects, not one shelf. */}
       <div
@@ -379,7 +419,7 @@ export function PricePillCard({
         // 22px, not 20: the star row measures 21px, so a 20px floor let the
         // two cards that have reviews grow 1px taller than the other four —
         // the exact raggedness this row exists to remove. Measured at 1512.
-        className="mt-1 flex min-h-[22px] items-center justify-center"
+        className="mt-1 flex min-h-[22px] items-center justify-start px-1"
       >
         {showStars && (product.review_count ?? 0) > 0 ? (
           <StarRow
