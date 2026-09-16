@@ -81,9 +81,14 @@ describe("PricePillCard", () => {
     // the bottom of every photo, so legibility depended on the image and
     // the thing being sold was covered.
     const html = render(product());
-    const photoEnd = html.indexOf("</div></div>");
-    const photo = html.slice(0, photoEnd);
-    expect(photo).not.toContain("36,750");
+    // Slice the photo container by its own marker rather than by counting
+    // closing tags — the previous version of this test broke the moment the
+    // card's structure changed, which is not the thing being protected.
+    const start = html.indexOf("data-photo");
+    const end = html.indexOf("data-price-line");
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(html.slice(start, end)).not.toContain("36,750");
     expect(html).toContain("data-price-line");
   });
 
