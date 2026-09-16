@@ -276,6 +276,12 @@ export function PricePillCard({
   // discount exists — the saving line below reads the same value, so the two
   // can never contradict each other about the same product.
   const pct = discountPercent(product.price, compareAt);
+  // The seal sizes the number and the sign differently, so split the
+  // formatted string rather than re-deriving either — one source, two
+  // glyph runs. formatPercent owns the locale's sign ("٪" / "%").
+  const pctText = pct != null ? formatPercent(pct, locale) : "";
+  const pctDigits = pctText.replace(/[^0-9]/g, "");
+  const pctSign = pctText.replace(/[0-9]/g, "");
   const saved =
     pct != null && compareAt != null
       ? formatSavings(compareAt, product.price, locale)
@@ -350,101 +356,144 @@ export function PricePillCard({
             </span>
           )}
           {showDiscountBadge && pct != null && (
-            // Ink, not the buy-yellow: the marker states a fact about the
-            // price. The yellow means "act" and is spent on the CTA.
+            // A seal, not a footnote. The saving is the most persuasive fact
+            // on the card and it used to be the smallest text on it (11px).
+            // The number carries the weight; the sign is a small rider.
             <span
-              className="absolute top-3 start-3 z-10 inline-flex items-center px-2.5 py-1 font-label text-[11px] font-bold tabular-nums"
+              data-discount-seal
+              className="absolute top-3 start-3 z-10 inline-flex flex-col items-center justify-center leading-none tabular-nums"
               style={{
-                backgroundColor: "var(--bk-ink, #1a1a1a)",
-                color: "var(--bk-surface, #ffffff)",
+                backgroundColor: "var(--bk-accent, #fbb82e)",
+                color: "var(--bk-ink, #1a1a1a)",
                 borderRadius: "var(--bk-radius-pill, 9999px)",
-                fontFamily: "var(--bk-font-body, inherit)",
+                fontFamily: "var(--bk-font-display, inherit)",
+                width: "2.75rem",
+                height: "2.75rem",
+                boxShadow: "var(--bk-shadow-button, 0 2px 8px rgb(26 26 26 / 0.18))",
               }}
             >
-              <bdi>{formatPercent(pct, locale)}</bdi>
+              <bdi className="text-[17px] font-black">{pctDigits}</bdi>
+              <bdi className="text-[9px] font-bold opacity-70">{pctSign}</bdi>
             </span>
           )}
+          {/* Scrim + name. Moving the name onto the photograph is what makes
+              the price hierarchy solvable: the well below stops being shared
+              between an identity and a number, and can give the price the
+              size it needs. The gradient is built from the ink token so it
+              follows the kit, and it reads as a plinth under the bottle
+              rather than a band across it. */}
+          <div
+            data-scrim
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+            style={{
+              backgroundImage:
+                // The name can wrap to two lines, so the upper line must be
+                // legible too. At a 55% mid-stop it measured 2.85:1 against
+                // a bright photo; these stops hold the whole name box above
+                // 4.5:1 whatever the photograph underneath is doing.
+                "linear-gradient(to top, color-mix(in srgb, var(--bk-ink, #1a1a1a) 94%, transparent), color-mix(in srgb, var(--bk-ink, #1a1a1a) 80%, transparent) 45%, color-mix(in srgb, var(--bk-ink, #1a1a1a) 38%, transparent) 72%, transparent)",
+            }}
+          />
+          <h3
+            // Two lines, clamped and reserved, so a long name never pushes
+            // the scrim past the bottle. Sitting on the photo it no longer
+            // affects card height at all — the plate is the photo plus a
+            // fixed price well, so rows cannot go ragged.
+            className="absolute inset-x-0 bottom-0 z-10 px-3 pb-3 text-start text-[15px] font-semibold leading-snug tracking-[-0.01em] line-clamp-2 text-balance sm:text-base"
+            style={{
+              color: "var(--bk-surface, #ffffff)",
+              fontFamily: "var(--bk-font-display, inherit)",
+              textShadow: "0 1px 2px color-mix(in srgb, var(--bk-ink, #1a1a1a) 55%, transparent)",
+            }}
+          >
+            {product.name}
+          </h3>
         </div>
 
-        {/* The words live inside the card, on a padded well under a
-            hairline, so photo and price read as one plate. */}
+        {/* The well now carries one thing: what this costs. */}
         <div
           className="flex flex-1 flex-col px-3 pb-2.5 pt-2.5"
           style={{ borderTop: "1px solid var(--bk-divider, rgb(26 26 26 / 0.08))" }}
         >
-          <h3
-        // `line-clamp-2` caps the name at two lines but reserves nothing, so
-        // a short name (ايبسكو) sat a full line higher than a long one and the
-        // row went ragged again — 17px apart at 390px. `min-h` of two lines
-        // holds the space; em-based so it follows the size change at `sm`.
-        //
-        // Display face, start-aligned: the name is the product, not a
-        // caption under a picture.
-        className="text-start text-[15px] font-semibold leading-snug tracking-[-0.01em] line-clamp-2 min-h-[2.5em] text-balance sm:text-base"
-        style={{
-          color: "var(--bk-ink, #1a1a1a)",
-          fontFamily: "var(--bk-font-display, inherit)",
-        }}
-      >
-        {product.name}
-      </h3>
-      {/* The price line. What you pay leads; the old price follows it,
-          struck and quiet. Baseline-aligned so the two sit on one line
-          instead of reading as two separate facts. */}
-      {/* One row, not three stacked lines: what you pay, what it was, and
-          what that saves — read left to right as a single statement. Wraps
-          on a narrow card instead of forcing a taller plate. */}
-      <div
-        data-price-line
-        className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1"
-      >
-        <span
-          className="whitespace-nowrap text-base font-bold tabular-nums sm:text-lg"
-          style={{
-            color: "var(--bk-ink, #1a1a1a)",
-            fontFamily: "var(--bk-font-display, inherit)",
-          }}
-        >
-          <bdi>{formatPrice(product.price, locale)}</bdi>
-        </span>
-        {onSale && (
-          <span
-            data-compare-at
-            className="whitespace-nowrap text-xs font-medium line-through tabular-nums"
-            style={{
-              // ink-soft, not ink-faint: at 0.38 alpha the struck price
-              // measured 2.04:1 on the card and the saving simply did not
-              // register. The discount has to be readable to land.
-              color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
-              fontFamily: "var(--bk-font-body, inherit)",
-            }}
+          {/* Two columns, each captioned. The numbers used to differ only
+              by size, so a shopper had to decode which was which from
+              typography alone — a strike-through is a convention, not a
+              statement. Now the card says it outright. */}
+          <div
+            data-price-line
+            className="flex flex-col items-start gap-1"
           >
-            <bdi>{formatPrice(compareAt, locale)}</bdi>
-          </span>
-        )}
-        {/* What the sale is worth, in money. "24٪" is abstract; "وفّر 11,750
-            د.ع" is the number a shopper actually weighs. Same two inputs as
-            the percent marker, so the card cannot contradict itself. */}
-        {saved != null && (
-          <span
-            data-saving
-            className="inline-flex items-center gap-1 px-2 py-0.5 font-body text-[11px] font-semibold"
-          style={{
-            // A TINT of the accent carries the tag; the text stays ink.
-            // Painting the words themselves in --bk-accent measured 1.75:1
-            // on this card — the brand yellow on near-white. A wash behind
-            // dark text gives the colour without losing the reading.
-            backgroundColor:
-              "color-mix(in srgb, var(--bk-accent, #fbb82e) 18%, transparent)",
-            color: "var(--bk-ink, #1a1a1a)",
-            borderRadius: "var(--bk-radius-pill, 9999px)",
-            fontFamily: "var(--bk-font-body, inherit)",
-          }}
-          >
-            {chromeString("save_prefix", locale)} <bdi>{saved}</bdi>
-          </span>
-        )}
-      </div>
+            <div className="flex flex-col gap-0.5">
+              <span
+                data-price-caption
+                className="font-body text-[10px] font-semibold tracking-wide"
+                style={{
+                  color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+                  fontFamily: "var(--bk-font-body, inherit)",
+                }}
+              >
+                {chromeString(
+                  onSale ? "price_after_discount" : "price_label",
+                  locale,
+                )}
+              </span>
+              <span
+                className="whitespace-nowrap text-xl font-black leading-none tabular-nums"
+                style={{
+                  color: "var(--bk-ink, #1a1a1a)",
+                  fontFamily: "var(--bk-font-display, inherit)",
+                }}
+              >
+                <bdi>{formatPrice(product.price, locale)}</bdi>
+              </span>
+            </div>
+            {onSale && (
+              // Caption and value on ONE line here. Stacked, the old price
+              // took two of its own and the well became a five-line list;
+              // the price you pay is the headline, the old price is a
+              // footnote to it.
+              <div className="flex items-baseline gap-1.5">
+                <span
+                  data-price-caption
+                  className="font-body text-[10px] font-semibold tracking-wide"
+                  style={{
+                    color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))",
+                    fontFamily: "var(--bk-font-body, inherit)",
+                  }}
+                >
+                  {chromeString("price_before_discount", locale)}
+                </span>
+                <span
+                  data-compare-at
+                  className="whitespace-nowrap text-xs font-medium leading-none line-through tabular-nums"
+                  style={{
+                    color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+                    fontFamily: "var(--bk-font-body, inherit)",
+                  }}
+                >
+                  <bdi>{formatPrice(compareAt, locale)}</bdi>
+                </span>
+              </div>
+            )}
+          </div>
+          {/* What the sale is worth, in money — the same two inputs as the
+              seal, so the card cannot contradict itself. */}
+          {saved != null && (
+            <span
+              data-saving
+              className="mt-2 inline-flex w-fit items-center gap-1 px-2 py-0.5 font-body text-[11px] font-semibold"
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--bk-accent, #fbb82e) 18%, transparent)",
+                color: "var(--bk-ink, #1a1a1a)",
+                borderRadius: "var(--bk-radius-pill, 9999px)",
+                fontFamily: "var(--bk-font-body, inherit)",
+              }}
+            >
+              {chromeString("save_prefix", locale)} <bdi>{saved}</bdi>
+            </span>
+          )}
       {/* Always rendered, even when empty: two cards with a star row and
           four without is four objects, not one shelf. */}
       <div
