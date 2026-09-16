@@ -279,12 +279,9 @@ export function PricePillCard({
   // discount exists — the saving line below reads the same value, so the two
   // can never contradict each other about the same product.
   const pct = discountPercent(product.price, compareAt);
-  // The seal sizes the number and the sign differently, so split the
-  // formatted string rather than re-deriving either — one source, two
-  // glyph runs. formatPercent owns the locale's sign ("٪" / "%").
+  // formatPercent owns the locale's sign ("٪" / "%"), and the seal prints
+  // what it returns verbatim — the sign never gets re-derived by hand.
   const pctText = pct != null ? formatPercent(pct, locale) : "";
-  const pctDigits = pctText.replace(/[^0-9]/g, "");
-  const pctSign = pctText.replace(/[0-9]/g, "");
   const saved =
     pct != null && compareAt != null
       ? formatSavings(compareAt, product.price, locale)
@@ -370,13 +367,20 @@ export function PricePillCard({
                 color: "var(--bk-ink, #1a1a1a)",
                 borderRadius: "var(--bk-radius-pill, 9999px)",
                 fontFamily: "var(--bk-font-display, inherit)",
-                width: "2.75rem",
-                height: "2.75rem",
+                width: "3rem",
+                height: "3rem",
+                gap: "1px",
                 boxShadow: "var(--bk-shadow-button, 0 2px 8px rgb(26 26 26 / 0.18))",
               }}
             >
-              <bdi className="text-[17px] font-black">{pctDigits}</bdi>
-              <bdi className="text-[9px] font-bold opacity-70">{pctSign}</bdi>
+              <span className="text-[9px] font-bold uppercase opacity-75">
+                {chromeString("discount_label", locale)}
+              </span>
+              {/* Number and sign in ONE run. Split across two lines the sign
+                  floated loose under the figure and read as a stray glyph —
+                  and this project has already had to fix a percent sign
+                  separated from its number once, in the hero badge. */}
+              <bdi className="text-[15px] font-black">{pctText}</bdi>
             </span>
           )}
           {/* Scrim + name. Moving the name onto the photograph is what makes
