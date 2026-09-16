@@ -369,7 +369,7 @@ export function PricePillCard({
         {/* The words live inside the card, on a padded well under a
             hairline, so photo and price read as one plate. */}
         <div
-          className="flex flex-1 flex-col px-3 pb-3 pt-3"
+          className="flex flex-1 flex-col px-3 pb-2.5 pt-2.5"
           style={{ borderTop: "1px solid var(--bk-divider, rgb(26 26 26 / 0.08))" }}
         >
           <h3
@@ -391,9 +391,12 @@ export function PricePillCard({
       {/* The price line. What you pay leads; the old price follows it,
           struck and quiet. Baseline-aligned so the two sit on one line
           instead of reading as two separate facts. */}
+      {/* One row, not three stacked lines: what you pay, what it was, and
+          what that saves — read left to right as a single statement. Wraps
+          on a narrow card instead of forcing a taller plate. */}
       <div
         data-price-line
-        className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+        className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1"
       >
         <span
           className="whitespace-nowrap text-base font-bold tabular-nums sm:text-lg"
@@ -419,14 +422,13 @@ export function PricePillCard({
             <bdi>{formatPrice(compareAt, locale)}</bdi>
           </span>
         )}
-      </div>
-      {/* What the sale is worth, in money. "24٪" is abstract; "وفّر 11,750
-          د.ع" is the number a shopper actually weighs. Same two inputs as
-          the percent marker, so the card cannot contradict itself. */}
-      {saved != null && (
-        <p
-          data-saving
-          className="mt-2 inline-flex w-fit items-center gap-1 px-2 py-1 font-body text-xs font-semibold"
+        {/* What the sale is worth, in money. "24٪" is abstract; "وفّر 11,750
+            د.ع" is the number a shopper actually weighs. Same two inputs as
+            the percent marker, so the card cannot contradict itself. */}
+        {saved != null && (
+          <span
+            data-saving
+            className="inline-flex items-center gap-1 px-2 py-0.5 font-body text-[11px] font-semibold"
           style={{
             // A TINT of the accent carries the tag; the text stays ink.
             // Painting the words themselves in --bk-accent measured 1.75:1
@@ -438,10 +440,11 @@ export function PricePillCard({
             borderRadius: "var(--bk-radius-pill, 9999px)",
             fontFamily: "var(--bk-font-body, inherit)",
           }}
-        >
-          {chromeString("save_prefix", locale)} <bdi>{saved}</bdi>
-        </p>
-      )}
+          >
+            {chromeString("save_prefix", locale)} <bdi>{saved}</bdi>
+          </span>
+        )}
+      </div>
       {/* Always rendered, even when empty: two cards with a star row and
           four without is four objects, not one shelf. */}
       <div
@@ -449,7 +452,7 @@ export function PricePillCard({
         // 22px, not 20: the star row measures 21px, so a 20px floor let the
         // two cards that have reviews grow 1px taller than the other four —
         // the exact raggedness this row exists to remove. Measured at 1512.
-        className="mt-auto flex min-h-[22px] items-center justify-start pt-2"
+        className="mt-auto flex min-h-[22px] items-center justify-start pt-1.5"
       >
         {showStars && (product.review_count ?? 0) > 0 ? (
           <StarRow
@@ -522,7 +525,7 @@ function ProductGridRender({
     const pillItems = category ? ctx.products : items;
     const pageSize = props.query?.limit;
     const gridCls =
-      "grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4";
+      "grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
     const cards = pillItems.map((product, i) => (
       <PricePillCard
         key={product.id}
