@@ -27,6 +27,8 @@ const CHROME_STRINGS = {
   // ---- navigation -----------------------------------------------------
   home: { ar: "الرئيسية", en: "Home", ku: "سەرەکی" },
   see_all: { ar: "شوفهم كلهم", en: "See all", ku: "هەمووی ببینە" },
+  /** Prefix for the money a sale actually saves: "وفّر ١١,٧٥٠ د.ع". */
+  save_prefix: { ar: "وفّر", en: "Save", ku: "پاشەکەوت" },
   // ---- footer ---------------------------------------------------------
   phone_label: { ar: "رقم الهاتف:", en: "Phone:", ku: "ژمارەی تەلەفۆن:" },
   address_label: { ar: "العنوان:", en: "Address:", ku: "ناونیشان:" },
