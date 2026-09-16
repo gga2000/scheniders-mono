@@ -369,7 +369,7 @@ export function CatalogGrid({
           {t("empty", locale)}
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {page.map((product) => (
             <Fragment key={product.id}>{cardById.get(product.id)}</Fragment>
           ))}
