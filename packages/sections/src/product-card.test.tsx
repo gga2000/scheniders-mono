@@ -106,4 +106,48 @@ describe("PricePillCard", () => {
     expect(html).toContain("data-price-line");
     expect(html).toContain("data-compare-at");
   });
+
+  it("says outright which price is which", () => {
+    // The two numbers used to differ only by size, so a shopper had to
+    // decode a strike-through. A convention is not a statement.
+    const html = render(product());
+    expect(html).toContain("بعد الخصم");
+    expect(html).toContain("قبل الخصم");
+  });
+
+  it("calls it simply the price when nothing is discounted", () => {
+    // "بعد الخصم" over a price that was never discounted is a lie.
+    const html = render(product({ compare_at_price: null }));
+    expect(html).toContain("السعر");
+    expect(html).not.toContain("بعد الخصم");
+    expect(html).not.toContain("قبل الخصم");
+  });
+
+  it("puts the name on the photograph, over a scrim", () => {
+    // The name moved onto the photo so the well below can give the price
+    // the size it needs. Without the scrim it sits on bare photography and
+    // its legibility depends on whatever was shot that day.
+    const html = render(product());
+    const photo = html.slice(
+      html.indexOf("data-photo"),
+      html.indexOf("data-price-line"),
+    );
+    // Assert the gradient itself, not the attribute name: "data-scrim-x"
+    // still contains "data-scrim", so the attribute check passed even with
+    // the scrim renamed away.
+    expect(photo).toContain("linear-gradient");
+    // The heading itself, not the name text: the name also appears in the
+    // image's alt attribute inside this same slice, so asserting the string
+    // passed even with the <h3> removed entirely.
+    expect(photo).toContain("<h3");
+  });
+
+  it("splits the seal into its number and its sign", () => {
+    // The seal sizes them differently. Splitting the formatted string keeps
+    // one source of truth rather than re-deriving the sign by hand.
+    const html = render(product());
+    const seal = html.slice(html.indexOf("data-discount-seal"));
+    expect(seal).toContain(">24<");
+    expect(seal).toContain(">٪<");
+  });
 });

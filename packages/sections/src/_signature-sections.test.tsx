@@ -461,9 +461,13 @@ describe("product_grid — buyable shelf", () => {
     const html = render(product_grid, { ...props, show_discount_badge: true }, {
       products: [onSale, flat],
     });
-    // 45000 -> 36750 is 18%.
-    expect(html).toContain("18٪");
-    expect(html).not.toContain("0٪");
+    // 45000 -> 36750 is 18%. The seal renders the number and the sign as
+    // separate glyph runs so it can size them differently, so assert the
+    // runs rather than a contiguous "18٪".
+    expect(html).toContain(">18<");
+    expect(html).toContain(">٪<");
+    // The flat-priced product gets no seal at all — not a "0٪" one.
+    expect(html.match(/data-discount-seal/g) ?? []).toHaveLength(1);
   });
 
   it("badges low stock only at or below the threshold", () => {
@@ -502,14 +506,18 @@ describe("product_grid — buyable shelf", () => {
   it("reserves enough height for the tallest thing each row can hold", () => {
     // Measured in a browser: the star row is 21px, so a 20px floor left the
     // two cards that have reviews 1px taller than the other four at 1512.
-    // And `line-clamp-2` caps the name at two lines without reserving them,
-    // so a short name (ايبسكو) sat a whole line higher — 17px apart at 390.
-    // Both floors are what make six cards one shelf instead of six objects.
+    // The name used to need a two-line floor of its own for the same
+    // reason: a short name (ايبسكو) sat a whole line higher than a long one,
+    // 17px apart at 390. It no longer does, because the name now sits
+    // INSIDE the fixed-ratio photograph, where its length cannot move the
+    // card's height at all — a stronger guarantee than a min-height.
     const html = render(product_grid, props, {
       products: [p({ name: "A", bestseller_rank: 1 })],
     });
     expect(html).toContain("min-h-[22px]");
-    expect(html).toContain("min-h-[2.5em]");
+    const photo = html.slice(html.indexOf("data-photo"), html.indexOf("data-price-line"));
+    expect(photo).toContain("aspect-square");
+    expect(photo).toContain("<h3");
   });
 
   it("keeps the new fields out of defaultProps", () => {
