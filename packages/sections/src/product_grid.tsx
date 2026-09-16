@@ -294,8 +294,17 @@ export function PricePillCard({
       href={`/products/${product.slug ?? product.id}`}
       className={cn("group block", PRESSABLE)}
     >
-      <div
-        className="p-2"
+      {/* One surface. The photo used to be a card and the words loose text
+          underneath it, which read as a caption dangling from a picture
+          rather than as one object you can click. */}
+      <article
+        className={cn(
+          "flex h-full flex-col overflow-hidden",
+          // The whole plate lifts on hover, not just the photo inside it —
+          // the card is one object, so it should answer as one.
+          "transition-transform duration-300 ease-out group-hover:-translate-y-1",
+          "motion-reduce:transition-none motion-reduce:group-hover:translate-y-0",
+        )}
         style={{
           backgroundColor: "var(--bk-surface, #ffffff)",
           borderRadius: "var(--bk-radius-card, 1.5rem)",
@@ -303,9 +312,9 @@ export function PricePillCard({
         }}
       >
         <div
+          data-photo
           className="relative aspect-square overflow-hidden"
           style={{
-            borderRadius: "calc(var(--bk-radius-card, 1.5rem) - 0.5rem)",
             backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
           }}
         >
@@ -356,8 +365,14 @@ export function PricePillCard({
             </span>
           )}
         </div>
-      </div>
-      <h3
+
+        {/* The words live inside the card, on a padded well under a
+            hairline, so photo and price read as one plate. */}
+        <div
+          className="flex flex-1 flex-col px-3 pb-3 pt-3"
+          style={{ borderTop: "1px solid var(--bk-divider, rgb(26 26 26 / 0.08))" }}
+        >
+          <h3
         // `line-clamp-2` caps the name at two lines but reserves nothing, so
         // a short name (ايبسكو) sat a full line higher than a long one and the
         // row went ragged again — 17px apart at 390px. `min-h` of two lines
@@ -365,7 +380,7 @@ export function PricePillCard({
         //
         // Display face, start-aligned: the name is the product, not a
         // caption under a picture.
-        className="mt-bk-sm px-1 text-start text-[15px] font-semibold leading-snug tracking-[-0.01em] line-clamp-2 min-h-[2.5em] text-balance sm:text-base"
+        className="text-start text-[15px] font-semibold leading-snug tracking-[-0.01em] line-clamp-2 min-h-[2.5em] text-balance sm:text-base"
         style={{
           color: "var(--bk-ink, #1a1a1a)",
           fontFamily: "var(--bk-font-display, inherit)",
@@ -378,7 +393,7 @@ export function PricePillCard({
           instead of reading as two separate facts. */}
       <div
         data-price-line
-        className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-1"
+        className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
       >
         <span
           className="whitespace-nowrap text-base font-bold tabular-nums sm:text-lg"
@@ -411,12 +426,16 @@ export function PricePillCard({
       {saved != null && (
         <p
           data-saving
-          className="mt-1 px-1 font-body text-xs font-semibold"
+          className="mt-2 inline-flex w-fit items-center gap-1 px-2 py-1 font-body text-xs font-semibold"
           style={{
-            // Full ink, quiet by size rather than by fade. --bk-accent
-            // measured 1.75:1 here (it is the brand yellow, on a near-white
-            // card) and it belongs to acting, not to stating a fact.
+            // A TINT of the accent carries the tag; the text stays ink.
+            // Painting the words themselves in --bk-accent measured 1.75:1
+            // on this card — the brand yellow on near-white. A wash behind
+            // dark text gives the colour without losing the reading.
+            backgroundColor:
+              "color-mix(in srgb, var(--bk-accent, #fbb82e) 18%, transparent)",
             color: "var(--bk-ink, #1a1a1a)",
+            borderRadius: "var(--bk-radius-pill, 9999px)",
             fontFamily: "var(--bk-font-body, inherit)",
           }}
         >
@@ -430,7 +449,7 @@ export function PricePillCard({
         // 22px, not 20: the star row measures 21px, so a 20px floor let the
         // two cards that have reviews grow 1px taller than the other four —
         // the exact raggedness this row exists to remove. Measured at 1512.
-        className="mt-1 flex min-h-[22px] items-center justify-start px-1"
+        className="mt-auto flex min-h-[22px] items-center justify-start pt-2"
       >
         {showStars && (product.review_count ?? 0) > 0 ? (
           <StarRow
@@ -452,8 +471,10 @@ export function PricePillCard({
               <>باقي <bdi>{lowStock}</bdi> بس</>
             )}
           </span>
-        ) : null}
-      </div>
+          ) : null}
+          </div>
+        </div>
+      </article>
     </StoreLink>
   );
 }
