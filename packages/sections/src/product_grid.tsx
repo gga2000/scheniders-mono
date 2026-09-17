@@ -466,17 +466,14 @@ export function PricePillCard({
             data-price-plate
             className="relative -mx-1 px-1 pb-1 pt-1.5"
             style={{
-              // Texture, no container. A fine dot matrix drawn from the ink
-              // token — the grain of good paper rather than a panel dropped
-              // behind the numbers. It fades out as it rises so it has no
-              // edge to notice, which is what the boxed version got wrong.
+              // Texture, no container and no fade. A fine dot matrix drawn
+              // from the ink token — the grain of good paper rather than a
+              // panel dropped behind the numbers. Even across the whole
+              // block: a masked version read as a gradient, which is a
+              // different effect from a texture.
               backgroundImage:
-                "radial-gradient(color-mix(in srgb, var(--bk-ink, #1a1a1a) 13%, transparent) 0.8px, transparent 0.9px)",
+                "radial-gradient(color-mix(in srgb, var(--bk-ink, #1a1a1a) 12%, transparent) 0.8px, transparent 0.9px)",
               backgroundSize: "7px 7px",
-              WebkitMaskImage:
-                "linear-gradient(to top, rgb(0 0 0) 0%, rgb(0 0 0 / 0.55) 55%, transparent 100%)",
-              maskImage:
-                "linear-gradient(to top, rgb(0 0 0) 0%, rgb(0 0 0 / 0.55) 55%, transparent 100%)",
             }}
           >
           <div
