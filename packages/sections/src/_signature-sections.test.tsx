@@ -1075,3 +1075,57 @@ describe("testimonial_cards — the stage is opt-in", () => {
     ).toBe(true);
   });
 });
+
+describe("pillars_grid — the ledger", () => {
+  const withProof = {
+    ...pillars_grid.defaultProps,
+    layout: "ledger" as const,
+    items: [
+      {
+        icon_url: "",
+        title_i18n: { ar: "تيستر مجاني", en: "Free tester" },
+        body_i18n: { ar: "كل طلب يجيك وياه تيستر", en: "Every order ships with one" },
+        proof_i18n: { ar: "التيستر فكرة تخبل", en: "The tester is a brilliant idea" },
+        proof_name_i18n: { ar: "احمد الشمري", en: "Ahmed Al-Shammari" },
+      },
+      {
+        icon_url: "",
+        title_i18n: { ar: "نجرّبهم", en: "We test them" },
+        body_i18n: { ar: "كل عطر ينجرب", en: "Every scent is worn" },
+      },
+    ],
+  };
+
+  it("keeps the card grid when nothing asks for a ledger", () => {
+    const html = render(pillars_grid, {
+      ...pillars_grid.defaultProps,
+      items: withProof.items,
+    });
+    expect(html).not.toContain("data-pillar-ledger");
+    expect(html).toContain("md:grid-cols-3");
+  });
+
+  it("numbers each position when it is a ledger", () => {
+    const html = render(pillars_grid, withProof);
+    expect(html).toContain("data-pillar-ledger");
+    expect(html).toContain(">01<");
+    expect(html).toContain(">02<");
+    expect(html).not.toContain("md:grid-cols-3");
+  });
+
+  it("shows a receipt only where a customer actually gave one", () => {
+    // A claim nobody has confirmed carries no quote. Rendering an empty
+    // receipt would make every other receipt on the page worth less.
+    const html = render(pillars_grid, withProof);
+    expect(html.match(/data-pillar-proof(?!-name)/g) ?? []).toHaveLength(1);
+    expect(html).toContain("التيستر فكرة تخبل");
+    expect(html).toContain("احمد الشمري");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(pillars_grid.defaultProps).not.toHaveProperty("layout");
+    expect(
+      pillars_grid.schema.safeParse(pillars_grid.defaultProps).success,
+    ).toBe(true);
+  });
+});
