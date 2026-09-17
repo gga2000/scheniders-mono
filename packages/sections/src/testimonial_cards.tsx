@@ -12,7 +12,7 @@ import Image from "next/image";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { CenteredSectionHeader, Section } from "./helpers/primitives";
-import { i18nStringSchema } from "./_schema";
+import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 import { TestimonialStage } from "./testimonial_cards.client";
@@ -36,6 +36,10 @@ const schema = z.object({
       z.object({
         name_i18n: i18nStringSchema,
         quote_i18n: i18nStringSchema,
+        /** The stars this customer actually gave, when that is known. */
+        rating: z.number().min(1).max(5).optional(),
+        /** What they bought — "عن عطر ويفر انتنس". Specificity is credible. */
+        context_i18n: i18nStringOptional,
       }),
     )
     .min(1)
