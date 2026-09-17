@@ -966,3 +966,71 @@ describe("product_grid — catalogue controls", () => {
     expect(product_grid.schema.safeParse(product_grid.defaultProps).success).toBe(true);
   });
 });
+
+describe("product_grid — category shortcuts", () => {
+  const cat = (id: string, name: string, slug: string) =>
+    ({ id, tenant_id: "t", name, slug, description: null, image_url: null, parent_id: null, display_order: 0 }) as never;
+  const prod = (id: string) =>
+    ({ ...baseProduct, id, name: id, bestseller_rank: 1 }) as Product;
+
+  const categories = [
+    cat("men", "عطور رجالية", "men"),
+    cat("women", "عطور نسائية", "women"),
+    cat("empty", "فاضي", "empty"),
+  ] as never;
+  const ids = { men: ["a", "b"], women: ["c"] };
+  const base = {
+    ...product_grid.defaultProps,
+    card_style: "price_pill" as const,
+    show_category_links: true,
+  };
+
+  it("links each shortcut into the catalogue, already filtered", () => {
+    // A shelf of six is a sample of the shop. Without these the only way
+    // onward is a single "see all" link under the fold.
+    const html = render(product_grid, base, {
+      products: [prod("A")],
+      categories,
+      category_product_ids: ids,
+    });
+    expect(html).toContain("data-category-links");
+    expect(html).toContain("/products?cat=men");
+    expect(html).toContain("/products?cat=women");
+  });
+
+  it("never offers a shortcut that opens onto nothing", () => {
+    const html = render(product_grid, base, {
+      products: [prod("A")],
+      categories,
+      category_product_ids: ids,
+    });
+    expect(html).not.toContain("cat=empty");
+    expect(html).not.toContain("فاضي");
+  });
+
+  it("counts each shortcut from the same map the catalogue filters on", () => {
+    // The count and the filter share one source, so a shortcut cannot
+    // advertise a number the catalogue then contradicts.
+    const html = render(product_grid, base, {
+      products: [prod("A")],
+      categories,
+      category_product_ids: ids,
+    });
+    expect(html).toMatch(/عطور رجالية[\s\S]{0,200}?>2</);
+    expect(html).toMatch(/عطور نسائية[\s\S]{0,200}?>1</);
+  });
+
+  it("renders no rail at all unless the section asks for one", () => {
+    const html = render(
+      product_grid,
+      { ...product_grid.defaultProps, card_style: "price_pill" as const },
+      { products: [prod("A")], categories, category_product_ids: ids },
+    );
+    expect(html).not.toContain("data-category-links");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(product_grid.defaultProps).not.toHaveProperty("show_category_links");
+    expect(product_grid.defaultProps).not.toHaveProperty("category_links_limit");
+  });
+});

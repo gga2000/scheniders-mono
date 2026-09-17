@@ -226,4 +226,17 @@ describe("PricePillCard", () => {
     const html = render(product({ review_count: 0 }), { showStars: true });
     expect(html).not.toContain("data-rating-value");
   });
+
+  it("seats the price on its own plate", () => {
+    // A tinted panel separates the money from the name above and the rating
+    // below without spending another hairline on it.
+    const html = render(product());
+    const plate = html.slice(
+      html.indexOf("data-price-plate"),
+      html.indexOf("data-meta-row"),
+    );
+    expect(plate).toContain("data-price-line");
+    expect(plate).toContain("data-saving");
+    expect(plate).toContain("--bk-surface-alt");
+  });
 });
