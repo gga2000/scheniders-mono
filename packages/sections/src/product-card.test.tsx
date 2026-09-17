@@ -239,6 +239,8 @@ describe("PricePillCard", () => {
     expect(plate).toContain("data-saving");
     // A texture, not a wash: the plate separates by surface, not by being
     // a different colour.
-    expect(plate).toContain("repeating-linear-gradient");
+    // Texture, not a container: a dot matrix with no border or panel.
+    expect(plate).toContain("radial-gradient");
+    expect(plate).not.toContain("border:");
   });
 });

@@ -176,4 +176,23 @@ describe("CatalogGrid", () => {
     fireEvent.click(night);
     expect(cards(container)).toHaveLength(2);
   });
+
+  it("says how many of how many are on the page", () => {
+    // The rail's count states how many MATCH. Nothing stated how many were
+    // actually rendered, so a shopper who had scrolled past the rail saw a
+    // dozen cards and no reason to believe there were more.
+    const { container } = mount(2);
+    const label = () => container.querySelector("[data-shown-of]")?.textContent;
+    expect(label()).toContain("2");
+    expect(label()).toContain("5");
+    press(container.querySelector<HTMLButtonElement>("[data-load-more]"));
+    expect(label()).toContain("4");
+  });
+
+  it("drops the progress line once everything is shown", () => {
+    // "5 of 5" under a control that is no longer there is noise.
+    const { container } = mount(12);
+    expect(container.querySelector("[data-shown-of]")).toBeNull();
+    expect(container.querySelector("[data-load-more]")).toBeNull();
+  });
 });
