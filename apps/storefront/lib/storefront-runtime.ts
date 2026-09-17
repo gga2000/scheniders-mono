@@ -146,6 +146,24 @@ export const CATALOG_HEADING = {
   en: "All products",
 } as const;
 
+/**
+ * The catalogue page's own header. Factual, not a claim: it names what the
+ * page is and what the controls beneath it do. A merchant who wants their
+ * own words sets them on the category grid — anything present there wins,
+ * and these only fill the gap.
+ */
+export const CATALOG_EYEBROW = {
+  ar: "المجموعة الكاملة",
+  en: "The full collection",
+} as const;
+
+export const CATALOG_SUBHEADING = {
+  // No trailing full stop: the page is LTR, so a sentence-final "."
+  // on Arabic text lands at the LEFT edge and reads as a stray mark.
+  ar: "كل عطورنا بمكان واحد — اختار حسب الفئة أو السعر",
+  en: "Every perfume in one place — browse by category or by price",
+} as const;
+
 const CATALOG_SECTION_ID = "__catalog_all_products__";
 
 /**
@@ -186,6 +204,10 @@ export function deriveCatalogPage(v2: StoreConfigV2): PageConfig {
       mode: "auto",
       query: catalogQuery,
       heading_i18n: CATALOG_HEADING,
+      // The merchant's own eyebrow and standfirst win where they exist;
+      // these only fill an empty header.
+      eyebrow_i18n: rest.eyebrow_i18n ?? CATALOG_EYEBROW,
+      subheading_i18n: rest.subheading_i18n ?? CATALOG_SUBHEADING,
     };
   } else {
     const calm = v2.brand_kit?.shape?.rotation_intensity === "none";
@@ -193,6 +215,8 @@ export function deriveCatalogPage(v2: StoreConfigV2): PageConfig {
       mode: "auto",
       query: { sort: "newest" },
       heading_i18n: CATALOG_HEADING,
+      eyebrow_i18n: CATALOG_EYEBROW,
+      subheading_i18n: CATALOG_SUBHEADING,
       scribble_color: "mint",
       manual_product_ids: [],
       pinned_product_ids: [],

@@ -220,6 +220,35 @@ describe("deriveCatalogPage (P0-3)", () => {
     ).toBeUndefined();
   });
 
+
+  it("gives the catalogue a header when the merchant has not written one", () => {
+    // /products is a page in its own right, not a bare grid. Its eyebrow and
+    // standfirst are factual — they name the page and the controls under it.
+    const bare = {
+      ...categoryGrid,
+      base: { ...categoryGrid.base, eyebrow_i18n: undefined, subheading_i18n: undefined },
+    };
+    const v2 = makeV2([{ page_id: "category", sections: [bare] }]);
+    const base = deriveCatalogPage(v2).sections[0].base;
+    expect(base.eyebrow_i18n).toBeTruthy();
+    expect(base.subheading_i18n).toBeTruthy();
+  });
+
+  it("never overwrites the merchant's own header copy", () => {
+    const owned = {
+      ...categoryGrid,
+      base: {
+        ...categoryGrid.base,
+        eyebrow_i18n: { ar: "خاصتنا", en: "Ours" },
+        subheading_i18n: { ar: "نصنا", en: "Our line" },
+      },
+    };
+    const v2 = makeV2([{ page_id: "category", sections: [owned] }]);
+    const base = deriveCatalogPage(v2).sections[0].base;
+    expect(base.eyebrow_i18n).toEqual({ ar: "خاصتنا", en: "Ours" });
+    expect(base.subheading_i18n).toEqual({ ar: "نصنا", en: "Our line" });
+  });
+
   it("turns on the catalogue controls for a price_pill grid", () => {
     // /products is the whole shop. Chips, sort, a price split and load-more
     // are what make 43 products navigable on a phone.

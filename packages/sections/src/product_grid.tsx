@@ -464,18 +464,19 @@ export function PricePillCard({
               the rating below without another hairline. */}
           <div
             data-price-plate
-            className="relative overflow-hidden px-2.5 py-2"
+            className="relative -mx-1 px-1 pb-1 pt-1.5"
             style={{
-              // A texture, not a wash. The plate separates the money from
-              // the name and the rating by its SURFACE rather than by being
-              // a different colour — a fine diagonal hatch drawn from the
-              // ink token, so it follows the kit and stays quiet enough to
-              // leave the numbers on top fully legible.
-              backgroundColor: "var(--bk-surface, #ffffff)",
-              borderRadius: "calc(var(--bk-radius-card, 1.5rem) / 2.5)",
-              border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.08))",
+              // Texture, no container. A fine dot matrix drawn from the ink
+              // token — the grain of good paper rather than a panel dropped
+              // behind the numbers. It fades out as it rises so it has no
+              // edge to notice, which is what the boxed version got wrong.
               backgroundImage:
-                "repeating-linear-gradient(135deg, color-mix(in srgb, var(--bk-ink, #1a1a1a) 6%, transparent) 0 1px, transparent 1px 8px)",
+                "radial-gradient(color-mix(in srgb, var(--bk-ink, #1a1a1a) 13%, transparent) 0.8px, transparent 0.9px)",
+              backgroundSize: "7px 7px",
+              WebkitMaskImage:
+                "linear-gradient(to top, rgb(0 0 0) 0%, rgb(0 0 0 / 0.55) 55%, transparent 100%)",
+              maskImage:
+                "linear-gradient(to top, rgb(0 0 0) 0%, rgb(0 0 0 / 0.55) 55%, transparent 100%)",
             }}
           >
           <div
