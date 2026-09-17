@@ -86,6 +86,14 @@ const schema = z.object({
    * existing category-page reveal branch. The "standard" card style has its
    * own FilterableProductGrid on category pages and is left alone.
    */
+  /**
+   * A rail of category shortcuts above the grid, each linking into the
+   * catalogue already filtered. A shelf of six products is a sample; this
+   * is how a shopper gets from it to the rest of the shop.
+   */
+  show_category_links: z.boolean().optional(),
+  /** How many shortcuts to show. Defaults to 6. */
+  category_links_limit: z.number().int().positive().optional(),
   catalog_controls: z.boolean().optional(),
   /** Cards revealed per page in catalogue mode. Defaults to 12. */
   catalog_page_size: z.number().int().positive().optional(),
@@ -450,6 +458,20 @@ export function PricePillCard({
               by size, so a shopper had to decode which was which from
               typography alone — a strike-through is a convention, not a
               statement. Now the card says it outright. */}
+          {/* The price sits on its own plate. A warm tint lifted off the
+              surface token, with a soft accent wash rising from the bottom
+              corner — enough to separate the money from the name above and
+              the rating below without another hairline. */}
+          <div
+            data-price-plate
+            className="relative overflow-hidden px-2.5 py-2"
+            style={{
+              backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+              borderRadius: "calc(var(--bk-radius-card, 1.5rem) / 2.5)",
+              backgroundImage:
+                "radial-gradient(120% 140% at 0% 100%, color-mix(in srgb, var(--bk-accent, #fbb82e) 14%, transparent), transparent 62%)",
+            }}
+          >
           <div
             data-price-line
             // Adjacent, not pushed to opposite edges. `justify-between`
@@ -467,10 +489,12 @@ export function PricePillCard({
                   // Both are DARKENED against the ink token first: raw
                   // --bk-success measured 1.89:1 on this card and raw
                   // --bk-danger 3.48:1, neither readable at these sizes.
-                  // The green is mixed to 45%, not 55%: at 55% it measured
-                  // 3.81:1, which the 20px price clears as large text but
-                  // this 10px caption does not.
-                  color: onSale ? "color-mix(in srgb, var(--bk-success, #3ecf8e) 45%, var(--bk-ink, #1a1a1a))" : "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+                  // Mixed against the PLATE the block sits on, not the card:
+                  // the plate is rgb(248,239,223) where the card is
+                  // rgb(253,248,239), and the darker ground cost about a
+                  // third of a point. At 45%/75% the captions measured
+                  // 4.21 and 4.22 here, under the 4.5 floor for small text.
+                  color: onSale ? "color-mix(in srgb, var(--bk-success, #3ecf8e) 38%, var(--bk-ink, #1a1a1a))" : "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
                   fontFamily: "var(--bk-font-body, inherit)",
                 }}
               >
@@ -482,7 +506,7 @@ export function PricePillCard({
               <span
                 className="whitespace-nowrap text-xl font-black leading-none tabular-nums"
                 style={{
-                  color: onSale ? "color-mix(in srgb, var(--bk-success, #3ecf8e) 45%, var(--bk-ink, #1a1a1a))" : "var(--bk-ink, #1a1a1a)",
+                  color: onSale ? "color-mix(in srgb, var(--bk-success, #3ecf8e) 38%, var(--bk-ink, #1a1a1a))" : "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-display, inherit)",
                 }}
               >
@@ -499,7 +523,7 @@ export function PricePillCard({
                   data-price-caption
                   className="font-body text-[10px] font-semibold tracking-wide"
                   style={{
-                    color: "color-mix(in srgb, var(--bk-danger, #e2574c) 75%, var(--bk-ink, #1a1a1a))",
+                    color: "color-mix(in srgb, var(--bk-danger, #e2574c) 65%, var(--bk-ink, #1a1a1a))",
                     fontFamily: "var(--bk-font-body, inherit)",
                   }}
                 >
@@ -509,7 +533,7 @@ export function PricePillCard({
                   data-compare-at
                   className="whitespace-nowrap text-xs font-medium leading-none line-through tabular-nums"
                   style={{
-                    color: "color-mix(in srgb, var(--bk-danger, #e2574c) 75%, var(--bk-ink, #1a1a1a))",
+                    color: "color-mix(in srgb, var(--bk-danger, #e2574c) 65%, var(--bk-ink, #1a1a1a))",
                     fontFamily: "var(--bk-font-body, inherit)",
                   }}
                 >
@@ -535,6 +559,7 @@ export function PricePillCard({
               {chromeString("save_prefix", locale)} <bdi>{saved}</bdi>
             </span>
           )}
+          </div>
       {/* Always rendered, even when empty: two cards with a star row and
           four without is four objects, not one shelf. */}
       <div
@@ -616,6 +641,23 @@ function ProductGridRender({
     const pageSize = props.query?.limit;
     const gridCls =
       "grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+
+    // Category shortcuts. A shelf of six is a sample of the shop; without
+    // these the only way onward is one "see all" link under the fold.
+    // Counts come from the same membership map the catalogue filters on, so
+    // a shortcut cannot advertise a number the catalogue then contradicts,
+    // and a category with nothing live in it is not offered at all.
+    const categoryLinks = props.show_category_links
+      ? ctx.categories
+          .map((c) => ({
+            // The catalogue reads a slug from ?cat=, falling back to the id.
+            handle: c.slug ?? c.id,
+            name: c.name,
+            count: ctx.category_product_ids?.[c.id]?.length ?? 0,
+          }))
+          .filter((c) => c.count > 0)
+          .slice(0, props.category_links_limit ?? 6)
+      : [];
     const cards = pillItems.map((product, i) => (
       <PricePillCard
         key={product.id}
@@ -687,6 +729,38 @@ function ProductGridRender({
               subtitleField="subheading_i18n"
             />
           )
+        )}
+        {categoryLinks.length > 0 && (
+          // Ink outlines, matching the catalogue's own rail — the buy-yellow
+          // stays with buying. Bleeds to the screen edge on a phone so the
+          // rail scrolls past the gutter.
+          <div
+            data-category-links
+            className="mb-bk-md -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0"
+          >
+            {categoryLinks.map((c) => (
+              <StoreLink
+                key={c.handle}
+                href={`/products?cat=${encodeURIComponent(c.handle)}`}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border px-4 py-2 font-body text-sm font-semibold",
+                  PRESSABLE,
+                )}
+                style={{
+                  backgroundColor: "transparent",
+                  color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+                  borderColor: "var(--bk-divider, rgb(26 26 26 / 0.15))",
+                  borderRadius: "var(--bk-radius-pill, 9999px)",
+                  fontFamily: "var(--bk-font-body, inherit)",
+                }}
+              >
+                <span>{c.name}</span>
+                <span className="text-xs font-medium tabular-nums opacity-60">
+                  <bdi>{c.count}</bdi>
+                </span>
+              </StoreLink>
+            ))}
+          </div>
         )}
         {props.catalog_controls ? (
           // Full-catalogue mode: chips, sort, price split and load-more over
