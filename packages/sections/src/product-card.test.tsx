@@ -173,4 +173,29 @@ describe("PricePillCard", () => {
     const inner = meta.slice(meta.indexOf("<div", meta.indexOf(">")));
     expect(inner.slice(0, 120)).not.toMatch(/\bmt-\d/);
   });
+
+  it("colours the two prices by what they mean", () => {
+    // Green is what you pay, red is what you would have paid. Both are
+    // mixed against the ink token first — raw --bk-success measured 1.89:1
+    // on this card and raw --bk-danger 3.48:1, neither readable.
+    const html = render(product());
+    const line = html.slice(
+      html.indexOf("data-price-line"),
+      html.indexOf("data-saving"),
+    );
+    expect(line).toContain("--bk-success");
+    expect(line).toContain("--bk-danger");
+    // Never the raw tokens on their own: they do not carry enough contrast.
+    expect(line).not.toMatch(/color:\s*var\(--bk-success[^)]*\)\s*[,;"]/);
+    expect(line).not.toMatch(/color:\s*var\(--bk-danger[^)]*\)\s*[,;"]/);
+  });
+
+  it("leaves an undiscounted price in plain ink", () => {
+    // Green means "this is less than it was". A product that was never
+    // discounted has nothing to be green about.
+    const html = render(product({ compare_at_price: null }));
+    const line = html.slice(html.indexOf("data-price-line"));
+    expect(line.slice(0, 700)).not.toContain("--bk-success");
+    expect(line.slice(0, 700)).toContain("--bk-ink");
+  });
 });
