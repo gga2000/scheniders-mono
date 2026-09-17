@@ -15,6 +15,7 @@ import { CenteredSectionHeader, Section } from "./helpers/primitives";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
+import { TestimonialStage } from "./testimonial_cards.client";
 
 const schema = z.object({
   eyebrow_i18n: i18nStringSchema,
@@ -23,6 +24,13 @@ const schema = z.object({
   /** Decorative art hugging the band edges on large screens. */
   side_image_left_url: z.string().describe("image").optional(),
   side_image_right_url: z.string().describe("image").optional(),
+  /**
+   * "stage" shows one testimony at a time, large, advancing on its own.
+   * Unset keeps the three-up band byte-identical for every existing store.
+   */
+  layout: z.enum(["band", "stage"]).optional(),
+  /** Seconds each testimony holds the stage. Defaults to 6. */
+  rotate_seconds: z.number().int().positive().optional(),
   items: z
     .array(
       z.object({
@@ -31,7 +39,10 @@ const schema = z.object({
       }),
     )
     .min(1)
-    .max(6),
+    // Raised from 6: a stage rotates, so it can carry every testimony a
+    // merchant has rather than the three a static band has room for.
+    // Widening a max can never invalidate a config that already parsed.
+    .max(24),
 });
 
 type Props = z.infer<typeof schema>;
@@ -141,7 +152,14 @@ function TestimonialCards({
           />
         )}
 
-      {/* Cards — 3-up desktop, stacked mobile. `pt` clears the pins. */}
+      {props.layout === "stage" ? (
+        <TestimonialStage
+          items={props.items}
+          locale={locale}
+          rotateSeconds={props.rotate_seconds}
+        />
+      ) : (
+      /* Cards — 3-up desktop, stacked mobile. `pt` clears the pins. */
       <div className="grid grid-cols-1 gap-bk-md pt-5 md:grid-cols-3 md:gap-bk-lg">
         {props.items.map((item, i) => {
           const name = resolveI18n(item.name_i18n, locale);
@@ -208,6 +226,7 @@ function TestimonialCards({
           );
         })}
         </div>
+      )}
       </div>
     </Section>
   );

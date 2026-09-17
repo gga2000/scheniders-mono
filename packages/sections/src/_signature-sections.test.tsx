@@ -1034,3 +1034,44 @@ describe("product_grid — category shortcuts", () => {
     expect(product_grid.defaultProps).not.toHaveProperty("category_links_limit");
   });
 });
+
+describe("testimonial_cards — the stage is opt-in", () => {
+  const base = {
+    ...testimonial_cards.defaultProps,
+    items: [
+      { name_i18n: { ar: "أحمد", en: "Ahmed" }, quote_i18n: { ar: "ممتاز", en: "Great" } },
+      { name_i18n: { ar: "حازم", en: "Hazem" }, quote_i18n: { ar: "رائع", en: "Lovely" } },
+    ],
+  };
+
+  it("keeps the three-up band when nothing asks for a stage", () => {
+    const html = render(testimonial_cards, base);
+    expect(html).not.toContain("data-testimonial-stage");
+    expect(html).toContain("md:grid-cols-3");
+  });
+
+  it("renders the stage when asked", () => {
+    const html = render(testimonial_cards, { ...base, layout: "stage" as const });
+    expect(html).toContain("data-testimonial-stage");
+    expect(html).toContain("data-stage-dot");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(testimonial_cards.defaultProps).not.toHaveProperty("layout");
+    expect(testimonial_cards.defaultProps).not.toHaveProperty("rotate_seconds");
+    expect(
+      testimonial_cards.schema.safeParse(testimonial_cards.defaultProps).success,
+    ).toBe(true);
+  });
+
+  it("accepts more testimonies than the band could hold", () => {
+    // A stage rotates, so it can carry every testimony a merchant has.
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      name_i18n: { ar: `ز${i}`, en: `C${i}` },
+      quote_i18n: { ar: `رأي ${i}`, en: `Quote ${i}` },
+    }));
+    expect(
+      testimonial_cards.schema.safeParse({ ...base, items: many }).success,
+    ).toBe(true);
+  });
+});
