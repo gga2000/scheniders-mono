@@ -440,7 +440,14 @@ export function PricePillCard({
                 data-price-caption
                 className="font-body text-[10px] font-semibold tracking-wide"
                 style={{
-                  color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+                  // Green for what you pay, red for what you would have.
+                  // Both are DARKENED against the ink token first: raw
+                  // --bk-success measured 1.89:1 on this card and raw
+                  // --bk-danger 3.48:1, neither readable at these sizes.
+                  // The green is mixed to 45%, not 55%: at 55% it measured
+                  // 3.81:1, which the 20px price clears as large text but
+                  // this 10px caption does not.
+                  color: onSale ? "color-mix(in srgb, var(--bk-success, #3ecf8e) 45%, var(--bk-ink, #1a1a1a))" : "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
                   fontFamily: "var(--bk-font-body, inherit)",
                 }}
               >
@@ -452,7 +459,7 @@ export function PricePillCard({
               <span
                 className="whitespace-nowrap text-xl font-black leading-none tabular-nums"
                 style={{
-                  color: "var(--bk-ink, #1a1a1a)",
+                  color: onSale ? "color-mix(in srgb, var(--bk-success, #3ecf8e) 45%, var(--bk-ink, #1a1a1a))" : "var(--bk-ink, #1a1a1a)",
                   fontFamily: "var(--bk-font-display, inherit)",
                 }}
               >
@@ -469,7 +476,7 @@ export function PricePillCard({
                   data-price-caption
                   className="font-body text-[10px] font-semibold tracking-wide"
                   style={{
-                    color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))",
+                    color: "color-mix(in srgb, var(--bk-danger, #e2574c) 75%, var(--bk-ink, #1a1a1a))",
                     fontFamily: "var(--bk-font-body, inherit)",
                   }}
                 >
@@ -479,7 +486,7 @@ export function PricePillCard({
                   data-compare-at
                   className="whitespace-nowrap text-xs font-medium leading-none line-through tabular-nums"
                   style={{
-                    color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
+                    color: "color-mix(in srgb, var(--bk-danger, #e2574c) 75%, var(--bk-ink, #1a1a1a))",
                     fontFamily: "var(--bk-font-body, inherit)",
                   }}
                 >
