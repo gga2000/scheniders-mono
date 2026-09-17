@@ -105,4 +105,50 @@ describe("TestimonialStage", () => {
       container.querySelector("[data-stage-quote]")?.getAttribute("aria-live"),
     ).toBe("polite");
   });
+
+  it("shows the stars a customer actually gave, and none when unknown", () => {
+    // A star row on a testimony with no rating behind it is decoration.
+    const rated = render(
+      <TestimonialStage
+        items={[{ ...items[0], rating: 5 }]}
+        locale={"ar" as never}
+      />,
+    );
+    expect(rated.container.querySelectorAll('[role="img"] svg')).toHaveLength(5);
+    cleanup();
+    const unrated = render(
+      <TestimonialStage items={[items[0]]} locale={"ar" as never} />,
+    );
+    expect(unrated.container.querySelectorAll('[role="img"] svg')).toHaveLength(0);
+  });
+
+  it("names what the customer bought when that is known", () => {
+    // Specificity is what makes a testimony read as real rather than written.
+    const { container } = render(
+      <TestimonialStage
+        items={[{ ...items[0], context_i18n: { ar: "عن عطر ويفر", en: "on Wayfarer" } }]}
+        locale={"ar" as never}
+      />,
+    );
+    expect(container.querySelector("[data-stage-context]")?.textContent).toBe(
+      "عن عطر ويفر",
+    );
+    cleanup();
+    // And no empty line where a testimony has no product behind it.
+    const bare = render(
+      <TestimonialStage items={[items[0]]} locale={"ar" as never} />,
+    );
+    expect(bare.container.querySelector("[data-stage-context]")).toBeNull();
+  });
+
+  it("does not animate the dwell indicator for reduced motion", () => {
+    // The fill communicates time passing. For a visitor who asked for no
+    // motion it must sit still and full, not crawl quietly.
+    reduced = true;
+    const { container } = mount(3);
+    const fill = container.querySelector<HTMLElement>("[data-stage-progress]");
+    expect(fill).not.toBeNull();
+    expect(fill!.style.animation || "").toBe("");
+    expect(fill!.style.width).toBe("100%");
+  });
 });
