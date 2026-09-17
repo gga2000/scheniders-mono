@@ -198,4 +198,32 @@ describe("PricePillCard", () => {
     expect(line.slice(0, 700)).not.toContain("--bk-success");
     expect(line.slice(0, 700)).toContain("--bk-ink");
   });
+
+  it("prints the real average instead of rounding it into stars", () => {
+    // `Stars` rounds to the nearest whole star by its own definition, so a
+    // 4.6 average painted five filled stars — indistinguishable from a
+    // perfect 5.0, and overstating the product by nearly half a star.
+    const html = render(product({ review_count: 6, avg_rating: 4.6 }), {
+      showStars: true,
+    });
+    expect(html).toContain("data-rating-value");
+    expect(html).toContain(">4.6<");
+    expect(html).toContain(">(6)<");
+  });
+
+  it("renders one star glyph, not a five-star gauge", () => {
+    // Five accent-coloured shapes competed with the accent-coloured seal
+    // two lines above them, and carried less information than the number.
+    const html = render(product({ review_count: 6, avg_rating: 4.6 }), {
+      showStars: true,
+    });
+    const meta = html.slice(html.indexOf("data-meta-row"));
+    expect(meta.match(/<svg/g) ?? []).toHaveLength(1);
+  });
+
+  it("shows no rating at all when nobody has reviewed it", () => {
+    // A rating row with no reviews behind it is decoration.
+    const html = render(product({ review_count: 0 }), { showStars: true });
+    expect(html).not.toContain("data-rating-value");
+  });
 });

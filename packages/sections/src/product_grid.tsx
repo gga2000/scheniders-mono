@@ -219,18 +219,41 @@ function productCountLabel(count: number, locale: LocaleCode): string {
  *  rounded average of the product's approved reviews + a small "(N)" review
  *  count. Callers only render it when `review_count > 0` — never as
  *  decoration. */
+/**
+ * Rating: one star, the real average, and how many people said so.
+ *
+ * Five stars were rounded to the nearest whole — `Stars` says so in its own
+ * doc — so 4.6 and 5.0 both painted five filled stars and the card
+ * overstated the product by up to half a star. This tenant's two rated
+ * perfumes are 4.7 and 4.6; both showed five.
+ *
+ * Printing the number instead is honest and smaller, and it stops five
+ * accent-coloured shapes competing with the accent-coloured discount seal
+ * two lines above them.
+ */
 function StarRow({ rating, count }: { rating: number; count: number }) {
   return (
     // No top margin: the meta row that holds this already has its own, and
     // a second one made the star row start 4px higher than the low-stock
     // line beside it — the row stopped lining up across the shelf.
     <div className="flex items-center justify-start gap-1">
-      <Stars value={rating} size={12} label={`${rating.toFixed(1)} / 5`} />
+      {/* max=1 — a single glyph, not a five-star gauge. */}
+      <Stars value={1} max={1} size={13} label={`${rating.toFixed(1)} / 5`} />
       <span
-        className="text-[11px] font-medium tabular-nums"
+        data-rating-value
+        className="text-[12px] font-bold leading-none tabular-nums"
+        style={{
+          color: "var(--bk-ink, #1a1a1a)",
+          fontFamily: "var(--bk-font-body, inherit)",
+        }}
+      >
+        <bdi>{rating.toFixed(1)}</bdi>
+      </span>
+      <span
+        className="text-[11px] font-medium leading-none tabular-nums"
         style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.55))" }}
       >
-        ({count})
+        <bdi>({count})</bdi>
       </span>
     </div>
   );
