@@ -237,6 +237,8 @@ describe("PricePillCard", () => {
     );
     expect(plate).toContain("data-price-line");
     expect(plate).toContain("data-saving");
-    expect(plate).toContain("--bk-surface-alt");
+    // A texture, not a wash: the plate separates by surface, not by being
+    // a different colour.
+    expect(plate).toContain("repeating-linear-gradient");
   });
 });

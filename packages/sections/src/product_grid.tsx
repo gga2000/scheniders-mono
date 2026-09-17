@@ -466,10 +466,16 @@ export function PricePillCard({
             data-price-plate
             className="relative overflow-hidden px-2.5 py-2"
             style={{
-              backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+              // A texture, not a wash. The plate separates the money from
+              // the name and the rating by its SURFACE rather than by being
+              // a different colour — a fine diagonal hatch drawn from the
+              // ink token, so it follows the kit and stays quiet enough to
+              // leave the numbers on top fully legible.
+              backgroundColor: "var(--bk-surface, #ffffff)",
               borderRadius: "calc(var(--bk-radius-card, 1.5rem) / 2.5)",
+              border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.08))",
               backgroundImage:
-                "radial-gradient(120% 140% at 0% 100%, color-mix(in srgb, var(--bk-accent, #fbb82e) 14%, transparent), transparent 62%)",
+                "repeating-linear-gradient(135deg, color-mix(in srgb, var(--bk-ink, #1a1a1a) 6%, transparent) 0 1px, transparent 1px 8px)",
             }}
           >
           <div
