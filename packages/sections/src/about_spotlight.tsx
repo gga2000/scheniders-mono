@@ -13,7 +13,7 @@ import { resolveI18n } from "@scheniders/shared";
 import { Section } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { cn, PRESSABLE } from "./helpers/utils";
-import { i18nStringSchema } from "./_schema";
+import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { isOptimizableImageHost } from "./helpers/image";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -27,6 +27,20 @@ const schema = z.object({
   bg_image_url: z.string().describe("image").optional(),
   /** Darkness of the shade over the photo band (0 = none). */
   overlay_opacity: z.number().min(0).max(0.6).optional(),
+  /**
+   * "split" sets the photo beside the words instead of behind them, so the
+   * image is a picture rather than a texture under a card. Unset keeps the
+   * photo band byte-identical.
+   */
+  layout: z.enum(["band", "split"]).optional(),
+  /** The opening line, set large. The rest of the body follows beneath. */
+  lead_i18n: i18nStringOptional,
+  /**
+   * The operational facts, each on its own line — tester, returns, payment,
+   * delivery. These are the merchant's OWN sentences pulled out of the body
+   * so they can be scanned, never a rewrite of them.
+   */
+  facts_i18n: z.array(i18nStringSchema).max(6).optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -57,6 +71,150 @@ function AboutSpotlightRender({
 
   const bgImage = props.bg_image_url;
   const overlay = props.overlay_opacity ?? 0.2;
+
+  const lead = props.lead_i18n ? resolveI18n(props.lead_i18n, locale) : null;
+  const facts = (props.facts_i18n ?? []).map((f) => resolveI18n(f, locale));
+
+  if (props.layout === "split") {
+    return (
+      <Section bleed className="px-0 sm:px-4 py-0 sm:py-6">
+        <div
+          data-about-split
+          className="relative grid overflow-hidden md:grid-cols-2"
+          style={{
+            borderRadius: "var(--bk-radius-card, 1.5rem)",
+            backgroundColor: "var(--bk-surface, #ffffff)",
+          }}
+        >
+          {/* The photograph is a picture here, not a texture under a card:
+              it gets its own half and is never covered. */}
+          <div
+            data-layer="bg_image"
+            data-layer-label="Background image"
+            data-layer-kind="image"
+            className="relative aspect-[4/3] md:aspect-auto md:min-h-[26rem]"
+            style={{ backgroundColor: "var(--bk-surface-alt, #f7f4ee)" }}
+          >
+            {bgImage && (
+              <Image
+                src={bgImage}
+                alt=""
+                fill
+                unoptimized={!isOptimizableImageHost(bgImage)}
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+              />
+            )}
+          </div>
+
+          <div className="relative flex flex-col justify-center px-6 py-10 text-start sm:px-10 sm:py-14">
+            {/* The same dot grain the cards and the testimonial stage
+                carry, so the page reads as one system. */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage:
+                  "radial-gradient(color-mix(in srgb, var(--bk-ink, #1a1a1a) 8%, transparent) 0.8px, transparent 0.9px)",
+                backgroundSize: "7px 7px",
+              }}
+            />
+            <div className="relative z-10">
+              <h2
+                data-i18n-field="title_i18n"
+                className="font-display text-bk-h2 font-black tracking-tight text-balance"
+                style={{
+                  color: "var(--bk-ink, #1a1a1a)",
+                  fontFamily: "var(--bk-font-display, inherit)",
+                }}
+              >
+                {title}
+              </h2>
+
+              {lead && (
+                <p
+                  data-about-lead
+                  data-i18n-field="lead_i18n"
+                  className="mt-4 font-display text-lg font-semibold leading-snug text-pretty sm:text-xl"
+                  style={{
+                    color: "var(--bk-ink, #1a1a1a)",
+                    fontFamily: "var(--bk-font-display, inherit)",
+                  }}
+                >
+                  {lead}
+                </p>
+              )}
+
+              <p
+                data-i18n-field="body_i18n"
+                className="mt-3 whitespace-pre-line font-body text-sm leading-relaxed text-pretty sm:text-base"
+                style={{
+                  // Mixed explicitly rather than borrowing ink-soft, whose
+                  // alpha was picked for other surfaces: at 0.7 the pillars'
+                  // body measured 4.44:1, under the floor for this size.
+                  color:
+                    "color-mix(in srgb, var(--bk-ink, #1a1a1a) 84%, transparent)",
+                  fontFamily: "var(--bk-font-body, inherit)",
+                }}
+              >
+                {body}
+              </p>
+
+              {facts.length > 0 && (
+                <ul data-about-facts className="mt-5 flex flex-col gap-2">
+                  {facts.map((fact, i) => (
+                    <li
+                      key={`${i}-${fact}`}
+                      className="flex items-start gap-2.5 font-body text-sm"
+                      style={{
+                        color:
+                          "color-mix(in srgb, var(--bk-ink, #1a1a1a) 84%, transparent)",
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: "var(--bk-accent, #fbb82e)",
+                        }}
+                      />
+                      <span>{fact}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div
+                data-layer="cta"
+                data-layer-label="Button"
+                data-layer-kind="button"
+                className="mt-7 flex"
+              >
+                <StoreLink
+                  href={props.cta_href}
+                  data-i18n-field="cta_label_i18n"
+                  className={cn(
+                    "inline-flex min-h-11 items-center px-6 py-3 font-display text-base font-bold",
+                    PRESSABLE,
+                  )}
+                  style={{
+                    backgroundColor: "var(--bk-primary, #f7db17)",
+                    color: "var(--bk-on-primary, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-pill, 9999px)",
+                    fontFamily: "var(--bk-font-display, inherit)",
+                    boxShadow:
+                      "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                  }}
+                >
+                  {ctaLabel}
+                </StoreLink>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+    );
+  }
 
   return (
     <Section bleed className="px-0 sm:px-4 py-0 sm:py-6">
