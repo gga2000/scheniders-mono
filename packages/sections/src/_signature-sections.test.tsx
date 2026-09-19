@@ -10,6 +10,7 @@ import { StoreBaseProvider } from "./helpers/store-context";
 import { formatCount } from "./helpers/format";
 
 import pillars_grid from "./pillars_grid";
+import about_spotlight from "./about_spotlight";
 import faq_contact_split from "./faq_contact_split";
 import product_reviews from "./product_reviews";
 import countdown_announcement from "./countdown_announcement";
@@ -1126,6 +1127,61 @@ describe("pillars_grid — the ledger", () => {
     expect(pillars_grid.defaultProps).not.toHaveProperty("layout");
     expect(
       pillars_grid.schema.safeParse(pillars_grid.defaultProps).success,
+    ).toBe(true);
+  });
+});
+
+describe("about_spotlight — the split", () => {
+  const base = {
+    ...about_spotlight.defaultProps,
+    bg_image_url: "https://example.test/shop.jpg",
+  };
+  const split = {
+    ...base,
+    layout: "split" as const,
+    lead_i18n: { ar: "شنايدر متجر عطور من بغداد", en: "A perfume house from Baghdad" },
+    facts_i18n: [
+      { ar: "تيستر مجاني وية كل طلب", en: "A free tester with every order" },
+      { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
+    ],
+  };
+
+  it("keeps the photo band when nothing asks for a split", () => {
+    const html = render(about_spotlight, base);
+    expect(html).not.toContain("data-about-split");
+  });
+
+  it("puts the photograph beside the words, never under them", () => {
+    // A card dropped over an image makes the image a texture. Given its
+    // own half it is a picture again.
+    const html = render(about_spotlight, split);
+    expect(html).toContain("data-about-split");
+    expect(html).toContain("md:grid-cols-2");
+    expect(html).toContain("shop.jpg");
+  });
+
+  it("sets the opening line apart and lists the facts", () => {
+    const html = render(about_spotlight, split);
+    expect(html).toContain("data-about-lead");
+    expect(html).toContain("شنايدر متجر عطور من بغداد");
+    expect(html).toContain("data-about-facts");
+    expect(html).toContain("الدفع عند الاستلام");
+  });
+
+  it("renders neither a lead nor a list when the merchant set none", () => {
+    // An empty lead slot or a bulleted list of nothing is worse than the
+    // paragraph it replaced.
+    const html = render(about_spotlight, { ...base, layout: "split" as const });
+    expect(html).toContain("data-about-split");
+    expect(html).not.toContain("data-about-lead");
+    expect(html).not.toContain("data-about-facts");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(about_spotlight.defaultProps).not.toHaveProperty("layout");
+    expect(about_spotlight.defaultProps).not.toHaveProperty("facts_i18n");
+    expect(
+      about_spotlight.schema.safeParse(about_spotlight.defaultProps).success,
     ).toBe(true);
   });
 });
