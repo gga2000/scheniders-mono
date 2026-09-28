@@ -11,6 +11,7 @@ import { formatCount } from "./helpers/format";
 
 import pillars_grid from "./pillars_grid";
 import about_spotlight from "./about_spotlight";
+import cta_banner from "./cta_banner";
 import faq_contact_split from "./faq_contact_split";
 import product_reviews from "./product_reviews";
 import countdown_announcement from "./countdown_announcement";
@@ -1183,5 +1184,38 @@ describe("about_spotlight — the split", () => {
     expect(
       about_spotlight.schema.safeParse(about_spotlight.defaultProps).success,
     ).toBe(true);
+  });
+});
+
+describe("cta_banner — the closing band", () => {
+  const base = {
+    ...cta_banner.defaultProps,
+    heading_i18n: { ar: "باقي ما لكيت عطرك؟", en: "Still looking?" },
+    cta_label_i18n: { ar: "شوف كل العطور", en: "See all" },
+    cta_href: "/products",
+  };
+
+  it("keeps the tinted card when nothing asks for invert", () => {
+    const html = render(cta_banner, base);
+    expect(html).not.toContain('data-cta-tone="invert"');
+    // The band's own background, not any use of the ink token: the CTA
+    // button legitimately carries it either way.
+    expect(html).not.toContain("background-color:var(--bk-ink, #1a1a1a)");
+  });
+
+  it("paints ink with surface type when inverted", () => {
+    // On a cream page this is the one dark block, which is what makes a
+    // closing CTA read as the end rather than another quiet card.
+    const html = render(cta_banner, { ...base, tone: "invert" as const });
+    expect(html).toContain('data-cta-tone="invert"');
+    expect(html).toContain("background-color:var(--bk-ink, #1a1a1a)");
+    expect(html).toContain("color:var(--bk-surface, #ffffff)");
+  });
+
+  it("keeps the tone out of defaultProps", () => {
+    expect(cta_banner.defaultProps).not.toHaveProperty("tone");
+    expect(cta_banner.schema.safeParse(cta_banner.defaultProps).success).toBe(
+      true,
+    );
   });
 });
