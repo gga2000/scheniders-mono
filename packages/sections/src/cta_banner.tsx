@@ -34,6 +34,13 @@ const schema = z.object({
   background_image_url: urlString.optional(),
   bg_tint: candyBg,
   align: z.enum(["start", "center"]),
+  /**
+   * "invert" paints the band in ink with surface type on it. On a cream
+   * page this is the one dark block, which is what makes a closing CTA
+   * read as the end of the page rather than another quiet card.
+   * Unset keeps the tinted card byte-identical.
+   */
+  tone: z.enum(["tint", "invert"]).optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -92,8 +99,22 @@ function CtaBannerRender({
       <BentoCard
         bg={props.bg_tint}
         size="lg"
+        data-cta-tone={props.tone === "invert" ? "invert" : undefined}
         className="relative overflow-hidden p-0"
-        style={{ borderRadius: "var(--bk-radius-card, 1.5rem)" }}
+        style={
+          props.tone === "invert"
+            ? {
+                borderRadius: "var(--bk-radius-card, 1.5rem)",
+                backgroundColor: "var(--bk-ink, #1a1a1a)",
+                // The dot grain the rest of the page carries, inverted so
+                // it reads on ink rather than disappearing into it.
+                backgroundImage:
+                  "radial-gradient(color-mix(in srgb, var(--bk-surface, #ffffff) 12%, transparent) 0.9px, transparent 1px)",
+                backgroundSize: "8px 8px",
+                borderColor: "transparent",
+              }
+            : { borderRadius: "var(--bk-radius-card, 1.5rem)" }
+        }
       >
         {props.background_image_url && (
           <div
@@ -116,7 +137,11 @@ function CtaBannerRender({
             "relative z-10 p-bk-xl sm:p-bk-2xl flex flex-col gap-bk-sm " + alignClass
           }
           style={{
-            color: props.background_image_url ? "white" : undefined,
+            color: props.background_image_url
+              ? "white"
+              : props.tone === "invert"
+                ? "var(--bk-surface, #ffffff)"
+                : undefined,
           }}
         >
           {eyebrow && (
