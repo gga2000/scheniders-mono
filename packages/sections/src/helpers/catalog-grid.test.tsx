@@ -286,6 +286,56 @@ describe("CatalogGrid — search", () => {
     expect(cards(container)).toHaveLength(products.length);
   });
 
+  it("offers a split the searched set can be divided on, even when the shop cannot", () => {
+    // 10,000 / 11,000 / 90,000. Across the whole shop the median rounds to
+    // 10,000 and leaves nothing under it, so there is no split to offer. The
+    // two products matching "qq" — 10,000 and 90,000 — divide cleanly. The
+    // control has to describe the set on screen, not the shop.
+    const priced = (id: string, name: string, price: number): Product =>
+      ({ id, name, price, stock_quantity: 5, reserved_quantity: 0 }) as Product;
+    const { container } = render(
+      <CatalogGrid
+        showSearch
+        items={[
+          { product: priced("a", "qq alpha", 10000), card: <div data-card="a" /> },
+          { product: priced("b", "zz other", 11000), card: <div data-card="b" /> },
+          { product: priced("c", "qq omega", 90000), card: <div data-card="c" /> },
+        ]}
+        categories={[]}
+        locale={"ar" as never}
+      />,
+    );
+    expect(container.querySelector("[data-price-label]")).toBeNull();
+    fireEvent.change(
+      container.querySelector("[data-catalog-search]") as HTMLInputElement,
+      { target: { value: "qq" } },
+    );
+    expect(cards(container)).toEqual(["a", "c"]);
+    expect(container.querySelector("[data-price-label]")).not.toBeNull();
+  });
+
+  it("withdraws the price split when the search leaves nothing to split", () => {
+    const { container } = mount(12, true);
+    // All five products: the split divides them, so both bands are offered.
+    expect(container.querySelector("[data-price-label]")).not.toBeNull();
+    // One product cannot be halved — offering "under" and "over" would mean
+    // one of them yields zero.
+    type(container, "p3");
+    expect(cards(container)).toEqual(["p3"]);
+    expect(container.querySelector("[data-price-label]")).toBeNull();
+    expect(container.textContent).not.toContain("أقل من");
+  });
+
+  it("withdraws a band that the active category empties", () => {
+    // "هدية" holds only p4 at 50,000, and the catalogue's split sits at
+    // 40,000 — so "under 40,000" inside that category yields nothing. The
+    // threshold is real; the band is not.
+    const { container } = mount(12, true);
+    press(chip("هدية"));
+    expect(cards(container)).toEqual(["p4"]);
+    expect(container.querySelector("[data-price-label]")).toBeNull();
+  });
+
   it("says the word missed, not that the filter did", () => {
     const { container } = mount(12, true);
     type(container, "zzzz");

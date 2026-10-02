@@ -20,6 +20,7 @@ import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import type { Category, Product } from "../types";
 import { applyCatalog, priceSplitFrom, SORTS } from "./catalog-filter";
+import { filterByQuery } from "./product-search";
 import type { CatalogSort } from "./catalog-filter";
 import { formatCount, formatPrice } from "./format";
 import { cn, PRESSABLE } from "./utils";
@@ -219,9 +220,18 @@ export function CatalogGrid({
     );
   }, [categoryHandle, sort, price, query]);
 
+  // The split has to divide the set the shopper is looking at, not the shop.
+  // A search that leaves two perfumes cannot be halved at the catalogue's
+  // median — one side of it would be empty, which is a control that does
+  // nothing. `priceSplitFrom` already returns null in that case; it just has
+  // to be asked about the right list.
+  const searched = useMemo(
+    () => (query.trim() ? filterByQuery(products, query) : products),
+    [products, query],
+  );
   const threshold = useMemo(
-    () => priceSplitFrom(products.map((p) => p.price)),
-    [products],
+    () => priceSplitFrom(searched.map((p) => p.price)),
+    [searched],
   );
 
   const visible = useMemo(
@@ -251,6 +261,21 @@ export function CatalogGrid({
       // A chip that opens onto nothing is worse than no chip.
       .filter((c) => c.count > 0);
   }, [categories, products, categoryProductIds, price, threshold, query]);
+
+  /**
+   * Each price band's real yield, from the same function as the list. A band
+   * that would show nothing is not offered — the rule the category chips
+   * already follow.
+   */
+  const priceCounts = useMemo(() => {
+    const base = { categoryProductIds, categoryId, threshold, query };
+    return {
+      under: applyCatalog(products, { ...base, price: "under" as const }).length,
+      over: applyCatalog(products, { ...base, price: "over" as const }).length,
+    };
+  }, [products, categoryProductIds, categoryId, threshold, query]);
+  const showPriceSplit =
+    threshold != null && priceCounts.under > 0 && priceCounts.over > 0;
 
   const allCount = useMemo(
     () =>
@@ -377,9 +402,9 @@ export function CatalogGrid({
           ))}
         </div>
 
-        {(threshold != null || filtered) && (
+        {(showPriceSplit || filtered) && (
           <div className="flex flex-wrap items-center gap-2">
-            {threshold != null && (
+            {showPriceSplit && (
               <>
                 {/* Named, because a price chip and a category chip look the
                     same but mean different things. Without the label the row
