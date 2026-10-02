@@ -24,6 +24,7 @@ import { filterByQuery } from "./product-search";
 import type { CatalogSort } from "./catalog-filter";
 import { formatCount, formatPrice } from "./format";
 import { cn, PRESSABLE } from "./utils";
+import { MaterialIcon } from "./primitives";
 
 const SORT_LABELS: Record<CatalogSort, Record<"ar" | "en", string>> = {
   bestsellers: { ar: "الأكثر مبيعاً", en: "Best selling" },
@@ -303,6 +304,15 @@ export function CatalogGrid({
       <div className="mb-bk-md flex flex-col gap-3">
         {showSearch && (
           <div className="relative">
+            {/* The glyph is what makes an empty rounded box read as a search
+                field rather than a blank input. Faint on purpose: the
+                perfumes are the content. */}
+            <span
+              className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
+            >
+              <MaterialIcon name="search" className="block text-xl" />
+            </span>
             <input
               data-catalog-search
               type="search"
@@ -312,7 +322,7 @@ export function CatalogGrid({
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("search", locale)}
               aria-label={t("search", locale)}
-              className="w-full border px-4 py-3 font-body text-base outline-none"
+              className="w-full border py-3 pe-12 ps-12 font-body text-base outline-none"
               style={{
                 backgroundColor: "var(--bk-surface, #ffffff)",
                 color: "var(--bk-ink, #1a1a1a)",
