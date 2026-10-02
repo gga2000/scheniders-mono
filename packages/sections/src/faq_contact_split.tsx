@@ -33,6 +33,14 @@ const schema = z.object({
   sub_i18n: i18nStringOptional,
   /** Small icon rendered at the start of every accordion row. */
   row_icon_url: z.string().describe("image").optional(),
+  /**
+   * "cards" (the default, and what every existing config renders) gives each
+   * question its own raised plate. "ledger" sets the questions as one
+   * hairline-ruled editorial list — the same move the pillars took, for the
+   * same reason: six identical floating plates read as a machine's output,
+   * and a row that opens should feel like it belongs to a document.
+   */
+  layout: z.enum(["cards", "ledger"]).optional(),
   items: z
     .array(
       z.object({
@@ -115,6 +123,32 @@ const defaultProps: Props = {
 const CARD_SHADOW =
   "var(--bk-shadow-card, 0 16px 40px -20px rgb(26 26 26 / 0.18))";
 
+/** The ledger's rule: ink at low opacity, so it tracks the brand kit. */
+const HAIRLINE = "color-mix(in srgb, var(--bk-ink, #1a1a1a) 12%, transparent)";
+
+/**
+ * schema.org FAQPage for the resolved locale. The rows were already in the
+ * DOM when closed, but markup alone is not structured data — a crawler has
+ * to be told that these pairs are questions and answers. Emitted for both
+ * layouts, so every existing config gains it without a config change.
+ *
+ * `<` is escaped to `\u003c` because the questions and answers are merchant
+ * copy: a stray `</script>` inside them would otherwise end this block.
+ */
+function faqJsonLd(
+  items: { question: string; answer: string }[],
+): string {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map(({ question, answer }) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+  }).replace(/</g, "\\u003c");
+}
+
 function FaqContactSplit({
   props,
   ctx,
@@ -145,8 +179,19 @@ function FaqContactSplit({
 
   if (!props.items.length) return null;
 
+  const rows = props.items.map((item) => ({
+    question: resolveI18n(item.q_i18n, locale),
+    answer: resolveI18n(item.a_i18n, locale),
+  }));
+  const ledger = props.layout === "ledger";
+
   return (
     <Section>
+      <script
+        type="application/ld+json"
+        // Serialized above with `<` escaped; nothing here is user input.
+        dangerouslySetInnerHTML={{ __html: faqJsonLd(rows) }}
+      />
       <CenteredSectionHeader
         eyebrow={
           eyebrow ? (
@@ -182,10 +227,60 @@ function FaqContactSplit({
       {/* 60/40 split on desktop, stacked on mobile. */}
       <div className="mx-auto grid max-w-5xl grid-cols-1 items-start gap-bk-md lg:grid-cols-5 lg:gap-bk-lg">
         {/* Accordion column. */}
-        <div className="space-y-bk-sm lg:col-span-3">
-          {props.items.map((item, i) => {
-            const q = resolveI18n(item.q_i18n, locale);
-            const a = resolveI18n(item.a_i18n, locale);
+        <div
+          className={
+            ledger ? "lg:col-span-3" : "space-y-bk-sm lg:col-span-3"
+          }
+          style={ledger ? { borderBottom: `1px solid ${HAIRLINE}` } : undefined}
+        >
+          {rows.map(({ question: q, answer: a }, i) => {
+            if (ledger) {
+              return (
+                <details
+                  key={`${i}-${q}`}
+                  name={groupName}
+                  open={i === 0}
+                  className="group"
+                  style={{ borderTop: `1px solid ${HAIRLINE}` }}
+                >
+                  <summary className="flex w-full cursor-pointer list-none items-baseline gap-4 py-5 text-start [&::-webkit-details-marker]:hidden">
+                    {/* The rule grows when the row opens: the only moving
+                        part, and it marks which row you are reading. */}
+                    <span
+                      aria-hidden="true"
+                      className="mt-[0.6em] h-0.5 w-5 shrink-0 transition-[width] duration-200 group-open:w-9 motion-reduce:transition-none"
+                      style={{ backgroundColor: "var(--bk-accent, #ffd84a)" }}
+                    />
+                    <span
+                      data-i18n-field={`items[${i}].q_i18n`}
+                      className="flex-1 font-display text-[1.0625rem] font-bold leading-snug text-balance sm:text-xl"
+                      style={{
+                        color: "var(--bk-ink, #1a1a1a)",
+                        fontFamily: "var(--bk-font-display, inherit)",
+                      }}
+                    >
+                      {q}
+                    </span>
+                    <MaterialIcon
+                      name="expand_more"
+                      className="shrink-0 text-xl transition-transform duration-200 motion-reduce:transition-none group-open:rotate-180"
+                    />
+                  </summary>
+                  {/* Indented to the question's text column, and held to a
+                      readable measure instead of the full 60% column. */}
+                  <div
+                    data-i18n-field={`items[${i}].a_i18n`}
+                    className="max-w-[62ch] pb-6 ps-9 font-body text-sm leading-relaxed text-pretty sm:text-base"
+                    style={{
+                      color: "var(--bk-ink-soft, rgb(26 26 26 / 0.65))",
+                      fontFamily: "var(--bk-font-body, inherit)",
+                    }}
+                  >
+                    {a}
+                  </div>
+                </details>
+              );
+            }
             return (
               <details
                 key={`${i}-${q}`}
@@ -248,21 +343,46 @@ function FaqContactSplit({
         </div>
 
         {/* Contact card column. */}
-        <div className="pt-5 lg:col-span-2 lg:sticky lg:top-24">
+        <div
+          className={
+            ledger
+              ? "lg:col-span-2 lg:sticky lg:top-24"
+              : "pt-5 lg:col-span-2 lg:sticky lg:top-24"
+          }
+        >
           <div
-            className="relative flex flex-col items-center gap-3 px-6 pb-8 pt-10 text-center"
-            style={{
-              backgroundColor: "var(--bk-surface, #ffffff)",
-              borderRadius: "var(--bk-radius-card, 1.25rem)",
-              boxShadow: CARD_SHADOW,
-            }}
+            className={
+              ledger
+                ? "relative flex flex-col items-start gap-3 px-6 pb-8 pt-8 text-start"
+                : "relative flex flex-col items-center gap-3 px-6 pb-8 pt-10 text-center"
+            }
+            style={
+              ledger
+                ? {
+                    // Flush with the ledger: a tinted panel under a rule,
+                    // not a plate floating over the page.
+                    backgroundColor:
+                      "color-mix(in srgb, var(--bk-accent, #ffd84a) 8%, var(--bk-surface-alt, #faf7f0))",
+                    borderRadius: "var(--bk-radius-card, 1.25rem)",
+                    borderTop: "2px solid var(--bk-accent, #ffd84a)",
+                  }
+                : {
+                    backgroundColor: "var(--bk-surface, #ffffff)",
+                    borderRadius: "var(--bk-radius-card, 1.25rem)",
+                    boxShadow: CARD_SHADOW,
+                  }
+            }
           >
-            {/* CSS "pin" hanging over the card's top edge. */}
+            {/* CSS "pin" hanging over the card's top edge — the cards
+                layout's one piece of whimsy. The ledger carries a rule
+                instead, so nothing overhangs the list's left edge. */}
+            {!ledger && (
             <span
               aria-hidden="true"
               className="absolute -top-4 left-1/2 h-10 w-4 -translate-x-1/2 rounded-full"
               style={{ backgroundColor: "var(--bk-accent, #ffd84a)" }}
             />
+            )}
             {props.contact.icon_url && (
               <Image
                 src={props.contact.icon_url}
