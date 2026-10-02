@@ -81,18 +81,20 @@ describe("order notifications access path", () => {
     });
 
     it("the feed localizes relative timestamps", () => {
-        const dropdown = fs.readFileSync(
-            path.join(APP_ROOT, "components/layout/notifications-dropdown.tsx"),
+        const list = fs.readFileSync(
+            path.join(APP_ROOT, "components/layout/notification-feed-list.tsx"),
             "utf8",
         );
-        expect(dropdown).toContain("date-fns/locale");
+        expect(list).toContain("date-fns/locale");
         // The feed formats dates through one helper; that helper must pass a locale,
         // and no other call site may bypass it.
-        const callLines = dropdown
+        const callLines = list
             .split("\n")
-            .filter((l) => l.includes("formatDistanceToNow("));
+            .filter((l) => l.includes("formatDistanceToNowStrict("));
         expect(callLines).toHaveLength(1);
         expect(callLines[0]).toContain("locale");
+        // Day headings are localized through the same locale object.
+        expect(list).toContain('format(section.date, "EEEE, d MMMM", { locale: dateLocale })');
     });
 
     it("clicking an order notification opens the order", () => {

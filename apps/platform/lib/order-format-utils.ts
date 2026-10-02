@@ -25,7 +25,7 @@ export const formatTime = (dateStr: string | Date | undefined | null) => {
  * Local calendar day as "YYYY-MM-DD", the same shape `orders.scheduled_date` uses.
  * Compared as strings so no timezone conversion can shift the day.
  */
-const localDayKey = (date: Date = new Date()) => date.toLocaleDateString("en-CA");
+export const localDayKey = (date: Date = new Date()) => date.toLocaleDateString("en-CA");
 
 const toDayKey = (value: string | Date | undefined | null): string | null => {
     if (!value) return null;
