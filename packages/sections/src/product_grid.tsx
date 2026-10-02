@@ -95,6 +95,12 @@ const schema = z.object({
   /** How many shortcuts to show. Defaults to 6. */
   category_links_limit: z.number().int().positive().optional(),
   catalog_controls: z.boolean().optional(),
+  /**
+   * A search field above the catalogue controls. Worth it once a shopper
+   * cannot see the whole shelf at a glance; a six-product grid does not
+   * need one, so it is opt-in rather than implied by `catalog_controls`.
+   */
+  catalog_search: z.boolean().optional(),
   /** Cards revealed per page in catalogue mode. Defaults to 12. */
   catalog_page_size: z.number().int().positive().optional(),
   /** Percentage-off chip on the photo, for products with a real saving. */
@@ -782,6 +788,7 @@ function ProductGridRender({
               categoryProductIds={ctx.category_product_ids}
               locale={locale}
               pageSize={props.catalog_page_size ?? 12}
+              showSearch={props.catalog_search === true}
             />
           </div>
         ) : category && pageSize && pillItems.length > pageSize ? (

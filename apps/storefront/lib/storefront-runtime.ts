@@ -230,7 +230,13 @@ export function deriveCatalogPage(v2: StoreConfigV2): PageConfig {
   // its own FilterableProductGrid — so setting the flag on a standard grid
   // would be a promise the section cannot keep. Applied after both branches
   // so the fallback base gets it too when the kit resolves to price_pill.
-  if (base.card_style === "price_pill") base.catalog_controls = true;
+  if (base.card_style === "price_pill") {
+    base.catalog_controls = true;
+    // And a search field: this store's header has search switched off, so
+    // without this the only way to look for a perfume by name is to scroll
+    // the whole catalogue. The /search page exists but nothing links to it.
+    base.catalog_search = true;
+  }
 
   const section: SectionInstance = {
     id: CATALOG_SECTION_ID,

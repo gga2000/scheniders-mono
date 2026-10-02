@@ -42,9 +42,10 @@ const categoryProductIds = {
   gift: ["p4"],
 };
 
-function mount(pageSize = 12) {
+function mount(pageSize = 12, showSearch = false) {
   return render(
     <CatalogGrid
+      showSearch={showSearch}
       // Cards arrive rendered, exactly as a server component hands them over.
       items={products.map((p) => ({
         product: p,
@@ -194,5 +195,102 @@ describe("CatalogGrid", () => {
     const { container } = mount(12);
     expect(container.querySelector("[data-shown-of]")).toBeNull();
     expect(container.querySelector("[data-load-more]")).toBeNull();
+  });
+});
+
+describe("CatalogGrid — search", () => {
+  const box = (root: HTMLElement): HTMLInputElement => {
+    const el = root.querySelector("[data-catalog-search]");
+    if (!el) throw new Error("no search field");
+    return el as HTMLInputElement;
+  };
+  const type = (root: HTMLElement, value: string) =>
+    fireEvent.change(box(root), { target: { value } });
+
+  it("is absent unless asked for", () => {
+    const { container } = mount(12);
+    expect(container.querySelector("[data-catalog-search]")).toBeNull();
+  });
+
+  it("narrows the grid to the matching products", () => {
+    const { container } = render(
+      <CatalogGrid
+        showSearch
+        items={[
+          { product: { id: "a", name: "عود أزرق", price: 20000, stock_quantity: 5, reserved_quantity: 0 } as Product, card: <div data-card="a" /> },
+          { product: { id: "b", name: "مسك أبيض", price: 30000, stock_quantity: 5, reserved_quantity: 0 } as Product, card: <div data-card="b" /> },
+        ]}
+        categories={[]}
+        locale={"ar" as never}
+      />,
+    );
+    expect(cards(container)).toEqual(["a", "b"]);
+    // Typed without the hamza the merchant used — this is the case a plain
+    // substring match fails.
+    type(container, "ازرق");
+    expect(cards(container)).toEqual(["a"]);
+  });
+
+  it("makes the count agree with the grid", () => {
+    const { container } = mount(12, true);
+    // "p" matches all five; "p3" matches one. Both counts are read off the
+    // same line the shopper reads, and both must match what the grid yields.
+    type(container, "p");
+    expect(cards(container)).toHaveLength(5);
+    expect(
+      container.querySelector("[data-result-count]")?.textContent ?? "",
+    ).toContain("5");
+    type(container, "p3");
+    expect(cards(container)).toEqual(["p3"]);
+    // One result reads as the Arabic singular, with no digit in it at all.
+    expect(container.querySelector("[data-result-count]")?.textContent).toBe(
+      "عطر واحد",
+    );
+  });
+
+  it("drops a chip whose category no longer has a match", () => {
+    const { container } = mount(12, true);
+    // "gift" holds only p4, so searching for p1 must remove that chip rather
+    // than leave it offering an empty view.
+    type(container, "p1");
+    expect(container.textContent).not.toContain("هدية");
+  });
+
+  it("starts paging over when the query changes", () => {
+    const { container } = mount(2, true);
+    expect(cards(container)).toHaveLength(2);
+    press(container.querySelector("[data-load-more]"));
+    expect(cards(container)).toHaveLength(4);
+    // A new query must show page one of its own results, not page two.
+    type(container, "p");
+    expect(cards(container)).toHaveLength(2);
+  });
+
+  it("writes the query into the URL and reads it back on mount", () => {
+    const { container, unmount } = mount(12, true);
+    type(container, "p3");
+    expect(window.location.search).toContain("q=p3");
+    unmount();
+    cleanup();
+    const second = mount(12, true);
+    expect(box(second.container).value).toBe("p3");
+    expect(cards(second.container)).toEqual(["p3"]);
+  });
+
+  it("clears the query, the URL and the filtered view together", () => {
+    const { container } = mount(12, true);
+    type(container, "p3");
+    press(container.querySelector("[data-catalog-search-clear]"));
+    expect(box(container).value).toBe("");
+    expect(window.location.search).not.toContain("q=");
+    expect(cards(container)).toHaveLength(products.length);
+  });
+
+  it("says the word missed, not that the filter did", () => {
+    const { container } = mount(12, true);
+    type(container, "zzzz");
+    expect(cards(container)).toEqual([]);
+    expect(container.textContent).toContain("ما لكينا عطر بهذا الاسم");
+    expect(container.textContent).not.toContain("ما لكينا عطور بهذا الفلتر");
   });
 });
