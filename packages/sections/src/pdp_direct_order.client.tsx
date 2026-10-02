@@ -54,7 +54,12 @@ import {
 } from "./helpers/primitives";
 import { useStoreBase } from "./helpers/store-context";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
-import { formatCount, formatPrice } from "./helpers/format";
+import {
+  formatCount,
+  formatPrice,
+  discountPercent,
+  formatPercent,
+} from "./helpers/format";
 import { isOptimizableImageHost } from "./helpers/image";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./pdp_direct_order";
@@ -345,10 +350,11 @@ export function PdpDirectOrderRender({
 
   const compareAt = product.compare_at_price;
   const onSale = compareAt != null && compareAt > price;
-  const discountPct =
-    compareAt != null && onSale
-      ? Math.round(((compareAt - price) / compareAt) * 100)
-      : 0;
+  // The shared helper, not a second implementation of the same sum. This
+  // computed the percentage inline and so could disagree with the cards and
+  // the hero badge, and it lacked their guard against a zero price — which
+  // would have read as 100% off rather than no discount at all.
+  const discountPct = discountPercent(price, compareAt);
   const stockLeft =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
   const oos = stockLeft <= 0;
@@ -871,12 +877,26 @@ export function PdpDirectOrderRender({
                 </span>
                 <span
                   className="font-display font-black text-3xl tabular-nums"
-                  style={{ color: "var(--bk-primary, #ff5a8a)" }}
+                  style={{
+                    // Green means "this is what you pay", exactly as on the
+                    // product cards. The same number was yellow here and
+                    // green there, so a shopper arriving from a card met it
+                    // in a different colour.
+                    color: onSale
+                      ? "color-mix(in srgb, var(--bk-success, #3ecf8e) 38%, var(--bk-ink, #1a1a1a))"
+                      : "var(--bk-ink, #1a1a1a)",
+                  }}
                 >
                   <bdi>{formatPrice(price, locale)}</bdi>
                 </span>
                 {onSale && product.compare_at_price != null && (
-                  <span className="font-body text-lg text-bk-ink-soft line-through tabular-nums">
+                  <span
+                    className="font-body text-lg line-through tabular-nums"
+                    style={{
+                      color:
+                        "color-mix(in srgb, var(--bk-danger, #e2574c) 65%, var(--bk-ink, #1a1a1a))",
+                    }}
+                  >
                     <bdi>{formatPrice(product.compare_at_price, locale)}</bdi>
                   </span>
                 )}
@@ -889,7 +909,9 @@ export function PdpDirectOrderRender({
                       borderRadius: "var(--bk-radius-pill, 9999px)",
                     }}
                   >
-                    {`-${discountPct}%`}
+                    {/* formatPercent owns the locale's sign, so the PDP
+                        reads "٢٣٪" like every card rather than "-23%". */}
+                    <bdi>{formatPercent(discountPct ?? 0, locale)}</bdi>
                   </span>
                 )}
               </div>
