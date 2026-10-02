@@ -34,11 +34,17 @@ const schema = z.object({
 
 type Props = z.infer<typeof schema>;
 
+/**
+ * Defaults must never assert a merchant fact — see trust_strip for the full
+ * reasoning. "Free delivery in Baghdad" is a price the per-governorate
+ * shipping engine decides, and "Same-day shipping" a speed this package
+ * cannot know. A marquee repeats its messages endlessly, which makes a
+ * false one louder than anywhere else on the page.
+ */
 const defaultProps: Props = {
   messages_i18n: [
-    { en: "Free delivery in Baghdad", ar: "توصيل مجاني في بغداد" },
     { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
-    { en: "Same-day shipping", ar: "شحن بنفس اليوم" },
+    { en: "Delivery across Iraq", ar: "توصيل لكل المحافظات" },
   ],
   bg: "butter",
   speed: "normal",
