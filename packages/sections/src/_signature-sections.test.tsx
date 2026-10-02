@@ -733,9 +733,21 @@ describe("trust_badge_row — proof ledge", () => {
   });
 
   it("leaves a plain badge row untouched when no item declares a metric", () => {
-    const html = render(trust_badge_row, trust_badge_row.defaultProps, { public_stats: stats });
+    // Its own fixture, not defaultProps: the behaviour under test is "no
+    // metric declared -> nothing derived gets injected", which must hold for
+    // any label. Reading it off the defaults coupled this to whatever claim
+    // the defaults happened to carry.
+    const plainProps = {
+      band_style: "plain" as const,
+      items: [
+        { icon_url: "", label_i18n: { en: "Gift wrapping", ar: "تغليف هدايا" } },
+        { icon_url: "", label_i18n: { en: "Cash on delivery", ar: "الدفع عند الاستلام" } },
+      ],
+    };
+    const html = render(trust_badge_row, plainProps, { public_stats: stats });
     expect(html).not.toContain("+2600");
-    expect(html).toContain("توصيل سريع");
+    expect(html).toContain("تغليف هدايا");
+    expect(slotCount(html)).toBe(2);
   });
 
   it("keeps `metric` out of defaultProps so old configs still parse", () => {
