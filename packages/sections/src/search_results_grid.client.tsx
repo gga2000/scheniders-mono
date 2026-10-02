@@ -28,6 +28,7 @@ import { formatCount } from "./helpers/format";
 import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
+import { filterByQuery } from "./helpers/product-search";
 import type { Props } from "./search_results_grid";
 
 const STRINGS = {
@@ -49,22 +50,17 @@ const INK_BORDER =
   "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
 
 /**
- * Server-safe product search: every token of `query` must appear in the
- * product's name, SKU or description (case-insensitive). An empty query
- * returns the full list unchanged.
+ * Server-safe product search. Delegates to the shared matcher so this page
+ * and the catalogue's own search box answer a query identically — and so
+ * both get the Arabic normalization a bare `includes` lacks: this used to
+ * fold case only, which meant "الاكثر" found nothing on a store whose
+ * products are named "الأكثر".
  */
 export function filterProductsByQuery(
   products: Product[],
   query: string,
 ): Product[] {
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return products;
-  return products.filter((p) => {
-    const hay = [p.name, p.sku ?? "", p.description ?? ""]
-      .join(" ")
-      .toLowerCase();
-    return tokens.every((tok) => hay.includes(tok));
-  });
+  return filterByQuery(products, query);
 }
 
 function resultsLine(count: number, query: string, locale: LocaleCode): string {
