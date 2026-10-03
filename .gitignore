@@ -68,3 +68,6 @@ snap*.yml
 
 # local scratch (graph dumps, audit snapshots, suggestions)
 tmp/
+
+# Screenshots dropped at the repo root by browser automation. Scratch, not source.
+/*.png
