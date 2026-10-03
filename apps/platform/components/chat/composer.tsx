@@ -510,47 +510,61 @@ export function Composer({
         // Capture replyToId before clearing it
         const currentReplyToId = replyToId;
 
-        setIsUploading(true);
+        // Attachments must finish uploading before the message can reference them,
+        // so that part genuinely blocks. Text-only sends skip straight through.
         let uploaded: ChatAttachment[] = [];
-        try {
-            uploaded = await uploadAll();
-            // Await the send so a failure is observable here — only THEN clear the
-            // composer. Previously this was fire-and-forget, so a failed send wiped
-            // the user's text + attachments with no feedback.
-            await onSend({
-                body: text,
-                references: refs,
-                mentions,
-                attachments: uploaded,
-                clientMsgId: crypto.randomUUID(),
-                replyToId: currentReplyToId,
-            });
-            // Success: clear previews before dropping the list (effect cleanup also guards).
-            for (const pf of pendingFiles) {
-                if (pf.previewUrl) URL.revokeObjectURL(pf.previewUrl);
+        if (pendingFiles.length > 0) {
+            setIsUploading(true);
+            try {
+                uploaded = await uploadAll();
+            } catch {
+                if (uploaded.length > 0) {
+                    void supabase.storage.from("chat-attachments").remove(uploaded.map((a) => a.storage_path));
+                }
+                toast.error(t("chat.sendFailed", "Couldn't send your message. Try again."));
+                setIsUploading(false);
+                return;
             }
-            setBody("");
-            setRefs([]);
-            setMentions([]);
-            setPendingFiles([]);
-            setRefQuery(null);
-            setMentionQuery(null);
-            setSlashQuery(null);
-            setReplyTo(null);
-            // Clear the persisted draft on successful send
-            clearDraft(conversationId);
-            // Cancel any pending draft write
-            if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
-        } catch {
-            // Roll back orphaned storage objects from this failed attempt and keep the
-            // user's input so they can retry.
+            setIsUploading(false);
+        }
+
+        // Do NOT await the send. The message is already in the timeline as an
+        // optimistic row, and a failed send leaves that row marked failed with a
+        // Retry affordance — so blocking here bought nothing and cost everything:
+        // the composer stayed disabled with the text still in it for the whole
+        // server round-trip, showing the same message twice and making it
+        // impossible to type the next line. Clear immediately instead.
+        const send = onSend({
+            body: text,
+            references: refs,
+            mentions,
+            attachments: uploaded,
+            clientMsgId: crypto.randomUUID(),
+            replyToId: currentReplyToId,
+        });
+
+        for (const pf of pendingFiles) {
+            if (pf.previewUrl) URL.revokeObjectURL(pf.previewUrl);
+        }
+        setBody("");
+        setRefs([]);
+        setMentions([]);
+        setPendingFiles([]);
+        setRefQuery(null);
+        setMentionQuery(null);
+        setSlashQuery(null);
+        setReplyTo(null);
+        clearDraft(conversationId);
+        if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+
+        // Surface a failure without holding the composer hostage: the optimistic
+        // row carries the Retry affordance, this is just the announcement.
+        void Promise.resolve(send).catch(() => {
             if (uploaded.length > 0) {
                 void supabase.storage.from("chat-attachments").remove(uploaded.map((a) => a.storage_path));
             }
             toast.error(t("chat.sendFailed", "Couldn't send your message. Try again."));
-        } finally {
-            setIsUploading(false);
-        }
+        });
     };
 
     const showRefDropdown = refQuery !== null && refResults.length > 0;

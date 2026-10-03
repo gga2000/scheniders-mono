@@ -11,6 +11,8 @@ import { ConversationSettingsDialog } from "./conversation-settings-dialog";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { CreateGroupDialog } from "./create-group-dialog";
 import { usePresenceStore } from "@/store/use-presence-store";
+import { channelIcon } from "@/lib/chat/channel-icons";
+import { useTenantBrand } from "@/hooks/chat/use-tenant-brand";
 import { useConversations, useArchivedConversations, useStartDm } from "@/hooks/chat/use-conversations";
 import { useMarkAllRead } from "@/hooks/chat/use-mark-all-read";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
@@ -33,6 +35,14 @@ import type { PipelineStageId } from "@/lib/order-pipeline";
 
 type SectionIcon = typeof Hash;
 
+/**
+ * The tenant's default channel, seeded as "general" by chat_add_member_to_general.
+ * It stands in for the whole workspace, so it gets the store's logo rather than a glyph.
+ */
+function isWorkspaceChannel(c: ConversationWithMeta): boolean {
+    return c.kind === "channel" && c.name === "general" && !c.icon;
+}
+
 function Section({
     title,
     icon: Icon,
@@ -41,6 +51,8 @@ function Section({
     currentUserId,
     onSelect,
     nameFor,
+    peerFor,
+    brandLogoUrl,
     onOpenSettings,
 }: {
     title: string;
@@ -50,8 +62,18 @@ function Section({
     currentUserId: string | undefined;
     onSelect: (id: string) => void;
     nameFor: (c: ConversationWithMeta) => string;
+    /**
+     * The other person in a 1:1 DM, so the row can show their face. Returns null
+     * for channels and groups (no single counterpart). Without this, DM rows were
+     * the only place in the panel showing a bare name — the Team members
+     * directory right below them rendered the same people WITH their avatars.
+     */
+    peerFor?: (c: ConversationWithMeta) => TenantMember | null;
+    /** Store logo, shown on the workspace channel so it reads as the store's own room. */
+    brandLogoUrl?: string | null;
     onOpenSettings: (conversationId: string) => void;
 }) {
+    const statuses = usePresenceStore((s) => s.statuses);
     if (items.length === 0) return null;
     return (
         <div className="px-2 pb-2 pt-1">
@@ -79,10 +101,42 @@ function Section({
                             <button
                                 type="button"
                                 onClick={() => onSelect(c.id)}
-                                className="min-w-0 flex-1 truncate text-left active:scale-[0.99]"
+                                className="flex min-w-0 flex-1 items-center gap-2 text-left active:scale-[0.99]"
                             >
-                                {c.kind === "channel" ? <span className="text-muted-foreground"># </span> : null}
-                                {nameFor(c)}
+                                {(() => {
+                                    const peer = peerFor?.(c) ?? null;
+                                    if (peer) {
+                                        return (
+                                            <ChatAvatar
+                                                userId={peer.user_id}
+                                                name={peer.display_name}
+                                                avatarUrl={peer.avatar_url}
+                                                size="sm"
+                                                status={statuses[peer.user_id] ?? "offline"}
+                                                showStatus
+                                            />
+                                        );
+                                    }
+                                    if (c.kind !== "channel") return null;
+                                    // The default workspace channel wears the store's logo;
+                                    // every other channel wears its chosen glyph.
+                                    if (isWorkspaceChannel(c) && brandLogoUrl) {
+                                        return (
+                                            <img
+                                                src={brandLogoUrl}
+                                                alt=""
+                                                className="h-6 w-6 shrink-0 rounded-md object-cover ring-1 ring-(--card-border)"
+                                            />
+                                        );
+                                    }
+                                    const Glyph = channelIcon(c.icon);
+                                    return (
+                                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-foreground/6 text-muted-foreground">
+                                            <Glyph className="h-3.5 w-3.5" />
+                                        </span>
+                                    );
+                                })()}
+                                <span className="min-w-0 flex-1 truncate">{nameFor(c)}</span>
                             </button>
                             {c.my_muted && (
                                 <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Muted" />
@@ -137,7 +191,6 @@ function OrderSection({
     const { t } = useLanguage();
     const [statusFilter, setStatusFilter] = useState<OrderSubFilter>("all");
     const [minValue, setMinValue] = useState("");
-    const [unresolvedOnly, setUnresolvedOnly] = useState(false);
 
     // Derive which statuses actually appear in this conversation set so we only
     // show relevant chips (skip statuses with 0 matching rows).
@@ -158,7 +211,6 @@ function OrderSection({
     const filteredItems = useMemo(() => {
         if (!showSubFilter) return items;
         return items.filter((c) => {
-            if (unresolvedOnly && c.resolved_at !== null) return false;
             if (!c.order_id) return statusFilter === "all" && (minNum === null || !minValueValid);
             const order = orderMap.get(c.order_id);
             if (!order) return statusFilter === "all"; // not loaded → pass status filter only
@@ -169,7 +221,7 @@ function OrderSection({
             if (minNum !== null && minValueValid && order.price !== null && order.price < minNum) return false;
             return true;
         });
-    }, [items, showSubFilter, statusFilter, minNum, minValueValid, orderMap, unresolvedOnly]);
+    }, [items, showSubFilter, statusFilter, minNum, minValueValid, orderMap]);
 
     if (filteredItems.length === 0 && !showSubFilter) return null;
 
@@ -226,21 +278,6 @@ function OrderSection({
                             placeholder={t("chat.orderMinValue", "Min IQD")}
                             className="w-full rounded-md border border-(--card-border) bg-(--card-bg) px-2.5 py-1 text-[11px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-(--ink)/30"
                         />
-                    </div>
-                    {/* Unresolved-only toggle */}
-                    <div className="px-1">
-                        <button
-                            type="button"
-                            onClick={() => setUnresolvedOnly((v) => !v)}
-                            className={`flex w-full items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                                unresolvedOnly
-                                    ? "bg-[color-mix(in_srgb,var(--ink)_12%,transparent)] text-foreground"
-                                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                            }`}
-                        >
-                            <CheckCircle className="h-3 w-3 shrink-0" />
-                            {t("chat.unresolvedOnly", "Unresolved only")}
-                        </button>
                     </div>
                 </div>
             )}
@@ -371,6 +408,7 @@ const FILTER_CHIPS: { key: ConvFilter; labelKey: string; fallback: string }[] = 
     { key: "channels", labelKey: "chat.filter.channels", fallback: "Channels" },
     { key: "direct",   labelKey: "chat.filter.direct",   fallback: "Direct" },
     { key: "orders",   labelKey: "chat.filter.orders",   fallback: "Orders" },
+    { key: "resolved", labelKey: "chat.filter.resolved", fallback: "Resolved" },
     { key: "archived", labelKey: "chat.filter.archived", fallback: "Archived" },
 ];
 
@@ -392,6 +430,7 @@ export function ConversationList() {
 
     const markAllRead = useMarkAllRead();
     const push = useWebPush();
+    const brand = useTenantBrand();
 
     const directLabel = t("chat.directMessage", "Direct message");
 
@@ -452,6 +491,16 @@ export function ConversationList() {
         () => members.filter((m) => m.user_id !== user?.id && !dmUserIds.has(m.user_id)),
         [members, user?.id, dmUserIds]
     );
+
+    /**
+     * The teammate on the other side of a 1:1 DM. Groups and channels have no
+     * single counterpart, so they get no avatar.
+     */
+    const peerFor = (c: ConversationWithMeta): TenantMember | null => {
+        if (c.kind !== "dm") return null;
+        const other = c.members.find((m) => m.user_id !== user?.id);
+        return (other && memberMap.get(other.user_id)) ?? null;
+    };
 
     const nameFor = (c: ConversationWithMeta): string => {
         if (c.kind === "channel") return c.name ?? "";
@@ -675,6 +724,7 @@ export function ConversationList() {
                             currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
+                            brandLogoUrl={brand.logoUrl}
                             onOpenSettings={openSettings}
                         />
                         <Section
@@ -685,6 +735,7 @@ export function ConversationList() {
                             currentUserId={user?.id}
                             onSelect={setActiveConversation}
                             nameFor={nameFor}
+                            peerFor={peerFor}
                             onOpenSettings={openSettings}
                         />
                         <OrderSection

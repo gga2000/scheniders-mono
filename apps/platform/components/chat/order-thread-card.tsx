@@ -1,8 +1,9 @@
 // apps/platform/components/chat/order-thread-card.tsx
 "use client";
+import { useMemo } from "react";
 import type { LinkedOrder } from "@/hooks/use-orders-by-id-query";
 import type { OrderStatus } from "@/types/order";
-import { Phone } from "lucide-react";
+import { Lock, Phone } from "lucide-react";
 import { useOrderForConversation } from "@/hooks/chat/use-order-actions";
 import { useConversations } from "@/hooks/chat/use-conversations";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -14,9 +15,56 @@ import type { PipelineStageId } from "@/lib/order-pipeline";
 import { OrderActionBar } from "./order-action-bar";
 import { usePresence } from "@/hooks/use-presence";
 import { ChatAvatar } from "./chat-avatar";
+import { useAuth } from "@/hooks/use-auth";
+import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { useChatStore } from "@/store/use-chat-store";
 
 interface OrderThreadCardProps {
     conversationId: string;
+}
+
+/**
+ * "Visible to X, Y +2 · Add people" strip.
+ *
+ * Order threads are private to their members, which is the right default — an
+ * order problem is not everyone's business — but an invisible default is a trap:
+ * people posted into a thread nobody else belonged to and assumed it had been
+ * seen. Naming the audience makes the privacy legible, and the Add control turns
+ * "who else should see this?" into one click instead of a guess.
+ */
+function ThreadAudience({ conversationId, memberIds }: { conversationId: string; memberIds: string[] }) {
+    const { t } = useLanguage();
+    const { user } = useAuth();
+    const { data: members = [] } = useTenantMembers();
+    const openSettings = useChatStore((s) => s.openSettings);
+
+    const names = memberIds
+        .filter((id) => id !== user?.id)
+        .map((id) => members.find((m) => m.user_id === id)?.display_name)
+        .filter((n): n is string => !!n);
+
+    const shown = names.slice(0, 2).join(", ");
+    const extra = names.length - Math.min(names.length, 2);
+
+    return (
+        <div className="flex items-center gap-1.5 px-4 pb-2 text-[10px] text-muted-foreground">
+            <Lock className="h-3 w-3 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+                {names.length === 0
+                    ? t("chat.audienceOnlyYou", "Only you can see this thread")
+                    : t("chat.audience", "Visible to you, {names}", {
+                          names: extra > 0 ? `${shown} +${extra}` : shown,
+                      })}
+            </span>
+            <button
+                type="button"
+                onClick={() => openSettings(conversationId)}
+                className="shrink-0 rounded-md px-1.5 py-0.5 font-semibold text-foreground/70 transition-colors hover:bg-foreground/8 hover:text-foreground"
+            >
+                {t("chat.addPeople", "Add people")}
+            </button>
+        </div>
+    );
 }
 
 /**
@@ -31,6 +79,8 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
 
     const conv = conversations.find((c) => c.id === conversationId);
     const convName = conv?.name ?? t("chat.orderThread", "Order thread");
+
+    const memberIds = useMemo(() => (conv?.members ?? []).map((m) => m.user_id), [conv]);
 
     // F1: per-resource presence on the order — uses the existing usePresence hook
     // (a separate channel keyed by orderId). Only active while this card is mounted,
@@ -123,6 +173,12 @@ export function OrderThreadCard({ conversationId }: OrderThreadCardProps) {
                     )}
                 </div>
             )}
+
+            {/* Who can actually read this thread. An order thread is private to its
+                members — whoever opened it, the assigned agent, and anyone @mentioned
+                (mentioning adds them). That was invisible before, so people wrote
+                comments assuming the team would see them and nobody did. */}
+            <ThreadAudience conversationId={conversationId} memberIds={memberIds} />
 
             {/* Action bar: status / assign / resolve */}
             <OrderActionBar order={order} conversation={conv} />
