@@ -43,58 +43,6 @@ function render(props: Props, ctx: Partial<SectionRenderContext> = {}): string {
 const cards = faq_contact_split.defaultProps;
 const ledger: Props = { ...cards, layout: "ledger" };
 
-/** The one <script type="application/ld+json"> the section emits. */
-function jsonLd(html: string): unknown {
-  const m = html.match(
-    /<script type="application\/ld\+json">(.*?)<\/script>/s,
-  );
-  expect(m, "no ld+json block in the markup").not.toBeNull();
-  return JSON.parse(m![1]);
-}
-
-describe("faq_contact_split — FAQPage structured data", () => {
-  it("describes every row as a Question with its answer, in the rendered locale", () => {
-    const data = jsonLd(render(cards)) as {
-      "@type": string;
-      mainEntity: { "@type": string; name: string; acceptedAnswer: { text: string } }[];
-    };
-    expect(data["@type"]).toBe("FAQPage");
-    expect(data.mainEntity).toHaveLength(cards.items.length);
-    for (const [i, item] of cards.items.entries()) {
-      expect(data.mainEntity[i]["@type"]).toBe("Question");
-      // ar, because the runtime locale is ar — not the English fallback.
-      expect(data.mainEntity[i].name).toBe(item.q_i18n.ar);
-      expect(data.mainEntity[i].acceptedAnswer.text).toBe(item.a_i18n.ar);
-    }
-  });
-
-  it("escapes a closing script tag inside merchant copy", () => {
-    const hostile: Props = {
-      ...cards,
-      items: [
-        {
-          q_i18n: { en: "q", ar: "سؤال</script><script>alert(1)</script>" },
-          a_i18n: { en: "a", ar: "جواب" },
-        },
-      ],
-    };
-    const html = render(hostile);
-    // The injected tag never reaches the markup as a tag…
-    expect(html).not.toContain("<script>alert(1)</script>");
-    expect(html).toContain("\\u003c/script");
-    // …and the escaped form still parses back to the original string.
-    const data = jsonLd(html) as { mainEntity: { name: string }[] };
-    expect(data.mainEntity[0].name).toBe(
-      "سؤال</script><script>alert(1)</script>",
-    );
-  });
-
-  it("emits the data for the ledger layout too", () => {
-    expect((jsonLd(render(ledger)) as { mainEntity: unknown[] }).mainEntity)
-      .toHaveLength(ledger.items.length);
-  });
-});
-
 describe("faq_contact_split — ledger layout", () => {
   it("treats an absent layout as cards", () => {
     // Only says the default maps to the cards branch. It cannot guard the

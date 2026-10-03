@@ -126,28 +126,6 @@ const CARD_SHADOW =
 /** The ledger's rule: ink at low opacity, so it tracks the brand kit. */
 const HAIRLINE = "color-mix(in srgb, var(--bk-ink, #1a1a1a) 12%, transparent)";
 
-/**
- * schema.org FAQPage for the resolved locale. The rows were already in the
- * DOM when closed, but markup alone is not structured data — a crawler has
- * to be told that these pairs are questions and answers. Emitted for both
- * layouts, so every existing config gains it without a config change.
- *
- * `<` is escaped to `\u003c` because the questions and answers are merchant
- * copy: a stray `</script>` inside them would otherwise end this block.
- */
-function faqJsonLd(
-  items: { question: string; answer: string }[],
-): string {
-  return JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: items.map(({ question, answer }) => ({
-      "@type": "Question",
-      name: question,
-      acceptedAnswer: { "@type": "Answer", text: answer },
-    })),
-  }).replace(/</g, "\\u003c");
-}
 
 function FaqContactSplit({
   props,
@@ -187,11 +165,6 @@ function FaqContactSplit({
 
   return (
     <Section>
-      <script
-        type="application/ld+json"
-        // Serialized above with `<` escaped; nothing here is user input.
-        dangerouslySetInnerHTML={{ __html: faqJsonLd(rows) }}
-      />
       <CenteredSectionHeader
         eyebrow={
           eyebrow ? (
