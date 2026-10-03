@@ -1,0 +1,8 @@
+-- PERF-1 Stage 1 — server-side aggregates for the orders page (superseded body).
+--
+-- First cut used a TEMP TABLE, which Postgres rejects inside a STABLE function
+-- ("CREATE TABLE AS is not allowed in a non-volatile function"). Superseded
+-- immediately by 20260826131324, which does the same work with CTEs and keeps
+-- the function STABLE. Kept as a file so the repo matches the applied history.
+--
+-- The working definition lives in 20260826131324_get_orders_aggregates_cte.sql.

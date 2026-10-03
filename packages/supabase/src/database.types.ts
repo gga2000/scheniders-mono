@@ -1372,87 +1372,6 @@ export type Database = {
           },
         ]
       }
-      chat_notifications: {
-        Row: {
-          actor_avatar: string | null
-          actor_id: string | null
-          actor_name: string
-          conversation_id: string | null
-          created_at: string
-          id: string
-          is_mention: boolean
-          is_read: boolean
-          message_id: string | null
-          preview: string
-          recipient_id: string
-          tenant_id: string
-        }
-        Insert: {
-          actor_avatar?: string | null
-          actor_id?: string | null
-          actor_name: string
-          conversation_id?: string | null
-          created_at?: string
-          id?: string
-          is_mention?: boolean
-          is_read?: boolean
-          message_id?: string | null
-          preview?: string
-          recipient_id: string
-          tenant_id: string
-        }
-        Update: {
-          actor_avatar?: string | null
-          actor_id?: string | null
-          actor_name?: string
-          conversation_id?: string | null
-          created_at?: string
-          id?: string
-          is_mention?: boolean
-          is_read?: boolean
-          message_id?: string | null
-          preview?: string
-          recipient_id?: string
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_notifications_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_notifications_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "chat_conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_notifications_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "chat_messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_notifications_recipient_id_fkey"
-            columns: ["recipient_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_notifications_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       chat_pins: {
         Row: {
           conversation_id: string
@@ -2853,6 +2772,336 @@ export type Database = {
           },
         ]
       }
+      iraq_district_areas: {
+        Row: {
+          area_ar: string
+          area_key: string | null
+          confidence: string
+          created_at: string
+          district_id: number
+          id: number
+          source: string
+        }
+        Insert: {
+          area_ar: string
+          area_key?: string | null
+          confidence?: string
+          created_at?: string
+          district_id: number
+          id?: never
+          source: string
+        }
+        Update: {
+          area_ar?: string
+          area_key?: string | null
+          confidence?: string
+          created_at?: string
+          district_id?: number
+          id?: never
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iraq_district_areas_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "iraq_districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iraq_districts: {
+        Row: {
+          confidence: string
+          created_at: string
+          governorate_code: string
+          id: number
+          kind: string
+          name_ar: string
+          name_search: string | null
+          source: string
+        }
+        Insert: {
+          confidence?: string
+          created_at?: string
+          governorate_code: string
+          id?: never
+          kind: string
+          name_ar: string
+          name_search?: string | null
+          source: string
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          governorate_code?: string
+          id?: never
+          kind?: string
+          name_ar?: string
+          name_search?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iraq_districts_governorate_code_fkey"
+            columns: ["governorate_code"]
+            isOneToOne: false
+            referencedRelation: "iraq_governorates"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      iraq_governorates: {
+        Row: {
+          code: string
+          created_at: string
+          name_ar: string
+          name_en: string
+          postal_prefix: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          name_ar: string
+          name_en: string
+          postal_prefix?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          name_ar?: string
+          name_en?: string
+          postal_prefix?: number | null
+        }
+        Relationships: []
+      }
+      iraq_location_aliases: {
+        Row: {
+          alias_ar: string
+          alias_key: string | null
+          alias_search: string | null
+          created_at: string
+          id: number
+          location_id: number
+          source: string
+        }
+        Insert: {
+          alias_ar: string
+          alias_key?: string | null
+          alias_search?: string | null
+          created_at?: string
+          id?: never
+          location_id: number
+          source: string
+        }
+        Update: {
+          alias_ar?: string
+          alias_key?: string | null
+          alias_search?: string | null
+          created_at?: string
+          id?: never
+          location_id?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iraq_location_aliases_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "iraq_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iraq_location_carrier_refs: {
+        Row: {
+          carrier: string
+          created_at: string
+          external_id: string
+          external_name: string | null
+          is_preferred: boolean
+          location_id: number
+        }
+        Insert: {
+          carrier: string
+          created_at?: string
+          external_id: string
+          external_name?: string | null
+          is_preferred?: boolean
+          location_id: number
+        }
+        Update: {
+          carrier?: string
+          created_at?: string
+          external_id?: string
+          external_name?: string | null
+          is_preferred?: boolean
+          location_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iraq_location_carrier_refs_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "iraq_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iraq_location_reviews: {
+        Row: {
+          a_location_id: number
+          b_location_id: number
+          created_at: string
+          reason: string
+          resolution: string | null
+          resolved: boolean
+          similarity: number | null
+        }
+        Insert: {
+          a_location_id: number
+          b_location_id: number
+          created_at?: string
+          reason: string
+          resolution?: string | null
+          resolved?: boolean
+          similarity?: number | null
+        }
+        Update: {
+          a_location_id?: number
+          b_location_id?: number
+          created_at?: string
+          reason?: string
+          resolution?: string | null
+          resolved?: boolean
+          similarity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iraq_location_reviews_a_location_id_fkey"
+            columns: ["a_location_id"]
+            isOneToOne: false
+            referencedRelation: "iraq_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iraq_location_reviews_b_location_id_fkey"
+            columns: ["b_location_id"]
+            isOneToOne: false
+            referencedRelation: "iraq_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iraq_locations: {
+        Row: {
+          created_at: string
+          district_id: number | null
+          district_is_manual: boolean
+          district_source: string
+          governorate_code: string
+          id: number
+          is_active: boolean
+          is_serviceable: boolean
+          name_ar: string
+          name_key: string | null
+          name_search: string | null
+          place_kind: string
+          postal_code: number | null
+          review_reason: string | null
+          review_status: string
+          service_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          district_id?: number | null
+          district_is_manual?: boolean
+          district_source?: string
+          governorate_code: string
+          id?: never
+          is_active?: boolean
+          is_serviceable?: boolean
+          name_ar: string
+          name_key?: string | null
+          name_search?: string | null
+          place_kind?: string
+          postal_code?: number | null
+          review_reason?: string | null
+          review_status?: string
+          service_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          district_id?: number | null
+          district_is_manual?: boolean
+          district_source?: string
+          governorate_code?: string
+          id?: never
+          is_active?: boolean
+          is_serviceable?: boolean
+          name_ar?: string
+          name_key?: string | null
+          name_search?: string | null
+          place_kind?: string
+          postal_code?: number | null
+          review_reason?: string | null
+          review_status?: string
+          service_note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iraq_locations_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "iraq_districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iraq_locations_governorate_code_fkey"
+            columns: ["governorate_code"]
+            isOneToOne: false
+            referencedRelation: "iraq_governorates"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "iraq_locations_postal_code_fkey"
+            columns: ["postal_code"]
+            isOneToOne: false
+            referencedRelation: "iraq_postal_codes"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      iraq_postal_codes: {
+        Row: {
+          code: number
+          created_at: string
+          governorate_code: string
+          name_ar: string
+          name_search: string | null
+          source: string
+        }
+        Insert: {
+          code: number
+          created_at?: string
+          governorate_code: string
+          name_ar: string
+          name_search?: string | null
+          source?: string
+        }
+        Update: {
+          code?: number
+          created_at?: string
+          governorate_code?: string
+          name_ar?: string
+          name_search?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       lead_activities: {
         Row: {
           activity_type: Database["public"]["Enums"]["lead_activity_type"]
@@ -3465,6 +3714,7 @@ export type Database = {
         Row: {
           digest_last_sent_at: string | null
           digest_mode: string
+          locale: string
           quiet_end: number
           quiet_hours_enabled: boolean
           quiet_start: number
@@ -3476,6 +3726,7 @@ export type Database = {
         Insert: {
           digest_last_sent_at?: string | null
           digest_mode?: string
+          locale?: string
           quiet_end?: number
           quiet_hours_enabled?: boolean
           quiet_start?: number
@@ -3487,6 +3738,7 @@ export type Database = {
         Update: {
           digest_last_sent_at?: string | null
           digest_mode?: string
+          locale?: string
           quiet_end?: number
           quiet_hours_enabled?: boolean
           quiet_start?: number
@@ -3773,56 +4025,6 @@ export type Database = {
           },
           {
             foreignKeyName: "order_notes_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      order_notifications: {
-        Row: {
-          created_at: string
-          id: string
-          message: string
-          new_status: string | null
-          old_status: string | null
-          order_display_id: string
-          order_id: string | null
-          tenant_id: string
-          type: string
-          user_avatar: string | null
-          user_name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          message: string
-          new_status?: string | null
-          old_status?: string | null
-          order_display_id: string
-          order_id?: string | null
-          tenant_id: string
-          type: string
-          user_avatar?: string | null
-          user_name: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          message?: string
-          new_status?: string | null
-          old_status?: string | null
-          order_display_id?: string
-          order_id?: string | null
-          tenant_id?: string
-          type?: string
-          user_avatar?: string | null
-          user_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_notifications_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -7927,6 +8129,33 @@ export type Database = {
           },
         ]
       }
+      waseet_cities: {
+        Row: {
+          created_at: string
+          governorate_code: string | null
+          id: number
+          is_active: boolean
+          name_ar: string
+          synced_at: string
+        }
+        Insert: {
+          created_at?: string
+          governorate_code?: string | null
+          id: number
+          is_active?: boolean
+          name_ar: string
+          synced_at?: string
+        }
+        Update: {
+          created_at?: string
+          governorate_code?: string | null
+          id?: number
+          is_active?: boolean
+          name_ar?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
       waseet_city_mappings: {
         Row: {
           created_at: string
@@ -7974,6 +8203,322 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      waseet_districts: {
+        Row: {
+          city_id: number
+          id: number
+          name_ar: string
+          name_search: string
+          postal_code: number | null
+          region_count: number
+          source: string
+          synced_at: string
+        }
+        Insert: {
+          city_id: number
+          id?: never
+          name_ar: string
+          name_search: string
+          postal_code?: number | null
+          region_count?: number
+          source: string
+          synced_at?: string
+        }
+        Update: {
+          city_id?: number
+          id?: never
+          name_ar?: string
+          name_search?: string
+          postal_code?: number | null
+          region_count?: number
+          source?: string
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waseet_districts_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_districts_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["city_id"]
+          },
+          {
+            foreignKeyName: "waseet_districts_postal_code_fkey"
+            columns: ["postal_code"]
+            isOneToOne: false
+            referencedRelation: "iraq_postal_codes"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      waseet_gazetteer: {
+        Row: {
+          area_ar: string
+          area_search: string | null
+          confidence: string
+          created_at: string
+          governorate_code: string
+          id: number
+          parent_ar: string
+          parent_kind: string
+          source: string
+        }
+        Insert: {
+          area_ar: string
+          area_search?: string | null
+          confidence?: string
+          created_at?: string
+          governorate_code: string
+          id?: never
+          parent_ar: string
+          parent_kind: string
+          source: string
+        }
+        Update: {
+          area_ar?: string
+          area_search?: string | null
+          confidence?: string
+          created_at?: string
+          governorate_code?: string
+          id?: never
+          parent_ar?: string
+          parent_kind?: string
+          source?: string
+        }
+        Relationships: []
+      }
+      waseet_region_overrides: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          note: string | null
+          parent_ar: string | null
+          parent_kind: string
+          region_id: number
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          note?: string | null
+          parent_ar?: string | null
+          parent_kind: string
+          region_id: number
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          note?: string | null
+          parent_ar?: string | null
+          parent_kind?: string
+          region_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waseet_region_overrides_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: true
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["region_id"]
+          },
+          {
+            foreignKeyName: "waseet_region_overrides_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: true
+            referencedRelation: "waseet_regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      waseet_region_review: {
+        Row: {
+          a_id: number
+          b_id: number
+          city_id: number
+          created_at: string
+          reason: string
+          similarity: number
+        }
+        Insert: {
+          a_id: number
+          b_id: number
+          city_id: number
+          created_at?: string
+          reason?: string
+          similarity: number
+        }
+        Update: {
+          a_id?: number
+          b_id?: number
+          city_id?: number
+          created_at?: string
+          reason?: string
+          similarity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waseet_region_review_a_id_fkey"
+            columns: ["a_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["region_id"]
+          },
+          {
+            foreignKeyName: "waseet_region_review_a_id_fkey"
+            columns: ["a_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_region_review_b_id_fkey"
+            columns: ["b_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["region_id"]
+          },
+          {
+            foreignKeyName: "waseet_region_review_b_id_fkey"
+            columns: ["b_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_region_review_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_region_review_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["city_id"]
+          },
+        ]
+      }
+      waseet_regions: {
+        Row: {
+          canonical_id: number | null
+          city_id: number
+          created_at: string
+          district_id: number | null
+          district_name: string | null
+          id: number
+          is_active: boolean
+          is_suspect: boolean | null
+          municipality_ar: string | null
+          name_ar: string
+          name_clean: string | null
+          name_display: string | null
+          name_key_sorted: string | null
+          name_search: string | null
+          name_search_split: string | null
+          place_kind: string | null
+          postal_code: number | null
+          synced_at: string
+        }
+        Insert: {
+          canonical_id?: number | null
+          city_id: number
+          created_at?: string
+          district_id?: number | null
+          district_name?: string | null
+          id: number
+          is_active?: boolean
+          is_suspect?: boolean | null
+          municipality_ar?: string | null
+          name_ar: string
+          name_clean?: string | null
+          name_display?: string | null
+          name_key_sorted?: string | null
+          name_search?: string | null
+          name_search_split?: string | null
+          place_kind?: string | null
+          postal_code?: number | null
+          synced_at?: string
+        }
+        Update: {
+          canonical_id?: number | null
+          city_id?: number
+          created_at?: string
+          district_id?: number | null
+          district_name?: string | null
+          id?: number
+          is_active?: boolean
+          is_suspect?: boolean | null
+          municipality_ar?: string | null
+          name_ar?: string
+          name_clean?: string | null
+          name_display?: string | null
+          name_key_sorted?: string | null
+          name_search?: string | null
+          name_search_split?: string | null
+          place_kind?: string | null
+          postal_code?: number | null
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waseet_regions_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["region_id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["city_id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["district_id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_postal_code_fkey"
+            columns: ["postal_code"]
+            isOneToOne: false
+            referencedRelation: "iraq_postal_codes"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -8319,6 +8864,50 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      waseet_destinations: {
+        Row: {
+          canonical_id: number | null
+          city_id: number | null
+          city_name: string | null
+          district_id: number | null
+          district_name: string | null
+          district_region_count: number | null
+          district_source: string | null
+          governorate_code: string | null
+          is_canonical: boolean | null
+          is_suspect: boolean | null
+          municipality_ar: string | null
+          place_kind: string | null
+          postal_code: number | null
+          region_id: number | null
+          region_name: string | null
+          region_name_unsplit: string | null
+          region_search: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waseet_regions_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_destinations"
+            referencedColumns: ["region_id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "waseet_regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waseet_regions_postal_code_fkey"
+            columns: ["postal_code"]
+            isOneToOne: false
+            referencedRelation: "iraq_postal_codes"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -8742,6 +9331,21 @@ export type Database = {
         Returns: undefined
       }
       inv_phase: { Args: { p_status: string }; Returns: string }
+      iraq_refresh_location_districts: { Args: never; Returns: number }
+      iraq_resolve_location: {
+        Args: {
+          p_governorate_code: string
+          p_min_similarity?: number
+          p_text: string
+        }
+        Returns: {
+          confidence: string
+          location_id: number
+          location_name: string
+          matched_alias: string
+          score: number
+        }[]
+      }
       is_tenant_admin: { Args: { p_tenant_id: string }; Returns: boolean }
       log_shipping_export: {
         Args: {
@@ -8986,6 +9590,50 @@ export type Database = {
       }
       uuid_generate_v4: { Args: never; Returns: string }
       value_tier_calc: { Args: { p_completed: number }; Returns: string }
+      waseet_apply_overrides: { Args: never; Returns: number }
+      waseet_clean_name: { Args: { p_name: string }; Returns: string }
+      waseet_collapse_repeats: { Args: { p_text: string }; Returns: string }
+      waseet_dedupe_key: { Args: { p_name_key: string }; Returns: string }
+      waseet_district: { Args: { p_name: string }; Returns: string }
+      waseet_kind_of_token: { Args: { p_token: string }; Returns: string }
+      waseet_name_key_sorted: { Args: { p_name: string }; Returns: string }
+      waseet_place_kind: { Args: { p_name: string }; Returns: string }
+      waseet_refresh_all: {
+        Args: never
+        Returns: {
+          districts: number
+          duplicates: number
+          municipalities: number
+          overrides: number
+          postal_codes: number
+          review_pairs: number
+          split_names: number
+        }[]
+      }
+      waseet_refresh_canonical_regions: { Args: never; Returns: number }
+      waseet_refresh_districts: {
+        Args: never
+        Returns: {
+          assigned: number
+          districts: number
+        }[]
+      }
+      waseet_refresh_municipalities: { Args: never; Returns: number }
+      waseet_refresh_postal_codes: {
+        Args: never
+        Returns: {
+          districts_matched: number
+          regions_matched: number
+        }[]
+      }
+      waseet_refresh_region_review: {
+        Args: { p_threshold?: number }
+        Returns: number
+      }
+      waseet_refresh_split_names: { Args: never; Returns: number }
+      waseet_search_key: { Args: { p_name: string }; Returns: string }
+      waseet_sort_tokens: { Args: { p_key: string }; Returns: string }
+      waseet_strip_article: { Args: { p_key: string }; Returns: string }
       zero_oversold: { Args: { p_tenant_id?: string }; Returns: undefined }
     }
     Enums: {
