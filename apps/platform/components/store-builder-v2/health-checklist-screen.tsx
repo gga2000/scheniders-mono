@@ -21,7 +21,7 @@ import type {
     RuleStatus,
     StoreConfigV2,
 } from "@scheniders/shared";
-import { blockingChecks, runHealthChecks } from "@scheniders/shared";
+import { blockingChecks, runHealthChecks } from "@scheniders/shared/health-rules";
 import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";

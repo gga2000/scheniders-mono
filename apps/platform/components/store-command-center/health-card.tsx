@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight, Rocket } from "lucide-react";
-import { runHealthChecks, emptyStoreConfigV2 } from "@scheniders/shared";
+import { emptyStoreConfigV2 } from "@scheniders/shared";
+import { runHealthChecks } from "@scheniders/shared/health-rules";
 import type { LocaleCode, StoreConfigV2, FixAction } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";

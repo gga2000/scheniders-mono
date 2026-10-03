@@ -38,8 +38,8 @@ import {
   EMPTY_BRAND_KIT,
   buildBrandKitFontsUrl,
   buildBrandKitVars,
-  verifyPreviewToken,
 } from "@scheniders/shared";
+import { verifyPreviewToken } from "@scheniders/shared/preview-token";
 import type {
   BrandKit,
   Breakpoint,

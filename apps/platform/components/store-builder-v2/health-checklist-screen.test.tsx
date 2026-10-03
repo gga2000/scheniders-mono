@@ -4,7 +4,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { StoreConfigV2 } from "@scheniders/shared";
-import { emptyStoreConfigV2, runHealthChecks, HEALTH_CHECKS } from "@scheniders/shared";
+import { emptyStoreConfigV2 } from "@scheniders/shared";
+import { runHealthChecks, HEALTH_CHECKS } from "@scheniders/shared/health-rules";
 import { HealthChecklistScreen } from "./health-checklist-screen";
 
 afterEach(() => {

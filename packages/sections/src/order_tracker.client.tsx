@@ -136,6 +136,9 @@ const INK_BORDER =
 const DASHED_DIVIDER =
   "var(--bk-border-thickness, 3px) dashed var(--bk-divider, rgb(26 26 26 / 0.15))";
 
+/** sessionStorage key the lookup form uses to hand over the phone. */
+const TRACK_PHONE_KEY = "sch:track:phone";
+
 export function OrderTrackerRender({
   props,
   ctx,
@@ -155,15 +158,45 @@ export function OrderTrackerRender({
   const [error, setError] = useState<LookupError | null>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
 
-  // Prefill both fields from the URL: the checkout-success page and the
-  // `track_order_lookup` form both hand over `?order=` + `?phone=`.
+  // Prefill from the URL (`?order=`) and from sessionStorage (the phone).
+  //
+  // SEC: the phone is deliberately NOT read from the URL as the primary path.
+  // This page mounts the tenant's ad pixels, and the Meta pixel reports the
+  // full document location in `dl` — so anything in the query string reaches
+  // Meta alongside the visitor's `fbp` cookie, and is written to edge logs.
+  // `track_order_lookup` hands the phone over in sessionStorage instead.
+  //
+  // A legacy `?phone=` is still honoured, because links sent to customers
+  // before this change exist in the wild and should not simply break — but it
+  // is stripped from the address bar immediately so it is not carried into any
+  // onward navigation, and it is never re-emitted.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const orderParam = params.get("order");
-    const phoneParam = params.get("phone");
     if (orderParam) setOrderNumber(orderParam);
-    if (phoneParam) setPhone(phoneParam);
+
+    let stored: string | null = null;
+    try {
+      stored = window.sessionStorage.getItem(TRACK_PHONE_KEY);
+      if (stored) window.sessionStorage.removeItem(TRACK_PHONE_KEY);
+    } catch {
+      // Private browsing — fall through to the legacy param, then the form.
+    }
+
+    const legacy = params.get("phone");
+    if (legacy) {
+      params.delete("phone");
+      const qs = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${qs ? `?${qs}` : ""}`,
+      );
+    }
+
+    const resolved = stored ?? legacy;
+    if (resolved) setPhone(resolved);
   }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -180,11 +213,18 @@ export function OrderTrackerRender({
     setError(null);
     setOrder(null);
     try {
-      const params = new URLSearchParams();
-      params.set("phone", phone);
-      params.set("order_number", orderNumber.trim());
-      params.set("tenant_id", ctx.tenant.id);
-      const res = await fetch(`/api/orders/lookup?${params.toString()}`);
+      // SEC: POST, not GET. A query string carrying the customer's phone is
+      // written to edge access logs and to any referrer sent onward. The body
+      // is not.
+      const res = await fetch("/api/orders/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone,
+          order_number: orderNumber.trim(),
+          tenant_id: ctx.tenant.id,
+        }),
+      });
       if (!res.ok) {
         setError(classify(res.status));
         setStatus("error");

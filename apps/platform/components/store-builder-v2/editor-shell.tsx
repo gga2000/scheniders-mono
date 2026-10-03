@@ -60,9 +60,8 @@ import { EditorModeProvider, type EditorMode } from "@/lib/editor-mode-context";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { PublishConfirmSheet } from "./publish-confirm-sheet";
+import { runHealthChecks, blockingChecks } from "@scheniders/shared/health-rules";
 import {
-    runHealthChecks,
-    blockingChecks,
     activePageSections,
     withActivePageSections,
     withActivePageMeta,

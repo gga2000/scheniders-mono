@@ -9,7 +9,9 @@
     "./utils": "./src/utils.ts",
     "./governorates": "./src/governorates.ts",
     "./types": "./src/types/index.ts",
-    "./iraq-map-paths": "./src/iraq-map-paths.ts"
+    "./iraq-map-paths": "./src/iraq-map-paths.ts",
+    "./preview-token": "./src/preview-token.ts",
+    "./health-rules": "./src/health-rules.ts"
   },
   "scripts": {
     "test": "vitest run"

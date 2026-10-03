@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { emptyStoreConfigV2, signPreviewToken } from "@scheniders/shared";
+import { emptyStoreConfigV2 } from "@scheniders/shared";
+import { signPreviewToken } from "@scheniders/shared/preview-token";
 import type { StoreConfigV2, PageId } from "@scheniders/shared";
 import type {
     Product as SectionProduct,

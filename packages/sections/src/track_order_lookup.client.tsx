@@ -33,6 +33,9 @@ const STRINGS = {
 const INK_BORDER =
   "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
 
+/** sessionStorage key carrying the phone to the tracking page (never the URL). */
+const TRACK_PHONE_KEY = "sch:track:phone";
+
 export function TrackOrderLookupRender({
   props,
   ctx,
@@ -78,7 +81,19 @@ export function TrackOrderLookupRender({
         await onTrack({ phone, order_number: trimmedOrder });
       } else if (typeof window !== "undefined") {
         const params = new URLSearchParams();
-        params.set("phone", phone);
+        // SEC: the phone never goes in the URL. The tracking page mounts the
+        // tenant's ad pixels, and the Meta pixel reports the full document
+        // location in its `dl` parameter — so a phone in the query string is
+        // transmitted to Meta alongside the visitor's `fbp` cookie, and is
+        // written to edge access logs. Hand it over in sessionStorage instead:
+        // same-origin, same-tab, never in `location`.
+        try {
+          window.sessionStorage.setItem(TRACK_PHONE_KEY, phone);
+        } catch {
+          // Private browsing can refuse sessionStorage. The tracking page then
+          // simply asks for the phone again, which is correct — it must never
+          // fall back to putting it in the URL.
+        }
         params.set("order", trimmedOrder);
         // Store-relative paths must carry the store base — in path mode
         // ("/s/acme") a bare "/track" leaves the store entirely (P1-25).

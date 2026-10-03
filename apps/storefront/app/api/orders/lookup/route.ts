@@ -28,14 +28,17 @@ function createAnonClient() {
   );
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+// POST, not GET: the request carries a customer's phone number, and a query
+// string is written to edge access logs and leaks via Referer. The body is not.
+export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const { searchParams } = new URL(request.url);
-    const parsed = querySchema.safeParse({
-      tenant_id: searchParams.get("tenant_id") ?? "",
-      order_number: searchParams.get("order_number") ?? "",
-      phone: searchParams.get("phone") ?? "",
-    });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Bad request" }, { status: 400 });
+    }
+    const parsed = querySchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json({ error: "Bad request" }, { status: 400 });
