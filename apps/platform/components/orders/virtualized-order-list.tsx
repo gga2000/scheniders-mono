@@ -4,6 +4,7 @@ import React, { useRef, memo, useCallback, useEffect, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Order, MessageTemplate } from "@/lib/supabase";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import { RiskLevel } from "@/lib/fraud-detector";
 
 interface VirtualizedOrderListProps {
@@ -32,6 +33,8 @@ interface VirtualizedOrderListProps {
     getRiskLevel: (phone: string) => RiskLevel;
     getRiskAssessment?: (phone: string) => any; // New helper for full assessment
     hasDuplicates?: (orderId: string) => boolean;
+    /** 48h money-at-risk duplicate for an order, if it has one. */
+    getDuplicateWindowAlert?: (orderId: string) => DuplicateWindowAlert | undefined;
     getCustomerOrderCount: (phone: string, orderId: string) => number;
     getCustomerArchivedCount: (phone: string) => number;
     getCustomerHistory: (phone: string) => Order[];
@@ -102,6 +105,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getRiskLevel,
     getRiskAssessment,
     hasDuplicates,
+    getDuplicateWindowAlert,
     onSplitOrder,
     assignments = [],
 }: VirtualizedOrderListProps) {
@@ -205,6 +209,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                 customerOrderCount={orderCount}
                 archivedOrderCount={getCustomerArchivedCount(order.phone)}
                 hasDuplicates={hasDuplicates?.(order.id) || false}
+                duplicateAlert={getDuplicateWindowAlert?.(order.id)}
                 previousOrder={previousOrder}
                 onMergeWithPrevious={onMergeWithPrevious}
                 onShowDuplicates={onShowDuplicates}
