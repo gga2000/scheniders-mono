@@ -107,9 +107,23 @@ if (typeof window !== 'undefined') {
 // =============================================
 const SWR_CACHE_KEY = 'schneiders_orders_swr';
 const SWR_TS_KEY = 'schneiders_orders_swr_ts';
+const SWR_WINDOW_KEY = 'schneiders_orders_swr_window';
 const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
 
-export function writeSwrCache(orders: Order[]): void {
+/** Stable identity for a window: `"all"` for the complete set, else its bounds. */
+export const orderWindowKey = (window: OrderWindow): string =>
+    window ? `${window.fromInstant}-${window.toInstant}` : "all";
+
+/**
+ * The snapshot records WHICH window it holds, not just when it was written.
+ *
+ * Without that, a "Today" fetch overwrote the snapshot and the next load under
+ * "All Orders" hydrated a single day's rows as though they were everything.
+ * They were under the 30s staleTime, so React Query trusted them and did not
+ * refetch: the server-computed chips read "In Transit 76" above a list that
+ * said "No orders found", until the staleTime lapsed and a refetch put it right.
+ */
+export function writeSwrCache(orders: Order[], window: OrderWindow): void {
     // An empty result is not worth caching, and caching it is actively harmful:
     // hydrating from it makes React Query report `isLoading: false` with no rows,
     // which is indistinguishable from "this merchant has no orders". See
@@ -120,15 +134,20 @@ export function writeSwrCache(orders: Order[]): void {
         const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
         sessionStorage.setItem(SWR_CACHE_KEY, serialized);
         sessionStorage.setItem(SWR_TS_KEY, String(Date.now()));
+        sessionStorage.setItem(SWR_WINDOW_KEY, orderWindowKey(window));
     } catch {
         // sessionStorage full or unavailable — non-critical
     }
 }
 
-export function readSwrCache(): Order[] | null {
+export function readSwrCache(window: OrderWindow): Order[] | null {
     try {
         const ts = sessionStorage.getItem(SWR_TS_KEY);
         if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
+        // A snapshot of a different window is the wrong data, however fresh. One
+        // with no recorded window predates this check and cannot be trusted
+        // either — fetching is cheaper than showing someone the wrong orders.
+        if (sessionStorage.getItem(SWR_WINDOW_KEY) !== orderWindowKey(window)) return null;
         const raw = sessionStorage.getItem(SWR_CACHE_KEY);
         if (!raw) return null;
         // Measure the SYNCHRONOUS main-thread parse cost (runs during render via initialData).
@@ -173,7 +192,7 @@ async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
     const resolved = resolveStaleContacted(result);
 
     // Persist to sessionStorage for SWR on next refresh
-    writeSwrCache(resolved);
+    writeSwrCache(resolved, window);
 
     return resolved;
 }
@@ -220,7 +239,7 @@ export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: stri
     const windowRef = useRef(window);
     windowRef.current = window;
 
-    const windowKey = window ? `${window.fromInstant}-${window.toInstant}` : "all";
+    const windowKey = orderWindowKey(window);
     const isFirstWindow = useRef(true);
     useEffect(() => {
         if (isFirstWindow.current) {
@@ -249,7 +268,7 @@ export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: stri
         // React Query knows the real age via initialDataUpdatedAt, so it will
         // refetch in the background if the cached data is stale (>30s old).
         initialData: () => {
-            const cached = readSwrCache();
+            const cached = readSwrCache(windowRef.current);
             if (cached) {
                 diag.log(`[Diag:RQ:SWR] Hydrated ${cached.length} orders from sessionStorage`);
             }
