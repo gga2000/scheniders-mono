@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { z } from "zod";
 import { formatIraqiPhoneDisplay, resolveI18n } from "@scheniders/shared";
+import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "./helpers/utils";
 import { BrandMark, MaterialIcon, TrustPill } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
@@ -233,6 +234,29 @@ function InfoPanelNewsletterForm({
   );
 }
 
+/**
+ * The address lines a footer prints, the locale on screen first.
+ *
+ * The legal address is often bilingual, and Iraqi business footers do print
+ * both — so every provided translation gets its own line, deduped. What the
+ * order fixes: the label ("العنوان:") attaches to the first line only, and a
+ * hardcoded en-ar order put it on the English address while the Arabic one
+ * trailed unlabelled on an Arabic page. Seen live on scheniders-iraq.
+ */
+export function addressLinesFor(
+  address: { en?: string; ar?: string; ku?: string } | null | undefined,
+  locale: LocaleCode,
+): string[] {
+  if (!address) return [];
+  const active = address[locale as keyof typeof address];
+  const ordered = [active, address.ar, address.en, address.ku];
+  return [
+    ...new Set(
+      ordered.filter((line): line is string => Boolean(line && line.trim())),
+    ),
+  ];
+}
+
 export function SiteFooterRender({
   props,
   ctx,
@@ -264,19 +288,7 @@ export function SiteFooterRender({
     const rights = props.rights_i18n
       ? resolveI18n(props.rights_i18n, locale)
       : `© ${year} ${name}`;
-    const address = props.contact?.address_i18n;
-    // The legal address is often bilingual — show every provided
-    // translation as its own line (deduped), matching Iraqi business
-    // footers that print the address in both Arabic and English.
-    const addressLines = address
-      ? [
-          ...new Set(
-            [address.en, address.ar, address.ku].filter(
-              (line): line is string => Boolean(line && line.trim()),
-            ),
-          ),
-        ]
-      : [];
+    const addressLines = addressLinesFor(props.contact?.address_i18n, locale);
     // Social icons: only platforms with a non-empty URL render.
     const socials = SOCIAL_PLATFORMS.filter(({ key }) =>
       Boolean(props.social_links?.[key]?.trim()),
