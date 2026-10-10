@@ -200,6 +200,14 @@ export function deriveCatalogPage(v2: StoreConfigV2): PageConfig {
     };
   }
 
+  // This page is the whole shop, so it gets the catalogue controls: category
+  // chips with live counts, sort, a price split and load-more. Only the
+  // price_pill card style implements them — the "standard" style already has
+  // its own FilterableProductGrid — so setting the flag on a standard grid
+  // would be a promise the section cannot keep. Applied after both branches
+  // so the fallback base gets it too when the kit resolves to price_pill.
+  if (base.card_style === "price_pill") base.catalog_controls = true;
+
   const section: SectionInstance = {
     id: CATALOG_SECTION_ID,
     type: "product_grid",

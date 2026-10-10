@@ -767,7 +767,12 @@ describe("category_spotlight_pair — occasion triptych", () => {
     { id: "c2", tenant_id: "t", name: "عطور للطلعات", slug: "outings", description: null, image_url: "https://images.unsplash.com/o", parent_id: null, display_order: 11 },
     { id: "c3", tenant_id: "t", name: "عطور للمناسبات", slug: "occasions", description: null, image_url: "https://images.unsplash.com/x", parent_id: null, display_order: 12 },
   ] as never;
-  const counts = { c1: 19, c2: 19, c3: 17 };
+  // Membership, not counts — the count is the array length.
+  const counts = {
+    c1: Array.from({ length: 19 }, (_, i) => `w${i}`),
+    c2: Array.from({ length: 19 }, (_, i) => `o${i}`),
+    c3: Array.from({ length: 17 }, (_, i) => `x${i}`),
+  };
   const srcProps = {
     ...category_spotlight_pair.defaultProps,
     source: "categories" as const,
@@ -778,7 +783,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("builds its doors from real categories, in the order given", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: counts,
+      category_product_ids: counts,
     });
     expect(html).toContain("عطور للدوام");
     expect(html).toContain("عطور للطلعات");
@@ -789,7 +794,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("labels each door with its real depth", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: counts,
+      category_product_ids: counts,
     });
     expect(html).toContain("19");
     expect(html).toContain("17");
@@ -798,7 +803,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("omits the count when the category is empty rather than showing 0", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: { c1: 19, c2: 19, c3: 0 },
+      category_product_ids: { c1: counts.c1, c2: counts.c2, c3: [] },
     });
     expect(html).not.toMatch(/>0</);
   });
@@ -807,7 +812,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
     const html = render(category_spotlight_pair, {
       ...srcProps,
       category_slugs: ["work", "does-not-exist"],
-    }, { categories: cats, category_product_counts: counts });
+    }, { categories: cats, category_product_ids: counts });
     expect(html).toContain("عطور للدوام");
     expect(html).not.toContain("does-not-exist");
   });
@@ -815,7 +820,7 @@ describe("category_spotlight_pair — occasion triptych", () => {
   it("crops portrait, because perfume bottles are vertical", () => {
     const html = render(category_spotlight_pair, srcProps, {
       categories: cats,
-      category_product_counts: counts,
+      category_product_ids: counts,
     });
     expect(html).toContain("aspect-[3/4]");
     expect(html).not.toContain("aspect-[4/3]");
@@ -889,5 +894,69 @@ describe("testimonial_cards — the quote is the content", () => {
     expect(html).not.toMatch(/absolute right-2 top-1\/2/);
     expect(html).toContain("-left-20");
     expect(html).toContain("-right-20");
+  });
+});
+
+describe("product_grid — catalogue controls", () => {
+  const cat = (id: string, name: string) =>
+    ({ id, tenant_id: "t", name, slug: id, description: null, image_url: null, parent_id: null, display_order: 0 }) as never;
+  const prod = (id: string, over: Partial<Product> = {}) =>
+    ({ ...baseProduct, id, name: id, price: 40000, ...over }) as Product;
+
+  const products = [prod("a", { price: 30000 }), prod("b", { price: 60000 }), prod("c", { price: 90000 })];
+  const categories = [cat("work", "دوام"), cat("empty", "فاضي")] as never;
+  // "gone" is a member row whose product is not in the catalogue (archived,
+  // hidden, a supply item). A count taken from this list reads 3; the chip
+  // must read what it actually yields, which is 2.
+  const ids = { work: ["a", "b", "gone"] };
+  const props = {
+    ...product_grid.defaultProps,
+    card_style: "price_pill" as const,
+    catalog_controls: true,
+  };
+
+  it("renders the rail, the sort control and the result count", () => {
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    expect(html).toContain("data-catalog-grid");
+    expect(html).toContain("data-catalog-sort");
+    expect(html).toContain("data-result-count");
+  });
+
+  it("shows a chip's count as the number of cards that chip yields", () => {
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    // The count and the filtered list come from one function, so the chip
+    // cannot advertise a membership row whose product never renders.
+    expect(html).toMatch(/دوام[\s\S]{0,200}?>2</);
+    expect(html).not.toMatch(/دوام[\s\S]{0,200}?>3</);
+  });
+
+  it("does not render a chip that would open onto nothing", () => {
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    expect(html).not.toContain("فاضي");
+  });
+
+  it("never spends the buy-yellow on a filter chip", () => {
+    // --bk-primary means "act". Diluting it across controls weakens the one
+    // colour that carries the purchase. Every chip is the aria-pressed
+    // control, so read the style off those elements rather than guessing at
+    // a slice of the markup.
+    const html = render(product_grid, props, { products, categories, category_product_ids: ids });
+    const chipStyles = [...html.matchAll(/aria-pressed="[^"]*"[^>]*style="([^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(chipStyles.length).toBeGreaterThan(0);
+    for (const style of chipStyles) expect(style).not.toContain("--bk-primary");
+  });
+
+  it("leaves markup untouched when catalog_controls is unset", () => {
+    const html = render(product_grid, { ...product_grid.defaultProps, card_style: "price_pill" as const }, { products, categories });
+    expect(html).not.toContain("data-catalog-grid");
+    expect(html).not.toContain("data-load-more");
+  });
+
+  it("keeps the catalogue fields out of defaultProps", () => {
+    expect(product_grid.defaultProps).not.toHaveProperty("catalog_controls");
+    expect(product_grid.defaultProps).not.toHaveProperty("catalog_page_size");
+    expect(product_grid.schema.safeParse(product_grid.defaultProps).success).toBe(true);
   });
 });

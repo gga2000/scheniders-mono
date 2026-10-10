@@ -4,7 +4,7 @@ import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
 import {
   listProducts,
   listCategories,
-  listCategoryProductCounts,
+  listCategoryProductIds,
   getTenantPublicStats,
   getMaxDiscountPercent,
 } from "@/lib/queries";
@@ -76,11 +76,11 @@ export default async function StorefrontHome({
 
   if (!tenant) notFound();
 
-  const [products, categories, categoryCounts, publicStats, maxDiscountPct] =
+  const [products, categories, categoryProductIds, publicStats, maxDiscountPct] =
     await Promise.all([
       listProducts(tenant.id, { limit: 24 }),
       listCategories(tenant.id),
-      listCategoryProductCounts(tenant.id),
+      listCategoryProductIds(tenant.id),
       getTenantPublicStats(tenant.id),
       getMaxDiscountPercent(tenant.id),
     ]);
@@ -118,7 +118,7 @@ export default async function StorefrontHome({
       tenant,
       products,
       categories,
-      category_product_counts: categoryCounts,
+      category_product_ids: categoryProductIds,
       max_discount_percent: maxDiscountPct ?? undefined,
       public_stats: publicStats ?? undefined,
     };

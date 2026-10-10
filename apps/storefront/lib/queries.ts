@@ -235,37 +235,44 @@ export const listCategories = cache((tenantId: string): Promise<Category[]> =>
 );
 
 /**
- * Live product count per category id.
+ * Live product ids per category id.
  *
- * Uses the SAME visibility filter as `listProductsInCategory`. If these
- * two ever diverge, a card advertises "19 عطر" and opens a page listing
- * a different number — so the filter lives in both places or neither.
+ * This is the single source for BOTH a category's count (the array length)
+ * and for filtering the catalogue by category. Deriving them separately is
+ * how a chip ends up advertising 19 and opening onto 14.
+ *
+ * Membership must come from the join table: a product belongs to up to six
+ * categories, so `products.category_id` — only the primary — filters wrongly.
+ *
+ * Uses the SAME visibility filter as `listProductsInCategory`, including the
+ * `status = active` guard that keeps a merchant's Draft products out of every
+ * count and every filter.
  */
-export const listCategoryProductCounts = cache(
-  (tenantId: string): Promise<Record<string, number>> =>
-    publicCache(["listCategoryProductCounts", tenantId], async (supabase) => {
+export const listCategoryProductIds = cache(
+  (tenantId: string): Promise<Record<string, string[]>> =>
+    publicCache(["listCategoryProductIds", tenantId], async (supabase) => {
       const { data, error } = await supabase
         .from("product_categories")
-        .select("category_id, products!inner(id, is_visible, is_archived, is_supply)")
+        .select("category_id, product_id, products!inner(id, is_visible, is_archived, is_supply)")
         .eq("tenant_id", tenantId)
-        // Draft products are hidden everywhere else on the storefront; a
-        // count that includes them advertises "19 عطر" on a card whose
-        // own page then lists fewer.
         .eq("products.status", "active")
         .eq("products.is_visible", true)
         .eq("products.is_archived", false)
         .not("products.is_supply", "is", true);
 
       if (error) {
-        console.error("[queries.listCategoryProductCounts]", error);
+        console.error("[queries.listCategoryProductIds]", error);
         return {};
       }
 
-      const counts: Record<string, number> = {};
-      for (const row of (data ?? []) as { category_id: string }[]) {
-        counts[row.category_id] = (counts[row.category_id] ?? 0) + 1;
+      const byCategory: Record<string, string[]> = {};
+      for (const row of (data ?? []) as {
+        category_id: string;
+        product_id: string;
+      }[]) {
+        (byCategory[row.category_id] ??= []).push(row.product_id);
       }
-      return counts;
+      return byCategory;
     }),
 );
 

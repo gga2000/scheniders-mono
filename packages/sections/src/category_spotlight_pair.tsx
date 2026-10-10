@@ -152,7 +152,7 @@ function CategorySpotlightPair({
             href: `/categories/${c.slug}`,
             image_url: c.image_url ?? "",
             count: props.show_counts
-              ? (ctx.category_product_counts?.[c.id] ?? 0)
+              ? (ctx.category_product_ids?.[c.id]?.length ?? 0)
               : 0,
           }))
       : props.items.map((item, i) => ({
