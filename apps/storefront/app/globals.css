@@ -58,6 +58,46 @@ body {
   box-sizing: border-box;
 }
 
+/* ---- Arabic copy inside an LTR document ----------------------------------
+   The storefront stays LTR in every locale — we set <html lang>, never
+   <html dir>. That leaves an Arabic sentence with RTL words inside an LTR
+   paragraph, so a trailing neutral character (a full stop, a colon, a comma)
+   resolves to the paragraph's LTR level and is placed at the far end of the
+   line, away from the sentence it belongs to. Measured on the home hero: the
+   sentence ended at x=71 and its full stop sat at x=149.
+
+   `plaintext` takes each paragraph's base direction from its own first strong
+   character. It fixes the punctuation without flipping anything: `direction`
+   stays ltr, so `text-align: start` is still the left edge and no layout
+   moves.
+
+   Limited to prose on purpose. A price like "36,750 د.ع" is neutral digits
+   beside an Arabic glyph, and its LTR base is what keeps the number before
+   the currency; those render in spans and divs, which this rule leaves
+   alone. Buttons are excluded for the same reason — a label beside an icon
+   is a layout, not a sentence. */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+blockquote,
+figcaption,
+summary,
+dt,
+dd,
+/* Merchant copy that is not a prose element — a badge label, an FAQ answer
+   rendered as a div, a countdown's lead-in. `data-i18n-field` is the marker
+   the sections already put on every translatable string, so it is exactly the
+   set that needs this and nothing else: prices are built from product data
+   and carry no such marker, so they keep their LTR base. */
+[data-i18n-field] {
+  unicode-bidi: plaintext;
+}
+
 /* ===========================
    Schneiders — Candy Bento
    =========================== */
