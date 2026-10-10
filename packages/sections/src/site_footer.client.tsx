@@ -359,7 +359,13 @@ export function SiteFooterRender({
                   {linksHeading}
                 </h3>
               )}
-              <ul className="space-y-0.5">
+              {/* Two columns below `sm`. Each row is a 44px tap target and
+                  has to stay one — so the height comes off the number of
+                  rows, not their size. Eight policy links stacked full width
+                  cost 368px of a 390px screen; paired, they cost half that
+                  and the targets are untouched. One column from `sm` up,
+                  where the footer already sits in a three-column grid. */}
+              <ul className="grid grid-cols-2 gap-x-4 sm:block sm:space-y-0.5">
                 {links.map((l, i) => (
                   <li key={`${l.href}-${i}`}>
                     <StoreLink
