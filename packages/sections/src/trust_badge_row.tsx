@@ -51,17 +51,14 @@ const schema = z.object({
 
 type Props = z.infer<typeof schema>;
 
+/**
+ * Defaults must never assert a merchant fact — see trust_strip for the full
+ * reasoning. "Fast delivery" and "Quality guarantee" were claims this
+ * package cannot know to be true for the store rendering them.
+ */
 const defaultProps: Props = {
   band_style: "plain",
   items: [
-    {
-      icon_url: "",
-      label_i18n: { en: "Fast delivery", ar: "توصيل سريع" },
-    },
-    {
-      icon_url: "",
-      label_i18n: { en: "Quality guarantee", ar: "ضمان الجودة" },
-    },
     {
       icon_url: "",
       label_i18n: { en: "Available across Iraq", ar: "متوفر بالعراق" },

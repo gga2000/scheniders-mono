@@ -32,18 +32,20 @@ const schema = z.object({
 
 type Props = z.infer<typeof schema>;
 
+/**
+ * Defaults must never assert a merchant fact — see trust_strip for the full
+ * reasoning. "Order before 4pm and we ship the same day" and "Every piece is
+ * checked before it leaves the warehouse" are claims about an operation this
+ * package knows nothing about.
+ *
+ * What survives is what the platform itself guarantees: the checkout is cash
+ * on delivery, and it serves Iraq. A merchant fills the rest in with things
+ * they can stand behind.
+ */
 const defaultProps: Props = {
   heading_i18n: { en: "Why shop with us", ar: "لماذا تتسوّق معنا" },
   columns: 3,
   items: [
-    {
-      icon: "local_shipping",
-      title_i18n: { en: "Same-day Baghdad", ar: "توصيل بغداد بنفس اليوم" },
-      body_i18n: {
-        en: "Order before 4pm and we ship the same day.",
-        ar: "اطلب قبل الرابعة ظهراً وسنشحن نفس اليوم.",
-      },
-    },
     {
       icon: "payments",
       title_i18n: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
@@ -53,12 +55,9 @@ const defaultProps: Props = {
       },
     },
     {
-      icon: "verified",
-      title_i18n: { en: "Quality guarantee", ar: "ضمان الجودة" },
-      body_i18n: {
-        en: "Every piece is checked before it leaves the warehouse.",
-        ar: "كل قطعة تخضع للفحص قبل خروجها من المستودع.",
-      },
+      icon: "local_shipping",
+      title_i18n: { en: "Delivery across Iraq", ar: "توصيل لكل المحافظات" },
+      body_i18n: { en: "", ar: "" },
     },
   ],
 };

@@ -45,6 +45,20 @@ const schema = z.object({
 
 type Props = z.infer<typeof schema>;
 
+/**
+ * Defaults must never assert a merchant fact.
+ *
+ * These shipped as "Same-day Baghdad", "1-year warranty" and "Free returns"
+ * — specific, checkable promises baked into a shared package. A merchant who
+ * drops the section in without editing it publishes four commitments they
+ * never made, and on a checkout page that is where a customer decides to
+ * buy. One live store was doing exactly that.
+ *
+ * What is left is what the platform itself guarantees: the checkout is cash
+ * on delivery, and the platform serves Iraq. Anything about speed, warranty
+ * or the cost of a return is the merchant's to state, because only they know
+ * whether it is true.
+ */
 const defaultProps: Props = {
   pills: [
     {
@@ -53,19 +67,9 @@ const defaultProps: Props = {
       bg: "mint",
     },
     {
-      label_i18n: { en: "Same-day Baghdad", ar: "توصيل بغداد بنفس اليوم" },
+      label_i18n: { en: "Delivery across Iraq", ar: "توصيل لكل المحافظات" },
       icon: "local_shipping",
       bg: "butter",
-    },
-    {
-      label_i18n: { en: "1-year warranty", ar: "ضمان سنة" },
-      icon: "verified",
-      bg: "sky",
-    },
-    {
-      label_i18n: { en: "Free returns", ar: "إرجاع مجاني" },
-      icon: "undo",
-      bg: "lilac",
     },
   ],
 };
