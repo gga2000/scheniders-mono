@@ -20,9 +20,11 @@ import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import type { Category, Product } from "../types";
 import { applyCatalog, priceSplitFrom, SORTS } from "./catalog-filter";
+import { filterByQuery } from "./product-search";
 import type { CatalogSort } from "./catalog-filter";
 import { formatCount, formatPrice } from "./format";
 import { cn, PRESSABLE } from "./utils";
+import { MaterialIcon } from "./primitives";
 
 const SORT_LABELS: Record<CatalogSort, Record<"ar" | "en", string>> = {
   bestsellers: { ar: "الأكثر مبيعاً", en: "Best selling" },
@@ -38,6 +40,12 @@ const T = {
   under: { ar: "أقل من", en: "Under" },
   over: { ar: "وأكثر", en: "and up" },
   sort: { ar: "ترتيب", en: "Sort" },
+  search: { ar: "دور على عطر", en: "Find a perfume" },
+  search_clear: { ar: "مسح البحث", en: "Clear search" },
+  no_match: {
+    ar: "ما لكينا عطر بهذا الاسم. جرب كلمة أقصر.",
+    en: "Nothing by that name. Try a shorter word.",
+  },
   price: { ar: "السعر", en: "Price" },
   empty: { ar: "ما لكينا عطور بهذا الفلتر.", en: "No perfumes match this filter." },
   /** Progress under the reveal control: "12 من 43". */
@@ -67,8 +75,9 @@ function viewKey(
   sort: CatalogSort,
   price: "under" | "over" | null,
   pageSize: number,
+  query: string,
 ): string {
-  return `${categoryId ?? ""}|${sort}|${price ?? ""}|${pageSize}`;
+  return `${categoryId ?? ""}|${sort}|${price ?? ""}|${pageSize}|${query}`;
 }
 
 function chipStyle(active: boolean): CSSProperties {
@@ -140,12 +149,15 @@ export function CatalogGrid({
   categoryProductIds,
   locale,
   pageSize = 12,
+  showSearch = false,
 }: {
   items: CatalogItem[];
   categories: Category[];
   categoryProductIds?: Record<string, string[]>;
   locale: LocaleCode;
   pageSize?: number;
+  /** Opt-in: a store with a handful of products does not need a search box. */
+  showSearch?: boolean;
 }) {
   const products = useMemo(() => items.map((i) => i.product), [items]);
   const cardById = useMemo(
@@ -158,9 +170,10 @@ export function CatalogGrid({
   const [categoryHandle, setCategoryHandle] = useState<string | null>(null);
   const [sort, setSort] = useState<CatalogSort>("bestsellers");
   const [price, setPrice] = useState<"under" | "over" | null>(null);
+  const [query, setQuery] = useState("");
   const [shown, setShown] = useState(pageSize);
   const [shownFor, setShownFor] = useState(() =>
-    viewKey(null, "bestsellers", null, pageSize),
+    viewKey(null, "bestsellers", null, pageSize, ""),
   );
 
   const categoryId = useMemo(() => {
@@ -189,6 +202,8 @@ export function CatalogGrid({
     if (cat) setCategoryHandle(cat);
     if (s && (SORTS as readonly string[]).includes(s)) setSort(s);
     if (pr === "under" || pr === "over") setPrice(pr);
+    const search = q.get("q");
+    if (search) setQuery(search);
   }, []);
 
   useEffect(() => {
@@ -197,17 +212,27 @@ export function CatalogGrid({
     categoryHandle ? q.set("cat", categoryHandle) : q.delete("cat");
     sort === "bestsellers" ? q.delete("sort") : q.set("sort", sort);
     price ? q.set("price", price) : q.delete("price");
+    query.trim() ? q.set("q", query.trim()) : q.delete("q");
     const next = q.toString();
     window.history.replaceState(
       null,
       "",
       next ? `${window.location.pathname}?${next}` : window.location.pathname,
     );
-  }, [categoryHandle, sort, price]);
+  }, [categoryHandle, sort, price, query]);
 
+  // The split has to divide the set the shopper is looking at, not the shop.
+  // A search that leaves two perfumes cannot be halved at the catalogue's
+  // median — one side of it would be empty, which is a control that does
+  // nothing. `priceSplitFrom` already returns null in that case; it just has
+  // to be asked about the right list.
+  const searched = useMemo(
+    () => (query.trim() ? filterByQuery(products, query) : products),
+    [products, query],
+  );
   const threshold = useMemo(
-    () => priceSplitFrom(products.map((p) => p.price)),
-    [products],
+    () => priceSplitFrom(searched.map((p) => p.price)),
+    [searched],
   );
 
   const visible = useMemo(
@@ -218,14 +243,15 @@ export function CatalogGrid({
         categoryProductIds,
         price,
         threshold,
+        query,
       }),
-    [products, sort, categoryId, categoryProductIds, price, threshold],
+    [products, sort, categoryId, categoryProductIds, price, threshold, query],
   );
 
   // Every chip's count is produced by the SAME function that builds the
   // list, so a chip can never advertise a number it does not then yield.
   const chips = useMemo(() => {
-    const base = { categoryProductIds, price, threshold };
+    const base = { categoryProductIds, price, threshold, query };
     return categories
       .map((c) => ({
         id: c.id,
@@ -235,30 +261,95 @@ export function CatalogGrid({
       }))
       // A chip that opens onto nothing is worse than no chip.
       .filter((c) => c.count > 0);
-  }, [categories, products, categoryProductIds, price, threshold]);
+  }, [categories, products, categoryProductIds, price, threshold, query]);
+
+  /**
+   * Each price band's real yield, from the same function as the list. A band
+   * that would show nothing is not offered — the rule the category chips
+   * already follow.
+   */
+  const priceCounts = useMemo(() => {
+    const base = { categoryProductIds, categoryId, threshold, query };
+    return {
+      under: applyCatalog(products, { ...base, price: "under" as const }).length,
+      over: applyCatalog(products, { ...base, price: "over" as const }).length,
+    };
+  }, [products, categoryProductIds, categoryId, threshold, query]);
+  const showPriceSplit =
+    threshold != null && priceCounts.under > 0 && priceCounts.over > 0;
 
   const allCount = useMemo(
-    () => applyCatalog(products, { categoryProductIds, price, threshold }).length,
-    [products, categoryProductIds, price, threshold],
+    () =>
+      applyCatalog(products, { categoryProductIds, price, threshold, query })
+        .length,
+    [products, categoryProductIds, price, threshold, query],
   );
 
   // A changed filter must start at page one — showing page two of a list the
   // shopper has not seen page one of is worse than no paging at all. Adjusted
   // during render, not in an effect: an effect would paint the stale page
   // first and then throw it away.
-  const key = viewKey(categoryId, sort, price, pageSize);
+  const key = viewKey(categoryId, sort, price, pageSize, query.trim());
   if (shownFor !== key) {
     setShownFor(key);
     setShown(pageSize);
   }
 
-  const filtered = categoryId !== null || price !== null;
+  const filtered = categoryId !== null || price !== null || query.trim() !== "";
   const page = visible.slice(0, shown);
 
   return (
     <div data-catalog-grid>
       {/* Controls. Quiet by design — the grid below is the content. */}
       <div className="mb-bk-md flex flex-col gap-3">
+        {showSearch && (
+          <div className="relative">
+            {/* The glyph is what makes an empty rounded box read as a search
+                field rather than a blank input. Faint on purpose: the
+                perfumes are the content. */}
+            <span
+              className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
+            >
+              <MaterialIcon name="search" className="block text-xl" />
+            </span>
+            <input
+              data-catalog-search
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("search", locale)}
+              aria-label={t("search", locale)}
+              className="w-full border py-3 pe-12 ps-12 font-body text-base outline-none"
+              style={{
+                backgroundColor: "var(--bk-surface, #ffffff)",
+                color: "var(--bk-ink, #1a1a1a)",
+                borderColor: "var(--bk-divider, rgb(26 26 26 / 0.15))",
+                borderRadius: "var(--bk-radius-pill, 9999px)",
+                fontFamily: "var(--bk-font-body, inherit)",
+              }}
+            />
+            {/* `type="search"` gives a native clear on desktop and nothing on
+                most mobile keyboards, which is the surface that matters here. */}
+            {query !== "" && (
+              <button
+                type="button"
+                data-catalog-search-clear
+                onClick={() => setQuery("")}
+                aria-label={t("search_clear", locale)}
+                className={cn(
+                  "absolute end-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full font-body text-lg leading-none",
+                  PRESSABLE,
+                )}
+                style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span
             data-result-count
@@ -321,9 +412,9 @@ export function CatalogGrid({
           ))}
         </div>
 
-        {(threshold != null || filtered) && (
+        {(showPriceSplit || filtered) && (
           <div className="flex flex-wrap items-center gap-2">
-            {threshold != null && (
+            {showPriceSplit && (
               <>
                 {/* Named, because a price chip and a category chip look the
                     same but mean different things. Without the label the row
@@ -370,7 +461,7 @@ export function CatalogGrid({
           className="py-bk-lg text-center font-body text-sm"
           style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}
         >
-          {t("empty", locale)}
+          {t(query.trim() ? "no_match" : "empty", locale)}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

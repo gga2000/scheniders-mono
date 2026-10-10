@@ -8,6 +8,7 @@
 // =====================================================================
 
 import type { Product } from "../types";
+import { filterByQuery } from "./product-search";
 
 export const SORTS = ["bestsellers", "price_asc", "price_desc", "newest"] as const;
 export type CatalogSort = (typeof SORTS)[number];
@@ -19,6 +20,8 @@ export interface CatalogOpts {
   categoryProductIds?: Record<string, string[]>;
   price?: "under" | "over" | null;
   threshold?: number | null;
+  /** Free-text search. Shares the matcher with the /search page. */
+  query?: string;
 }
 
 /** Buyable now — drives the unbuyable-last rule, not visibility. */
@@ -64,6 +67,10 @@ export function applyCatalog(products: Product[], opts: CatalogOpts): Product[] 
     const members = new Set(opts.categoryProductIds?.[opts.categoryId] ?? []);
     out = out.filter((p) => members.has(p.id));
   }
+
+  // Search before the price split, so the "under / over" counts describe the
+  // searched set rather than the whole catalogue.
+  if (opts.query) out = filterByQuery(out, opts.query);
 
   if (opts.price && opts.threshold != null) {
     out = out.filter((p) =>
