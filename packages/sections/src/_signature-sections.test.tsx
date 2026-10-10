@@ -10,6 +10,8 @@ import { StoreBaseProvider } from "./helpers/store-context";
 import { formatCount } from "./helpers/format";
 
 import pillars_grid from "./pillars_grid";
+import about_spotlight from "./about_spotlight";
+import cta_banner from "./cta_banner";
 import faq_contact_split from "./faq_contact_split";
 import product_reviews from "./product_reviews";
 import countdown_announcement from "./countdown_announcement";
@@ -1032,5 +1034,188 @@ describe("product_grid — category shortcuts", () => {
   it("keeps the new fields out of defaultProps", () => {
     expect(product_grid.defaultProps).not.toHaveProperty("show_category_links");
     expect(product_grid.defaultProps).not.toHaveProperty("category_links_limit");
+  });
+});
+
+describe("testimonial_cards — the stage is opt-in", () => {
+  const base = {
+    ...testimonial_cards.defaultProps,
+    items: [
+      { name_i18n: { ar: "أحمد", en: "Ahmed" }, quote_i18n: { ar: "ممتاز", en: "Great" } },
+      { name_i18n: { ar: "حازم", en: "Hazem" }, quote_i18n: { ar: "رائع", en: "Lovely" } },
+    ],
+  };
+
+  it("keeps the three-up band when nothing asks for a stage", () => {
+    const html = render(testimonial_cards, base);
+    expect(html).not.toContain("data-testimonial-stage");
+    expect(html).toContain("md:grid-cols-3");
+  });
+
+  it("renders the stage when asked", () => {
+    const html = render(testimonial_cards, { ...base, layout: "stage" as const });
+    expect(html).toContain("data-testimonial-stage");
+    expect(html).toContain("data-stage-dot");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(testimonial_cards.defaultProps).not.toHaveProperty("layout");
+    expect(testimonial_cards.defaultProps).not.toHaveProperty("rotate_seconds");
+    expect(
+      testimonial_cards.schema.safeParse(testimonial_cards.defaultProps).success,
+    ).toBe(true);
+  });
+
+  it("accepts more testimonies than the band could hold", () => {
+    // A stage rotates, so it can carry every testimony a merchant has.
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      name_i18n: { ar: `ز${i}`, en: `C${i}` },
+      quote_i18n: { ar: `رأي ${i}`, en: `Quote ${i}` },
+    }));
+    expect(
+      testimonial_cards.schema.safeParse({ ...base, items: many }).success,
+    ).toBe(true);
+  });
+});
+
+describe("pillars_grid — the ledger", () => {
+  const withProof = {
+    ...pillars_grid.defaultProps,
+    layout: "ledger" as const,
+    items: [
+      {
+        icon_url: "",
+        title_i18n: { ar: "تيستر مجاني", en: "Free tester" },
+        body_i18n: { ar: "كل طلب يجيك وياه تيستر", en: "Every order ships with one" },
+        proof_i18n: { ar: "التيستر فكرة تخبل", en: "The tester is a brilliant idea" },
+        proof_name_i18n: { ar: "احمد الشمري", en: "Ahmed Al-Shammari" },
+      },
+      {
+        icon_url: "",
+        title_i18n: { ar: "نجرّبهم", en: "We test them" },
+        body_i18n: { ar: "كل عطر ينجرب", en: "Every scent is worn" },
+      },
+    ],
+  };
+
+  it("keeps the card grid when nothing asks for a ledger", () => {
+    const html = render(pillars_grid, {
+      ...pillars_grid.defaultProps,
+      items: withProof.items,
+    });
+    expect(html).not.toContain("data-pillar-ledger");
+    expect(html).toContain("md:grid-cols-3");
+  });
+
+  it("numbers each position when it is a ledger", () => {
+    const html = render(pillars_grid, withProof);
+    expect(html).toContain("data-pillar-ledger");
+    expect(html).toContain(">01<");
+    expect(html).toContain(">02<");
+    expect(html).not.toContain("md:grid-cols-3");
+  });
+
+  it("shows a receipt only where a customer actually gave one", () => {
+    // A claim nobody has confirmed carries no quote. Rendering an empty
+    // receipt would make every other receipt on the page worth less.
+    const html = render(pillars_grid, withProof);
+    expect(html.match(/data-pillar-proof(?!-name)/g) ?? []).toHaveLength(1);
+    expect(html).toContain("التيستر فكرة تخبل");
+    expect(html).toContain("احمد الشمري");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(pillars_grid.defaultProps).not.toHaveProperty("layout");
+    expect(
+      pillars_grid.schema.safeParse(pillars_grid.defaultProps).success,
+    ).toBe(true);
+  });
+});
+
+describe("about_spotlight — the split", () => {
+  const base = {
+    ...about_spotlight.defaultProps,
+    bg_image_url: "https://example.test/shop.jpg",
+  };
+  const split = {
+    ...base,
+    layout: "split" as const,
+    lead_i18n: { ar: "شنايدر متجر عطور من بغداد", en: "A perfume house from Baghdad" },
+    facts_i18n: [
+      { ar: "تيستر مجاني وية كل طلب", en: "A free tester with every order" },
+      { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
+    ],
+  };
+
+  it("keeps the photo band when nothing asks for a split", () => {
+    const html = render(about_spotlight, base);
+    expect(html).not.toContain("data-about-split");
+  });
+
+  it("puts the photograph beside the words, never under them", () => {
+    // A card dropped over an image makes the image a texture. Given its
+    // own half it is a picture again.
+    const html = render(about_spotlight, split);
+    expect(html).toContain("data-about-split");
+    expect(html).toContain("md:grid-cols-2");
+    expect(html).toContain("shop.jpg");
+  });
+
+  it("sets the opening line apart and lists the facts", () => {
+    const html = render(about_spotlight, split);
+    expect(html).toContain("data-about-lead");
+    expect(html).toContain("شنايدر متجر عطور من بغداد");
+    expect(html).toContain("data-about-facts");
+    expect(html).toContain("الدفع عند الاستلام");
+  });
+
+  it("renders neither a lead nor a list when the merchant set none", () => {
+    // An empty lead slot or a bulleted list of nothing is worse than the
+    // paragraph it replaced.
+    const html = render(about_spotlight, { ...base, layout: "split" as const });
+    expect(html).toContain("data-about-split");
+    expect(html).not.toContain("data-about-lead");
+    expect(html).not.toContain("data-about-facts");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(about_spotlight.defaultProps).not.toHaveProperty("layout");
+    expect(about_spotlight.defaultProps).not.toHaveProperty("facts_i18n");
+    expect(
+      about_spotlight.schema.safeParse(about_spotlight.defaultProps).success,
+    ).toBe(true);
+  });
+});
+
+describe("cta_banner — the closing band", () => {
+  const base = {
+    ...cta_banner.defaultProps,
+    heading_i18n: { ar: "باقي ما لكيت عطرك؟", en: "Still looking?" },
+    cta_label_i18n: { ar: "شوف كل العطور", en: "See all" },
+    cta_href: "/products",
+  };
+
+  it("keeps the tinted card when nothing asks for invert", () => {
+    const html = render(cta_banner, base);
+    expect(html).not.toContain('data-cta-tone="invert"');
+    // The band's own background, not any use of the ink token: the CTA
+    // button legitimately carries it either way.
+    expect(html).not.toContain("background-color:var(--bk-ink, #1a1a1a)");
+  });
+
+  it("paints ink with surface type when inverted", () => {
+    // On a cream page this is the one dark block, which is what makes a
+    // closing CTA read as the end rather than another quiet card.
+    const html = render(cta_banner, { ...base, tone: "invert" as const });
+    expect(html).toContain('data-cta-tone="invert"');
+    expect(html).toContain("background-color:var(--bk-ink, #1a1a1a)");
+    expect(html).toContain("color:var(--bk-surface, #ffffff)");
+  });
+
+  it("keeps the tone out of defaultProps", () => {
+    expect(cta_banner.defaultProps).not.toHaveProperty("tone");
+    expect(cta_banner.schema.safeParse(cta_banner.defaultProps).success).toBe(
+      true,
+    );
   });
 });
