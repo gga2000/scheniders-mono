@@ -40,6 +40,10 @@ const T = {
   sort: { ar: "ترتيب", en: "Sort" },
   price: { ar: "السعر", en: "Price" },
   empty: { ar: "ما لكينا عطور بهذا الفلتر.", en: "No perfumes match this filter." },
+  /** Progress under the reveal control: "12 من 43". */
+  shown_of: { ar: "معروض {shown} من {total}", en: "Showing {shown} of {total}" },
+  more_tile_kicker: { ar: "بعدهم أكثر", en: "More to see" },
+  more_tile_note: { ar: "عطر ثاني بانتظارك", en: "more perfumes waiting" },
 } as const;
 
 function t(key: keyof typeof T, locale: LocaleCode): string {
@@ -373,31 +377,78 @@ export function CatalogGrid({
           {page.map((product) => (
             <Fragment key={product.id}>{cardById.get(product.id)}</Fragment>
           ))}
+          {/* The reveal control lives IN the grid, shaped like the cards it
+              sits beside, rather than as a lone button under everything.
+              A shopper who has scrolled the shelf meets it where their eye
+              already is, and it says how much is left rather than just
+              "more". */}
+          {shown < visible.length && (
+            <button
+              type="button"
+              data-load-more
+              onClick={() => setShown((n) => n + pageSize)}
+              className={cn(
+                "group flex h-full flex-col items-center justify-center gap-1 overflow-hidden text-center",
+                PRESSABLE,
+              )}
+              style={{
+                backgroundColor: "var(--bk-surface, #ffffff)",
+                borderRadius: "var(--bk-radius-card, 1.5rem)",
+                boxShadow:
+                  "var(--bk-shadow-card, 0 8px 24px rgb(26 26 26 / 0.08))",
+                minHeight: "12rem",
+              }}
+            >
+              <span
+                className="font-body text-[11px] font-semibold tracking-wide"
+                style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}
+              >
+                {t("more_tile_kicker", locale)}
+              </span>
+              <span
+                data-remaining
+                className="font-display text-3xl font-black leading-none tabular-nums"
+                style={{
+                  color: "var(--bk-ink, #1a1a1a)",
+                  fontFamily: "var(--bk-font-display, inherit)",
+                }}
+              >
+                <bdi>+{visible.length - page.length}</bdi>
+              </span>
+              <span
+                className="px-3 font-body text-[11px]"
+                style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}
+              >
+                {t("more_tile_note", locale)}
+              </span>
+              <span
+                className="mt-2 inline-flex items-center px-4 py-2 font-display text-sm font-bold"
+                style={{
+                  backgroundColor: "var(--bk-ink, #1a1a1a)",
+                  color: "var(--bk-surface, #ffffff)",
+                  borderRadius: "var(--bk-radius-pill, 9999px)",
+                  fontFamily: "var(--bk-font-display, inherit)",
+                }}
+              >
+                {t("more", locale)}
+              </span>
+            </button>
+          )}
         </div>
       )}
 
       {shown < visible.length && (
-        <div className="mt-bk-lg flex justify-center">
-          <button
-            type="button"
-            data-load-more
-            onClick={() => setShown((n) => n + pageSize)}
-            className={cn(
-              "inline-flex items-center border px-6 py-3 font-display text-base font-bold",
-              PRESSABLE,
-            )}
-            style={{
-              backgroundColor: "var(--bk-surface, #ffffff)",
-              color: "var(--bk-ink, #1a1a1a)",
-              borderColor: "var(--bk-ink, #1a1a1a)",
-              borderRadius: "var(--bk-radius-pill, 9999px)",
-              boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
-              fontFamily: "var(--bk-font-display, inherit)",
-            }}
-          >
-            {t("more", locale)}
-          </button>
-        </div>
+        <p
+          data-shown-of
+          className="mt-bk-md text-center font-body text-xs tabular-nums"
+          style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}
+        >
+          {t("shown_of", locale)
+            .split("{shown}")
+            .join(String(page.length))
+            .split("{total}")
+            .join(String(visible.length))}
+        </p>
       )}
     </div>
   );

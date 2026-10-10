@@ -461,9 +461,11 @@ describe("product_grid — buyable shelf", () => {
     const html = render(product_grid, { ...props, show_discount_badge: true }, {
       products: [onSale, flat],
     });
-    // 45000 -> 36750 is 18%.
-    expect(html).toContain("18٪");
-    expect(html).not.toContain("0٪");
+    // 45000 -> 36750 is 18%. The seal keeps the sign attached to its
+    // number, so the contiguous string is the thing to assert.
+    expect(html).toContain(">18٪<");
+    // The flat-priced product gets no seal at all — not a "0٪" one.
+    expect(html.match(/data-discount-seal/g) ?? []).toHaveLength(1);
   });
 
   it("badges low stock only at or below the threshold", () => {
@@ -502,14 +504,18 @@ describe("product_grid — buyable shelf", () => {
   it("reserves enough height for the tallest thing each row can hold", () => {
     // Measured in a browser: the star row is 21px, so a 20px floor left the
     // two cards that have reviews 1px taller than the other four at 1512.
-    // And `line-clamp-2` caps the name at two lines without reserving them,
-    // so a short name (ايبسكو) sat a whole line higher — 17px apart at 390.
-    // Both floors are what make six cards one shelf instead of six objects.
+    // The name used to need a two-line floor of its own for the same
+    // reason: a short name (ايبسكو) sat a whole line higher than a long one,
+    // 17px apart at 390. It no longer does, because the name now sits
+    // INSIDE the fixed-ratio photograph, where its length cannot move the
+    // card's height at all — a stronger guarantee than a min-height.
     const html = render(product_grid, props, {
       products: [p({ name: "A", bestseller_rank: 1 })],
     });
     expect(html).toContain("min-h-[22px]");
-    expect(html).toContain("min-h-[2.5em]");
+    const photo = html.slice(html.indexOf("data-photo"), html.indexOf("data-price-line"));
+    expect(photo).toContain("aspect-square");
+    expect(photo).toContain("<h3");
   });
 
   it("keeps the new fields out of defaultProps", () => {
@@ -958,5 +964,73 @@ describe("product_grid — catalogue controls", () => {
     expect(product_grid.defaultProps).not.toHaveProperty("catalog_controls");
     expect(product_grid.defaultProps).not.toHaveProperty("catalog_page_size");
     expect(product_grid.schema.safeParse(product_grid.defaultProps).success).toBe(true);
+  });
+});
+
+describe("product_grid — category shortcuts", () => {
+  const cat = (id: string, name: string, slug: string) =>
+    ({ id, tenant_id: "t", name, slug, description: null, image_url: null, parent_id: null, display_order: 0 }) as never;
+  const prod = (id: string) =>
+    ({ ...baseProduct, id, name: id, bestseller_rank: 1 }) as Product;
+
+  const categories = [
+    cat("men", "عطور رجالية", "men"),
+    cat("women", "عطور نسائية", "women"),
+    cat("empty", "فاضي", "empty"),
+  ] as never;
+  const ids = { men: ["a", "b"], women: ["c"] };
+  const base = {
+    ...product_grid.defaultProps,
+    card_style: "price_pill" as const,
+    show_category_links: true,
+  };
+
+  it("links each shortcut into the catalogue, already filtered", () => {
+    // A shelf of six is a sample of the shop. Without these the only way
+    // onward is a single "see all" link under the fold.
+    const html = render(product_grid, base, {
+      products: [prod("A")],
+      categories,
+      category_product_ids: ids,
+    });
+    expect(html).toContain("data-category-links");
+    expect(html).toContain("/products?cat=men");
+    expect(html).toContain("/products?cat=women");
+  });
+
+  it("never offers a shortcut that opens onto nothing", () => {
+    const html = render(product_grid, base, {
+      products: [prod("A")],
+      categories,
+      category_product_ids: ids,
+    });
+    expect(html).not.toContain("cat=empty");
+    expect(html).not.toContain("فاضي");
+  });
+
+  it("counts each shortcut from the same map the catalogue filters on", () => {
+    // The count and the filter share one source, so a shortcut cannot
+    // advertise a number the catalogue then contradicts.
+    const html = render(product_grid, base, {
+      products: [prod("A")],
+      categories,
+      category_product_ids: ids,
+    });
+    expect(html).toMatch(/عطور رجالية[\s\S]{0,200}?>2</);
+    expect(html).toMatch(/عطور نسائية[\s\S]{0,200}?>1</);
+  });
+
+  it("renders no rail at all unless the section asks for one", () => {
+    const html = render(
+      product_grid,
+      { ...product_grid.defaultProps, card_style: "price_pill" as const },
+      { products: [prod("A")], categories, category_product_ids: ids },
+    );
+    expect(html).not.toContain("data-category-links");
+  });
+
+  it("keeps the new fields out of defaultProps", () => {
+    expect(product_grid.defaultProps).not.toHaveProperty("show_category_links");
+    expect(product_grid.defaultProps).not.toHaveProperty("category_links_limit");
   });
 });

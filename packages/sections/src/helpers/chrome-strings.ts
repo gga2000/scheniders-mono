@@ -27,6 +27,16 @@ const CHROME_STRINGS = {
   // ---- navigation -----------------------------------------------------
   home: { ar: "الرئيسية", en: "Home", ku: "سەرەکی" },
   see_all: { ar: "شوفهم كلهم", en: "See all", ku: "هەمووی ببینە" },
+  /** Prefix for the money a sale actually saves: "وفّر ١١,٧٥٠ د.ع". */
+  save_prefix: { ar: "وفّر", en: "Save", ku: "پاشەکەوت" },
+  /** Word above the figure inside the discount seal. */
+  discount_label: { ar: "خصم", en: "Off", ku: "داشکاندن" },
+  /** Caption over the price when nothing is discounted. */
+  price_label: { ar: "السعر", en: "Price", ku: "نرخ" },
+  /** Caption over the price actually charged. */
+  price_after_discount: { ar: "بعد الخصم", en: "Now", ku: "ئێستا" },
+  /** Caption over the struck original price. */
+  price_before_discount: { ar: "قبل الخصم", en: "Was", ku: "پێشتر" },
   // ---- footer ---------------------------------------------------------
   phone_label: { ar: "رقم الهاتف:", en: "Phone:", ku: "ژمارەی تەلەفۆن:" },
   address_label: { ar: "العنوان:", en: "Address:", ku: "ناونیشان:" },
