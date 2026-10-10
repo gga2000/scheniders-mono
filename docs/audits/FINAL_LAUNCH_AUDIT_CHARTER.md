@@ -20,7 +20,7 @@ Your mission has three phases and you may not skip or blur them:
 
 | Phase | Output | Coding? |
 |---|---|---|
-| **1. Audit** | A complete, ranked, evidence-backed defect register that scores ≥ 8/10 from an independent critic | **NO** |
+| **1. Audit** | A complete, ranked, evidence-backed defect register that scores ≥ 8/10 from an independent critic | **NO** — but see 0.2 |
 | **2. Plan** | A sequenced remediation plan, itself audited and scored ≥ 8/10 | **NO** |
 | **3. Build** | Implementation, round by round | Only after Phase 2 is approved |
 
@@ -42,7 +42,44 @@ round needs it again. If you are unsure whether something counts as a change: it
 
 Announce at the start of your run that you understand and accept this gate.
 
+## 0.1 Step zero — establish what actually runs, before you audit anything
+
+**The repository is not production.** The previous run of this charter audited a branch that was **not an ancestor of
+the deployed SHA**: 171/99 divergent commits, **539 files differing**. Its principal findings happened to survive
+re-verification at the deployed SHA; the long tail was never re-checked. That was luck.
+
+So before Axis A, before any sweep, do this and record it in `ITERATION_LOG.md`:
+
+1. Identify the deployed SHA for each app (Vercel deployment, or ask).
+2. `git rev-list --count <deployed>..HEAD` and `HEAD..<deployed>`, plus `git diff --stat <deployed>..HEAD`.
+3. If they diverge, **audit the deployed SHA** — use a worktree at that SHA, not the branch you happen to be on.
+4. Every finding carries the SHA it was verified at. A finding verified only on an undeployed branch is
+   `NEEDS-EVIDENCE`, not `CONFIRMED`.
+
+If an item is scheduled for a fix, **re-read it at the deployed SHA at the moment you schedule it** — not from an
+earlier read. Two findings in the last run were withdrawn as already fixed in production.
+
 ---
+
+## 0.2 One carve-out from read-only: prove the top finding of each iteration
+
+A pure-audit phase on this repo has already failed once in a specific way. The perf-and-craft engagement produced **53
+findings across three iterations and built nothing**; when two fixes were finally attempted, **both were wrong** — one
+had the cause and the fix direction backwards, the other the magnitude. Findings that are never built are hypotheses
+wearing the costume of conclusions.
+
+So: **per iteration, take the single highest-ranked finding and carry it to a working, measured fix in a throwaway
+worktree.** Not to ship it — to find out whether you understood it.
+
+- Branch a worktree off the **deployed SHA**, make the change, run the real verification (type-check, the relevant test,
+  a build diff for anything bundle-related, an `EXPLAIN` for anything query-related).
+- Report **what the attempt taught you**: did the fix work, was the cause what you claimed, was the magnitude right?
+- Then **throw the worktree away**. Nothing is committed to a shared branch, no migration is applied, production is
+  untouched. The gate in §0 still governs every real change.
+- If the attempt refutes the finding, that is the most valuable result the iteration can produce. Record it.
+
+A register whose top finding has never been built is capped at **7** on dimension 9 (Actionability), whatever else it
+achieves.
 
 # 1. Why this audit is different from the ten that came before it
 
@@ -479,11 +516,24 @@ while critic_min_score < 8:
                     about your audit (gaps, unreproducible claims, wrong severities)
     you: work that ranked list, re-run the thin axes, adjudicate what it disputes
     iteration += 1
-    if iteration > 3 since the last score improvement:
+    if iteration > 3 with no NEW ground covered (not merely no score rise):
         STOP. Report to the user: current score, per-dimension breakdown,
         what is blocking, and what you need (a decision, an environment, an
         action Phase 1 forbids). Do not loop silently.
 ```
+
+**A falling score is not failure.** The prior perf-and-craft engagement on this repo scored **5 → 4 → 3** across three
+iterations, because each critic found ground the earlier passes had not covered. That is the loop working: the score is
+tracking *what you now know you have not checked*, and an audit that discovers its own blind spots is converging, not
+regressing. Do not optimise for the number. Do not narrow scope to protect it, and never re-scope a dimension so a gap
+stops counting against you.
+
+The stall condition is therefore **"no new ground covered," not "no score improvement."** Three iterations that each
+surface new gaps are healthy even at a falling score. Three iterations that re-litigate the same disputes are a stall —
+escalate.
+
+**Record the trajectory, not just the latest number.** `ITERATION_LOG.md` must show every score in sequence with what
+changed, so the direction is auditable. If the score fell, say what was discovered that made the earlier number wrong.
 
 Between iterations, keep a running `ITERATION_LOG.md`: score per dimension per iteration, what the critic disputed, what
 you changed, what you refused to change and why. The user must be able to see the audit converging.
@@ -530,6 +580,13 @@ Effort:          rough, and what it blocks or depends on
 - **Do not trust loose scratch files** at app roots (`check-*.mjs`, `*.py`, `*_plan.md`, ad-hoc notes) — they are local
   scratch, not source of truth.
 - **Concurrent sessions may switch branches mid-run.** Verify the branch before and after anything you do.
+- **Re-read every file you quote, from the tree you are auditing, at the moment you write the finding.** A `turbo.json`
+  read minutes earlier from a different branch produced a fabricated finding that had to be withdrawn. A worktree only
+  protects reads taken *after* it exists.
+- **Measurement discipline.** Bundle attribution by `grep` is a hypothesis, not a measurement — prove it with a build
+  diff. Local Lighthouse on this repo is **bimodal** (identical builds give ~4.8 s or ~7.3 s LCP, cause unknown), so
+  never trust n < 10, report medians with spread, and read `metricSavings.LCP` rather than the headline saving — quoting
+  an FCP saving as LCP once ranked an entire plan backwards.
 
 ## 8.3 What you may and may not do in Phase 1
 
