@@ -57,7 +57,7 @@ export function useOrders() {
     // Filter state is resolved BEFORE the fetch. `useOrderFilters` derives its
     // lists from the orders that come back, so it cannot also own the filter the
     // fetch depends on — that was circular, and it is what blocked windowing.
-    const { filters, setFilters, clearFilters } = useOrderFilterState();
+    const { filters, setFilters, clearFilters, filtersSettled } = useOrderFilterState();
 
     // The window the fetch will load, derived from the merchant's date filter.
     // Realtime and the bulk-scope guards read the same value, so what is fetched,
@@ -70,7 +70,7 @@ export function useOrders() {
     const ordersWindowRef = useRef(ordersWindow);
     ordersWindowRef.current = ordersWindow;
 
-    const { data: cachedOrders, isLoading: queryLoading, isFetching: queryFetching, status: queryStatus, error: queryError } = useOrdersQuery(ordersWindow);
+    const { data: cachedOrders, isLoading: queryLoading, isFetching: queryFetching, status: queryStatus, error: queryError } = useOrdersQuery(ordersWindow, filtersSettled);
 
     // Single source of truth: React Query cache
     const orders = cachedOrders ?? [];
@@ -189,6 +189,7 @@ export function useOrders() {
         // Filters
         filters: filterHook.filters,
         setFilters: filterHook.setFilters,
+        filtersSettled,
         clearFilters: filterHook.clearFilters,
         saveFilterPreset: filterHook.saveFilterPreset,
         loadFilterPreset: filterHook.loadFilterPreset,
@@ -269,6 +270,7 @@ export function useOrders() {
         isRefreshing,
         ordersPending,
         error,
+        filtersSettled,
         filterHook,
         auxiliaryHook,
         crudHook,

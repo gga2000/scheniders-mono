@@ -192,20 +192,23 @@ export default function OrdersPage() {
         // Duplicate management
         statusCounts,
         ordersAreComplete,
+        filtersSettled,
         // Message templates
         messageTemplates,
     } = useOrdersContext();
 
-    // Apply ?status= query param from dashboard card clicks (one-time on mount)
+    // Apply ?status= from dashboard card clicks, once the saved filter has
+    // loaded. Applied any earlier, it was overwritten by the saved filter (the
+    // link did nothing) and, before auth, persisted under the anonymous key.
+    const statusParamApplied = useRef(false);
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const params = new URLSearchParams(window.location.search);
-        const statusParam = params.get('status');
+        if (!filtersSettled || statusParamApplied.current || typeof window === 'undefined') return;
+        statusParamApplied.current = true;
+        const statusParam = new URLSearchParams(window.location.search).get('status');
         if (statusParam) {
             setFilters(prev => ({ ...prev, status: statusParam as 'new' | 'confirmed' | 'rejected' | 'all' }));
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // run once on mount
+    }, [filtersSettled, setFilters]);
 
     // Get products for Excel import matching
     useProductsCrud();
