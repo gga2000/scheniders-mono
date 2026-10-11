@@ -13,6 +13,7 @@ import {
     createFilterPreset,
     orderMatchesSearch,
 } from "@/lib/order-filter-utils";
+import { windowFromDateFilter, orderInDateWindow } from "@/lib/order-window";
 
 // Normalize Arabic text for fuzzy search:
 // - Remove diacritics (tashkeel)
@@ -126,6 +127,7 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
 
     const applyFilters = useCallback(
         (ordersToFilter: Order[], activeFilters: OrderFilters = filters): Order[] => {
+            const dateWindow = windowFromDateFilter(activeFilters.dateFrom, activeFilters.dateTo);
             return ordersToFilter.filter((order) => {
                 // Status filter
                 const statusFilter = activeFilters.status as string;
@@ -175,18 +177,15 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
                     if (!isReplacement) return false;
                 }
 
-                // Date range filter
-                if (activeFilters.dateFrom) {
-                    const orderDate = new Date(order.created_at);
-                    const fromDate = new Date(activeFilters.dateFrom);
-                    fromDate.setHours(0, 0, 0, 0);
-                    if (orderDate < fromDate) return false;
-                }
-                if (activeFilters.dateTo) {
-                    const orderDate = new Date(order.created_at);
-                    const toDate = new Date(activeFilters.dateTo);
-                    toDate.setHours(23, 59, 59, 999);
-                    if (orderDate > toDate) return false;
+                // Date range filter — the same rule the server fetch and realtime
+                // use (lib/order-window): Baghdad calendar days, and an order
+                // scheduled for a day in the range belongs to it as well as the
+                // day it arrived. This used to compare against the browser's
+                // local midnight on `created_at` alone, so a postponed order never
+                // showed on its day and a device outside Iraq drew different day
+                // lines from the fetch it was filtering.
+                if (dateWindow && !orderInDateWindow(order, dateWindow)) {
+                    return false;
                 }
 
                 // City filter

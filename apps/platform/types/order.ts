@@ -92,7 +92,8 @@ export interface Order {
     notes?: string;
     internal_notes?: string;
     rejection_reason?: string;
-    scheduled_date?: string;
+    /** Day the order is postponed to (Baghdad calendar day, "YYYY-MM-DD"). Null = not scheduled. */
+    scheduled_date?: string | null;
     priority: OrderPriority;
     payment_status: PaymentStatus;
     delivery_fee?: number;
