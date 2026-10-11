@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canShipWithoutSelection, canOfferSelectAll } from "./order-bulk-scope";
+import { canShipWithoutSelection, canOfferSelectAll, partitionByShipDay } from "./order-bulk-scope";
 
 describe("canShipWithoutSelection", () => {
     it("allows shipping an explicit selection even from a partial list", () => {
@@ -35,5 +35,27 @@ describe("canOfferSelectAll", () => {
 
     it("stays hidden below the page-select limit", () => {
         expect(canOfferSelectAll({ selectedCount: 5, loadedCount: 20, pageSelectLimit: 50, ordersAreComplete: true })).toBe(false);
+    });
+});
+
+describe("partitionByShipDay", () => {
+    // 00:30 Baghdad on 8 Oct 2026 — still the 7th in UTC.
+    const now = Date.parse("2026-10-07T21:30:00.000Z");
+    const orders = [
+        { id: "unscheduled", scheduled_date: null },
+        { id: "due-today", scheduled_date: "2026-10-08" },
+        { id: "overdue", scheduled_date: "2026-10-05" },
+        { id: "tomorrow", scheduled_date: "2026-10-09" },
+    ];
+
+    it("holds back only orders scheduled for a later Baghdad day", () => {
+        const { shippable, scheduledLater } = partitionByShipDay(orders, now);
+        expect(shippable.map(o => o.id)).toEqual(["unscheduled", "due-today", "overdue"]);
+        expect(scheduledLater.map(o => o.id)).toEqual(["tomorrow"]);
+    });
+
+    it("treats an order due today as shippable just after Baghdad midnight", () => {
+        // Under UTC-day logic the 8th would still be "tomorrow" here.
+        expect(partitionByShipDay([{ scheduled_date: "2026-10-08" }], now).scheduledLater).toHaveLength(0);
     });
 });

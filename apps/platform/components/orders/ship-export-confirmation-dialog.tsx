@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
-import { Truck, AlertTriangle, Package } from "lucide-react";
+import { Truck, AlertTriangle, Package, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBaseOrderId } from "@/lib/utils";
-import { getStatusBadgeStyle } from "@/lib/order-format-utils";
+import { getStatusBadgeStyle, formatScheduledDate } from "@/lib/order-format-utils";
 import type { Order } from "@/types/order";
-import { canShipWithoutSelection } from "@/lib/order-bulk-scope";
+import { canShipWithoutSelection, partitionByShipDay } from "@/lib/order-bulk-scope";
 
 const SAFE_EXPORT_TABS = ["confirmed", "in_transit", "return_pending", "refund_delivered", "refund_failed"] as const;
 
@@ -41,7 +41,11 @@ interface ShipExportConfirmationDialogProps {
      * path must not claim to be shipping everything.
      */
     ordersAreComplete?: boolean;
-    onConfirmExport: () => void;
+    /**
+     * Orders scheduled for a later day are left out unless the merchant ticks
+     * "include" here; the choice is passed back so the export applies it.
+     */
+    onConfirmExport: (options: { includeScheduledLater: boolean }) => void;
 }
 
 export function ShipExportConfirmationDialog({
@@ -60,6 +64,8 @@ export function ShipExportConfirmationDialog({
 
     const [countdown, setCountdown] = useState(countdownDuration);
     const [isExporting, setIsExporting] = useState(false);
+    // Off by default: shipping a postponed order early has to be a decision.
+    const [includeScheduledLater, setIncludeScheduledLater] = useState(false);
 
     const handleOpenChange = useCallback((v: boolean) => {
         if (!isExporting) {
@@ -76,6 +82,9 @@ export function ShipExportConfirmationDialog({
         const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
         return () => clearTimeout(timer);
     }, [open, countdown]);
+
+    const { scheduledLater } = useMemo(() => partitionByShipDay(orders), [orders]);
+    const exportCount = includeScheduledLater ? orders.length : orders.length - scheduledLater.length;
 
     const companyLabel = company === "prime" ? "Prime" : "Al-Waseet (الوسيط)";
     const tabLabel = STATUS_LABELS[currentTab] || currentTab || "All Orders";
@@ -96,8 +105,9 @@ export function ShipExportConfirmationDialog({
 
     const handleConfirm = async () => {
         if (cannotShipWholeFilter) return;
+        if (exportCount === 0) return;
         setIsExporting(true);
-        onConfirmExport();
+        onConfirmExport({ includeScheduledLater });
         setTimeout(() => onOpenChange(false), 300);
     };
 
@@ -145,9 +155,9 @@ export function ShipExportConfirmationDialog({
                             <span className="text-sm text-gray-600">Orders to export</span>
                             <span className={cn(
                                 "text-lg font-bold tabular-nums",
-                                orders.length > 30 ? "text-amber-700" : "text-slate-800"
+                                exportCount > 30 ? "text-amber-700" : "text-slate-800"
                             )}>
-                                {orders.length}
+                                {exportCount}
                             </span>
                         </div>
                         {!hasSelection && (
@@ -184,6 +194,37 @@ export function ShipExportConfirmationDialog({
                             </div>
                         )}
                     </div>
+
+                    {/* Postponed orders — held back unless explicitly included */}
+                    {scheduledLater.length > 0 && (
+                        <div className="p-4 rounded-xl border bg-blue-50 border-blue-200 flex gap-3">
+                            <CalendarClock className="h-5 w-5 flex-shrink-0 mt-0.5 text-blue-600" />
+                            <div className="space-y-2 min-w-0">
+                                <p className="text-sm font-semibold text-blue-900">
+                                    {scheduledLater.length} {scheduledLater.length === 1 ? "order is" : "orders are"} scheduled for a later day
+                                </p>
+                                <p className="text-xs text-blue-800">
+                                    {includeScheduledLater
+                                        ? "They will be shipped today, ahead of their scheduled day."
+                                        : "They will be left out of this export and stay in the list for their day."}
+                                    {" "}
+                                    <span className="text-blue-700/80">
+                                        ({scheduledLater.slice(0, 5).map(o => `#${getBaseOrderId(o.order_id)} → ${formatScheduledDate(o.scheduled_date)}`).join(", ")}
+                                        {scheduledLater.length > 5 ? ", …" : ""})
+                                    </span>
+                                </p>
+                                <label className="flex items-center gap-2 text-xs font-medium text-blue-900 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={includeScheduledLater}
+                                        onChange={(e) => setIncludeScheduledLater(e.target.checked)}
+                                        className="h-4 w-4 rounded border-blue-300"
+                                    />
+                                    Ship them today anyway
+                                </label>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Unsafe tab warning */}
                     {isUnsafeTab && (
@@ -271,10 +312,10 @@ export function ShipExportConfirmationDialog({
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={countdown > 0 || isExporting || cannotShipWholeFilter}
+                        disabled={countdown > 0 || isExporting || cannotShipWholeFilter || exportCount === 0}
                         className={cn(
                             "px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 min-w-[180px]",
-                            (countdown > 0 || cannotShipWholeFilter)
+                            (countdown > 0 || cannotShipWholeFilter || exportCount === 0)
                                 ? isUnsafeTab
                                     ? "bg-red-200 text-red-400 cursor-not-allowed"
                                     : "bg-slate-200 text-slate-400 cursor-not-allowed"
@@ -290,7 +331,7 @@ export function ShipExportConfirmationDialog({
                             ? `Wait ${countdown}s...`
                             : isExporting
                                 ? "Exporting..."
-                                : `Export ${orders.length} Orders`
+                                : `Export ${exportCount} Orders`
                         }
                     </button>
                 </DialogFooter>

@@ -11,7 +11,7 @@ import type { Order } from "@/lib/supabase";
 import { getStatusLabel } from "@/lib/utils";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { restoreDeletedOrders } from "@/app/actions/deleted-orders";
-import { canShipWithoutSelection } from "@/lib/order-bulk-scope";
+import { canShipWithoutSelection, partitionByShipDay } from "@/lib/order-bulk-scope";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
 
 /**
@@ -217,7 +217,36 @@ export function useOrderBulkOperations() {
     // Additional bulk status handlers
     const handleBulkNew = makeBulkStatusHandler("new");
     const handleBulkContacted = makeBulkStatusHandler("contacted");
-    const handleBulkInTransit = makeBulkStatusHandler("in_transit");
+    /**
+     * Bulk "In Transit" hands orders to the courier, so it skips any order
+     * scheduled for a later day — shipping it would silently undo the
+     * postponement. The export flow asks; this quick action holds them back
+     * and says so. Move one individually to send it early.
+     */
+    const handleBulkInTransit = async () => {
+        const selected = orders.filter(o => selectedOrders.has(o.id));
+        const { scheduledLater } = partitionByShipDay(selected);
+        if (scheduledLater.length === 0) {
+            return makeBulkStatusHandler("in_transit")();
+        }
+
+        const heldBack = new Set(scheduledLater.map(o => o.id));
+        const ids = Array.from(selectedOrders).filter(id => !heldBack.has(id));
+        toast.warning(
+            `${scheduledLater.length} scheduled for a later day kept back`,
+            "Orders postponed to a later day are not shipped in bulk. Open one to move it individually.",
+        );
+        if (ids.length === 0) return;
+        withProcessing(
+            () => bulkUpdateStatus(ids, "in_transit"),
+            `Updating ${ids.length} orders...`,
+            t("toast.statusUpdatedDescCount")
+                .replace("{count}", String(ids.length))
+                .replace("{status}", getStatusLabel("in_transit")),
+            // Leave the held-back orders selected so the merchant sees which they were.
+            () => setSelectedOrders(new Set(heldBack)),
+        );
+    };
     const handleBulkCompleted = makeBulkStatusHandler("completed");
     const handleBulkNoResponse = makeBulkStatusHandler("no_response");
     const handleBulkSuspend = makeBulkStatusHandler("suspended");
@@ -239,7 +268,10 @@ export function useOrderBulkOperations() {
         remove: handleBulkDelete,
     };
 
-    const handleShipExport = async (company: 'prime' | 'waseet') => {
+    const handleShipExport = async (
+        company: 'prime' | 'waseet',
+        { includeScheduledLater = false }: { includeScheduledLater?: boolean } = {},
+    ) => {
         // Shipping with nothing selected means "everything matching my filter".
         // That is only true while the cached list IS the complete filtered set;
         // against a windowed list it would hand the courier whichever orders
@@ -252,20 +284,25 @@ export function useOrderBulkOperations() {
             return;
         }
 
-        const ids = selectedOrders.size > 0
-            ? Array.from(selectedOrders)
-            : filteredOrders.map(o => o.id);
+        const inScope: Order[] = selectedOrders.size > 0
+            ? orders.filter(o => selectedOrders.has(o.id))
+            : filteredOrders;
+
+        // Orders postponed to a later day stay home unless the merchant ticked
+        // "include" in the confirmation dialog: handing one to the courier
+        // today would silently undo the postponement.
+        const { shippable, scheduledLater } = partitionByShipDay(inScope);
+        const ordersToExport = includeScheduledLater ? inScope : shippable;
+        const ids = ordersToExport.map(o => o.id);
 
         if (ids.length === 0) {
-            toast.warning("No orders selected", "Select orders before exporting");
+            toast.warning(
+                "No orders to export",
+                scheduledLater.length > 0
+                    ? "Every order here is scheduled for a later day."
+                    : "Select orders before exporting",
+            );
             return;
-        }
-
-        let ordersToExport: Order[] = [];
-        if (selectedOrders.size > 0) {
-            ordersToExport = orders.filter(o => selectedOrders.has(o.id));
-        } else {
-            ordersToExport = filteredOrders;
         }
 
         const companyLabel = company === 'prime' ? 'Prime' : 'Al-Waseet';
@@ -324,7 +361,10 @@ export function useOrderBulkOperations() {
                 await recordExportOutcome(true);
                 toast.success(
                     "Export successful",
-                    `${ids.length} orders exported via ${companyLabel}`,
+                    `${ids.length} orders exported via ${companyLabel}` +
+                        (!includeScheduledLater && scheduledLater.length > 0
+                            ? `. ${scheduledLater.length} scheduled for a later day were kept back.`
+                            : ""),
                 );
             } else {
                 await recordExportOutcome(false, 'batch_record', batchError || undefined);
