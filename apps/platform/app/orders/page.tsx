@@ -11,6 +11,7 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Order, OrderItem } from "@/lib/supabase";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
 import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { OrderDialogs } from "@/components/orders/order-dialogs";
@@ -235,6 +236,7 @@ export default function OrdersPage() {
         showFilters, setShowFilters,
         groupBy, setGroupBy,
         filterDuplicatesOnly, setFilterDuplicatesOnly,
+        filterDueToday, setFilterDueToday,
         sortConfig, sortConfigs, toggleSort,
         columnFilters, setColumnFilters,
         openFilterColumn, setOpenFilterColumn,
@@ -291,6 +293,8 @@ export default function OrdersPage() {
             setGroupBy: s.setGroupBy,
             filterDuplicatesOnly: s.filterDuplicatesOnly,
             setFilterDuplicatesOnly: s.setFilterDuplicatesOnly,
+            filterDueToday: s.filterDueToday,
+            setFilterDueToday: s.setFilterDueToday,
             sortConfig: s.sortConfig,
             sortConfigs: s.sortConfigs,
             toggleSort: s.toggleSort,
@@ -531,6 +535,7 @@ export default function OrdersPage() {
     const defHookFilteredOrders = React.useDeferredValue(hookFilteredOrders);
     const defColumnFilters = React.useDeferredValue(debouncedColumnFilters);
     const defFilterDuplicatesOnly = React.useDeferredValue(filterDuplicatesOnly);
+    const defFilterDueToday = React.useDeferredValue(filterDueToday);
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
@@ -570,6 +575,12 @@ export default function OrdersPage() {
             result = result.filter(o => getCustomerOrderCount(o.phone) > 1);
         }
 
+        // 1.6. Apply Due-Today Filter — orders that were parked for a later day
+        //      and whose day has now arrived.
+        if (defFilterDueToday) {
+            result = result.filter(o => isScheduleDue(o.status, o.scheduled_date));
+        }
+
         // 2. Sort
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
 
@@ -581,11 +592,19 @@ export default function OrdersPage() {
             createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
         }
         const createdAt = (order: Order) => createdAtMs.get(order.id) ?? 0;
+        // Orders parked for a later day are not today's work: they stay in the
+        // list of the day they arrived (where the status chips count them) but
+        // sink below the live queue instead of mixing into it.
+        const parked = new Set(result.filter(o => getScheduledState(o.scheduled_date) === "future").map(o => o.id));
 
         result.sort((a, b) => {
             // Priority: Pinned first
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
+
+            const aParked = parked.has(a.id);
+            const bParked = parked.has(b.id);
+            if (aParked !== bParked) return aParked ? 1 : -1;
 
             // Multi-column sort
             for (const sc of activeSorts) {
@@ -606,7 +625,7 @@ export default function OrdersPage() {
             return createdAt(b) - createdAt(a);
         });
         return result;
-    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, getCustomerOrderCount, defRiskLevel]);
+    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel]);
 
     const defOrders = React.useDeferredValue(orders);
 
@@ -617,6 +636,15 @@ export default function OrdersPage() {
         return defHookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [defHookFilteredOrders]);
 
+    // Orders parked for a later day whose day has arrived — the "due today" queue.
+    // Same predicate as the filter, so the chip's count matches its list.
+    // Counted over the loaded window: with the default (today) window that is
+    // every order scheduled for today; older overdue ones show on their own day.
+    const dueTodayCount = useMemo(() => {
+        if (!defOrders) return 0;
+        return defOrders.filter(o => isScheduleDue(o.status, o.scheduled_date)).length;
+    }, [defOrders]);
+
     // Calculate global risk count for the key filter button (all orders)
     const totalRiskCount = useMemo(() => {
         if (!defOrders) return 0;
@@ -626,7 +654,7 @@ export default function OrdersPage() {
     // Scroll to top when filters change to prevent empty list illusion
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [filters, filterDuplicatesOnly]);
+    }, [filters, filterDuplicatesOnly, filterDueToday]);
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
@@ -1554,6 +1582,7 @@ export default function OrdersPage() {
                                                 isBulkProcessing={isBulkProcessing}
                                                 hasActiveFilters={hasActiveFilters}
                                                 totalRiskCount={totalRiskCount}
+                                                dueTodayCount={dueTodayCount}
                                                 showSubFilters={showSubFilters}
                                                 toggleSubFilters={toggleSubFilters}
                                                 onOpenScanner={() => setIsScannerOpen(true)}
@@ -1573,6 +1602,9 @@ export default function OrdersPage() {
                                                     setGroupBy={setGroupBy}
                                                     filterDuplicatesOnly={filterDuplicatesOnly}
                                                     setFilterDuplicatesOnly={setFilterDuplicatesOnly}
+                                                    filterDueToday={filterDueToday}
+                                                    setFilterDueToday={setFilterDueToday}
+                                                    dueTodayCount={dueTodayCount}
                                                     showSubFilters={showSubFilters}
                                                     isMobile={true}
                                                 />

@@ -56,6 +56,7 @@ import {
     Moon,
     Clock,
     Ban,
+    CalendarClock,
 } from "lucide-react";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 import { OrderCustomerRiskPanel } from "./order-customer-risk-panel";
@@ -63,6 +64,8 @@ import { ProductPicker } from "./product-picker";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { BulkUploadModal } from "./bulk-upload-modal";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
+import { routeCreateOrderDate } from "@/lib/order-date-guard";
+import { formatScheduledDate } from "@/lib/order-format-utils";
 
 // TikTok icon component
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -136,6 +139,7 @@ export function CreateOrderModal({
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [showBulkUpload, setShowBulkUpload] = useState(false);
     const [customCreatedAt, setCustomCreatedAt] = useState<string>(new Date().toISOString());
+    const postponeTo = routeCreateOrderDate(customCreatedAt).scheduledDate;
     const [createAndNew, setCreateAndNew] = useState(false);
     const handleCreateRef = useRef<(() => void) | undefined>(undefined);
 
@@ -623,6 +627,14 @@ export function CreateOrderModal({
                                 showTime={true}
                             />
                         </div>
+                        {/* A future date postpones the order (scheduled_date); the
+                            placement date stays today. See routeCreateOrderDate. */}
+                        {postponeTo && (
+                            <p className="text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg -mt-2 flex items-center gap-1.5">
+                                <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                                سيُجدول الطلب ليوم {formatScheduledDate(postponeTo)} — يبقى تاريخ الطلب اليوم
+                            </p>
+                        )}
                         {orderType === "shop" && (
                             <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg -mt-2">
                                 طلب المحل: رقم الهاتف اختياري، بدون رسوم توصيل

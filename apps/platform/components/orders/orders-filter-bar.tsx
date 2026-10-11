@@ -51,6 +51,8 @@ interface OrdersFilterBarProps {
     hasActiveFilters: boolean;
     /** Orders flagged across the whole set, for the risk shortcut. */
     totalRiskCount: number;
+    /** Size of the "due today" queue — postponed orders whose day has arrived. */
+    dueTodayCount: number;
     showSubFilters: boolean;
     toggleSubFilters: () => void;
     onOpenScanner: () => void;
@@ -70,6 +72,7 @@ export function OrdersFilterBar({
     isBulkProcessing,
     hasActiveFilters,
     totalRiskCount,
+    dueTodayCount,
     showSubFilters,
     toggleSubFilters,
     onOpenScanner,
@@ -99,6 +102,7 @@ export function OrdersFilterBar({
         newPresetName, setNewPresetName,
         groupBy, setGroupBy,
         filterDuplicatesOnly, setFilterDuplicatesOnly,
+        filterDueToday, setFilterDueToday,
         selectedOrders, setSelectedOrders,
         isFilterPanelAnimating, setIsFilterPanelAnimating,
         setTemplatePanelOpen,
@@ -115,6 +119,8 @@ export function OrdersFilterBar({
             setGroupBy: s.setGroupBy,
             filterDuplicatesOnly: s.filterDuplicatesOnly,
             setFilterDuplicatesOnly: s.setFilterDuplicatesOnly,
+            filterDueToday: s.filterDueToday,
+            setFilterDueToday: s.setFilterDueToday,
             selectedOrders: s.selectedOrders,
             setSelectedOrders: s.setSelectedOrders,
             isFilterPanelAnimating: s.isFilterPanelAnimating,
@@ -164,6 +170,9 @@ export function OrdersFilterBar({
                                 setGroupBy={setGroupBy}
                                 filterDuplicatesOnly={filterDuplicatesOnly}
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
+                                filterDueToday={filterDueToday}
+                                setFilterDueToday={setFilterDueToday}
+                                dueTodayCount={dueTodayCount}
                                 showSubFilters={showSubFilters}
                                 isMobile={false}
                             />

@@ -3,11 +3,12 @@ import { Order, OrderItem } from "@/lib/supabase";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { toast } from "@/hooks/use-toast";
 import { getBaseOrderId } from "@/lib/utils";
+import { FUTURE_ORDER_DATE_CODE, isFutureInstant } from "@/lib/order-date-guard";
 
 interface UseOrderDetailsFormProps {
     order: Order | null;
     setOrder: React.Dispatch<React.SetStateAction<Order | null>>;
-    onUpdate: (orderId: string, updates: Partial<Order>) => Promise<{ success: boolean; error?: string; data?: Order }>;
+    onUpdate: (orderId: string, updates: Partial<Order>) => Promise<{ success: boolean; error?: string; code?: string; data?: Order }>;
     t: (key: string) => string;
 }
 
@@ -16,12 +17,16 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState<Partial<Order>>({});
     const [showProductPicker, setShowProductPicker] = useState(false);
+    // Field-level error for the order date. Kept out of the toast stream so the
+    // merchant sees which control to use, and the rest of the form survives.
+    const [orderDateError, setOrderDateError] = useState<string | null>(null);
 
     // Reset form state when order changes to prevent showing stale data
     useEffect(() => {
         setIsEditing(false);
         setFormData({});
         setShowProductPicker(false);
+        setOrderDateError(null);
     }, [order?.id]);
 
     const handleEdit = () => {
@@ -42,13 +47,16 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
             delivery_order_id: order.delivery_order_id || "",
             items: order.items ? [...order.items] : [],
             created_at: order.created_at,
+            scheduled_date: order.scheduled_date ?? null,
         });
+        setOrderDateError(null);
         setIsEditing(true);
     };
 
     const handleCancel = () => {
         setIsEditing(false);
         setFormData({});
+        setOrderDateError(null);
     };
 
     const handleSave = async () => {
@@ -57,6 +65,25 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
 
         try {
             const dataToSave = { ...formData };
+
+            // An order cannot have been placed in the future — postponing is
+            // `scheduled_date`. The database enforces this too
+            // (trg_orders_created_at_not_future); failing it here first keeps
+            // the round trip, and the message points at the right control.
+            if (
+                dataToSave.created_at &&
+                dataToSave.created_at !== order.created_at &&
+                isFutureInstant(dataToSave.created_at)
+            ) {
+                setOrderDateError(t("orderDetail.futureDateBlocked"));
+                return;
+            }
+
+            // Only send scheduled_date if it changed, so an untouched schedule
+            // does not write an audit line on every save.
+            if ((dataToSave.scheduled_date ?? null) === (order.scheduled_date ?? null)) {
+                delete (dataToSave as Record<string, unknown>).scheduled_date;
+            }
 
             // Only send created_at if it was actually changed
             if (dataToSave.created_at && dataToSave.created_at !== order.created_at) {
@@ -84,7 +111,11 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
                 });
                 setIsEditing(false);
                 setFormData({});
+                setOrderDateError(null);
                 toast.success(t("toast.orderUpdated"), t("toast.orderUpdatedDesc"));
+            } else if (result.code === FUTURE_ORDER_DATE_CODE) {
+                // Stay in edit mode with every edit intact; only the date is wrong.
+                setOrderDateError(t("orderDetail.futureDateBlocked"));
             } else {
                 toast.error(t("toast.saveFailed"), result.error || t("orderDetail.saveFailed"));
             }
@@ -105,6 +136,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
     };
 
     const updateFormData = (key: string, value: unknown) => {
+        if (key === "created_at") setOrderDateError(null);
         setFormData((prev) => ({ ...prev, [key]: value }));
     };
 
@@ -170,7 +202,8 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
         handleAddItem,
         handleProductSelect,
         showProductPicker,
-        setShowProductPicker
+        setShowProductPicker,
+        orderDateError,
     };
 }
 

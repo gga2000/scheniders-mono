@@ -3,6 +3,7 @@
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { isOrderFlagged } from "@/lib/data-quality-utils";
 import { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
+import { baghdadDayKey } from "@/lib/order-window";
 
 /**
  * Order Filtering Utilities
@@ -177,22 +178,16 @@ export function createFilterPreset(
 // =============================================
 
 /**
- * Get today's date in YYYY-MM-DD format using LOCAL timezone
- * Note: toISOString() converts to UTC which causes issues for users in positive
- * UTC offset timezones (like Iraq UTC+3) after local midnight but before UTC midnight
- */
-export function getLocalDateString(date: Date = new Date()): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-}
-
-/**
- * Get default filters (today's orders)
+ * Get default filters (today's orders).
+ *
+ * "Today" is the Baghdad day: the fetch window, the realtime predicate and the
+ * status-chip aggregates all read a date filter as Baghdad calendar days, so
+ * seeding it from the browser's local day would open on the wrong day for a
+ * device outside Iraq's zone. (`toISOString()` is worse still: the UTC day is
+ * yesterday for the first three hours of every Baghdad day.)
  */
 export function getDefaultFilters(): OrderFilters {
-    const today = getLocalDateString();
+    const today = baghdadDayKey();
     return {
         status: "all",
         dateFrom: today,

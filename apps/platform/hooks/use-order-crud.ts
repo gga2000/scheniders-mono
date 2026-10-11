@@ -35,6 +35,9 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 import { classifyTransition } from "@/lib/order-status-machine";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
+import { scheduleDayFromToday } from "@/lib/order-format-utils";
+import { routeCreateOrderDate, FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
+import { toBaghdadDayKey } from "@/lib/order-window";
 import {
     summarizeBulkFailures,
     formatFailedOrderList,
@@ -316,7 +319,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         });
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>, expectedVersion?: number, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>, expectedVersion?: number, retryCount = 0): Promise<{ success: boolean; error?: string; code?: string; data?: Order }> {
         const _tUpdate = performance.now();
         diag.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')} retry=${retryCount}`);
         try {
@@ -418,6 +421,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             diag.log(`[Diag:UpdateOrder] MUTATION_ERR orderId=${orderId} err=${err instanceof Error ? err.message : err} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
             console.error("Error updating order:", err);
+
+            // A future order date is a field error: the caller shows it under
+            // the order-date control and keeps the form open.
+            if (err instanceof FutureOrderDateError) {
+                return { success: false, error: err.message, code: FUTURE_ORDER_DATE_CODE };
+            }
 
             // Only show toast on final failure
             if (!(err instanceof Error && err.message === "CONFLICT_DETECTED") || retryCount >= 2) {
@@ -521,22 +530,30 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             const data = await mutationPromise;
 
-            // Update created_at if user selected a custom date (fire-and-forget)
-            if (custom_created_at && data?.id) {
-                supabase
-                    .from("orders")
-                    .update({ created_at: custom_created_at })
-                    .eq("id", data.id)
-                    .then(({ error: dateError }) => {
-                        if (dateError) {
-                            console.error("Failed to update order date:", dateError);
-                        } else {
-                            // Update local cache to reflect the custom date
-                            queryClient.setQueryData<Order[]>(orderKeys.lists(), (prev) =>
-                                prev?.map(o => o.id === data.id ? { ...o, created_at: custom_created_at } : o)
-                            );
-                        }
-                    });
+            // The form's date goes to one of two columns: a past date back-dates
+            // the placement (`created_at`), a future one postpones the order
+            // (`scheduled_date`). create_order_atomic accepts neither, so it is a
+            // follow-up write — awaited, because this used to be fire-and-forget:
+            // a future date went to created_at, the database refused it
+            // (trg_orders_created_at_not_future), and nobody was told.
+            const { createdAt: backdatedAt, scheduledDate: postponedTo } = routeCreateOrderDate(custom_created_at);
+            const dateUpdate: Partial<Order> = {};
+            if (backdatedAt) dateUpdate.created_at = backdatedAt;
+            if (postponedTo) dateUpdate.scheduled_date = postponedTo;
+            if (data?.id && Object.keys(dateUpdate).length > 0) {
+                try {
+                    const dated = await orderRepository.update(data.id, dateUpdate);
+                    queryClient.setQueryData<Order[]>(orderKeys.lists(), (prev) =>
+                        prev?.map(o => o.id === data.id ? { ...o, ...dated } : o)
+                    );
+                    Object.assign(data, dated);
+                } catch (dateErr) {
+                    reportOrderError(dateErr, { operation: "createOrder-date", orderId: data.id });
+                    toast.warning(
+                        postponedTo ? "Order created, but not scheduled" : "Order created, but its date was not changed",
+                        { description: dateErr instanceof Error ? dateErr.message : "Set the date from the order's details." },
+                    );
+                }
             }
 
             // Reserved stock is allocated automatically by the DB trigger on `orders`
@@ -679,21 +696,20 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         orderId: string,
         date: Date | "tomorrow" | "+2days" | null
     ) {
+        // Baghdad calendar days. `toISOString().split("T")[0]` is the UTC day,
+        // which made "tomorrow" land on today between 00:00 and 03:00 Baghdad.
         let scheduledDate: string | null = null;
-
         if (date === "tomorrow") {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            scheduledDate = tomorrow.toISOString().split("T")[0];
+            scheduledDate = scheduleDayFromToday(1);
         } else if (date === "+2days") {
-            const twoDays = new Date();
-            twoDays.setDate(twoDays.getDate() + 2);
-            scheduledDate = twoDays.toISOString().split("T")[0];
+            scheduledDate = scheduleDayFromToday(2);
         } else if (date instanceof Date) {
-            scheduledDate = date.toISOString().split("T")[0];
+            scheduledDate = toBaghdadDayKey(date);
         }
 
-        return updateOrder(orderId, { scheduled_date: scheduledDate || undefined });
+        // null clears the schedule. It used to be sent as `undefined`, which
+        // PostgREST drops from the payload, so "clear" silently did nothing.
+        return updateOrder(orderId, { scheduled_date: scheduledDate });
     }
 
     async function setPriority(orderId: string, priority: OrderPriority) {

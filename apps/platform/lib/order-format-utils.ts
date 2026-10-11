@@ -1,6 +1,7 @@
 import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
 import type { Locale } from "@/lib/i18n";
+import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
 /**
  * Merchant-facing dates and times are Baghdad's, not the viewer's.
@@ -158,14 +159,103 @@ export const formatOrderNamedDayMonth = (dateStr: string | Date | undefined | nu
     return baghdadNamedDayMonth.format(date);
 };
 
-export const getAgeUrgency = (status: Order["status"], dateStr: string | Date | undefined | null) => {
+// =============================================
+// SCHEDULING (postpone to a day)
+// =============================================
+//
+// `created_at` is when the order arrived — a fact, guarded in the database
+// against future values. `scheduled_date` (a date-only column) is the day the
+// merchant intends to work it. Every comparison below is on Baghdad calendar
+// days as "YYYY-MM-DD" strings, the same days the date filter and the fetch
+// window use, so no device time zone can move an order to a neighbouring day.
+
+export type ScheduledState = "future" | "due";
+
+/**
+ * Where an order sits relative to the day it was scheduled for:
+ * `future` = parked for a later day, `due` = its day has arrived or passed,
+ * `null` = never scheduled (or an unusable value).
+ */
+export const getScheduledState = (
+    scheduledDate: string | null | undefined,
+    now: number = Date.now(),
+): ScheduledState | null => {
+    const key = toBaghdadDayKey(scheduledDate);
+    if (!key) return null;
+    return key > baghdadDayKey(now) ? "future" : "due";
+};
+
+/** True when the order is scheduled for the current Baghdad day. */
+export const isScheduledToday = (scheduledDate: string | null | undefined, now: number = Date.now()) => {
+    const key = toBaghdadDayKey(scheduledDate);
+    return key !== null && key === baghdadDayKey(now);
+};
+
+/** Statuses where the order is finished and is no longer anyone's queue. */
+const SETTLED_STATUSES = new Set<Order["status"]>([
+    "completed",
+    "delivered",
+    "rejected",
+    "cancelled",
+    "refund_delivered",
+]);
+
+/**
+ * An order whose scheduled day has arrived (or passed) and that still needs
+ * work — the "due today" queue of orders that were parked and have come round.
+ */
+export const isScheduleDue = (
+    status: Order["status"],
+    scheduledDate: string | null | undefined,
+    now: number = Date.now(),
+) => getScheduledState(scheduledDate, now) === "due" && !SETTLED_STATUSES.has(status);
+
+/**
+ * The day key `days` calendar days after today in Baghdad — what the
+ * "Tomorrow" / "In 3 days" shortcuts write to `scheduled_date`.
+ */
+export const scheduleDayFromToday = (days: number, now: number = Date.now()) =>
+    addDaysToDayKey(baghdadDayKey(now), days);
+
+// The day key is already a calendar day; format it in UTC so the label cannot
+// shift to the neighbouring day in any viewer's zone.
+const scheduledDayLabel = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** "8 Sept" — the label for the scheduled-date badge. */
+export const formatScheduledDate = (scheduledDate: string | null | undefined) => {
+    const key = toBaghdadDayKey(scheduledDate);
+    if (!key) return "";
+    return scheduledDayLabel.format(new Date(`${key}T00:00:00.000Z`));
+};
+
+/**
+ * Colour band for the age badge.
+ *
+ * An order parked for a future day is `scheduled`, not overdue — nobody is
+ * late on it. Once its day arrives the clock starts from that day rather than
+ * from placement, so a postponed order is not stale the moment it becomes
+ * actionable.
+ */
+export const getAgeUrgency = (
+    status: Order["status"],
+    dateStr: string | Date | undefined | null,
+    scheduledDate?: string | null,
+) => {
     if (status === "delivered" || status === "rejected") return "none";
     if (!dateStr) return "none";
 
-    const now = new Date();
+    const now = Date.now();
     const orderDate = new Date(dateStr);
     if (isNaN(orderDate.getTime())) return "none";
-    const diffHours = (now.getTime() - orderDate.getTime()) / 3600000;
+
+    const scheduled = getScheduledState(scheduledDate, now);
+    if (scheduled === "future") return "scheduled";
+
+    let clockStart = orderDate.getTime();
+    const scheduledKey = scheduled === "due" ? toBaghdadDayKey(scheduledDate) : null;
+    if (scheduledKey) clockStart = Math.max(clockStart, baghdadDayStart(scheduledKey));
+
+    const diffHours = (now - clockStart) / 3600000;
 
     if (diffHours < 2) return "fresh";      // Green - just arrived
     if (diffHours < 4) return "normal";     // Default - normal processing

@@ -29,7 +29,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { useOrdersQuery } from "./use-orders-query";
 
-const TODAY = { fromInstant: Date.parse("2026-10-11T21:00:00.000Z"), toInstant: Date.parse("2026-10-12T20:59:59.999Z") } satisfies NonNullable<OrderWindow>;
+const TODAY = { fromInstant: Date.parse("2026-10-11T21:00:00.000Z"), toInstant: Date.parse("2026-10-12T20:59:59.999Z"), fromDay: "2026-10-12", toDay: "2026-10-12" } satisfies NonNullable<OrderWindow>;
 
 function wrapper() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

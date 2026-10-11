@@ -16,6 +16,8 @@ import { formatIQD, formatDate, generateWhatsAppLink, getBaseOrderId } from "@/l
 import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
 import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
+import { scheduleDayFromToday } from "@/lib/order-format-utils";
+import { toBaghdadDayKey } from "@/lib/order-window";
 import type { Order, OrderStatusHistory, OrderNote, MessageTemplate, OrderItem } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
@@ -142,7 +144,8 @@ export function OrderDetailsModal({
         handleAddItem,
         handleProductSelect,
         showProductPicker,
-        setShowProductPicker
+        setShowProductPicker,
+        orderDateError,
     } = useOrderDetailsForm({
         order,
         setOrder,
@@ -679,10 +682,10 @@ export function OrderDetailsModal({
                                         </button>
                                     )}
                                 </div>
-                                {/* Date in English format (YYYY-MM-DD) */}
+                                {/* Arrival date (YYYY-MM-DD), Baghdad day — the UTC day is a day early after midnight */}
                                 <span className="flex items-center gap-1.5 text-xs text-muted">
                                     <Calendar className="h-3 w-3" />
-                                    {new Date(order.created_at).toISOString().split('T')[0]}
+                                    {toBaghdadDayKey(order.created_at)}
                                 </span>
                                 {/* Action Buttons Row - Reorder, Return, Replace */}
                                 {!isEditing && (
@@ -902,9 +905,7 @@ export function OrderDetailsModal({
                                     <button
                                         onClick={async () => {
                                             if (!order) return;
-                                            const tomorrow = new Date();
-                                            tomorrow.setDate(tomorrow.getDate() + 1);
-                                            const dateStr = tomorrow.toISOString().split('T')[0];
+                                            const dateStr = scheduleDayFromToday(1);
 
                                             const oldDate = order.scheduled_date;
                                             setOrder(prev => prev ? { ...prev, scheduled_date: dateStr } : null);
@@ -916,7 +917,7 @@ export function OrderDetailsModal({
                                         }}
                                         className={cn(
                                             "w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-95 text-blue-600 hover:bg-blue-50",
-                                            order.scheduled_date === new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0] && "bg-blue-100 ring-1 ring-blue-200"
+                                            order.scheduled_date === scheduleDayFromToday(1) && "bg-blue-100 ring-1 ring-blue-200"
                                         )}
                                         title={t("orderDetail.tomorrow")}
                                     >
@@ -1425,6 +1426,7 @@ export function OrderDetailsModal({
                                 onStatusUpdate={onStatusUpdate}
                                 isUpdatingStatus={isUpdatingStatus}
                                 handleStatusChange={handleStatusChange}
+                                orderDateError={orderDateError}
                             />
 
                             {/* Products Card */}

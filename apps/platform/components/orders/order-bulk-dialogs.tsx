@@ -217,7 +217,7 @@ export function OrderBulkDialogs({ bulk }: { bulk: OrderBulkOperations }) {
                 currentTab={filters.status || 'all'}
                 hasSelection={selectedOrders.size > 0}
                 ordersAreComplete={ordersAreComplete}
-                onConfirmExport={() => handleShipExport(shipConfirmCompany)}
+                onConfirmExport={(options) => handleShipExport(shipConfirmCompany, options)}
             />
 
             {/* Post-export: prompt to move exported orders to In Transit */}

@@ -3,6 +3,7 @@ import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
 import type { OrderWindow } from "@/lib/order-window";
+import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 
 /**
  * OrderRepository — Centralized data access for orders.
@@ -23,6 +24,7 @@ const LIST_VIEW_COLUMNS = `
   updated_at,
   version,
   original_created_at,
+  scheduled_date,
   order_id,
   customer_name,
   phone,
@@ -210,12 +212,21 @@ export const orderRepository = {
         // real total, i.e. the list silently disagreeing with its own counts.
         // The payload win comes from the window being narrow (the default view
         // is a single day), never from dropping rows the merchant filtered for.
+        // An order belongs to the window if it arrived inside it OR was
+        // scheduled for a day inside it — the same rule as `belongsInWindow`.
+        // Without the second half a postponed order never appears on the day it
+        // was postponed to. Values are quoted because ISO timestamps carry the
+        // PostgREST-reserved "." and ":". Rides idx_orders_tenant_active_created
+        // and idx_orders_scheduled_date (partial, scheduled rows only).
+        const inWindow =
+            `and(created_at.gte."${fromIso}",created_at.lte."${toIso}"),` +
+            `and(scheduled_date.gte.${window.fromDay},scheduled_date.lte.${window.toDay})`;
+
         const { count, error: countErr } = await supabase
             .from("v_orders_with_risk")
             .select("id", { count: "exact", head: true })
             .eq("is_archived", false)
-            .gte("created_at", fromIso)
-            .lte("created_at", toIso);
+            .or(inWindow);
         if (countErr) throw countErr;
 
         const totalRows = count ?? 0;
@@ -228,9 +239,11 @@ export const orderRepository = {
                     .from("v_orders_with_risk")
                     .select(LIST_VIEW_COLUMNS)
                     .eq("is_archived", false)
-                    .gte("created_at", fromIso)
-                    .lte("created_at", toIso)
+                    .or(inWindow)
                     .order("created_at", { ascending: false })
+                    // Tie-break on id: paging over a non-unique sort key can
+                    // repeat or skip rows at page boundaries.
+                    .order("id", { ascending: false })
                     .range(i * step, i * step + step - 1),
             ),
         );
@@ -414,6 +427,9 @@ export const orderRepository = {
                 throw new Error("CONFLICT_DETECTED");
             }
             diag.log(`[Diag:Repo] update ERR orderId=${id} err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
+            // The future-created_at trigger refusing a write is a field error
+            // the form can point at, not a generic failure.
+            if (isFutureCreatedAtViolation(error)) throw new FutureOrderDateError();
             throw error;
         }
         

@@ -4,9 +4,9 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { cn, formatIQD } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/supabase';
-import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
+import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
-import { getOrderAge, getStatusBadgeStyle } from '@/lib/order-format-utils';
+import { getOrderAge, getScheduledState, isScheduledToday, formatScheduledDate, getStatusBadgeStyle } from '@/lib/order-format-utils';
 import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/ui/empty-states';
 import { OrderContextMenu } from '@/components/orders/table/context-menu';
@@ -313,7 +313,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
     onMouseLeave,
     onRowDrop,
 }: any) {
-    const { language } = useLanguage();
+    const { t, language } = useLanguage();
     const isReturn = order.is_return;
     const isPriority = order.priority === "urgent" || order.priority === "high";
     const rowColor = order.tag_color;
@@ -580,6 +580,12 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     <span className="text-[9px] text-muted font-medium">{getOrderAge(order.created_at, language)}</span>
                     <span className="text-xs text-gray-700 font-mono">{formatDateShort(order.created_at)}</span>
                     <span className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>
+                    {getScheduledState(order.scheduled_date) && (
+                        <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[9px] font-bold">
+                            <Calendar className="w-2.5 h-2.5" />
+                            {isScheduledToday(order.scheduled_date) ? t("orderDetail.scheduledToday") : formatScheduledDate(order.scheduled_date)}
+                        </span>
+                    )}
                 </div>
             </div>
 
