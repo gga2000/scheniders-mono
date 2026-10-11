@@ -36,7 +36,7 @@ import { classifyTransition } from "@/lib/order-status-machine";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
 import { scheduleDayFromToday } from "@/lib/order-format-utils";
-import { FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
+import { routeCreateOrderDate, FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
 import { toBaghdadDayKey } from "@/lib/order-window";
 import {
     summarizeBulkFailures,
@@ -530,22 +530,30 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             const data = await mutationPromise;
 
-            // Update created_at if user selected a custom date (fire-and-forget)
-            if (custom_created_at && data?.id) {
-                supabase
-                    .from("orders")
-                    .update({ created_at: custom_created_at })
-                    .eq("id", data.id)
-                    .then(({ error: dateError }) => {
-                        if (dateError) {
-                            console.error("Failed to update order date:", dateError);
-                        } else {
-                            // Update local cache to reflect the custom date
-                            queryClient.setQueryData<Order[]>(orderKeys.lists(), (prev) =>
-                                prev?.map(o => o.id === data.id ? { ...o, created_at: custom_created_at } : o)
-                            );
-                        }
-                    });
+            // The form's date goes to one of two columns: a past date back-dates
+            // the placement (`created_at`), a future one postpones the order
+            // (`scheduled_date`). create_order_atomic accepts neither, so it is a
+            // follow-up write — awaited, because this used to be fire-and-forget:
+            // a future date went to created_at, the database refused it
+            // (trg_orders_created_at_not_future), and nobody was told.
+            const { createdAt: backdatedAt, scheduledDate: postponedTo } = routeCreateOrderDate(custom_created_at);
+            const dateUpdate: Partial<Order> = {};
+            if (backdatedAt) dateUpdate.created_at = backdatedAt;
+            if (postponedTo) dateUpdate.scheduled_date = postponedTo;
+            if (data?.id && Object.keys(dateUpdate).length > 0) {
+                try {
+                    const dated = await orderRepository.update(data.id, dateUpdate);
+                    queryClient.setQueryData<Order[]>(orderKeys.lists(), (prev) =>
+                        prev?.map(o => o.id === data.id ? { ...o, ...dated } : o)
+                    );
+                    Object.assign(data, dated);
+                } catch (dateErr) {
+                    reportOrderError(dateErr, { operation: "createOrder-date", orderId: data.id });
+                    toast.warning(
+                        postponedTo ? "Order created, but not scheduled" : "Order created, but its date was not changed",
+                        { description: dateErr instanceof Error ? dateErr.message : "Set the date from the order's details." },
+                    );
+                }
             }
 
             // Reserved stock is allocated automatically by the DB trigger on `orders`
