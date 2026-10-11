@@ -65,6 +65,7 @@ import { motion } from "framer-motion";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useOrderInlineEdit, type InlineEditableField } from "@/hooks/use-order-inline-edit";
 import { OrderInlineEdit } from "@/components/orders/table/order-inline-edit";
+import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -1751,6 +1752,12 @@ export const OrderCard = memo(function OrderCard({
 
                     {/* PRICE SECTION - Hidden on mobile (shown at bottom instead) */}
                     <motion.div layoutId={getLayoutId(`order-price-${order.id}-${order.status}`)} className="hidden md:block text-right min-w-[100px] flex-shrink-0">
+                        {/* Which ad brought this order in — `source` only says LightFunnels. */}
+                        {(order.attribution || order.ad_channel) && (
+                            <div className="mb-1 flex justify-end">
+                                <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} />
+                            </div>
+                        )}
                         {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                             <>
                                 <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">المبلغ الإجمالي</p>

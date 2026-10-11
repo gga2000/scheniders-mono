@@ -14,6 +14,7 @@ import { cn, getStatusLabel } from "@/lib/utils";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
+import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import {
     DropdownMenu,
@@ -185,7 +186,9 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                 </span>
                             )}
                         </div>
-                        <div className="shrink-0">
+                        <div className="shrink-0 flex items-center gap-1">
+                            {/* `source` names the system; this names the ad network. */}
+                            <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} compact />
                             {renderSourceBadge()}
                         </div>
                     </div>
