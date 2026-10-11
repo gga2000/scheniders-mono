@@ -19,33 +19,23 @@ import type { OrderFilters } from "@/lib/supabase";
  * localStorage, replaced from server preferences, and written back, all inside
  * the hook that also derived every list from it.
  *
- * The three stages are preserved exactly, because they are load-bearing:
- *   1. synchronous localStorage seed, so the first paint has the merchant's
- *      last filter rather than a default;
- *   2. asynchronous replacement once `userId` resolves, so the filter follows
- *      them across devices;
- *   3. write-back on every change.
+ * Stages:
+ *   1. a default seed, which is never fetched (see `filtersSettled`);
+ *   2. replacement by the saved filter once `userId` resolves, so the filter
+ *      follows the merchant across devices;
+ *   3. write-back on every change, once the user is known.
  */
 export function useOrderFilterState() {
     const { getPreference, setPreference, userId } = useUserPreferences();
     const hasLoadedUserPrefs = useRef(false);
 
-    const [filters, setFiltersState] = useState<OrderFilters>(() => {
-        if (typeof window !== "undefined") {
-            try {
-                const stored = localStorage.getItem(`schneiders_prefs_anonymous_orderFilters`);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    // Strip riskLevel — it should not persist across sessions
-                    delete parsed.riskLevel;
-                    return parsed;
-                }
-            } catch {
-                // Fall through to default
-            }
-        }
-        return getDefaultFilters();
-    });
+    // Seed with defaults, not with a cached copy. The query that loads orders
+    // waits for `filtersSettled`, so the seed is never fetched and never shown;
+    // what it used to be — localStorage under an "anonymous" key — was written by
+    // any filter change made before auth resolved (a dashboard `?status=` link),
+    // and its dates never moved again. Merchants opened the app on a window from
+    // weeks earlier under an "All Orders" label.
+    const [filters, setFiltersState] = useState<OrderFilters>(getDefaultFilters);
 
     /**
      * True until the server-side preference has had its chance to replace the
@@ -79,13 +69,18 @@ export function useOrderFilterState() {
         }
     }, [userId, getPreference]);
 
-    // Wrapper to persist filters when they change
+    // Wrapper to persist filters when they change. Nothing is persisted before
+    // the user is known: the write would land under the anonymous key.
+    const userIdRef = useRef(userId);
+    userIdRef.current = userId;
     const setFilters = useCallback((newFilters: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => {
         setFiltersState(prev => {
             const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
-            // Strip riskLevel from persistence
-            const { riskLevel: _riskLevel, ...persistableFilters } = updated;
-            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
+            if (userIdRef.current) {
+                // Strip riskLevel from persistence
+                const { riskLevel: _riskLevel, ...persistableFilters } = updated;
+                setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
+            }
             return updated;
         });
     }, [setPreference]);

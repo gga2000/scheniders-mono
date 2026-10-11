@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { diag } from "@/lib/diag";
@@ -107,9 +107,15 @@ if (typeof window !== 'undefined') {
 // =============================================
 const SWR_CACHE_KEY = 'schneiders_orders_swr';
 const SWR_TS_KEY = 'schneiders_orders_swr_ts';
+const SWR_WINDOW_KEY = 'schneiders_orders_swr_window';
 const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
 
-export function writeSwrCache(orders: Order[]): void {
+/** A stable string for a window, so a snapshot is only ever reused for the window it holds. */
+export function windowCacheKey(window: OrderWindow): string {
+    return window ? `${window.fromInstant}-${window.toInstant}` : "all";
+}
+
+export function writeSwrCache(orders: Order[], windowKey: string): void {
     // An empty result is not worth caching, and caching it is actively harmful:
     // hydrating from it makes React Query report `isLoading: false` with no rows,
     // which is indistinguishable from "this merchant has no orders". See
@@ -120,15 +126,22 @@ export function writeSwrCache(orders: Order[]): void {
         const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
         sessionStorage.setItem(SWR_CACHE_KEY, serialized);
         sessionStorage.setItem(SWR_TS_KEY, String(Date.now()));
+        sessionStorage.setItem(SWR_WINDOW_KEY, windowKey);
     } catch {
         // sessionStorage full or unavailable — non-critical
     }
 }
 
-export function readSwrCache(): Order[] | null {
+/**
+ * The snapshot for `windowKey`, or null. A snapshot of a different window is
+ * refused: hydrating one showed, say, today's rows under an "All Orders" filter
+ * as if they were fresh.
+ */
+export function readSwrCache(windowKey: string): { orders: Order[]; savedAt: number } | null {
     try {
         const ts = sessionStorage.getItem(SWR_TS_KEY);
         if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
+        if (sessionStorage.getItem(SWR_WINDOW_KEY) !== windowKey) return null;
         const raw = sessionStorage.getItem(SWR_CACHE_KEY);
         if (!raw) return null;
         // Measure the SYNCHRONOUS main-thread parse cost (runs during render via initialData).
@@ -139,7 +152,7 @@ export function readSwrCache(): Order[] | null {
         // state while the real fetch is still in flight. A merchant with 4,778
         // orders was shown "When you receive orders, they'll appear here".
         if (!Array.isArray(parsed) || parsed.length === 0) return null;
-        return parsed;
+        return { orders: parsed, savedAt: Number(ts) };
     } catch {
         return null;
     }
@@ -173,7 +186,7 @@ async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
     const resolved = resolveStaleContacted(result);
 
     // Persist to sessionStorage for SWR on next refresh
-    writeSwrCache(resolved);
+    writeSwrCache(resolved, windowCacheKey(window));
 
     return resolved;
 }
@@ -193,7 +206,7 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  *
  * @param refetchTrigger - Optional trigger to force refetch
  */
-export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: string) {
+export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true, refetchTrigger?: string) {
     const queryClient = useQueryClient();
     const { session, clientReady } = useAuth();
 
@@ -220,7 +233,7 @@ export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: stri
     const windowRef = useRef(window);
     windowRef.current = window;
 
-    const windowKey = window ? `${window.fromInstant}-${window.toInstant}` : "all";
+    const windowKey = windowCacheKey(window);
     const isFirstWindow = useRef(true);
     useEffect(() => {
         if (isFirstWindow.current) {
@@ -239,30 +252,34 @@ export function useOrdersQuery(window: OrderWindow = null, refetchTrigger?: stri
         }
     }, [refetchTrigger, queryClient]);
 
+    // Nothing is fetched or hydrated until the merchant's saved filter has
+    // replaced the default seed. Before this gate the first fetch ran with the
+    // seed window, and the refetch for the real window JOINED that in-flight
+    // request (React Query only cancels a refetch when data already exists), so
+    // the cache was filled with the wrong window and marked fresh: "Confirmed 1"
+    // over "No confirmed orders" until a refocus 30s later.
+    //
+    // Once settled, a sessionStorage snapshot of the SAME window may seed the
+    // cache for an instant first paint; React Query then refetches it if stale.
+    const [snapshotChecked, setSnapshotChecked] = useState(false);
+    useEffect(() => {
+        if (!filtersSettled || snapshotChecked) return;
+        if (queryClient.getQueryData(orderKeys.lists()) === undefined) {
+            const snapshot = readSwrCache(windowCacheKey(windowRef.current));
+            if (snapshot) {
+                diag.log(`[Diag:RQ:SWR] Hydrated ${snapshot.orders.length} orders from sessionStorage`);
+                queryClient.setQueryData(orderKeys.lists(), snapshot.orders, { updatedAt: snapshot.savedAt });
+            }
+        }
+        setSnapshotChecked(true);
+    }, [filtersSettled, snapshotChecked, queryClient]);
+
     return useQuery({
         queryKey: orderKeys.lists(),
         queryFn: () => fetchOrders(windowRef.current),
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
-        enabled: !!session && clientReady,
-        // SWR: Hydrate from sessionStorage immediately (shows data in <5ms).
-        // React Query knows the real age via initialDataUpdatedAt, so it will
-        // refetch in the background if the cached data is stale (>30s old).
-        initialData: () => {
-            const cached = readSwrCache();
-            if (cached) {
-                diag.log(`[Diag:RQ:SWR] Hydrated ${cached.length} orders from sessionStorage`);
-            }
-            return cached ?? undefined;
-        },
-        initialDataUpdatedAt: () => {
-            try {
-                const ts = sessionStorage.getItem(SWR_TS_KEY);
-                return ts ? Number(ts) : undefined;
-            } catch {
-                return undefined;
-            }
-        },
+        enabled: !!session && clientReady && filtersSettled && snapshotChecked,
         // Short staleTime — realtime patches keep cache fresh between refetches
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins

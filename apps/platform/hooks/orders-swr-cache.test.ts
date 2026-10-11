@@ -14,6 +14,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
  */
 const CACHE_KEY = "schneiders_orders_swr";
 const TS_KEY = "schneiders_orders_swr_ts";
+const WINDOW_KEY = "schneiders_orders_swr_window";
+type Rows = Parameters<typeof writeSwrCache>[0];
 
 const store = new Map<string, string>();
 vi.stubGlobal("sessionStorage", {
@@ -29,7 +31,7 @@ beforeEach(() => store.clear());
 
 describe("orders SWR cache", () => {
     it("does not persist an empty result", () => {
-        writeSwrCache([]);
+        writeSwrCache([], "all");
         expect(sessionStorage.getItem(CACHE_KEY)).toBeNull();
     });
 
@@ -38,26 +40,35 @@ describe("orders SWR cache", () => {
         // rows (a date filter over a quiet day) wrote `[]` with a fresh stamp.
         sessionStorage.setItem(CACHE_KEY, "[]");
         sessionStorage.setItem(TS_KEY, String(Date.now()));
+        sessionStorage.setItem(WINDOW_KEY, "all");
 
         // null, not [] — null keeps React Query pending; [] would claim success.
-        expect(readSwrCache()).toBeNull();
+        expect(readSwrCache("all")).toBeNull();
     });
 
     it("still hydrates a non-empty cache", () => {
-        writeSwrCache([{ id: "a" }, { id: "b" }] as unknown as Parameters<typeof writeSwrCache>[0]);
-        expect(readSwrCache()).toHaveLength(2);
+        writeSwrCache([{ id: "a" }, { id: "b" }] as unknown as Rows, "all");
+        expect(readSwrCache("all")?.orders).toHaveLength(2);
+    });
+
+    it("refuses a snapshot of a different window", () => {
+        // A snapshot of today's rows must never hydrate an "All Orders" list:
+        // that is what showed "Confirmed 1" over "No confirmed orders".
+        writeSwrCache([{ id: "a" }] as unknown as Rows, "1791752400000-1791838799999");
+        expect(readSwrCache("all")).toBeNull();
     });
 
     it("ignores a cache older than the 5-minute max age", () => {
-        writeSwrCache([{ id: "a" }] as unknown as Parameters<typeof writeSwrCache>[0]);
+        writeSwrCache([{ id: "a" }] as unknown as Rows, "all");
         // The real SWR_MAX_AGE_MS is 5 minutes; 2 minutes is still fresh.
         sessionStorage.setItem(TS_KEY, String(Date.now() - 6 * 60 * 1000));
-        expect(readSwrCache()).toBeNull();
+        expect(readSwrCache("all")).toBeNull();
     });
 
     it("survives a corrupt cache without throwing a non-array through", () => {
         sessionStorage.setItem(CACHE_KEY, '{"not":"an array"}');
         sessionStorage.setItem(TS_KEY, String(Date.now()));
-        expect(readSwrCache()).toBeNull();
+        sessionStorage.setItem(WINDOW_KEY, "all");
+        expect(readSwrCache("all")).toBeNull();
     });
 });
