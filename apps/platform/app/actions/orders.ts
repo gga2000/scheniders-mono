@@ -6,6 +6,7 @@ import { Order, OrderItem } from "@/lib/supabase";
 import { canCreateOrder } from "@/lib/tenant";
 import { createOrderForTenant } from "@/lib/order-service";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
+import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 
 // =============================================
 // CALLER RESOLUTION
@@ -33,28 +34,12 @@ async function resolveCaller(
     const { user, error } = await verifyAccessToken(accessToken);
     if (error || !user) return { error: "Unauthorized" };
 
-    const supabase = createSupabaseServiceClient();
-    const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("current_tenant_id, role, is_active")
-        .eq("id", user.id)
-        .maybeSingle();
+    // The tenant comes from the caller's own profile and is accepted only while
+    // they are an active member of it (resolveActiveTenant).
+    const active = await resolveActiveTenant(user.id);
+    if (!active.ok) return { error: active.error };
 
-    // Deactivating a user is a soft flag and does not revoke their existing
-    // session, so the check has to happen on every call.
-    if (profile?.is_active === false) return { error: "Account deactivated" };
-
-    const tenantId = profile?.current_tenant_id as string | undefined;
-    if (!tenantId) return { error: "No active tenant" };
-
-    // Deny by default: an absent/NULL role must not inherit write access.
-    return {
-        caller: {
-            userId: user.id,
-            tenantId,
-            role: (profile?.role as string) ?? "",
-        },
-    };
+    return { caller: { userId: user.id, tenantId: active.tenantId, role: active.role } };
 }
 
 // =============================================

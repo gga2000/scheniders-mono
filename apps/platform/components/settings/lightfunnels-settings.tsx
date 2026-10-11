@@ -16,6 +16,7 @@ import {
     StopCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
 
 interface ConnectionStatus {
     connected: boolean;
@@ -39,6 +40,8 @@ interface SyncSummary {
 }
 
 export function LightfunnelsSettings() {
+    const { session } = useAuth();
+    const authToken = session?.access_token ?? "";
     const [status, setStatus] = useState<ConnectionStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
@@ -57,7 +60,9 @@ export function LightfunnelsSettings() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/lightfunnels/sync");
+            const res = await fetch("/api/lightfunnels/sync", {
+                headers: { Authorization: `Bearer ${authToken}` },
+            });
             const data = await res.json();
             setStatus(data);
         } catch (err) {
@@ -65,7 +70,7 @@ export function LightfunnelsSettings() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [authToken]);
 
     useEffect(() => {
         checkStatus();
@@ -81,7 +86,7 @@ export function LightfunnelsSettings() {
         try {
             const res = await fetch("/api/lightfunnels/sync", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
                 body: JSON.stringify({
                     action: "save_token",
                     accessToken: accessToken.trim(),
@@ -112,7 +117,7 @@ export function LightfunnelsSettings() {
         try {
             await fetch("/api/lightfunnels/sync", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
                 body: JSON.stringify({ action: "remove_token" }),
             });
             await checkStatus();
@@ -137,7 +142,7 @@ export function LightfunnelsSettings() {
         try {
             const res = await fetch("/api/lightfunnels/sync", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
                 body: JSON.stringify({
                     action: "sync",
                     dateFrom: dateFrom || undefined,

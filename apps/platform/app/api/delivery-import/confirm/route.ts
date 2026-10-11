@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import type { ParsedDeliveryPDF } from "@/types/delivery-import";
 
 interface ConfirmRequest {
@@ -35,23 +36,9 @@ interface ConfirmRequest {
  */
 export async function POST(request: NextRequest) {
     try {
-        // Auth
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json(
-                { success: false, error: "Missing Authorization header" },
-                { status: 401 }
-            );
-        }
-
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json(
-                { success: false, error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
+        // Tenant admins only; the tenant is the caller's verified active tenant.
+        const caller = await requireRequestCaller(request, "tenant-admin");
+        if (!caller.ok) return caller.response;
 
         const body = (await request.json()) as ConfirmRequest;
         const { parsedPDF, confirmedItems, skippedItems, filename } = body;
@@ -70,14 +57,15 @@ export async function POST(request: NextRequest) {
             .from("delivery_imports")
             .insert(
                 {
+                    tenant_id: caller.tenantId,
                     receipt_number: parsedPDF.header.receiptNumber,
                     payment_date: parsedPDF.header.paymentDate,
                     receiving_agent: parsedPDF.header.receivingAgent,
                     total_orders: parsedPDF.rows.length,
                     total_amount: parsedPDF.footerTotal,
                     status: "confirmed",
-                    imported_by: user.id,
-                    confirmed_by: user.id,
+                    imported_by: caller.userId,
+                    confirmed_by: caller.userId,
                     confirmed_at: new Date().toISOString(),
                     pdf_filename: filename,
                     raw_data: parsedPDF,
@@ -183,7 +171,8 @@ export async function POST(request: NextRequest) {
                 const { error: updateError } = await supabaseAdmin
                     .from("orders")
                     .update(orderUpdate)
-                    .eq("id", item.orderId);
+                    .eq("id", item.orderId)
+                    .eq("tenant_id", caller.tenantId);
 
                 if (updateError) {
                     throw new Error(updateError.message);

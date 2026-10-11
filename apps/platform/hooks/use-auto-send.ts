@@ -1,20 +1,23 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const KEY = ["settings", "auto-send"] as const;
 
-async function fetchAutoSend(): Promise<boolean> {
-    const res = await fetch("/api/settings/auto-send");
+async function fetchAutoSend(accessToken: string): Promise<boolean> {
+    const res = await fetch("/api/settings/auto-send", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (!res.ok) throw new Error(`auto-send GET failed: ${res.status}`);
     const data: unknown = await res.json();
     return typeof data === "object" && data !== null && (data as { enabled?: unknown }).enabled === true;
 }
 
-async function putAutoSend(enabled: boolean): Promise<boolean> {
+async function putAutoSend(enabled: boolean, accessToken: string): Promise<boolean> {
     const res = await fetch("/api/settings/auto-send", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ enabled }),
     });
     if (!res.ok) throw new Error(`auto-send PUT failed: ${res.status}`);
@@ -24,9 +27,16 @@ async function putAutoSend(enabled: boolean): Promise<boolean> {
 
 export function useAutoSend() {
     const qc = useQueryClient();
-    const query = useQuery({ queryKey: KEY, queryFn: fetchAutoSend, staleTime: 60_000 });
+    const { session } = useAuth();
+    const accessToken = session?.access_token ?? "";
+    const query = useQuery({
+        queryKey: KEY,
+        queryFn: () => fetchAutoSend(accessToken),
+        enabled: accessToken !== "",
+        staleTime: 60_000,
+    });
     const mutation = useMutation({
-        mutationFn: putAutoSend,
+        mutationFn: (enabled: boolean) => putAutoSend(enabled, accessToken),
         onSuccess: (enabled) => qc.setQueryData(KEY, enabled),
     });
     return {

@@ -7,6 +7,7 @@ import {
     saveAccessToken,
     removeAccessToken,
 } from '@/lib/lightfunnels-api';
+import { requireRequestCaller } from '@/lib/auth/require-request-caller';
 
 /**
  * POST /api/lightfunnels/sync
@@ -21,6 +22,10 @@ import {
  * - maxOrders?: number (for sync, default 500)
  */
 export async function POST(request: NextRequest) {
+    // The LightFunnels token lives in the platform-wide `settings` table and a
+    // sync imports orders, so this is platform-admin only.
+    const caller = await requireRequestCaller(request, 'platform-admin');
+    if (!caller.ok) return caller.response;
     try {
         const body = await request.json();
         const { action, accessToken, dateFrom, dateTo, maxOrders } = body;
@@ -172,7 +177,9 @@ export async function POST(request: NextRequest) {
  * 
  * Get connection status
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const caller = await requireRequestCaller(request, 'platform-admin');
+    if (!caller.ok) return caller.response;
     try {
         const token = await getSavedAccessToken();
 

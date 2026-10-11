@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 
 export const dynamic = "force-dynamic";
 
@@ -10,16 +11,10 @@ export async function GET(
     { params }: { params: Promise<{ phone: string }> }
 ) {
     try {
-        // Auth
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // Every read below is scoped to the caller's verified tenant: the same
+        // phone can be a customer of several tenants.
+        const caller = await requireRequestCaller(request, "member");
+        if (!caller.ok) return caller.response;
 
         const { phone } = await params;
         const decodedPhone = decodeURIComponent(phone);
@@ -39,6 +34,7 @@ export async function GET(
                 .from("customer_metadata")
                 .select("ai_summary, ai_summary_generated_at")
                 .eq("customer_phone", decodedPhone)
+                .eq("tenant_id", caller.tenantId)
                 .maybeSingle();
 
             if (cached?.ai_summary && cached?.ai_summary_generated_at) {
@@ -61,6 +57,7 @@ export async function GET(
             .from("customer_trust")
             .select("*")
             .eq("phone", decodedPhone)
+            .eq("tenant_id", caller.tenantId)
             .maybeSingle();
 
         // Fetch recent orders
@@ -68,6 +65,7 @@ export async function GET(
             .from("orders")
             .select("id, status, price, created_at, city, rejection_reason")
             .eq("phone", decodedPhone)
+            .eq("tenant_id", caller.tenantId)
             .order("created_at", { ascending: false })
             .limit(10);
 
@@ -139,6 +137,7 @@ Provide a brief, actionable summary that helps an operations team understand thi
         const { error: upsertError } = await supabase.from("customer_metadata").upsert(
             {
                 customer_phone: decodedPhone,
+                tenant_id: caller.tenantId,
                 ai_summary: { summary },
                 ai_summary_generated_at: generatedAt,
             },

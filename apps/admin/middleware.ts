@@ -30,11 +30,11 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isLoginPage = path.startsWith("/login");
   const isAuthApi = path.startsWith("/api/auth");
-  const isHealthApi = path === "/api/health";
   const isApi = path.startsWith("/api/");
 
-  // Public surfaces — bypass auth checks entirely.
-  if (isAuthApi || isHealthApi) {
+  // Public surfaces — bypass auth checks entirely. /api/health is NOT one: it
+  // returns every tenant's name, wallet balance and order volume.
+  if (isAuthApi) {
     return supabaseResponse;
   }
 

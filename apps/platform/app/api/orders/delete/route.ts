@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, createSupabaseServiceClient } from '@/lib/supabase-server';
 import { orderIdsBodySchema, toOrderUuids } from '@/lib/order-api-schemas';
 import { reportOrderError } from '@/lib/order-telemetry';
+import { resolveActiveTenant } from '@/lib/auth/resolve-active-tenant';
 
 /** Roles allowed to delete orders. Anything else — including `viewer` and a
  *  user with no profile row — is denied. */
@@ -41,40 +42,25 @@ export async function POST(request: NextRequest) {
 
         const supabaseAdmin = createSupabaseServiceClient();
 
+        // Tenant comes from the caller's session, never from the request body,
+        // and only while they are an active member of it.
         const t3 = performance.now();
-        const { data: profile } = await supabaseAdmin
-            .from('user_profiles')
-            .select('role, current_tenant_id, is_active')
-            .eq('id', user.id)
-            .maybeSingle();
+        const active = await resolveActiveTenant(user.id);
         const t4 = performance.now();
-        console.log(`[Perf] Admin role check took: ${(t4 - t3).toFixed(2)}ms`);
-
-        // Deactivating a user does not revoke their session, so check it here.
-        if (profile?.is_active === false) {
-            return NextResponse.json(
-                { success: false, error: 'Account deactivated' },
-                { status: 403 }
-            );
+        console.log(`[Perf] Tenant + role check took: ${(t4 - t3).toFixed(2)}ms`);
+        if (!active.ok) {
+            return NextResponse.json({ success: false, error: active.error }, { status: active.status });
         }
 
-        // Positive allow-list: a missing profile (role === undefined) must not
+        // Positive allow-list: a missing profile (role === '') must not
         // fall through the gate the way a `!== 'viewer'` check would.
-        if (!DELETE_ALLOWED_ROLES.includes(profile?.role ?? '')) {
+        if (!DELETE_ALLOWED_ROLES.includes(active.role)) {
             return NextResponse.json(
                 { success: false, error: 'You do not have permission to delete orders' },
                 { status: 403 }
             );
         }
-
-        // Tenant comes from the caller's session, never from the request body.
-        const tenantId = profile?.current_tenant_id as string | undefined;
-        if (!tenantId) {
-            return NextResponse.json(
-                { success: false, error: 'No active tenant' },
-                { status: 400 }
-            );
-        }
+        const tenantId = active.tenantId;
 
         const parsedBody = orderIdsBodySchema.safeParse(await request.json());
         if (!parsedBody.success) {

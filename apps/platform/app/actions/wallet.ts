@@ -1,7 +1,7 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { requireTenantAdminFor } from "@/lib/auth/require-action-caller";
+import { requirePlatformAdmin } from "@/lib/auth/require-action-caller";
 
 /**
  * Top up a tenant's wallet.
@@ -15,10 +15,11 @@ export async function topUpWalletAction(
     idempotencyKey?: string,
     accessToken?: string,
 ): Promise<{ success: boolean; newBalance?: number; error?: string }> {
-    // This credits real money to a caller-supplied account id and runs as
-    // service-role. Without this check any caller could mint up to 10,000,000
-    // IQD into any tenant's wallet: a Server Action is a public endpoint.
-    const auth = await requireTenantAdminFor(accessToken, tenantId);
+    // This credits real money with no payment verified and runs as
+    // service-role, so only a platform admin may call it. A tenant admin check
+    // is not enough: every self-serve signup is the admin of its own tenant and
+    // could credit itself up to 10,000,000 IQD per call.
+    const auth = await requirePlatformAdmin(accessToken);
     if (!auth.ok) return { success: false, error: auth.error };
 
     if (amountIqd <= 0) {
