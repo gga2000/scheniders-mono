@@ -35,6 +35,8 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 import { classifyTransition } from "@/lib/order-status-machine";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
+import { scheduleDayFromToday } from "@/lib/order-format-utils";
+import { toBaghdadDayKey } from "@/lib/order-window";
 import {
     summarizeBulkFailures,
     formatFailedOrderList,
@@ -679,21 +681,20 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         orderId: string,
         date: Date | "tomorrow" | "+2days" | null
     ) {
+        // Baghdad calendar days. `toISOString().split("T")[0]` is the UTC day,
+        // which made "tomorrow" land on today between 00:00 and 03:00 Baghdad.
         let scheduledDate: string | null = null;
-
         if (date === "tomorrow") {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            scheduledDate = tomorrow.toISOString().split("T")[0];
+            scheduledDate = scheduleDayFromToday(1);
         } else if (date === "+2days") {
-            const twoDays = new Date();
-            twoDays.setDate(twoDays.getDate() + 2);
-            scheduledDate = twoDays.toISOString().split("T")[0];
+            scheduledDate = scheduleDayFromToday(2);
         } else if (date instanceof Date) {
-            scheduledDate = date.toISOString().split("T")[0];
+            scheduledDate = toBaghdadDayKey(date);
         }
 
-        return updateOrder(orderId, { scheduled_date: scheduledDate || undefined });
+        // null clears the schedule. It used to be sent as `undefined`, which
+        // PostgREST drops from the payload, so "clear" silently did nothing.
+        return updateOrder(orderId, { scheduled_date: scheduledDate });
     }
 
     async function setPriority(orderId: string, priority: OrderPriority) {
