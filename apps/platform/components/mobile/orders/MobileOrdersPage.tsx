@@ -15,6 +15,7 @@ import { Order } from "@/lib/supabase";
 import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft } from "lucide-react";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
+import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 
 export function MobileOrdersPage() {
@@ -34,6 +35,7 @@ export function MobileOrdersPage() {
         filters,
         setFilters,
         statusCounts,
+        adChannelSummary,
         getCustomerArchivedCount,
         getCustomerOrderCount,
         hasDuplicates,
@@ -258,6 +260,16 @@ export function MobileOrdersPage() {
                     dueTodayCount={dueTodayCount}
                     isMobile={true}
                     className="-mx-4 bg-transparent border-b-0 shadow-none sticky top-12"
+                />
+
+                {/* Which ad channel brought these orders in — same chips and
+                    counts as desktop, filtering through the shared hook. */}
+                <AdChannelFilter
+                    summary={adChannelSummary}
+                    selected={filters.adChannel}
+                    onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
+                    // One scrollable line: a wrapping row would grow the sticky header.
+                    className="-mx-4 flex-nowrap overflow-x-auto px-4 [scrollbar-width:none] [&>button]:shrink-0"
                 />
             </div>
 

@@ -185,6 +185,7 @@ export function useOrders() {
         availableCities: serverAggregates?.cities ?? filterHook.availableCities,
         availableProducts: serverAggregates?.products ?? filterHook.availableProducts,
         availableProductsInView: filterHook.availableProductsInView,
+        adChannelSummary: filterHook.adChannelSummary,
 
         // Filters
         filters: filterHook.filters,
