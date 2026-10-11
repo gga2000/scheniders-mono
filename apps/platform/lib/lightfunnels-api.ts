@@ -79,6 +79,8 @@ export interface LightfunnelsOrder {
         country?: string;
         phone?: string;
     };
+    /** Ad attribution pairs — see lib/ad-attribution.ts. */
+    utm?: Array<{ k?: string | null; v?: string | null }>;
 }
 
 /**
@@ -215,6 +217,10 @@ query ordersQuery($first: Int, $after: String, $query: String!) {
                     country
                     phone
                 }
+                utm {
+                    k
+                    v
+                }
             }
         }
         pageInfo {
@@ -251,6 +257,10 @@ query GetCheckout($id: ID!) {
         ... on Checkout {
             id
             _id
+            utm {
+                k
+                v
+            }
             phone
             email
             created_at(format: "YYYY-MM-DD HH:mm:ss")
@@ -307,6 +317,10 @@ const CHECKOUTS_QUERY = `
                 node {
                     _id
                     id
+                    utm {
+                        k
+                        v
+                    }
                     created_at(format: "YYYY-MM-DD HH:mm:ss")
                     updated_at(format: "YYYY-MM-DD HH:mm:ss")
                     total
@@ -401,6 +415,8 @@ export interface LightfunnelsCheckout {
         full_name?: string;
         phone?: string;
     };
+    /** Ad attribution pairs — see lib/ad-attribution.ts. */
+    utm?: Array<{ k?: string | null; v?: string | null }>;
 }
 
 /**
@@ -419,6 +435,30 @@ export async function fetchCheckoutById(
         return data.node;
     } catch (error) {
         console.error('Error fetching checkout:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch just the ad attribution for one order.
+ *
+ * The webhook payload does not always carry `utm`, and losing the channel is
+ * worse than one extra request — this asks LightFunnels for the pairs alone.
+ * Returns null on any failure: attribution must never block an order landing.
+ */
+export async function fetchOrderAttributionById(
+    orderNodeId: string,
+    accessToken: string
+): Promise<Array<{ k?: string | null; v?: string | null }> | null> {
+    try {
+        const data = await executeQuery<{ node: { utm?: Array<{ k?: string | null; v?: string | null }> } | null }>(
+            `query GetOrderUtm($id: ID!) { node(id: $id) { ... on Order { utm { k v } } } }`,
+            { id: orderNodeId },
+            accessToken
+        );
+        return data.node?.utm ?? null;
+    } catch (error) {
+        console.error('[LF] Error fetching order attribution:', error);
         return null;
     }
 }

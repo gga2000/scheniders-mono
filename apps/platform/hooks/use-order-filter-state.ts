@@ -60,6 +60,7 @@ export function useOrderFilterState() {
             const saved = getPreference<OrderFilters>(PREFERENCE_KEYS.ORDER_FILTERS);
             if (saved) {
                 delete saved.riskLevel;
+                delete saved.adChannel;
                 setFiltersState(saved);
             }
             hasLoadedUserPrefs.current = true;
@@ -77,8 +78,10 @@ export function useOrderFilterState() {
         setFiltersState(prev => {
             const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
             if (userIdRef.current) {
-                // Strip riskLevel from persistence
-                const { riskLevel: _riskLevel, ...persistableFilters } = updated;
+                // Strip riskLevel and adChannel from persistence: both are a quick
+                // look at a slice, and coming back to a list silently pinned to
+                // one ad network reads as orders having gone missing.
+                const { riskLevel: _riskLevel, adChannel: _adChannel, ...persistableFilters } = updated;
                 setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
             }
             return updated;

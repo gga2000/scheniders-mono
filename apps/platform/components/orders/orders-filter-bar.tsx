@@ -21,6 +21,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { EASE_PANEL } from "@/components/layout/page-transition";
 import { GlobalSearchField } from "@/components/orders/global-search-field";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
+import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import type { PaymentStatus } from "@/lib/supabase";
 
 /**
@@ -88,6 +89,7 @@ export function OrdersFilterBar({
         availableCities,
         availableProducts,
         availableProductsInView,
+        adChannelSummary,
         filterPresets,
         saveFilterPreset,
         loadFilterPreset,
@@ -177,6 +179,14 @@ export function OrdersFilterBar({
                                 isMobile={false}
                             />
                         )}
+
+                        {/* Which ad channel brought these orders in. */}
+                        <AdChannelFilter
+                            summary={adChannelSummary}
+                            selected={filters.adChannel}
+                            onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
+                            className="px-1"
+                        />
 
                         {/* Advanced Filters Panel */}
                         <AnimatePresence>

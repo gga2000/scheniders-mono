@@ -787,7 +787,7 @@ export default function OrdersPage() {
 
 
     // Check if any advanced filters are active
-    const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
+    const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority || filters.adChannel);
 
     // Pre-compute maps for O(1) lookups and stable object references to prevent re-renders
     const returnOrderInfoMap = useMemo(() => {

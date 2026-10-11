@@ -6,6 +6,7 @@ import { cn, formatIQD } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/lib/supabase';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
+import { AdChannelBadge } from '@/components/orders/ad-channel-badge';
 import { getOrderAge, getScheduledState, isScheduledToday, formatScheduledDate, getStatusBadgeStyle } from '@/lib/order-format-utils';
 import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/ui/empty-states';
@@ -572,6 +573,8 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 )}>
                     {order.source === "lightfunnels" ? "LF" : order.source === "delivery_import" ? "DLV" : order.source === "whatsapp" ? "WA" : order.source === "shop" ? "محل" : order.source === "woo" ? "WOO" : order.source === "salla" ? "SALLA" : (order.source || "—")}
                 </span>
+                {/* The ad network the customer clicked, beside the system that sent it. */}
+                <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} iconOnly className="ms-1" />
             </div>
 
             {/* Date - Recency + M-D + Time */}

@@ -3,7 +3,8 @@ import { formatPhoneToStandard } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
 import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { fetchCheckoutById, getSavedAccessToken } from "./lightfunnels-api";
+import { fetchCheckoutById, fetchOrderAttributionById, getSavedAccessToken } from "./lightfunnels-api";
+import { parseAdAttribution, type AdAttribution, type UtmPair } from "./ad-attribution";
 import { fraudDetector } from "./fraud-detector";
 import type { OrderItem } from "./supabase";
 
@@ -93,6 +94,8 @@ export interface LightFunnelsWebhookPayload {
         checkout?: {
             _id?: number; // The original checkout ID if this order came from a checkout
         };
+        /** Ad attribution pairs: [{k:"source",v:"fb"},{k:"medium",v:"Facebook_Mobile_Reels"},…] */
+        utm?: UtmPair[];
     };
 }
 
@@ -102,6 +105,8 @@ export interface LightFunnelsWebhookPayload {
 export interface LightFunnelsWebhook {
     order_id: string;
     order_number: string;
+    /** LightFunnels global node id ("order_hnIxTFem…"), for API follow-ups. */
+    lf_node_id?: string;
     is_checkout: boolean; // true if this is an abandoned checkout, false if completed order
     checkout_id?: string; // The original checkout ID if this order came from a checkout
     customer: {
@@ -124,6 +129,8 @@ export interface LightFunnelsWebhook {
     created_at?: string;
     notes?: string;
     payment_method?: string;
+    /** Which ad channel the customer came from, when the payload carried it. */
+    attribution?: AdAttribution;
 }
 
 /**
@@ -349,6 +356,7 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
         const normalized: LightFunnelsWebhook = {
             order_id: String(node._id || node.id),
             order_number: node.name || String(node._id || node.id),
+            lf_node_id: typeof node.id === 'string' ? node.id : undefined,
             is_checkout: isCheckout,
             checkout_id: originalCheckoutId,
             customer: {
@@ -364,6 +372,9 @@ export function parseLightFunnelsPayload(payload: any): LightFunnelsWebhook | nu
             created_at: node.created_at,
             notes: node.notes,
             payment_method: paymentMethod,
+            // Absent when the webhook payload omits `utm`; the caller then asks the
+            // API for it rather than losing the channel.
+            attribution: parseAdAttribution(node.utm),
         };
 
         console.log("Parsed:", normalized.is_checkout ? "Checkout" : "Order", normalized.order_number);
@@ -466,11 +477,31 @@ export function parseCheckoutToWebhook(checkout: any): LightFunnelsWebhook | nul
             created_at: checkout.created_at,
             notes: undefined,
             payment_method: 'cod', // Checkouts are typically COD
+            // A checkout carries the same `utm` list an order does. Skipping it
+            // here is why every order recovered from a checkout arrived with no
+            // channel.
+            attribution: parseAdAttribution(checkout.utm),
         };
     } catch (error) {
         console.error("Error parsing checkout:", error);
         return null;
     }
+}
+
+/**
+ * Ask LightFunnels for an order's UTM pairs when the webhook payload carried none.
+ *
+ * Only orders have a node id to look up; a checkout's attribution comes from the
+ * checkout record itself (parseCheckoutToWebhook). fetchOrderAttributionById
+ * already logs and returns null on API failure, and a missing token simply means
+ * there is nothing to ask — in both cases the order lands without a channel.
+ */
+async function resolveMissingAttribution(webhook: LightFunnelsWebhook): Promise<AdAttribution | undefined> {
+    if (!webhook.lf_node_id) return undefined;
+    const token = await getSavedAccessToken(supabase);
+    if (!token) return undefined;
+    const utm = await fetchOrderAttributionById(webhook.lf_node_id, token);
+    return parseAdAttribution(utm);
 }
 
 /**
@@ -867,6 +898,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             ? `[سلة متروكة] ${webhook.notes?.trim() || ''}`.trim()
             : webhook.notes?.trim() || null;
 
+        // Ad attribution: prefer what the webhook already carried, otherwise ask the
+        // API. Losing the channel is worse than one extra request, and a failure
+        // here must never stop the order from landing.
+        const attribution = webhook.attribution ?? await resolveMissingAttribution(webhook);
+
         const orderData = {
             // Use Lightfunnels order ID directly
             order_id: lightfunnelsOrderId,
@@ -885,6 +921,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             is_return: false,
             is_archived: false,
             source: 'lightfunnels' as const,
+            // `source` says which system sent the order; these say which ad the
+            // customer actually clicked. create_order_atomic whitelists both
+            // columns (migration 20260912101600).
+            attribution: attribution ?? null,
+            ad_channel: attribution?.channel ?? null,
             whatsapp_link: generateWhatsAppLink(formattedPhone, whatsappMessage),
             notes: notesText,
             needs_attention: attentionReasons.length > 0,

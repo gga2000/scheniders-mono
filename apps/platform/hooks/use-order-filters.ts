@@ -14,6 +14,7 @@ import {
     orderMatchesSearch,
 } from "@/lib/order-filter-utils";
 import { windowFromDateFilter, orderInDateWindow } from "@/lib/order-window";
+import { orderMatchesAdChannel, summarizeAdChannels } from "@/lib/ad-channel-filter";
 
 // Normalize Arabic text for fuzzy search:
 // - Remove diacritics (tashkeel)
@@ -211,6 +212,11 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
                     return false;
                 }
 
+                // Ad-channel filter — "only what Instagram brought in".
+                if (!orderMatchesAdChannel(order, activeFilters.adChannel)) {
+                    return false;
+                }
+
                 // Return orders filter
                 if (activeFilters.isReturn !== undefined && order.is_return !== activeFilters.isReturn) {
                     return false;
@@ -329,6 +335,15 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
             .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
     }, [deferredOrders, deferredFilters, applyFilters]);
 
+    // Orders per ad channel over the CURRENT view minus the channel filter itself,
+    // so picking Instagram does not collapse the row to a single chip. Mirrors
+    // `availableProductsInView`: it follows the status tab, date range and other
+    // filters, and — like everything client-side here — only the loaded window.
+    const adChannelSummary = useMemo(() => {
+        const filtersWithoutChannel = { ...deferredFilters, adChannel: undefined };
+        return summarizeAdChannels(applyFilters(deferredOrders, filtersWithoutChannel));
+    }, [deferredOrders, deferredFilters, applyFilters]);
+
     // =============================================
     // PRESET OPERATIONS
     // =============================================
@@ -424,6 +439,7 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
         availableCities,
         availableProducts,
         availableProductsInView,
+        adChannelSummary,
         ...stableAPI,
     };
 }
