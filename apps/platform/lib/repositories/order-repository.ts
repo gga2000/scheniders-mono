@@ -57,7 +57,9 @@ const LIST_VIEW_COLUMNS = `
   last_status_changed_by_name,
   last_status_changed_by_avatar,
   delivered_at,
-  completed_at
+  completed_at,
+  attribution,
+  ad_channel
 `.trim();
 
 /**

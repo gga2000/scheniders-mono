@@ -3,6 +3,8 @@
 // Centralized type definitions for all order-related entities
 // =============================================
 
+import type { AdAttribution } from '@/lib/ad-attribution';
+
 // Order status types
 // - new: Just received
 // - contacted: Employee reached out to customer
@@ -111,6 +113,10 @@ export interface Order {
     is_pinned?: boolean;
     delivery_slot?: DeliverySlot;
     source?: OrderSource;
+    /** Which ad the customer clicked — `source` only says which system sent the order. */
+    attribution?: AdAttribution | null;
+    /** Denormalized `attribution.channel` (facebook | instagram | tiktok | …) so the list can filter without unpacking jsonb. */
+    ad_channel?: string | null;
     sequence_number?: number;
     delivered_at?: string;
     cancelled_at?: string;
@@ -224,6 +230,8 @@ export interface OrderFilters {
     riskLevel?: RiskLevel;
     /** Sub-filter for the Confirmed / All tabs to narrow to return or replacement orders. */
     orderType?: 'refund' | 'replacement';
+    /** Ad channel (`orders.ad_channel`) the list is pinned to; undefined = every channel. */
+    adChannel?: string;
 }
 
 /**
