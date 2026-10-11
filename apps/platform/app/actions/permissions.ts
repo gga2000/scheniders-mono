@@ -1,34 +1,18 @@
 "use server";
 
-import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
-import { isAdminRole } from "@/lib/permissions";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireAdminOverUser, requirePlatformAdmin } from "@/lib/auth/require-action-caller";
 
 /**
- * Permission mutations are platform-wide: `role_permissions` and
- * `user_permissions` have no tenant column, so a single call changes what a
- * role can do everywhere. These actions are public POST endpoints, so each one
- * verifies the caller's token and requires an admin role before writing.
+ * Permission mutations are public POST endpoints that write with the service
+ * role, so each one verifies the caller before writing.
+ *
+ * `role_permissions` has no tenant column: one call changes what a role can do
+ * in every tenant, so only a platform admin may change it. Every self-serve
+ * signup is an `admin` of its own tenant, and this used to accept any `admin`.
+ * A `user_permissions` override targets one user, so a tenant admin may set it
+ * for members of their own tenant.
  */
-async function requireAdmin(
-    accessToken: string | undefined,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-    if (!accessToken) return { ok: false, error: "Unauthorized" };
-
-    const { user, error } = await verifyAccessToken(accessToken);
-    if (error || !user) return { ok: false, error: "Unauthorized" };
-
-    const supabase = createSupabaseServiceClient();
-    const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-    if (!isAdminRole(profile?.role as string | undefined)) {
-        return { ok: false, error: "Forbidden" };
-    }
-    return { ok: true };
-}
 
 export async function toggleRolePermissionAction(
     role: string,
@@ -36,7 +20,7 @@ export async function toggleRolePermissionAction(
     grant: boolean,
     accessToken: string,
 ): Promise<{ success: boolean; error?: string }> {
-    const auth = await requireAdmin(accessToken);
+    const auth = await requirePlatformAdmin(accessToken);
     if (!auth.ok) return { success: false, error: auth.error };
 
     const supabase = createSupabaseServiceClient();
@@ -70,7 +54,7 @@ export async function toggleUserOverrideAction(
     grant: boolean | null, // null means delete the override
     accessToken: string,
 ): Promise<{ success: boolean; error?: string }> {
-    const auth = await requireAdmin(accessToken);
+    const auth = await requireAdminOverUser(accessToken, userId);
     if (!auth.ok) return { success: false, error: auth.error };
 
     const supabase = createSupabaseServiceClient();

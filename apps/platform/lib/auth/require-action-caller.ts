@@ -1,5 +1,5 @@
 import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
-import { isAdminRole } from "@/lib/permissions";
+import { isAdminRole, isPlatformAdminRole } from "@/lib/permissions";
 
 /**
  * Authorization for Server Actions that operate on a named tenant.
@@ -31,7 +31,11 @@ export async function requireVerifiedCaller(accessToken: string | undefined): Pr
     return { ok: true, userId: user.id };
 }
 
-/** Platform-level admin (`user_profiles.role`), which may act across tenants. */
+/**
+ * Platform-level admin, which may act across tenants. Only `super_admin`
+ * qualifies: every self-serve signup holds `user_profiles.role = 'admin'`, so
+ * reading `admin` as platform-wide handed every new account every tenant.
+ */
 async function isPlatformAdmin(userId: string): Promise<boolean> {
     const supabase = createSupabaseServiceClient();
     const { data } = await supabase
@@ -39,7 +43,7 @@ async function isPlatformAdmin(userId: string): Promise<boolean> {
         .select("role")
         .eq("id", userId)
         .maybeSingle();
-    return isAdminRole((data as { role: string } | null)?.role);
+    return isPlatformAdminRole((data as { role: string } | null)?.role);
 }
 
 /** The caller's active role in `tenantId`, or null when not a member. */
@@ -90,6 +94,57 @@ export async function requireTenantMemberFor(
     if (await isPlatformAdmin(caller.userId)) return caller;
     if (!(await tenantRole(caller.userId, tenantId))) {
         return { ok: false, error: "You are not a member of this account." };
+    }
+    return caller;
+}
+
+/** The caller is a platform admin (`super_admin`). */
+export async function requirePlatformAdmin(accessToken: string | undefined): Promise<AuthResult> {
+    const caller = await requireVerifiedCaller(accessToken);
+    if (!caller.ok) return caller;
+    if (!(await isPlatformAdmin(caller.userId))) {
+        return { ok: false, error: "This action requires a platform administrator." };
+    }
+    return caller;
+}
+
+/**
+ * The caller administers a tenant that `targetUserId` is an active member of —
+ * or is a platform admin. For per-user settings such as permission overrides,
+ * where the arguments name a user rather than a tenant.
+ */
+export async function requireAdminOverUser(
+    accessToken: string | undefined,
+    targetUserId: string | null | undefined,
+): Promise<AuthResult> {
+    const caller = await requireVerifiedCaller(accessToken);
+    if (!caller.ok) return caller;
+    if (!targetUserId) return { ok: false, error: "No user specified." };
+
+    if (await isPlatformAdmin(caller.userId)) return caller;
+
+    const supabase = createSupabaseServiceClient();
+    const { data: callerMemberships } = await supabase
+        .from("tenant_members")
+        .select("tenant_id, role")
+        .eq("user_id", caller.userId)
+        .eq("status", "active");
+    const adminTenantIds = ((callerMemberships ?? []) as { tenant_id: string; role: string }[])
+        .filter((m) => isAdminRole(m.role))
+        .map((m) => m.tenant_id);
+    if (adminTenantIds.length === 0) {
+        return { ok: false, error: "This action requires an administrator." };
+    }
+
+    const { data: shared } = await supabase
+        .from("tenant_members")
+        .select("tenant_id")
+        .eq("user_id", targetUserId)
+        .eq("status", "active")
+        .in("tenant_id", adminTenantIds)
+        .limit(1);
+    if (!shared || (shared as unknown[]).length === 0) {
+        return { ok: false, error: "That user is not a member of your account." };
     }
     return caller;
 }

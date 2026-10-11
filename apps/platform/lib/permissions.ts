@@ -19,6 +19,17 @@ export function isAdminRole(role: UserRole | string | undefined | null): boolean
     return role === "admin" || role === "super_admin";
 }
 
+/**
+ * Platform-level administration — acting across tenants, editing the
+ * platform-wide permission tables, crediting wallets — belongs to
+ * `super_admin` alone. Self-serve signup gives every new account the `admin`
+ * role, so `admin` must never be read as platform-wide: that is what let any
+ * signup pass `requireTenantAdminFor` for every tenant.
+ */
+export function isPlatformAdminRole(role: UserRole | string | undefined | null): boolean {
+    return role === "super_admin";
+}
+
 export const PERMISSIONS = {
     // Orders
     VIEW_ORDERS: "orders.view",
