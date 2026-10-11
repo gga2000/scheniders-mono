@@ -3,6 +3,7 @@ import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
 import type { OrderWindow } from "@/lib/order-window";
+import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 
 /**
  * OrderRepository — Centralized data access for orders.
@@ -426,6 +427,9 @@ export const orderRepository = {
                 throw new Error("CONFLICT_DETECTED");
             }
             diag.log(`[Diag:Repo] update ERR orderId=${id} err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
+            // The future-created_at trigger refusing a write is a field error
+            // the form can point at, not a generic failure.
+            if (isFutureCreatedAtViolation(error)) throw new FutureOrderDateError();
             throw error;
         }
         

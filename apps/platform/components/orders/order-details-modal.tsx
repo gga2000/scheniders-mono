@@ -144,7 +144,8 @@ export function OrderDetailsModal({
         handleAddItem,
         handleProductSelect,
         showProductPicker,
-        setShowProductPicker
+        setShowProductPicker,
+        orderDateError,
     } = useOrderDetailsForm({
         order,
         setOrder,
@@ -1425,6 +1426,7 @@ export function OrderDetailsModal({
                                 onStatusUpdate={onStatusUpdate}
                                 isUpdatingStatus={isUpdatingStatus}
                                 handleStatusChange={handleStatusChange}
+                                orderDateError={orderDateError}
                             />
 
                             {/* Products Card */}

@@ -5,11 +5,11 @@ import { formatPhoneForDisplay, validatePhoneDetailed } from "@/lib/order-utils"
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Banknote, Calendar, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle } from "lucide-react";
+import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import type { OrderStatus } from "@/lib/supabase";
 import type { Order } from "@/types/order";
-import { formatOrderDateTime, formatOrderDayMonthTime } from "@/lib/order-format-utils";
+import { formatOrderDateTime, formatOrderDayMonthTime, formatScheduledDate, isScheduledToday, scheduleDayFromToday } from "@/lib/order-format-utils";
 
 interface OrderCustomerCardProps {
     isEditing: boolean;
@@ -21,6 +21,12 @@ interface OrderCustomerCardProps {
     onStatusUpdate?: (orderId: string, status: OrderStatus, reason?: string) => Promise<{ success: boolean; error?: string }>;
     isUpdatingStatus: boolean;
     handleStatusChange: (status: OrderStatus) => void;
+    /**
+     * Field-level save error for the order date — set when the database
+     * refused a future `created_at`. Shown under the field rather than as a
+     * toast, so the merchant sees which control to use and keeps their edits.
+     */
+    orderDateError?: string | null;
 }
 
 export function OrderCustomerCard({
@@ -30,10 +36,21 @@ export function OrderCustomerCard({
     updateFormData,
     onStatusUpdate,
     isUpdatingStatus,
-    handleStatusChange
+    handleStatusChange,
+    orderDateError,
 }: OrderCustomerCardProps) {
     const { t } = useLanguage();
     const governorates = getAllGovernorateCodes();
+
+    // Postponing is `scheduled_date`, never a forward-dated `created_at` — the
+    // database rejects that (trg_orders_created_at_not_future).
+    const scheduledDate: string | null = (
+        isEditing && formData.scheduled_date !== undefined ? formData.scheduled_date : order?.scheduled_date
+    ) || null;
+
+    // The picker shows the viewer's local calendar, so read the picked day back
+    // in local time. The shortcuts count Baghdad days (scheduleDayFromToday).
+    const pickedDayKey = (isoString: string) => new Date(isoString).toLocaleDateString("en-CA");
 
     const displayValue = <K extends keyof Order>(key: K): Order[K] | undefined => {
         if (isEditing && formData[key] !== undefined) {
@@ -384,17 +401,30 @@ export function OrderCustomerCard({
                             {t("orderDetail.orderDate")}
                             {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                 <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
-                                    Modified
+                                    {t("orderDetail.dateCorrected")}
                                 </span>
                             )}
                         </span>
                         {isEditing ? (
-                            <DateTimePicker
-                                value={displayValue("created_at") as string}
-                                onChange={(isoString) => updateFormData("created_at", isoString)}
-                                showTime={true}
-                                className="h-[38px]"
-                            />
+                            <>
+                                {/* "now" is resolved on each interaction, so a form left open does not clamp against a stale clock. */}
+                                <DateTimePicker
+                                    value={displayValue("created_at") as string}
+                                    onChange={(isoString) => updateFormData("created_at", isoString)}
+                                    showTime={true}
+                                    maxDate="now"
+                                    className={cn("h-[38px]", orderDateError && "ring-1 ring-red-400 rounded-lg")}
+                                />
+                                {orderDateError ? (
+                                    <p role="alert" className="mt-1 text-[11px] leading-tight text-red-600">
+                                        {orderDateError}
+                                    </p>
+                                ) : (
+                                    <p className="mt-1 text-[10px] leading-tight text-muted">
+                                        {t("orderDetail.orderDateHint")}
+                                    </p>
+                                )}
+                            </>
                         ) : (
                             <div className={cn(
                                 "min-h-[38px] py-1 flex flex-col justify-center px-3 rounded-lg transition-all",
@@ -606,6 +636,66 @@ export function OrderCustomerCard({
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Scheduled For — the postpone control. Keeps the placement date honest. */}
+                <div className="border-t border-gray-100 pt-3 mt-1">
+                    <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1 mb-1.5">
+                        <CalendarClock className="h-3 w-3" />
+                        {t("orderDetail.scheduledFor")}
+                    </span>
+                    {isEditing ? (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="sm:w-56">
+                                <DateTimePicker
+                                    value={scheduledDate ? `${scheduledDate}T00:00:00` : null}
+                                    onChange={(isoString) => updateFormData("scheduled_date", pickedDayKey(isoString))}
+                                    showTime={false}
+                                    minDate="now"
+                                    className="h-[38px]"
+                                />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => updateFormData("scheduled_date", scheduleDayFromToday(1))}
+                                    className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                >
+                                    {t("orderDetail.tomorrow")}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => updateFormData("scheduled_date", scheduleDayFromToday(3))}
+                                    className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                >
+                                    {t("orderDetail.inThreeDays")}
+                                </button>
+                                {scheduledDate && (
+                                    <button
+                                        type="button"
+                                        onClick={() => updateFormData("scheduled_date", null)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-muted hover:bg-gray-100 transition-colors"
+                                    >
+                                        <X className="w-3 h-3" />
+                                        {t("orderDetail.clearSchedule")}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="min-h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            {scheduledDate ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+                                    <Calendar className="w-3 h-3" />
+                                    {isScheduledToday(scheduledDate)
+                                        ? `${t("orderDetail.scheduledToday")} · ${formatScheduledDate(scheduledDate)}`
+                                        : formatScheduledDate(scheduledDate)}
+                                </span>
+                            ) : (
+                                <span className="text-sm text-muted">{t("orderDetail.notScheduled")}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

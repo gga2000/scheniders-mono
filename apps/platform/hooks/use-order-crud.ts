@@ -36,6 +36,7 @@ import { classifyTransition } from "@/lib/order-status-machine";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
 import { scheduleDayFromToday } from "@/lib/order-format-utils";
+import { FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
 import { toBaghdadDayKey } from "@/lib/order-window";
 import {
     summarizeBulkFailures,
@@ -318,7 +319,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         });
     }
 
-    async function updateOrder(orderId: string, updates: Partial<Order>, expectedVersion?: number, retryCount = 0): Promise<{ success: boolean; error?: string; data?: Order }> {
+    async function updateOrder(orderId: string, updates: Partial<Order>, expectedVersion?: number, retryCount = 0): Promise<{ success: boolean; error?: string; code?: string; data?: Order }> {
         const _tUpdate = performance.now();
         diag.log(`[Diag:UpdateOrder] START orderId=${orderId} fields=${Object.keys(updates).join(',')} retry=${retryCount}`);
         try {
@@ -420,6 +421,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             diag.log(`[Diag:UpdateOrder] MUTATION_ERR orderId=${orderId} err=${err instanceof Error ? err.message : err} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
             console.error("Error updating order:", err);
+
+            // A future order date is a field error: the caller shows it under
+            // the order-date control and keeps the form open.
+            if (err instanceof FutureOrderDateError) {
+                return { success: false, error: err.message, code: FUTURE_ORDER_DATE_CODE };
+            }
 
             // Only show toast on final failure
             if (!(err instanceof Error && err.message === "CONFLICT_DETECTED") || retryCount >= 2) {

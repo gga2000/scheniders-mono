@@ -12,6 +12,7 @@ import type { CreateOrderInput } from "@/types/order";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
 import type { OrderWindow } from "@/lib/order-window";
+import { FutureOrderDateError } from "@/lib/order-date-guard";
 import { reportOrderError } from "@/lib/order-telemetry";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
@@ -368,6 +369,9 @@ export function useUpdateOrderMutation() {
                 toast.error("Order was modified elsewhere. Refreshing data...", { duration: 3000 });
                 // Force a fresh refetch immediately to get the latest state
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+            } else if (err instanceof FutureOrderDateError) {
+                // Shown against the order-date field by the caller, with the
+                // merchant's other edits still in the form — not as a toast.
             } else {
                 toast.error(err instanceof Error ? err.message : "Failed to update order.");
             }
