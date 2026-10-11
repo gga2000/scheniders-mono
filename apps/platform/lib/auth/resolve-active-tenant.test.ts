@@ -39,10 +39,10 @@ const tables: Record<string, Row[]> = {
         { id: "platform", current_tenant_id: "tenant-b", role: "super_admin", is_active: true },
     ],
     tenant_members: [
-        { user_id: "member", tenant_id: "tenant-a", status: "active" },
+        { user_id: "member", tenant_id: "tenant-a", role: "member", status: "active" },
         // The tamperer is a member of their own signup tenant only, but has
         // pointed current_tenant_id at tenant-a.
-        { user_id: "tamperer", tenant_id: "own-tenant", status: "active" },
+        { user_id: "tamperer", tenant_id: "own-tenant", role: "admin", status: "active" },
     ],
 };
 
@@ -52,7 +52,12 @@ beforeEach(() => {
 
 describe("resolveActiveTenant", () => {
     it("accepts current_tenant_id when the user is an active member", async () => {
-        expect(await resolveActiveTenant("member")).toEqual({ ok: true, tenantId: "tenant-a", role: "employee" });
+        expect(await resolveActiveTenant("member")).toEqual({
+            ok: true,
+            tenantId: "tenant-a",
+            role: "employee",
+            memberRole: "member",
+        });
     });
 
     it("rejects a current_tenant_id the user is not a member of", async () => {
@@ -68,6 +73,11 @@ describe("resolveActiveTenant", () => {
     });
 
     it("lets a platform admin act in any tenant", async () => {
-        expect(await resolveActiveTenant("platform")).toEqual({ ok: true, tenantId: "tenant-b", role: "super_admin" });
+        expect(await resolveActiveTenant("platform")).toEqual({
+            ok: true,
+            tenantId: "tenant-b",
+            role: "super_admin",
+            memberRole: null,
+        });
     });
 });

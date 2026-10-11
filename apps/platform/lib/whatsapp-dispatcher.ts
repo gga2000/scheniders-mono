@@ -69,6 +69,7 @@ export async function dispatchWhatsAppEvent({
         .from("app_settings")
         .select("value")
         .eq("key", "whatsapp_auto_send")
+        .eq("tenant_id", order.tenant_id)
         .single();
 
     const settingsValue = settings?.value as { enabled?: boolean } | null | undefined;

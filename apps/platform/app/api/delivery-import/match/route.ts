@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { matchParsedRows, calculateSummary } from "@/lib/delivery-import/match-engine";
 import type { ParsedDeliveryPDF } from "@/types/delivery-import";
 import type { Order } from "@/types/order";
@@ -13,23 +14,9 @@ import type { Order } from "@/types/order";
  */
 export async function POST(request: NextRequest) {
     try {
-        // Auth
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json(
-                { success: false, error: "Missing Authorization header" },
-                { status: 401 }
-            );
-        }
-
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json(
-                { success: false, error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
+        // Tenant admins only; the tenant is the caller's verified active tenant.
+        const caller = await requireRequestCaller(request, "tenant-admin");
+        if (!caller.ok) return caller.response;
 
         const { parsedPDF } = (await request.json()) as { parsedPDF: ParsedDeliveryPDF };
 
@@ -67,13 +54,13 @@ export async function POST(request: NextRequest) {
         // Fetch matched orders by ID or Phone in parallel to avoid transferring all orders
         const [idRes, phRes, returnRes] = await Promise.all([
             snArr.length > 0 
-                ? supabaseAdmin.from("orders").select("*").in("order_id", snArr).eq("is_archived", false)
+                ? supabaseAdmin.from("orders").select("*").in("order_id", snArr).eq("tenant_id", caller.tenantId).eq("is_archived", false)
                 : { data: [] as Order[], error: null },
             phArr.length > 0 
-                ? supabaseAdmin.from("orders").select("*").in("phone", phArr).eq("is_archived", false)
+                ? supabaseAdmin.from("orders").select("*").in("phone", phArr).eq("tenant_id", caller.tenantId).eq("is_archived", false)
                 : { data: [] as Order[], error: null },
             // Fetch non-archived returns to match RTN-* prefixes safely
-            supabaseAdmin.from("orders").select("*").eq("is_archived", false).eq("is_return", true)
+            supabaseAdmin.from("orders").select("*").eq("tenant_id", caller.tenantId).eq("is_archived", false).eq("is_return", true)
         ]);
 
         if (idRes.error || phRes.error || returnRes.error) {
@@ -101,6 +88,7 @@ export async function POST(request: NextRequest) {
             .from("delivery_imports")
             .select("id, created_at, status")
             .eq("receipt_number", parsedPDF.header.receiptNumber)
+            .eq("tenant_id", caller.tenantId)
             .maybeSingle();
 
         return NextResponse.json({

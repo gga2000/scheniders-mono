@@ -21,14 +21,16 @@ vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: () => ({
         from: (table: string) => ({
             select: () => ({
-                eq: () => ({
-                    single: async () =>
+                eq: () => {
+                    const result = async () =>
                         table === "orders"
                             ? { data: H.state.order, error: null }
                             : table === "app_settings"
                                 ? { data: { value: { enabled: H.state.autoSend } }, error: null }
-                                : { data: null, error: null },
-                }),
+                                : { data: null, error: null };
+                    const chain = { single: result, eq: () => chain };
+                    return chain;
+                },
             }),
             insert: async () => ({ error: null }),
             update: () => ({ eq: async () => ({ error: null }) }),

@@ -1,8 +1,13 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { isPlatformAdminRole } from "@/lib/permissions";
 
+/**
+ * `role` is the global `user_profiles.role`; `memberRole` is the caller's role
+ * in this tenant (`tenant_members.role`), or null for a platform admin acting
+ * in a tenant they do not belong to.
+ */
 export type ActiveTenant =
-    | { ok: true; tenantId: string; role: string }
+    | { ok: true; tenantId: string; role: string; memberRole: string | null }
     | { ok: false; error: string; status: 400 | 403 };
 
 /**
@@ -32,16 +37,17 @@ export async function resolveActiveTenant(userId: string): Promise<ActiveTenant>
 
     // Deny by default: an absent/NULL role must not inherit any access.
     const role = (profile?.role as string | undefined) ?? "";
-    if (isPlatformAdminRole(role)) return { ok: true, tenantId, role };
-
     const { data: membership } = await supabase
         .from("tenant_members")
-        .select("tenant_id")
+        .select("role")
         .eq("tenant_id", tenantId)
         .eq("user_id", userId)
         .eq("status", "active")
         .maybeSingle();
-    if (!membership) return { ok: false, error: "You are not a member of this account.", status: 403 };
+    const memberRole = (membership as { role: string } | null)?.role ?? null;
 
-    return { ok: true, tenantId, role };
+    if (isPlatformAdminRole(role)) return { ok: true, tenantId, role, memberRole };
+    if (!memberRole) return { ok: false, error: "You are not a member of this account.", status: 403 };
+
+    return { ok: true, tenantId, role, memberRole };
 }

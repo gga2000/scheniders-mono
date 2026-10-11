@@ -6,6 +6,8 @@ import {
     TenantBlockedError,
 } from "@/lib/restrictions";
 
+const ALLOWED_ROLES = new Set(["admin", "employee", "viewer"]);
+
 export async function POST(request: Request) {
     try {
         // Verify the requesting user via access token
@@ -27,6 +29,12 @@ export async function POST(request: Request) {
 
         if (!email || !password) {
             return NextResponse.json({ error: "البريد الإلكتروني وكلمة المرور مطلوبان" }, { status: 400 });
+        }
+
+        // Same allowlist as /api/team/invite: a tenant admin must never be able
+        // to mint a platform-level role such as super_admin.
+        if (role !== undefined && !ALLOWED_ROLES.has(role)) {
+            return NextResponse.json({ error: "Invalid role" }, { status: 400 });
         }
 
         // Resolve tenant: use provided tenantId or fall back to inviting user's tenant

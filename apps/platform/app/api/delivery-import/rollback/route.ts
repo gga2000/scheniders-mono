@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 
 /**
  * POST /api/delivery-import/rollback
@@ -12,15 +13,9 @@ import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-s
  */
 export async function POST(request: NextRequest) {
     try {
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json({ success: false, error: "Missing Authorization header" }, { status: 401 });
-        }
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-        }
+        // Tenant admins only; the tenant is the caller's verified active tenant.
+        const caller = await requireRequestCaller(request, "tenant-admin");
+        if (!caller.ok) return caller.response;
 
         const { importId } = (await request.json()) as { importId?: string };
         if (!importId) {
@@ -34,6 +29,7 @@ export async function POST(request: NextRequest) {
             .from("delivery_imports")
             .select("id, status")
             .eq("id", importId)
+            .eq("tenant_id", caller.tenantId)
             .single();
 
         if (fetchError || !importRecord) {
@@ -75,7 +71,8 @@ export async function POST(request: NextRequest) {
                         delivered_at: it.previous_delivered_at,
                         delivery_order_id: it.previous_delivery_order_id,
                     })
-                    .eq("id", it.order_id);
+                    .eq("id", it.order_id)
+                    .eq("tenant_id", caller.tenantId);
                 if (error) throw new Error(`${it.order_id}: ${error.message}`);
             })
         );

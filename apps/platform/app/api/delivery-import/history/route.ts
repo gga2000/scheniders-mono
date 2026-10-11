@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 
 /**
  * GET /api/delivery-import/history
@@ -8,28 +9,16 @@ import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-s
  */
 export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json(
-                { success: false, error: "Missing Authorization header" },
-                { status: 401 }
-            );
-        }
-
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json(
-                { success: false, error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
+        // Tenant admins only; the tenant is the caller's verified active tenant.
+        const caller = await requireRequestCaller(request, "tenant-admin");
+        if (!caller.ok) return caller.response;
 
         const supabaseAdmin = createSupabaseServiceClient();
 
         const { data, error } = await supabaseAdmin
             .from("delivery_imports")
             .select("*")
+            .eq("tenant_id", caller.tenantId)
             .order("created_at", { ascending: false })
             .limit(50);
 
