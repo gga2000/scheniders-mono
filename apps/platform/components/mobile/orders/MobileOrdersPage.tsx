@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { orderMatchesSearch, orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useShallow } from "zustand/react/shallow";
@@ -18,6 +19,7 @@ import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 
 export function MobileOrdersPage() {
     const {
+        orders,
         filteredOrders: hookFilteredOrders,
         fetchOrders,
         updateOrderStatus,
@@ -50,6 +52,8 @@ export function MobileOrdersPage() {
         groupBy,
         setGroupBy,
         setFilterDuplicatesOnly,
+        filterDueToday,
+        setFilterDueToday,
     } = useOrderStore(
         useShallow((state) => ({
             localSearchQuery: state.localSearchQuery,
@@ -61,6 +65,8 @@ export function MobileOrdersPage() {
             groupBy: state.groupBy,
             setGroupBy: state.setGroupBy,
             setFilterDuplicatesOnly: state.setFilterDuplicatesOnly,
+            filterDueToday: state.filterDueToday,
+            setFilterDueToday: state.setFilterDueToday,
         })),
     );
 
@@ -97,17 +103,36 @@ export function MobileOrdersPage() {
             result = result.filter((o) => orderMatchesRiskLevel(o, riskLevel));
         }
 
-        // Default sorting: Newest first. Timestamps resolved once rather than
-        // parsed twice per comparison, matching the desktop list.
+        // Due-today queue — same predicate as the desktop list and the chip count.
+        if (filterDueToday) {
+            result = result.filter((o) => isScheduleDue(o.status, o.scheduled_date));
+        }
+
+        // Default sorting: Newest first, with orders parked for a later day
+        // below the live queue, matching the desktop list. Timestamps resolved
+        // once rather than parsed twice per comparison.
         const createdAtMs = new Map<string, number>();
         for (const order of result) {
             const parsed = Date.parse(order.created_at);
             createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
         }
-        result.sort((a, b) => (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0));
+        const parked = new Set(result.filter((o) => getScheduledState(o.scheduled_date) === "future").map((o) => o.id));
+        result.sort((a, b) => {
+            const aParked = parked.has(a.id);
+            const bParked = parked.has(b.id);
+            if (aParked !== bParked) return aParked ? 1 : -1;
+            return (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0);
+        });
 
         return result;
-    }, [hookFilteredOrders, localSearchQuery, filters.riskLevel]);
+    }, [hookFilteredOrders, localSearchQuery, filters.riskLevel, filterDueToday]);
+
+    // Postponed orders whose day has arrived, over the loaded window — counted
+    // the same way as the desktop chip.
+    const dueTodayCount = useMemo(
+        () => orders.filter((o: Order) => isScheduleDue(o.status, o.scheduled_date)).length,
+        [orders],
+    );
 
     // ARCH-6: the order store is module-level, so an open modal, a bulk
     // selection or a half-finished inline edit outlived this page and came back
@@ -228,6 +253,9 @@ export function MobileOrdersPage() {
                     setGroupBy={setGroupBy}
                     filterDuplicatesOnly={filterDuplicatesOnly}
                     setFilterDuplicatesOnly={setFilterDuplicatesOnly}
+                    filterDueToday={filterDueToday}
+                    setFilterDueToday={setFilterDueToday}
+                    dueTodayCount={dueTodayCount}
                     isMobile={true}
                     className="-mx-4 bg-transparent border-b-0 shadow-none sticky top-12"
                 />
