@@ -5,11 +5,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
+import * as Sentry from "@sentry/nextjs";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
 import type { DashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { dashboardMetricsSchema } from "@/lib/analytics/dashboard-metrics-schema";
+
+/** How long to wait after the orders cache settles before refreshing metrics. */
+const METRICS_REFRESH_DEBOUNCE_MS = 1_500;
 
 /**
  * Server-side dashboard metrics.
@@ -21,12 +25,13 @@ import { dashboardMetricsSchema } from "@/lib/analytics/dashboard-metrics-schema
  * same 14 reductions in Postgres and returns a few KB of JSON — so the
  * dashboard can paint without waiting for the full table.
  *
+ * It is the ONLY source of dashboard numbers (ORD-2). The page renders a skeleton
+ * until it resolves and an error state if it fails; it never derives figures from
+ * the orders list, which is a window of the book, not the book.
+ *
  * RLS-scoped per tenant via SECURITY INVOKER (the function runs as the caller),
  * so each tenant only ever aggregates its own orders.
  */
-/** How long to wait after the orders cache settles before refreshing metrics. */
-const METRICS_REFRESH_DEBOUNCE_MS = 1_500;
-
 export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
     const { session, clientReady } = useAuth();
     const queryClient = useQueryClient();
@@ -82,8 +87,8 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
             // nobody checked, so any drift between the SQL function and the TS type
             // would arrive as `undefined` inside widgets and render as blanks or
             // NaN. Failing here instead routes through the same path as any other
-            // RPC error: reported to Sentry, and the page falls back to the local
-            // engine, which announces itself (ENG-D1).
+            // RPC error: reported to Sentry, and the page shows an error with a
+            // retry rather than a number it cannot vouch for.
             const parsed = dashboardMetricsSchema.safeParse(data);
             if (!parsed.success) {
                 const contractError = new Error(
