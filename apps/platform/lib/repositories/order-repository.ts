@@ -6,6 +6,12 @@ import type { OrderWindow } from "@/lib/order-window";
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS } from "@/lib/repositories/order-columns";
 import {
+    MAX_SEARCH_RESULTS,
+    buildDirectSearchFilters,
+    parseOrderSearchTerm,
+    rankSearchResults,
+} from "@/lib/order-server-search";
+import {
     TRUST_RISK_COLUMNS,
     buildRiskData,
     normalizePhoneLikeDb,
@@ -31,6 +37,17 @@ const TRUST_LOOKUP_MAX_PHONES = 200;
 /** Phones per `in.(...)` request — keeps the URL well under proxy limits. */
 const TRUST_IN_CHUNK = 100;
 const PAGE = 1000;
+
+/** Search rows carry `deleted_at` so a trashed match can be labelled. */
+const SEARCH_COLUMNS = `${LIST_COLUMNS}, deleted_at, delivery_order_id, waseet_qr_id`;
+/** PostgREST: "Could not find the function … in the schema cache". */
+const RPC_NOT_FOUND = "PGRST202";
+/**
+ * Set once `search_orders_v2` is known to be missing, so every later keystroke
+ * goes straight to the direct path instead of paying for a 404 first. Per page
+ * load: applying the migration takes effect on the next reload.
+ */
+let searchRpcMissing = false;
 
 async function fetchTrustRows(phones: string[]): Promise<TrustRow[]> {
     if (phones.length === 0) return [];
@@ -357,6 +374,61 @@ export const orderRepository = {
         }
 
         return withRiskData(allData.map(row => normalizeOrder(row as unknown as Order)));
+    },
+
+    /**
+     * Search the caller's whole order book — every date, every status, archived
+     * and trashed included — for a typed term. See lib/order-server-search.ts
+     * for what a term matches and how results are ranked.
+     *
+     * Prefers `search_orders_v2` (migration 20261012120000: indexed, and folds
+     * Arabic name variants). Until that migration is applied the RPC does not
+     * exist (PostgREST PGRST202); the same search then runs as two RLS-scoped
+     * selects on `orders`. Any OTHER error is thrown — a failing search must not
+     * read as "no orders match".
+     */
+    async search(term: string, limit = MAX_SEARCH_RESULTS): Promise<Order[]> {
+        const parsed = parseOrderSearchTerm(term);
+        if (!parsed) return [];
+        const cappedLimit = Math.min(Math.max(1, limit), MAX_SEARCH_RESULTS);
+
+        let rows: Order[] | null = null;
+        if (!searchRpcMissing) {
+            const { data, error } = await supabase
+                .rpc("search_orders_v2", { p_term: parsed.text, p_limit: cappedLimit })
+                .select(SEARCH_COLUMNS);
+            if (error) {
+                if (error.code !== RPC_NOT_FOUND) throw error;
+                searchRpcMissing = true;
+                diag.log(`[Diag:Repo] search_orders_v2 not deployed; using direct selects`);
+            } else {
+                rows = (data ?? []) as unknown as Order[];
+            }
+        }
+
+        if (rows === null) {
+            const filters = buildDirectSearchFilters(parsed);
+            const [exact, partial] = await Promise.all(
+                [filters.exact, filters.partial].map(or =>
+                    supabase
+                        .from("orders")
+                        .select(SEARCH_COLUMNS)
+                        .or(or)
+                        .order("created_at", { ascending: false })
+                        .order("id", { ascending: false })
+                        .limit(cappedLimit),
+                ),
+            );
+            if (exact.error) throw exact.error;
+            if (partial.error) throw partial.error;
+            rows = [
+                ...((exact.data ?? []) as unknown as Order[]),
+                ...((partial.data ?? []) as unknown as Order[]),
+            ];
+        }
+
+        const ranked = rankSearchResults(parsed, [rows], cappedLimit);
+        return withRiskData(ranked.map(row => normalizeOrder(row)));
     },
 
     /** Fetch a single order by ID (all columns for detail view). */
