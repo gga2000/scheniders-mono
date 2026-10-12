@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
 import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -174,6 +175,8 @@ export default function OrdersPage() {
         loadFilterPreset,
         deleteFilterPreset,
         hasDuplicates,
+        getDuplicateWindowAlert,
+        getConfirmBlockingTwin,
         getCustomerHistory,
         getCustomerOrderCount,
         mergeOrders,
@@ -656,7 +659,45 @@ export default function OrdersPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [filters, filterDuplicatesOnly, filterDueToday]);
 
+    // Duplicate confirm guard: the pairs that triggered it, and the original
+    // confirm to run if the operator proceeds anyway.
+    const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
+    const [duplicateConfirmPairs, setDuplicateConfirmPairs] = useState<{ order: Order; twin: Order }[]>([]);
+    const [pendingConfirm, setPendingConfirm] = useState<(() => void) | null>(null);
+
+    /**
+     * Confirming an order whose 48h twin is already committed sends a second
+     * courier to the same customer. Returns true when the confirm was held for
+     * the dialog — the caller must then do nothing, because `proceed` runs only
+     * if the operator chooses "Confirm anyway".
+     *
+     * There are three ways to confirm on this page: a card, the table's status
+     * dropdown, and the bulk bar. All three come through here. The table used to
+     * call the raw updater directly, which would have let a double-dispatch
+     * through the moment someone switched views.
+     */
+    const holdDuplicateConfirm = (orderIds: string[], proceed: () => void): boolean => {
+        const pairs = orderIds.flatMap(id => {
+            const order = orders.find(o => o.id === id);
+            const twin = getConfirmBlockingTwin(id);
+            return order && twin ? [{ order, twin }] : [];
+        });
+        if (pairs.length === 0) return false;
+        setDuplicateConfirmPairs(pairs);
+        setPendingConfirm(() => proceed);
+        setDuplicateConfirmOpen(true);
+        return true;
+    };
+
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
+        if (status === "confirmed"
+            && holdDuplicateConfirm([orderId], () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
+            return;
+        }
+        await runStatusUpdate(orderId, status, reason, reasonId);
+    };
+
+    const runStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
         try {
             const result = await updateOrderStatus(orderId, status, reason, reasonId);
@@ -705,22 +746,26 @@ export default function OrdersPage() {
         setShipConfirmKey,
     } = bulk;
 
+    /** The table's status dropdown, routed through the duplicate guard. */
+    const guardedTableStatusUpdate = async (orderId: string, status: Order["status"]) => {
+        if (status === "confirmed"
+            && holdDuplicateConfirm([orderId], () => { void updateOrderStatus(orderId, status); })) {
+            return;
+        }
+        return updateOrderStatus(orderId, status);
+    };
+
+    /** Bulk confirm, routed through the duplicate guard. Every other bulk action is untouched. */
+    const guardedBulkActions = {
+        ...bulkActions,
+        confirm: () => {
+            const ids = Array.from(useOrderStore.getState().selectedOrders);
+            if (holdDuplicateConfirm(ids, bulkActions.confirm)) return;
+            void bulkActions.confirm();
+        },
+    };
+
     const [showMapPanel, setShowMapPanel] = useState(false);
-
-    // Defer heavy array processing for analytics to keep UI responsive
-    const deferredFilteredOrders = React.useDeferredValue(filteredOrders);
-
-    // Calculate duplicate phone map for ghost detection
-    const phoneCounts = useMemo(() => {
-        const counts = new Map<string, number>();
-        deferredFilteredOrders.forEach(o => {
-            if (o.phone && !o.is_return) {
-                const normalized = o.phone.replace(/\s/g, '');
-                counts.set(normalized, (counts.get(normalized) || 0) + 1);
-            }
-        });
-        return counts;
-    }, [deferredFilteredOrders]);
 
     // Switch between regular and archived orders
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
@@ -1578,7 +1623,7 @@ export default function OrdersPage() {
 
                                             {/* Filters & Search Bar */}
                                             <OrdersFilterBar
-                                                bulkActions={bulkActions}
+                                                bulkActions={guardedBulkActions}
                                                 isBulkProcessing={isBulkProcessing}
                                                 hasActiveFilters={hasActiveFilters}
                                                 totalRiskCount={totalRiskCount}
@@ -1775,6 +1820,7 @@ export default function OrdersPage() {
                                                             actionDock={actionDock}
                                                             getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
+                                                            getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                         />
                                                     ) : displayedOrders.length >= 10 ? (
@@ -1824,6 +1870,7 @@ export default function OrdersPage() {
                                                             actionDock={actionDock}
                                                             getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
+                                                            getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                         />
                                                     ) : (
@@ -1858,6 +1905,7 @@ export default function OrdersPage() {
                                                                                 setDuplicateOrder(o);
                                                                                 setShowDuplicateModal(true);
                                                                             }}
+                                                                            duplicateAlert={getDuplicateWindowAlert(order.id)}
                                                                             onTogglePin={togglePin}
                                                                             onCloneOrder={cloneOrder}
                                                                             onScreenshot={setScreenshotOrder}
@@ -1905,11 +1953,11 @@ export default function OrdersPage() {
                                                     togglePin={togglePin}
                                                     setSelectedOrder={setSelectedOrderWithFetch}
                                                     setIsModalOpen={setIsModalOpen}
-                                                    phoneCounts={phoneCounts}
+                                                    getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                     setDuplicateOrder={setDuplicateOrder}
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
-                                                    updateOrderStatus={updateOrderStatus}
+                                                    updateOrderStatus={guardedTableStatusUpdate}
                                                     getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
                                                     setColumnFilters={setColumnFilters}
@@ -1967,6 +2015,22 @@ export default function OrdersPage() {
                     />
 
                     <OrderBulkDialogs bulk={bulk} />
+
+                    {/* Lives here rather than in either dialog group: it guards the
+                        card, the table and the bulk bar alike. */}
+                    <DuplicateConfirmDialog
+                        open={duplicateConfirmOpen}
+                        onOpenChange={(open) => {
+                            setDuplicateConfirmOpen(open);
+                            if (!open) setPendingConfirm(null);
+                        }}
+                        pairs={duplicateConfirmPairs}
+                        onConfirmAnyway={() => pendingConfirm?.()}
+                        onCompare={(order) => {
+                            setDuplicateOrder(order);
+                            setShowDuplicateModal(true);
+                        }}
+                    />
 
                     {/* Scroll to Top Button */}
                     <ScrollToTopButton />
