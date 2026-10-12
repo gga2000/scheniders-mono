@@ -69,7 +69,7 @@ export function baghdadDayOfMonth(d: Date): number {
  * `AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Baghdad'`, which on a timestamptz
  * shifted every delivery by a flat -6h, understating today's revenue by 59% and
  * discarding 383 sub-6h deliveries as "impossible". Fixed in migration
- * 20260909104500.
+ * 20260909074726.
  *
  * The helper is kept because it is genuinely defensive: a zone-less value would
  * otherwise be read as BROWSER-LOCAL, which in Baghdad (UTC+3) silently shifts
