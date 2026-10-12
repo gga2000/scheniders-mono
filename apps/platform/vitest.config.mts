@@ -13,6 +13,7 @@ export default defineConfig({
             "@/components": path.resolve(__dirname, "./components"),
             "@/app": path.resolve(__dirname, "./app"),
             "@/types": path.resolve(__dirname, "./types"),
+            "@/store": path.resolve(__dirname, "./store"),
             "@scheniders/shared": path.resolve(
                 __dirname,
                 "../../packages/shared/src",
