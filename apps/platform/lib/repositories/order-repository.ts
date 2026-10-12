@@ -5,6 +5,7 @@ import { diag } from "@/lib/diag";
 import type { OrderWindow } from "@/lib/order-window";
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS } from "@/lib/repositories/order-columns";
+import { runInSequentialBatches, type BatchOutcome, type BulkProgress } from "@/lib/order-bulk-batches";
 import {
     MAX_SEARCH_RESULTS,
     buildDirectSearchFilters,
@@ -18,6 +19,55 @@ import {
     trustKey,
     type TrustRow,
 } from "@/lib/customer-trust-risk";
+
+/** Attribution and reason fields that ride along with a status change. */
+type StatusUpdateContext = {
+    rejectionReason?: string;
+    rejectionReasonId?: string;
+    changedByName?: string;
+    changedByAvatar?: string;
+};
+
+/**
+ * The column set a status change writes: the status, its timestamps, the
+ * rejection reason (cleared when moving to a non-rejecting status) and the
+ * actor. Shared by the single-order and batched paths so they cannot drift.
+ */
+function buildStatusUpdate(status: Order["status"], ctx: StatusUpdateContext): Partial<Order> {
+    const updateData: Partial<Order> = { status };
+    const loose = updateData as Record<string, unknown>;
+    if (ctx.rejectionReason) {
+        updateData.rejection_reason = ctx.rejectionReason;
+    } else if (status !== "cancelled" && status !== "rejected") {
+        loose.rejection_reason = null;
+    }
+    if (ctx.rejectionReasonId !== undefined) {
+        loose.reason_id = ctx.rejectionReasonId || null;
+    } else if (status !== "cancelled" && status !== "rejected") {
+        loose.reason_id = null;
+    }
+    if (status === "delivered") updateData.delivered_at = new Date().toISOString();
+    if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
+    if (ctx.changedByName) updateData.last_status_changed_by_name = ctx.changedByName;
+    if (ctx.changedByAvatar) updateData.last_status_changed_by_avatar = ctx.changedByAvatar;
+    return updateData;
+}
+
+/** A batch status write gives up after this long; the batch then falls back to per-order writes. */
+const STATUS_BATCH_TIMEOUT_MS = 30_000;
+
+/**
+ * PostgREST `or` filter that matches each id, pinned to its expected version
+ * when one is known — the batched form of the optimistic-concurrency guard.
+ */
+export function buildVersionedIdFilter(ids: readonly string[], expectedVersions?: Record<string, number>): string {
+    return ids
+        .map((id) => {
+            const version = expectedVersions?.[id];
+            return typeof version === "number" ? `and(id.eq.${id},version.eq.${version})` : `id.eq.${id}`;
+        })
+        .join(",");
+}
 
 /**
  * OrderRepository — Centralized data access for orders.
@@ -569,27 +619,12 @@ export const orderRepository = {
         expectedVersion?: number,
         rejectionReasonId?: string
     ): Promise<Order> {
-        const updateData: Partial<Order> = { status };
-        if (rejectionReason) {
-            updateData.rejection_reason = rejectionReason;
-        } else if (status !== "cancelled" && status !== "rejected") {
-            (updateData as Record<string, unknown>).rejection_reason = null;
-        }
-        if (rejectionReasonId !== undefined) {
-            (updateData as Record<string, unknown>).reason_id = rejectionReasonId || null;
-        } else if (status !== "cancelled" && status !== "rejected") {
-            (updateData as Record<string, unknown>).reason_id = null;
-        }
-        if (status === "delivered") updateData.delivered_at = new Date().toISOString();
-        if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
-
-        // Include user attribution for notifications
-        if (last_status_changed_by_name) {
-            updateData.last_status_changed_by_name = last_status_changed_by_name;
-        }
-        if (last_status_changed_by_avatar) {
-            updateData.last_status_changed_by_avatar = last_status_changed_by_avatar;
-        }
+        const updateData = buildStatusUpdate(status, {
+            rejectionReason,
+            rejectionReasonId,
+            changedByName: last_status_changed_by_name,
+            changedByAvatar: last_status_changed_by_avatar,
+        });
 
         // Retry with backoff: 2 attempts, 1s delay between
         const MAX_RETRIES = 2;
@@ -676,9 +711,110 @@ export const orderRepository = {
     },
 
     /**
-     * Update order status in bulk. Includes retry mechanism per-order
-     * and conflict detection if expectedVersions is provided.
-     * Keeps track of successful and failed operations.
+     * Change the status of up to one batch of orders in a single statement.
+     *
+     * One UPDATE for the whole batch, so its row triggers run inside one
+     * transaction instead of N transactions queueing for the same products lock.
+     * Rows that come back were written; rows that do not were filtered out by
+     * the version guard (a concurrent edit) or by RLS, and are reported failed.
+     *
+     * If the statement itself errors — one row refused by a trigger, a timeout,
+     * a deadlock — nothing in it committed, so the batch is retried one order at
+     * a time to isolate the bad row and land the rest.
+     */
+    async updateStatusBatch(
+        orderIds: string[],
+        status: Order["status"],
+        ctx: StatusUpdateContext,
+        expectedVersions?: Record<string, number>
+    ): Promise<{
+        successfulOperations: { id: string, order: Order }[],
+        failedOperations: { id: string, error: unknown }[]
+    }> {
+        const t0 = performance.now();
+        const { data, error } = await supabase
+            .from("orders")
+            .update(buildStatusUpdate(status, ctx))
+            .in("id", orderIds)
+            .or(buildVersionedIdFilter(orderIds, expectedVersions))
+            .select()
+            .abortSignal(AbortSignal.timeout(STATUS_BATCH_TIMEOUT_MS));
+        const elapsed = Math.round(performance.now() - t0);
+
+        if (error) {
+            diag.warn(`[updateStatusBatch] batch of ${orderIds.length} failed in ${elapsed}ms (${error.code ?? "?"}: ${error.message}); retrying per order`);
+            return this.updateStatusOneByOne(orderIds, status, ctx, expectedVersions);
+        }
+
+        const written = new Map((data ?? []).map((row) => [row.id as string, normalizeOrder(row)]));
+        const successfulOperations: { id: string, order: Order }[] = [];
+        const failedOperations: { id: string, error: unknown }[] = [];
+        for (const id of orderIds) {
+            const order = written.get(id);
+            if (order) {
+                successfulOperations.push({ id, order });
+            } else if (typeof expectedVersions?.[id] === "number") {
+                failedOperations.push({ id, error: new Error("CONFLICT_DETECTED") });
+            } else {
+                failedOperations.push({ id, error: new Error("Status update failed: row not found or write was rejected. Try refreshing.") });
+            }
+        }
+        diag.log(`[updateStatusBatch] batch of ${orderIds.length} in ${elapsed}ms ok=${successfulOperations.length} failed=${failedOperations.length}`);
+        return { successfulOperations, failedOperations };
+    },
+
+    /**
+     * Per-order fallback for a batch whose statement errored. Sequential, so it
+     * cannot contend with itself. A transport error on the batch may still have
+     * committed it, so a version conflict here is re-read: if the row already
+     * carries the target status, that is our own write, not someone else's.
+     */
+    async updateStatusOneByOne(
+        orderIds: string[],
+        status: Order["status"],
+        ctx: StatusUpdateContext,
+        expectedVersions?: Record<string, number>
+    ): Promise<{
+        successfulOperations: { id: string, order: Order }[],
+        failedOperations: { id: string, error: unknown }[]
+    }> {
+        const successfulOperations: { id: string, order: Order }[] = [];
+        const failedOperations: { id: string, error: unknown }[] = [];
+        for (const id of orderIds) {
+            try {
+                const order = await this.updateStatus(
+                    id,
+                    status,
+                    ctx.rejectionReason,
+                    ctx.changedByName,
+                    ctx.changedByAvatar,
+                    expectedVersions?.[id],
+                    ctx.rejectionReasonId
+                );
+                successfulOperations.push({ id, order });
+            } catch (error) {
+                if (error instanceof Error && error.message === "CONFLICT_DETECTED") {
+                    const { data: current, error: readError } = await supabase
+                        .from("orders")
+                        .select("*")
+                        .eq("id", id)
+                        .maybeSingle();
+                    if (!readError && current && current.status === status) {
+                        successfulOperations.push({ id, order: normalizeOrder(current) });
+                        continue;
+                    }
+                }
+                failedOperations.push({ id, error });
+            }
+        }
+        return { successfulOperations, failedOperations };
+    },
+
+    /**
+     * Update order status in bulk: small batches, one at a time, ids ascending
+     * (see lib/order-bulk-batches for why). `onBatchSettled` runs after each
+     * batch — the caller writes that batch's status history there — and
+     * `onProgress` reports orders settled so far.
      */
     async bulkUpdateStatus(
         orderIds: string[],
@@ -686,43 +822,35 @@ export const orderRepository = {
         rejectionReason?: string,
         last_status_changed_by_name?: string,
         last_status_changed_by_avatar?: string,
-        expectedVersions?: Record<string, number>
+        expectedVersions?: Record<string, number>,
+        hooks?: {
+            onBatchSettled?: (outcome: BatchOutcome<{ id: string, order: Order }>) => Promise<void> | void;
+            onProgress?: (progress: BulkProgress) => void;
+        }
     ): Promise<{
         successfulOperations: { id: string, order: Order }[],
         failedOperations: { id: string, error: unknown }[]
     }> {
         diag.log(`[Diag:Repo] bulkUpdateStatus START count=${orderIds.length} status=${status}`);
-        
-        const results = await Promise.allSettled(
-            orderIds.map(async id => {
-                const expectedAt = expectedVersions ? expectedVersions[id] : undefined;
-                const order = await this.updateStatus(
-                    id, 
-                    status, 
-                    rejectionReason, 
-                    last_status_changed_by_name, 
-                    last_status_changed_by_avatar, 
-                    expectedAt
-                );
-                return { id, order };
-            })
-        );
-        
-        const successfulOperations: { id: string, order: Order }[] = [];
-        const failedOperations: { id: string, error: unknown }[] = [];
-        
-        results.forEach((result, index) => {
-            const id = orderIds[index];
-            if (result.status === 'fulfilled') {
-                successfulOperations.push(result.value);
-            } else {
-                failedOperations.push({ id, error: result.reason });
-            }
+        const ctx: StatusUpdateContext = {
+            rejectionReason,
+            changedByName: last_status_changed_by_name,
+            changedByAvatar: last_status_changed_by_avatar,
+        };
+
+        const { succeeded, failed } = await runInSequentialBatches<{ id: string, order: Order }>({
+            ids: orderIds,
+            runBatch: async (batch) => {
+                const { successfulOperations, failedOperations } =
+                    await this.updateStatusBatch(batch, status, ctx, expectedVersions);
+                return { succeeded: successfulOperations, failed: failedOperations };
+            },
+            onBatchSettled: hooks?.onBatchSettled,
+            onProgress: hooks?.onProgress,
         });
-        
-        diag.log(`[Diag:Repo] bulkUpdateStatus DONE success=${successfulOperations.length} failed=${failedOperations.length}`);
-        
-        return { successfulOperations, failedOperations };
+
+        diag.log(`[Diag:Repo] bulkUpdateStatus DONE success=${succeeded.length} failed=${failed.length}`);
+        return { successfulOperations: succeeded, failedOperations: failed };
     },
 
     /** Hard-delete an order by ID. */
