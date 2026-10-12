@@ -17,7 +17,6 @@ import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { useChatStore } from "@/store/use-chat-store";
 import { useAuth } from "@/hooks/use-auth";
 import { usePins } from "@/hooks/chat/use-pins";
-import { useMessages } from "@/hooks/chat/use-messages";
 import { chatKeys } from "@/hooks/chat/use-conversations";
 import { PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipeline";
 import { VoiceMessage } from "./voice-message";
@@ -76,6 +75,18 @@ function SystemEventPill({ event, t, memberMap }: {
             const who = memberMap.get(event.to)?.display_name ?? t("chat.teammate", "Teammate");
             text = t("chat.event.assigned", "{actor} assigned this to {who}", { actor, who });
         }
+    } else if (event.type === "thread_resolved") {
+        text = event.auto
+            ? t("chat.event.autoResolved", "Closed automatically after {hours}h with no activity", {
+                  hours: String(event.after_hours ?? 24),
+              })
+            : t("chat.event.resolved", "{actor} closed this thread", {
+                  actor: event.actor_name ?? t("chat.system", "System"),
+              });
+    } else if (event.type === "thread_reopened") {
+        text = event.actor_name
+            ? t("chat.event.reopenedBy", "{actor} reopened this thread", { actor: event.actor_name })
+            : t("chat.event.reopened", "Reopened by a new reply");
     } else {
         // delivered
         text = t("chat.event.delivered", "Order delivered");
@@ -220,12 +231,23 @@ export function MessageItem({
     senderAvatar,
     parentMessage,
     onForward,
+    onRetry,
 }: {
     message: ChatMessage;
     senderName: string;
     senderAvatar?: string | null;
     parentMessage?: ChatMessage;
     onForward?: (msg: ChatMessage) => void;
+    /**
+     * Re-send a failed message by client_msg_id. Passed down from the sheet
+     * rather than pulled from useMessages() here: this component renders once
+     * per message, and useMessages() opens a Realtime subscription on the
+     * conversation topic. realtime-js dedupes channels by topic, so every extra
+     * MessageItem shared ONE channel instance — and the first one to unmount
+     * called removeChannel() on it, tearing down live delivery for the whole
+     * conversation.
+     */
+    onRetry?: (clientMsgId: string) => void;
 }) {
     const { t } = useLanguage();
     const reduceMotion = useReducedMotion();
@@ -234,7 +256,6 @@ export function MessageItem({
     const qc = useQueryClient();
     const setReplyTo = useChatStore((s) => s.setReplyTo);
     const { data: pins } = usePins(message.conversation_id);
-    const { retrySend } = useMessages(message.conversation_id);
 
     const [isEditing, setIsEditing] = useState(false);
     const [editBody, setEditBody] = useState(message.body);
@@ -464,7 +485,7 @@ export function MessageItem({
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (message.client_msg_id) retrySend(message.client_msg_id);
+                                    if (message.client_msg_id) onRetry?.(message.client_msg_id);
                                 }}
                                 className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/40"
                             >

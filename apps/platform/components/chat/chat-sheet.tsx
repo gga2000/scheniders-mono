@@ -32,7 +32,16 @@ export function ChatSheet() {
     const [forwardMessage, setForwardMessage] = useState<ChatMessage | null>(null);
     const isMobile = useIsMobile(768);
     const { t, language } = useLanguage();
-    const { data: messages = [], sendMessage, markRead, isLoading } = useMessages(activeConversationId);
+    const {
+        data: messages = [],
+        sendMessage,
+        markRead,
+        isLoading,
+        retrySend,
+        loadOlder,
+        hasMore,
+        isLoadingOlder,
+    } = useMessages(activeConversationId);
     const { typers, notifyTyping } = useTypingIndicator(activeConversationId);
 
     const { user } = useAuth();
@@ -80,9 +89,23 @@ export function ChatSheet() {
         return null;
     }, [dmPeerId, activeConversation?.kind, dmPeerStatus, dmPeerLastSeen, t, language]);
 
-    // Mark read on open / conversation switch only — not on every incoming
-    // message (that re-fired markRead per message and churned the unread RPC).
+    // Mark read on open / conversation switch.
     useEffect(() => { if (isOpen && activeConversationId) void markRead(); }, [isOpen, activeConversationId]);
+
+    // …and again when a message lands in the thread you are actually looking at.
+    // Without this, last_read_at stayed frozen at the moment you opened the
+    // conversation, so every reply that arrived while you were reading it kept
+    // incrementing the unread badge until you closed and reopened the thread.
+    // Keyed on the newest message id and debounced so a burst of replies costs
+    // one RPC, and skipped while the tab is hidden (you are not reading it then).
+    const newestMessageId = messages[messages.length - 1]?.id;
+    useEffect(() => {
+        if (!isOpen || !activeConversationId || !newestMessageId) return;
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+        const timer = setTimeout(() => { void markRead(); }, 500);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- markRead is recreated per render; the newest message id is the real trigger
+    }, [isOpen, activeConversationId, newestMessageId]);
 
     // Freeze my_last_read_at per conversation at open, BEFORE markRead advances it,
     // so the divider boundary doesn't jump while you read. Cleared when the sheet closes.
@@ -288,6 +311,10 @@ export function ChatSheet() {
                                             focusMessageId={focusMessageId}
                                             onFocused={clearFocusMessage}
                                             onForward={setForwardMessage}
+                                            onRetry={retrySend}
+                                            onLoadOlder={loadOlder}
+                                            hasMore={hasMore}
+                                            isLoadingOlder={isLoadingOlder}
                                         />
                                         <AnimatePresence>
                                             {typers.length > 0 && (
