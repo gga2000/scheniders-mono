@@ -57,10 +57,12 @@ const LIST_VIEW_COLUMNS = `
   last_status_changed_by_name,
   last_status_changed_by_avatar,
   delivered_at,
-  completed_at,
-  attribution,
-  ad_channel
+  completed_at
 `.trim();
+// attribution / ad_channel are NOT listed: the list reads v_orders_with_risk,
+// which does not expose them yet, and requesting a missing column makes
+// PostgREST reject the whole query (400) — the orders page went blank. Add them
+// back only together with the view change that exposes them.
 
 /**
  * Columns needed to build an export file. The list view deliberately omits some
