@@ -5,6 +5,8 @@ import {
     buildDuplicateWindowIndex,
     committedTwinBlockingConfirm,
     duplicateCandidateWindow,
+    duplicateGuardFor,
+    findDuplicateDispatchPairs,
     DUPLICATE_WINDOW_HOURS,
 } from "./duplicate-window";
 
@@ -425,5 +427,64 @@ describe("duplicateCandidateWindow", () => {
         const alert = buildDuplicateWindowIndex([visible, twin]).get("today");
         expect(alert?.primary.id).toBe("yesterday");
         expect(alert?.severity).toBe("critical");
+    });
+});
+
+describe("duplicateGuardFor", () => {
+    it("guards committing and dispatching, nothing else", () => {
+        expect(duplicateGuardFor("confirmed")).toBe("confirm");
+        expect(duplicateGuardFor("in_transit")).toBe("dispatch");
+        for (const status of ["new", "contacted", "delivered", "completed", "cancelled", "rejected"] as OrderStatus[]) {
+            expect(duplicateGuardFor(status)).toBeNull();
+        }
+    });
+});
+
+describe("findDuplicateDispatchPairs — the 48h dispatch warning", () => {
+    const pairsFor = (orders: Order[], ids: string[]) => {
+        const index = buildDuplicateWindowIndex(orders);
+        return findDuplicateDispatchPairs(
+            ids,
+            new Map(orders.map(o => [o.id, o])),
+            id => committedTwinBlockingConfirm(id, index),
+        );
+    };
+
+    it("warns when shipping an order whose twin is already shipped", () => {
+        const shipped = order({ id: "shipped", status: "in_transit", created_at: hoursFrom(BASE, -20) });
+        const ready = order({ id: "ready", status: "confirmed" });
+
+        const pairs = pairsFor([shipped, ready], ["ready"]);
+
+        expect(pairs).toHaveLength(1);
+        expect(pairs[0].order.id).toBe("ready");
+        expect(pairs[0].twin.id).toBe("shipped");
+    });
+
+    it("flags both halves when the two twins are shipped in the same batch", () => {
+        const a = order({ id: "a", status: "confirmed" });
+        const b = order({ id: "b", status: "confirmed", created_at: hoursFrom(BASE, 3) });
+
+        expect(pairsFor([a, b], ["a", "b"]).map(p => p.order.id)).toEqual(["a", "b"]);
+    });
+
+    it("stays quiet when the twin is uncommitted or cancelled", () => {
+        const ready = order({ id: "ready", status: "confirmed" });
+        const pending = order({ id: "pending", status: "new", created_at: hoursFrom(BASE, -2) });
+        const dead = order({ id: "dead", status: "cancelled", created_at: hoursFrom(BASE, -1) });
+
+        expect(pairsFor([ready, pending, dead], ["ready"])).toEqual([]);
+    });
+
+    it("stays quiet once the twin is more than 48h away", () => {
+        const old = order({ id: "old", status: "delivered", created_at: hoursFrom(BASE, -49) });
+        const ready = order({ id: "ready", status: "confirmed" });
+
+        expect(pairsFor([old, ready], ["ready"])).toEqual([]);
+    });
+
+    it("skips ids that are not loaded instead of guessing", () => {
+        const ready = order({ id: "ready", status: "confirmed" });
+        expect(pairsFor([ready], ["ready", "not-loaded"])).toEqual([]);
     });
 });

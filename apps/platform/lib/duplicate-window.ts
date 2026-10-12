@@ -232,3 +232,43 @@ export function duplicateCandidateWindow(window: OrderWindow): OrderWindow {
     // window, so no visible row is ever missing from the merged index.
     return { fromInstant, toInstant, fromDay: baghdadDayKey(fromInstant), toDay: baghdadDayKey(toInstant) };
 }
+
+/**
+ * Which duplicate guard, if any, a status change has to pass.
+ *
+ * Both are the same money question — a second courier for one customer inside
+ * 48h — asked at the two moments it can still be stopped: committing the order
+ * (`confirmed`) and handing it to the courier (`in_transit`). Every other
+ * status costs nothing to duplicate.
+ */
+export type DuplicateGuardAction = "confirm" | "dispatch";
+
+export function duplicateGuardFor(status: OrderStatus): DuplicateGuardAction | null {
+    if (status === "confirmed") return "confirm";
+    if (status === "in_transit") return "dispatch";
+    return null;
+}
+
+export interface DuplicateDispatchPair {
+    order: Order;
+    twin: Order;
+}
+
+/**
+ * The orders among `orderIds` that would become a customer's second committed
+ * shipment, each paired with the committed twin it collides with. Ids that are
+ * not loaded are skipped — the guard can only speak for orders it can see.
+ */
+export function findDuplicateDispatchPairs(
+    orderIds: Iterable<string>,
+    ordersById: ReadonlyMap<string, Order>,
+    getCommittedTwin: (orderId: string) => Order | undefined,
+): DuplicateDispatchPair[] {
+    const pairs: DuplicateDispatchPair[] = [];
+    for (const id of orderIds) {
+        const order = ordersById.get(id);
+        const twin = order ? getCommittedTwin(id) : undefined;
+        if (order && twin) pairs.push({ order, twin });
+    }
+    return pairs;
+}

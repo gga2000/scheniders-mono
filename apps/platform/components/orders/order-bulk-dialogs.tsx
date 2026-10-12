@@ -17,6 +17,7 @@ import {
 } from "@scheniders/ui/dialog";
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
 import type { OrderBulkOperations } from "@/hooks/use-order-bulk-operations";
+import type { Order } from "@/types/order";
 
 const FloatingActionBar = dynamic(
     () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
@@ -54,7 +55,14 @@ const MoveToTransitDialog = withOrderModalBoundary(
  * everything else from the same store and context the page does, so extracting
  * them did not turn into eighteen props pointing back at the page.
  */
-export function OrderBulkDialogs({ bulk }: { bulk: OrderBulkOperations }) {
+export function OrderBulkDialogs({
+    bulk,
+    getDispatchTwin,
+}: {
+    bulk: OrderBulkOperations;
+    /** A committed 48h twin for an order — the courier export warns about these. */
+    getDispatchTwin?: (orderId: string) => Order | undefined;
+}) {
     const { t } = useLanguage();
     const { orders, filteredOrders, filters, ordersAreComplete } = useOrdersContext();
     const { selectedOrders, isExportModalOpen, setIsExportModalOpen } = useOrderStore(
@@ -217,6 +225,7 @@ export function OrderBulkDialogs({ bulk }: { bulk: OrderBulkOperations }) {
                 currentTab={filters.status || 'all'}
                 hasSelection={selectedOrders.size > 0}
                 ordersAreComplete={ordersAreComplete}
+                getDispatchTwin={getDispatchTwin}
                 onConfirmExport={(options) => handleShipExport(shipConfirmCompany, options)}
             />
 

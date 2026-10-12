@@ -7,6 +7,12 @@ import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
+import {
+    duplicateGuardFor,
+    findDuplicateDispatchPairs,
+    type DuplicateDispatchPair,
+    type DuplicateGuardAction,
+} from "@/lib/duplicate-window";
 import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -659,39 +665,40 @@ export default function OrdersPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [filters, filterDuplicatesOnly, filterDueToday]);
 
-    // Duplicate confirm guard: the pairs that triggered it, and the original
-    // confirm to run if the operator proceeds anyway.
+    // Duplicate guard: the pairs that triggered it, which action was held, and
+    // the original action to run if the operator proceeds anyway.
     const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
-    const [duplicateConfirmPairs, setDuplicateConfirmPairs] = useState<{ order: Order; twin: Order }[]>([]);
+    const [duplicateConfirmPairs, setDuplicateConfirmPairs] = useState<DuplicateDispatchPair[]>([]);
+    const [duplicateGuardAction, setDuplicateGuardAction] = useState<DuplicateGuardAction>("confirm");
     const [pendingConfirm, setPendingConfirm] = useState<(() => void) | null>(null);
 
+    const ordersById = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
+
     /**
-     * Confirming an order whose 48h twin is already committed sends a second
-     * courier to the same customer. Returns true when the confirm was held for
-     * the dialog — the caller must then do nothing, because `proceed` runs only
-     * if the operator chooses "Confirm anyway".
+     * Confirming or shipping an order whose 48h twin is already committed sends
+     * a second courier to the same customer. Returns true when the action was
+     * held for the dialog — the caller must then do nothing, because `proceed`
+     * runs only if the operator chooses to go ahead anyway.
      *
-     * There are three ways to confirm on this page: a card, the table's status
-     * dropdown, and the bulk bar. All three come through here. The table used to
-     * call the raw updater directly, which would have let a double-dispatch
-     * through the moment someone switched views.
+     * Every way to confirm or move to In Transit on this page comes through
+     * here: a card, the details modal, the table's status dropdown, the bulk
+     * bar and the floating selection bar. The courier export warns inside its
+     * own confirmation dialog instead (see ShipExportConfirmationDialog).
      */
-    const holdDuplicateConfirm = (orderIds: string[], proceed: () => void): boolean => {
-        const pairs = orderIds.flatMap(id => {
-            const order = orders.find(o => o.id === id);
-            const twin = getConfirmBlockingTwin(id);
-            return order && twin ? [{ order, twin }] : [];
-        });
+    const holdDuplicateDispatch = (orderIds: string[], action: DuplicateGuardAction, proceed: () => void): boolean => {
+        const pairs = findDuplicateDispatchPairs(orderIds, ordersById, getConfirmBlockingTwin);
         if (pairs.length === 0) return false;
         setDuplicateConfirmPairs(pairs);
+        setDuplicateGuardAction(action);
         setPendingConfirm(() => proceed);
         setDuplicateConfirmOpen(true);
         return true;
     };
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
-        if (status === "confirmed"
-            && holdDuplicateConfirm([orderId], () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
+        const guard = duplicateGuardFor(status);
+        if (guard
+            && holdDuplicateDispatch([orderId], guard, () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
             return;
         }
         await runStatusUpdate(orderId, status, reason, reasonId);
@@ -746,24 +753,42 @@ export default function OrdersPage() {
         setShipConfirmKey,
     } = bulk;
 
-    /** The table's status dropdown, routed through the duplicate guard. */
-    const guardedTableStatusUpdate = async (orderId: string, status: Order["status"]) => {
-        if (status === "confirmed"
-            && holdDuplicateConfirm([orderId], () => { void updateOrderStatus(orderId, status); })) {
-            return;
+    /**
+     * The raw updater, routed through the duplicate guard — for the table's
+     * status dropdown and the workflow tabs. A held change resolves as not
+     * applied; the dialog's "anyway" button applies it.
+     */
+    const guardedStatusUpdate = async (
+        orderId: string,
+        status: Order["status"],
+        reason?: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+        const guard = duplicateGuardFor(status);
+        if (guard
+            && holdDuplicateDispatch([orderId], guard, () => { void updateOrderStatus(orderId, status, reason); })) {
+            return { success: false };
         }
-        return updateOrderStatus(orderId, status);
+        return updateOrderStatus(orderId, status, reason);
     };
 
-    /** Bulk confirm, routed through the duplicate guard. Every other bulk action is untouched. */
+    /** Bulk confirm and bulk In Transit, routed through the duplicate guard. */
     const guardedBulkActions = {
         ...bulkActions,
-        confirm: () => {
+        confirm: async () => {
             const ids = Array.from(useOrderStore.getState().selectedOrders);
-            if (holdDuplicateConfirm(ids, bulkActions.confirm)) return;
-            void bulkActions.confirm();
+            if (holdDuplicateDispatch(ids, "confirm", () => { void bulkActions.confirm(); })) return;
+            await bulkActions.confirm();
+        },
+        inTransit: async () => {
+            const ids = Array.from(useOrderStore.getState().selectedOrders);
+            if (holdDuplicateDispatch(ids, "dispatch", () => { void bulkActions.inTransit(); })) return;
+            await bulkActions.inTransit();
         },
     };
+    // The floating selection bar lives in OrderBulkDialogs and reads
+    // `bulk.bulkActions` — it must get the guarded set too, or bulk confirm
+    // from there walks straight past the guard.
+    const guardedBulk = { ...bulk, bulkActions: guardedBulkActions };
 
     const [showMapPanel, setShowMapPanel] = useState(false);
 
@@ -1693,7 +1718,7 @@ export default function OrdersPage() {
                                     {workflowMode ? (
                                         <WorkflowTabs
                                             orders={filteredOrders}
-                                            onStatusUpdate={updateOrderStatus}
+                                            onStatusUpdate={guardedStatusUpdate}
                                             onUpdate={updateOrder}
                                             onViewDetails={handleViewDetails}
                                             isBlacklisted={isBlacklisted}
@@ -1957,7 +1982,7 @@ export default function OrdersPage() {
                                                     setDuplicateOrder={setDuplicateOrder}
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
-                                                    updateOrderStatus={guardedTableStatusUpdate}
+                                                    updateOrderStatus={guardedStatusUpdate}
                                                     getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
                                                     setColumnFilters={setColumnFilters}
@@ -2014,7 +2039,7 @@ export default function OrdersPage() {
                         onStatusUpdate={handleStatusUpdate}
                     />
 
-                    <OrderBulkDialogs bulk={bulk} />
+                    <OrderBulkDialogs bulk={guardedBulk} getDispatchTwin={getConfirmBlockingTwin} />
 
                     {/* Lives here rather than in either dialog group: it guards the
                         card, the table and the bulk bar alike. */}
@@ -2025,6 +2050,7 @@ export default function OrdersPage() {
                             if (!open) setPendingConfirm(null);
                         }}
                         pairs={duplicateConfirmPairs}
+                        action={duplicateGuardAction}
                         onConfirmAnyway={() => pendingConfirm?.()}
                         onCompare={(order) => {
                             setDuplicateOrder(order);

@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
 import { AlertTriangle, Copy } from "lucide-react";
 import type { Order } from "@/types/order";
+import type { DuplicateDispatchPair, DuplicateGuardAction } from "@/lib/duplicate-window";
 import { cn, formatIQD } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { useStatusLabel } from "@/hooks/use-status-label";
@@ -14,16 +15,13 @@ import { useLanguage } from "@/components/providers/language-provider";
  * Confirming both means two couriers, two delivery fees, and a refusal at the door.
  */
 
-interface DuplicatePair {
-    order: Order;
-    twin: Order;
-}
-
 interface DuplicateConfirmDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /** One entry per order that would become a second committed order for its customer. */
-    pairs: DuplicatePair[];
+    pairs: DuplicateDispatchPair[];
+    /** What was held: committing the order, or handing it to the courier. */
+    action?: DuplicateGuardAction;
     /** Proceed with the original confirm despite the warning. */
     onConfirmAnyway: () => void;
     /** Open the full comparison view for a single pair. */
@@ -79,6 +77,7 @@ export function DuplicateConfirmDialog({
     open,
     onOpenChange,
     pairs,
+    action = "confirm",
     onConfirmAnyway,
     onCompare,
 }: DuplicateConfirmDialogProps) {
@@ -102,8 +101,11 @@ export function DuplicateConfirmDialog({
                         </div>
                     </DialogTitle>
                     <DialogDescription id="duplicate-confirm-desc" className="text-right">
-                        {t("orders.duplicate.dialogBody",
-                            "Confirming now means two shipments to the same customer within 48 hours — two delivery fees and a likely refusal at the door.")}
+                        {action === "dispatch"
+                            ? t("orders.duplicate.dialogBodyDispatch",
+                                "Shipping now sends a second courier to the same customer within 48 hours — two delivery fees and a likely refusal at the door.")
+                            : t("orders.duplicate.dialogBody",
+                                "Confirming now means two shipments to the same customer within 48 hours — two delivery fees and a likely refusal at the door.")}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -161,7 +163,9 @@ export function DuplicateConfirmDialog({
                         }}
                         className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-rose-700"
                     >
-                        {t("orders.duplicate.confirmAnyway", "Confirm anyway")}
+                        {action === "dispatch"
+                            ? t("orders.duplicate.shipAnyway", "Ship anyway")
+                            : t("orders.duplicate.confirmAnyway", "Confirm anyway")}
                     </button>
                 </DialogFooter>
             </DialogContent>

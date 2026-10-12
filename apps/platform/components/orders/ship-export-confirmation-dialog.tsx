@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@scheniders/ui/dialog";
-import { Truck, AlertTriangle, Package, CalendarClock } from "lucide-react";
+import { Truck, AlertTriangle, Package, CalendarClock, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBaseOrderId } from "@/lib/utils";
 import { getStatusBadgeStyle, formatScheduledDate } from "@/lib/order-format-utils";
 import type { Order } from "@/types/order";
 import { canShipWithoutSelection, partitionByShipDay } from "@/lib/order-bulk-scope";
+import { findDuplicateDispatchPairs } from "@/lib/duplicate-window";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const SAFE_EXPORT_TABS = ["confirmed", "in_transit", "return_pending", "refund_delivered", "refund_failed"] as const;
 
@@ -46,6 +48,12 @@ interface ShipExportConfirmationDialogProps {
      * "include" here; the choice is passed back so the export applies it.
      */
     onConfirmExport: (options: { includeScheduledLater: boolean }) => void;
+    /**
+     * A committed twin inside 48h for an order (lib/duplicate-window). Orders
+     * that have one are listed in a warning: exporting them dispatches a
+     * second courier to the same customer.
+     */
+    getDispatchTwin?: (orderId: string) => Order | undefined;
 }
 
 export function ShipExportConfirmationDialog({
@@ -57,7 +65,9 @@ export function ShipExportConfirmationDialog({
     hasSelection,
     ordersAreComplete = true,
     onConfirmExport,
+    getDispatchTwin,
 }: ShipExportConfirmationDialogProps) {
+    const { t } = useLanguage();
     const isUnsafeTab = !(SAFE_EXPORT_TABS as readonly string[]).includes(currentTab);
     const isAllTab = currentTab === "all" || !currentTab;
     const countdownDuration = isUnsafeTab ? 8 : 5;
@@ -85,6 +95,18 @@ export function ShipExportConfirmationDialog({
 
     const { scheduledLater } = useMemo(() => partitionByShipDay(orders), [orders]);
     const exportCount = includeScheduledLater ? orders.length : orders.length - scheduledLater.length;
+
+    // Only the orders this export will actually hand over can double-dispatch.
+    const duplicatePairs = useMemo(() => {
+        if (!getDispatchTwin) return [];
+        const later = new Set(scheduledLater.map(o => o.id));
+        const shipping = orders.filter(o => includeScheduledLater || !later.has(o.id));
+        return findDuplicateDispatchPairs(
+            shipping.map(o => o.id),
+            new Map(shipping.map(o => [o.id, o])),
+            getDispatchTwin,
+        );
+    }, [orders, scheduledLater, includeScheduledLater, getDispatchTwin]);
 
     const companyLabel = company === "prime" ? "Prime" : "Al-Waseet (الوسيط)";
     const tabLabel = STATUS_LABELS[currentTab] || currentTab || "All Orders";
@@ -222,6 +244,36 @@ export function ShipExportConfirmationDialog({
                                     />
                                     Ship them today anyway
                                 </label>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 48h duplicates — a second courier to the same customer */}
+                    {duplicatePairs.length > 0 && (
+                        <div
+                            data-testid="ship-export-duplicate-warning"
+                            className="p-4 rounded-xl border bg-rose-50 border-rose-300 flex gap-3"
+                        >
+                            <Copy className="h-5 w-5 flex-shrink-0 mt-0.5 text-rose-600" />
+                            <div className="space-y-1.5 min-w-0">
+                                <p className="text-sm font-semibold text-rose-900">
+                                    {t("orders.duplicate.exportWarningTitle",
+                                        "{count} of these orders already have a committed twin",
+                                        { count: duplicatePairs.length })}
+                                </p>
+                                <p className="text-xs text-rose-800">
+                                    {t("orders.duplicate.exportWarningBody",
+                                        "Same customer within 48 hours — shipping both means two delivery fees. Cancel or merge the duplicate first, or deselect it.")}
+                                </p>
+                                <ul className="space-y-0.5 text-xs text-rose-800">
+                                    {duplicatePairs.slice(0, 5).map(({ order, twin }) => (
+                                        <li key={order.id} className="font-mono" dir="ltr">
+                                            #{getBaseOrderId(order.order_id)} ↔ #{getBaseOrderId(twin.order_id)}
+                                            {" · "}{STATUS_LABELS[twin.status] || twin.status}
+                                        </li>
+                                    ))}
+                                    {duplicatePairs.length > 5 && <li>…</li>}
+                                </ul>
                             </div>
                         </div>
                     )}

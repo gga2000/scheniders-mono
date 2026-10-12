@@ -88,4 +88,25 @@ describe("DuplicateConfirmDialog", () => {
 
         expect(screen.getByText("3 طلبات لها توأم مؤكد")).toBeTruthy();
     });
+
+    it("speaks about shipping, not confirming, when it held a dispatch", () => {
+        const onConfirm = vi.fn();
+        render(
+            <DuplicateConfirmDialog
+                open
+                onOpenChange={() => {}}
+                action="dispatch"
+                pairs={[{
+                    order: order({ id: "3261004002", status: "confirmed" }),
+                    twin: order({ id: "3261004001", status: "in_transit" }),
+                }]}
+                onConfirmAnyway={onConfirm}
+            />,
+        );
+
+        expect(screen.getByText(/الشحن الآن يعني إرسال مندوب ثانٍ/)).toBeTruthy();
+        expect(screen.queryByText("تأكيد على أي حال")).toBeNull();
+        fireEvent.click(screen.getByText("شحن على أي حال"));
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
 });
