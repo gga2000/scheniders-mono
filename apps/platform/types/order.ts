@@ -222,7 +222,6 @@ export interface OrderFilters {
     isReturn?: boolean;
     isArchived?: boolean;
     searchQuery?: string;
-    searchIncludesArchive?: boolean;
     riskLevel?: RiskLevel;
     /** Sub-filter for the Confirmed / All tabs to narrow to return or replacement orders. */
     orderType?: 'refund' | 'replacement';

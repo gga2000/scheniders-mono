@@ -25,6 +25,7 @@ import {
 
 import { useEffect } from "react";
 import { useOrderFilterState } from "@/hooks/use-order-filter-state";
+import { useServerOrderSearch } from "@/hooks/use-server-order-search";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { assertAggregateParity } from "@/lib/order-aggregate-parity";
 import { windowFromDateFilter } from "@/lib/order-window";
@@ -101,8 +102,20 @@ export function useOrders() {
     const { data: cachedArchivedOrders } = useArchivedOrdersQuery(false);
     const archivedOrders = cachedArchivedOrders ?? [];
 
+    // Search is a server lookup over the whole order book, not a filter on the
+    // loaded window: an order from last month is found by its phone or number
+    // without touching the date filter, and clearing the search returns to the
+    // exact view the merchant left.
+    const orderSearch = useServerOrderSearch(filters.searchQuery, { liveOrders: orders });
+
     // 1. Filters — filter state, presets, persistence, derived lists
-    const filterHook = useOrderFilters({ orders, archivedOrders, filters, setFilters, clearFilters });
+    const filterHook = useOrderFilters({
+        orders,
+        searchResults: orderSearch.active ? orderSearch.orders : null,
+        filters,
+        setFilters,
+        clearFilters,
+    });
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
@@ -178,6 +191,13 @@ export function useOrders() {
         archivedOrders,
         fetchArchivedOrders: crudHook.fetchArchivedOrders,
         filteredOrders: filterHook.filteredOrders,
+        /** Server search state for `filters.searchQuery`; `filteredOrders` holds its matches while active. */
+        orderSearch: {
+            active: orderSearch.active,
+            pending: orderSearch.pending,
+            isFetching: orderSearch.isFetching,
+            error: orderSearch.error,
+        },
         loading,
         error,
         // Server supplies the headline numbers; the client keeps the parts it
@@ -284,7 +304,10 @@ export function useOrders() {
         filterHook,
         auxiliaryHook,
         crudHook,
-         
+        orderSearch.active,
+        orderSearch.pending,
+        orderSearch.isFetching,
+        orderSearch.error,
     ]);
 
     return contextValue;

@@ -148,7 +148,6 @@ export function OrdersFilterBar({
                     <div className="pastel-card p-6 space-y-4 orders-search-panel">
                         <div className="flex flex-col lg:flex-row gap-4">
                             <GlobalSearchField
-                                filters={filters}
                                 setFilters={setFilters}
                                 onScannerOpen={() => onOpenScanner()}
                                 subFiltersOpen={showSubFilters}

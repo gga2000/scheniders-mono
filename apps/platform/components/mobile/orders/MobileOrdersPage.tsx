@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { orderMatchesSearch, orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
@@ -9,6 +9,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useSidebar } from "@/components/layout/dashboard-layout";
 import { MobileOrdersList } from "./MobileOrdersList";
 import { MobileSearchModal } from "./MobileSearchModal";
+import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { MobileFilterModal } from "./MobileFilterModal";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { Order } from "@/lib/supabase";
@@ -97,12 +98,9 @@ export function MobileOrdersPage() {
     const filteredOrders = useMemo(() => {
         let result = [...hookFilteredOrders];
 
-        // MOB-2: this was a plain `includes()` over a concatenated string, so a
-        // phone typed with spaces or an Arabic name spelled with a different alef
-        // matched on desktop but not here. Both screens now share one predicate.
-        if (localSearchQuery) {
-            result = result.filter((o) => orderMatchesSearch(o, localSearchQuery, hookFilteredOrders));
-        }
+        // Search needs no step here: while `filters.searchQuery` is set,
+        // `hookFilteredOrders` already holds the server's matches across every
+        // date and status (useServerOrderSearch), shared with the desktop page.
 
         // Risk / flagged filter — shared with the desktop page via
         // orderMatchesRiskLevel so the two screens cannot disagree about what
@@ -134,7 +132,7 @@ export function MobileOrdersPage() {
         });
 
         return result;
-    }, [hookFilteredOrders, localSearchQuery, filters.riskLevel, filterDueToday]);
+    }, [hookFilteredOrders, filters.riskLevel, filterDueToday]);
 
     // Postponed orders whose day has arrived, over the loaded window — counted
     // the same way as the desktop chip.
@@ -253,7 +251,7 @@ export function MobileOrdersPage() {
                     <button
                         onClick={() => {
                             setLocalSearchQuery('');
-                            setFilters({ ...filters, status: "all" });
+                            setFilters({ ...filters, status: "all", searchQuery: undefined });
                         }}
                         className="h-full px-4 flex items-center justify-center bg-gradient-to-l from-amber-500/10 to-transparent border-r border-[var(--card-border)] text-amber-600 hover:bg-amber-500/20 transition-colors"
                         title="Clear search and filters"
@@ -294,6 +292,9 @@ export function MobileOrdersPage() {
             </div>
 
             <div className="flex-1 mt-3">
+                <div className="px-3">
+                    <OrderSearchBanner count={filteredOrders.length} />
+                </div>
                 <MobileOrdersList
                     orders={paginatedOrders}
                     onRefresh={async () => { await fetchOrders(); }}

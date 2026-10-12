@@ -1,5 +1,6 @@
 "use client";
 
+import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import React, { memo } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
@@ -190,6 +191,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     #{getDisplayOrderId(order.order_id)}
                                 </span>
                             )}
+                            <OrderPlacementBadge order={order} />
                         </div>
                         <div className="shrink-0 flex items-center gap-1">
                             {/* `source` names the system; this names the ad network. */}

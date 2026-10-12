@@ -26,59 +26,6 @@ export { normalizePhoneForSearch };
 
 
 /**
- * Whether one order matches a free-text search query.
- *
- * MOB-2: the mobile screen had its own search — a plain `includes()` over a
- * concatenated string — so a phone typed with spaces, or an Arabic name spelled
- * with a different alef, found nothing there while the same query worked on
- * desktop. Both now call this.
- *
- * `orders` is needed only to resolve a return order's parent by UUID so a search
- * for the parent's human-readable number also finds the return.
- */
-export function orderMatchesSearch(
-    order: Order,
-    rawQuery: string,
-    orders: readonly Order[] = [],
-): boolean {
-    const query = normalizeArabicText(rawQuery);
-    const queryLower = rawQuery.toLowerCase().trim();
-
-    // An all-punctuation query normalizes to nothing; matching everything then
-    // would be worse than matching nothing.
-    if (!query && !queryLower) return true;
-
-    const normalizedName = order.customer_name ? normalizeArabicText(order.customer_name) : "";
-    if (query && normalizedName && normalizedName.includes(query)) return true;
-
-    const normalizedPhoneQuery = normalizePhoneForSearch(rawQuery);
-    if (order.phone && normalizedPhoneQuery && normalizePhoneForSearch(order.phone).includes(normalizedPhoneQuery)) return true;
-    if (order.secondary_phone && normalizedPhoneQuery && normalizePhoneForSearch(order.secondary_phone).includes(normalizedPhoneQuery)) return true;
-
-    if (order.order_id?.toLowerCase().includes(queryLower)) return true;
-    if (order.delivery_order_id?.toLowerCase().includes(queryLower)) return true;
-
-    const normalizedCity = order.city ? normalizeArabicText(order.city) : "";
-    if (query && normalizedCity && normalizedCity.includes(query)) return true;
-
-    const normalizedAddress = order.address_details ? normalizeArabicText(order.address_details) : "";
-    if (query && normalizedAddress && normalizedAddress.includes(query)) return true;
-
-    const normalizedNotes = order.notes ? normalizeArabicText(order.notes) : "";
-    if (query && normalizedNotes && normalizedNotes.includes(query)) return true;
-
-    if (order.sequence_number && String(order.sequence_number).includes(queryLower)) return true;
-
-    if (order.original_order_id) {
-        if (order.original_order_id.toLowerCase().includes(queryLower)) return true;
-        const parentOrder = orders.find(o => o.id === order.original_order_id);
-        if (parentOrder?.order_id?.toLowerCase().includes(queryLower)) return true;
-    }
-
-    return false;
-}
-
-/**
  * Normalize Arabic text for fuzzy search:
  * - Remove diacritics (tashkeel)
  * - Normalize alef variants (أ إ آ) → ا

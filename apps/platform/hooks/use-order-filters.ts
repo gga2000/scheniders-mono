@@ -6,31 +6,13 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { toast } from "@/hooks/use-toast";
 import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
-import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
     loadFilterPresetsFromStorage,
     saveFilterPresetsToStorage,
     createFilterPreset,
-    orderMatchesSearch,
 } from "@/lib/order-filter-utils";
 import { windowFromDateFilter, orderInDateWindow } from "@/lib/order-window";
 import { orderMatchesAdChannel, summarizeAdChannels } from "@/lib/ad-channel-filter";
-
-// Normalize Arabic text for fuzzy search:
-// - Remove diacritics (tashkeel)
-// - Normalize alef variants (أ إ آ) → ا
-// - Normalize teh marbuta (ة) → ه
-// - Normalize final yeh/alef maqsura (ى ى) → ي
-function normalizeArabicText(text: string): string {
-    if (!text) return "";
-    return text
-        .replace(/[\u064B-\u065F\u0670]/g, "") // strip tashkeel/diacritics
-        .replace(/[\u0622\u0623\u0625]/g, "\u0627") // normalize alef variants to plain alef
-        .replace(/\u0629/g, "\u0647") // teh marbuta → ha
-        .replace(/\u0649/g, "\u064A") // alef maqsura → ya
-        .toLowerCase()
-        .trim();
-}
 
 // =============================================
 // ORDER FILTERS HOOK
@@ -44,10 +26,16 @@ interface UseOrderFiltersOptions {
     setFilters: (f: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => void;
     clearFilters: () => void;
     orders: Order[];
-    archivedOrders: Order[];
+    /**
+     * Server matches for `filters.searchQuery`, or null when nothing is being
+     * searched. Search is a lookup over the whole order book: while it is
+     * active the list shows these matches — every date, every status, archived
+     * and trashed included — instead of the filtered window.
+     */
+    searchResults: Order[] | null;
 }
 
-export function useOrderFilters({ orders, archivedOrders, filters, setFilters, clearFilters }: UseOrderFiltersOptions) {
+export function useOrderFilters({ orders, searchResults, filters, setFilters, clearFilters }: UseOrderFiltersOptions) {
 
     // WF-3: saved views used to live only in localStorage, so they did not follow
     // a user to another device or browser and were lost when site data was
@@ -119,7 +107,7 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
     }, [tenantId]);
 
     const deferredOrders = useDeferredValue(orders);
-    const deferredArchivedOrders = useDeferredValue(archivedOrders);
+    const deferredSearchResults = useDeferredValue(searchResults);
     const deferredFilters = useDeferredValue(filters);
 
     // =============================================
@@ -222,12 +210,8 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
                     return false;
                 }
 
-                // Search query — shared with the mobile screen via
-                // orderMatchesSearch so the two cannot drift. This block used to
-                // be a second, hand-maintained copy of the same predicate.
-                if (activeFilters.searchQuery) {
-                    return orderMatchesSearch(order, activeFilters.searchQuery, ordersToFilter);
-                }
+                // Free-text search is not a filter on the window: it replaces
+                // the window with server matches (see `filteredOrders`).
 
                 return true;
             });
@@ -240,11 +224,12 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
     // =============================================
 
     const filteredOrders = useMemo(() => {
-        const ordersToFilter = (deferredFilters.searchQuery && deferredFilters.searchIncludesArchive)
-            ? [...deferredOrders, ...deferredArchivedOrders]
-            : deferredOrders;
+        // Search results keep the server's ranking (exact number, then exact
+        // phone, then partial matches) — re-sorting by date would bury the one
+        // order the term names under newer partial matches.
+        if (deferredSearchResults) return deferredSearchResults;
 
-        const filtered = applyFilters(ordersToFilter, deferredFilters);
+        const filtered = applyFilters(deferredOrders, deferredFilters);
 
         // Parsing `created_at` inside the comparator allocated two Date objects
         // per comparison — on a few thousand orders that is tens of thousands of
@@ -260,7 +245,7 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
             if (!a.is_pinned && b.is_pinned) return 1;
             return (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0);
         });
-    }, [deferredOrders, deferredArchivedOrders, deferredFilters, applyFilters]);
+    }, [deferredOrders, deferredSearchResults, deferredFilters, applyFilters]);
 
     const statusCounts = useMemo(() => {
         const filtersWithoutStatus = { ...deferredFilters, status: 'all' as const };
@@ -317,7 +302,8 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
     // Count = number of visible orders containing that product.
     const availableProductsInView = useMemo(() => {
         const filtersWithoutProduct = { ...deferredFilters, product: undefined };
-        const matchingOrders = applyFilters(deferredOrders, filtersWithoutProduct);
+        // While searching, the view IS the search results.
+        const matchingOrders = deferredSearchResults ?? applyFilters(deferredOrders, filtersWithoutProduct);
 
         const counts = new Map<string, number>();
         for (const order of matchingOrders) {
@@ -333,7 +319,7 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
         return [...counts.entries()]
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-    }, [deferredOrders, deferredFilters, applyFilters]);
+    }, [deferredOrders, deferredSearchResults, deferredFilters, applyFilters]);
 
     // Orders per ad channel over the CURRENT view minus the channel filter itself,
     // so picking Instagram does not collapse the row to a single chip. Mirrors
@@ -341,8 +327,8 @@ export function useOrderFilters({ orders, archivedOrders, filters, setFilters, c
     // filters, and — like everything client-side here — only the loaded window.
     const adChannelSummary = useMemo(() => {
         const filtersWithoutChannel = { ...deferredFilters, adChannel: undefined };
-        return summarizeAdChannels(applyFilters(deferredOrders, filtersWithoutChannel));
-    }, [deferredOrders, deferredFilters, applyFilters]);
+        return summarizeAdChannels(deferredSearchResults ?? applyFilters(deferredOrders, filtersWithoutChannel));
+    }, [deferredOrders, deferredSearchResults, deferredFilters, applyFilters]);
 
     // =============================================
     // PRESET OPERATIONS
