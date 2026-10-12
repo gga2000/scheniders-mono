@@ -24,7 +24,7 @@ import { OrderSchema } from "@/lib/schemas";
 import { splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
 import { MAX_ORDER_IDS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import {
     useUpdateStatusMutation,
     useUpdateOrderMutation,
@@ -552,7 +552,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     reportOrderError(dateErr, { operation: "createOrder-date", orderId: data.id });
                     toast.warning(
                         postponedTo ? "Order created, but not scheduled" : "Order created, but its date was not changed",
-                        { description: dateErr instanceof Error ? dateErr.message : "Set the date from the order's details." },
+                        dateErr instanceof Error ? dateErr.message : "Set the date from the order's details.",
                     );
                 }
             }
@@ -655,7 +655,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 // and says which, rather than silently doing nothing.
                 const splitLogId = (result.data as (Order & { split_log_id?: string }) | undefined)?.split_log_id;
                 if (splitLogId) {
-                    toast.success("Order split", {
+                    toast({
+                        title: "Order split",
+                        variant: "success",
                         description: `A return order was created for ${returnedItems.length} item(s)`,
                         duration: 20000,
                         action: {
@@ -663,11 +665,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             onClick: async () => {
                                 const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
                                 if (!undo.success) {
-                                    toast.error("Could not undo the split", { description: undo.error });
+                                    toast.error("Could not undo the split", undo.error);
                                     return;
                                 }
                                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                                toast.success("Split undone", { description: "The order is back as it was" });
+                                toast.success("Split undone", "The order is back as it was");
                             },
                         },
                     });
@@ -941,7 +943,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     "updated",
                 );
                 console.warn(`[bulkUpdateStatus] ${summary.title}`, failedOperations);
-                toast.warning(summary.title, { description: summary.description });
+                toast.warning(summary.title, summary.description);
                 // Keep the failures selected so a retry does not need reselecting.
                 useOrderStore.getState().setSelectedOrders(new Set(summary.failedIds));
             }
@@ -1023,9 +1025,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const archivedIds = (archived ?? []).map((row) => row.id);
             const skipped = findUnaffectedIds(orderIds, archivedIds);
             if (skipped.length > 0) {
-                toast.warning(`${skipped.length} of ${orderIds.length} orders were not archived`, {
-                    description: `Not archived: ${formatFailedOrderList(skipped, orders)}`,
-                });
+                toast.warning(
+                    `${skipped.length} of ${orderIds.length} orders were not archived`,
+                    `Not archived: ${formatFailedOrderList(skipped, orders)}`,
+                );
             }
 
             if (archivedIds.length > 0) {
@@ -1062,9 +1065,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const unarchivedIds = (unarchived ?? []).map((row) => row.id);
             const skipped = findUnaffectedIds(orderIds, unarchivedIds);
             if (skipped.length > 0) {
-                toast.warning(`${skipped.length} of ${orderIds.length} orders were not unarchived`, {
-                    description: `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
-                });
+                toast.warning(
+                    `${skipped.length} of ${orderIds.length} orders were not unarchived`,
+                    `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
+                );
             }
 
             if (unarchivedIds.length > 0) {
@@ -1381,7 +1385,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             // the columns it overwrites, so this can be handed straight back as
             // an undo instead of sending the operator to support.
             if (mergeLogId) {
-                toast.success("Orders merged", {
+                toast({
+                    title: "Orders merged",
+                    variant: "success",
                     description: `${archiveOrder.order_id} merged into ${keepOrder.order_id}`,
                     duration: 20000,
                     action: {
@@ -1392,11 +1398,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                 _tenant_id: tenantId,
                             });
                             if (undoError) {
-                                toast.error("Could not undo the merge", { description: undoError.message });
+                                toast.error("Could not undo the merge", undoError.message);
                                 return;
                             }
                             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                            toast.success("Merge undone", { description: "Both orders are back as they were" });
+                            toast.success("Merge undone", "Both orders are back as they were");
                         },
                     },
                 });
