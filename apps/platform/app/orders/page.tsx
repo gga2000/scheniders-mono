@@ -15,7 +15,7 @@ import { Order, OrderItem } from "@/lib/supabase";
 import type { OrderFilters } from "@/types/order";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
-import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { OrderDialogs } from "@/components/orders/order-dialogs";
 import { OrderBulkDialogs } from "@/components/orders/order-bulk-dialogs";

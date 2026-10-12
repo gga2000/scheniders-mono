@@ -3,7 +3,7 @@
 import React, { useRef, memo, useCallback, useEffect, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Order, MessageTemplate } from "@/lib/supabase";
-import { SwipeableOrderCard } from "@/components/dashboard/swipeable-order-card";
+import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import { RiskLevel } from "@/lib/fraud-detector";
 
