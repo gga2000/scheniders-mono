@@ -132,7 +132,8 @@ export function useOrders() {
 
     // 48h money-at-risk duplicates. Needs the window, because a windowed view
     // must look past its own edges to find a twin placed the day before.
-    const { getDuplicateWindowAlert, getConfirmBlockingTwin } = useDuplicateWindowAlerts(orders, ordersWindow);
+    const { getDuplicateWindowAlert, getConfirmBlockingTwin, duplicateCandidates } =
+        useDuplicateWindowAlerts(orders, ordersWindow);
 
     // While the cache still holds the complete set, both sides are computable —
     // so verify they agree before the windowed fetch makes the client's version
@@ -237,6 +238,7 @@ export function useOrders() {
         hasDuplicates: auxiliaryHook.hasDuplicates,
         getDuplicateWindowAlert,
         getConfirmBlockingTwin,
+        duplicateCandidates,
         getCustomerHistory: auxiliaryHook.getCustomerHistory,
         getCustomerOrderCount: auxiliaryHook.getCustomerOrderCount,
         getCustomerArchivedCount: auxiliaryHook.getCustomerArchivedCount,

@@ -272,3 +272,26 @@ export function findDuplicateDispatchPairs(
     }
     return pairs;
 }
+
+/**
+ * The orders the compare modal lines up against `order`: every non-return order
+ * on the same primary number among `candidates` (the loaded rows plus the 48h
+ * margin), plus any 48h twin matched through the secondary number — which the
+ * primary-only filter cannot see, and which is exactly what the banner named.
+ */
+export function compareTwinsFor(
+    order: Order,
+    candidates: readonly Order[],
+    alert: DuplicateWindowAlert | undefined,
+): Order[] {
+    const phone = normalizePhoneForSearch(order.phone);
+    const byId = new Map<string, Order>();
+    for (const o of candidates) {
+        if (o.id === order.id || o.is_return) continue;
+        if (phone && normalizePhoneForSearch(o.phone) === phone) byId.set(o.id, o);
+    }
+    for (const twin of alert?.twins ?? []) {
+        if (twin.id !== order.id && !byId.has(twin.id)) byId.set(twin.id, twin);
+    }
+    return [...byId.values()];
+}

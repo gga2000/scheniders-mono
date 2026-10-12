@@ -38,6 +38,7 @@ import { useOrderStore } from "@/store/use-order-store";
 import { scheduleDayFromToday } from "@/lib/order-format-utils";
 import { routeCreateOrderDate, FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
 import { toBaghdadDayKey } from "@/lib/order-window";
+import { duplicateCandidateKeys } from "@/hooks/use-duplicate-window-alerts";
 import {
     summarizeBulkFailures,
     formatFailedOrderList,
@@ -1592,23 +1593,53 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // DUPLICATE DISMISSAL
     // =============================================
 
-    async function dismissDuplicate(phone: string, notes?: string): Promise<{ success: boolean; error?: string }> {
-        try {
-            const { error: insertError } = await supabase
-                .from("duplicate_dismissals")
-                .insert([{
-                    phone: phone,
-                    notes: notes || null,
-                }]);
+    /**
+     * "Not a duplicate": the merchant has looked at these orders and they are
+     * legitimate. Stored as `is_verified_customer` on exactly those orders —
+     * the flag the 48h detector already honours (lib/duplicate-window) — so
+     * their banners and the confirm/ship guard stand down, while a NEW order
+     * from the same number is still checked.
+     *
+     * This used to insert into `duplicate_dismissals`, a table that never
+     * existed on this project: every dismissal failed and the banner returned.
+     */
+    async function dismissDuplicate(orderIds: string[], notes?: string): Promise<{ success: boolean; error?: string }> {
+        const ids = [...new Set(orderIds)];
+        if (ids.length === 0) return { success: false, error: "No orders to dismiss" };
+        const idSet = new Set(ids);
+        // Roll back to what each order had, not to a blanket false.
+        const before = new Map(orders.filter(o => idSet.has(o.id)).map(o => [o.id, o.is_verified_customer]));
 
-            if (insertError) throw insertError;
+        optimisticUpdate(prev => prev.map(o => (idSet.has(o.id) ? { ...o, is_verified_customer: true } : o)));
+        try {
+            const { data, error } = await supabase
+                .from("orders")
+                .update({ is_verified_customer: true })
+                .in("id", ids)
+                .select("id");
+
+            if (error) throw error;
+            if (!data || data.length === 0) throw new Error("Dismiss failed: write was rejected");
+            const first = orders.find(o => idSet.has(o.id));
+            activityLogger.log({
+                action: 'order.edit',
+                entityType: 'order',
+                entityId: ids[0],
+                details: {
+                    order_id: first?.order_id,
+                    note: `Dismissed duplicate warning on ${data.length} orders${notes ? `: ${notes}` : ""}`,
+                },
+            }, tenantId);
+            // The margin rows (twins outside the loaded window) are cached
+            // separately; refresh them so the index sees the new flag too.
+            void queryClient.invalidateQueries({ queryKey: duplicateCandidateKeys.all });
             return { success: true };
         } catch (err) {
             console.error("Error dismissing duplicate:", err);
-            return {
-                success: false,
-                error: err instanceof Error ? err.message : "Failed to dismiss duplicate",
-            };
+            optimisticUpdate(prev => prev.map(o => (before.has(o.id) ? { ...o, is_verified_customer: before.get(o.id) } : o)));
+            const msg = err instanceof Error ? err.message : "Failed to dismiss duplicate";
+            toast.error(msg);
+            return { success: false, error: msg };
         }
     }
 

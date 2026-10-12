@@ -6,6 +6,7 @@ import {
     committedTwinBlockingConfirm,
     duplicateCandidateWindow,
     duplicateGuardFor,
+    compareTwinsFor,
     findDuplicateDispatchPairs,
     DUPLICATE_WINDOW_HOURS,
 } from "./duplicate-window";
@@ -486,5 +487,51 @@ describe("findDuplicateDispatchPairs — the 48h dispatch warning", () => {
     it("skips ids that are not loaded instead of guessing", () => {
         const ready = order({ id: "ready", status: "confirmed" });
         expect(pairsFor([ready], ["ready", "not-loaded"])).toEqual([]);
+    });
+});
+
+describe("compareTwinsFor — what the compare modal lines up", () => {
+    it("includes a margin twin the visible window never loaded", () => {
+        const visible = order({ id: "today", status: "confirmed" });
+        const yesterday = order({ id: "yesterday", status: "confirmed", created_at: hoursFrom(BASE, -20) });
+        const candidates = [visible, yesterday];
+        const alert = buildDuplicateWindowIndex(candidates).get("today");
+
+        expect(compareTwinsFor(visible, candidates, alert).map(o => o.id)).toEqual(["yesterday"]);
+    });
+
+    it("adds a twin matched only through the secondary number", () => {
+        const subject = order({ id: "s", phone: "07701112222", secondary_phone: "07802301677" });
+        const twin = order({ id: "t", phone: "07802301677", created_at: hoursFrom(BASE, 1) });
+        const alert = buildDuplicateWindowIndex([subject, twin]).get("s");
+
+        expect(compareTwinsFor(subject, [subject, twin], alert).map(o => o.id)).toEqual(["t"]);
+    });
+
+    it("leaves out the order itself and returns", () => {
+        const subject = order({ id: "s" });
+        const ret = order({ id: "r", is_return: true });
+        const older = order({ id: "o", created_at: hoursFrom(BASE, -200) });
+
+        expect(compareTwinsFor(subject, [subject, ret, older], undefined).map(o => o.id)).toEqual(["o"]);
+    });
+});
+
+describe("dismissal — is_verified_customer silences the pair", () => {
+    it("drops the alert and the guard for orders the merchant marked legitimate", () => {
+        const a = order({ id: "a", status: "confirmed", is_verified_customer: true });
+        const b = order({ id: "b", status: "confirmed", is_verified_customer: true, created_at: hoursFrom(BASE, 1) });
+        const index = buildDuplicateWindowIndex([a, b]);
+
+        expect(index.get("a")).toBeUndefined();
+        expect(committedTwinBlockingConfirm("b", index)).toBeUndefined();
+    });
+
+    it("still checks a NEW order from the same number after a dismissal", () => {
+        const a = order({ id: "a", status: "confirmed", is_verified_customer: true });
+        const fresh = order({ id: "fresh", status: "new", created_at: hoursFrom(BASE, 5) });
+        const index = buildDuplicateWindowIndex([a, fresh]);
+
+        expect(committedTwinBlockingConfirm("fresh", index)?.id).toBe("a");
     });
 });

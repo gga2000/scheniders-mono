@@ -5,8 +5,8 @@ import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useShallow } from "zustand/react/shallow";
-import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
+import { compareTwinsFor } from "@/lib/duplicate-window";
 import type { Order, OrderItem, MessageTemplate } from "@/lib/supabase";
 
 const OrderDetailsModal = withOrderModalBoundary(
@@ -121,6 +121,8 @@ export function OrderDialogs({
         checkOrderIdExists,
         getCustomerOrders,
         dismissDuplicate,
+        duplicateCandidates,
+        getDuplicateWindowAlert,
         isBlacklisted,
         getBlacklistEntry,
     } = useOrdersContext();
@@ -160,6 +162,10 @@ export function OrderDialogs({
             setFilterDuplicatesOnly: s.setFilterDuplicatesOnly,
         })),
     );
+
+    const compareTwins = duplicateOrder
+        ? compareTwinsFor(duplicateOrder, duplicateCandidates, getDuplicateWindowAlert(duplicateOrder.id))
+        : [];
 
     return (
         <>
@@ -236,11 +242,7 @@ export function OrderDialogs({
                             setDuplicateOrder(null);
                         }}
                         currentOrder={duplicateOrder}
-                        duplicateOrders={orders.filter(o =>
-                            o.id !== duplicateOrder.id &&
-                            normalizePhoneForSearch(o.phone) === normalizePhoneForSearch(duplicateOrder.phone) &&
-                            !o.is_return
-                        )}
+                        duplicateOrders={compareTwins}
                         onMerge={async (targetId, sourceId) => {
                             const result = await mergeOrders(targetId, sourceId);
                             return result;
@@ -261,8 +263,10 @@ export function OrderDialogs({
                             setSelectedOrder(order);
                             setIsModalOpen(true);
                         }}
-                        onDismissDuplicate={async (phone, notes) => {
-                            await dismissDuplicate(phone, notes);
+                        onDismissDuplicate={async (_phone, notes) => {
+                            // Dismiss exactly the orders on screen, not every
+                            // order the number has ever placed.
+                            await dismissDuplicate([duplicateOrder.id, ...compareTwins.map(o => o.id)], notes);
                         }}
                         onFilterDuplicates={() => {
                             setFilterDuplicatesOnly(true);
