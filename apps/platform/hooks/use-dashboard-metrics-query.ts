@@ -8,7 +8,7 @@ import { CACHE_PRESETS } from "@/lib/query-config";
 import * as Sentry from "@sentry/nextjs";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
-import type { DashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import type { DashboardMetrics } from "@/lib/analytics/dashboard-metrics-schema";
 import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { dashboardMetricsSchema } from "@/lib/analytics/dashboard-metrics-schema";
 

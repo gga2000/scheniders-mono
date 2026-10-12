@@ -1,4 +1,4 @@
-import type { DashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import type { DashboardMetrics } from "@/lib/analytics/dashboard-metrics-schema";
 
 /**
  * COM-D1 — a merchant could read these numbers but never get them out: no export

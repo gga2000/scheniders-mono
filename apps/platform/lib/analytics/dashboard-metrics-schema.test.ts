@@ -33,3 +33,24 @@ describe("dashboard metrics contract", () => {
         expect(dashboardMetricsSchema.safeParse(p).success).toBe(false);
     });
 });
+
+describe("dashboard metrics contract — values observed live on 2026-10-13", () => {
+    it("accepts fractional revenue, a negative order price and the cycle-time `excluded` count", () => {
+        const p = livePayloadShape();
+        p.enhancedLeaderboard.topProductsEnhanced[0].revenue = 80936865.06359345;
+        p.recentOrders[0].price = -31750;   // a refund row
+        p.avgTimePerStage[0] = { ...p.avgTimePerStage[0], excluded: 120 };
+        const result = dashboardMetricsSchema.safeParse(p);
+        expect(result.success ? null : result.error.issues).toBeNull();
+    });
+
+    it("accepts the employee redaction exactly as the RPC sends it: every money field null", () => {
+        const p = livePayloadShape();
+        Object.assign(p.todayStrip, { revenueToday: null, revenueYesterday: null, revenueDelta: null, revenueDeltaPct: null });
+        Object.assign(p.monthForecast, { projectedRevenue: null, revenueThisMonth: null });
+        p.weekOverWeek[2] = { ...p.weekOverWeek[2], current: null, previous: null, delta: null, deltaPct: null };
+        p.enhancedLeaderboard.topProductsEnhanced = p.enhancedLeaderboard.topProductsEnhanced.map(x => ({ ...x, revenue: null }));
+        p.recentOrders = p.recentOrders.map(r => ({ ...r, price: null }));
+        expect(dashboardMetricsSchema.safeParse(p).success).toBe(true);
+    });
+});

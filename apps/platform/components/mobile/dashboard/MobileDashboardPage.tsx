@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
-import { useProductsCrud } from "@/hooks/use-products-crud";
-import { useStats } from "@/hooks/use-stats";
-import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
+import { workQueueFromStatusCounts } from "@/lib/analytics/dashboard-work-queue";
+import { baghdadHour } from "@/lib/analytics/dashboard-calculations";
+import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
 import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,24 +22,25 @@ import { CreateOrderModal } from "@/components/orders/create-order-modal";
 
 const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgency-triad").then(mod => ({ default: mod.UrgencyTriad })), { ssr: false });
 const DeliverySuccessRate = dynamic(() => import("@/components/dashboard/widgets/delivery-success-rate").then(mod => ({ default: mod.DeliverySuccessRate })), { ssr: false });
-// ProfitPulse removed — data source no longer in useDashboardMetrics
 
 export function MobileDashboardPage() {
-    const { orders, error, createOrder } = useOrdersContext();
-    const { products } = useProductsCrud();
-    const stats = useStats(orders);
-    // Server metrics gate first paint; client computation is the fallback.
-    const clientMetrics = useDashboardMetrics(orders, products || []);
-    const { data: serverMetrics } = useDashboardMetricsQuery('all');
-    const dashboardMetrics = serverMetrics ?? clientMetrics;
-    const usingLocalFallback = !serverMetrics && !!clientMetrics;   // ENG-D1
+    const { createOrder } = useOrdersContext();
+    // ORD-2: server numbers only — see app/page.tsx. Skeleton until they arrive,
+    // an error with a retry if they do not; never figures from the orders window.
+    const metricsQuery = useDashboardMetricsQuery('all');
+    const dashboardMetrics = metricsQuery.data;
+    const aggregatesQuery = useOrdersAggregates({});
+    const workQueue = useMemo(
+        () => aggregatesQuery.data ? workQueueFromStatusCounts(aggregatesQuery.data.status_counts) : undefined,
+        [aggregatesQuery.data],
+    );
     const { t } = useLanguage();
     const { profile } = useAuth();
     const router = useRouter();
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    if (!dashboardMetrics) {
+    if (!dashboardMetrics && !metricsQuery.isError) {
         return (
             <div className="min-h-screen bg-[var(--background)]">
                 <PageSkeleton />
@@ -46,19 +48,27 @@ export function MobileDashboardPage() {
         );
     }
 
-    if (error) {
+    if (!dashboardMetrics) {
         return (
             <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--background)]">
-                <div className="pastel-card pastel-card-pink p-6 text-center w-full">
-                    <h2 className="text-xl font-bold text-rose-900 mb-2">{t("dashboard.errorTitle")}</h2>
-                    <p className="text-rose-700">{error}</p>
+                <div className="pastel-card pastel-card-pink p-6 text-center w-full space-y-3" role="alert">
+                    <h2 className="text-xl font-bold text-rose-900">{t("dashboard.errorTitle")}</h2>
+                    <p className="text-rose-700">{t("dashboard.loadError.detail")}</p>
+                    <button
+                        type="button"
+                        onClick={() => void metricsQuery.refetch()}
+                        disabled={metricsQuery.isFetching}
+                        className="px-5 py-2 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] font-semibold text-foreground disabled:opacity-60"
+                    >
+                        {t("dashboard.retry")}
+                    </button>
                 </div>
             </div>
         );
     }
 
     const getGreeting = () => {
-        const hour = new Date().getHours();
+        const hour = baghdadHour(new Date());
         if (hour < 12) return t("dashboard.greeting.morning");
         if (hour < 18) return t("dashboard.greeting.afternoon");
         return t("dashboard.greeting.evening");
@@ -82,13 +92,6 @@ export function MobileDashboardPage() {
             </div>
 
             <div className="px-4 flex-1 space-y-6">
-                {usingLocalFallback && (
-                    <div className="pastel-card pastel-card-yellow px-3 py-2 text-xs text-amber-900">
-                        <span className="font-semibold">{t("dashboard.fallback.title")}</span>{' '}
-                        <span className="text-amber-900/70">{t("dashboard.fallback.detail")}</span>
-                    </div>
-                )}
-
                 {/* MOB-D1: today's numbers, the pipeline and the delivery rate were
                     missing from mobile entirely — classified in the audit as
                     accidental holes rather than deliberate simplification. All three
@@ -100,7 +103,17 @@ export function MobileDashboardPage() {
                 </WidgetBoundary>
 
                 {/* 1. Mobile Cards */}
-                <MobileDashboardCards stats={stats} />
+                {workQueue ? (
+                    <MobileDashboardCards
+                        counts={workQueue}
+                        ordersToday={dashboardMetrics.todayStrip.ordersToday}
+                        revenueThisMonth={dashboardMetrics.monthForecast.revenueThisMonth}
+                    />
+                ) : aggregatesQuery.isError ? (
+                    <WidgetLoadError onRetry={() => void aggregatesQuery.refetch()} className="h-64" />
+                ) : (
+                    <WidgetPending className="h-64" />
+                )}
 
                 <WidgetBoundary label="mobile-order-pipeline">
                     <OrderPipeline
@@ -122,7 +135,6 @@ export function MobileDashboardPage() {
                     />
                 </div>
 
-                {/* 3. Profit Pulse — temporarily disabled, data source removed */}
             </div>
 
             {/* Create Order FAB */}

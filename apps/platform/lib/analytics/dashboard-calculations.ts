@@ -1,4 +1,13 @@
-import { Order, Product } from "@/lib/supabase";
+/**
+ * Types and calendar helpers for the dashboard.
+ *
+ * Every number on the dashboard comes from `get_dashboard_metrics` (parsed by
+ * dashboard-metrics-schema.ts). The client engine that used to recompute them from
+ * the loaded orders was removed (ORD-2): once the orders list became a window, that
+ * engine reported window-sized numbers that jumped when the RPC landed. What is left
+ * here is the widget-facing types, the Baghdad calendar, and the one series the RPC
+ * does not return — the daily trend — computed from a bounded server query.
+ */
 
 // =============================================
 // Baghdad calendar boundaries (TMP-D1)
@@ -7,11 +16,9 @@ import { Order, Product } from "@/lib/supabase";
  * Iraq is UTC+3 all year and does not observe DST, so a fixed offset is both
  * correct and cheaper than an Intl round-trip.
  *
- * The server function computes every boundary in `Asia/Baghdad`; this engine used
- * to derive them from the BROWSER clock, so the same dashboard produced different
- * "today"/"this month" numbers depending on the viewer's device timezone — and a
- * merchant travelling, or with a wrong clock, saw different figures from their
- * colleague. These helpers make both engines agree.
+ * The server function computes every boundary in `Asia/Baghdad`. Client code that
+ * derives a boundary from the BROWSER clock disagrees with it for any viewer whose
+ * device is not on Baghdad time, so every client-side boundary goes through these.
  */
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
 
@@ -44,29 +51,6 @@ export function baghdadDayOfWeek(d: Date): number {
 /** Day of the month in Baghdad — used for "days elapsed" in the forecast. */
 export function baghdadDayOfMonth(d: Date): number {
     return new Date(d.getTime() + BAGHDAD_OFFSET_MS).getUTCDate();
-}
-
-// =============================================
-// What counts as an order (COR-D5)
-// =============================================
-/**
- * Mirrors the `ws` CTE in `get_dashboard_metrics`. Two kinds of row live in
- * `orders` but are not orders a merchant has taken:
- *   - `pending_checkout` — a storefront checkout that was never completed (an
- *     abandoned cart). Counting them inflated order counts, the funnel's first
- *     stage, the heatmap and the city/product leaderboards.
- *   - soft-deleted rows (`deleted_at`) — hidden everywhere else in the product.
- * `suspended` rows ARE orders and are kept.
- */
-export function isDashboardOrder(o: Order): boolean {
-    if (o.status === 'pending_checkout') return false;
-    if ((o as { deleted_at?: string | null }).deleted_at) return false;
-    return true;
-}
-
-/** Apply the order/non-order rule to a list. */
-export function onlyDashboardOrders(orders: Order[]): Order[] {
-    return orders.filter(isDashboardOrder);
 }
 
 // =============================================
@@ -107,68 +91,6 @@ export interface UrgencyMetrics {
     cityRejectionStats: Record<string, { total: number; rejected: number; rate: number }>;
 }
 
-export function calculateUrgencyMetrics(orders: Order[]): UrgencyMetrics {
-    const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-
-    // 1. Unconfirmed High Value (> 100,000 IQD) created > 24h ago
-    const unconfirmedHighValue = orders.filter(o =>
-        o.status === 'new' &&
-        o.price > 100000 &&
-        new Date(o.created_at) < twentyFourHoursAgo
-    ).length;
-
-    // 2. Failed Deliveries (Last 7 days rejected)
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const failedDeliveries = orders.filter(o =>
-        o.status === 'rejected' &&
-        // COR-D4(b): when it was rejected, not when the row was last touched.
-        outcomeAt(o) > sevenDaysAgo
-    ).length;
-
-    // 3. Stuck In Transit (> 3 days)
-    // COR-D4(b): the server dates this from the order_status_history event that
-    // set 'in_transit' (135 of 171 open rows have one). The client has no access
-    // to that table, so it keeps `updated_at` — a documented near-match on the
-    // fallback path, which announces itself.
-    const stuckInTransit = orders.filter(o =>
-        o.status === 'in_transit' &&
-        new Date(o.updated_at || o.created_at) < threeDaysAgo
-    ).length;
-
-    // 4. High Return Rate Cities (Min 5 orders)
-    const cityStats: Record<string, { total: number; rejected: number }> = {};
-    orders.forEach(o => {
-        if (!o.city) return;
-        if (!cityStats[o.city]) cityStats[o.city] = { total: 0, rejected: 0 };
-        cityStats[o.city].total++;
-        if (o.status === 'rejected') cityStats[o.city].rejected++;
-    });
-
-    const highReturnCities = Object.entries(cityStats)
-        .filter(([_, stats]) => stats.total >= 5)
-        .map(([city, stats]) => ({
-            city,
-            rate: (stats.rejected / stats.total) * 100
-        }))
-        .filter(item => item.rate > 30) // Only show cities with > 30% rejection
-        .sort((a, b) => b.rate - a.rate)
-        .slice(0, 3);
-
-    // Build full city rejection stats map (exposed for RejectionBreakdown widget)
-    const cityRejectionStats: Record<string, { total: number; rejected: number; rate: number }> = {};
-    Object.entries(cityStats).forEach(([city, stats]) => {
-        cityRejectionStats[city] = {
-            total: stats.total,
-            rejected: stats.rejected,
-            rate: Math.round((stats.rejected / stats.total) * 100),
-        };
-    });
-
-    return { failedDeliveries, unconfirmedHighValue, stuckInTransit, highReturnCities, cityRejectionStats };
-}
-
 // =============================================
 // Funnel Metrics
 // =============================================
@@ -178,49 +100,6 @@ export interface FunnelStep {
     value: number;
     fill: string;
 }
-
-export function calculateFunnelMetrics(orders: Order[]): FunnelStep[] {
-    const newCount = orders.filter(o => o.status === 'new').length;
-    // Contacted includes confirmed, in_transit, etc. (assuming flow)
-    // Actually, let's just count strict status buckets for simplicity or cumulative?
-    // Funnel usually means "Reached at least this stage"
-
-    // Stage 1: All Orders (New)
-    const total = orders.length;
-
-    // Stage 2: Verified (Confirmed + In Transit + Delivered + Completed + Rejected)
-    // Basically anything NOT new, no_response, cancelled
-    const verified = orders.filter(o =>
-        ['confirmed', 'in_transit', 'delivered', 'completed', 'rejected'].includes(o.status)
-    ).length;
-
-    // Stage 3: Shipped (In Transit + Delivered + Completed + Rejected)
-    const shipped = orders.filter(o =>
-        ['in_transit', 'delivered', 'completed', 'rejected'].includes(o.status)
-    ).length;
-
-    // Stage 4: Successful Delivery
-    const delivered = orders.filter(o =>
-        ['delivered', 'completed'].includes(o.status)
-    ).length;
-
-    return [
-        { id: '1', label: 'All Orders', value: total, fill: '#E4C1F9' }, // Purple
-        { id: '2', label: 'Verified', value: verified, fill: '#A6C8FF' }, // Blue
-        { id: '3', label: 'Shipped', value: shipped, fill: '#FBE38E' }, // Yellow
-        { id: '4', label: 'Delivered', value: delivered, fill: '#C0EBA6' }, // Green
-    ];
-}
-
-// Product Velocity Matrix - REMOVED (no longer used)
-// Use productProfitAnalysis from useOrderProfits instead
-
-// Customer Cohort Retention - REMOVED (no longer used)
-// This feature has been removed per user request
-
-// Profit Pulse - REMOVED along with profit-calculations.ts (ARCH-D1): the file had
-// no importer, and its cost model (2000 delivery / 1000 packaging / 500 vials flat)
-// contradicted the live one in use-order-profits.ts.
 
 // =============================================
 // Leaderboard Metrics
@@ -239,60 +118,26 @@ export interface LeaderboardMetrics {
     topProducts: LeaderboardItem[];
 }
 
-export function calculateLeaderboard(orders: Order[]): LeaderboardMetrics {
-    // 1. Top Cities by Orders (Today) vs Yesterday
-    // For simplicity, let's do All Time or This Month? "State of the Art" usually shows "Today's Leaders" or "This Month"
-    // Let's do This Month for better data density
-
-    const cityStats: Record<string, number> = {};
-    const productStats: Record<string, number> = {};
-
-    orders.forEach(o => {
-        if (o.status === 'cancelled' || o.status === 'rejected') return;
-
-        // City
-        if (o.city) {
-            cityStats[o.city] = (cityStats[o.city] || 0) + 1;
-        }
-
-        // Product
-        o.items.forEach(item => {
-            productStats[item.name] = (productStats[item.name] || 0) + (item.quantity || 1);
-        });
-    });
-
-    const topCities = Object.entries(cityStats)
-        .map(([city, count]) => ({ id: city, label: city, value: count, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    const topProducts = Object.entries(productStats)
-        .map(([name, count]) => ({ id: name, label: name, value: count, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    return { topCities, topProducts };
-}
-
 // =============================================
 // Date Range Filter
 // =============================================
 export type DateRangeKey = 'today' | '7d' | '30d' | 'all';
 
-export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): Order[] {
-    if (range === 'all') return orders;
-    const now = new Date();
-    let cutoff: Date;
-    if (range === 'today') {
-        cutoff = baghdadDayStart(now);
-    } else if (range === '7d') {
-        cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else {
-        cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The instant a dashboard range starts, exactly as `get_dashboard_metrics` computes
+ * it: `today` is the Baghdad calendar day, `7d`/`30d` are rolling windows ending
+ * now, and `all` has no cutoff (null). Any client query that must agree with the
+ * RPC's ranged numbers windows on this.
+ */
+export function rangeCutoff(range: DateRangeKey, now: Date = new Date()): Date | null {
+    switch (range) {
+        case 'today': return baghdadDayStart(now);
+        case '7d': return new Date(now.getTime() - 7 * DAY_MS);
+        case '30d': return new Date(now.getTime() - 30 * DAY_MS);
+        case 'all': return null;
     }
-    return orders.filter(o => new Date(o.created_at) >= cutoff);
 }
 
 /**
@@ -308,43 +153,35 @@ export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): O
  * Returns null when neither exists — true only of pre-2026 legacy imports on this data, none of
  * which fall inside any window the dashboard shows.
  */
-/**
- * COR-D4(b). When the OUTCOME happened, for windowing "what changed this week".
- *
- * `updated_at` is not that: 775 of 5,240 delivered/completed rows carry
- * updated_at = created_at, because platform writes do not bump it — so
- * "delivered in the last 7 days" silently meant "created in the last 7 days".
- *
- * The server RPC also reads the order_status_history event that set 'rejected'.
- * The client only has the order row, so a rejection falls back to `updated_at`
- * here. That is a documented near-match on the degraded fallback path, which
- * already announces itself; it is never a reason to DROP the row, because
- * dropping a rejection inflates the delivery rate.
- */
-export function outcomeAt(o: Order): Date {
-    return realizedAt(o) ?? new Date(o.updated_at || o.created_at);
+
+/** The fields the realized-revenue rules read. */
+export interface RealizableOrder {
+    status: string;
+    /** Absent when the viewer is not entitled to money (SEC-D2). */
+    price?: number | null;
+    created_at: string;
+    delivered_at?: string | null;
+    completed_at?: string | null;
 }
 
-export function realizedAt(o: Order): Date | null {
-    const delivered = (o as { delivered_at?: string | null }).delivered_at;
-    if (delivered) return parseUtcNaiveTimestamp(delivered);
-    const completed = (o as { completed_at?: string | null }).completed_at;
-    if (completed) return new Date(completed);
+export function realizedAt(o: RealizableOrder): Date | null {
+    if (o.delivered_at) return parseUtcNaiveTimestamp(o.delivered_at);
+    if (o.completed_at) return new Date(o.completed_at);
     return null;
 }
 
 /** Orders whose money is realized, i.e. actually collected. */
-export function isRealizedRevenue(o: Order): boolean {
+export function isRealizedRevenue(o: RealizableOrder): boolean {
     return o.status === 'delivered' || o.status === 'completed';
 }
 
 /** Sum of realized revenue in [start, end). */
-export function realizedRevenueBetween(orders: Order[], start: Date, end?: Date): number {
+export function realizedRevenueBetween(orders: RealizableOrder[], start: Date, end?: Date): number {
     return orders.reduce((sum, o) => {
         if (!isRealizedRevenue(o)) return sum;
         const at = realizedAt(o);
         if (!at || at < start || (end && at >= end)) return sum;
-        return sum + Number(o.price);
+        return sum + Number(o.price ?? 0);
     }, 0);
 }
 
@@ -363,31 +200,6 @@ export interface TodayStripMetrics {
     revenueDeltaPct: number | null;
 }
 
-export function calculateTodayStrip(orders: Order[]): TodayStripMetrics {
-    const now = new Date();
-    const todayStart = baghdadDayStart(now);
-    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-
-    const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart);
-    const yesterdayOrders = orders.filter(o => {
-        const d = new Date(o.created_at);
-        return d >= yesterdayStart && d < todayStart;
-    });
-
-    const ordersToday = todayOrders.length;
-    const ordersYesterday = yesterdayOrders.length;
-    // COR-D1: revenue is what was realized in the window, not what was ordered in it.
-    const revenueToday = realizedRevenueBetween(orders, todayStart);
-    const revenueYesterday = realizedRevenueBetween(orders, yesterdayStart, todayStart);
-
-    const ordersDelta = ordersToday - ordersYesterday;
-    const revenueDelta = revenueToday - revenueYesterday;
-    const ordersDeltaPct = ordersYesterday > 0 ? Math.round((ordersDelta / ordersYesterday) * 100) : null;
-    const revenueDeltaPct = revenueYesterday > 0 ? Math.round((revenueDelta / revenueYesterday) * 100) : null;
-
-    return { ordersToday, revenueToday, ordersYesterday, revenueYesterday, ordersDelta, revenueDelta, ordersDeltaPct, revenueDeltaPct };
-}
-
 // =============================================
 // Order Pipeline Bar
 // =============================================
@@ -398,21 +210,6 @@ export interface PipelineStage {
     color: string;
     textColor: string;
     bgClass: string;
-}
-
-export function calculatePipeline(orders: Order[]): PipelineStage[] {
-    const stages: Array<{ status: string; label: string; color: string; textColor: string; bgClass: string }> = [
-        { status: 'new',        label: 'New',         color: 'var(--pastel-yellow)', textColor: '#78350f', bgClass: 'pastel-card-yellow' },
-        { status: 'contacted',  label: 'Contacted',   color: 'var(--pastel-blue)',   textColor: '#1e3a5f', bgClass: 'pastel-card-blue'   },
-        { status: 'confirmed',  label: 'Confirmed',   color: 'var(--pastel-green)',  textColor: '#14532d', bgClass: 'pastel-card-green'  },
-        { status: 'in_transit', label: 'In Transit',  color: 'var(--pastel-mint)',   textColor: '#134e4a', bgClass: 'pastel-card-mint'   },
-        { status: 'delivered',  label: 'Delivered',   color: 'var(--pastel-purple)', textColor: '#4c1d95', bgClass: 'pastel-card-purple' },
-    ];
-
-    const counts: Record<string, number> = {};
-    orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
-
-    return stages.map(s => ({ ...s, count: counts[s.status] || 0 }));
 }
 
 /**
@@ -446,14 +243,29 @@ export interface RevenueTrendPoint {
     revenue: number;
 }
 
-export function calculateRevenueTrend(orders: Order[], days: 7 | 14 | 30, locale: ChartLocale = "en"): RevenueTrendPoint[] {
-    const now = new Date();
+export type TrendDays = 7 | 14 | 30;
+
+/**
+ * The first instant the trend chart plots: the start of the Baghdad day `days - 1`
+ * days before today. Orders created, and orders realized, from this instant on are
+ * everything the chart needs.
+ */
+export function trendWindowStart(days: TrendDays, now: Date = new Date()): Date {
+    return new Date(baghdadDayStart(now).getTime() - (days - 1) * DAY_MS);
+}
+
+/**
+ * One point per Baghdad day: orders CREATED that day, and revenue REALIZED that day
+ * (COR-D1). `orders` must contain every order created or realized inside the
+ * window — not a page of the orders list.
+ */
+export function calculateRevenueTrend(orders: RealizableOrder[], days: TrendDays, locale: ChartLocale = "en", now: Date = new Date()): RevenueTrendPoint[] {
     const points: RevenueTrendPoint[] = [];
 
     const todayStart = baghdadDayStart(now);
     for (let i = days - 1; i >= 0; i--) {
-        const day = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
-        const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+        const day = new Date(todayStart.getTime() - i * DAY_MS);
+        const next = new Date(day.getTime() + DAY_MS);
 
         const dayOrders = orders.filter(o => {
             const d = new Date(o.created_at);
@@ -484,23 +296,6 @@ export interface HourlyCount {
     count: number;
 }
 
-export function calculateOrdersPerHourToday(orders: Order[]): HourlyCount[] {
-    const now = new Date();
-    const todayStart = baghdadDayStart(now);
-
-    const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart);
-    const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
-    todayOrders.forEach(o => {
-        buckets[baghdadHour(new Date(o.created_at))].count++;
-    });
-
-    return buckets.map(b => ({
-        hour: b.hour,
-        label: b.hour === 0 ? '12AM' : b.hour < 12 ? `${b.hour}AM` : b.hour === 12 ? '12PM' : `${b.hour - 12}PM`,
-        count: b.count,
-    }));
-}
-
 // =============================================
 // Peak Hours Heatmap (historical, 7 days × 24 hours)
 // =============================================
@@ -509,26 +304,6 @@ export interface HeatmapCell {
     hour: number;
     count: number;
     intensity: number;   // 0–1 normalized
-}
-
-export function calculatePeakHoursHeatmap(orders: Order[]): HeatmapCell[] {
-    const grid: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
-
-    orders.forEach(o => {
-        const d = new Date(o.created_at);
-        grid[baghdadDayOfWeek(d)][baghdadHour(d)]++;
-    });
-
-    const max = Math.max(1, ...grid.flat());
-    const cells: HeatmapCell[] = [];
-
-    for (let day = 0; day < 7; day++) {
-        for (let hour = 0; hour < 24; hour++) {
-            cells.push({ dayOfWeek: day, hour, count: grid[day][hour], intensity: grid[day][hour] / max });
-        }
-    }
-
-    return cells;
 }
 
 // =============================================
@@ -540,43 +315,6 @@ export interface DeliveryRateMetrics {
     sparkline: { day: string; rate: number | null }[];
     /** null when either side of the comparison has no data. */
     trend: number | null;
-}
-
-export function calculateDeliverySuccessRate(orders: Order[], locale: ChartLocale = "en"): DeliveryRateMetrics {
-    const now = new Date();
-
-    // COR-D7: an empty window has no rate. Returning 0 rendered a catastrophic
-    // "0% delivery rate" for a merchant who simply had a quiet week.
-    const rateForWindow = (start: Date, end: Date): number | null => {
-        const window = orders.filter(o => {
-            // COR-D4(b): bucket by when the outcome happened, not the row's last touch.
-            const d = outcomeAt(o);
-            return d >= start && d < end && ['delivered', 'completed', 'rejected'].includes(o.status);
-        });
-        if (!window.length) return null;
-        const success = window.filter(o => ['delivered', 'completed'].includes(o.status)).length;
-        return Math.round((success / window.length) * 100);
-    };
-
-    // 7-day sparkline
-    const sparkStart = baghdadDayStart(now);
-    const sparkline = Array.from({ length: 7 }, (_, i) => {
-        const day = new Date(sparkStart.getTime() - (6 - i) * 24 * 60 * 60 * 1000);
-        const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
-        return {
-            day: formatChartWeekday(day, locale),
-            rate: rateForWindow(day, next),
-        };
-    });
-
-    const currentPeriodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const prevPeriodStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const currentRate = rateForWindow(currentPeriodStart, now);
-    const prevRate = rateForWindow(prevPeriodStart, currentPeriodStart);
-
-    const trend = currentRate === null || prevRate === null ? null : currentRate - prevRate;
-    return { currentRate, sparkline, trend };
 }
 
 // =============================================
@@ -595,48 +333,6 @@ export interface StageTimeMetric {
     excluded?: number;
 }
 
-export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
-    // Metric 1: Total cycle time (created → delivered) for completed deliveries
-    const delivered = orders.filter(o =>
-        ['delivered', 'completed'].includes(o.status) && o.delivered_at
-    );
-    const cycleTimes = delivered.map(o =>
-        (parseUtcNaiveTimestamp(o.delivered_at!).getTime() - new Date(o.created_at).getTime()) / (1000 * 60 * 60)
-    ).filter(h => h >= 0 && h < 24 * 30); // exclude outliers > 30 days; h>=0 admits same-instant cycles
-
-    const cycleExcluded = delivered.length - cycleTimes.length;
-    const avgCycle = cycleTimes.length > 0
-        ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length
-        : 0;
-
-    // Metric 2: Time stuck in transit (in_transit orders, using updated_at)
-    const now = new Date();
-    const inTransit = orders.filter(o => o.status === 'in_transit');
-    const transitTimes = inTransit.map(o =>
-        (now.getTime() - new Date(o.updated_at || o.created_at).getTime()) / (1000 * 60 * 60)
-    ).filter(h => h < 24 * 30);
-
-    const avgTransit = transitTimes.length > 0
-        ? transitTimes.reduce((a, b) => a + b, 0) / transitTimes.length
-        : 0;
-
-    // Metric 3: Time pending (new + contacted orders age)
-    const pending = orders.filter(o => ['new', 'contacted'].includes(o.status));
-    const pendingTimes = pending.map(o =>
-        (now.getTime() - new Date(o.created_at).getTime()) / (1000 * 60 * 60)
-    ).filter(h => h < 24 * 30);
-
-    const avgPending = pendingTimes.length > 0
-        ? pendingTimes.reduce((a, b) => a + b, 0) / pendingTimes.length
-        : 0;
-
-    return [
-        { label: 'New → Delivered (full cycle)', avgHours: avgCycle, sampleSize: cycleTimes.length, excluded: cycleExcluded },
-        { label: 'Pending response (avg age)', avgHours: avgPending, sampleSize: pendingTimes.length },
-        { label: 'In transit (avg wait)', avgHours: avgTransit, sampleSize: transitTimes.length },
-    ];
-}
-
 // =============================================
 // Week-over-Week Comparison
 // =============================================
@@ -649,62 +345,6 @@ export interface WowMetric {
     deltaPct: number | null;
     isFinancial: boolean;
     unit?: string;
-}
-
-export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const current = orders.filter(o => new Date(o.created_at) >= weekAgo);
-    const previous = orders.filter(o => {
-        const d = new Date(o.created_at);
-        return d >= twoWeeksAgo && d < weekAgo;
-    });
-
-    const deliveryRate = (set: Order[]): number | null => {
-        const terminal = set.filter(o => ['delivered', 'completed', 'rejected'].includes(o.status));
-        if (!terminal.length) return null;   // COR-D7
-        return Math.round((terminal.filter(o => ['delivered', 'completed'].includes(o.status)).length / terminal.length) * 100);
-    };
-
-    // COR-D1: realized revenue, windowed on when it was realized.
-    const currRevenue = realizedRevenueBetween(orders, weekAgo);
-    const prevRevenue = realizedRevenueBetween(orders, twoWeeksAgo, weekAgo);
-
-    const pct = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : null;
-
-    const currOrders = current.length;
-    const prevOrders = previous.length;
-    const currRate = deliveryRate(current);
-    const prevRate = deliveryRate(previous);
-    return [
-        {
-            label: 'Orders',
-            current: currOrders,
-            previous: prevOrders,
-            delta: currOrders - prevOrders,
-            deltaPct: pct(currOrders, prevOrders),
-            isFinancial: false,
-        },
-        {
-            label: 'Delivery Rate',
-            current: currRate,
-            previous: prevRate,
-            delta: currRate === null || prevRate === null ? null : currRate - prevRate,
-            deltaPct: null,
-            isFinancial: false,
-            unit: '%',
-        },
-        {
-            label: 'Revenue',
-            current: currRevenue,
-            previous: prevRevenue,
-            delta: currRevenue - prevRevenue,
-            deltaPct: pct(currRevenue, prevRevenue),
-            isFinancial: true,
-        },
-    ];
 }
 
 // =============================================
@@ -722,26 +362,6 @@ export interface MonthForecast {
     ordersPerDay: number;
 }
 
-export function calculateMonthForecast(orders: Order[]): MonthForecast {
-    const now = new Date();
-    const monthStart = baghdadMonthStart(now);
-    const daysInMonth = new Date(Date.UTC(
-        monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 0,
-    )).getUTCDate();
-    const daysElapsed = Math.max(1, baghdadDayOfMonth(now));
-
-    const monthOrders = orders.filter(o => new Date(o.created_at) >= monthStart);
-    const ordersThisMonth = monthOrders.length;
-    const revenueThisMonth = realizedRevenueBetween(orders, monthStart);   // COR-D1
-
-    const ordersPerDay = ordersThisMonth / daysElapsed;
-    const projectedOrders = Math.round(ordersPerDay * daysInMonth);
-    const revenuePerDay = revenueThisMonth / daysElapsed;
-    const projectedRevenue = Math.round(revenuePerDay * daysInMonth);
-
-    return { projectedOrders, projectedRevenue, daysElapsed, daysInMonth, ordersThisMonth, revenueThisMonth, ordersPerDay };
-}
-
 // =============================================
 // Enhanced Leaderboard (Product Revenue)
 // =============================================
@@ -754,61 +374,6 @@ export interface EnhancedLeaderboardMetrics extends LeaderboardMetrics {
     topProductsEnhanced: EnhancedProductItem[];
 }
 
-export function calculateEnhancedLeaderboard(orders: Order[]): EnhancedLeaderboardMetrics {
-    const cityStats: Record<string, number> = {};
-    const productStats: Record<string, { count: number; revenue: number }> = {};
-
-    orders.forEach(o => {
-        if (o.status === 'cancelled' || o.status === 'rejected') return;
-
-        if (o.city) {
-            cityStats[o.city] = (cityStats[o.city] || 0) + 1;
-        }
-
-        // COR-D2: attribute revenue by each line's value, scaled so the shares
-        // still sum to the order's real price (discount-safe). The old code split
-        // `price` equally across lines, crediting a 5,000 accessory the same as a
-        // 40,000 perfume. Equal split remains only as the no-line-price fallback.
-        const lineGross = o.items.map(item =>
-            Number((item as { price?: number }).price ?? 0) * (item.quantity || 1)
-        );
-        const linesTotal = lineGross.reduce((s, v) => s + v, 0);
-
-        o.items.forEach((item, i) => {
-            if (!productStats[item.name]) productStats[item.name] = { count: 0, revenue: 0 };
-            productStats[item.name].count += (item.quantity || 1);
-            productStats[item.name].revenue += linesTotal > 0
-                ? Number(o.price) * (lineGross[i] / linesTotal)
-                : Number(o.price) / o.items.length;
-        });
-    });
-
-    const topCities: LeaderboardItem[] = Object.entries(cityStats)
-        .map(([city, count]) => ({ id: city, label: city, value: count, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    const topProductsEnhanced: EnhancedProductItem[] = Object.entries(productStats)
-        .map(([name, s]) => ({ id: name, label: name, value: s.count, revenue: s.revenue, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    const topProducts: LeaderboardItem[] = topProductsEnhanced.map(({ revenue: _, ...rest }) => rest);
-
-    return { topCities, topProducts, topProductsEnhanced };
-}
-
-// =============================================
-// Recent Orders Feed
-// =============================================
-export function getRecentOrders(orders: Order[], limit = 10): Order[] {
-    return [...orders]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, limit);
-}
-
 // =============================================
 // Staff Leaderboard
 // =============================================
@@ -819,18 +384,3 @@ export interface StaffEntry {
     rank: number;
 }
 
-/**
- * COR-D6. Staff performance is attributed from `activity_logs` (`order.status_change`
- * grouped by user_id) in `get_dashboard_metrics` — the same source payroll uses.
- *
- * This client fallback deliberately returns nothing. It only has the orders list,
- * whose `last_status_changed_by_name` is free text that (a) credits solely the
- * LATEST toucher, (b) merges/splits people on a rename, (c) includes non-human
- * actors — the audited tenant's board was topped by "WhatsApp Bot", with "System"
- * on 1,397 orders — and (d) windows on `updated_at`, which platform writes never
- * bump (COR-D4). Ranking real people by that is worse than showing nothing, so
- * when the server metrics are unavailable the widget shows its no-activity state.
- */
-export function calculateStaffLeaderboard(_orders: Order[]): StaffEntry[] {
-    return [];
-}

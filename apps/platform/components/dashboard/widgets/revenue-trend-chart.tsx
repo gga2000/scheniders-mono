@@ -19,16 +19,16 @@ import {
  * and is now honest because both are read against their own full-height axis.
  */
 type Measure = 'orders' | 'revenue';
-import { RevenueTrendPoint, calculateRevenueTrend } from "@/lib/analytics/dashboard-calculations";
+import { calculateRevenueTrend, type TrendDays } from "@/lib/analytics/dashboard-calculations";
 import { formatIQD } from "@/lib/utils";
-import { Order } from "@/lib/supabase";
 import { TrendingUp } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { useTrendFacts } from "@/hooks/use-dashboard-order-facts";
+import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
 
-type Days = 7 | 14 | 30;
+type Days = TrendDays;
 
 interface RevenueTrendChartProps {
-    orders: Order[];
     showRevenue: boolean;
 }
 
@@ -57,16 +57,23 @@ const CustomTooltip = ({ active, payload, label, showRevenue, ordersLabel, reven
     );
 };
 
-export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProps) {
+/**
+ * ORD-2: the series is read from the server for exactly the plotted window (every
+ * order created or realized in it), not from the orders list, which is only a
+ * window of the book and made this chart plot whatever happened to be loaded.
+ */
+export function RevenueTrendChart({ showRevenue }: RevenueTrendChartProps) {
     const [days, setDays] = useState<Days>(7);
     const [measure, setMeasure] = useState<Measure>('orders');
     const { t, language } = useLanguage();
     // Never leave the chart on a measure this viewer is not entitled to see.
     const activeMeasure: Measure = showRevenue ? measure : 'orders';
 
+    const facts = useTrendFacts(days);
+
     const data = useMemo(
-        () => calculateRevenueTrend(orders, days, language === "ar" ? "ar" : "en"),
-        [orders, days, language],
+        () => calculateRevenueTrend(facts.data ?? [], days, language === "ar" ? "ar" : "en"),
+        [facts.data, days, language],
     );
 
     const totalOrders = data.reduce((s, d) => s + d.orders, 0);
@@ -82,10 +89,12 @@ export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProp
                     </div>
                     <div>
                         <h3 className="font-bold text-foreground text-sm">{t("dashboard.trend.title")}</h3>
-                        <p className="text-xs text-muted">
-                            {totalOrders} {t("dashboard.trend.orders")}
-                            {showRevenue && ` · ${formatIQD(totalRevenue)}`}
-                        </p>
+                        {facts.data && (
+                            <p className="text-xs text-muted">
+                                {totalOrders} {t("dashboard.trend.orders")}
+                                {showRevenue && ` · ${formatIQD(totalRevenue)}`}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -129,6 +138,11 @@ export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProp
 
             {/* Chart */}
             <div className="flex-1 min-h-0" style={{ minHeight: 220 }}>
+                {facts.isError && !facts.data ? (
+                    <WidgetLoadError onRetry={() => void facts.refetch()} />
+                ) : !facts.data ? (
+                    <WidgetPending className="h-full min-h-[220px]" />
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                         <defs>
@@ -176,6 +190,7 @@ export function RevenueTrendChart({ orders, showRevenue }: RevenueTrendChartProp
                         )}
                 </ComposedChart>
                 </ResponsiveContainer>
+                )}
             </div>
         </div>
     );

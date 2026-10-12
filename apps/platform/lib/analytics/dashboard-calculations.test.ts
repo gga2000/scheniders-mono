@@ -1,154 +1,27 @@
 import { describe, it, expect } from "vitest";
 import {
-    calculateTodayStrip,
     realizedRevenueBetween,
     formatChartWeekday,
     formatChartDayMonth,
     baghdadDayStart,
     baghdadHour,
     baghdadDayOfWeek,
-    calculateEnhancedLeaderboard,
-    calculateAvgTimePerStage,
     parseUtcNaiveTimestamp,
-    outcomeAt,
-    calculateDeliverySuccessRate,
-    calculateWeekOverWeek,
-    calculateStaffLeaderboard,
-    isDashboardOrder,
+    rangeCutoff,
+    trendWindowStart,
+    calculateRevenueTrend,
+    type RealizableOrder,
 } from "./dashboard-calculations";
-import type { Order } from "@/lib/supabase";
 
 /**
- * COR-D2 / COR-D5 pins. These mirror the SQL in
- * packages/supabase/migrations/…_dashboard_metrics_line_price_revenue_and_real_orders_only.sql —
- * the client engine and the server RPC must agree, so both formulas live here.
+ * The dashboard's numbers come from `get_dashboard_metrics` alone (ORD-2); its
+ * formulas are pinned by the SQL migrations. What is pinned here is the client
+ * code that remains: the Baghdad calendar, the range cutoffs that must agree with
+ * the RPC, and the daily trend series the RPC does not return.
  */
 
-const order = (o: Partial<Order>): Order => ({
-    id: "o1", status: "delivered", price: 0, items: [], city: "بغداد",
-    created_at: "2026-09-01T09:00:00Z", updated_at: "2026-09-01T09:00:00Z",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture, only the read fields matter
-    ...(o as any),
-}) as Order;
-
-describe("COR-D2 — product revenue is attributed by line value, not split equally", () => {
-    it("THE BUG: a cheap and an expensive item in one order no longer get the same credit", () => {
-        const orders = [order({
-            price: 45000,
-            items: [
-                { name: "perfume", price: 40000, quantity: 1 },
-                { name: "accessory", price: 5000, quantity: 1 },
-            ],
-        })];
-        const { topProductsEnhanced } = calculateEnhancedLeaderboard(orders);
-        const perfume = topProductsEnhanced.find(p => p.label === "perfume")!;
-        const accessory = topProductsEnhanced.find(p => p.label === "accessory")!;
-
-        expect(perfume.revenue).toBeCloseTo(40000, 6);
-        expect(accessory.revenue).toBeCloseTo(5000, 6);
-        // The old equal split would have credited 22,500 each.
-        expect(perfume.revenue).not.toBeCloseTo(22500, 6);
-    });
-
-    it("attributed revenue sums back to the order's real price, so a discount stays honest", () => {
-        // Lines total 45,000 but the customer paid 36,000 after a discount.
-        const orders = [order({
-            price: 36000,
-            items: [
-                { name: "perfume", price: 40000, quantity: 1 },
-                { name: "accessory", price: 5000, quantity: 1 },
-            ],
-        })];
-        const { topProductsEnhanced } = calculateEnhancedLeaderboard(orders);
-        const total = topProductsEnhanced.reduce((s, p) => s + (p.revenue ?? 0), 0);
-        expect(total).toBeCloseTo(36000, 6);
-    });
-
-    it("weights by quantity, not just unit price", () => {
-        const orders = [order({
-            price: 30000,
-            items: [
-                { name: "cheap-many", price: 5000, quantity: 4 },  // 20,000
-                { name: "dear-one", price: 10000, quantity: 1 },   // 10,000
-            ],
-        })];
-        const { topProductsEnhanced } = calculateEnhancedLeaderboard(orders);
-        expect(topProductsEnhanced.find(p => p.label === "cheap-many")!.revenue).toBeCloseTo(20000, 6);
-        expect(topProductsEnhanced.find(p => p.label === "dear-one")!.revenue).toBeCloseTo(10000, 6);
-    });
-
-    it("falls back to an equal split when no line carries a usable price", () => {
-        const orders = [order({
-            price: 30000,
-            // Items with no `price` key at all — a real shape in the items jsonb,
-            // even though the TS type marks price as required.
-            items: [
-                { name: "a", quantity: 1 },
-                { name: "b", quantity: 1 },
-            ] as unknown as Order["items"],
-        })];
-        const { topProductsEnhanced } = calculateEnhancedLeaderboard(orders);
-        expect(topProductsEnhanced.find(p => p.label === "a")!.revenue).toBeCloseTo(15000, 6);
-        expect(topProductsEnhanced.find(p => p.label === "b")!.revenue).toBeCloseTo(15000, 6);
-    });
-});
-
-describe("COR-D5 — abandoned checkouts and soft-deleted rows are not orders", () => {
-    it("excludes pending_checkout (an abandoned cart is not an order)", () => {
-        expect(isDashboardOrder(order({ status: "pending_checkout" }))).toBe(false);
-    });
-
-    it("excludes soft-deleted rows", () => {
-        expect(isDashboardOrder(
-            { ...order({}), deleted_at: "2026-09-01T10:00:00Z" } as unknown as Order,
-        )).toBe(false);
-    });
-
-    it("keeps suspended orders — those ARE orders", () => {
-        expect(isDashboardOrder(order({ status: "suspended" }))).toBe(true);
-    });
-
-    it("keeps ordinary orders", () => {
-        expect(isDashboardOrder(order({ status: "delivered" }))).toBe(true);
-        expect(isDashboardOrder(order({ status: "new" }))).toBe(true);
-    });
-});
-
-describe("COR-D7 — a rate with nothing behind it is not 0%", () => {
-    const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString();
-
-    it("THE BUG: a quiet week reports no data, not a catastrophic 0%", () => {
-        // A long delivery history, but nothing terminal inside the 7-day window.
-        const orders = [order({ status: "delivered", updated_at: daysAgo(60), created_at: daysAgo(60) })];
-        const { currentRate, trend } = calculateDeliverySuccessRate(orders);
-        expect(currentRate).toBeNull();
-        expect(trend).toBeNull();
-    });
-
-    it("still reports a real rate when the window has terminal orders", () => {
-        const orders = [
-            order({ status: "delivered", updated_at: daysAgo(1), created_at: daysAgo(2) }),
-            order({ id: "o2", status: "rejected", updated_at: daysAgo(1), created_at: daysAgo(2) }),
-        ];
-        expect(calculateDeliverySuccessRate(orders).currentRate).toBe(50);
-    });
-
-    it("week-over-week delivery rate is null rather than 0 when nothing is terminal", () => {
-        const orders = [order({ status: "new", created_at: daysAgo(1), updated_at: daysAgo(1) })];
-        const rate = calculateWeekOverWeek(orders).find(m => m.label === "Delivery Rate")!;
-        expect(rate.current).toBeNull();
-        expect(rate.delta).toBeNull();
-    });
-});
-
-describe("COR-D6 — the fallback engine does not guess at staff performance", () => {
-    it("returns nothing rather than ranking people by last-toucher (bots included)", () => {
-        const orders = [
-            order({ last_status_changed_by_name: "WhatsApp Bot", updated_at: new Date().toISOString() }),
-            order({ id: "o2", last_status_changed_by_name: "System", updated_at: new Date().toISOString() }),
-        ];
-        expect(calculateStaffLeaderboard(orders)).toEqual([]);
-    });
+const order = (o: Partial<RealizableOrder>): RealizableOrder => ({
+    status: "delivered", price: 0, created_at: "2026-09-01T09:00:00Z", ...o,
 });
 
 describe("COR-D3 (corrected) — delivered_at arrives WITH an offset; the parser must not shift it", () => {
@@ -165,28 +38,6 @@ describe("COR-D3 (corrected) — delivered_at arrives WITH an offset; the parser
             .toBe("2026-09-01T22:00:00.000Z");
         expect(parseUtcNaiveTimestamp("2026-09-01T22:00:00.000+00:00").toISOString())
             .toBe("2026-09-01T22:00:00.000Z");
-    });
-
-    it("measures a 5-hour cycle as 5 hours, not 2", () => {
-        const [cycle] = calculateAvgTimePerStage([order({
-            status: "delivered",
-            created_at: "2026-09-01T09:00:00.000Z",
-            delivered_at: "2026-09-01 14:00:00.000000",   // zoneless = 14:00 UTC
-        })]);
-        expect(cycle.avgHours).toBeCloseTo(5, 6);
-        expect(cycle.sampleSize).toBe(1);
-    });
-
-    it("counts a sub-3-hour delivery instead of discarding it", () => {
-        // Under the old arithmetic this computed as -2h and the `h > 0` guard
-        // deleted it, so the fastest deliveries never reached the average.
-        const [cycle] = calculateAvgTimePerStage([order({
-            status: "delivered",
-            created_at: "2026-09-01T09:00:00.000Z",
-            delivered_at: "2026-09-01 10:00:00.000000",
-        })]);
-        expect(cycle.sampleSize).toBe(1);
-        expect(cycle.avgHours).toBeCloseTo(1, 6);
     });
 });
 
@@ -263,12 +114,10 @@ describe("COR-D1 — revenue is what was collected, not what was promised", () =
     });
 
     it("falls back to completed_at when there is no delivered_at", () => {
-        // `completed_at` is not part of the client Order type (the list view does not
-        // select it) — the server RPC is the authoritative path for this fallback.
-        const orders = [{
-            ...order({ status: "completed", price: 12000, created_at: iso("2026-08-20T09:00:00Z") }),
+        const orders = [order({
+            status: "completed", price: 12000, created_at: iso("2026-08-20T09:00:00Z"),
             completed_at: iso("2026-09-05T10:00:00Z"),
-        } as unknown as Order];
+        })];
         expect(realizedRevenueBetween(orders, new Date("2026-09-01T00:00:00Z"))).toBe(12000);
     });
 
@@ -276,60 +125,76 @@ describe("COR-D1 — revenue is what was collected, not what was promised", () =
         const orders = [order({ status: "delivered", price: 9999, created_at: iso("2025-06-01T09:00:00Z") })];
         expect(realizedRevenueBetween(orders, new Date("2025-01-01T00:00:00Z"))).toBe(0);
     });
+});
 
-    it("today's strip reports collected money, not booked money", () => {
-        const today = new Date();
-        const orders = [
-            order({ status: "confirmed", price: 100000, created_at: today.toISOString() }),
-            order({ id: "o2", status: "delivered", price: 25000,
-                    created_at: today.toISOString(),
-                    delivered_at: today.toISOString().replace("T", " ").replace("Z", "") }),
-        ];
-        const strip = calculateTodayStrip(orders);
-        expect(strip.ordersToday).toBe(2);        // both are orders
-        expect(strip.revenueToday).toBe(25000);   // only one is revenue
+describe("rangeCutoff — the same window boundaries as get_dashboard_metrics(p_range)", () => {
+    // 2026-10-13 09:30 Baghdad (06:30Z).
+    const now = new Date("2026-10-13T06:30:00.000Z");
+
+    it("today is the Baghdad calendar day, not the browser's", () => {
+        expect(rangeCutoff("today", now)?.toISOString()).toBe("2026-10-12T21:00:00.000Z");
+    });
+
+    it("at 00:30 Baghdad, today has just begun — it is not still yesterday", () => {
+        // 21:30Z on the 12th is 00:30 on the 13th in Baghdad.
+        const justAfterMidnight = new Date("2026-10-12T21:30:00.000Z");
+        expect(rangeCutoff("today", justAfterMidnight)?.toISOString()).toBe("2026-10-12T21:00:00.000Z");
+    });
+
+    it("at 23:30 Baghdad, today is still the same Baghdad day", () => {
+        // 20:30Z on the 13th is 23:30 on the 13th in Baghdad.
+        const lateEvening = new Date("2026-10-13T20:30:00.000Z");
+        expect(rangeCutoff("today", lateEvening)?.toISOString()).toBe("2026-10-12T21:00:00.000Z");
+    });
+
+    it("7d and 30d are rolling windows ending now, as the SQL computes them", () => {
+        expect(rangeCutoff("7d", now)?.toISOString()).toBe("2026-10-06T06:30:00.000Z");
+        expect(rangeCutoff("30d", now)?.toISOString()).toBe("2026-09-13T06:30:00.000Z");
+    });
+
+    it("all has no cutoff", () => {
+        expect(rangeCutoff("all", now)).toBeNull();
     });
 });
 
-/**
- * COR-D4(b). `updated_at` is not bumped by the platform's own writes, so
- * windowing on it asked "what changed this week" of a frozen timestamp.
- */
-describe("COR-D4(b) — outcome time, not last touch", () => {
-    const base = {
-        id: "o1", order_id: "1001", customer_name: "A", phone: "0770", city: "Baghdad",
-        price: 1000, items: [], priority: "normal", payment_status: "unpaid",
-    } as unknown as Order;
+describe("calculateRevenueTrend — one point per Baghdad day", () => {
+    // 2026-10-13 09:30 Baghdad.
+    const now = new Date("2026-10-13T06:30:00.000Z");
 
-    it("dates a delivered order by delivered_at, not by a frozen updated_at", () => {
-        const o = {
-            ...base, status: "delivered",
-            created_at: "2026-05-01T08:00:00+00:00",
-            updated_at: "2026-05-01T08:00:00+00:00", // frozen: equals created_at
-            delivered_at: "2026-05-09T15:00:00+00:00",
-        } as unknown as Order;
-        expect(outcomeAt(o).toISOString()).toBe("2026-05-09T15:00:00.000Z");
+    it("the window starts at the Baghdad midnight days-1 days ago", () => {
+        expect(trendWindowStart(7, now).toISOString()).toBe("2026-10-06T21:00:00.000Z");
+        expect(trendWindowStart(30, now).toISOString()).toBe("2026-09-13T21:00:00.000Z");
     });
 
-    it("falls back to updated_at rather than dropping a rejection", () => {
-        // Dropping a rejection would INFLATE the delivery rate — never do it.
-        const o = {
-            ...base, status: "rejected",
-            created_at: "2026-05-01T08:00:00+00:00",
-            updated_at: "2026-05-06T09:30:00+00:00",
-        } as unknown as Order;
-        expect(outcomeAt(o).toISOString()).toBe("2026-05-06T09:30:00.000Z");
+    it("returns exactly `days` points, oldest first, ending today", () => {
+        const points = calculateRevenueTrend([], 7, "en", now);
+        expect(points).toHaveLength(7);
+        expect(points[6].date).toBe("Tue");   // 2026-10-13 is a Tuesday
+        expect(points.every(p => p.orders === 0 && p.revenue === 0)).toBe(true);
     });
 
-    it("counts a delivery in the week it was delivered, not the week it was created", () => {
-        const now = new Date();
-        const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 3600 * 1000).toISOString();
-        const longAgo = new Date(now.getTime() - 40 * 24 * 3600 * 1000).toISOString();
-        const { currentRate } = calculateDeliverySuccessRate([{
-            ...base, status: "delivered",
-            created_at: longAgo, updated_at: longAgo, delivered_at: twoDaysAgo,
-        } as unknown as Order]);
-        // On updated_at this row sat 40 days back and the window was empty (null).
-        expect(currentRate).toBe(100);
+    it("an order at 01:00 Baghdad lands on that Baghdad day, not the UTC one", () => {
+        // 22:00Z on the 12th = 01:00 on the 13th in Baghdad → today's bar.
+        const points = calculateRevenueTrend([order({ status: "new", created_at: "2026-10-12T22:00:00.000Z" })], 7, "en", now);
+        expect(points[6].orders).toBe(1);
+        expect(points[5].orders).toBe(0);
+    });
+
+    it("bars count orders by creation; revenue is dated by delivery (COR-D1)", () => {
+        const points = calculateRevenueTrend([
+            // created before the window, delivered today: revenue today, no bar
+            order({ status: "delivered", price: 50000, created_at: "2026-09-01T09:00:00Z", delivered_at: "2026-10-13T05:00:00+00:00" }),
+            // created today, only confirmed: a bar, no revenue
+            order({ status: "confirmed", price: 30000, created_at: "2026-10-13T05:00:00Z" }),
+        ], 7, "en", now);
+        expect(points[6]).toMatchObject({ orders: 1, revenue: 50000 });
+        expect(points.slice(0, 6).every(p => p.orders === 0 && p.revenue === 0)).toBe(true);
+    });
+
+    it("a viewer sent no prices sees revenue 0, never NaN", () => {
+        const points = calculateRevenueTrend([
+            order({ status: "delivered", price: undefined, created_at: "2026-10-13T05:00:00Z", delivered_at: "2026-10-13T05:30:00+00:00" }),
+        ], 7, "en", now);
+        expect(points[6].revenue).toBe(0);
     });
 });

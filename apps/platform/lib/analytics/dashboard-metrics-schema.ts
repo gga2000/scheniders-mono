@@ -9,10 +9,12 @@ import { z } from "zod";
  * render as blanks or NaN, which is exactly the "plausible wrong number" this
  * surface is most dangerous for.
  *
- * Parsing instead of asserting turns that into a loud, reported failure that falls
- * back to the local engine (which now announces itself — ENG-D1). It also makes
+ * Parsing instead of asserting turns that into a loud, reported failure: the page
+ * shows an error with a retry, never a number it cannot vouch for. It also makes
  * this file the written contract: the nullable money fields are SEC-D2's
- * entitlement redaction, and the nullable rates are COR-D7's "no data is not 0%".
+ * entitlement redaction (verified live: every money field is null for an
+ * employee, populated for admin/super_admin), and the nullable rates are COR-D7's
+ * "no data is not 0%".
  */
 
 const leaderboardItem = z.object({
@@ -41,23 +43,8 @@ export const recentOrderRowSchema = z.object({
 });
 export type RecentOrderRow = z.infer<typeof recentOrderRowSchema>;
 
-/**
- * What the feed accepts. Same seven fields, but the optional columns also allow
- * `undefined`, because the client fallback engine passes real `Order` rows where
- * those columns are optional rather than nullable. Widening here — not in the
- * schema — keeps RPC drift detection strict about the keys the server sends.
- */
-export type RecentOrderDisplayRow =
-    Omit<RecentOrderRow, "customer_name" | "city" | "items"> & {
-        customer_name?: string | null;
-        city?: string | null;
-        /**
-         * Only the fields the feed reads. Deliberately without the schema's
-         * passthrough index signature, which no interface (`OrderItem`) can
-         * satisfy.
-         */
-        items?: { name: string; quantity?: number | null; price?: number | null }[] | null;
-    };
+/** What the recent-orders feed renders — exactly what the RPC sends. */
+export type RecentOrderDisplayRow = RecentOrderRow;
 
 export const dashboardMetricsSchema = z.object({
     urgency: z.object({
@@ -139,4 +126,8 @@ export const dashboardMetricsSchema = z.object({
     recentOrders: z.array(recentOrderRowSchema),
 });
 
-export type DashboardMetricsPayload = z.infer<typeof dashboardMetricsSchema>;
+/**
+ * Everything the dashboard renders. There is no second source: the type is the
+ * parsed RPC contract, so a widget cannot depend on a field the server does not send.
+ */
+export type DashboardMetrics = z.infer<typeof dashboardMetricsSchema>;
