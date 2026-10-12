@@ -7,12 +7,7 @@ import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
-import {
-    duplicateGuardFor,
-    findDuplicateDispatchPairs,
-    type DuplicateDispatchPair,
-    type DuplicateGuardAction,
-} from "@/lib/duplicate-window";
+import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
 import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -665,40 +660,18 @@ export default function OrdersPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [filters, filterDuplicatesOnly, filterDueToday]);
 
-    // Duplicate guard: the pairs that triggered it, which action was held, and
-    // the original action to run if the operator proceeds anyway.
-    const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
-    const [duplicateConfirmPairs, setDuplicateConfirmPairs] = useState<DuplicateDispatchPair[]>([]);
-    const [duplicateGuardAction, setDuplicateGuardAction] = useState<DuplicateGuardAction>("confirm");
-    const [pendingConfirm, setPendingConfirm] = useState<(() => void) | null>(null);
-
-    const ordersById = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
-
     /**
      * Confirming or shipping an order whose 48h twin is already committed sends
-     * a second courier to the same customer. Returns true when the action was
-     * held for the dialog — the caller must then do nothing, because `proceed`
-     * runs only if the operator chooses to go ahead anyway.
-     *
-     * Every way to confirm or move to In Transit on this page comes through
-     * here: a card, the details modal, the table's status dropdown, the bulk
-     * bar and the floating selection bar. The courier export warns inside its
-     * own confirmation dialog instead (see ShipExportConfirmationDialog).
+     * a second courier to the same customer. Every way to confirm or move to In
+     * Transit on this page comes through `duplicateGuard`: a card, the details
+     * modal, the table's status dropdown, the workflow tabs, the bulk bar and
+     * the floating selection bar. The courier export warns inside its own
+     * confirmation dialog instead (see ShipExportConfirmationDialog).
      */
-    const holdDuplicateDispatch = (orderIds: string[], action: DuplicateGuardAction, proceed: () => void): boolean => {
-        const pairs = findDuplicateDispatchPairs(orderIds, ordersById, getConfirmBlockingTwin);
-        if (pairs.length === 0) return false;
-        setDuplicateConfirmPairs(pairs);
-        setDuplicateGuardAction(action);
-        setPendingConfirm(() => proceed);
-        setDuplicateConfirmOpen(true);
-        return true;
-    };
+    const duplicateGuard = useDuplicateDispatchGuard(orders, getConfirmBlockingTwin);
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
-        const guard = duplicateGuardFor(status);
-        if (guard
-            && holdDuplicateDispatch([orderId], guard, () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
+        if (duplicateGuard.holdStatusChange(orderId, status, () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
             return;
         }
         await runStatusUpdate(orderId, status, reason, reasonId);
@@ -763,9 +736,7 @@ export default function OrdersPage() {
         status: Order["status"],
         reason?: string,
     ): Promise<{ success: boolean; error?: string }> => {
-        const guard = duplicateGuardFor(status);
-        if (guard
-            && holdDuplicateDispatch([orderId], guard, () => { void updateOrderStatus(orderId, status, reason); })) {
+        if (duplicateGuard.holdStatusChange(orderId, status, () => { void updateOrderStatus(orderId, status, reason); })) {
             return { success: false };
         }
         return updateOrderStatus(orderId, status, reason);
@@ -776,12 +747,12 @@ export default function OrdersPage() {
         ...bulkActions,
         confirm: async () => {
             const ids = Array.from(useOrderStore.getState().selectedOrders);
-            if (holdDuplicateDispatch(ids, "confirm", () => { void bulkActions.confirm(); })) return;
+            if (duplicateGuard.hold(ids, "confirm", () => { void bulkActions.confirm(); })) return;
             await bulkActions.confirm();
         },
         inTransit: async () => {
             const ids = Array.from(useOrderStore.getState().selectedOrders);
-            if (holdDuplicateDispatch(ids, "dispatch", () => { void bulkActions.inTransit(); })) return;
+            if (duplicateGuard.hold(ids, "dispatch", () => { void bulkActions.inTransit(); })) return;
             await bulkActions.inTransit();
         },
     };
@@ -2044,14 +2015,7 @@ export default function OrdersPage() {
                     {/* Lives here rather than in either dialog group: it guards the
                         card, the table and the bulk bar alike. */}
                     <DuplicateConfirmDialog
-                        open={duplicateConfirmOpen}
-                        onOpenChange={(open) => {
-                            setDuplicateConfirmOpen(open);
-                            if (!open) setPendingConfirm(null);
-                        }}
-                        pairs={duplicateConfirmPairs}
-                        action={duplicateGuardAction}
-                        onConfirmAnyway={() => pendingConfirm?.()}
+                        {...duplicateGuard.dialogProps}
                         onCompare={(order) => {
                             setDuplicateOrder(order);
                             setShowDuplicateModal(true);

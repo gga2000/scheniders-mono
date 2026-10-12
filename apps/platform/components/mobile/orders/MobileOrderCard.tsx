@@ -16,6 +16,8 @@ import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { useStatusLabel } from "@/hooks/use-status-label";
+import { DuplicateAlertBanner } from "@/components/orders/duplicate-alert-banner";
+import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -35,6 +37,8 @@ interface MobileOrderCardProps {
     riskAssessment?: unknown;
     customerOrderCount?: number;
     hasDuplicates?: boolean;
+    /** A 48h twin with money at risk — see lib/duplicate-window. */
+    duplicateAlert?: DuplicateWindowAlert;
     archivedOrderCount?: number;
     onOpenTemplatePanel?: (order: Order) => void;
 }
@@ -47,6 +51,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
     riskAssessment,
     customerOrderCount = 1,
     hasDuplicates = false,
+    duplicateAlert,
     archivedOrderCount = 0,
     onOpenTemplatePanel,
 }: MobileOrderCardProps) {
@@ -224,7 +229,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                     </div>
 
                     {/* Other Tags (Risk, Duplicate) placed neatly below address & phone to save space */}
-                    {((resolvedRiskLevel && resolvedRiskLevel !== "low") || hasManyOrders) && (
+                    {((resolvedRiskLevel && resolvedRiskLevel !== "low") || hasManyOrders || duplicateAlert) && (
                         <div className="flex flex-wrap gap-1.5 items-center mt-1">
 
                             {resolvedRiskLevel && resolvedRiskLevel !== "low" && (
@@ -232,6 +237,10 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     <ShieldAlert className="w-2.5 h-2.5" />
                                     {resolvedRiskLevel} risk
                                 </span>
+                            )}
+
+                            {duplicateAlert && (
+                                <DuplicateAlertBanner alert={duplicateAlert} order={order} compact />
                             )}
 
                             {hasManyOrders && (

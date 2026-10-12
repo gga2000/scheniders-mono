@@ -6,6 +6,7 @@ import { motion, useAnimation } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { Order } from "@/lib/supabase";
 import { MobileOrderCard } from "./MobileOrderCard";
+import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 
 interface MobileOrdersListProps {
     orders: Order[];
@@ -15,6 +16,8 @@ interface MobileOrdersListProps {
     getCustomerArchivedCount: (phone: string) => number;
     getCustomerOrderCount: (phone: string, currentOrderId?: string) => number;
     hasDuplicates: (orderId: string) => boolean;
+    /** 48h money-at-risk duplicate for an order, if it has one. */
+    getDuplicateWindowAlert?: (orderId: string) => DuplicateWindowAlert | undefined;
     onOpenTemplatePanel?: (order: Order) => void;
 }
 
@@ -26,6 +29,7 @@ export const MobileOrdersList = memo(function MobileOrdersList({
     getCustomerArchivedCount,
     getCustomerOrderCount,
     hasDuplicates,
+    getDuplicateWindowAlert,
     onOpenTemplatePanel,
 }: MobileOrdersListProps) {
     const listRef = useRef<HTMLDivElement>(null);
@@ -163,6 +167,7 @@ export const MobileOrdersList = memo(function MobileOrdersList({
                                     customerOrderCount={getCustomerOrderCount(order.phone, order.order_id)}
                                     archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                     hasDuplicates={hasDuplicates(order.id)}
+                                    duplicateAlert={getDuplicateWindowAlert?.(order.id)}
                                     onOpenTemplatePanel={onOpenTemplatePanel}
                                 />
                             </div>
