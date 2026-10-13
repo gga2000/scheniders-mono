@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
-import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { formatPhoneGrouped } from "@/lib/order-utils";
 import { captureAndDownload, captureAsBlob, shareImage, copyImageToClipboard } from "@/lib/screenshot";
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
@@ -167,7 +167,7 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
                             <div className="flex items-center gap-2 text-muted">
                                 <Phone className="w-4 h-4" />
                                 <span className="font-mono" style={{ direction: "ltr" }}>
-                                    {formatPhoneForDisplay(order.phone) || order.phone}
+                                    {formatPhoneGrouped(order.phone) || order.phone}
                                 </span>
                             </div>
                             {order.city && (

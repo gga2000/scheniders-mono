@@ -7,7 +7,7 @@ import { formatIQD } from "@/lib/utils";
 import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getScheduledState, isScheduledToday, getItemsDisplay, getStatusBadgeStyle, getDisplayOrderId, getGovernorateCode, getFullAddress, getDropdownItemStyle, getStatusColor } from "@/lib/order-format-utils";
 import { useLanguage } from "@/hooks/use-language";
 import { ALL_ORDER_STATUSES } from "@/lib/schemas";
-import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
+import { validatePhoneDetailed, formatPhoneGrouped } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, Calendar, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
@@ -217,13 +217,13 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         {order.phone && (
                             <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                                 <Phone className="w-3 h-3 shrink-0" />
-                                <span dir="ltr" className={cn(!isValidPhone && "line-through text-red-500/70")}>{formatPhoneForDisplay(order.phone)}</span>
+                                <span dir="ltr" className={cn(!isValidPhone && "line-through text-red-500/70")}>{formatPhoneGrouped(order.phone)}</span>
 
                                 {phone2 && (
                                     <>
                                         <span className="text-muted-foreground/30 mx-0.5">|</span>
                                         <Phone className="w-3 h-3 shrink-0" />
-                                        <span dir="ltr" className={cn(!isValidPhone2 && "line-through text-red-500/70")}>{formatPhoneForDisplay(phone2)}</span>
+                                        <span dir="ltr" className={cn(!isValidPhone2 && "line-through text-red-500/70")}>{formatPhoneGrouped(phone2)}</span>
                                     </>
                                 )}
                             </div>

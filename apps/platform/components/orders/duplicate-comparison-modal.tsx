@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
-import { formatPhoneForDisplay, normalizePhoneForSearch } from "@/lib/order-utils";
+import { formatPhoneGrouped, normalizePhoneForSearch } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 import {
@@ -610,7 +610,7 @@ export function DuplicateComparisonModal({
                                     )}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => normalizePhoneForSearch(o.phone))) &&
                                         compareField(t("orders.duplicate.phone"), <Phone className="w-3.5 h-3.5" />,
-                                            (o) => formatPhoneForDisplay(o.phone))}
+                                            (o) => formatPhoneGrouped(o.phone))}
                                     {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => o.city ?? "")) &&
                                         compareField(t("orders.duplicate.city"), <Truck className="w-3.5 h-3.5" />,
                                             (o) => o.city || "—")}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
-import { formatPhoneForDisplay, validatePhoneDetailed } from "@/lib/order-utils";
+import { formatPhoneGrouped, validatePhoneDetailed } from "@/lib/order-utils";
+import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,10 @@ export function OrderCustomerCard({
         }
         return order?.[key];
     };
+
+    // Inputs show 4-3-4 grouping; formData keeps the un-spaced value as before.
+    const phoneInput = useGroupedPhoneInput((displayValue("phone") || "") as string, (value) => updateFormData("phone", value));
+    const secondaryPhoneInput = useGroupedPhoneInput((displayValue("secondary_phone") || "") as string, (value) => updateFormData("secondary_phone", value));
 
     const handleWhatsApp = () => {
         try {
@@ -269,8 +274,8 @@ export function OrderCustomerCard({
                             {isEditing ? (
                                 <div className="flex-1 relative">
                                     <input
-                                        value={displayValue("phone") as string}
-                                        onChange={(e) => updateFormData("phone", e.target.value)}
+                                        {...phoneInput}
+                                        inputMode="tel"
                                         dir="ltr"
                                         className={cn(
                                             "w-full h-[38px] px-3 bg-[var(--background)] border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
@@ -303,7 +308,7 @@ export function OrderCustomerCard({
                                         )}
                                         dir="ltr"
                                     >
-                                        {formatPhoneForDisplay(order.phone) || "—"}
+                                        {formatPhoneGrouped(order.phone) || "—"}
                                     </span>
                                 </div>
                             )}
@@ -339,8 +344,8 @@ export function OrderCustomerCard({
                             {isEditing ? (
                                 <div className="flex-1 relative">
                                     <input
-                                        value={(displayValue("secondary_phone") || "") as string}
-                                        onChange={(e) => updateFormData("secondary_phone", e.target.value)}
+                                        {...secondaryPhoneInput}
+                                        inputMode="tel"
                                         dir="ltr"
                                         placeholder={t("orderDetail.optional")}
                                         className={cn(
@@ -374,7 +379,7 @@ export function OrderCustomerCard({
                                         )}
                                         dir="ltr"
                                     >
-                                        {formatPhoneForDisplay(order.secondary_phone) || "—"}
+                                        {formatPhoneGrouped(order.secondary_phone) || "—"}
                                     </span>
                                 </div>
                             )}

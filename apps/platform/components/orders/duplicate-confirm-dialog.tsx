@@ -5,7 +5,7 @@ import { AlertTriangle, Copy } from "lucide-react";
 import type { Order } from "@/types/order";
 import type { DuplicateDispatchPair, DuplicateGuardAction } from "@/lib/duplicate-window";
 import { cn, formatIQD } from "@/lib/utils";
-import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { formatPhoneGrouped } from "@/lib/order-utils";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -54,7 +54,7 @@ function OrderSummary({ order, label, tone }: { order: Order; label: string; ton
             </div>
 
             <p className="font-mono text-sm font-bold text-slate-800" dir="ltr">#{order.order_id}</p>
-            <p className="font-mono text-xs text-slate-600" dir="ltr">{formatPhoneForDisplay(order.phone)}</p>
+            <p className="font-mono text-xs text-slate-600" dir="ltr">{formatPhoneGrouped(order.phone)}</p>
             <p className="truncate text-xs text-slate-600" title={order.items?.map(i => i.name).join(separator)}>
                 {order.items?.map(i => `${i.name} ×${i.quantity}`).join(separator) || "—"}
             </p>

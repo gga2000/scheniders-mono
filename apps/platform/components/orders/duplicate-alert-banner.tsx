@@ -4,7 +4,7 @@ import { AlertTriangle, Copy, Ban } from "lucide-react";
 import type { Order } from "@/types/order";
 import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import { cn, formatIQD } from "@/lib/utils";
-import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { formatPhoneGrouped } from "@/lib/order-utils";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -128,7 +128,7 @@ export function DuplicateAlertBanner({
                 <span className="flex items-center gap-1 opacity-80">
                     <span className="opacity-70">{t("orders.duplicate.viaNumber", "via")}</span>
                     <span className="font-mono font-semibold" dir="ltr">
-                        {formatPhoneForDisplay(alert.sharedNumber)}
+                        {formatPhoneGrouped(alert.sharedNumber)}
                     </span>
                 </span>
             )}

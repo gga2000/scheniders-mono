@@ -61,6 +61,7 @@ import {
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 import { OrderCustomerRiskPanel } from "./order-customer-risk-panel";
 import { ProductPicker } from "./product-picker";
+import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { BulkUploadModal } from "./bulk-upload-modal";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
@@ -268,6 +269,10 @@ export function CreateOrderModal({
             setErrors((prev) => ({ ...prev, [field]: undefined }));
         }
     };
+
+    // Inputs show 4-3-4 grouping; formData keeps the un-spaced value normalized on blur/submit.
+    const phoneInput = useGroupedPhoneInput(formData.phone, (value) => updateField("phone", value));
+    const secondaryPhoneInput = useGroupedPhoneInput(formData.secondary_phone || "", (value) => updateField("secondary_phone", value));
 
     const updateItem = (index: number, field: keyof OrderItem, value: string | number | boolean) => {
         setFormData((prev) => {
@@ -804,14 +809,13 @@ export function CreateOrderModal({
                                             رقم الهاتف {orderType === "delivery" ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختياري)</span>}
                                         </Label>
                                         <Input
-                                            value={formData.phone}
-                                            onChange={(e) => updateField("phone", e.target.value)}
+                                            {...phoneInput}
                                             onBlur={() => {
                                                 if (formData.phone) {
                                                     updateField("phone", normalizeIraqiPhone(formData.phone));
                                                 }
                                             }}
-                                            placeholder="07XXXXXXXX"
+                                            placeholder="07XX XXX XXXX"
                                             dir="ltr"
                                             inputMode="tel"
                                             autoComplete="tel"
@@ -851,14 +855,13 @@ export function CreateOrderModal({
                                             رقم إضافي <span className="text-gray-400">(اختياري)</span>
                                         </Label>
                                         <Input
-                                            value={formData.secondary_phone || ""}
-                                            onChange={(e) => updateField("secondary_phone", e.target.value)}
+                                            {...secondaryPhoneInput}
                                             onBlur={() => {
                                                 if (formData.secondary_phone) {
                                                     updateField("secondary_phone", normalizeIraqiPhone(formData.secondary_phone));
                                                 }
                                             }}
-                                            placeholder="07XXXXXXXX"
+                                            placeholder="07XX XXX XXXX"
                                             dir="ltr"
                                             inputMode="tel"
                                             autoComplete="tel"

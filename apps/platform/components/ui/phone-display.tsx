@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { generateWhatsAppLink } from "@/lib/utils";
-import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
+import { validatePhoneDetailed, formatPhoneForDisplay, formatPhoneGrouped } from "@/lib/order-utils";
 import { MessageCircle, AlertCircle } from "lucide-react";
 
 interface PhoneDisplayProps {
@@ -27,7 +27,9 @@ export function PhoneDisplay({
     size = "md",
 }: PhoneDisplayProps) {
     const validation = validatePhoneDetailed(phone);
-    const displayPhone = formatPhoneForDisplay(phone);
+    // Raw digits for the WhatsApp link; 4-3-4 grouping is on-screen only.
+    const rawPhone = formatPhoneForDisplay(phone);
+    const displayPhone = formatPhoneGrouped(phone);
 
     // Don't render if no phone provided and we're not showing an error
     if (!phone && !label) return null;
@@ -35,7 +37,7 @@ export function PhoneDisplay({
     const handleWhatsApp = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (validation.isValid) {
-            const link = generateWhatsAppLink(displayPhone, whatsAppMessage);
+            const link = generateWhatsAppLink(rawPhone, whatsAppMessage);
             window.open(link, "_blank");
         }
     };
