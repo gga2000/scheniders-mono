@@ -946,62 +946,18 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
 
         console.log(`Order created successfully: ${webhook.order_number}`);
 
-        // If this is a real order (not a checkout), clean up any matching abandoned checkouts
-        // Priority 1: Exact checkout ID match (most reliable)
-        // Priority 2: Phone + 24hr time window (fallback for when checkout ID unavailable)
+        // A real order (not a checkout) supersedes the customer's abandoned
+        // checkouts for the same tenant — soft-delete them.
         if (!webhook.is_checkout && formattedPhone) {
-            try {
-                let abandonedCheckouts: Array<{ id: string; order_id: string }> = [];
-                let cleanupMethod = 'unknown';
-
-                // Priority 1: Try exact checkout ID match by order_id
-                if (webhook.checkout_id) {
-                    const { data: exactMatch, error: exactErr } = await supabase
-                        .from('orders')
-                        .select('id, order_id')
-                        .eq('order_id', webhook.checkout_id)
-                        .eq('status', 'pending_checkout')
-                        .eq('source', 'lightfunnels');
-
-                    if (!exactErr && exactMatch && exactMatch.length > 0) {
-                        abandonedCheckouts = exactMatch;
-                        cleanupMethod = 'exact_checkout_id';
-                        console.log(`[Cleanup] Found exact checkout match by order_id: ${webhook.checkout_id}`);
-                    }
-                }
-
-                // Priority 2: Fallback to phone-based matching if no exact match found
-                if (abandonedCheckouts.length === 0) {
-                    const now = new Date();
-                    const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-                    const { data: phoneMatches, error: fetchErr } = await supabase
-                        .from('orders')
-                        .select('id, order_id')
-                        .eq('status', 'pending_checkout')
-                        .eq('phone', formattedPhone)
-                        .eq('source', 'lightfunnels')
-                        .gte('created_at', windowStart);
-
-                    if (!fetchErr && phoneMatches && phoneMatches.length > 0) {
-                        abandonedCheckouts = phoneMatches;
-                        cleanupMethod = 'phone_time_window';
-                        console.log(`[Cleanup] Found ${phoneMatches.length} checkout(s) via phone match for ${formattedPhone}`);
-                    }
-                }
-
-                // Soft-delete matched abandoned checkouts
-                const checkoutIds = abandonedCheckouts.map(c => c.id);
-                if (checkoutIds.length > 0) {
-                    await supabase.from('orders').update({ deleted_at: new Date().toISOString() }).in('id', checkoutIds);
-                    console.log(`[Cleanup] Soft-deleted ${abandonedCheckouts.length} abandoned checkout(s) via ${cleanupMethod}:`,
-                        abandonedCheckouts.map(c => c.order_id).join(', '));
-                } else {
-                    console.log(`[Cleanup] No abandoned checkouts found to clean up for order ${webhook.order_number}`);
-                }
-            } catch (cleanupErr) {
-                // Non-fatal: order was already created successfully
-                console.error('[Cleanup] Error during checkout cleanup:', cleanupErr);
+            if (tenantId) {
+                await cleanupAbandonedCheckouts(supabase, {
+                    tenantId,
+                    phone: formattedPhone,
+                    checkoutId: webhook.checkout_id,
+                    orderNumber: webhook.order_number,
+                });
+            } else {
+                console.warn(`[Cleanup] No tenant for order ${webhook.order_number} — skipping abandoned-checkout cleanup`);
             }
         }
 
@@ -1016,6 +972,86 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             error: error instanceof Error ? error.message : "Unknown error",
         };
     }
+}
+
+/**
+ * Soft-delete the abandoned LightFunnels checkouts a real order supersedes.
+ *
+ * Priority 1: the exact checkout id the order came from.
+ * Priority 2: same phone within the last 24 hours (when no id is available).
+ *
+ * Every query is scoped to `tenantId`. This runs on the service-role client, so
+ * RLS does not apply: before the scope was added, an order for a phone number
+ * soft-deleted that number's pending checkouts in EVERY tenant — and the
+ * LightFunnels webhook could be called without credentials, so anyone could
+ * erase another merchant's checkouts by posting an order with their
+ * customer's phone.
+ *
+ * Non-fatal by design: the order already exists, so a cleanup failure is
+ * logged rather than turned into a failed webhook delivery (which LightFunnels
+ * would retry, re-running order creation).
+ */
+export async function cleanupAbandonedCheckouts(
+    client: Pick<ReturnType<typeof createSupabaseServiceClient>, "from">,
+    args: { tenantId: string; phone: string; checkoutId?: string; orderNumber: string },
+): Promise<{ method: "exact_checkout_id" | "phone_time_window" | null; deleted: string[] }> {
+    const { tenantId, phone, checkoutId, orderNumber } = args;
+
+    let matches: Array<{ id: string; order_id: string }> = [];
+    let method: "exact_checkout_id" | "phone_time_window" | null = null;
+
+    if (checkoutId) {
+        const { data, error } = await client
+            .from("orders")
+            .select("id, order_id")
+            .eq("tenant_id", tenantId)
+            .eq("order_id", checkoutId)
+            .eq("status", "pending_checkout")
+            .eq("source", "lightfunnels");
+        if (error) {
+            console.error(`[Cleanup] Exact checkout lookup failed for ${checkoutId}:`, error);
+        } else if (data && data.length > 0) {
+            matches = data;
+            method = "exact_checkout_id";
+        }
+    }
+
+    if (matches.length === 0) {
+        const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await client
+            .from("orders")
+            .select("id, order_id")
+            .eq("tenant_id", tenantId)
+            .eq("status", "pending_checkout")
+            .eq("phone", phone)
+            .eq("source", "lightfunnels")
+            .gte("created_at", windowStart);
+        if (error) {
+            console.error(`[Cleanup] Phone checkout lookup failed for order ${orderNumber}:`, error);
+        } else if (data && data.length > 0) {
+            matches = data;
+            method = "phone_time_window";
+        }
+    }
+
+    if (matches.length === 0) {
+        console.log(`[Cleanup] No abandoned checkouts found to clean up for order ${orderNumber}`);
+        return { method: null, deleted: [] };
+    }
+
+    const { error: deleteErr } = await client
+        .from("orders")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("tenant_id", tenantId)
+        .in("id", matches.map(m => m.id));
+    if (deleteErr) {
+        console.error(`[Cleanup] Soft-delete failed for order ${orderNumber}:`, deleteErr);
+        return { method, deleted: [] };
+    }
+
+    const deleted = matches.map(m => m.order_id);
+    console.log(`[Cleanup] Soft-deleted ${deleted.length} abandoned checkout(s) via ${method}:`, deleted.join(", "));
+    return { method, deleted };
 }
 
 /**
