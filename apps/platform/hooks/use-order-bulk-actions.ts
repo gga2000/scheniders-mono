@@ -104,11 +104,11 @@ export const useOrderBulkActions = ({
                     description: t("toast.ordersArchivedDesc").replace("{count}", String(ids.length)),
                     variant: "success",
                     action: {
-                        label: t("toast.undo") || "Undo",
+                        label: t("toast.undo"),
                         onClick: async () => {
                             const undoRes = await bulkUnarchive(ids);
                             if (undoRes.success) {
-                                toast.success(t("toast.ordersRestored") || "Restored", t("toast.ordersRestoredDesc") || "Orders returned to the active list");
+                                toast.success(t("toast.ordersRestored"), t("toast.ordersRestoredDesc"));
                             } else {
                                 toast.error(t("toast.updateFailed"), undoRes.error);
                             }

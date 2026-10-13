@@ -12,10 +12,11 @@ import { AvatarPill } from "@/components/ui/avatar-pill";
 
 import { useOrderStore } from "@/store/use-order-store";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
+import { HighlightedPhone } from "./highlighted-phone";
 // ... existing imports ...
 
 import { formatIQD, generateWhatsAppLink, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
-import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
+import { validatePhoneDetailed } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
@@ -1693,7 +1694,7 @@ export const OrderCard = memo(function OrderCard({
                                     hasDuplicates && isVerifiedCustomer && "text-emerald-600 font-semibold dark:text-emerald-400",
                                     !(!validatePhoneDetailed(order.phone).isValid) && !(hasDuplicates) && "dark:text-[#D4D4D4]"
                                 )}>
-                                    {editable("phone", order.phone || "", <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />, "font-mono")}
+                                    {editable("phone", order.phone || "", <HighlightedPhone phone={order.phone} query={localSearchQuery} />, "font-mono")}
                                 </span>
                                 {/* Duplicate/Returning customer icon next to phone */}
                                 {hasDuplicates && (
@@ -1721,7 +1722,7 @@ export const OrderCard = memo(function OrderCard({
                                             "font-mono text-sm",
                                             !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
                                         )}>
-                                            <HighlightedText text={formatPhoneForDisplay(order.secondary_phone)} query={localSearchQuery} />
+                                            <HighlightedPhone phone={order.secondary_phone} query={localSearchQuery} />
                                         </span>
                                     </div>
                                 </>
@@ -1872,7 +1873,7 @@ export const OrderCard = memo(function OrderCard({
                                 >
                                     <MessageCircle className="w-4 h-4" />
                                     <span className="font-mono text-sm font-semibold tracking-wide">
-                                        {editable("phone", order.phone || "", <HighlightedText text={formatPhoneForDisplay(order.phone)} query={localSearchQuery} />, "font-mono")}
+                                        {editable("phone", order.phone || "", <HighlightedPhone phone={order.phone} query={localSearchQuery} />, "font-mono")}
                                     </span>
                                 </button>
 
@@ -1908,7 +1909,7 @@ export const OrderCard = memo(function OrderCard({
                                     >
                                         <Phone className="w-3.5 h-3.5" />
                                         <span className="font-mono text-xs">
-                                            <HighlightedText text={formatPhoneForDisplay(order.secondary_phone)} query={localSearchQuery} />
+                                            <HighlightedPhone phone={order.secondary_phone} query={localSearchQuery} />
                                         </span>
                                     </button>
                                 )}

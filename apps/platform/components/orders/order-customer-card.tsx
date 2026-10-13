@@ -1,7 +1,9 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
-import { formatPhoneForDisplay, validatePhoneDetailed } from "@/lib/order-utils";
+import { formatPhoneGrouped, validatePhoneDetailed } from "@/lib/order-utils";
+import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
+import { GovernorateOptions } from "./governorate-options";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -58,6 +60,10 @@ export function OrderCustomerCard({
         }
         return order?.[key];
     };
+
+    // Inputs show 4-3-4 grouping; formData keeps the un-spaced value as before.
+    const phoneInput = useGroupedPhoneInput((displayValue("phone") || "") as string, (value) => updateFormData("phone", value));
+    const secondaryPhoneInput = useGroupedPhoneInput((displayValue("secondary_phone") || "") as string, (value) => updateFormData("secondary_phone", value));
 
     const handleWhatsApp = () => {
         try {
@@ -167,11 +173,7 @@ export function OrderCustomerCard({
                                     className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] text-right"
                                 >
                                     <option value="" disabled>{t("orderDetail.selectProvince")}</option>
-                                    {governorates.map((gov, index) => (
-                                        <option key={gov.code} value={gov.nameAr}>
-                                            {index + 1}. {gov.nameAr}{gov.alternativeName ? ` (${gov.alternativeName})` : ''}
-                                        </option>
-                                    ))}
+                                    <GovernorateOptions />
                                 </select>
                                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
@@ -269,8 +271,8 @@ export function OrderCustomerCard({
                             {isEditing ? (
                                 <div className="flex-1 relative">
                                     <input
-                                        value={displayValue("phone") as string}
-                                        onChange={(e) => updateFormData("phone", e.target.value)}
+                                        {...phoneInput}
+                                        inputMode="tel"
                                         dir="ltr"
                                         className={cn(
                                             "w-full h-[38px] px-3 bg-[var(--background)] border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
@@ -303,7 +305,7 @@ export function OrderCustomerCard({
                                         )}
                                         dir="ltr"
                                     >
-                                        {formatPhoneForDisplay(order.phone) || "—"}
+                                        {formatPhoneGrouped(order.phone) || "—"}
                                     </span>
                                 </div>
                             )}
@@ -339,8 +341,8 @@ export function OrderCustomerCard({
                             {isEditing ? (
                                 <div className="flex-1 relative">
                                     <input
-                                        value={(displayValue("secondary_phone") || "") as string}
-                                        onChange={(e) => updateFormData("secondary_phone", e.target.value)}
+                                        {...secondaryPhoneInput}
+                                        inputMode="tel"
                                         dir="ltr"
                                         placeholder={t("orderDetail.optional")}
                                         className={cn(
@@ -374,7 +376,7 @@ export function OrderCustomerCard({
                                         )}
                                         dir="ltr"
                                     >
-                                        {formatPhoneForDisplay(order.secondary_phone) || "—"}
+                                        {formatPhoneGrouped(order.secondary_phone) || "—"}
                                     </span>
                                 </div>
                             )}
@@ -444,7 +446,7 @@ export function OrderCustomerCard({
                                     {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                         <span
                                             className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-semibold rounded-md shadow-sm"
-                                            title={t("orderDetail.originalDate") || "Original Date"}
+                                            title={t("orderDetail.originalDate")}
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
                                             <span className="text-amber-500 mr-0.5">was</span>

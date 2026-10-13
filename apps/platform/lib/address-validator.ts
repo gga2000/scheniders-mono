@@ -642,6 +642,19 @@ export function getAllGovernorateCodes(): Array<{ code: string; nameAr: string; 
 }
 
 /**
+ * The one governorate <option> list for order forms (new-order and edit-order modals):
+ * value is the Arabic name stored in `orders.city`, label is numbered with the capital
+ * in parentheses — "2. ذي قار (الناصرية)". Both modals render this so they can't drift.
+ */
+export function getGovernorateSelectOptions(): Array<{ code: string; value: string; label: string }> {
+    return getAllGovernorateCodes().map((gov, index) => ({
+        code: gov.code,
+        value: gov.nameAr,
+        label: `${index + 1}. ${gov.nameAr}${gov.alternativeName ? ` (${gov.alternativeName})` : ''}`,
+    }));
+}
+
+/**
  * Get governorate by code
  */
 export function getGovernorateByCode(code: string): Governorate | undefined {

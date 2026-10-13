@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { cn, formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { processEmojis } from "@/lib/emoji-shortcodes";
-import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { formatPhoneForDisplay, formatPhoneGrouped } from "@/lib/order-utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -348,8 +348,8 @@ export function WhatsAppTemplatePanel({
         ? processTemplate(selectedTemplate.content_ar || selectedTemplate.content)
         : "";
 
-    const primaryDisplay = previewOrder ? (formatPhoneForDisplay(previewOrder.phone) || previewOrder.phone) : "";
-    const secondaryDisplay = previewOrder?.secondary_phone ? formatPhoneForDisplay(previewOrder.secondary_phone) : null;
+    const primaryDisplay = previewOrder ? (formatPhoneGrouped(previewOrder.phone) || previewOrder.phone) : "";
+    const secondaryDisplay = previewOrder?.secondary_phone ? formatPhoneGrouped(previewOrder.secondary_phone) : null;
     const currentConfig = templateConfig[selectedType];
 
     return (
@@ -457,7 +457,7 @@ export function WhatsAppTemplatePanel({
                                                 <div className="flex flex-row-reverse items-center gap-1.5 mt-0.5 text-right">
                                                     <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                                     <p className="text-sm text-gray-500 font-medium truncate">
-                                                        {formatPhoneForDisplay(previewOrder?.phone || "")}
+                                                        {formatPhoneGrouped(previewOrder?.phone || "")}
                                                     </p>
                                                 </div>
                                             ) : (

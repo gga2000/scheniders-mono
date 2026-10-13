@@ -13,7 +13,6 @@ import { Textarea } from "@scheniders/ui/textarea";
 import { Label } from "@scheniders/ui/label";
 import { formatIQD, cn } from "@/lib/utils";
 import { toWholeIqd } from "@/lib/order-money";
-import { getAllGovernorateCodes } from "@/lib/address-validator";
 import {
     calculateTotal,
     normalizeIraqiPhone,
@@ -61,6 +60,8 @@ import {
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 import { OrderCustomerRiskPanel } from "./order-customer-risk-panel";
 import { ProductPicker } from "./product-picker";
+import { GovernorateOptions } from "./governorate-options";
+import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { BulkUploadModal } from "./bulk-upload-modal";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
@@ -127,7 +128,6 @@ export function CreateOrderModal({
     });
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [isCreating, setIsCreating] = useState(false);
-    const governorates = getAllGovernorateCodes();
     const [showProductPicker, setShowProductPicker] = useState(false);
     const [discount, setDiscount] = useState(0);
     const [orderIdStatus, setOrderIdStatus] = useState<"idle" | "checking" | "available" | "exists">("idle");
@@ -268,6 +268,10 @@ export function CreateOrderModal({
             setErrors((prev) => ({ ...prev, [field]: undefined }));
         }
     };
+
+    // Inputs show 4-3-4 grouping; formData keeps the un-spaced value normalized on blur/submit.
+    const phoneInput = useGroupedPhoneInput(formData.phone, (value) => updateField("phone", value));
+    const secondaryPhoneInput = useGroupedPhoneInput(formData.secondary_phone || "", (value) => updateField("secondary_phone", value));
 
     const updateItem = (index: number, field: keyof OrderItem, value: string | number | boolean) => {
         setFormData((prev) => {
@@ -804,14 +808,13 @@ export function CreateOrderModal({
                                             رقم الهاتف {orderType === "delivery" ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختياري)</span>}
                                         </Label>
                                         <Input
-                                            value={formData.phone}
-                                            onChange={(e) => updateField("phone", e.target.value)}
+                                            {...phoneInput}
                                             onBlur={() => {
                                                 if (formData.phone) {
                                                     updateField("phone", normalizeIraqiPhone(formData.phone));
                                                 }
                                             }}
-                                            placeholder="07XXXXXXXX"
+                                            placeholder="07XX XXX XXXX"
                                             dir="ltr"
                                             inputMode="tel"
                                             autoComplete="tel"
@@ -851,14 +854,13 @@ export function CreateOrderModal({
                                             رقم إضافي <span className="text-gray-400">(اختياري)</span>
                                         </Label>
                                         <Input
-                                            value={formData.secondary_phone || ""}
-                                            onChange={(e) => updateField("secondary_phone", e.target.value)}
+                                            {...secondaryPhoneInput}
                                             onBlur={() => {
                                                 if (formData.secondary_phone) {
                                                     updateField("secondary_phone", normalizeIraqiPhone(formData.secondary_phone));
                                                 }
                                             }}
-                                            placeholder="07XXXXXXXX"
+                                            placeholder="07XX XXX XXXX"
                                             dir="ltr"
                                             inputMode="tel"
                                             autoComplete="tel"
@@ -882,11 +884,7 @@ export function CreateOrderModal({
                                                     data-error={!!errors.city}
                                                 >
                                                     <option value="" disabled>اختر المحافظة...</option>
-                                                    {governorates.map((gov) => (
-                                                        <option key={gov.code} value={gov.nameAr}>
-                                                            {gov.nameAr}
-                                                        </option>
-                                                    ))}
+                                                    <GovernorateOptions />
                                                 </select>
                                                 {errors.city && <p className="field-error-text">{errors.city}</p>}
                                                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">

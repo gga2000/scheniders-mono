@@ -4,6 +4,7 @@ import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { cn, formatIQD } from '@/lib/utils';
+import { formatPhoneGrouped } from '@/lib/order-utils';
 import type { Order, OrderStatus } from '@/lib/supabase';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
@@ -58,15 +59,6 @@ const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0);
     return parts[0].charAt(0) + parts[parts.length - 1].charAt(0);
-};
-
-// Format phone for display: 0780 230 1677
-const formatPhoneDisplay = (phone: string) => {
-    const cleaned = phone.replace(/^\+964/, "0").replace(/^964/, "0");
-    if (cleaned.length === 11 && cleaned.startsWith("0")) {
-        return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
-    }
-    return cleaned;
 };
 
 // Format date without year: M-DD
@@ -473,7 +465,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && (duplicateSeverity === "critical" ? "text-rose-600 font-bold" : "text-amber-600 font-bold"))}
                         onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); }}
                     >
-                        {formatPhoneDisplay(order.phone)}
+                        {formatPhoneGrouped(order.phone)}
                     </span>
                     {isDuplicate && (
                         <button onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }} className="p-0.5 rounded hover:bg-amber-100 transition-colors" title="View duplicate orders">
@@ -496,7 +488,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                             className={cn("font-mono text-xs hover:text-green-600 transition-colors", !validatePhoneDetailed(order.secondary_phone).isValid ? "text-red-600 font-bold" : "text-muted")}
                             onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.secondary_phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); }}
                         >
-                            {formatPhoneDisplay(order.secondary_phone)}
+                            {formatPhoneGrouped(order.secondary_phone)}
                         </span>
                         {!validatePhoneDetailed(order.secondary_phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
                     </div>

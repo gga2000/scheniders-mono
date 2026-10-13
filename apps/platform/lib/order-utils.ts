@@ -128,6 +128,51 @@ export function formatPhoneForDisplay(phone: string | undefined | null): string 
     return cleaned;
 }
 
+/** "07802301677" -> "0780 230 1677". Caller guarantees an 11-digit local mobile. */
+function groupLocalMobile(local: string): string {
+    return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
+}
+
+/**
+ * Group an Iraqi mobile into 4-3-4 for on-screen reading: 07802301677 -> "0780 230 1677".
+ * Builds on formatPhoneForDisplay (+964 / 964 / Arabic digits), and additionally reads
+ * 00964… and the zero-less 7XXXXXXXXX form as a local 07… number.
+ * Anything that is not an Iraqi mobile (short, foreign, landline) is returned in its
+ * formatPhoneForDisplay form, ungrouped.
+ *
+ * Display only — tel:/WhatsApp/clipboard must keep using raw digits.
+ */
+export function formatPhoneGrouped(phone: string | undefined | null): string {
+    let cleaned = formatPhoneForDisplay(phone);
+    if (cleaned.startsWith('00964')) cleaned = '0' + cleaned.substring(5);
+    if (/^7\d{9}$/.test(cleaned)) cleaned = '0' + cleaned;
+    if (/^07\d{9}$/.test(cleaned)) return groupLocalMobile(cleaned);
+    return formatPhoneForDisplay(phone);
+}
+
+/**
+ * Progressive 4-3-4 grouping for a phone <input> while the user types:
+ * "0780" -> "0780", "07802" -> "0780 2", "07802301677" -> "0780 230 1677".
+ * Only a pure run of up to 11 digits beginning with 0 is grouped; anything else
+ * (+964…, 964…, letters, overlong) is shown exactly as typed so nothing the user
+ * entered is hidden or rewritten. Pair with unformatPhoneInput.
+ */
+export function formatPhoneInput(raw: string | undefined | null): string {
+    if (!raw) return '';
+    if (!/^[0٠۰][0-9٠-٩۰-۹]{0,10}$/.test(raw)) return raw;
+    if (raw.length <= 4) return raw;
+    if (raw.length <= 7) return `${raw.slice(0, 4)} ${raw.slice(4)}`;
+    return `${raw.slice(0, 4)} ${raw.slice(4, 7)} ${raw.slice(7)}`;
+}
+
+/**
+ * Inverse of formatPhoneInput: strips the whitespace the mask (or a paste) put in,
+ * leaving the value that is stored in form state and normalized on submit as before.
+ */
+export function unformatPhoneInput(display: string): string {
+    return display.replace(/\s/g, '');
+}
+
 /**
  * Normalize phone input to standard Iraqi format (07XXXXXXXXX)
  * Accepts:
