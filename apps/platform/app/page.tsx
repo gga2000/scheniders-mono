@@ -6,17 +6,19 @@ import { useRouter } from "next/navigation";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrdersContext } from "@/components/providers/orders-provider";
-import { useStats } from "@/hooks/use-stats";
-import { Plus, Search, Bell } from "lucide-react";
-import { useProductsCrud } from "@/hooks/use-products-crud";
-import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
-import { filterOrdersByDateRange, DateRangeKey } from "@/lib/analytics/dashboard-calculations";
+import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
+import { Plus, Download } from "lucide-react";
+import { baghdadHour, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
+import { workQueueFromStatusCounts } from "@/lib/analytics/dashboard-work-queue";
+import { useGeoFacts } from "@/hooks/use-dashboard-order-facts";
+import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { RevealToggle } from "@/components/ui/reveal-toggle";
 import { useViewport } from "@/hooks/use-viewport";
 import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
+import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
@@ -24,7 +26,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { perfTrace } from "@/lib/perf-trace";
 import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
-import { diag } from "@/lib/diag";
+import { DASHBOARD_EVENTS, useTrackEvent } from "@/lib/analytics/track-event";
+import { buildDashboardCsv } from "@/lib/analytics/dashboard-export";
 
 // Dynamic imports — all chart + operational widgets
 const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
@@ -43,15 +46,14 @@ const StaffLeaderboard = dynamic(() => import("@/components/dashboard/widgets/st
 const TeamAnnouncements = dynamic(() => import("@/components/dashboard/widgets/team-announcements").then(mod => ({ default: mod.TeamAnnouncements })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 
 export default function Home() {
-  const { orders, error, createOrder } = useOrdersContext();
-  const { products } = useProductsCrud();
-  const stats = useStats(orders);
-  // Server-computed metrics (fast, ~KB) gate first paint instead of the full
-  // 12k-row orders fetch. The client computation is kept as a fallback (if the
-  // RPC errors) and as a dev-only parallel-run drift check.
-  const clientMetrics = useDashboardMetrics(orders, products || []);
-  const { data: serverMetrics } = useDashboardMetricsQuery('all');
-  const dashboardMetrics = serverMetrics ?? clientMetrics;
+  const { createOrder } = useOrdersContext();
+  // ORD-2: every number on this page comes from the server. The orders list is a
+  // window of the book (and loads on its own schedule), so nothing here reads it:
+  // first paint waits for get_dashboard_metrics alone, behind a skeleton, and a
+  // failed load says so instead of falling back to window-sized numbers that
+  // jump when the RPC lands.
+  const metricsQuery = useDashboardMetricsQuery('all');
+  const dashboardMetrics = metricsQuery.data;
   const { t } = useLanguage();
   const { profile, role } = useAuth();
   const { isMobile } = useViewport();
@@ -63,7 +65,8 @@ export default function Home() {
   const { revealed: showFinancials, canReveal } = useFinancialVisibility();
   const isAdmin = role === 'admin';
 
-  const { announcements, loading: announcementsLoading, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
+  const { announcements, loading: announcementsLoading, error: announcementsError, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
+  const track = useTrackEvent();
 
   const [dateRange, setDateRange] = useState<DateRangeKey>('7d');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -79,37 +82,37 @@ export default function Home() {
   useEffect(() => {
     if (isMounted && dashboardMetrics) {
       perfTrace.mark('dashboard:first-paint');
+      track(DASHBOARD_EVENTS.opened, { is_mobile: isMobile });
     }
-  }, [isMounted, dashboardMetrics]);
+  }, [isMounted, dashboardMetrics]);   // eslint-disable-line react-hooks/exhaustive-deps -- first paint only
 
-  const rangeOrders = useMemo(
-    () => filterOrdersByDateRange(orders, dateRange),
-    [orders, dateRange]
-  );
-  const { data: serverRangeMetrics } = useDashboardMetricsQuery(dateRange);
-  const clientRangeMetrics = useDashboardMetrics(rangeOrders, products || []);
-  const rangeMetrics = serverRangeMetrics ?? clientRangeMetrics;
-
-  // Dev-only parallel-run drift check: once the client has computed metrics from
-  // the loaded orders array, compare key server vs client numbers. Lets us prove
-  // the SQL function matches before fully retiring the client path.
+  // OBS-D1: a metrics failure a merchant sees is recorded, once per failure.
+  const metricsFailedAt = metricsQuery.errorUpdatedAt;
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'development' || !serverMetrics || !clientMetrics) return;
-    const cmp: Array<[string, number, number]> = [
-      ['pipeline.new', serverMetrics.pipeline.find(p => p.status === 'new')?.count ?? -1, clientMetrics.pipeline.find(p => p.status === 'new')?.count ?? -1],
-      ['todayStrip.ordersToday', serverMetrics.todayStrip.ordersToday, clientMetrics.todayStrip.ordersToday],
-      ['funnel.total', serverMetrics.funnel[0]?.value ?? -1, clientMetrics.funnel[0]?.value ?? -1],
-      ['deliveryRate.current', serverMetrics.deliveryRate.currentRate, clientMetrics.deliveryRate.currentRate],
-      ['monthForecast.ordersThisMonth', serverMetrics.monthForecast.ordersThisMonth, clientMetrics.monthForecast.ordersThisMonth],
-    ];
-    const drift = cmp.filter(([, s, c]) => s !== c);
-    if (drift.length === 0) diag.log('[Diag:MetricsDrift] OK — server matches client on sampled metrics');
-    else drift.forEach(([k, s, c]) => diag.warn(`[Diag:MetricsDrift] DRIFT ${k}: server=${s} client=${c}`));
-  }, [serverMetrics, clientMetrics]);
+    if (metricsFailedAt) track(DASHBOARD_EVENTS.metricsFailed, { is_mobile: isMobile });
+  }, [metricsFailedAt]);   // eslint-disable-line react-hooks/exhaustive-deps -- once per failure
 
-  const ENABLE_MOBILE = true;
+  // DV-D1: the header's Today/7d/30d control re-scopes every widget whose question
+  // is range-dependent. Widgets with an inherent window — today's strip, the
+  // hourly bars, the 7-day delivery rate, week-over-week, the month forecast, the
+  // live feed — read the unranged query, and the work-queue counters stay
+  // current-state by design. Until the ranged figures arrive, ranged widgets show
+  // a placeholder: the previous range's numbers under the new label would be false.
+  const rangeQuery = useDashboardMetricsQuery(dateRange);
+  const rangeScoped = rangeQuery.data;
+  const geoFacts = useGeoFacts(dateRange);
 
-  if (!isMounted || !dashboardMetrics) {
+  const aggregatesQuery = useOrdersAggregates({});
+  const workQueue = useMemo(
+    () => aggregatesQuery.data ? workQueueFromStatusCounts(aggregatesQuery.data.status_counts) : undefined,
+    [aggregatesQuery.data],
+  );
+
+  if (isMounted && isMobile) {
+    return <MobileDashboardPage />;
+  }
+
+  if (!isMounted || (!dashboardMetrics && !metricsQuery.isError)) {
     return (
       <div className="min-h-screen bg-[var(--background)]">
         <PageSkeleton />
@@ -117,34 +120,70 @@ export default function Home() {
     );
   }
 
-  if (isMobile && ENABLE_MOBILE) {
-    return <MobileDashboardPage />;
-  }
-
-  if (error) {
+  if (!dashboardMetrics) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-        <div className="pastel-card pastel-card-pink p-8 max-w-md text-center">
-          <h2 className="text-xl font-bold text-rose-900 mb-2">{t("dashboard.errorTitle")}</h2>
-          <p className="text-rose-700">{error}</p>
+        <div className="pastel-card pastel-card-pink p-8 max-w-md text-center space-y-3" role="alert">
+          <h2 className="text-xl font-bold text-rose-900">{t("dashboard.errorTitle")}</h2>
+          <p className="text-rose-700">{t("dashboard.loadError.detail")}</p>
+          <button
+            type="button"
+            onClick={() => void metricsQuery.refetch()}
+            disabled={metricsQuery.isFetching}
+            className="px-5 py-2 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] font-semibold text-foreground disabled:opacity-60"
+          >
+            {t("dashboard.retry")}
+          </button>
         </div>
       </div>
     );
   }
 
+  // The greeting follows Baghdad's clock, like every other boundary on the page.
   const getGreeting = () => {
-    const hour = new Date().getHours();
+    const hour = baghdadHour(new Date());
     if (hour < 12) return t("dashboard.greeting.morning");
     if (hour < 18) return t("dashboard.greeting.afternoon");
     return t("dashboard.greeting.evening");
   };
 
+  const rangePlaceholder = rangeQuery.isError
+    ? <WidgetLoadError onRetry={() => void rangeQuery.refetch()} />
+    : <WidgetPending />;
+
   const handleStatCardClick = (status: 'new' | 'confirmed' | 'rejected') => {
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'stats-grid', status });
     router.push(`/orders?status=${status}`);
   };
 
   const handlePipelineStageClick = (status: string) => {
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'order-pipeline', status });
     router.push(`/orders?status=${status}`);
+  };
+
+  // DV-D2: every widget that shows a problem should be able to show the orders
+  // behind it. The orders page reads these params on mount.
+  // COM-D1: a merchant could read these numbers but never get them out.
+  const handleExport = () => {
+    if (!rangeScoped) return;
+    const csv = buildDashboardCsv(rangeScoped, { range: dateRange, includeFinancials: canReveal });
+    // \ufeff = BOM, so Excel opens the Arabic city and product names as UTF-8
+    // instead of mojibake.
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dashboard-${dateRange}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'export', filters: dateRange });
+  };
+
+  const goToOrders = (params: Record<string, string>, sourceWidget: string) => {
+    // Record WHICH widget drove the click, not the customer or city itself — a city
+    // name is business data, and events stay free of record content (OBS-D1).
+    track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: sourceWidget, filters: Object.keys(params).join('+') });
+    router.push(`/orders?${new URLSearchParams(params).toString()}`);
   };
 
   return (
@@ -164,26 +203,35 @@ export default function Home() {
 
           <div className="flex items-center gap-3 flex-wrap">
             {canReveal && (
-              <div className="inline-flex items-center gap-1.5 px-3 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm" title={showFinancials ? "Hide financial data" : "Show financial data"}>
+              <div className="inline-flex items-center gap-1.5 px-3 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm" title={showFinancials ? t("dashboard.financials.hideTitle") : t("dashboard.financials.showTitle")}>
                 <RevealToggle size={18} />
                 <span className="text-xs font-semibold text-muted-foreground select-none">
-                  {showFinancials ? "Hide" : "Show"}
+                  {showFinancials ? t("dashboard.financials.hide") : t("dashboard.financials.show")}
                 </span>
               </div>
             )}
-            <DateRangeFilter value={dateRange} onChange={setDateRange} />
+            <DateRangeFilter
+              value={dateRange}
+              onChange={(next) => {
+                track(DASHBOARD_EVENTS.rangeChanged, { from: dateRange, to: next });
+                setDateRange(next);
+              }}
+            />
 
-            <button className="w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
-              <Search className="w-5 h-5" />
-            </button>
+            {/* DV-D2: the Search and Bell buttons that used to sit here had no
+                onClick at all — dead controls in the page's prime real estate,
+                duplicating the working GlobalSearch and NotificationsDropdown in
+                the app shell's top bar. Removed rather than wired, so there is one
+                search and one bell in the product, not two. */}
 
-            <button className="relative w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm">
-              <Bell className="w-5 h-5" />
-              {stats.newOrders > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--pastel-pink)] text-[10px] font-bold text-rose-900 flex items-center justify-center">
-                  {stats.newOrders > 99 ? '99+' : stats.newOrders}
-                </span>
-              )}
+            <button
+              onClick={handleExport}
+              disabled={!rangeScoped}
+              title={t("dashboard.export.title")}
+              aria-label={t("dashboard.export.title")}
+              className="w-12 h-12 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-foreground hover:bg-[var(--background)] transition-all shadow-sm disabled:opacity-50"
+            >
+              <Download className="w-5 h-5" />
             </button>
 
             <button
@@ -197,61 +245,89 @@ export default function Home() {
         </div>
 
         {/* Today at a Glance */}
-        <TodayStrip metrics={dashboardMetrics.todayStrip} />
+        <WidgetBoundary label="today-strip"><TodayStrip metrics={dashboardMetrics.todayStrip} /></WidgetBoundary>
 
         {/* Stats Grid */}
-        <StatsGrid stats={stats} onCardClick={handleStatCardClick} />
+        <WidgetBoundary label="stats-grid">
+          {workQueue ? (
+            <StatsGrid stats={workQueue} onCardClick={handleStatCardClick} />
+          ) : aggregatesQuery.isError ? (
+            <WidgetLoadError onRetry={() => void aggregatesQuery.refetch()} className="min-h-[140px]" />
+          ) : (
+            <WidgetPending className="min-h-[140px]" />
+          )}
+        </WidgetBoundary>
 
         {/* Order Pipeline */}
-        <OrderPipeline
-          stages={rangeMetrics?.pipeline ?? dashboardMetrics.pipeline}
-          onStageClick={handlePipelineStageClick}
-        />
+        <WidgetBoundary label="order-pipeline">
+          {rangeScoped ? (
+            <OrderPipeline stages={rangeScoped.pipeline} onStageClick={handlePipelineStageClick} />
+          ) : rangePlaceholder}
+        </WidgetBoundary>
 
         {/* Charts Row: Trend (7col) | Delivery Rate + Hourly (5col) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-7 min-h-[320px]">
-            <RevenueTrendChart orders={orders} showRevenue={showFinancials} />
+            <WidgetBoundary label="revenue-trend"><RevenueTrendChart showRevenue={showFinancials} /></WidgetBoundary>
           </div>
           <div className="xl:col-span-5 flex flex-col gap-6">
-            <DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} />
-            <OrdersPerHour data={dashboardMetrics.ordersPerHour} />
+            <WidgetBoundary label="delivery-rate"><DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} /></WidgetBoundary>
+            <WidgetBoundary label="orders-per-hour"><OrdersPerHour data={dashboardMetrics.ordersPerHour} /></WidgetBoundary>
           </div>
         </div>
 
         {/* Heatmap Row: Peak Hours (8col) | Avg Time Per Stage (4col) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 min-h-[280px]">
-            <PeakHoursHeatmap data={dashboardMetrics.peakHeatmap} />
+            <WidgetBoundary label="peak-heatmap">{rangeScoped ? <PeakHoursHeatmap data={rangeScoped.peakHeatmap} /> : rangePlaceholder}</WidgetBoundary>
           </div>
           <div className="xl:col-span-4 min-h-[280px]">
-            <AvgTimePerStage metrics={dashboardMetrics.avgTimePerStage} />
+            <WidgetBoundary label="avg-time-per-stage">{rangeScoped ? <AvgTimePerStage metrics={rangeScoped.avgTimePerStage} /> : rangePlaceholder}</WidgetBoundary>
           </div>
         </div>
 
         {/* Intelligence Row: WoW | Forecast | Rejection */}
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-12 gap-6">
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <WeekOverWeek metrics={dashboardMetrics.weekOverWeek} />
+            <WidgetBoundary label="week-over-week"><WeekOverWeek metrics={dashboardMetrics.weekOverWeek} /></WidgetBoundary>
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <MonthForecast forecast={dashboardMetrics.monthForecast} />
+            <WidgetBoundary label="month-forecast"><MonthForecast forecast={dashboardMetrics.monthForecast} /></WidgetBoundary>
           </div>
           <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <RejectionBreakdown cityRejectionStats={dashboardMetrics.urgency.cityRejectionStats} />
+            <WidgetBoundary label="rejection-breakdown">{rangeScoped ? (
+              <RejectionBreakdown
+                cityRejectionStats={rangeScoped.urgency.cityRejectionStats}
+                onCityClick={(city) => goToOrders({ status: 'rejected', city }, 'rejection-breakdown')}
+              />
+            ) : rangePlaceholder}</WidgetBoundary>
           </div>
         </div>
 
         {/* Map | Top Cities + Top Products (two tall columns to the right of the map) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-6 h-[400px] xl:h-[460px]">
-            <IraqMap orders={orders} />
+            <WidgetBoundary label="iraq-map">{geoFacts.data ? (
+              <IraqMap orders={geoFacts.data} />
+            ) : geoFacts.isError ? (
+              <WidgetLoadError onRetry={() => void geoFacts.refetch()} />
+            ) : (
+              <WidgetPending />
+            )}</WidgetBoundary>
           </div>
           <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 xl:h-[460px]">
-            <Leaderboard cities={dashboardMetrics.enhancedLeaderboard.topCities} />
-            <ProductLeaderboard
-              products={dashboardMetrics.enhancedLeaderboard.topProductsEnhanced}
-            />
+            <WidgetBoundary label="city-leaderboard">{rangeScoped ? (
+              <Leaderboard
+                cities={rangeScoped.enhancedLeaderboard.topCities}
+                onCityClick={(city) => goToOrders({ city }, 'city-leaderboard')}
+              />
+            ) : rangePlaceholder}</WidgetBoundary>
+            <WidgetBoundary label="product-leaderboard">{rangeScoped ? (
+              <ProductLeaderboard
+                products={rangeScoped.enhancedLeaderboard.topProductsEnhanced}
+                onProductClick={(product) => goToOrders({ product }, 'product-leaderboard')}
+              />
+            ) : rangePlaceholder}</WidgetBoundary>
           </div>
         </div>
 
@@ -259,15 +335,18 @@ export default function Home() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           {/* Recent Orders Feed */}
           <div className={`xl:col-span-5 h-[440px]`}>
-            <RecentOrdersFeed
+            <WidgetBoundary label="recent-orders-feed">
+              <RecentOrdersFeed
               orders={dashboardMetrics.recentOrders}
+              updatedAt={metricsQuery.dataUpdatedAt}
             />
+            </WidgetBoundary>
           </div>
 
           {/* Staff Leaderboard — admin only */}
           {isAdmin ? (
             <div className="xl:col-span-4 h-[440px]">
-              <StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} />
+              <WidgetBoundary label="staff-leaderboard"><StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} /></WidgetBoundary>
             </div>
           ) : (
             /* Non-admins: announcements takes more space */
@@ -276,14 +355,17 @@ export default function Home() {
 
           {/* Team Announcements */}
           <div className={`${isAdmin ? 'xl:col-span-3' : 'xl:col-span-7'} h-[440px]`}>
-            <TeamAnnouncements
+            <WidgetBoundary label="team-announcements">
+              <TeamAnnouncements
               announcements={announcements}
               isAdmin={isAdmin}
               loading={announcementsLoading}
+              error={announcementsError}
               onCreate={createAnnouncement}
               onTogglePin={togglePin}
               onDelete={deleteAnnouncement}
             />
+            </WidgetBoundary>
           </div>
         </div>
 

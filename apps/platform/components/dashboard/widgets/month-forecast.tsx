@@ -53,7 +53,15 @@ export function MonthForecast({ forecast }: MonthForecastProps) {
                 </div>
 
                 <div>
-                    <p className="text-[10px] font-bold text-purple-900/50 uppercase tracking-wider mb-0.5">{t("dashboard.forecast.projectedRevenue")}</p>
+                    <p
+                        className="text-[10px] font-bold text-purple-900/50 uppercase tracking-wider mb-0.5"
+                        title={t("dashboard.revenue.definition")}
+                    >
+                        {t("dashboard.forecast.projectedRevenue")}
+                        <span className="ml-1 normal-case font-normal text-purple-900/40">
+                            {t("dashboard.revenue.short")}
+                        </span>
+                    </p>
                     <div className="flex items-baseline gap-2 flex-wrap">
                         <FinancialValue amount={projectedRevenue} className="text-2xl font-bold text-purple-950" iconSize={15} />
                         <span className="text-xs text-purple-900/40 inline-flex items-center gap-1">

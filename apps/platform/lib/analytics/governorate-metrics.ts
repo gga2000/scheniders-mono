@@ -1,4 +1,4 @@
-import { Order, OrderStatus } from "@/types/order";
+import { OrderStatus } from "@/types/order";
 import { GOVERNORATES, Governorate } from "@/lib/address-validator";
 
 export interface GovernorateStats {
@@ -52,7 +52,19 @@ export interface GovernorateMetricsResult {
   unknownCount: number;
 }
 
-export function calculateGovernorateMetrics(orders: Order[]): GovernorateMetricsResult {
+/**
+ * The fields the map reads. Full `Order` rows satisfy it, and so do the dashboard's
+ * server-read geo facts, which carry only these columns. `price` is absent for
+ * viewers not entitled to money, so their revenue stays 0 and is never shown.
+ */
+export interface GovernorateOrder {
+  status: string;
+  price?: number | null;
+  governorate_code?: string | null;
+  validated_governorate_code?: string | null;
+}
+
+export function calculateGovernorateMetrics(orders: GovernorateOrder[]): GovernorateMetricsResult {
   // Initialize all governorates with zero counts
   const statsMap = new Map<string, GovernorateStats>();
   for (const gov of GOVERNORATES) {
@@ -75,7 +87,7 @@ export function calculateGovernorateMetrics(orders: Order[]): GovernorateMetrics
       (stats as unknown as Record<string, number>)[status]++;
     }
     if (status === "delivered" || status === "completed") {
-      stats.revenue += order.price || 0;
+      stats.revenue += Number(order.price ?? 0);
     }
   }
 

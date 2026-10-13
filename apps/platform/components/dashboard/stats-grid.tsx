@@ -1,6 +1,6 @@
 "use client";
 
-import { formatIQD } from "@/lib/utils";
+import type { WorkQueueCounts } from "@/lib/analytics/dashboard-work-queue";
 import {
     Clock,
     Package,
@@ -10,17 +10,8 @@ import {
 import { useLanguage } from "@/hooks/use-language";
 
 interface StatsGridProps {
-    stats: {
-        totalOrders: number;
-        totalRevenue: number;
-        confirmedRevenue: number;
-        todayOrders: number;
-        newOrders: number;
-        contactedOrders: number;
-        confirmedOrders: number;
-        rejectedOrders: number;
-        deliveredOrders: number;
-    };
+    /** Server counts across the whole book (get_orders_aggregates), not the loaded window. */
+    stats: WorkQueueCounts;
     onCardClick?: (status: 'new' | 'confirmed' | 'rejected') => void;
 }
 

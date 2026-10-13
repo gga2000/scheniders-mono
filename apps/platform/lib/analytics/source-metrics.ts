@@ -2,13 +2,21 @@ import { Order } from "@/lib/supabase";
 import { DateRange } from "@/hooks/use-reports-metrics";
 
 /**
- * Employee Performance Metrics
- * Calculates metrics per employee based on activity logs and order data
+ * Source performance metrics, plus period comparison.
+ *
+ * ARCH-D4. This never measured employees, despite the name it carried: it groups
+ * orders by `order.source` ("whatsapp", "meta", "manual"). The widget that
+ * renders it is titled "Source Performance" and shows only `displayName`, so
+ * nothing false reaches the user — but the employee-shaped naming and a
+ * fabricated `email` field made it read like real staff data to anyone editing
+ * here. Renamed to what it measures. Real per-staff numbers come from
+ * `useEmployeeMetrics`, which reads activity events.
  */
 
-export interface EmployeePerformanceMetrics {
-    userId: string;
-    email: string;
+export interface SourcePerformanceMetrics {
+    /** The `order.source` value this row aggregates, e.g. "whatsapp". */
+    sourceKey: string;
+    /** Human label for the source. */
     displayName: string;
     ordersProcessed: number;
     ordersDelivered: number;
@@ -50,25 +58,19 @@ export interface PeriodComparisonMetrics {
  * Note: This is a simplified version that uses order data directly
  * For more accurate tracking, we'd need to integrate with activity_logs
  */
-export function calculateEmployeePerformance(
+export function calculateSourcePerformance(
     orders: Order[],
     dateRange: DateRange
-): EmployeePerformanceMetrics[] {
+): SourcePerformanceMetrics[] {
     // Filter orders by date range
     const filteredOrders = orders.filter(o => {
         const created = new Date(o.created_at);
         return created >= dateRange.from && created <= dateRange.to;
     });
 
-    // Group orders by source/processing user
-    // Since orders don't have assigned_to field, we'll use source as proxy
-    // In a real implementation, this would come from activity_logs
-
-    // For now, let's aggregate by city as a demo (or we could use source)
-    // This is a placeholder - in production, you'd use activity_logs user_id
-
-    // Create mock employee data based on order patterns
-    const employeeMap = new Map<string, {
+    // Aggregate by acquisition source. Per-staff attribution lives in
+    // useEmployeeMetrics, which reads activity events.
+    const sourceMap = new Map<string, {
         ordersProcessed: number;
         ordersDelivered: number;
         ordersConfirmed: number;
@@ -76,12 +78,11 @@ export function calculateEmployeePerformance(
         totalValue: number;
     }>();
 
-    // Group by order source as a proxy for employee
     filteredOrders.forEach(order => {
         const key = order.source || 'manual';
 
-        if (!employeeMap.has(key)) {
-            employeeMap.set(key, {
+        if (!sourceMap.has(key)) {
+            sourceMap.set(key, {
                 ordersProcessed: 0,
                 ordersDelivered: 0,
                 ordersConfirmed: 0,
@@ -90,7 +91,7 @@ export function calculateEmployeePerformance(
             });
         }
 
-        const stats = employeeMap.get(key)!;
+        const stats = sourceMap.get(key)!;
         stats.ordersProcessed++;
         stats.totalValue += order.price || 0;
 
@@ -124,16 +125,15 @@ export function calculateEmployeePerformance(
         'other': 'Other',
     };
 
-    const employees: EmployeePerformanceMetrics[] = [];
+    const sources: SourcePerformanceMetrics[] = [];
 
-    employeeMap.forEach((stats, key) => {
+    sourceMap.forEach((stats, key) => {
         const avgTime = stats.processingTimes.length > 0
             ? stats.processingTimes.reduce((a, b) => a + b, 0) / stats.processingTimes.length
             : 0;
 
-        employees.push({
-            userId: key,
-            email: `${key}@source`,
+        sources.push({
+            sourceKey: key,
             displayName: sourceNames[key] || key,
             ordersProcessed: stats.ordersProcessed,
             ordersDelivered: stats.ordersDelivered,
@@ -151,10 +151,10 @@ export function calculateEmployeePerformance(
     });
 
     // Sort by orders processed and assign ranks
-    employees.sort((a, b) => b.ordersProcessed - a.ordersProcessed);
-    employees.forEach((emp, i) => emp.rank = i + 1);
+    sources.sort((a, b) => b.ordersProcessed - a.ordersProcessed);
+    sources.forEach((src, i) => src.rank = i + 1);
 
-    return employees;
+    return sources;
 }
 
 /**

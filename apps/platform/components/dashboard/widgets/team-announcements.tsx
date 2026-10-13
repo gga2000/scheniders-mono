@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Announcement } from "@/hooks/use-announcements";
-import { Pin, PinOff, Trash2, Plus, Megaphone, X, Send } from "lucide-react";
+import { Pin, PinOff, Trash2, Plus, Megaphone, X, Send, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 function useTimeAgoAnnouncements() {
@@ -20,7 +20,10 @@ interface TeamAnnouncementsProps {
     announcements: Announcement[];
     isAdmin: boolean;
     loading: boolean;
-    onCreate: (content: string) => Promise<void>;
+    /** Read failed. Rendered instead of the empty state — a failure is not "no announcements". */
+    error?: string | null;
+    /** Resolves false when the post failed — the draft is kept so nothing is lost. */
+    onCreate: (content: string) => Promise<boolean | void>;
     onTogglePin: (id: string, currentlyPinned: boolean) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
 }
@@ -29,6 +32,7 @@ export function TeamAnnouncements({
     announcements,
     isAdmin,
     loading,
+    error,
     onCreate,
     onTogglePin,
     onDelete,
@@ -44,10 +48,13 @@ export function TeamAnnouncements({
     const handleSubmit = async () => {
         if (!draft.trim() || submitting) return;
         setSubmitting(true);
-        await onCreate(draft);
+        const posted = await onCreate(draft);
+        setSubmitting(false);
+        // Keep the draft (and the composer open) when the write failed, so a
+        // failed post never silently destroys what the admin typed.
+        if (posted === false) return;
         setDraft('');
         setIsComposing(false);
-        setSubmitting(false);
     };
 
     const handleDelete = async (id: string) => {
@@ -125,7 +132,14 @@ export function TeamAnnouncements({
                     </div>
                 )}
 
-                {!loading && announcements.length === 0 && (
+                {!loading && error && (
+                    <div className="flex flex-col items-center justify-center h-24 gap-2 text-rose-700/70">
+                        <AlertTriangle className="w-6 h-6" />
+                        <p className="text-xs font-semibold">{t("dashboard.announcements.loadFailed")}</p>
+                    </div>
+                )}
+
+                {!loading && !error && announcements.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-24 gap-2 text-green-900/30">
                         <Megaphone className="w-6 h-6" />
                         <p className="text-xs">{t("dashboard.announcements.noAnnouncements")}</p>

@@ -1,6 +1,7 @@
 "use client";
 
-import { Order } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import type { RecentOrderDisplayRow } from "@/lib/analytics/dashboard-metrics-schema";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { Activity } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
@@ -32,14 +33,32 @@ function useTimeAgo() {
 }
 
 interface RecentOrdersFeedProps {
-    orders: Order[];
-    onOrderClick?: (order: Order) => void;
+    /**
+     * ARCH-D3: the seven fields the feed renders, which is all the RPC sends.
+     * Full `Order` objects from the client fallback engine satisfy this too.
+     */
+    orders: RecentOrderDisplayRow[];
+    /**
+     * When the metrics behind this feed were last fetched (TanStack `dataUpdatedAt`).
+     * The header used to show an unconditional pulsing "Live" on data that refreshes
+     * at most every couple of minutes (ENG-D2) — undated numbers on a dashboard are
+     * an honesty failure, so show the real age instead.
+     */
+    updatedAt?: number;
+    onOrderClick?: (order: RecentOrderDisplayRow) => void;
 }
 
-export function RecentOrdersFeed({ orders, onOrderClick }: RecentOrdersFeedProps) {
+export function RecentOrdersFeed({ orders, updatedAt, onOrderClick }: RecentOrdersFeedProps) {
     const { t } = useLanguage();
     const STATUS_STYLES = useStatusStyles();
     const timeAgo = useTimeAgo();
+    // Re-render on a timer so the stamp ages visibly rather than freezing.
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => setTick(n => n + 1), 15_000);
+        return () => clearInterval(id);
+    }, []);
+    const freshness = updatedAt ? timeAgo(new Date(updatedAt).toISOString()) : null;
 
     return (
         <div className="pastel-card p-5 md:p-6 h-full flex flex-col">
@@ -51,18 +70,23 @@ export function RecentOrdersFeed({ orders, onOrderClick }: RecentOrdersFeedProps
                     <h3 className="text-sm font-bold text-foreground">{t("dashboard.recent.title")}</h3>
                     <p className="text-xs text-muted">{t("dashboard.recent.lastOrders").replace('{count}', String(orders.length))}</p>
                 </div>
-                <div className="ml-auto flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-[10px] text-muted">{t("dashboard.recent.live")}</span>
+                <div className="ml-auto flex items-center gap-1.5" title={updatedAt ? new Date(updatedAt).toLocaleString() : undefined}>
+                    <span className="w-2 h-2 rounded-full bg-green-400" />
+                    <span className="text-[10px] text-muted">
+                        {freshness
+                            ? `${t("dashboard.recent.updated")} ${freshness}`
+                            : t("dashboard.recent.live")}
+                    </span>
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-1 -mx-1 px-1">
                 {orders.map((order) => {
                     const style = STATUS_STYLES[order.status] ?? { label: order.status, bg: 'bg-gray-100', text: 'text-gray-600' };
-                    const firstItem = order.items?.[0];
+                    const items = order.items ?? [];
+                    const firstItem = items[0];
                     const productName = firstItem
-                        ? firstItem.name + (order.items.length > 1 ? ` +${order.items.length - 1}` : '')
+                        ? firstItem.name + (items.length > 1 ? ` +${items.length - 1}` : '')
                         : '—';
 
                     return (

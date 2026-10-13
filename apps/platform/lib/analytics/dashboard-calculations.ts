@@ -1,4 +1,84 @@
-import { Order, Product } from "@/lib/supabase";
+/**
+ * Types and calendar helpers for the dashboard.
+ *
+ * Every number on the dashboard comes from `get_dashboard_metrics` (parsed by
+ * dashboard-metrics-schema.ts). The client engine that used to recompute them from
+ * the loaded orders was removed (ORD-2): once the orders list became a window, that
+ * engine reported window-sized numbers that jumped when the RPC landed. What is left
+ * here is the widget-facing types, the Baghdad calendar, and the one series the RPC
+ * does not return — the daily trend — computed from a bounded server query.
+ */
+
+// =============================================
+// Baghdad calendar boundaries (TMP-D1)
+// =============================================
+/**
+ * Iraq is UTC+3 all year and does not observe DST, so a fixed offset is both
+ * correct and cheaper than an Intl round-trip.
+ *
+ * The server function computes every boundary in `Asia/Baghdad`. Client code that
+ * derives a boundary from the BROWSER clock disagrees with it for any viewer whose
+ * device is not on Baghdad time, so every client-side boundary goes through these.
+ */
+const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** The instant at which the current Baghdad day began. */
+export function baghdadDayStart(now: Date = new Date()): Date {
+    const shifted = new Date(now.getTime() + BAGHDAD_OFFSET_MS);
+    return new Date(Date.UTC(
+        shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(),
+    ) - BAGHDAD_OFFSET_MS);
+}
+
+/** The instant at which the current Baghdad month began. */
+export function baghdadMonthStart(now: Date = new Date()): Date {
+    const shifted = new Date(now.getTime() + BAGHDAD_OFFSET_MS);
+    return new Date(Date.UTC(
+        shifted.getUTCFullYear(), shifted.getUTCMonth(), 1,
+    ) - BAGHDAD_OFFSET_MS);
+}
+
+/** Hour of day (0-23) in Baghdad for an instant. */
+export function baghdadHour(d: Date): number {
+    return new Date(d.getTime() + BAGHDAD_OFFSET_MS).getUTCHours();
+}
+
+/** Day of week (0 = Sunday) in Baghdad for an instant. */
+export function baghdadDayOfWeek(d: Date): number {
+    return new Date(d.getTime() + BAGHDAD_OFFSET_MS).getUTCDay();
+}
+
+/** Day of the month in Baghdad — used for "days elapsed" in the forecast. */
+export function baghdadDayOfMonth(d: Date): number {
+    return new Date(d.getTime() + BAGHDAD_OFFSET_MS).getUTCDate();
+}
+
+// =============================================
+// Timestamp parsing (COR-D3, corrected)
+// =============================================
+/**
+ * CORRECTION. COR-D3 asserted that `orders.delivered_at` is
+ * `timestamp WITHOUT time zone` holding a UTC instant. **That was wrong.**
+ * Verified against the live catalog and the serialised payload: the column is
+ * `timestamp WITH time zone`, like every sibling, and PostgREST sends it with an
+ * offset ("2026-03-16T12:25:12.848+00:00"). So this helper has always taken its
+ * `hasZone` branch and has always been a no-op on real data — the client engine
+ * was never wrong.
+ *
+ * The SQL half of that same fix was not harmless: it wrapped the column in
+ * `AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Baghdad'`, which on a timestamptz
+ * shifted every delivery by a flat -6h, understating today's revenue by 59% and
+ * discarding 383 sub-6h deliveries as "impossible". Fixed in migration
+ * 20260909074726.
+ *
+ * The helper is kept because it is genuinely defensive: a zone-less value would
+ * otherwise be read as BROWSER-LOCAL, which in Baghdad (UTC+3) silently shifts
+ * the instant. It is not evidence that any column is zone-less.
+ */
+export function parseUtcNaiveTimestamp(value: string): Date {
+    const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim());
+    return new Date(hasZone ? value : `${value.trim().replace(' ', 'T')}Z`);
+}
 
 // =============================================
 // Urgency Metrics
@@ -11,63 +91,6 @@ export interface UrgencyMetrics {
     cityRejectionStats: Record<string, { total: number; rejected: number; rate: number }>;
 }
 
-export function calculateUrgencyMetrics(orders: Order[]): UrgencyMetrics {
-    const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-
-    // 1. Unconfirmed High Value (> 100,000 IQD) created > 24h ago
-    const unconfirmedHighValue = orders.filter(o =>
-        o.status === 'new' &&
-        o.price > 100000 &&
-        new Date(o.created_at) < twentyFourHoursAgo
-    ).length;
-
-    // 2. Failed Deliveries (Last 7 days rejected)
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const failedDeliveries = orders.filter(o =>
-        o.status === 'rejected' &&
-        new Date(o.updated_at || o.created_at) > sevenDaysAgo
-    ).length;
-
-    // 3. Stuck In Transit (> 3 days)
-    const stuckInTransit = orders.filter(o =>
-        o.status === 'in_transit' &&
-        new Date(o.updated_at || o.created_at) < threeDaysAgo
-    ).length;
-
-    // 4. High Return Rate Cities (Min 5 orders)
-    const cityStats: Record<string, { total: number; rejected: number }> = {};
-    orders.forEach(o => {
-        if (!o.city) return;
-        if (!cityStats[o.city]) cityStats[o.city] = { total: 0, rejected: 0 };
-        cityStats[o.city].total++;
-        if (o.status === 'rejected') cityStats[o.city].rejected++;
-    });
-
-    const highReturnCities = Object.entries(cityStats)
-        .filter(([_, stats]) => stats.total >= 5)
-        .map(([city, stats]) => ({
-            city,
-            rate: (stats.rejected / stats.total) * 100
-        }))
-        .filter(item => item.rate > 30) // Only show cities with > 30% rejection
-        .sort((a, b) => b.rate - a.rate)
-        .slice(0, 3);
-
-    // Build full city rejection stats map (exposed for RejectionBreakdown widget)
-    const cityRejectionStats: Record<string, { total: number; rejected: number; rate: number }> = {};
-    Object.entries(cityStats).forEach(([city, stats]) => {
-        cityRejectionStats[city] = {
-            total: stats.total,
-            rejected: stats.rejected,
-            rate: Math.round((stats.rejected / stats.total) * 100),
-        };
-    });
-
-    return { failedDeliveries, unconfirmedHighValue, stuckInTransit, highReturnCities, cityRejectionStats };
-}
-
 // =============================================
 // Funnel Metrics
 // =============================================
@@ -77,48 +100,6 @@ export interface FunnelStep {
     value: number;
     fill: string;
 }
-
-export function calculateFunnelMetrics(orders: Order[]): FunnelStep[] {
-    const newCount = orders.filter(o => o.status === 'new').length;
-    // Contacted includes confirmed, in_transit, etc. (assuming flow)
-    // Actually, let's just count strict status buckets for simplicity or cumulative?
-    // Funnel usually means "Reached at least this stage"
-
-    // Stage 1: All Orders (New)
-    const total = orders.length;
-
-    // Stage 2: Verified (Confirmed + In Transit + Delivered + Completed + Rejected)
-    // Basically anything NOT new, no_response, cancelled
-    const verified = orders.filter(o =>
-        ['confirmed', 'in_transit', 'delivered', 'completed', 'rejected'].includes(o.status)
-    ).length;
-
-    // Stage 3: Shipped (In Transit + Delivered + Completed + Rejected)
-    const shipped = orders.filter(o =>
-        ['in_transit', 'delivered', 'completed', 'rejected'].includes(o.status)
-    ).length;
-
-    // Stage 4: Successful Delivery
-    const delivered = orders.filter(o =>
-        ['delivered', 'completed'].includes(o.status)
-    ).length;
-
-    return [
-        { id: '1', label: 'All Orders', value: total, fill: '#E4C1F9' }, // Purple
-        { id: '2', label: 'Verified', value: verified, fill: '#A6C8FF' }, // Blue
-        { id: '3', label: 'Shipped', value: shipped, fill: '#FBE38E' }, // Yellow
-        { id: '4', label: 'Delivered', value: delivered, fill: '#C0EBA6' }, // Green
-    ];
-}
-
-// Product Velocity Matrix - REMOVED (no longer used)
-// Use productProfitAnalysis from useOrderProfits instead
-
-// Customer Cohort Retention - REMOVED (no longer used)
-// This feature has been removed per user request
-
-// Profit Pulse - MOVED to /lib/analytics/profit-calculations.ts
-// Use calculateProfitPulse from profit-calculations.ts for accurate net profit calculations
 
 // =============================================
 // Leaderboard Metrics
@@ -137,60 +118,71 @@ export interface LeaderboardMetrics {
     topProducts: LeaderboardItem[];
 }
 
-export function calculateLeaderboard(orders: Order[]): LeaderboardMetrics {
-    // 1. Top Cities by Orders (Today) vs Yesterday
-    // For simplicity, let's do All Time or This Month? "State of the Art" usually shows "Today's Leaders" or "This Month"
-    // Let's do This Month for better data density
-
-    const cityStats: Record<string, number> = {};
-    const productStats: Record<string, number> = {};
-
-    orders.forEach(o => {
-        if (o.status === 'cancelled' || o.status === 'rejected') return;
-
-        // City
-        if (o.city) {
-            cityStats[o.city] = (cityStats[o.city] || 0) + 1;
-        }
-
-        // Product
-        o.items.forEach(item => {
-            productStats[item.name] = (productStats[item.name] || 0) + (item.quantity || 1);
-        });
-    });
-
-    const topCities = Object.entries(cityStats)
-        .map(([city, count]) => ({ id: city, label: city, value: count, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    const topProducts = Object.entries(productStats)
-        .map(([name, count]) => ({ id: name, label: name, value: count, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    return { topCities, topProducts };
-}
-
 // =============================================
 // Date Range Filter
 // =============================================
 export type DateRangeKey = 'today' | '7d' | '30d' | 'all';
 
-export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): Order[] {
-    if (range === 'all') return orders;
-    const now = new Date();
-    let cutoff: Date;
-    if (range === 'today') {
-        cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (range === '7d') {
-        cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else {
-        cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The instant a dashboard range starts, exactly as `get_dashboard_metrics` computes
+ * it: `today` is the Baghdad calendar day, `7d`/`30d` are rolling windows ending
+ * now, and `all` has no cutoff (null). Any client query that must agree with the
+ * RPC's ranged numbers windows on this.
+ */
+export function rangeCutoff(range: DateRangeKey, now: Date = new Date()): Date | null {
+    switch (range) {
+        case 'today': return baghdadDayStart(now);
+        case '7d': return new Date(now.getTime() - 7 * DAY_MS);
+        case '30d': return new Date(now.getTime() - 30 * DAY_MS);
+        case 'all': return null;
     }
-    return orders.filter(o => new Date(o.created_at) >= cutoff);
+}
+
+/**
+ * COR-D1 — when an order's money was actually realized.
+ *
+ * Revenue used to count `confirmed` orders bucketed by order date: a promise, not
+ * a collection. In COD Iraq a confirmed order can still be refused at the door, so
+ * the dashboard booked revenue at promise time and quietly un-booked it later.
+ * Realized revenue is delivered/completed orders, dated by when they were realized.
+ *
+ * Both `delivered_at` and `completed_at` are timestamptz and arrive with an
+ * offset; see parseUtcNaiveTimestamp for why its name overstates the case.
+ * Returns null when neither exists — true only of pre-2026 legacy imports on this data, none of
+ * which fall inside any window the dashboard shows.
+ */
+
+/** The fields the realized-revenue rules read. */
+export interface RealizableOrder {
+    status: string;
+    /** Absent when the viewer is not entitled to money (SEC-D2). */
+    price?: number | null;
+    created_at: string;
+    delivered_at?: string | null;
+    completed_at?: string | null;
+}
+
+export function realizedAt(o: RealizableOrder): Date | null {
+    if (o.delivered_at) return parseUtcNaiveTimestamp(o.delivered_at);
+    if (o.completed_at) return new Date(o.completed_at);
+    return null;
+}
+
+/** Orders whose money is realized, i.e. actually collected. */
+export function isRealizedRevenue(o: RealizableOrder): boolean {
+    return o.status === 'delivered' || o.status === 'completed';
+}
+
+/** Sum of realized revenue in [start, end). */
+export function realizedRevenueBetween(orders: RealizableOrder[], start: Date, end?: Date): number {
+    return orders.reduce((sum, o) => {
+        if (!isRealizedRevenue(o)) return sum;
+        const at = realizedAt(o);
+        if (!at || at < start || (end && at >= end)) return sum;
+        return sum + Number(o.price ?? 0);
+    }, 0);
 }
 
 // =============================================
@@ -198,39 +190,14 @@ export function filterOrdersByDateRange(orders: Order[], range: DateRangeKey): O
 // =============================================
 export interface TodayStripMetrics {
     ordersToday: number;
-    revenueToday: number;
     ordersYesterday: number;
-    revenueYesterday: number;
     ordersDelta: number;
-    revenueDelta: number;
     ordersDeltaPct: number | null;
+    /** Money fields are null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    revenueToday: number | null;
+    revenueYesterday: number | null;
+    revenueDelta: number | null;
     revenueDeltaPct: number | null;
-}
-
-export function calculateTodayStrip(orders: Order[]): TodayStripMetrics {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-
-    const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart);
-    const yesterdayOrders = orders.filter(o => {
-        const d = new Date(o.created_at);
-        return d >= yesterdayStart && d < todayStart;
-    });
-
-    const isRevenue = (o: Order) => o.status === 'confirmed' || o.status === 'delivered' || o.status === 'completed';
-
-    const ordersToday = todayOrders.length;
-    const ordersYesterday = yesterdayOrders.length;
-    const revenueToday = todayOrders.filter(isRevenue).reduce((s, o) => s + Number(o.price), 0);
-    const revenueYesterday = yesterdayOrders.filter(isRevenue).reduce((s, o) => s + Number(o.price), 0);
-
-    const ordersDelta = ordersToday - ordersYesterday;
-    const revenueDelta = revenueToday - revenueYesterday;
-    const ordersDeltaPct = ordersYesterday > 0 ? Math.round((ordersDelta / ordersYesterday) * 100) : null;
-    const revenueDeltaPct = revenueYesterday > 0 ? Math.round((revenueDelta / revenueYesterday) * 100) : null;
-
-    return { ordersToday, revenueToday, ordersYesterday, revenueYesterday, ordersDelta, revenueDelta, ordersDeltaPct, revenueDeltaPct };
 }
 
 // =============================================
@@ -245,19 +212,26 @@ export interface PipelineStage {
     bgClass: string;
 }
 
-export function calculatePipeline(orders: Order[]): PipelineStage[] {
-    const stages: Array<{ status: string; label: string; color: string; textColor: string; bgClass: string }> = [
-        { status: 'new',        label: 'New',         color: 'var(--pastel-yellow)', textColor: '#78350f', bgClass: 'pastel-card-yellow' },
-        { status: 'contacted',  label: 'Contacted',   color: 'var(--pastel-blue)',   textColor: '#1e3a5f', bgClass: 'pastel-card-blue'   },
-        { status: 'confirmed',  label: 'Confirmed',   color: 'var(--pastel-green)',  textColor: '#14532d', bgClass: 'pastel-card-green'  },
-        { status: 'in_transit', label: 'In Transit',  color: 'var(--pastel-mint)',   textColor: '#134e4a', bgClass: 'pastel-card-mint'   },
-        { status: 'delivered',  label: 'Delivered',   color: 'var(--pastel-purple)', textColor: '#4c1d95', bgClass: 'pastel-card-purple' },
-    ];
+/**
+ * I18N-D3. Axis labels were hardcoded `en-US`, which renders English weekday names
+ * inside an Arabic UI and orders dates month-first — wrong for Iraq. Formatting is
+ * pinned to the Baghdad timezone so a label always names the day the bucket
+ * actually covers, whatever the viewer's device is set to.
+ */
+export type ChartLocale = "en" | "ar";
 
-    const counts: Record<string, number> = {};
-    orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
+const CHART_LOCALE_TAG: Record<ChartLocale, string> = { en: "en-GB", ar: "ar-IQ" };
 
-    return stages.map(s => ({ ...s, count: counts[s.status] || 0 }));
+export function formatChartWeekday(d: Date, locale: ChartLocale = "en"): string {
+    return d.toLocaleDateString(CHART_LOCALE_TAG[locale], {
+        weekday: "short", timeZone: "Asia/Baghdad",
+    });
+}
+
+export function formatChartDayMonth(d: Date, locale: ChartLocale = "en"): string {
+    return d.toLocaleDateString(CHART_LOCALE_TAG[locale], {
+        day: "numeric", month: "short", timeZone: "Asia/Baghdad",
+    });
 }
 
 // =============================================
@@ -269,28 +243,42 @@ export interface RevenueTrendPoint {
     revenue: number;
 }
 
-export function calculateRevenueTrend(orders: Order[], days: 7 | 14 | 30): RevenueTrendPoint[] {
-    const now = new Date();
+export type TrendDays = 7 | 14 | 30;
+
+/**
+ * The first instant the trend chart plots: the start of the Baghdad day `days - 1`
+ * days before today. Orders created, and orders realized, from this instant on are
+ * everything the chart needs.
+ */
+export function trendWindowStart(days: TrendDays, now: Date = new Date()): Date {
+    return new Date(baghdadDayStart(now).getTime() - (days - 1) * DAY_MS);
+}
+
+/**
+ * One point per Baghdad day: orders CREATED that day, and revenue REALIZED that day
+ * (COR-D1). `orders` must contain every order created or realized inside the
+ * window — not a page of the orders list.
+ */
+export function calculateRevenueTrend(orders: RealizableOrder[], days: TrendDays, locale: ChartLocale = "en", now: Date = new Date()): RevenueTrendPoint[] {
     const points: RevenueTrendPoint[] = [];
 
+    const todayStart = baghdadDayStart(now);
     for (let i = days - 1; i >= 0; i--) {
-        const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+        const day = new Date(todayStart.getTime() - i * DAY_MS);
+        const next = new Date(day.getTime() + DAY_MS);
 
         const dayOrders = orders.filter(o => {
             const d = new Date(o.created_at);
             return d >= day && d < next;
         });
 
-        const revenue = dayOrders
-            .filter(o => ['confirmed', 'delivered', 'completed'].includes(o.status))
-            .reduce((s, o) => s + Number(o.price), 0);
+        const revenue = realizedRevenueBetween(orders, day, next);   // COR-D1
 
         let label: string;
         if (days === 7) {
-            label = day.toLocaleDateString('en-US', { weekday: 'short' });
+            label = formatChartWeekday(day, locale);
         } else {
-            label = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            label = formatChartDayMonth(day, locale);
         }
 
         points.push({ date: label, orders: dayOrders.length, revenue });
@@ -308,24 +296,6 @@ export interface HourlyCount {
     count: number;
 }
 
-export function calculateOrdersPerHourToday(orders: Order[]): HourlyCount[] {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart);
-    const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
-    todayOrders.forEach(o => {
-        const h = new Date(o.created_at).getHours();
-        buckets[h].count++;
-    });
-
-    return buckets.map(b => ({
-        hour: b.hour,
-        label: b.hour === 0 ? '12AM' : b.hour < 12 ? `${b.hour}AM` : b.hour === 12 ? '12PM' : `${b.hour - 12}PM`,
-        count: b.count,
-    }));
-}
-
 // =============================================
 // Peak Hours Heatmap (historical, 7 days × 24 hours)
 // =============================================
@@ -336,65 +306,15 @@ export interface HeatmapCell {
     intensity: number;   // 0–1 normalized
 }
 
-export function calculatePeakHoursHeatmap(orders: Order[]): HeatmapCell[] {
-    const grid: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
-
-    orders.forEach(o => {
-        const d = new Date(o.created_at);
-        grid[d.getDay()][d.getHours()]++;
-    });
-
-    const max = Math.max(1, ...grid.flat());
-    const cells: HeatmapCell[] = [];
-
-    for (let day = 0; day < 7; day++) {
-        for (let hour = 0; hour < 24; hour++) {
-            cells.push({ dayOfWeek: day, hour, count: grid[day][hour], intensity: grid[day][hour] / max });
-        }
-    }
-
-    return cells;
-}
-
 // =============================================
 // Delivery Success Rate
 // =============================================
 export interface DeliveryRateMetrics {
-    currentRate: number;
-    sparkline: { day: string; rate: number }[];
-    trend: number;       // delta vs previous 7d (percentage points)
-}
-
-export function calculateDeliverySuccessRate(orders: Order[]): DeliveryRateMetrics {
-    const now = new Date();
-
-    const rateForWindow = (start: Date, end: Date): number => {
-        const window = orders.filter(o => {
-            const d = new Date(o.updated_at || o.created_at);
-            return d >= start && d < end && ['delivered', 'completed', 'rejected'].includes(o.status);
-        });
-        if (!window.length) return 0;
-        const success = window.filter(o => ['delivered', 'completed'].includes(o.status)).length;
-        return Math.round((success / window.length) * 100);
-    };
-
-    // 7-day sparkline
-    const sparkline = Array.from({ length: 7 }, (_, i) => {
-        const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
-        const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
-        return {
-            day: day.toLocaleDateString('en-US', { weekday: 'short' }),
-            rate: rateForWindow(day, next),
-        };
-    });
-
-    const currentPeriodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const prevPeriodStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const currentRate = rateForWindow(currentPeriodStart, now);
-    const prevRate = rateForWindow(prevPeriodStart, currentPeriodStart);
-
-    return { currentRate, sparkline, trend: currentRate - prevRate };
+    /** null when no terminal orders fell in the window — "no data", not 0%. (COR-D7) */
+    currentRate: number | null;
+    sparkline: { day: string; rate: number | null }[];
+    /** null when either side of the comparison has no data. */
+    trend: number | null;
 }
 
 // =============================================
@@ -404,47 +324,13 @@ export interface StageTimeMetric {
     label: string;
     avgHours: number;
     sampleSize: number;
-}
-
-export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
-    // Metric 1: Total cycle time (created → delivered) for completed deliveries
-    const delivered = orders.filter(o =>
-        ['delivered', 'completed'].includes(o.status) && o.delivered_at
-    );
-    const cycleTimes = delivered.map(o =>
-        (new Date(o.delivered_at!).getTime() - new Date(o.created_at).getTime()) / (1000 * 60 * 60)
-    ).filter(h => h > 0 && h < 24 * 30); // exclude outliers > 30 days
-
-    const avgCycle = cycleTimes.length > 0
-        ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length
-        : 0;
-
-    // Metric 2: Time stuck in transit (in_transit orders, using updated_at)
-    const now = new Date();
-    const inTransit = orders.filter(o => o.status === 'in_transit');
-    const transitTimes = inTransit.map(o =>
-        (now.getTime() - new Date(o.updated_at || o.created_at).getTime()) / (1000 * 60 * 60)
-    ).filter(h => h < 24 * 30);
-
-    const avgTransit = transitTimes.length > 0
-        ? transitTimes.reduce((a, b) => a + b, 0) / transitTimes.length
-        : 0;
-
-    // Metric 3: Time pending (new + contacted orders age)
-    const pending = orders.filter(o => ['new', 'contacted'].includes(o.status));
-    const pendingTimes = pending.map(o =>
-        (now.getTime() - new Date(o.created_at).getTime()) / (1000 * 60 * 60)
-    ).filter(h => h < 24 * 30);
-
-    const avgPending = pendingTimes.length > 0
-        ? pendingTimes.reduce((a, b) => a + b, 0) / pendingTimes.length
-        : 0;
-
-    return [
-        { label: 'New → Delivered (full cycle)', avgHours: avgCycle, sampleSize: cycleTimes.length },
-        { label: 'Pending response (avg age)', avgHours: avgPending, sampleSize: pendingTimes.length },
-        { label: 'In transit (avg wait)', avgHours: avgTransit, sampleSize: transitTimes.length },
-    ];
+    /**
+     * Rows the average had to discard: impossible durations (delivered before
+     * created) and >30-day outliers. DQ-D1 — 16 such rows exist on the audited
+     * tenant. Dropping them is right; dropping them SILENTLY is what made a
+     * shrinking sample invisible.
+     */
+    excluded?: number;
 }
 
 // =============================================
@@ -452,71 +338,13 @@ export function calculateAvgTimePerStage(orders: Order[]): StageTimeMetric[] {
 // =============================================
 export interface WowMetric {
     label: string;
-    current: number;
-    previous: number;
-    delta: number;
+    /** null when the metric has no data for the window (COR-D7). */
+    current: number | null;
+    previous: number | null;
+    delta: number | null;
     deltaPct: number | null;
     isFinancial: boolean;
     unit?: string;
-}
-
-export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const current = orders.filter(o => new Date(o.created_at) >= weekAgo);
-    const previous = orders.filter(o => {
-        const d = new Date(o.created_at);
-        return d >= twoWeeksAgo && d < weekAgo;
-    });
-
-    const deliveryRate = (set: Order[]) => {
-        const terminal = set.filter(o => ['delivered', 'completed', 'rejected'].includes(o.status));
-        if (!terminal.length) return 0;
-        return Math.round((terminal.filter(o => ['delivered', 'completed'].includes(o.status)).length / terminal.length) * 100);
-    };
-
-    const revenue = (set: Order[]) =>
-        set.filter(o => ['confirmed', 'delivered', 'completed'].includes(o.status))
-           .reduce((s, o) => s + Number(o.price), 0);
-
-    const pct = (curr: number, prev: number) => prev > 0 ? Math.round(((curr - prev) / prev) * 100) : null;
-
-    const currOrders = current.length;
-    const prevOrders = previous.length;
-    const currRate = deliveryRate(current);
-    const prevRate = deliveryRate(previous);
-    const currRevenue = revenue(current);
-    const prevRevenue = revenue(previous);
-
-    return [
-        {
-            label: 'Orders',
-            current: currOrders,
-            previous: prevOrders,
-            delta: currOrders - prevOrders,
-            deltaPct: pct(currOrders, prevOrders),
-            isFinancial: false,
-        },
-        {
-            label: 'Delivery Rate',
-            current: currRate,
-            previous: prevRate,
-            delta: currRate - prevRate,
-            deltaPct: null,
-            isFinancial: false,
-            unit: '%',
-        },
-        {
-            label: 'Revenue',
-            current: currRevenue,
-            previous: prevRevenue,
-            delta: currRevenue - prevRevenue,
-            deltaPct: pct(currRevenue, prevRevenue),
-            isFinancial: true,
-        },
-    ];
 }
 
 // =============================================
@@ -524,87 +352,26 @@ export function calculateWeekOverWeek(orders: Order[]): WowMetric[] {
 // =============================================
 export interface MonthForecast {
     projectedOrders: number;
-    projectedRevenue: number;
+    /** null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    projectedRevenue: number | null;
     daysElapsed: number;
     daysInMonth: number;
     ordersThisMonth: number;
-    revenueThisMonth: number;
+    /** null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    revenueThisMonth: number | null;
     ordersPerDay: number;
-}
-
-export function calculateMonthForecast(orders: Order[]): MonthForecast {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysElapsed = Math.max(1, now.getDate());
-
-    const monthOrders = orders.filter(o => new Date(o.created_at) >= monthStart);
-    const ordersThisMonth = monthOrders.length;
-    const revenueThisMonth = monthOrders
-        .filter(o => ['confirmed', 'delivered', 'completed'].includes(o.status))
-        .reduce((s, o) => s + Number(o.price), 0);
-
-    const ordersPerDay = ordersThisMonth / daysElapsed;
-    const projectedOrders = Math.round(ordersPerDay * daysInMonth);
-    const revenuePerDay = revenueThisMonth / daysElapsed;
-    const projectedRevenue = Math.round(revenuePerDay * daysInMonth);
-
-    return { projectedOrders, projectedRevenue, daysElapsed, daysInMonth, ordersThisMonth, revenueThisMonth, ordersPerDay };
 }
 
 // =============================================
 // Enhanced Leaderboard (Product Revenue)
 // =============================================
 export interface EnhancedProductItem extends LeaderboardItem {
-    revenue: number;
+    /** null when the viewer lacks VIEW_FINANCIALS (SEC-D2). */
+    revenue: number | null;
 }
 
 export interface EnhancedLeaderboardMetrics extends LeaderboardMetrics {
     topProductsEnhanced: EnhancedProductItem[];
-}
-
-export function calculateEnhancedLeaderboard(orders: Order[]): EnhancedLeaderboardMetrics {
-    const cityStats: Record<string, number> = {};
-    const productStats: Record<string, { count: number; revenue: number }> = {};
-
-    orders.forEach(o => {
-        if (o.status === 'cancelled' || o.status === 'rejected') return;
-
-        if (o.city) {
-            cityStats[o.city] = (cityStats[o.city] || 0) + 1;
-        }
-
-        o.items.forEach(item => {
-            if (!productStats[item.name]) productStats[item.name] = { count: 0, revenue: 0 };
-            productStats[item.name].count += (item.quantity || 1);
-            productStats[item.name].revenue += Number(o.price) / o.items.length;
-        });
-    });
-
-    const topCities: LeaderboardItem[] = Object.entries(cityStats)
-        .map(([city, count]) => ({ id: city, label: city, value: count, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    const topProductsEnhanced: EnhancedProductItem[] = Object.entries(productStats)
-        .map(([name, s]) => ({ id: name, label: name, value: s.count, revenue: s.revenue, trend: 0, rank: 0 }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map((item, i) => ({ ...item, rank: i + 1 }));
-
-    const topProducts: LeaderboardItem[] = topProductsEnhanced.map(({ revenue: _, ...rest }) => rest);
-
-    return { topCities, topProducts, topProductsEnhanced };
-}
-
-// =============================================
-// Recent Orders Feed
-// =============================================
-export function getRecentOrders(orders: Order[], limit = 10): Order[] {
-    return [...orders]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, limit);
 }
 
 // =============================================
@@ -617,27 +384,3 @@ export interface StaffEntry {
     rank: number;
 }
 
-export function calculateStaffLeaderboard(orders: Order[]): StaffEntry[] {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const stats: Record<string, { today: number; week: number }> = {};
-
-    orders.forEach(o => {
-        const name = o.last_status_changed_by_name;
-        if (!name || name.trim() === '') return;
-        if (!stats[name]) stats[name] = { today: 0, week: 0 };
-
-        const updated = new Date(o.updated_at || o.created_at);
-        if (updated >= todayStart) stats[name].today++;
-        if (updated >= weekStart) stats[name].week++;
-    });
-
-    return Object.entries(stats)
-        .map(([name, s]) => ({ name, ordersToday: s.today, ordersThisWeek: s.week, rank: 0 }))
-        .filter(e => e.ordersThisWeek > 0)
-        .sort((a, b) => b.ordersToday - a.ordersToday || b.ordersThisWeek - a.ordersThisWeek)
-        .slice(0, 8)
-        .map((e, i) => ({ ...e, rank: i + 1 }));
-}

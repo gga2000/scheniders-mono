@@ -34,14 +34,20 @@ export function OrderPipeline({ stages, onStageClick }: OrderPipelineProps) {
             {/* Desktop: proportional bar */}
             <div className="hidden md:flex items-stretch gap-0 rounded-xl overflow-hidden h-14">
                 {stages.map((stage, i) => {
-                    const pct = total > 0 ? (stage.count / total) * 100 : 20;
-                    const minPct = 10;
-                    const width = Math.max(pct, minPct);
+                    // VIS-D2: this used to floor every segment at 10% of the bar, so a
+                    // stage with ZERO orders rendered as wide as one holding 10% of the
+                    // book — the bar stopped encoding the data it claims to show. Widths
+                    // are now the true proportion; a hairline minimum keeps an empty
+                    // stage visible as a divider, and the legend row below always lists
+                    // every stage with its count, so nothing is lost when a segment is
+                    // too narrow for its label.
+                    const pct = total > 0 ? (stage.count / total) * 100 : 0;
+                    const width = pct;
                     return (
                         <div
                             key={stage.status}
                             className={`relative flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:brightness-95 active:scale-95 ${i > 0 ? "border-l border-white/40" : ""}`}
-                            style={{ flexBasis: `${width}%`, background: stage.color }}
+                            style={{ flexBasis: `${width}%`, minWidth: '2px', background: stage.color }}
                             onClick={() => onStageClick?.(stage.status)}
                             title={`${getLabel(stage)}: ${stage.count} ${t("dashboard.pipeline.orders")}`}
                         >

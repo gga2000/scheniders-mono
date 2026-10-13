@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 import { AlertTriangle, Clock, Truck, ArrowRight } from "lucide-react";
 import { UrgencyMetrics } from "@/lib/analytics/dashboard-calculations";
 
@@ -10,6 +11,7 @@ interface UrgencyTriadProps {
 }
 
 export function UrgencyTriad({ metrics, onAction }: UrgencyTriadProps) {
+    const { t } = useLanguage();
     const container = {
         hidden: { opacity: 0 },
         show: {
@@ -40,16 +42,16 @@ export function UrgencyTriad({ metrics, onAction }: UrgencyTriadProps) {
                     </div>
                     {metrics.failedDeliveries > 0 && (
                         <span className="flex items-center gap-1 text-xs font-medium text-rose-600 bg-rose-100 px-2 py-1 rounded-full animate-pulse-soft">
-                            Urgent
+                            {t("dashboard.urgency.urgent")}
                         </span>
                     )}
                 </div>
                 <div className="mt-3">
                     <h3 className="text-2xl font-bold text-rose-950">{metrics.failedDeliveries}</h3>
-                    <p className="text-sm text-rose-700/80 font-medium">Failed Deliveries (7d)</p>
+                    <p className="text-sm text-rose-700/80 font-medium">{t("dashboard.urgency.failedDeliveries")}</p>
                 </div>
                 <div className="mt-3 text-xs text-rose-400 group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                    Review rejected orders <ArrowRight className="w-3 h-3" />
+                    {t("dashboard.urgency.reviewRejected")} <ArrowRight className="w-3 h-3" />
                 </div>
             </motion.div>
 
@@ -61,16 +63,16 @@ export function UrgencyTriad({ metrics, onAction }: UrgencyTriadProps) {
                     </div>
                     {metrics.unconfirmedHighValue > 0 && (
                         <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
-                            Action Needed
+                            {t("dashboard.urgency.actionNeeded")}
                         </span>
                     )}
                 </div>
                 <div className="mt-3">
                     <h3 className="text-2xl font-bold text-amber-950">{metrics.unconfirmedHighValue}</h3>
-                    <p className="text-sm text-amber-700/80 font-medium">Stalled High-Value Orders</p>
+                    <p className="text-sm text-amber-700/80 font-medium">{t("dashboard.urgency.stalledHighValue")}</p>
                 </div>
                 <div className="mt-3 text-xs text-amber-500 group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                    Process old new orders <ArrowRight className="w-3 h-3" />
+                    {t("dashboard.urgency.processOld")} <ArrowRight className="w-3 h-3" />
                 </div>
             </motion.div>
 
@@ -80,16 +82,16 @@ export function UrgencyTriad({ metrics, onAction }: UrgencyTriadProps) {
                     <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
                         <AlertTriangle className="w-5 h-5" />
                     </div>
-                    <span className="text-xs text-purple-400">Analysis</span>
+                    <span className="text-xs text-purple-400">{t("dashboard.urgency.analysis")}</span>
                 </div>
                 <div className="mt-3">
                     <div className="flex items-baseline gap-1">
-                        <h3 className="text-2xl font-bold text-purple-950">{metrics.highReturnCities[0]?.city || 'None'}</h3>
+                        <h3 className="text-2xl font-bold text-purple-950">{metrics.highReturnCities[0]?.city || t("dashboard.urgency.none")}</h3>
                     </div>
-                    <p className="text-sm text-purple-700/80 font-medium">Highest Return Rate ({metrics.highReturnCities[0]?.rate.toFixed(0)}%)</p>
+                    <p className="text-sm text-purple-700/80 font-medium">{t("dashboard.urgency.highestReturnRate")} ({metrics.highReturnCities[0]?.rate.toFixed(0)}%)</p>
                 </div>
                 <div className="mt-3 text-xs text-purple-400 group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                    View city performance <ArrowRight className="w-3 h-3" />
+                    {t("dashboard.urgency.viewCityPerformance")} <ArrowRight className="w-3 h-3" />
                 </div>
             </motion.div>
         </motion.div>
