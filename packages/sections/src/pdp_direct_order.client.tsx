@@ -783,7 +783,7 @@ export function PdpDirectOrderRender({
             {/* Thumbnail strip — only when the product actually has extra
                 gallery photos; tapping a thumb swaps the main image. */}
             {galleryImages.length > 1 && (
-              <div className="mt-bk-xs flex w-full min-w-0 gap-bk-xs overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="mt-bk-xs flex w-full min-w-0 gap-bk-xs overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {galleryImages.map((src, i) => (
                   <button
                     key={`${i}-${src}`}

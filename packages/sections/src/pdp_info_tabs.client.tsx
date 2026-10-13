@@ -78,7 +78,7 @@ export function PdpInfoTabsRender({
       <BentoCard bg="white" size="md" className="p-0 overflow-hidden">
         <div
           role="tablist"
-          className="flex gap-bk-2xs overflow-x-auto bg-bk-surface p-bk-xs scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-bk-2xs overflow-x-auto bg-bk-surface p-bk-xs [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{
             backgroundColor: "var(--bk-surface, #fff7ed)",
             borderBottom:

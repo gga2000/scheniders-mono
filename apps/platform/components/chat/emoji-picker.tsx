@@ -137,7 +137,7 @@ export function EmojiPicker({ onPick, onClose }: EmojiPickerProps) {
 
             {/* Category tabs — hidden during search */}
             {!search && (
-                <div className="flex overflow-x-auto border-b border-(--card-border) scrollbar-none">
+                <div className="flex overflow-x-auto border-b border-(--card-border) scrollbar-hide">
                     {categoryTabs.map((tab) => (
                         <button
                             key={tab.id}

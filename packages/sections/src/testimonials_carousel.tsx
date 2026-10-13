@@ -107,7 +107,7 @@ function TestimonialsCarousel({
   return (
     <Section>
       {heading && <SectionHeader title={heading} color="mint" />}
-      <div className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-3 lg:overflow-visible">
+      <div className="flex gap-bk-md overflow-x-auto pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-3 lg:overflow-visible">
         {props.items.map((item, i) => {
           const quote = resolveI18n(item.quote_i18n, locale);
           return (
