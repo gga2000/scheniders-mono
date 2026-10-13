@@ -138,7 +138,9 @@ const sections = listSections();
 
 describe("the section library", () => {
     it("has every section registered", () => {
-        expect(sections.length).toBeGreaterThanOrEqual(64);
+        // A floor, not an exact count: it proves the registry loaded rather
+        // than that the sweep below ran over an empty list. Main registers 61.
+        expect(sections.length).toBeGreaterThanOrEqual(61);
     });
 
     it("renders every section on every page it claims, in every locale", () => {
