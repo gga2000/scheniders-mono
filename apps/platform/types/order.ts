@@ -85,6 +85,8 @@ export interface Order {
     customer_name: string;
     phone: string;
     secondary_phone?: string;
+    /** Which number the customer asked to be contacted on. Null = never stated. */
+    whatsapp_contact_slot?: 'primary' | 'secondary' | null;
     city?: string;
     governorate_code?: string;
     address_details?: string;
@@ -150,6 +152,11 @@ export interface Order {
     risk_data?: OrderRiskData;
     last_status_changed_by_name?: string;
     last_status_changed_by_avatar?: string;
+    /** Who last messaged the customer. `_avatar` is "bot" for automated sends. */
+    last_followup_by_name?: string | null;
+    last_followup_by_avatar?: string | null;
+    last_followup_at?: string | null;
+    last_followup_type?: 'reminder' | 'discount' | 'confirmation' | 'manual' | null;
     is_test?: boolean;
     // Delivery company tracking
     delivery_company?: 'prime' | 'waseet' | null;
