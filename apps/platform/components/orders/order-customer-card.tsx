@@ -3,6 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { formatPhoneGrouped, validatePhoneDetailed } from "@/lib/order-utils";
 import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
+import { GovernorateOptions } from "./governorate-options";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -172,11 +173,7 @@ export function OrderCustomerCard({
                                     className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] text-right"
                                 >
                                     <option value="" disabled>{t("orderDetail.selectProvince")}</option>
-                                    {governorates.map((gov, index) => (
-                                        <option key={gov.code} value={gov.nameAr}>
-                                            {index + 1}. {gov.nameAr}{gov.alternativeName ? ` (${gov.alternativeName})` : ''}
-                                        </option>
-                                    ))}
+                                    <GovernorateOptions />
                                 </select>
                                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
