@@ -80,6 +80,5 @@ type-check + lint (0); new pure-helper tests; DB smoke (pins/edit-history/forwar
 - **Action-menu consolidation** must not regress existing edit/delete/react wiring.
 - **Forward** must re-check membership of BOTH conversations server-side (don't trust the client target).
 
-## 8. Decision needed
-**Threading model (A1 vs A4):** implement **quote-reply** (a reply references one parent, shown inline with jump-to-original — Slack-DM style, simpler, fits a compact ops chat), OR full **thread panels** (a side panel per parent with reply counts + per-thread unread — Slack-channel style, much larger build)?
-Recommendation: **quote-reply** — covers the "reply to a specific message" need at a fraction of the complexity; full thread panels can be a later phase if volume demands.
+## 8. Decision (LOCKED 2026-06-23)
+**Threading model → QUOTE-REPLY.** A reply references one parent (`reply_to_id`), rendered inline as a quoted preview with jump-to-original (reuses the 2B scroll-to-message infra). Covers A1+A4. Full thread panels are NOT built (deferred to a later phase if message volume ever demands it).

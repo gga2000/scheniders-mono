@@ -96,7 +96,7 @@ EN+AR keys for: order-event templates (`chat.event.statusChanged`/`assigned`/`de
 - **@mention=assign surprise** — see §8; the visible system event mitigates, but the auto-behavior is the risk.
 - **Event spam** — only post on *real* transitions (`IS DISTINCT FROM`), and only when a thread already exists. No back-fill of historical changes.
 
-## 8. Decisions needed before build
-1. **C2 mention→assign:** auto-assign on any teammate @mention in an order thread (fast, but surprising), OR an explicit "Assign to @X" action in the thread (mention stays a notification only)?
-2. **C7 bulk:** defer (recommended) or include now?
-3. **System-event schema:** OK to add `is_system` + `system_event jsonb` + make `sender_id` nullable on `chat_messages` (the cleanest way to support auto-events)?
+## 8. Decisions (LOCKED 2026-06-22)
+1. **C2 mention→assign → EXPLICIT.** @mention only notifies (as everywhere else). Assignment is a deliberate "Assign to @X" control in the order-thread action bar (`chat_assign_order`), which posts an `assigned` system event. No auto-assign on mention.
+2. **C7 bulk → DEFERRED.** Not built in this phase; revisit later as its own small spec.
+3. **System-event schema → APPROVED.** Add `is_system boolean` + `system_event jsonb` to `chat_messages` and make `sender_id` nullable. Regression-test normal send/edit/delete after.

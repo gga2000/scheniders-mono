@@ -13,6 +13,10 @@ export interface ChatConversation {
     last_message_at: string | null;
     archived_at: string | null;
     resolved_at: string | null;
+    /** Who resolved it. null WITH resolved_at set = closed by the automatic sweep. */
+    resolved_by: string | null;
+    /** Channel glyph key from CHANNEL_ICONS; null renders the default hash. */
+    icon: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -45,7 +49,11 @@ export interface ChatAttachment {
 export type ChatSystemEvent =
     | { type: "status_changed"; from: string | null; to: string; actor_name?: string | null }
     | { type: "assigned"; to: string | null; actor_name?: string | null }
-    | { type: "delivered" };
+    | { type: "delivered" }
+    // Thread lifecycle. `auto` distinguishes the inactivity sweep from a person
+    // clicking Resolve; `after_hours` is the policy that was in force at the time.
+    | { type: "thread_resolved"; auto?: boolean; after_hours?: number; actor_name?: string | null }
+    | { type: "thread_reopened"; auto?: boolean; actor_name?: string | null };
 
 export interface ChatMessage {
     id: string;

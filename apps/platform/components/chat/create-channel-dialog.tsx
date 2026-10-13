@@ -12,6 +12,7 @@ import { Switch } from "@scheniders/ui";
 import { useCreateChannel } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
 import { useLanguage } from "@/components/providers/language-provider";
+import { CHANNEL_ICONS, CHANNEL_ICON_KEYS, type ChannelIconKey } from "@/lib/chat/channel-icons";
 import { useToast } from "@/hooks/use-toast";
 
 export function CreateChannelDialog({
@@ -29,12 +30,14 @@ export function CreateChannelDialog({
     const [name, setName] = useState("");
     const [topic, setTopic] = useState("");
     const [isPrivate, setIsPrivate] = useState(true);
+    const [icon, setIcon] = useState<ChannelIconKey>("hash");
     const [error, setError] = useState<string | null>(null);
 
     const reset = () => {
         setName("");
         setTopic("");
         setIsPrivate(true);
+        setIcon("hash");
         setError(null);
     };
 
@@ -55,6 +58,7 @@ export function CreateChannelDialog({
                 name: trimmedName,
                 isPrivate,
                 topic: topic.trim() || null,
+                icon,
             });
             setActiveConversation(newId);
             handleOpenChange(false);
@@ -121,6 +125,37 @@ export function CreateChannelDialog({
                             autoComplete="off"
                             className="w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                         />
+                    </div>
+
+                    {/* Icon picker — a fixed set, so the sidebar stays coherent */}
+                    <div className="space-y-1.5">
+                        <span className="text-sm font-medium text-foreground/80">
+                            {t("chat.channelIcon", "Icon")}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                            {CHANNEL_ICON_KEYS.map((key) => {
+                                const meta = CHANNEL_ICONS[key];
+                                const Glyph = meta.icon;
+                                const isSelected = icon === key;
+                                return (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => setIcon(key)}
+                                        aria-pressed={isSelected}
+                                        title={t(meta.labelKey, meta.fallback)}
+                                        aria-label={t(meta.labelKey, meta.fallback)}
+                                        className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
+                                            isSelected
+                                                ? "border-primary bg-primary/10 text-primary"
+                                                : "border-(--card-border) bg-(--card-bg) text-muted-foreground hover:text-foreground"
+                                        }`}
+                                    >
+                                        <Glyph className="h-4 w-4" />
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
                     {/* Private toggle */}
