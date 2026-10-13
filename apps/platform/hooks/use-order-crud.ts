@@ -24,7 +24,7 @@ import { OrderSchema } from "@/lib/schemas";
 import { splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
 import { MAX_ORDER_IDS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import {
     useUpdateStatusMutation,
     useUpdateOrderMutation,
@@ -39,7 +39,9 @@ import { scheduleDayFromToday } from "@/lib/order-format-utils";
 import { routeCreateOrderDate, FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
 import { toBaghdadDayKey } from "@/lib/order-window";
 import { duplicateCandidateKeys } from "@/hooks/use-duplicate-window-alerts";
+import type { BatchOutcome, BulkProgress } from "@/lib/order-bulk-batches";
 import {
+    type BulkFailure,
     summarizeBulkFailures,
     formatFailedOrderList,
     findUnaffectedIds,
@@ -68,6 +70,21 @@ interface UndoEntry {
 interface UseOrderCrudOptions {
     orders?: Order[];
 }
+
+/** What a bulk status change did, order by order. */
+export type BulkStatusResult = {
+    /** True only when every order changed. */
+    success: boolean;
+    /** Why some or all did not, worded for the operator. */
+    error?: string;
+    /** Orders that changed. */
+    count: number;
+    attempted: number;
+    succeededIds: string[];
+    failures: BulkFailure[];
+    /** Changed orders whose history row could not be written. */
+    historyNotLogged: number;
+};
 
 export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const queryClient = useQueryClient();
@@ -552,7 +569,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     reportOrderError(dateErr, { operation: "createOrder-date", orderId: data.id });
                     toast.warning(
                         postponedTo ? "Order created, but not scheduled" : "Order created, but its date was not changed",
-                        { description: dateErr instanceof Error ? dateErr.message : "Set the date from the order's details." },
+                        dateErr instanceof Error ? dateErr.message : "Set the date from the order's details.",
                     );
                 }
             }
@@ -655,7 +672,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 // and says which, rather than silently doing nothing.
                 const splitLogId = (result.data as (Order & { split_log_id?: string }) | undefined)?.split_log_id;
                 if (splitLogId) {
-                    toast.success("Order split", {
+                    toast({
+                        title: "Order split",
+                        variant: "success",
                         description: `A return order was created for ${returnedItems.length} item(s)`,
                         duration: 20000,
                         action: {
@@ -663,11 +682,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             onClick: async () => {
                                 const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
                                 if (!undo.success) {
-                                    toast.error("Could not undo the split", { description: undo.error });
+                                    toast.error("Could not undo the split", undo.error);
                                     return;
                                 }
                                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                                toast.success("Split undone", { description: "The order is back as it was" });
+                                toast.success("Split undone", "The order is back as it was");
                             },
                         },
                     });
@@ -902,57 +921,98 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // BULK OPERATIONS
     // =============================================
 
-    async function bulkUpdateStatus(orderIds: string[], status: Order["status"]) {
-        try {
-            const previousOrders = orders.filter(o => orderIds.includes(o.id));
-            const currentStatuses: { [key: string]: Order["status"] } = {};
-            const expectedVersions: { [key: string]: number } = {};
-            previousOrders.forEach(o => {
-                currentStatuses[o.id] = o.status;
-                if (typeof o.version === "number") expectedVersions[o.id] = o.version;
-            });
+    /**
+     * Change many orders' status. Runs in small sequential batches (see
+     * lib/order-bulk-batches): each batch's history rows are written as soon as
+     * the batch lands, and the cache moves with it, so the list updates while
+     * the rest are still in flight and a late failure cannot lose the history of
+     * orders that already changed.
+     *
+     * With `notify: false` the caller owns the messaging (the orders page's
+     * counting toast); otherwise a partial failure is reported here.
+     */
+    async function bulkUpdateStatus(
+        orderIds: string[],
+        status: Order["status"],
+        options: { onProgress?: (progress: BulkProgress) => void; notify?: boolean } = {},
+    ): Promise<BulkStatusResult> {
+        const { onProgress, notify = true } = options;
+        // Read the concurrency token from the live cache, not this render's
+        // `orders`: a retry fired from a toast holds an old closure, and after
+        // a realtime refresh its versions would be a guaranteed false conflict.
+        const wanted = new Set(orderIds);
+        const cached = queryClient.getQueryData<Order[]>(orderKeys.lists()) ?? [];
+        const freshById = new Map(cached.filter(o => wanted.has(o.id)).map(o => [o.id, o]));
+        const previousOrders = orders
+            .filter(o => wanted.has(o.id))
+            .map(o => freshById.get(o.id) ?? o);
+        for (const [id, o] of freshById) {
+            if (!previousOrders.some(p => p.id === id)) previousOrders.push(o);
+        }
+        const previousById = new Map(previousOrders.map(o => [o.id, o]));
+        const expectedVersions: { [key: string]: number } = {};
+        previousOrders.forEach(o => {
+            if (typeof o.version === "number") expectedVersions[o.id] = o.version;
+        });
 
-            // Get current user information for attribution
-            const { profile: currentProfile, user: currentUser } = authRef.current;
-            const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
-            const changedByAvatar = currentProfile?.avatar_url;
+        // Get current user information for attribution
+        const { profile: currentProfile, user: currentUser } = authRef.current;
+        const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+        const changedByAvatar = currentProfile?.avatar_url;
 
-            // Use central repository for bulk updates
-            const { successfulOperations, failedOperations } = await orderRepository.bulkUpdateStatus(
-                orderIds,
-                status,
-                undefined, // rejectionReason
-                changedBy,
-                changedByAvatar || undefined,
-                expectedVersions
-            );
+        let historyNotLogged = 0;
 
-            if (successfulOperations.length === 0 && failedOperations.length > 0) {
-                // If everything failed, throw the first error to be caught by the outer catch block
-                throw failedOperations[0].error || new Error("Bulk status update failed completely");
-            } else if (failedOperations.length > 0) {
-                // Report what actually happened per order. Blaming every failure
-                // on a concurrent edit hid permission and transport errors, and
-                // naming no orders left no way to know what to retry.
-                const summary = summarizeBulkFailures(
-                    failedOperations,
-                    previousOrders,
-                    orderIds.length,
-                    "updated",
-                );
-                console.warn(`[bulkUpdateStatus] ${summary.title}`, failedOperations);
-                toast.warning(summary.title, { description: summary.description });
-                // Keep the failures selected so a retry does not need reselecting.
-                useOrderStore.getState().setSelectedOrders(new Set(summary.failedIds));
+        /** After each batch: history rows, cache, and the non-trigger inventory side-effects. */
+        const settleBatch = async ({ succeeded }: BatchOutcome<{ id: string; order: Order }>) => {
+            if (succeeded.length === 0) return;
+
+            const historyEntries = succeeded.map(({ id }) => ({
+                order_id: id,
+                changed_by: changedBy,
+                from_status: previousById.get(id)?.status || 'unknown',
+                to_status: status,
+                changed_at: new Date().toISOString(),
+                notes: `Bulk update to ${status}`,
+                tenant_id: tenantId,
+            }));
+            const { error: historyError } = await supabase
+                .from("order_status_history")
+                .insert(historyEntries);
+            if (historyError) {
+                historyNotLogged += historyEntries.length;
+                reportOrderError(historyError, {
+                    operation: "orders-bulk-status-history",
+                    extra: { status, count: historyEntries.length },
+                });
             }
 
-            const successfulIds = successfulOperations.map((op: { id: string }) => op.id);
+            // Take the written row's version, not just its status: keeping the
+            // old version in cache made the next edit of these orders a false
+            // "changed by someone else" conflict.
+            const written = new Map(succeeded.map(({ id, order }) => [id, order]));
+            optimisticUpdate((prev) =>
+                prev.map((order) => {
+                    const next = written.get(order.id);
+                    if (!next) return order;
+                    return {
+                        ...order,
+                        status: next.status,
+                        version: next.version,
+                        updated_at: next.updated_at,
+                        completed_at: next.completed_at,
+                        delivered_at: next.delivered_at,
+                        cancelled_at: next.cancelled_at,
+                        rejection_reason: next.rejection_reason,
+                        reason_id: next.reason_id,
+                    };
+                })
+            );
 
             // Reserved/stock math handled by the DB trigger. Only supplies + QC-queue side-effects here.
             import("@/lib/inventory-engine").then(engine => {
                 const TERMINAL = ['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'];
-                successfulOperations.forEach(({ id }: { id: string }) => {
-                    const previousOrder = previousOrders.find(o => o.id === id);
+                succeeded.forEach(({ id }) => {
+                    const previousOrder = previousById.get(id);
                     if (!previousOrder) return;
 
                     const items = previousOrder.items || [];
@@ -969,43 +1029,46 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     }
                 });
             }).catch(console.error);
+        };
 
-            // Record status change to history table for each updated order
-            const historyEntries = successfulIds.map(id => ({
-                order_id: id,
-                changed_by: changedBy,
-                from_status: currentStatuses[id] || 'unknown',
-                to_status: status,
-                changed_at: new Date().toISOString(),
-                notes: `Bulk update to ${status}`,
-                tenant_id: tenantId,
-            }));
+        const { successfulOperations, failedOperations } = await orderRepository.bulkUpdateStatus(
+            orderIds,
+            status,
+            undefined, // rejectionReason
+            changedBy,
+            changedByAvatar || undefined,
+            expectedVersions,
+            { onBatchSettled: settleBatch, onProgress },
+        );
 
-            if (historyEntries.length > 0) {
-                const { error: historyError } = await supabase
-                    .from("order_status_history")
-                    .insert(historyEntries);
+        const attempted = successfulOperations.length + failedOperations.length;
+        const result: BulkStatusResult = {
+            success: failedOperations.length === 0,
+            count: successfulOperations.length,
+            attempted,
+            succeededIds: successfulOperations.map(op => op.id),
+            failures: failedOperations,
+            historyNotLogged,
+        };
 
-                if (historyError) {
-                    console.error("Failed to record bulk status history (but status was updated):", historyError);
-                    toast.error("Status updated, but failed to log history records.");
-                }
+        if (failedOperations.length > 0) {
+            const summary = summarizeBulkFailures(failedOperations, previousOrders, attempted, "updated");
+            result.error = summary.description;
+            console.warn(`[bulkUpdateStatus] ${summary.title}`, failedOperations);
+            if (notify) {
+                toast.warning(summary.title, summary.description);
+                // Keep the failures selected so a retry does not need reselecting.
+                useOrderStore.getState().setSelectedOrders(new Set(summary.failedIds));
             }
-
-            // Update React Query cache
-            optimisticUpdate((prev) =>
-                prev.map((order) =>
-                    orderIds.includes(order.id) ? { ...order, status } : order
-                )
-            );
-
-            return { success: true, count: orderIds.length };
-        } catch (err) {
-            console.error("Error bulk updating orders:", err);
-            const msg = err instanceof Error ? err.message : "Failed to bulk update";
-            toast.error(msg);
-            return { success: false, error: msg };
         }
+        if (notify && historyNotLogged > 0) {
+            toast.error(
+                "Status updated, but history was not logged",
+                `${historyNotLogged} of ${successfulOperations.length} changes have no history entry.`,
+            );
+        }
+
+        return result;
     }
 
     async function bulkArchive(orderIds: string[]) {
@@ -1023,9 +1086,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const archivedIds = (archived ?? []).map((row) => row.id);
             const skipped = findUnaffectedIds(orderIds, archivedIds);
             if (skipped.length > 0) {
-                toast.warning(`${skipped.length} of ${orderIds.length} orders were not archived`, {
-                    description: `Not archived: ${formatFailedOrderList(skipped, orders)}`,
-                });
+                toast.warning(
+                    `${skipped.length} of ${orderIds.length} orders were not archived`,
+                    `Not archived: ${formatFailedOrderList(skipped, orders)}`,
+                );
             }
 
             if (archivedIds.length > 0) {
@@ -1062,9 +1126,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const unarchivedIds = (unarchived ?? []).map((row) => row.id);
             const skipped = findUnaffectedIds(orderIds, unarchivedIds);
             if (skipped.length > 0) {
-                toast.warning(`${skipped.length} of ${orderIds.length} orders were not unarchived`, {
-                    description: `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
-                });
+                toast.warning(
+                    `${skipped.length} of ${orderIds.length} orders were not unarchived`,
+                    `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
+                );
             }
 
             if (unarchivedIds.length > 0) {
@@ -1381,7 +1446,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             // the columns it overwrites, so this can be handed straight back as
             // an undo instead of sending the operator to support.
             if (mergeLogId) {
-                toast.success("Orders merged", {
+                toast({
+                    title: "Orders merged",
+                    variant: "success",
                     description: `${archiveOrder.order_id} merged into ${keepOrder.order_id}`,
                     duration: 20000,
                     action: {
@@ -1392,11 +1459,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                 _tenant_id: tenantId,
                             });
                             if (undoError) {
-                                toast.error("Could not undo the merge", { description: undoError.message });
+                                toast.error("Could not undo the merge", undoError.message);
                                 return;
                             }
                             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                            toast.success("Merge undone", { description: "Both orders are back as they were" });
+                            toast.success("Merge undone", "Both orders are back as they were");
                         },
                     },
                 });

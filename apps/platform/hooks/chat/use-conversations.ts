@@ -118,9 +118,14 @@ export function useStartOrderConversation() {
 export function useCreateChannel() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async (args: { name: string; isPrivate: boolean; topic?: string | null }): Promise<string> => {
+        mutationFn: async (args: {
+            name: string; isPrivate: boolean; topic?: string | null; icon?: string | null;
+        }): Promise<string> => {
             const { data, error } = await supabase.rpc("chat_create_channel", {
-                p_name: args.name, p_is_private: args.isPrivate, p_topic: args.topic ?? null,
+                p_name: args.name,
+                p_is_private: args.isPrivate,
+                p_topic: args.topic ?? null,
+                p_icon: args.icon ?? null,
             });
             if (error) throw error;
             return data as string;

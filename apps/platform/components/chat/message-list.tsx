@@ -1,12 +1,13 @@
 // apps/platform/components/chat/message-list.tsx
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { isToday, isYesterday } from "date-fns";
 import { ArrowDown, ArrowUp, MessageSquareDashed, Sparkles } from "lucide-react";
 import { useReducedMotion } from "framer-motion";
 import { MessageItem } from "./message-item";
 import { ChatEmptyState } from "./chat-empty-state";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { diag } from "@/lib/diag";
 import { useLanguage } from "@/components/providers/language-provider";
 import type { ChatMessage } from "@/types/chat";
 
@@ -29,6 +30,10 @@ export function MessageList({
     focusMessageId,
     onFocused,
     onForward,
+    onLoadOlder,
+    hasMore = false,
+    isLoadingOlder = false,
+    onRetry,
 }: {
     messages: ChatMessage[];
     loading?: boolean;
@@ -36,6 +41,13 @@ export function MessageList({
     focusMessageId?: string | null;
     onFocused?: () => void;
     onForward?: (msg: ChatMessage) => void;
+    /** Fetch the page of messages before the oldest one currently rendered. */
+    onLoadOlder?: () => void;
+    /** False once the beginning of the conversation has been reached. */
+    hasMore?: boolean;
+    isLoadingOlder?: boolean;
+    /** Re-send a failed message by client_msg_id. */
+    onRetry?: (clientMsgId: string) => void;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const nearBottomRef = useRef(true);
@@ -59,12 +71,23 @@ export function MessageList({
         }
     }, [reduceMotion]);
 
+    // Scroll anchor for history loading: prepending older messages grows the
+    // list upwards, which would otherwise shove the user's viewport down by the
+    // height of everything that was just inserted.
+    const restoreAnchorRef = useRef<{ height: number; top: number } | null>(null);
+
     const onScroll = useCallback(() => {
         const el = scrollRef.current;
         if (!el) return;
         const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
         nearBottomRef.current = distance < 120;
         if (nearBottomRef.current) setShowJump(false);
+
+        // Approaching the top: pull the previous page of history.
+        if (el.scrollTop < 200 && hasMore && !isLoadingOlder && onLoadOlder) {
+            restoreAnchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
+            onLoadOlder();
+        }
         // Detect whether the unread divider is scrolled above the visible area.
         const divider = unreadDividerRef.current;
         if (divider) {
@@ -73,7 +96,7 @@ export function MessageList({
             // Divider is above viewport when its top is less than the scroll container top.
             setShowUnreadAbove(dividerTop < containerTop);
         }
-    }, []);
+    }, [hasMore, isLoadingOlder, onLoadOlder]);
 
     // Authoritative sender identity: tenant_members covers offline users too,
     // so names/avatars resolve regardless of online status. The live tenant
@@ -96,12 +119,28 @@ export function MessageList({
 
     // Auto-scroll only when the user is already near the bottom; otherwise surface a
     // "new messages" pill instead of yanking them away from history they're reading.
+    // Keyed on the LAST message id alone: keying on messages.length too made this
+    // fire when older history was prepended, which flashed a bogus "New messages"
+    // pill at the bottom of a list nobody had added to.
     const lastId = messages[messages.length - 1]?.id;
     useEffect(() => {
         if (messages.length === 0) return;
         if (nearBottomRef.current) scrollToBottom("auto");
         else setShowJump(true);
-    }, [lastId, messages.length, scrollToBottom]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- messages.length is deliberately not a trigger; see above
+    }, [lastId, scrollToBottom]);
+
+    // Keep the viewport pinned to the same message after older history is spliced
+    // in above it. Layout effect so the correction lands before the browser paints.
+    useLayoutEffect(() => {
+        const anchor = restoreAnchorRef.current;
+        const el = scrollRef.current;
+        if (!anchor || !el) return;
+        const grew = el.scrollHeight - anchor.height;
+        if (grew <= 0) return;
+        el.scrollTop = anchor.top + grew;
+        restoreAnchorRef.current = null;
+    }, [messages]);
 
     // Scroll-to-focused-message: when the parent sets focusMessageId (e.g. from a
     // search result click), find the message element, scroll it into view, flash a
@@ -111,7 +150,7 @@ export function MessageList({
         const el = scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${focusMessageId}"]`);
         if (!el) {
             // Message not in the loaded window — acknowledge and no-op scroll.
-            console.log("[chat] focusMessageId not in view:", focusMessageId);
+            diag.warn(`[chat] focusMessageId not in the loaded window: ${focusMessageId}`);
             onFocused?.();
             return;
         }
@@ -193,6 +232,17 @@ export function MessageList({
             </button>
         )}
         <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain py-2">
+            {isLoadingOlder && (
+                <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted-foreground">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    {t("chat.loadingHistory", "Loading earlier messages…")}
+                </div>
+            )}
+            {!hasMore && messages.length >= 20 && (
+                <div className="px-4 py-3 text-center text-[11px] text-muted-foreground">
+                    {t("chat.historyStart", "This is the beginning of the conversation.")}
+                </div>
+            )}
             {messages.map((m, i) => {
                 const u = m.sender_id ? memberMap.get(m.sender_id) : undefined;
                 const thisDay = new Date(m.created_at).toDateString();
@@ -242,6 +292,7 @@ export function MessageList({
                             senderAvatar={u?.avatar_url}
                             parentMessage={m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined}
                             onForward={onForward}
+                            onRetry={onRetry}
                         />
                     </div>
                 );
