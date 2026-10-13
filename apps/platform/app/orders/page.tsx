@@ -35,6 +35,7 @@ const DateRangePicker = dynamic(
     { ssr: false, loading: () => <div className="w-full h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
 import { GlobalSearchField } from "@/components/orders/global-search-field";
+import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { OrdersAnalyticsPanel } from "@/components/orders/orders-analytics-panel";
 import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
 import { EmptyState } from "@/components/ui/empty-states";
@@ -158,6 +159,7 @@ export default function OrdersPage() {
         loading,
         isRefreshing,
         ordersPending,
+        orderSearch,
         error,
         updateOrderStatus,
         updateOrder,
@@ -985,7 +987,7 @@ export default function OrdersPage() {
 
                                                 {/* Center: Quick search */}
                                                 <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
-                                                    <GlobalSearchField filters={filters} setFilters={setFilters} onScannerOpen={() => setIsScannerOpen(true)} />
+                                                    <GlobalSearchField setFilters={setFilters} onScannerOpen={() => setIsScannerOpen(true)} />
                                                 </div>
 
                                                 {/* Right: Quick actions + Expand */}
@@ -1685,6 +1687,9 @@ export default function OrdersPage() {
                                         </div>
                                     )}
 
+                                    {/* While searching, the list is a lookup across every date and status. */}
+                                    {!showArchived && <OrderSearchBanner count={filteredOrders.length} />}
+
                                     {/* Workflow Mode */}
                                     {workflowMode ? (
                                         <WorkflowTabs
@@ -1740,7 +1745,7 @@ export default function OrdersPage() {
                                             {/* Cards View */}
                                             {(viewMode === "cards" || viewMode === "list") && (
                                                 <>
-                                                    {displayedOrders.length === 0 && (isRefreshing || ordersPending) ? (
+                                                    {displayedOrders.length === 0 && (isRefreshing || ordersPending || (!showArchived && orderSearch.pending)) ? (
                                                         /* An empty list while rows are still arriving is not an empty
                                                            list. `loading` covers only the first fetch, so a refetch —
                                                            after a window change, a reconnect, or a stale SWR

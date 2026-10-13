@@ -39,7 +39,7 @@ const ORDERS = [
 
 function run(filters: OrderFilters) {
     return renderHook(() =>
-        useOrderFilters({ orders: ORDERS, archivedOrders: [], filters, setFilters: vi.fn(), clearFilters: vi.fn() }),
+        useOrderFilters({ orders: ORDERS, searchResults: null, filters, setFilters: vi.fn(), clearFilters: vi.fn() }),
     ).result.current;
 }
 

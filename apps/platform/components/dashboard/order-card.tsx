@@ -1,5 +1,6 @@
 "use client";
 
+import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
@@ -552,6 +553,7 @@ export const OrderCard = memo(function OrderCard({
                                     );
                                 })()}
                             </span>
+                            <OrderPlacementBadge order={order} />
                             {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse" />}
                             {isHighPriority && !isUrgent && <Flag className="w-2.5 h-2.5 text-amber-600" />}
                             {governorateCode && (
@@ -667,6 +669,7 @@ export const OrderCard = memo(function OrderCard({
                                     );
                                 })()}
                             </span>
+                            <OrderPlacementBadge order={order} />
                             <span className="text-[var(--card-border)]">·</span>
                             <span className="text-subtle">{formatShortDate(order.created_at)}</span>
                             <span className="text-subtle">{formatTime(order.created_at)}</span>

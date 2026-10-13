@@ -61,6 +61,10 @@ export function useOrderFilterState() {
             if (saved) {
                 delete saved.riskLevel;
                 delete saved.adChannel;
+                // A search is a lookup, not a view: restoring one from the last
+                // session would open the page on results for a term the search
+                // box does not show.
+                delete saved.searchQuery;
                 setFiltersState(saved);
             }
             hasLoadedUserPrefs.current = true;
@@ -78,10 +82,10 @@ export function useOrderFilterState() {
         setFiltersState(prev => {
             const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
             if (userIdRef.current) {
-                // Strip riskLevel and adChannel from persistence: both are a quick
-                // look at a slice, and coming back to a list silently pinned to
-                // one ad network reads as orders having gone missing.
-                const { riskLevel: _riskLevel, adChannel: _adChannel, ...persistableFilters } = updated;
+                // Strip riskLevel, adChannel and searchQuery from persistence: each
+                // is a quick look at a slice, and coming back to a list silently
+                // pinned to one ad network reads as orders having gone missing.
+                const { riskLevel: _riskLevel, adChannel: _adChannel, searchQuery: _searchQuery, ...persistableFilters } = updated;
                 setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
             }
             return updated;

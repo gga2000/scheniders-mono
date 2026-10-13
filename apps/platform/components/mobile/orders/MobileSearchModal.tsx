@@ -5,7 +5,7 @@ import {
     Dialog,
     BottomSheetContent,
 } from "@scheniders/ui/dialog";
-import { Search, X, History, Archive } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -75,25 +75,13 @@ export function MobileSearchModal({ open, onClose }: MobileSearchModalProps) {
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setFilters({ ...filters, searchIncludesArchive: !filters.searchIncludesArchive })}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${filters.searchIncludesArchive
-                                    ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:border-orange-500/30'
-                                    : 'bg-[var(--card-bg)] border-[var(--card-border)] text-muted-foreground'
-                                }`}
-                        >
-                            <Archive className="w-3 h-3" />
-                            {filters.searchIncludesArchive ? "Including Archieved" : "Include Archived"}
-                        </button>
-                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
                     {/* Placeholder for recent searches if needed */}
                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground/60 gap-3">
                         <Search className="w-12 h-12 stroke-[1.5]" />
-                        <p className="text-sm font-medium">Search by name, phone, city, or ID</p>
+                        <p className="text-sm font-medium">Search every order by phone, order number or name</p>
                     </div>
                 </div>
             </BottomSheetContent>
