@@ -8,6 +8,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useReportsMetrics, useDateRangePresets, DateRange } from "@/hooks/use-reports-metrics";
 import { useEmployeeMetrics } from "@/hooks/use-employee-metrics";
 import { useBatchAnalytics } from "@/hooks/use-batch-analytics";
+import { useChannelPerformance } from "@/hooks/use-channel-performance";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -59,6 +60,11 @@ const AttentionFlagsSummary = dynamic(
 
 const SourcePerformance = dynamic(
     () => import("@/components/reports/source-performance").then(mod => ({ default: mod.SourcePerformance })),
+    { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
+);
+
+const ChannelPerformance = dynamic(
+    () => import("@/components/reports/channel-performance").then(mod => ({ default: mod.ChannelPerformance })),
     { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
 );
 
@@ -119,6 +125,11 @@ export default function ReportsPage() {
         refresh: refreshEmployeeMetrics
     } = useEmployeeMetrics(dateRange);
 
+    // Which ad network the period's orders came from — `source` alone only ever
+    // says "lightfunnels". Read from the server for the whole range: the shared
+    // orders list is date-windowed and would undercount a wider report range.
+    const channelPerformance = useChannelPerformance(dateRange);
+
     // Batch analytics
     const {
         batches: batchData,
@@ -173,6 +184,8 @@ export default function ReportsPage() {
         if (data) printOperationalReport(data);
     }, [getExportData]);
 
+    const { t } = useLanguage();
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[var(--background)]">
@@ -180,8 +193,6 @@ export default function ReportsPage() {
             </div>
         );
     }
-
-    const { t } = useLanguage();
 
     if (error) {
         return (
@@ -312,6 +323,14 @@ export default function ReportsPage() {
                     />
                     <SourcePerformance data={sourceMetrics} />
                 </div>
+
+                {/* Ad-Channel Performance (Full Width) */}
+                <ChannelPerformance
+                    data={channelPerformance.data}
+                    loading={channelPerformance.isPending}
+                    error={channelPerformance.error}
+                    onRetry={() => { void channelPerformance.refetch(); }}
+                />
 
                 {/* Batch Analytics (Full Width) */}
                 <BatchAnalytics
