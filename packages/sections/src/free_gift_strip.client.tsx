@@ -70,7 +70,7 @@ export function FreeGiftStrip({
             </p>
             <div className="mt-bk-2xs h-2.5 rounded-full bg-white border-bk border-bk-ink overflow-hidden">
               <div
-                className="h-full bg-bk-primary transition-[width] duration-500"
+                className="h-full bg-bk-primary transition-[width] duration-bk-base motion-reduce:transition-none"
                 style={{
                   width: `${pct}%`,
                   backgroundColor: "var(--bk-primary, #ff5a8a)",

@@ -222,6 +222,30 @@ const DURATION_BASE_MS: Record<BrandMotion["speed"], number> = {
   slow: 500,
 };
 
+/**
+ * Section entrance — the scroll reveal. Deliberately slower than `base`: it
+ * moves a whole block of the page, not a control under the pointer. It was a
+ * fixed 0.7s, so a merchant who chose "snappy" still watched every section
+ * ease in at the same pace as one who chose "slow".
+ */
+const DURATION_REVEAL_MS: Record<BrandMotion["speed"], number> = {
+  snappy: 400,
+  normal: 700,
+  slow: 1100,
+};
+
+/**
+ * Ambient loops — the marquee strips. One full pass, so the numbers are in
+ * seconds, not the tens of milliseconds the other tiers deal in. Also a fixed
+ * value before this: `BrandMotion.speed` governed the hover feedback and
+ * nothing about the one piece of motion that runs continuously on the page.
+ */
+const DURATION_DRIFT_MS: Record<BrandMotion["speed"], number> = {
+  snappy: 14000,
+  normal: 22000,
+  slow: 34000,
+};
+
 const WEDGE_MULTIPLIER: Record<BrandShape["rotation_intensity"], number> = {
   none: 0,
   subtle: 0.35,
@@ -341,10 +365,12 @@ export const BK_VAR_NAMES = [
   "--bk-border-thickness-bold",
   "--bk-shadow-card",
   "--bk-shadow-button",
-  // Motion (3)
+  // Motion (5)
   "--bk-motion",
   "--bk-duration-fast",
   "--bk-duration-base",
+  "--bk-duration-reveal",
+  "--bk-duration-drift",
   // Wedge / rotation intensity (1)
   "--bk-wedge-multiplier",
 ] as const;
@@ -447,6 +473,8 @@ export function buildBrandKitVars(
   const speed: BrandMotion["speed"] = kit.motion?.speed ?? "normal";
   const fast = DURATION_FAST_MS[speed] ?? DURATION_FAST_MS.normal;
   const base = DURATION_BASE_MS[speed] ?? DURATION_BASE_MS.normal;
+  const reveal = DURATION_REVEAL_MS[speed] ?? DURATION_REVEAL_MS.normal;
+  const drift = DURATION_DRIFT_MS[speed] ?? DURATION_DRIFT_MS.normal;
 
   const wedge = WEDGE_MULTIPLIER[rotationKey] ?? WEDGE_MULTIPLIER.playful;
 
@@ -500,6 +528,8 @@ export function buildBrandKitVars(
     "--bk-motion": motionEnabled ? "auto" : "reduce",
     "--bk-duration-fast": `${fast}ms`,
     "--bk-duration-base": `${base}ms`,
+    "--bk-duration-reveal": `${reveal}ms`,
+    "--bk-duration-drift": `${drift}ms`,
     // Wedge
     "--bk-wedge-multiplier": String(wedge),
   };

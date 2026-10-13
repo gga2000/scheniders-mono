@@ -180,9 +180,13 @@ const config: Config = {
         "bk-button": "var(--bk-shadow-button)",
       },
       animation: {
-        marquee: "marquee 22s linear infinite",
-        "sticker-pop": "stickerPop 0.3s ease-out both",
+        // The drift tier, so `BrandMotion.speed` governs the one piece of
+        // motion that runs continuously on the page and not only the hover
+        // feedback. Fallback is the fixed value it used to be.
+        marquee: "marquee var(--bk-duration-drift, 22000ms) linear infinite",
+        "sticker-pop": "stickerPop var(--bk-duration-base, 250ms) ease-out both",
       },
+
       keyframes: {
         marquee: {
           "0%": { transform: "translateX(0)" },

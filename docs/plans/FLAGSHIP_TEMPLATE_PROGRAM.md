@@ -355,7 +355,43 @@ checkout bump, the quantity ladder and the post-purchase upsell.
 - **W7.5** schema.org product rich results. *(E2)*
 - **W7.6** Arabic blog / guides. *(E1)*
 - **W7.7** Video sections wired. *(E4)*
-- **W7.8** Motion identity pass. *(H2)*
+- **W7.8** Motion identity pass — DONE. The plan's reference for this item was
+  dangling, so it was scoped from the actual state of the code. Four findings,
+  all of them the same shape: a piece of the template's identity that ignored
+  the merchant's brand kit.
+  1. **`BrandMotion.speed` governed two of four tiers.** `fast` (pointer
+     feedback) and `base` (expressive movement) read the kit; the section
+     scroll-reveal was a fixed `0.7s` and the marquee a fixed `22s`. So a
+     merchant who chose "snappy" changed their hover feedback and nothing
+     about the motion a visitor actually sits and watches. Two tiers added —
+     `--bk-duration-reveal` (400/700/1100ms) and `--bk-duration-drift`
+     (14/22/34s) — and both are wired up. Defaults are the values that
+     shipped.
+  2. **Reduced motion froze the marquees half-scrolled.** The standard reset
+     collapses a duration to ~0, which lands an animation on its final frame —
+     correct for an entrance, wrong for a loop. The marquee ends at
+     `translateX(-50%)`, so a visitor who asked for less motion got a strip
+     cut off on one side with blank space on the other. Fixed centrally rather
+     than per-section, because Tailwind's `motion-reduce:` variant answers only
+     the visitor's OS preference and cannot see a merchant who turned motion
+     off in their own kit (`[data-bk-motion="reduce"]`) — one rule covers both,
+     and covers a section added later that nobody remembers to annotate.
+  3. **Four hardcoded durations** (the shared interactive class, the product
+     card zoom, the free-gift progress bar, the 404 button) now read tokens;
+     the product card zoom also had no reduced-motion guard. Zero hardcoded
+     durations remain in sections or the storefront.
+  4. **The template's signature card ignored the kit entirely.** `.bento-card`
+     and its siblings are applied as class names in 19 files — the V1 fallback
+     pages, the schneiders components *and* the V2 section helpers — and every
+     value in them was a literal: a black border, a black hard shadow, a white
+     fill, a fixed radius, and a `0.1s` press. Wave 0's `candy-*` sweep
+     replaced utilities inside components and never reached this stylesheet, so
+     a merchant who recoloured their kit still got all of it. All of it now
+     reads tokens, with the three card sizes keeping their proportions off the
+     one radius token. The Candy palette *is* the default kit, so every
+     fallback written in is the literal it replaced — proven by test against
+     what `buildBrandKitVars` actually emits for a default kit, so a default
+     store renders byte-identical. Verified in the real production build. *(H2)*
 - **W7.9** Per-section performance + a11y budgets in CI. *(P11)*
 - **W7.10** Storybook × variant visual regression. *(P12)*
 
