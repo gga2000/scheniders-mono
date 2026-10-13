@@ -446,7 +446,7 @@ export function OrderCustomerCard({
                                     {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                         <span
                                             className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-semibold rounded-md shadow-sm"
-                                            title={t("orderDetail.originalDate") || "Original Date"}
+                                            title={t("orderDetail.originalDate")}
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
                                             <span className="text-amber-500 mr-0.5">was</span>

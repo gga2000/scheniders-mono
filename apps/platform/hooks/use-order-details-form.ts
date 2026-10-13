@@ -298,7 +298,7 @@ export function useOrderIdEdit({ order, setOrder, onUpdate, checkOrderIdExists, 
             setShowIdWarning(false);
             setIsEditingId(false);
         } else {
-            toast.error(t("toast.updateFailed"), result.error || t("updateIdFailedDesc"));
+            toast.error(t("toast.updateFailed"), result.error || t("toast.updateIdFailedDesc"));
             setShowIdWarning(false);
         }
     };

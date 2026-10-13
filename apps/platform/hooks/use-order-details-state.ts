@@ -75,7 +75,7 @@ export function useOrderDetailsState({
                 setNotes(notesData);
             }).catch(error => {
                 console.error("Failed to load timeline or notes", error);
-                toast.error(t("toast.fetchFailed") || "Failed to load timeline", error instanceof Error ? error.message : "");
+                toast.error(t("toast.fetchFailed"), error instanceof Error ? error.message : "");
             }).finally(() => {
                 setLoadingTimeline(false);
             });
@@ -158,7 +158,7 @@ export function useOrderDetailsState({
         let rejectionReason: string | undefined;
         if (newStatus === "cancelled") {
             const promptResult = await promptUser({
-                title: t("orderDetail.cancelTitle") || "تأكيد الإلغاء",
+                title: t("orderDetail.cancelTitle"),
                 description: t("orderDetail.cancelReason") || "سبب الإلغاء (اختياري)",
                 placeholder: "سبب الإلغاء..."
             });
