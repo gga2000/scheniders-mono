@@ -1,5 +1,65 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Brand-kit v2 palette — single source of truth, driven by the `--bk-*` vars
+ * that `buildBrandKitVars` emits on the tenant layout root.
+ */
+const bkPalette: Record<string, AlphaColorValue> = {
+        primary: bk("bk-primary"),
+        secondary: bk("bk-secondary"),
+        accent: bk("bk-accent"),
+        surface: bk("bk-surface"),
+        "surface-alt": bk("bk-surface-alt"),
+        surfaceAlt: bk("bk-surface-alt"),
+        ink: bk("bk-ink"),
+        success: bk("bk-success"),
+        danger: bk("bk-danger"),
+        "on-primary": bk("bk-on-primary"),
+        "on-secondary": bk("bk-on-secondary"),
+        "on-accent": bk("bk-on-accent"),
+        "primary-hover": bk("bk-primary-hover"),
+        "primary-active": bk("bk-primary-active"),
+        "primary-soft": bk("bk-primary-soft"),
+        "primary-disabled": bk("bk-primary-disabled"),
+        "ink-soft": bk("bk-ink-soft"),
+        "ink-faint": bk("bk-ink-faint"),
+        divider: bk("bk-divider"),
+        // Decorative surfaces — derived from the accent hue at fixed
+        // offsets. These replace the old fixed candy pastels, which no
+        // tenant could recolour. `on-decor` is the one readable
+        // foreground for all three (see brand-kit-vars.ts).
+        "decor-a": bk("bk-decor-a"),
+        "decor-b": bk("bk-decor-b"),
+        "decor-c": bk("bk-decor-c"),
+        "on-decor": bk("bk-on-decor"),
+      };
+
+/**
+ * A brand-kit colour that survives an opacity modifier.
+ *
+ * Tailwind v3 can only apply `/40` to a colour it can break into channels.
+ * A bare `var(--bk-ink)` cannot be broken up, so v3 silently emits **no rule
+ * at all** for `text-bk-ink/60`, `bg-bk-ink/20`, `border-bk-ink/10` and every
+ * other modifier in the section library — the class lands in the shipped HTML
+ * and matches nothing. Muted text rendered at full ink, tinted panels rendered
+ * with no background, and hairline borders fell back to `currentColor`.
+ * 45 distinct utilities were dead this way.
+ *
+ * Returning a function is Tailwind's documented answer for a CSS-variable
+ * colour. It also keeps the `--bk-*` variables as whole colours, which the many
+ * call sites reading `var(--bk-primary)` directly depend on, and leaves a
+ * colour with no modifier byte-identical to what it compiled to before — so
+ * where `color-mix` is unsupported the page loses a tint, never a brand colour.
+ */
+type AlphaColorValue = (options: { opacityValue?: string }) => string;
+
+function bk(name: string): AlphaColorValue {
+  return ({ opacityValue }) =>
+    opacityValue === undefined
+      ? `var(--${name})`
+      : `color-mix(in srgb, var(--${name}) calc(${opacityValue} * 100%), transparent)`;
+}
+
 const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -62,35 +122,14 @@ const config: Config = {
         },
         // Brand-kit v2 — single source of truth, driven by `--bk-*` vars
         // emitted by `buildBrandKitVars` on the tenant layout root.
-        bk: {
-          primary: "var(--bk-primary)",
-          secondary: "var(--bk-secondary)",
-          accent: "var(--bk-accent)",
-          surface: "var(--bk-surface)",
-          "surface-alt": "var(--bk-surface-alt)",
-          surfaceAlt: "var(--bk-surface-alt)",
-          ink: "var(--bk-ink)",
-          success: "var(--bk-success)",
-          danger: "var(--bk-danger)",
-          "on-primary": "var(--bk-on-primary)",
-          "on-secondary": "var(--bk-on-secondary)",
-          "on-accent": "var(--bk-on-accent)",
-          "primary-hover": "var(--bk-primary-hover)",
-          "primary-active": "var(--bk-primary-active)",
-          "primary-soft": "var(--bk-primary-soft)",
-          "primary-disabled": "var(--bk-primary-disabled)",
-          "ink-soft": "var(--bk-ink-soft)",
-          "ink-faint": "var(--bk-ink-faint)",
-          divider: "var(--bk-divider)",
-          // Decorative surfaces — derived from the accent hue at fixed
-          // offsets. These replace the old fixed candy pastels, which no
-          // tenant could recolour. `on-decor` is the one readable
-          // foreground for all three (see brand-kit-vars.ts).
-          "decor-a": "var(--bk-decor-a)",
-          "decor-b": "var(--bk-decor-b)",
-          "decor-c": "var(--bk-decor-c)",
-          "on-decor": "var(--bk-on-decor)",
-        },
+        // Tailwind v3.4 resolves a colour value that is a function — the
+        // documented way to make a CSS-variable colour answer an opacity
+        // modifier — but its published `Config` type admits colour values of
+        // type `string` only (`RecursiveKeyValuePair<string, string>`,
+        // tailwindcss/types/config.d.ts:96). This cast is that upstream gap and
+        // nothing else: `bkPalette` above is fully typed, and
+        // `lib/brand-kit-alpha.test.ts` asserts every entry's runtime shape.
+        bk: bkPalette as unknown as Record<string, string>,
       },
       fontFamily: {
         sans: ["var(--brand-font, system-ui)", "sans-serif"],
