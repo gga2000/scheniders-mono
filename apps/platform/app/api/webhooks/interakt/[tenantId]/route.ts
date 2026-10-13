@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formatPhoneToStandard } from "@/lib/order-utils";
+import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import {
+    enforceWebhookAuth,
+    resolveWebhookAuthMode,
+    verifyWebhookAuth,
+} from "@/lib/webhook-auth";
 import {
     INTERAKT_DELIVERY_STATUSES,
     recordWhatsAppDeliveryReceipt,
@@ -79,17 +85,44 @@ export async function POST(
             return NextResponse.json({ error: "Integration not active" }, { status: 403 });
         }
 
-        // Verify webhook secret
-        const expectedSecret = integration.credentials?.webhook_secret;
-        if (expectedSecret) {
-            const provided = request.headers.get("x-webhook-secret") || request.headers.get("x-interakt-secret");
-            if (provided && provided !== expectedSecret) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
-        }
+        // Authenticate. The tenant's `credentials.webhook_secret` is both the
+        // Interakt "Secret Key" (Interakt signs every delivery with it as
+        // `Interakt-Signature: sha256=<hex HMAC of the body>`) and the shared
+        // secret accepted from a header or `?token=`. Missing credentials are
+        // processed-and-logged in monitor mode and refused in enforce mode; a
+        // wrong one is refused in both. See lib/webhook-auth.ts.
+        const credentials = integration.credentials as Record<string, unknown> | null;
+        const webhookSecret =
+            typeof credentials?.webhook_secret === "string" && credentials.webhook_secret
+                ? credentials.webhook_secret
+                : undefined;
+        const rawBody = await request.text();
+        const authResult = verifyWebhookAuth(
+            { headers: request.headers, url: request.url, rawBody },
+            {
+                sharedSecret: webhookSecret,
+                secretHeaders: ["x-webhook-secret", "x-interakt-secret"],
+                hmac: {
+                    header: "interakt-signature",
+                    secret: webhookSecret,
+                    encoding: "hex",
+                    prefix: "sha256=",
+                    acceptReserializedBody: true,
+                },
+            },
+        );
+        const authMode = resolveWebhookAuthMode(env.INTERAKT_WEBHOOK_AUTH_MODE, env.WEBHOOK_AUTH_MODE);
+        const denied = enforceWebhookAuth(`/api/webhooks/interakt/${tenantId}`, request, authResult, authMode);
+        if (denied) return denied;
 
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(rawBody);
+        } catch {
+            return NextResponse.json({ error: "Body is not valid JSON" }, { status: 400 });
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const payload = await request.json() as any;
+        const payload = parsed as any;
         const webhookType = payload.type || payload.eventType || "";
 
         // Delivery status events. OBS-3: this branch answered "logged" and wrote
