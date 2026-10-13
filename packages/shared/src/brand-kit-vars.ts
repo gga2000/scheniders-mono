@@ -93,6 +93,86 @@ function rgba(rgb: Rgb, alpha: number): string {
   return `rgb(${Math.round(rgb.r)} ${Math.round(rgb.g)} ${Math.round(rgb.b)} / ${a})`;
 }
 
+/** RGB → HSL. `h` in degrees [0, 360), `s`/`l` in [0, 1]. */
+function rgbToHsl({ r, g, b }: Rgb): { h: number; s: number; l: number } {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0, l };
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+  else if (max === gn) h = ((bn - rn) / d + 2) * 60;
+  else h = ((rn - gn) / d + 4) * 60;
+  return { h, s, l };
+}
+
+/** HSL → RGB. `h` in degrees (wrapped), `s`/`l` in [0, 1]. */
+function hslToRgb(h: number, s: number, l: number): Rgb {
+  const hn = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hn / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] =
+    hn < 60 ? [c, x, 0]
+    : hn < 120 ? [x, c, 0]
+    : hn < 180 ? [0, c, x]
+    : hn < 240 ? [0, x, c]
+    : hn < 300 ? [x, 0, c]
+    : [c, 0, x];
+  return { r: (r1 + m) * 255, g: (g1 + m) * 255, b: (b1 + m) * 255 };
+}
+
+/**
+ * Decorative surface band. Sections use three tinted surfaces to separate
+ * adjacent blocks (note cards, FAQ icons, filter chips, announcement
+ * tones). They must satisfy two constraints at once:
+ *
+ *   1. Follow the tenant's brand — a fixed pastel is unthemeable, which is
+ *      what pinning them to mint/lilac/sky literals got us.
+ *   2. Never collapse into one another — deriving each from a *different*
+ *      brand colour did exactly that whenever a tenant set `secondary`
+ *      close to `success`.
+ *
+ * Both hold if all three come from ONE anchor hue at fixed offsets, with
+ * saturation and lightness clamped to a single band. Distinctness is then
+ * a property of the offsets, not of the merchant's palette.
+ */
+const DECOR_HUE_OFFSETS = [0, 42, 200] as const;
+const DECOR_SATURATION = { min: 0.42, max: 0.72 } as const;
+const DECOR_LIGHTNESS = 0.82;
+/**
+ * Foreground lightness for the decorative band. It is NOT `onColor(...)`:
+ * that picks between white and the tenant's ink, and a tenant running a
+ * dark surface has a near-white ink, which on these permanently light
+ * surfaces renders light-on-light. Because the band's lightness is fixed,
+ * the readable foreground is fixed too — a deep shade of the same hue,
+ * which keeps it on-brand while clearing AA by construction.
+ */
+const DECOR_INK_LIGHTNESS = 0.16;
+
+function decorHue(anchor: Rgb): { h: number; sat: number } {
+  const { h, s } = rgbToHsl(anchor);
+  return {
+    h,
+    sat: Math.max(DECOR_SATURATION.min, Math.min(DECOR_SATURATION.max, s)),
+  };
+}
+
+function decorSurface(anchor: Rgb, hueOffset: number): string {
+  const { h, sat } = decorHue(anchor);
+  return toHex(hslToRgb(h + hueOffset, sat, DECOR_LIGHTNESS));
+}
+
+function decorForeground(anchor: Rgb): string {
+  const { h, sat } = decorHue(anchor);
+  return toHex(hslToRgb(h, sat, DECOR_INK_LIGHTNESS));
+}
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Token tables                                                         */
 /* ─────────────────────────────────────────────────────────────────── */
@@ -229,10 +309,11 @@ export const BK_VAR_NAMES = [
   "--bk-ink",
   "--bk-success",
   "--bk-danger",
-  // Colors — fixed candy-accent surfaces (3)
-  "--bk-mint",
-  "--bk-lilac",
-  "--bk-sky",
+  // Colors — decorative surfaces derived from the accent hue (4)
+  "--bk-decor-a",
+  "--bk-decor-b",
+  "--bk-decor-c",
+  "--bk-on-decor",
   // Colors — derived (11)
   "--bk-on-primary",
   "--bk-on-secondary",
@@ -317,6 +398,11 @@ export function buildBrandKitVars(
 
   const onColor = (c: Rgb): string => (luminance(c) < 0.5 ? "#ffffff" : inkHex);
 
+  const [decorA, decorB, decorC] = DECOR_HUE_OFFSETS.map((o) =>
+    decorSurface(accent, o),
+  ) as [string, string, string];
+  const onDecor = decorForeground(accent);
+
   const primaryHoverHex = toHex(mix(primary, ink, 0.1));
   const primaryActiveHex = toHex(mix(primary, ink, 0.18));
   const primarySoft = rgba(primary, 0.12);
@@ -374,15 +460,15 @@ export function buildBrandKitVars(
     "--bk-ink": inkHex,
     "--bk-success": successHex,
     "--bk-danger": dangerHex,
-    // Colors — fixed Candy Bento accent surfaces. The design references
-    // mint / lilac / sky as named decorative surfaces, but the brand kit has
-    // no field for them. Emit them as literals so these surfaces stay
-    // on-palette even when a tenant overrides `success` or `secondary`
-    // (which previously made every mint surface emerald and every lilac
-    // surface collapse to mint). Themeable tokens stay primary/secondary/accent.
-    "--bk-mint": "#7cf0bd",
-    "--bk-lilac": "#c5b6ff",
-    "--bk-sky": "#9ad8ff",
+    // Colors — decorative surfaces. Anchored on the accent hue at fixed
+    // offsets so they track the brand yet stay mutually distinct; see
+    // `decorSurface`. `on-decor` is computed once because all three share
+    // one lightness band, so one foreground reads correctly on all of them
+    // — including on a dark-ink tenant, where hardcoded ink did not.
+    "--bk-decor-a": decorA,
+    "--bk-decor-b": decorB,
+    "--bk-decor-c": decorC,
+    "--bk-on-decor": onDecor,
     // Colors — derived
     "--bk-on-primary": onColor(primary),
     "--bk-on-secondary": onColor(secondary),

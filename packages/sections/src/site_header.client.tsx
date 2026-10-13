@@ -500,8 +500,8 @@ export function SiteHeaderRender({
               aria-label={cartLabel}
               className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 transition-transform duration-150 motion-reduce:transition-none hover:scale-105 active:scale-95"
               style={{
-                backgroundColor: "var(--bk-mint, #7cf0bd)",
-                color: "var(--bk-ink, #1a1a1a)",
+                backgroundColor: "var(--bk-decor-a, #7cf0bd)",
+                color: "var(--bk-on-decor, #1a1a1a)",
                 border:
                   "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                 boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",

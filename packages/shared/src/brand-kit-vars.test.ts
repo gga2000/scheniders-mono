@@ -29,6 +29,9 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-border-thickness": "3px",
         "--bk-border-thickness-bold": "4px",
         "--bk-danger": "#ef4444",
+        "--bk-decor-a": "#f2e4b0",
+        "--bk-decor-b": "#d2f2b0",
+        "--bk-decor-c": "#b8b0f2",
         "--bk-divider": "rgb(26 26 26 / 0.1)",
         "--bk-duration-base": "250ms",
         "--bk-duration-fast": "150ms",
@@ -40,10 +43,9 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-ink": "#1a1a1a",
         "--bk-ink-faint": "rgb(26 26 26 / 0.38)",
         "--bk-ink-soft": "rgb(26 26 26 / 0.7)",
-        "--bk-lilac": "#c5b6ff",
-        "--bk-mint": "#7cf0bd",
         "--bk-motion": "auto",
         "--bk-on-accent": "#1a1a1a",
+        "--bk-on-decor": "#463a0b",
         "--bk-on-primary": "#ffffff",
         "--bk-on-secondary": "#1a1a1a",
         "--bk-primary": "#ff5a8a",
@@ -59,7 +61,6 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-secondary": "#7cf0bd",
         "--bk-shadow-button": "2px 2px 0px 0px var(--bk-ink)",
         "--bk-shadow-card": "4px 4px 0px 0px var(--bk-ink)",
-        "--bk-sky": "#9ad8ff",
         "--bk-success": "#7cf0bd",
         "--bk-surface": "#fff7ed",
         "--bk-surface-alt": "#ffffff",
@@ -275,5 +276,88 @@ describe("buildBrandKitFontsUrl", () => {
     k.typography.body = "Inter";
     const url = buildBrandKitFontsUrl(k)!;
     expect(url.match(/family=Inter/g)?.length).toBe(1);
+  });
+});
+
+describe("decorative surfaces", () => {
+  const DECOR = ["--bk-decor-a", "--bk-decor-b", "--bk-decor-c"] as const;
+
+  /** Relative luminance per WCAG 2.x, for the contrast assertions below. */
+  function luminance(hex: string): number {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = (c: number) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    return (
+      0.2126 * ch((n >> 16) & 0xff) +
+      0.7152 * ch((n >> 8) & 0xff) +
+      0.0722 * ch(n & 0xff)
+    );
+  }
+
+  function contrast(a: string, b: string): number {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  const ACCENTS = [
+    "#ffd84a", // default butter
+    "#ff5a8a", // pink
+    "#25d366", // WhatsApp green — collides with the old `success` binding
+    "#2e4b7a", // deep blue
+    "#111111", // near-black, no usable saturation
+    "#ffffff", // white, no usable saturation
+  ];
+
+  it.each(ACCENTS)("keeps the three surfaces distinct for accent %s", (accent) => {
+    const k = cloneKit();
+    k.colors.accent = accent;
+    const v = buildBrandKitVars(k) as Record<string, string>;
+    const values = DECOR.map((d) => v[d]);
+    expect(new Set(values).size).toBe(3);
+  });
+
+  it("tracks the accent hue rather than staying a fixed pastel", () => {
+    const a = cloneKit();
+    a.colors.accent = "#ffd84a";
+    const b = cloneKit();
+    b.colors.accent = "#2e4b7a";
+    const va = buildBrandKitVars(a) as Record<string, string>;
+    const vb = buildBrandKitVars(b) as Record<string, string>;
+    for (const d of DECOR) expect(va[d]).not.toBe(vb[d]);
+  });
+
+  it("does not follow success or secondary, which a tenant recolours freely", () => {
+    const base = cloneKit();
+    const moved = cloneKit();
+    moved.colors.success = "#123456";
+    moved.colors.secondary = "#654321";
+    const vb = buildBrandKitVars(base) as Record<string, string>;
+    const vm = buildBrandKitVars(moved) as Record<string, string>;
+    for (const d of DECOR) expect(vb[d]).toBe(vm[d]);
+  });
+
+  it("emits one foreground that clears AA on all three surfaces", () => {
+    for (const accent of ACCENTS) {
+      const k = cloneKit();
+      k.colors.accent = accent;
+      const v = buildBrandKitVars(k) as Record<string, string>;
+      for (const d of DECOR) {
+        expect(contrast(v["--bk-on-decor"], v[d])).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("stays readable when the tenant's ink is light (dark-surface store)", () => {
+    // The old binding hardcoded `--bk-ink` as the foreground, which inverted
+    // to near-white here and rendered light text on a light pastel.
+    const k = cloneKit();
+    k.colors.ink = "#f5f5f5";
+    k.colors.surface = "#101010";
+    const v = buildBrandKitVars(k) as Record<string, string>;
+    for (const d of DECOR) {
+      expect(contrast(v["--bk-on-decor"], v[d])).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

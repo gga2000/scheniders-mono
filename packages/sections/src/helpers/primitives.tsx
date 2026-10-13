@@ -37,12 +37,13 @@ type ScribbleColor = "butter" | "mint" | "lilac" | "sky" | "pink";
 
 const SCRIBBLE_HEX: Record<ScribbleColor, string> = {
   butter: "var(--bk-accent, #ffd84a)",
-  // Decorative candy surfaces read the fixed --bk-mint/--bk-lilac/--bk-sky
-  // tokens (not --bk-success / --bk-secondary, which a tenant can recolor and
-  // which previously made mint→emerald and lilac→mint).
-  mint: "var(--bk-mint, #7cf0bd)",
-  lilac: "var(--bk-lilac, #c5b6ff)",
-  sky: "var(--bk-sky, #9ad8ff)",
+  // The three decorative surfaces. Key names are historical (they are also
+  // schema enum values, so renaming them would fail Zod parse and silently
+  // drop the section); the VALUES now track the tenant's accent hue via
+  // --bk-decor-*, which is what "decorative" was always supposed to mean.
+  mint: "var(--bk-decor-a, #7cf0bd)",
+  lilac: "var(--bk-decor-b, #c5b6ff)",
+  sky: "var(--bk-decor-c, #9ad8ff)",
   pink: "var(--bk-primary, #ff5a8a)",
 };
 
@@ -161,12 +162,14 @@ const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
   // the hero secondary WhatsApp CTA.
   white: { bg: "#ffffff", fg: "var(--bk-ink, #1a1a1a)" },
   pink: { bg: "var(--bk-primary, #ff5a8a)", fg: "var(--bk-on-primary, #fff)" },
-  // Decorative candy surfaces read the fixed --bk-mint/--bk-lilac/--bk-sky
-  // tokens so they never drift when a tenant overrides success/secondary.
-  mint: { bg: "var(--bk-mint, #7cf0bd)", fg: "var(--bk-ink, #1a1a1a)" },
+  // Decorative surfaces — see SCRIBBLE_HEX. `on-decor` rather than `ink`
+  // because all three share one lightness band, so the correct foreground is
+  // a property of the band, not of the tenant's ink (which is light in a
+  // dark-surface store and was unreadable here).
+  mint: { bg: "var(--bk-decor-a, #7cf0bd)", fg: "var(--bk-on-decor, #1a1a1a)" },
   butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-ink, #1a1a1a)" },
-  lilac: { bg: "var(--bk-lilac, #c5b6ff)", fg: "var(--bk-ink, #1a1a1a)" },
-  sky: { bg: "var(--bk-sky, #9ad8ff)", fg: "var(--bk-ink, #1a1a1a)" },
+  lilac: { bg: "var(--bk-decor-b, #c5b6ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
+  sky: { bg: "var(--bk-decor-c, #9ad8ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
   cream: { bg: "var(--bk-surface, #fff7ed)", fg: "var(--bk-ink, #1a1a1a)" },
   ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "#fff" },
   success: {
