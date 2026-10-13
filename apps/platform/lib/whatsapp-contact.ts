@@ -7,7 +7,6 @@
 // designation can never drift from the number it points at.
 // =============================================
 
-import type { Order } from "@/types/order";
 
 export type WhatsAppSlot = "primary" | "secondary";
 
@@ -78,7 +77,26 @@ export function normalizeWhatsAppSlot(next: OrderPhones): WhatsAppSlot | null {
     return slot;
 }
 
-/** Convenience for callers holding a full Order. */
-export function orderWhatsAppNumber(order: Order): string | undefined {
-    return whatsappNumber(order as OrderPhones);
+/**
+ * The designation a details-form save should write, or `undefined` to leave the
+ * column alone.
+ *
+ * `saved.whatsapp_contact_slot === undefined` means the row was read without the
+ * column, so the stored value is unknown: an untouched designation is then left
+ * as it is rather than overwritten with a guess. A touched one is always written,
+ * normalized against the numbers being saved, and a known designation whose
+ * number was cleared is dropped so the write passes
+ * `orders_whatsapp_slot_has_number_check`.
+ */
+export function slotToSave(saved: OrderPhones, edits: Partial<OrderPhones>): WhatsAppSlot | null | undefined {
+    const touched = "whatsapp_contact_slot" in edits;
+    if (!touched && saved.whatsapp_contact_slot === undefined) return undefined;
+
+    const next = normalizeWhatsAppSlot({
+        phone: edits.phone ?? saved.phone,
+        secondary_phone: edits.secondary_phone ?? saved.secondary_phone,
+        whatsapp_contact_slot: touched ? edits.whatsapp_contact_slot : saved.whatsapp_contact_slot,
+    });
+    if (touched) return next;
+    return next === (saved.whatsapp_contact_slot ?? null) ? undefined : next;
 }

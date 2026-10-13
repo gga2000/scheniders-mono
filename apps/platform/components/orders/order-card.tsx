@@ -25,6 +25,9 @@ import { useLanguage } from "@/hooks/use-language";
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import { DuplicateAlertBanner } from "@/components/orders/duplicate-alert-banner";
 import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
+import { isWhatsAppSlot } from "@/lib/whatsapp-contact";
+import { followUpState } from "@/lib/follow-up-state";
+import { FollowUpCueBadge } from "./follow-up-cue-badge";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 
 import {
@@ -60,8 +63,6 @@ import {
     ChevronDown,
     Scissors,
     ClipboardCopy,
-    Bell,
-    Gift,
     Bot,
     ExternalLink
 } from "lucide-react";
@@ -94,6 +95,12 @@ interface OrderCardProps {
     onShowDuplicates?: (order: Order) => void;
     /** A 48h twin with money at risk — see lib/duplicate-window. */
     duplicateAlert?: DuplicateWindowAlert;
+    /**
+     * Called after a `wa.me` chat is opened from this card, so the order records
+     * who made contact. A prop rather than a hook: the card renders in Storybook
+     * and tests with no auth or query providers around it.
+     */
+    onContactRecorded?: (orderId: string) => void;
     // Pin functionality
     onTogglePin?: (orderId: string) => void;
     // Clone functionality
@@ -165,6 +172,7 @@ export const OrderCard = memo(function OrderCard({
     onSplit,
     isVirtualized = false,
     hasDuplicates = false,
+    onContactRecorded,
     archivedOrderCount = 0,
     actionDock = false,
     blacklistEntry,
@@ -180,6 +188,10 @@ export const OrderCard = memo(function OrderCard({
     const isUrgent = order.priority === "urgent";
     const isHighPriority = order.priority === "high";
     const isVerifiedCustomer = order.is_verified_customer === true;
+    // The customer told us which line to reach them on — show that number as the
+    // WhatsApp one so an agent never has to guess between the two.
+    const primaryIsWhatsApp = isWhatsAppSlot(order, "primary");
+    const secondaryIsWhatsApp = isWhatsAppSlot(order, "secondary");
     const isPinned = order.is_pinned;
     const isReviewed = order.is_reviewed;
     const isDelivered = order.status === "delivered";
@@ -243,7 +255,9 @@ export const OrderCard = memo(function OrderCard({
     const isContacted = order.status === "contacted";
     const needsDiscount = isContacted && hoursSinceCreated >= DISCOUNT_DELAY_HOURS;
     const needsReminder = isContacted && !needsDiscount && hoursSinceCreated >= REMINDER_DELAY_HOURS;
-    const needsFollowUp = needsReminder || needsDiscount;
+    // Who (if anyone) already sent the follow-up this order is currently due for,
+    // so the cue stops nagging for work someone has done.
+    const followUp = followUpState(order, { needsReminder, needsDiscount });
 
     // Externalized getItemsDisplay
     // Externalized getFullAddress, cleanSystemNotes, getActualNotes
@@ -748,6 +762,7 @@ export const OrderCard = memo(function OrderCard({
                                                 `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                             );
                                             const newWindow = window.open(link, "_blank");
+                                            onContactRecorded?.(order.id);
 
                                             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                 navigator.clipboard.writeText(link).then(() => {
@@ -976,6 +991,7 @@ export const OrderCard = memo(function OrderCard({
                                             `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                         );
                                         const newWindow = window.open(link, "_blank");
+                                        onContactRecorded?.(order.id);
 
                                         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                             navigator.clipboard.writeText(link).then(() => {
@@ -1686,13 +1702,19 @@ export const OrderCard = memo(function OrderCard({
                                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                                     </span>
                                 )}
-                                <Phone className="w-3.5 h-3.5 text-muted" />
+                                {primaryIsWhatsApp ? (
+                                    <MessageCircle className="w-3.5 h-3.5 text-emerald-500" aria-label={t("orders.phone.whatsappLine")} />
+                                ) : (
+                                    <Phone className="w-3.5 h-3.5 text-muted" />
+                                )}
                                 <span className={cn(
                                     "font-mono text-sm",
                                     !validatePhoneDetailed(order.phone).isValid && "text-red-600 dark:text-rose-400",
                                     hasDuplicates && !isVerifiedCustomer && "text-orange-600 font-semibold dark:text-orange-400",
                                     hasDuplicates && isVerifiedCustomer && "text-emerald-600 font-semibold dark:text-emerald-400",
-                                    !(!validatePhoneDetailed(order.phone).isValid) && !(hasDuplicates) && "dark:text-[#D4D4D4]"
+                                    !(!validatePhoneDetailed(order.phone).isValid) && !(hasDuplicates) && "dark:text-[#D4D4D4]",
+                                    // The stated contact line wins the colour: it is the number to dial.
+                                    primaryIsWhatsApp && validatePhoneDetailed(order.phone).isValid && "text-emerald-600 font-semibold dark:text-emerald-400"
                                 )}>
                                     {editable("phone", order.phone || "", <HighlightedPhone phone={order.phone} query={localSearchQuery} />, "font-mono")}
                                 </span>
@@ -1717,10 +1739,15 @@ export const OrderCard = memo(function OrderCard({
                                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                                             </span>
                                         )}
-                                        <Phone className="w-3.5 h-3.5 text-muted" />
+                                        {secondaryIsWhatsApp ? (
+                                            <MessageCircle className="w-3.5 h-3.5 text-emerald-500" aria-label={t("orders.phone.whatsappLine")} />
+                                        ) : (
+                                            <Phone className="w-3.5 h-3.5 text-muted" />
+                                        )}
                                         <span className={cn(
                                             "font-mono text-sm",
-                                            !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
+                                            !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600",
+                                            secondaryIsWhatsApp && validatePhoneDetailed(order.secondary_phone).isValid && "text-emerald-600 font-semibold dark:text-emerald-400"
                                         )}>
                                             <HighlightedPhone phone={order.secondary_phone} query={localSearchQuery} />
                                         </span>
@@ -1852,6 +1879,7 @@ export const OrderCard = memo(function OrderCard({
                                         try {
                                             const link = generateWhatsAppLink(order.phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
                                             const newWindow = window.open(link, "_blank");
+                                            onContactRecorded?.(order.id);
 
                                             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                 navigator.clipboard.writeText(link).then(() => {
@@ -1888,6 +1916,7 @@ export const OrderCard = memo(function OrderCard({
                                             try {
                                                 const link = generateWhatsAppLink(order.secondary_phone!, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
                                                 const newWindow = window.open(link, "_blank");
+                                                onContactRecorded?.(order.id);
 
                                                 if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                     navigator.clipboard.writeText(link).then(() => {
@@ -1902,12 +1931,16 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         className={cn(
                                             "flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-all active:scale-95",
-                                            validatePhoneDetailed(order.secondary_phone).isValid
-                                                ? "bg-gray-100 text-gray-700 border border-gray-200"
-                                                : "bg-red-50 text-red-600 border border-red-200"
+                                            !validatePhoneDetailed(order.secondary_phone).isValid
+                                                ? "bg-red-50 text-red-600 border border-red-200"
+                                                : secondaryIsWhatsApp
+                                                    // The stated WhatsApp line gets the primary button's green
+                                                    // weight, so it does not read as a fallback.
+                                                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-sm shadow-green-200 dark:shadow-none dark:bg-none dark:bg-[rgba(0,255,100,0.15)] dark:text-[#00FFAA]"
+                                                    : "bg-gray-100 text-gray-700 border border-gray-200"
                                         )}
                                     >
-                                        <Phone className="w-3.5 h-3.5" />
+                                        {secondaryIsWhatsApp ? <MessageCircle className="w-3.5 h-3.5" /> : <Phone className="w-3.5 h-3.5" />}
                                         <span className="font-mono text-xs">
                                             <HighlightedPhone phone={order.secondary_phone} query={localSearchQuery} />
                                         </span>
@@ -2015,16 +2048,11 @@ export const OrderCard = memo(function OrderCard({
                             : "gap-2"
                     )}>
                         {/* Follow-up cue badge */}
-                        {needsFollowUp && (
-                            <div className={cn(
-                                "flex flex-row-reverse items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold animate-pulse border shadow-sm ml-1 text-right",
-                                needsDiscount
-                                    ? "bg-red-50 text-red-700 border-red-300 dark:bg-red-500/10 dark:text-rose-400 dark:border-red-500/30"
-                                    : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
-                            )}>
-                                {needsDiscount ? <Gift className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-                                <span>{t(needsDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder").replace("{hours}", String(Math.floor(hoursSinceCreated)))}</span>
-                            </div>
+                        {followUp && (
+                            <FollowUpCueBadge
+                                state={followUp}
+                                hoursSinceCreated={Math.floor(hoursSinceCreated)}
+                            />
                         )}
 
                         {/* Chat Button - Primary with Contact Stage Indicator */}
@@ -2078,6 +2106,7 @@ export const OrderCard = memo(function OrderCard({
                                                     `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                                 );
                                                 const newWindow = window.open(link, "_blank");
+                                                onContactRecorded?.(order.id);
 
                                                 if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                     navigator.clipboard.writeText(link).then(() => {
@@ -2122,6 +2151,7 @@ export const OrderCard = memo(function OrderCard({
                                             `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
                                         );
                                         const newWindow = window.open(link, "_blank");
+                                        onContactRecorded?.(order.id);
 
                                         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                             navigator.clipboard.writeText(link).then(() => {

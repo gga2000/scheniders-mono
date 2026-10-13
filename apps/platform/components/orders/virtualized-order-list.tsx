@@ -35,6 +35,8 @@ interface VirtualizedOrderListProps {
     hasDuplicates?: (orderId: string) => boolean;
     /** 48h money-at-risk duplicate for an order, if it has one. */
     getDuplicateWindowAlert?: (orderId: string) => DuplicateWindowAlert | undefined;
+    /** Records who opened a WhatsApp chat from a card. */
+    onContactRecorded?: (orderId: string) => void;
     getCustomerOrderCount: (phone: string, orderId: string) => number;
     getCustomerArchivedCount: (phone: string) => number;
     getCustomerHistory: (phone: string) => Order[];
@@ -106,6 +108,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getRiskAssessment,
     hasDuplicates,
     getDuplicateWindowAlert,
+    onContactRecorded,
     onSplitOrder,
     assignments = [],
 }: VirtualizedOrderListProps) {
@@ -210,6 +213,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                 archivedOrderCount={getCustomerArchivedCount(order.phone)}
                 hasDuplicates={hasDuplicates?.(order.id) || false}
                 duplicateAlert={getDuplicateWindowAlert?.(order.id)}
+                onContactRecorded={onContactRecorded}
                 previousOrder={previousOrder}
                 onMergeWithPrevious={onMergeWithPrevious}
                 onShowDuplicates={onShowDuplicates}

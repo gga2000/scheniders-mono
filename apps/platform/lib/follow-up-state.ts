@@ -146,18 +146,21 @@ export function senderDisplayName(profile: { display_name?: string | null } | nu
     return profile?.display_name?.trim() || email?.trim() || undefined;
 }
 
-/** Short Arabic "how long ago it was sent", for the badge tooltip and label. */
-export function sentAgoLabel(at: string | undefined, now: Date = new Date()): string | undefined {
+/** Translate a key with `{var}` interpolation — `useLanguage().t` fits. */
+export type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
+/** Short "how long ago it was sent", for the badge tooltip and label. */
+export function sentAgoLabel(at: string | null | undefined, t: Translate, now: Date = new Date()): string | undefined {
     if (!at) return undefined;
     const sentAt = new Date(at).getTime();
     if (Number.isNaN(sentAt)) return undefined;
 
     const minutes = Math.max(0, Math.round((now.getTime() - sentAt) / 60000));
-    if (minutes < 1) return "الآن";
-    if (minutes < 60) return `قبل ${minutes} دقيقة`;
+    if (minutes < 1) return t("orders.timeline.justNow");
+    if (minutes < 60) return t("orders.timeline.minsAgo", { mins: minutes });
 
     const hours = Math.round(minutes / 60);
-    if (hours < 24) return `قبل ${hours} ساعة`;
+    if (hours < 24) return t("orders.timeline.hoursAgo", { hours });
 
-    return `قبل ${Math.floor(hours / 24)} يوم`;
+    return t("orders.timeline.daysAgo", { days: Math.floor(hours / 24) });
 }

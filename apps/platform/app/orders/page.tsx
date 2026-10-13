@@ -100,6 +100,7 @@ import { notificationService } from "@/lib/notification-service";
 import { toast } from "@/hooks/use-toast";
 
 import { useLanguage } from "@/hooks/use-language";
+import { useRecordContact } from "@/hooks/use-record-contact";
 
 export default function OrdersPage() {
     const { sidebarExpanded } = useSidebar();
@@ -152,6 +153,9 @@ export default function OrdersPage() {
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    // Stamps who opened a WhatsApp chat from a card (template sends are stamped server-side).
+    const recordContact = useRecordContact();
 
     const {
 
@@ -1833,6 +1837,7 @@ export default function OrdersPage() {
                                                             getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
                                                             getDuplicateWindowAlert={getDuplicateWindowAlert}
+                                                            onContactRecorded={recordContact}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                         />
                                                     ) : displayedOrders.length >= 10 ? (
@@ -1883,6 +1888,7 @@ export default function OrdersPage() {
                                                             getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
                                                             getDuplicateWindowAlert={getDuplicateWindowAlert}
+                                                            onContactRecorded={recordContact}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                         />
                                                     ) : (
@@ -1918,6 +1924,7 @@ export default function OrdersPage() {
                                                                                 setShowDuplicateModal(true);
                                                                             }}
                                                                             duplicateAlert={getDuplicateWindowAlert(order.id)}
+                                                                            onContactRecorded={recordContact}
                                                                             onTogglePin={togglePin}
                                                                             onCloneOrder={cloneOrder}
                                                                             onScreenshot={setScreenshotOrder}
@@ -1966,6 +1973,7 @@ export default function OrdersPage() {
                                                     setSelectedOrder={setSelectedOrderWithFetch}
                                                     setIsModalOpen={setIsModalOpen}
                                                     getDuplicateWindowAlert={getDuplicateWindowAlert}
+                                                    onContactRecorded={recordContact}
                                                     setDuplicateOrder={setDuplicateOrder}
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}

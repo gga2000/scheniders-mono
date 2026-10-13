@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Order } from "@/types/order";
+import { translations } from "@/lib/i18n";
 import {
     AUTOMATION_SENDER_NAME,
     BOT_AVATAR,
@@ -118,21 +119,24 @@ describe("followUpState", () => {
 
 describe("sentAgoLabel", () => {
     const now = new Date("2026-09-11T12:00:00.000Z");
+    // The real Arabic table, so the test reads the copy agents see.
+    const tAr = (key: string, vars: Record<string, string | number> = {}) =>
+        (translations.ar[key] ?? key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k]));
 
     it("rounds through minutes, hours and days", () => {
-        expect(sentAgoLabel("2026-09-11T11:59:40.000Z", now)).toBe("الآن");
-        expect(sentAgoLabel("2026-09-11T11:30:00.000Z", now)).toBe("قبل 30 دقيقة");
-        expect(sentAgoLabel("2026-09-11T09:00:00.000Z", now)).toBe("قبل 3 ساعة");
-        expect(sentAgoLabel("2026-09-09T12:00:00.000Z", now)).toBe("قبل 2 يوم");
+        expect(sentAgoLabel("2026-09-11T11:59:40.000Z", tAr, now)).toBe("الآن");
+        expect(sentAgoLabel("2026-09-11T11:30:00.000Z", tAr, now)).toBe("قبل 30 دقيقة");
+        expect(sentAgoLabel("2026-09-11T09:00:00.000Z", tAr, now)).toBe("قبل 3 ساعة");
+        expect(sentAgoLabel("2026-09-09T12:00:00.000Z", tAr, now)).toBe("قبل 2 يوم");
     });
 
     it("returns nothing for a missing or unparseable timestamp", () => {
-        expect(sentAgoLabel(undefined, now)).toBeUndefined();
-        expect(sentAgoLabel("not-a-date", now)).toBeUndefined();
+        expect(sentAgoLabel(undefined, tAr, now)).toBeUndefined();
+        expect(sentAgoLabel("not-a-date", tAr, now)).toBeUndefined();
     });
 
     it("never reports a negative age from small clock skew", () => {
-        expect(sentAgoLabel("2026-09-11T12:00:30.000Z", now)).toBe("الآن");
+        expect(sentAgoLabel("2026-09-11T12:00:30.000Z", tAr, now)).toBe("الآن");
     });
 });
 

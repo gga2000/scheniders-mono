@@ -4,6 +4,7 @@ import {
     isWhatsAppSlot,
     swapPhones,
     normalizeWhatsAppSlot,
+    slotToSave,
     type OrderPhones,
 } from "./whatsapp-contact";
 
@@ -92,5 +93,28 @@ describe("normalizeWhatsAppSlot", () => {
 
     it("returns null when nothing was designated", () => {
         expect(normalizeWhatsAppSlot(phones())).toBeNull();
+    });
+});
+
+describe("slotToSave", () => {
+    it("leaves an unknown designation alone when the edit did not touch it", () => {
+        // Row read without the column (detail view before 20261014120000).
+        const saved = { phone: PRIMARY, secondary_phone: SECONDARY };
+        expect(slotToSave(saved, { phone: PRIMARY, secondary_phone: "" })).toBeUndefined();
+    });
+
+    it("writes a touched designation, normalized against the numbers being saved", () => {
+        expect(slotToSave(phones(), { whatsapp_contact_slot: "secondary" })).toBe("secondary");
+        expect(slotToSave(phones(), { whatsapp_contact_slot: "secondary", secondary_phone: "" })).toBeNull();
+        expect(slotToSave(phones({ whatsapp_contact_slot: "primary" }), { whatsapp_contact_slot: null })).toBeNull();
+    });
+
+    it("drops a known designation whose number was cleared, so the check constraint holds", () => {
+        expect(slotToSave(phones({ whatsapp_contact_slot: "secondary" }), { secondary_phone: "" })).toBeNull();
+    });
+
+    it("writes nothing when a known designation is still valid", () => {
+        expect(slotToSave(phones({ whatsapp_contact_slot: "secondary" }), { phone: PRIMARY, secondary_phone: SECONDARY })).toBeUndefined();
+        expect(slotToSave(phones({ whatsapp_contact_slot: null }), { phone: PRIMARY })).toBeUndefined();
     });
 });

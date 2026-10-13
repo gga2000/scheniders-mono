@@ -3,6 +3,7 @@ import { Order, OrderItem } from "@/lib/supabase";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { toast } from "@/hooks/use-toast";
 import { getBaseOrderId } from "@/lib/utils";
+import { slotToSave } from "@/lib/whatsapp-contact";
 import { FUTURE_ORDER_DATE_CODE, isFutureInstant } from "@/lib/order-date-guard";
 
 interface UseOrderDetailsFormProps {
@@ -93,6 +94,20 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
                 }
             } else {
                 delete (dataToSave as Record<string, unknown>).created_at;
+            }
+
+            // Keep the WhatsApp designation consistent with the numbers being
+            // saved: clearing the designated number drops it (or the write fails
+            // `orders_whatsapp_slot_has_number_check`), and a designation this
+            // form could not see is left untouched rather than overwritten.
+            const slot = slotToSave(
+                { phone: order.phone, secondary_phone: order.secondary_phone, whatsapp_contact_slot: order.whatsapp_contact_slot },
+                dataToSave,
+            );
+            if (slot === undefined) {
+                delete (dataToSave as Record<string, unknown>).whatsapp_contact_slot;
+            } else {
+                dataToSave.whatsapp_contact_slot = slot;
             }
 
             // Remove read-only fields that should never be updated
