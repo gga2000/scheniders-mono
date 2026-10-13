@@ -669,7 +669,7 @@ export function PdpDirectOrderRender({
   const hintCls = "text-bk-ink-faint normal-case tracking-normal";
   const errorCls = "mt-bk-2xs font-label font-bold text-xs text-bk-danger";
   const stepperBtnCls =
-    "flex h-11 w-11 items-center justify-center transition-opacity duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
+    "flex h-11 w-11 items-center justify-center transition-opacity duration-bk-fast motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
 
   /** Shared a11y wiring for one field. */
   function fieldA11y(k: FieldKey) {
@@ -863,7 +863,7 @@ export function PdpDirectOrderRender({
               <div
                 ref={priceRowRef}
                 data-price-row
-                className="-mx-2 flex flex-wrap items-baseline justify-center gap-bk-xs scroll-mt-24 px-2 py-1 transition-[background-color] duration-300 motion-reduce:transition-none"
+                className="-mx-2 flex flex-wrap items-baseline justify-center gap-bk-xs scroll-mt-24 px-2 py-1 transition-[background-color] duration-bk-base motion-reduce:transition-none"
                 style={{
                   borderRadius: "var(--bk-radius-input, 0.75rem)",
                   backgroundColor:
@@ -1382,7 +1382,7 @@ export function PdpDirectOrderRender({
                       <img
                         src={c.image_url}
                         alt=""
-                        className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                        className="h-14 w-14 shrink-0 rounded-bk-input object-cover"
                         loading="lazy"
                       />
                     )}

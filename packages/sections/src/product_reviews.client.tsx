@@ -294,7 +294,7 @@ export function ProductReviewsRender({
   const maxBar = Math.max(1, summary.count);
   const hasReviews = summary.count > 0;
   const inputCls =
-    "w-full rounded-xl border-2 border-bk-ink/15 bg-bk-surface px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus-visible:outline-none focus-visible:ring-2 ring-bk-focus focus-visible:ring-offset-2";
+    "w-full rounded-bk-input border-2 border-bk-ink/15 bg-bk-surface px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus-visible:outline-none focus-visible:ring-2 ring-bk-focus focus-visible:ring-offset-2";
   const reviewPhotoAlt = (n: number) =>
     t(`Review photo ${n}`, `صورة التقييم ${n}`);
 
@@ -364,7 +364,7 @@ export function ProductReviewsRender({
           {reviews.map((r) => (
             <li
               key={r.id}
-              className="rounded-2xl border-2 border-bk-ink/10 bg-bk-surface p-bk-md"
+              className="rounded-bk-card border-2 border-bk-ink/10 bg-bk-surface p-bk-md"
             >
               <div className="flex items-center justify-between gap-bk-sm">
                 <span className="font-label font-bold text-bk-ink">
@@ -392,7 +392,7 @@ export function ProductReviewsRender({
                         type="button"
                         onClick={() => setLightbox({ url, alt })}
                         aria-label={t("Enlarge photo", "تكبير الصورة")}
-                        className="relative h-20 w-20 overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2"
+                        className="relative h-20 w-20 overflow-hidden rounded-bk-input focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2"
                       >
                         <Image
                           src={url}
@@ -420,7 +420,7 @@ export function ProductReviewsRender({
 
       {/* Submit form */}
       {props.show_form && (
-        <div className="mt-bk-lg rounded-2xl border-2 border-bk-ink/10 bg-bk-surface p-bk-md">
+        <div className="mt-bk-lg rounded-bk-card border-2 border-bk-ink/10 bg-bk-surface p-bk-md">
           {submitted ? (
             <p
               role="status"
@@ -448,7 +448,7 @@ export function ProductReviewsRender({
                     type="button"
                     aria-pressed={rating >= n}
                     onClick={() => setRating(n)}
-                    className="inline-flex h-11 w-11 items-center justify-center transition-transform duration-150 motion-reduce:transition-none active:scale-[0.9]"
+                    className="inline-flex h-11 w-11 items-center justify-center transition-transform duration-bk-fast motion-reduce:transition-none active:scale-[0.9]"
                   >
                     <Stars
                       value={rating >= n ? 1 : 0}
@@ -507,7 +507,7 @@ export function ProductReviewsRender({
                   onClick={() => fileInputRef.current?.click()}
                   className={cn(
                     "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-bk-ink/15 bg-bk-surface px-4 py-2 font-label text-sm font-bold text-bk-ink",
-                    "transition-[opacity,transform] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
+                    "transition-[opacity,transform] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
                     "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
                   )}
                 >

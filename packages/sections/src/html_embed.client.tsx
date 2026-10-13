@@ -17,15 +17,31 @@
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./html_embed";
 
+/**
+ * Legacy Candy background → brand token. `mint`/`butter`/`pink` have exact
+ * brand-kit equivalents; `sky`/`lilac` have no brand slot and take the
+ * decorative surfaces. Enum values are stored config and must not change.
+ */
+const EMBED_BG: Record<NonNullable<Props["bg"]>, string> = {
+  mint: "var(--bk-secondary, #7cf0bd)",
+  butter: "var(--bk-accent, #ffd84a)",
+  sky: "var(--bk-decor-c, #9ad8ff)",
+  lilac: "var(--bk-decor-b, #c5b6ff)",
+  pink: "var(--bk-primary, #ff5a8a)",
+};
+
 export function HtmlEmbedRender({
   props,
 }: {
   props: Props;
   ctx: SectionRenderContext;
 }): React.ReactElement {
-  const bgClass = props.bg ? `bg-candy-${props.bg}` : undefined;
+  // Interpolating the class name (`bg-candy-${props.bg}`) meant Tailwind
+  // never saw it: the utilities only existed because other sections happened
+  // to spell them out literally. Resolve to a brand token instead, so the
+  // background follows the tenant's kit and cannot be purged.
   return (
-    <section className={bgClass ? `${bgClass} py-6` : "py-6"}>
+    <section className="py-6" style={props.bg ? { backgroundColor: EMBED_BG[props.bg] } : undefined}>
       {/*
         SECURITY (EC6): NO allow-same-origin. With `srcdoc`, allow-same-origin
         would put the embed in the PARENT origin — embedded JS could read the

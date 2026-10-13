@@ -401,7 +401,7 @@ export function OrderTrackerRender({
                         />
                       )}
                       <span
-                        className="relative z-10 flex items-center justify-center shrink-0 transition-[width,height,background-color] duration-150 motion-reduce:transition-none"
+                        className="relative z-10 flex items-center justify-center shrink-0 transition-[width,height,background-color] duration-bk-fast motion-reduce:transition-none"
                         style={{
                           width: isCurrent ? "44px" : "36px",
                           height: isCurrent ? "44px" : "36px",

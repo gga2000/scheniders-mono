@@ -40,8 +40,10 @@ Research on 2026-09-09 against `origin/main`:
   (incl. Arabic pairings) and `voice`; `buildBrandKitVars()` emits ~38 `--bk-*`
   tokens including `--bk-radius-*`, `--bk-shadow-*`, `--bk-border-thickness`,
   `--bk-duration-*`, `--bk-scale-*`. **P7 is ~90% done** — what remains is
-  adoption and removing the Candy Bento leftovers (`--bk-lilac`, `--bk-mint`,
-  `--bk-sky`, `--bk-wedge-multiplier`).
+  adoption and making the three decorative surfaces themeable (`--bk-lilac`,
+  `--bk-mint`, `--bk-sky` — done in W0.2). `--bk-wedge-multiplier` is NOT a
+  leftover: it carries `BrandShape.rotation_intensity` and is consumed by the
+  brand-kit live preview.
 - **Per-governorate delivery is already built.** `GovernorateShippingConfig`
   supports per-governorate `fee_iqd`, `free_threshold_iqd` and `eta_hours` with a
   `default_rate` fallback. **C2 is a surfacing job, not a build job.** Ali's note
@@ -237,10 +239,22 @@ Ali's list in the order he gave it would mean rewriting most of it later.
 
 ### Wave 0 — Foundations & hygiene
 - **W0.1** Worktree off `origin/main`, program plan committed. *(done)*
-- **W0.2** Remove Candy Bento leftovers from `brand-kit-vars.ts` (`--bk-lilac`,
-  `--bk-mint`, `--bk-sky`, `--bk-wedge-multiplier`) after auditing every consumer.
-- **W0.3** Audit `shape`/`motion` token adoption across all 61 sections; replace
-  hardcoded radii/shadows/borders with the tokens they should have used. (P7 remainder)
+- **W0.2** Retire the fixed Candy pastels. *(done — `e073d856`)* Replaced
+  `--bk-mint` / `--bk-lilac` / `--bk-sky` with `--bk-decor-a/b/c` + `--bk-on-decor`,
+  derived from the accent hue at fixed offsets so they track the brand yet can
+  never collapse into each other. Semantic uses (PDP in-stock, WhatsApp CTA)
+  moved to `--bk-success` instead. Schema enum keys kept — they are Zod values.
+- **W0.3** Shape and motion token adoption across the sections package.
+  *(done)* 70 hardcoded `candy-*` utilities mapped to brand tokens (the Candy
+  palette *is* `EMPTY_BRAND_KIT`, so a default-kit tenant renders unchanged);
+  13 radii and 8 border widths moved to `rounded-bk-*` / `border-bk`; 37
+  transition durations moved to `duration-bk-fast` / `duration-bk-base`, which
+  makes `BrandMotion.speed` take effect for the first time. `--bk-motion`
+  (on/off) was already correctly wired via `data-bk-motion` + `globals.css`.
+- **W0.4** Sweep the V1 fallback renderers (`apps/storefront/components/schneiders/*`
+  and the ~10 route pages that import them). They still hardcode `candy-*`
+  utilities, so any tenant falling back to a V1 page gets an unthemeable
+  palette. Separate surface from the section package, hence a separate task.
 
 ### Wave 1 — Keystones
 - **W1.1** Migration: `product_attribute_defs` + `product_attribute_values`, RLS,
