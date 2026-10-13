@@ -5,6 +5,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { cn, formatIQD } from '@/lib/utils';
 import { formatPhoneGrouped } from '@/lib/order-utils';
+import { isWhatsAppSlot } from '@/lib/whatsapp-contact';
 import type { Order, OrderStatus } from '@/lib/supabase';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
@@ -111,6 +112,8 @@ interface VirtualizedOrderTableProps {
     setIsModalOpen: (open: boolean) => void;
     /** 48h money-at-risk duplicate for an order, if it has one. */
     getDuplicateWindowAlert?: (orderId: string) => DuplicateWindowAlert | undefined;
+    /** Records who opened a WhatsApp chat from a row's phone number. */
+    onContactRecorded?: (orderId: string) => void;
     setDuplicateOrder: (order: Order) => void;
     setShowDuplicateModal: (open: boolean) => void;
     modePrice: number;
@@ -288,6 +291,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
     isSelected,
     isDuplicate,
     duplicateSeverity,
+    onContactRecorded,
     modePrice,
     togglePin,
     toggleOrderSelection,
@@ -462,8 +466,8 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 ) : (
                 <div className="relative inline-flex items-center gap-1 group/phone">
                     <span
-                        className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && (duplicateSeverity === "critical" ? "text-rose-600 font-bold" : "text-amber-600 font-bold"))}
-                        onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); }}
+                        className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && (duplicateSeverity === "critical" ? "text-rose-600 font-bold" : "text-amber-600 font-bold"), isWhatsAppSlot(order, "primary") && validatePhoneDetailed(order.phone).isValid && !isDuplicate && "text-emerald-600 font-bold")}
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); onContactRecorded?.(order.id); }}
                     >
                         {formatPhoneGrouped(order.phone)}
                     </span>
@@ -485,8 +489,8 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 {order.secondary_phone ? (
                     <div className="relative inline-flex items-center gap-1 cursor-pointer group/phone2">
                         <span
-                            className={cn("font-mono text-xs hover:text-green-600 transition-colors", !validatePhoneDetailed(order.secondary_phone).isValid ? "text-red-600 font-bold" : "text-muted")}
-                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.secondary_phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); }}
+                            className={cn("font-mono text-xs hover:text-green-600 transition-colors", !validatePhoneDetailed(order.secondary_phone).isValid ? "text-red-600 font-bold" : "text-muted", isWhatsAppSlot(order, "secondary") && validatePhoneDetailed(order.secondary_phone).isValid && "text-emerald-600 font-bold")}
+                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.secondary_phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); onContactRecorded?.(order.id); }}
                         >
                             {formatPhoneGrouped(order.secondary_phone)}
                         </span>
@@ -606,6 +610,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
         prevProps.isSelected === nextProps.isSelected &&
         prevProps.isDuplicate === nextProps.isDuplicate &&
         prevProps.duplicateSeverity === nextProps.duplicateSeverity &&
+        prevProps.onContactRecorded === nextProps.onContactRecorded &&
         prevProps.modePrice === nextProps.modePrice &&
         prevProps.isFlashing === nextProps.isFlashing &&
         prevProps.isFocused === nextProps.isFocused &&
@@ -632,6 +637,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     setSelectedOrder,
     setIsModalOpen,
     getDuplicateWindowAlert,
+    onContactRecorded,
     setDuplicateOrder,
     setShowDuplicateModal,
     modePrice,
@@ -1126,6 +1132,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                     isSelected={isSelected}
                                     isDuplicate={isDuplicate}
                                     duplicateSeverity={duplicateAlert?.severity}
+                                    onContactRecorded={onContactRecorded}
                                     modePrice={modePrice}
                                     togglePin={togglePin}
                                     toggleOrderSelection={toggleOrderSelection}

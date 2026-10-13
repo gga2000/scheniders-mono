@@ -30,6 +30,7 @@ import { formatPhoneForDisplay, formatPhoneGrouped } from "@/lib/order-utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRecordContact } from "@/hooks/use-record-contact";
 
 interface WhatsAppTemplatePanelProps {
     open: boolean;
@@ -121,6 +122,8 @@ export function WhatsAppTemplatePanel({
     const previewOrder = targetOrders[0] || null;
 
     const [selectedType, setSelectedType] = useState<'confirmation' | 'reminder' | 'discount'>('confirmation');
+    // Only for the "open in WhatsApp" path: Interakt sends are stamped by the send route.
+    const recordContact = useRecordContact();
     const [showPreview, setShowPreview] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [discountPercent, setDiscountPercent] = useState(10);
@@ -237,6 +240,7 @@ export function WhatsAppTemplatePanel({
         if (onContactSent) {
             onContactSent(previewOrder.id, newCount);
         }
+        recordContact(previewOrder.id, selectedType);
         onClose();
     };
 

@@ -82,6 +82,7 @@ import {
 } from "lucide-react";
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import { useStatusLabel } from "@/hooks/use-status-label";
+import { useRecordContact } from "@/hooks/use-record-contact";
 
 interface OrderDetailsModalProps {
     order: Order | null;
@@ -127,6 +128,9 @@ export function OrderDetailsModal({
     useEffect(() => {
         setOrder(propOrder);
     }, [propOrder]);
+
+    // Stamps who opened a WhatsApp chat from here; template sends are stamped server-side.
+    const recordContact = useRecordContact();
 
     const {
         isEditing,
@@ -409,6 +413,7 @@ export function OrderDetailsModal({
                 `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
             );
             window.open(link, "_blank");
+            recordContact(order.id);
         }
     };
 
@@ -1427,6 +1432,8 @@ export function OrderDetailsModal({
                                 isUpdatingStatus={isUpdatingStatus}
                                 handleStatusChange={handleStatusChange}
                                 orderDateError={orderDateError}
+                                onRequestEdit={handleEdit}
+                                onContactRecorded={recordContact}
                             />
 
                             {/* Products Card */}

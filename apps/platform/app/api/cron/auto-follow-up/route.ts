@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { scheduleFollowUp, DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/lib/qstash";
 import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { automationFollowUpStamp } from "@/lib/follow-up-state";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -156,6 +157,20 @@ export async function POST(request: Request) {
         payload: { source: "auto_follow_up", templateType },
         tenant_id: order.tenant_id,
     });
+
+    // Attribute the send so the card's follow-up cue shows the bot rather than
+    // nagging for a message that already went out. Written only after a
+    // successful send: the claim above is rolled back on failure, this is not.
+    const { error: attributionErr } = await supabaseAdmin()
+        .from("orders")
+        .update(automationFollowUpStamp(templateType))
+        .eq("id", orderUuid);
+
+    if (attributionErr) {
+        // The message is already out; failing the cron now would make QStash
+        // retry and send it twice. Record the failure and carry on.
+        console.error("[Auto Follow-up] Failed to record follow-up attribution:", attributionErr);
+    }
 
     console.log(`[Auto Follow-up] ${templateType} sent for ${order.order_id} (count: ${contactCount} → ${newContactCount})`);
 
