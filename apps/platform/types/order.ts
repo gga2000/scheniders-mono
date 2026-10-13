@@ -4,6 +4,7 @@
 // =============================================
 
 import type { AdAttribution } from '@/lib/ad-attribution';
+import type { OrderRiskData } from '@/lib/customer-trust-risk';
 
 // Order status types
 // - new: Just received
@@ -145,13 +146,8 @@ export interface Order {
     address_issues?: string[];
     validated_governorate_code?: string;
     risk_metadata?: RiskMetadata;
-    risk_data?: {
-        level: RiskLevel;
-        score: number;
-        reasons: string[];
-        stats: Record<string, unknown>;
-        last_updated: string;
-    };
+    /** Built from `customer_trust` — see lib/customer-trust-risk.ts. */
+    risk_data?: OrderRiskData;
     last_status_changed_by_name?: string;
     last_status_changed_by_avatar?: string;
     is_test?: boolean;

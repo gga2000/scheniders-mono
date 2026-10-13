@@ -4,6 +4,14 @@ import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
 import type { OrderWindow } from "@/lib/order-window";
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
+import { EXPORT_COLUMNS, LIST_COLUMNS } from "@/lib/repositories/order-columns";
+import {
+    TRUST_RISK_COLUMNS,
+    buildRiskData,
+    normalizePhoneLikeDb,
+    trustKey,
+    type TrustRow,
+} from "@/lib/customer-trust-risk";
 
 /**
  * OrderRepository — Centralized data access for orders.
@@ -14,69 +22,86 @@ import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-da
  */
 
 /**
- * Minimal column set for list/table/card views.
- * Excludes detail-only fields to reduce payload size by ~25%.
- * findById still fetches all columns (*) for the detail modal.
+ * Unique phones above which `withRiskData` reads the caller's whole
+ * `customer_trust` book (paged, PK order) instead of `phone=in.(...)` chunks:
+ * a full-book list touches most customers anyway, and a few 1,000-row pages
+ * beat dozens of chunked requests. Measured: 4.6 ms per 1,000-row trust page.
  */
-const LIST_VIEW_COLUMNS = `
-  id,
-  created_at,
-  updated_at,
-  version,
-  original_created_at,
-  scheduled_date,
-  order_id,
-  customer_name,
-  phone,
-  secondary_phone,
-  city,
-  governorate_code,
-  address_details,
-  items,
-  price,
-  status,
-  priority,
-  payment_status,
-  delivery_fee,
-  discount_amount,
-  is_return,
-  original_order_id,
-  is_archived,
-  is_pinned,
-  source,
-  sequence_number,
-  tag_color,
-  notes,
-  internal_notes,
-  risk_data,
-  contact_count,
-  last_contacted_at,
-  rejection_reason,
-  needs_attention,
-  attention_reasons,
-  last_status_changed_by_name,
-  last_status_changed_by_avatar,
-  delivered_at,
-  completed_at
-`.trim();
-// attribution / ad_channel are NOT listed: the list reads v_orders_with_risk,
-// which does not expose them yet, and requesting a missing column makes
-// PostgREST reject the whole query (400) — the orders page went blank. Add them
-// back only together with the view change that exposes them.
+const TRUST_LOOKUP_MAX_PHONES = 200;
+/** Phones per `in.(...)` request — keeps the URL well under proxy limits. */
+const TRUST_IN_CHUNK = 100;
+const PAGE = 1000;
+
+async function fetchTrustRows(phones: string[]): Promise<TrustRow[]> {
+    if (phones.length === 0) return [];
+
+    if (phones.length <= TRUST_LOOKUP_MAX_PHONES) {
+        const chunks: string[][] = [];
+        for (let i = 0; i < phones.length; i += TRUST_IN_CHUNK) {
+            chunks.push(phones.slice(i, i + TRUST_IN_CHUNK));
+        }
+        const results = await Promise.all(
+            chunks.map(chunk =>
+                supabase.from("customer_trust").select(TRUST_RISK_COLUMNS).in("phone", chunk),
+            ),
+        );
+        const rows: TrustRow[] = [];
+        for (const { data, error } of results) {
+            if (error) throw error;
+            if (data) rows.push(...(data as unknown as TrustRow[]));
+        }
+        return rows;
+    }
+
+    // RLS (tenant_isolation_all) scopes this to the caller's tenants.
+    const { count, error: countErr } = await supabase
+        .from("customer_trust")
+        .select("phone", { count: "exact", head: true });
+    if (countErr) throw countErr;
+    const total = count ?? 0;
+    const results = await Promise.all(
+        Array.from({ length: Math.ceil(total / PAGE) }, (_, i) =>
+            supabase
+                .from("customer_trust")
+                .select(TRUST_RISK_COLUMNS)
+                .order("tenant_id", { ascending: true })
+                .order("phone", { ascending: true })
+                .range(i * PAGE, i * PAGE + PAGE - 1),
+        ),
+    );
+    const rows: TrustRow[] = [];
+    for (const { data, error } of results) {
+        if (error) throw error;
+        if (data) rows.push(...(data as unknown as TrustRow[]));
+    }
+    return rows;
+}
 
 /**
- * Columns needed to build an export file. The list view deliberately omits some
- * of these to keep the page payload down, but `lib/export-utils.ts` reads them:
- * without `validated_governorate_code` and `is_replacement` they arrive
- * `undefined`, so every export silently fell back to the raw governorate code
- * and marked replacement orders as NOT containing returned goods.
+ * Attach `risk_data` to list rows read from `orders`, reproducing
+ * `v_orders_with_risk`'s LEFT JOIN on (tenant_id, normalize_phone(phone)).
+ * Rows are already tenant-scoped by RLS, and so is `customer_trust`.
  */
-const EXPORT_VIEW_COLUMNS = `
-${LIST_VIEW_COLUMNS},
-  validated_governorate_code,
-  is_replacement,
-  delivery_order_id
-`.trim();
+async function withRiskData(rows: Order[]): Promise<Order[]> {
+    if (rows.length === 0) return rows;
+
+    const phones = new Set<string>();
+    for (const row of rows) {
+        const p = normalizePhoneLikeDb(row.phone);
+        if (p) phones.add(p);
+    }
+
+    const trust = new Map<string, TrustRow>();
+    for (const ct of await fetchTrustRows([...phones])) {
+        trust.set(trustKey(ct.tenant_id, normalizePhoneLikeDb(ct.phone)), ct);
+    }
+
+    return rows.map(row => {
+        const p = normalizePhoneLikeDb(row.phone);
+        const ct = row.tenant_id && p ? trust.get(trustKey(row.tenant_id, p)) : undefined;
+        return { ...row, risk_data: buildRiskData(ct) };
+    });
+}
 
 export const orderRepository = {
     /** Fetch all active (non-archived) orders, newest first.
@@ -88,11 +113,12 @@ export const orderRepository = {
         const step = 1000;
 
         // 1. Get exact count so we know how many pages to fetch in parallel.
-        //    The count query uses the same view/filter but returns only the count header,
+        //    The count query uses the same table/filter but returns only the count header,
         //    not actual rows — it's very fast (~50-100ms).
         const { count, error: countErr } = await supabase
-            .from("v_orders_with_risk")
+            .from("orders")
             .select("id", { count: "exact", head: true })
+            .is("deleted_at", null)
             .eq("is_archived", false);
 
         if (countErr) {
@@ -111,8 +137,9 @@ export const orderRepository = {
         const pagePromises = Array.from({ length: pageCount }, (_, i) => {
             const from = i * step;
             return supabase
-                .from("v_orders_with_risk")
-                .select(LIST_VIEW_COLUMNS)
+                .from("orders")
+                .select(LIST_COLUMNS)
+                .is("deleted_at", null)
                 .eq("is_archived", false)
                 .order("created_at", { ascending: false })
                 .range(from, from + step - 1);
@@ -133,7 +160,7 @@ export const orderRepository = {
             }
         }
 
-        const result = allData.map(row => normalizeOrder(row as unknown as Order));
+        const result = await withRiskData(allData.map(row => normalizeOrder(row as unknown as Order)));
         diag.log(`[Diag:Repo] findAll OK rows=${allData.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
         return result;
     },
@@ -143,8 +170,8 @@ export const orderRepository = {
      *
      * Exports must never be limited to whatever the page happens to have
      * loaded: "this month" or "all orders" has to mean what it says, even once
-     * the list fetch is windowed. Tenant scoping comes from RLS on
-     * `v_orders_with_risk` (security_invoker), same as every other read here.
+     * the list fetch is windowed. Tenant scoping comes from RLS on `orders`,
+     * same as every other list read here. No `risk_data`: exports never read it.
      */
     async findForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<Order[]> {
         const _t = performance.now();
@@ -153,8 +180,9 @@ export const orderRepository = {
         const toTs = opts.dateTo ? `${opts.dateTo}T23:59:59.999Z` : null;
 
         let countQuery = supabase
-            .from("v_orders_with_risk")
+            .from("orders")
             .select("id", { count: "exact", head: true })
+            .is("deleted_at", null)
             .eq("is_archived", false);
         if (fromTs) countQuery = countQuery.gte("created_at", fromTs);
         if (toTs) countQuery = countQuery.lte("created_at", toTs);
@@ -169,8 +197,9 @@ export const orderRepository = {
         const pages = await Promise.all(
             Array.from({ length: pageCount }, (_, i) => {
                 let q = supabase
-                    .from("v_orders_with_risk")
-                    .select(EXPORT_VIEW_COLUMNS)
+                    .from("orders")
+                    .select(EXPORT_COLUMNS)
+                    .is("deleted_at", null)
                     .eq("is_archived", false);
                 if (fromTs) q = q.gte("created_at", fromTs);
                 if (toTs) q = q.lte("created_at", toTs);
@@ -227,8 +256,9 @@ export const orderRepository = {
             `and(scheduled_date.gte.${window.fromDay},scheduled_date.lte.${window.toDay})`;
 
         const { count, error: countErr } = await supabase
-            .from("v_orders_with_risk")
+            .from("orders")
             .select("id", { count: "exact", head: true })
+            .is("deleted_at", null)
             .eq("is_archived", false)
             .or(inWindow);
         if (countErr) throw countErr;
@@ -240,8 +270,9 @@ export const orderRepository = {
         const pages = await Promise.all(
             Array.from({ length: pageCount }, (_, i) =>
                 supabase
-                    .from("v_orders_with_risk")
-                    .select(LIST_VIEW_COLUMNS)
+                    .from("orders")
+                    .select(LIST_COLUMNS)
+                    .is("deleted_at", null)
                     .eq("is_archived", false)
                     .or(inWindow)
                     .order("created_at", { ascending: false })
@@ -259,7 +290,7 @@ export const orderRepository = {
         }
 
         diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return rows.map(row => normalizeOrder(row as Order));
+        return withRiskData(rows.map(row => normalizeOrder(row as Order)));
     },
 
     /**
@@ -272,8 +303,9 @@ export const orderRepository = {
      */
     async countForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<number> {
         let q = supabase
-            .from("v_orders_with_risk")
+            .from("orders")
             .select("id", { count: "exact", head: true })
+            .is("deleted_at", null)
             .eq("is_archived", false);
         if (opts.dateFrom) q = q.gte("created_at", `${opts.dateFrom}T00:00:00.000Z`);
         if (opts.dateTo) q = q.lte("created_at", `${opts.dateTo}T23:59:59.999Z`);
@@ -289,13 +321,14 @@ export const orderRepository = {
      */
     async findChangedSince(sinceTimestamp: string): Promise<Order[]> {
         const { data, error } = await supabase
-            .from("v_orders_with_risk")
-            .select(LIST_VIEW_COLUMNS)
+            .from("orders")
+            .select(LIST_COLUMNS)
+            .is("deleted_at", null)
             .gte("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
         if (error) throw error;
-        return (data || []).map(row => normalizeOrder(row as unknown as Order));
+        return withRiskData((data || []).map(row => normalizeOrder(row as unknown as Order)));
     },
 
     /** Fetch all archived orders, newest first. */
@@ -306,8 +339,9 @@ export const orderRepository = {
 
         while (true) {
             const { data, error } = await supabase
-                .from("v_orders_with_risk")
-                .select(LIST_VIEW_COLUMNS)
+                .from("orders")
+                .select(LIST_COLUMNS)
+                .is("deleted_at", null)
                 .eq("is_archived", true)
                 .order("created_at", { ascending: false })
                 .range(from, from + step - 1);
@@ -322,7 +356,7 @@ export const orderRepository = {
             if (!data || data.length < step) break;
         }
 
-        return allData.map(row => normalizeOrder(row as unknown as Order));
+        return withRiskData(allData.map(row => normalizeOrder(row as unknown as Order)));
     },
 
     /** Fetch a single order by ID (all columns for detail view). */
