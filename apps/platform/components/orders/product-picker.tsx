@@ -8,6 +8,8 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import type { Product } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
+import { useRecentOrderLines } from "@/hooks/use-recent-order-lines";
+import { foldUnitsSold, sortByRecentSales } from "@/lib/product-recent-sales";
 
 interface ProductPickerProps {
     open: boolean;
@@ -23,6 +25,7 @@ interface SelectedProduct {
 
 export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     const { products, loading } = useProductsCrud();
+    const { data: recentLines } = useRecentOrderLines(open);
     const [search, setSearch] = useState("");
     const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
     const { t } = useLanguage();
@@ -33,8 +36,11 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     // whether the shop actually keeps them in stock. Filler is catalogue depth —
     // orderable, but staff should reach real stock first, so it gets tucked
     // behind a collapsed group rather than padding out the everyday list.
+    // Both lists lead with the last 30 days' top sellers (units sold), then the rest
+    // in catalogue order. Until the sales load, the catalogue order shows as before.
     const { mainProducts, fillerProducts } = useMemo(() => {
-        const sellable = products.filter(p => !p.is_archived && !p.is_supply);
+        const active = products.filter(p => !p.is_archived && !p.is_supply);
+        const sellable = recentLines ? sortByRecentSales(active, foldUnitsSold(recentLines, active)) : active;
         const searchLower = search.trim().toLowerCase();
         const matched = searchLower
             ? sellable.filter(p => p.name.toLowerCase().includes(searchLower))
@@ -43,7 +49,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
             mainProducts: matched.filter(p => !p.is_filler),
             fillerProducts: matched.filter(p => p.is_filler),
         };
-    }, [products, search]);
+    }, [products, search, recentLines]);
 
     const totalShown = mainProducts.length + fillerProducts.length;
     const selectedFillerCount = fillerProducts.reduce(

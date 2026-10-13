@@ -16,6 +16,13 @@ vi.mock("@/hooks/use-products-crud", () => ({
     useProductsCrud: () => ({ products, loading: false }),
 }));
 
+// Recent order lines feed the top-seller ordering; tests set them directly.
+import type { RecentSaleLine } from "@/lib/product-recent-sales";
+let recentLines: RecentSaleLine[] | undefined;
+vi.mock("@/hooks/use-recent-order-lines", () => ({
+    useRecentOrderLines: () => ({ data: recentLines }),
+}));
+
 import { ProductPicker } from "./product-picker";
 
 function makeProduct(over: Partial<Product> & { id: string; name: string }): Product {
@@ -56,6 +63,7 @@ const fillerToggle = () =>
 afterEach(() => {
     cleanup();
     setProducts([]);
+    recentLines = undefined;
 });
 
 describe("ProductPicker filler grouping", () => {
@@ -159,5 +167,42 @@ describe("ProductPicker filler grouping", () => {
 
         expect(screen.queryByText(/orders\.productPicker\.fillerGroup/)).toBeNull();
         expect(screen.getByText(/^1 orders\.productPicker\.product/)).toBeDefined();
+    });
+});
+
+describe("ProductPicker top-seller ordering", () => {
+    const A = makeProduct({ id: "a", name: "عطر ألف" });
+    const B = makeProduct({ id: "b", name: "عطر باء" });
+    const C = makeProduct({ id: "c", name: "عطر جيم" });
+    const shownNames = () =>
+        [A, B, C].map((p) => p.name).filter((n) => screen.queryByText(n))
+            .sort((x, y) => {
+                const ex = screen.getByText(x), ey = screen.getByText(y);
+                return ex.compareDocumentPosition(ey) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+            });
+
+    it("keeps catalogue order until recent sales load", () => {
+        setProducts([A, B, C]);
+        renderPicker();
+        expect(shownNames()).toEqual([A.name, B.name, C.name]);
+    });
+
+    it("lists the last 30 days' top sellers first, then the rest", () => {
+        setProducts([A, B, C]);
+        recentLines = [
+            { product_id: "c", quantity: 5 },
+            { product_id: "b", quantity: 2 },
+            { product_id: "c", quantity: 1 },
+        ];
+        renderPicker();
+        expect(shownNames()).toEqual([C.name, B.name, A.name]);
+    });
+
+    it("search still filters the ranked list", () => {
+        setProducts([A, B, C]);
+        recentLines = [{ product_id: "c", quantity: 5 }];
+        renderPicker();
+        fireEvent.change(screen.getByRole("textbox"), { target: { value: "باء" } });
+        expect(shownNames()).toEqual([B.name]);
     });
 });
