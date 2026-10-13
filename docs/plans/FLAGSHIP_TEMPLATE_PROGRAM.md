@@ -251,10 +251,24 @@ Ali's list in the order he gave it would mean rewriting most of it later.
   transition durations moved to `duration-bk-fast` / `duration-bk-base`, which
   makes `BrandMotion.speed` take effect for the first time. `--bk-motion`
   (on/off) was already correctly wired via `data-bk-motion` + `globals.css`.
-- **W0.4** Sweep the V1 fallback renderers (`apps/storefront/components/schneiders/*`
-  and the ~10 route pages that import them). They still hardcode `candy-*`
-  utilities, so any tenant falling back to a V1 page gets an unthemeable
-  palette. Separate surface from the section package, hence a separate task.
+- **W0.4** V1 fallback sweep — DONE. Reachable, not dead: 13 live trial
+  tenants have no published V2 config, and `templates/registry.tsx` (imported
+  by the tenant home) serves the V1 template home. 300 fixed candy utilities
+  across `components/schneiders/*`, `templates/*` and the route pages now read
+  brand-kit tokens whose defaults ARE the candy hexes, so a default tenant
+  renders byte-identically. Mint was split by meaning: WhatsApp, in-stock,
+  free delivery, completed steps, the chosen payment method and the green
+  "go" CTAs became `bk-success`; rotating tints, panels and hover accents
+  became `bk-decor-a`. Two findings the sweep turned up and closed:
+  `CANDY_HEX` in the tenant layout pinned each merchant's chosen accent pair
+  to a fixed pastel (it now resolves to the matching kit token, with the
+  readable foreground from `--bk-on-*`), and `--schn-wedge` was emitted on
+  every tenant page with no reader anywhere — deleted, the live scale is
+  `--bk-wedge-multiplier`. Also: the V1 product page rendered five fixed
+  stars and a hardcoded "(124)" reviews for every product of every store;
+  it now shows the product's real approved-review aggregates, and nothing
+  when there are none. `v1-theming.test.ts` fails the build if a fixed candy
+  utility or hex returns. *(P7)*
 
 ### Wave 1 — Keystones
 - **W1.1** Migration: `product_attribute_defs` + `product_attribute_values`, RLS,
