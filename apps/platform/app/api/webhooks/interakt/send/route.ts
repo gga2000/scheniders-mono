@@ -4,6 +4,7 @@ import type { Order } from "@/types/order";
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
 import { createSupabaseServiceClient, createSupabaseServerClientWithToken, verifyAccessToken } from "@/lib/supabase-server";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { followUpStamp, senderDisplayName } from "@/lib/follow-up-state";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -101,6 +102,10 @@ export async function POST(request: NextRequest) {
                     customPrice,
                     error: result.error,
                     statusCode: result.statusCode,
+                    // Which path sent it, and on whose behalf: without these the
+                    // log cannot tell an agent's send from an automatic one.
+                    source: "interakt-send",
+                    sentByUserId: user.id,
                 },
             });
         } catch (logErr) {
@@ -128,6 +133,20 @@ export async function POST(request: NextRequest) {
             // Update status to "contacted" if not already beyond that stage
             const shouldUpdateStatus = previousStatus !== "contacted" && previousStatus !== "confirmed" && previousStatus !== "cancelled";
 
+            // Who sent it, from the verified token rather than the request body,
+            // so the card's sender avatar cannot be forged. Read under the
+            // caller's own RLS: a profile they cannot see is not theirs to claim.
+            const { data: senderProfile, error: profileError } = await createSupabaseServerClientWithToken(token)
+                .from("user_profiles")
+                .select("display_name, avatar_url")
+                .eq("id", user.id)
+                .maybeSingle<{ display_name: string | null; avatar_url: string | null }>();
+            if (profileError) {
+                // Still attributed — under the account email instead of the display name.
+                console.error("[Interakt Send API] Failed to read sender profile:", profileError);
+            }
+            const senderName = senderDisplayName(senderProfile, user.email);
+
             await supabaseAdmin()
                 .from("orders")
                 .update({
@@ -135,6 +154,9 @@ export async function POST(request: NextRequest) {
                     contact_count: newContactCount,
                     last_contacted_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
+                    ...(senderName
+                        ? followUpStamp({ name: senderName, avatar: senderProfile?.avatar_url }, templateType)
+                        : {}),
                 })
                 .eq("id", order.id);
 

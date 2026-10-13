@@ -15,6 +15,7 @@ import type { Order } from "@/types/order";
 const H = vi.hoisted(() => ({
     send: vi.fn(),
     state: { order: null as Order | null, autoSend: true },
+    updates: [] as Array<{ table: string; values: Record<string, unknown> }>,
 }));
 
 vi.mock("@/lib/supabase-server", () => ({
@@ -33,7 +34,10 @@ vi.mock("@/lib/supabase-server", () => ({
                 },
             }),
             insert: async () => ({ error: null }),
-            update: () => ({ eq: async () => ({ error: null }) }),
+            update: (values: Record<string, unknown>) => {
+                H.updates.push({ table, values });
+                return { eq: async () => ({ error: null }) };
+            },
         }),
     }),
 }));
@@ -56,6 +60,7 @@ beforeEach(() => {
     H.send.mockReset();
     H.send.mockResolvedValue({ success: true, messageId: "m1" });
     H.state.autoSend = true;
+    H.updates.length = 0;
     H.state.order = {
         id: "uuid-1",
         order_id: "7209",
@@ -90,5 +95,16 @@ describe("whatsapp-dispatcher in-process dispatch", () => {
         const r = await dispatchWhatsAppEvent({ orderId: "uuid-1" });
         expect(r.skipped).toBe(true);
         expect(H.send).not.toHaveBeenCalled();
+    });
+
+    it("attributes the automatic send to the bot, so the card does not show a contacted order with nobody behind it", async () => {
+        await dispatchWhatsAppEvent({ orderId: "uuid-1" });
+        const orderWrite = H.updates.find((u) => u.table === "orders" && "contact_count" in u.values);
+        expect(orderWrite?.values).toMatchObject({
+            last_followup_by_name: "الإرسال التلقائي",
+            last_followup_by_avatar: "bot",
+            last_followup_type: "confirmation",
+        });
+        expect(typeof orderWrite?.values.last_followup_at).toBe("string");
     });
 });

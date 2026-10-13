@@ -15,6 +15,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
 import type { Order } from "@/types/order";
+import { automationFollowUpStamp } from "@/lib/follow-up-state";
 
 let _admin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const admin = () => (_admin ??= createSupabaseServiceClient());
@@ -162,6 +163,10 @@ export async function dispatchWhatsAppEvent({
             contact_count: newContactCount,
             last_contacted_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            // Only automation reaches this function (the LightFunnels webhook's
+            // immediate confirmation), so the card shows the bot rather than a
+            // contacted order with nobody behind it.
+            ...automationFollowUpStamp(templateType),
         })
         .eq("id", order.id);
 
