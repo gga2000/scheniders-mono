@@ -42,6 +42,15 @@ const serverSchema = z.object({
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
     LIGHTFUNNELS_WEBHOOK_SECRET: z.string().min(1).optional(),
     LIGHTFUNNELS_TENANT_ID: z.string().uuid().optional(),
+    // HMAC key for the `lightfunnels-hmac` header (the LightFunnels app's client
+    // secret). Only API-registered webhooks are signed; see lib/webhook-auth.ts.
+    LIGHTFUNNELS_APP_SECRET: z.string().min(1).optional(),
+    // Staged webhook auth: "monitor" (default) processes unauthenticated
+    // requests and logs them; "enforce" refuses them. Per-provider overrides
+    // win over the global flag.
+    WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
+    LIGHTFUNNELS_WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
+    INTERAKT_WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
     WEBHOOK_LOGGING_ENABLED: z.enum(["true", "false"]).optional(),
     CRON_SECRET: z.string().min(1).optional(),
     QSTASH_TOKEN: z.string().min(1).optional(),
@@ -87,6 +96,10 @@ function validateEnv() {
             SUPABASE_SERVICE_ROLE_KEY: orUndef(process.env.SUPABASE_SERVICE_ROLE_KEY),
             LIGHTFUNNELS_WEBHOOK_SECRET: orUndef(process.env.LIGHTFUNNELS_WEBHOOK_SECRET),
             LIGHTFUNNELS_TENANT_ID: orUndef(process.env.LIGHTFUNNELS_TENANT_ID),
+            LIGHTFUNNELS_APP_SECRET: orUndef(process.env.LIGHTFUNNELS_APP_SECRET),
+            WEBHOOK_AUTH_MODE: orUndef(process.env.WEBHOOK_AUTH_MODE),
+            LIGHTFUNNELS_WEBHOOK_AUTH_MODE: orUndef(process.env.LIGHTFUNNELS_WEBHOOK_AUTH_MODE),
+            INTERAKT_WEBHOOK_AUTH_MODE: orUndef(process.env.INTERAKT_WEBHOOK_AUTH_MODE),
             WEBHOOK_LOGGING_ENABLED: orUndef(process.env.WEBHOOK_LOGGING_ENABLED),
             CRON_SECRET: orUndef(process.env.CRON_SECRET),
             QSTASH_TOKEN: orUndef(process.env.QSTASH_TOKEN),
