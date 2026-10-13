@@ -8,6 +8,13 @@ import { env } from "@/lib/env";
 import { scheduleCheckoutProcessing } from "@/lib/qstash";
 import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import {
+    enforceWebhookAuth,
+    resolveWebhookAuthMode,
+    verifyWebhookAuth,
+} from "@/lib/webhook-auth";
+
+const ROUTE = "/api/webhooks/lightfunnels";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -23,25 +30,37 @@ const CHECKOUT_DELAY_MINUTES = 2;
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Verify webhook secret — lenient to match OLD project's behavior.
-        // Lightfunnels' UI has no per-webhook secret field, so it currently sends
-        // no x-webhook-secret header. Reject only when the request DOES send a
-        // secret and it doesn't match the configured one. Accept anonymous POSTs
-        // with a warning log — same posture as old/.../webhooks/lightfunnels.
-        // TODO: switch back to strict once Lightfunnels supports custom headers
-        // OR we move to HMAC-of-body signing.
-        const expectedSecret = env.LIGHTFUNNELS_WEBHOOK_SECRET;
-        const secret = request.headers.get("x-webhook-secret");
-        if (expectedSecret && secret && secret !== expectedSecret) {
-            console.error("[Webhook] Webhook secret mismatch");
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-        if (!secret && expectedSecret) {
-            console.warn("[Webhook] No x-webhook-secret header — accepting anyway (parallel-run leniency)");
-        }
+        // 1. Authenticate. Accepts a `lightfunnels-hmac` signature (only sent for
+        // webhooks registered through the LightFunnels API), the shared secret in
+        // `x-webhook-secret`, or the shared secret as `?token=` — the form a
+        // dashboard automation can carry, since it has no header field. Missing
+        // credentials are processed-and-logged in monitor mode and refused in
+        // enforce mode; a wrong one is refused in both. See lib/webhook-auth.ts.
+        const rawBody = await request.text();
+        const authResult = verifyWebhookAuth(
+            { headers: request.headers, url: request.url, rawBody },
+            {
+                sharedSecret: env.LIGHTFUNNELS_WEBHOOK_SECRET,
+                secretHeaders: ["x-webhook-secret"],
+                hmac: {
+                    header: "lightfunnels-hmac",
+                    secret: env.LIGHTFUNNELS_APP_SECRET,
+                    encoding: "base64",
+                    acceptReserializedBody: true,
+                },
+            },
+        );
+        const authMode = resolveWebhookAuthMode(env.LIGHTFUNNELS_WEBHOOK_AUTH_MODE, env.WEBHOOK_AUTH_MODE);
+        const denied = enforceWebhookAuth(ROUTE, request, authResult, authMode);
+        if (denied) return denied;
 
         // 2. Parse request body
-        const payload = await request.json();
+        let payload;
+        try {
+            payload = JSON.parse(rawBody);
+        } catch {
+            return NextResponse.json({ error: "Body is not valid JSON" }, { status: 400 });
+        }
 
         // DIAGNOSTIC LOGGING - Always log to debug order import issues
         console.log("=========== WEBHOOK RECEIVED ===========");
