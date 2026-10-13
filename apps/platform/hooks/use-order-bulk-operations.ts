@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
-import { toast, dismissToast } from "@/hooks/use-toast";
+import { toast, dismissToast, updateToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import type { Order } from "@/lib/supabase";
 import { getStatusLabel } from "@/lib/utils";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { restoreDeletedOrders } from "@/app/actions/deleted-orders";
 import { canShipWithoutSelection, partitionByShipDay } from "@/lib/order-bulk-scope";
+import { formatBulkProgress } from "@/lib/order-bulk-batches";
+import { summarizeBulkFailures } from "@/lib/order-bulk-result";
+import type { BulkStatusResult } from "@/hooks/use-order-crud";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
 
 /**
@@ -46,33 +49,86 @@ export function useOrderBulkOperations() {
     const { t } = useLanguage();
 
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+    // Re-entry is checked against a ref, not the state: a retry button on a
+    // toast keeps the closure it was created with, where the state is stale.
+    const bulkRunningRef = useRef(false);
 
-    const withProcessing = async (
-        action: () => Promise<{ success: boolean; error?: string } | undefined>,
-        fallbackMsg: string,
-        successMsg: string,
-        onSuccess?: () => void
-    ) => {
-        if (isBulkProcessing) return;
+    /**
+     * Run a bulk status change as background work.
+     *
+     * Nothing covers the page: one loading toast counts the orders off as each
+     * small batch lands ("12 of 50 · 1 failed") while the employee keeps
+     * scrolling and selecting. When it settles the toast is replaced by the
+     * outcome — success, or which orders were left behind and why, with a
+     * retry for exactly those. `isBulkProcessing` disables the bulk bar so the
+     * same batch cannot be fired twice.
+     *
+     * The duplicate-dispatch and scheduled-day guards run BEFORE this, in the
+     * handlers that pick `ids`; a retry re-sends a subset of ids those guards
+     * already passed.
+     */
+    const runBulkStatus = async (
+        ids: string[],
+        status: Order["status"],
+        onSettled?: (result: BulkStatusResult) => void,
+    ): Promise<BulkStatusResult | undefined> => {
+        if (bulkRunningRef.current || ids.length === 0) return undefined;
+        bulkRunningRef.current = true;
         setIsBulkProcessing(true);
-        const pt = t("orders.processing");
-        const loadingMsg = (pt && pt !== "orders.processing") ? pt : fallbackMsg;
-        const toastId = toast.loading(loadingMsg);
+        const toastId = toast.loading(
+            t("orders.bulk.updating").replace("{count}", String(ids.length)),
+            formatBulkProgress({ done: 0, total: ids.length, succeeded: 0, failed: 0 }, t),
+        );
         try {
-            const result = await action();
+            const result = await bulkUpdateStatus(ids, status, {
+                notify: false,
+                onProgress: (progress) => updateToast(toastId, { description: formatBulkProgress(progress, t) }),
+            });
             dismissToast(toastId);
-            if (result?.success || result === undefined) {
-                toast.success(successMsg);
-                if (onSuccess) onSuccess();
+
+            const historyNote = result.historyNotLogged > 0
+                ? t("orders.bulk.historyNotLogged").replace("{count}", String(result.historyNotLogged))
+                : undefined;
+
+            if (result.failures.length === 0) {
+                toast({
+                    title: t("toast.statusUpdatedDescCount")
+                        .replace("{count}", String(result.count))
+                        .replace("{status}", getStatusLabel(status)),
+                    description: historyNote,
+                    variant: historyNote ? "warning" : "success",
+                });
             } else {
-                toast.error(t("toast.updateFailed"), result?.error || "Unknown error");
+                const summary = summarizeBulkFailures(result.failures, orders, result.attempted, "updated");
+                toast({
+                    title: summary.title,
+                    description: historyNote ? `${summary.description}. ${historyNote}` : summary.description,
+                    variant: result.count === 0 ? "error" : "warning",
+                    duration: 20000,
+                    action: {
+                        label: t("orders.bulk.retry").replace("{count}", String(summary.failedIds.length)),
+                        onClick: () => { void runBulkStatus(summary.failedIds, status, onSettled); },
+                    },
+                });
             }
+            onSettled?.(result);
+            return result;
         } catch (error) {
             dismissToast(toastId);
-            toast.error(t("toast.updateFailed"), String(error));
+            toast.error(t("toast.updateFailed"), error instanceof Error ? error.message : String(error));
+            return undefined;
         } finally {
+            bulkRunningRef.current = false;
             setIsBulkProcessing(false);
         }
+    };
+
+    /**
+     * Selection after a run: the orders that did not change stay selected (so
+     * the bulk bar can retry them too), plus any the caller held back.
+     */
+    const keepSelected = (heldBack: readonly string[] = []) => (result: BulkStatusResult) => {
+        setSelectedOrders(new Set([...heldBack, ...result.failures.map(f => f.id)]));
     };
 
     // Handle bulk actions
@@ -83,15 +139,7 @@ export function useOrderBulkOperations() {
      * duplication and makes the message follow the status it actually applied.
      */
     const makeBulkStatusHandler = (status: Order["status"]) => async () => {
-        const ids = Array.from(selectedOrders);
-        withProcessing(
-            () => bulkUpdateStatus(ids, status),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount")
-                .replace("{count}", String(ids.length))
-                .replace("{status}", getStatusLabel(status)),
-            () => setSelectedOrders(new Set())
-        );
+        await runBulkStatus(Array.from(selectedOrders), status, keepSelected());
     };
 
     const handleBulkConfirm = makeBulkStatusHandler("confirmed");
@@ -99,12 +147,11 @@ export function useOrderBulkOperations() {
     const handleBulkReject = makeBulkStatusHandler("rejected");
 
     const handleBulkArchive = async () => {
-        if (isBulkProcessing) return;
+        if (bulkRunningRef.current) return;
         const ids = Array.from(selectedOrders);
+        bulkRunningRef.current = true;
         setIsBulkProcessing(true);
-        const pt = t("orders.processing");
-        const loadingMsg = (pt && pt !== "orders.processing") ? pt : `Archiving ${ids.length} orders...`;
-        const toastId = toast.loading(loadingMsg);
+        const toastId = toast.loading(t("orders.bulk.archiving").replace("{count}", String(ids.length)));
         try {
             const result = await bulkArchive(ids);
             dismissToast(toastId);
@@ -129,6 +176,7 @@ export function useOrderBulkOperations() {
             }
             else if (result?.error) toast.error(t("toast.archiveFailed"), result.error);
         } finally {
+            bulkRunningRef.current = false;
             setIsBulkProcessing(false);
         }
     };
@@ -144,7 +192,7 @@ export function useOrderBulkOperations() {
     // Post-export: prompt to move newly-exported orders from Confirmed → In Transit
     const [moveTransitOpen, setMoveTransitOpen] = useState(false);
     const [pendingTransitIds, setPendingTransitIds] = useState<string[]>([]);
-    const [pendingTransitPrevStatuses, setPendingTransitPrevStatuses] = useState<{ id: string; status: string }[]>([]);
+    const [pendingTransitPrevStatuses, setPendingTransitPrevStatuses] = useState<{ id: string; status: Order["status"] }[]>([]);
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
@@ -237,15 +285,8 @@ export function useOrderBulkOperations() {
             "Orders postponed to a later day are not shipped in bulk. Open one to move it individually.",
         );
         if (ids.length === 0) return;
-        withProcessing(
-            () => bulkUpdateStatus(ids, "in_transit"),
-            `Updating ${ids.length} orders...`,
-            t("toast.statusUpdatedDescCount")
-                .replace("{count}", String(ids.length))
-                .replace("{status}", getStatusLabel("in_transit")),
-            // Leave the held-back orders selected so the merchant sees which they were.
-            () => setSelectedOrders(new Set(heldBack)),
-        );
+        // Leave the held-back orders selected so the merchant sees which they were.
+        await runBulkStatus(ids, "in_transit", keepSelected([...heldBack]));
     };
     const handleBulkCompleted = makeBulkStatusHandler("completed");
     const handleBulkNoResponse = makeBulkStatusHandler("no_response");
@@ -402,25 +443,34 @@ export function useOrderBulkOperations() {
         const previousStatuses = pendingTransitPrevStatuses;
         if (ids.length === 0) return;
 
-        await bulkUpdateStatus(ids, "in_transit");
+        const moved = await runBulkStatus(ids, "in_transit");
+        // Nothing moved (or the run was refused): there is nothing to undo.
+        if (!moved || moved.count === 0) return;
+        const movedIds = new Set(moved.succeededIds);
         toast({
-            title: `${ids.length} orders moved to In Transit`,
+            title: `${moved.count} orders moved to In Transit`,
             description: "Click undo to restore previous statuses",
             variant: "success",
             duration: 20000,
             action: {
                 label: "Undo",
                 onClick: async () => {
-                    const byStatus = new Map<string, string[]>();
+                    const byStatus = new Map<Order["status"], string[]>();
                     previousStatuses.forEach(({ id, status }) => {
+                        if (!movedIds.has(id)) return;
                         const group = byStatus.get(status) || [];
                         group.push(id);
                         byStatus.set(status, group);
                     });
+                    let restored = 0;
                     for (const [status, orderIds] of byStatus) {
-                        await bulkUpdateStatus(orderIds, status as Order["status"]);
+                        // Each group reports its own partial failure; count what landed.
+                        const res = await bulkUpdateStatus(orderIds, status);
+                        restored += res.count;
                     }
-                    toast.success("Undone", `${ids.length} orders restored to their previous statuses`);
+                    if (restored === movedIds.size) {
+                        toast.success("Undone", `${restored} orders restored to their previous statuses`);
+                    }
                 }
             }
         });
