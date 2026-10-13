@@ -21,6 +21,8 @@ import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUr
 import { useLanguage } from "@/hooks/use-language";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
+import { DuplicateAlertBanner } from "@/components/orders/duplicate-alert-banner";
+import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 
 import {
@@ -88,6 +90,8 @@ interface OrderCardProps {
     previousOrder?: Order | null;
     onMergeWithPrevious?: (currentOrderId: string, previousOrderId: string) => void;
     onShowDuplicates?: (order: Order) => void;
+    /** A 48h twin with money at risk — see lib/duplicate-window. */
+    duplicateAlert?: DuplicateWindowAlert;
     // Pin functionality
     onTogglePin?: (orderId: string) => void;
     // Clone functionality
@@ -141,6 +145,7 @@ export const OrderCard = memo(function OrderCard({
     previousOrder,
     onMergeWithPrevious,
     onShowDuplicates,
+    duplicateAlert,
     onTogglePin,
     onCloneOrder,
     onScreenshot,
@@ -902,6 +907,9 @@ export const OrderCard = memo(function OrderCard({
                                     <Flag className="w-2.5 h-2.5" />
                                 </span>
                             )}
+                            {duplicateAlert && (
+                                <DuplicateAlertBanner alert={duplicateAlert} order={order} compact />
+                            )}
                         </div>
 
                         {/* Thin Divider */}
@@ -1030,6 +1038,15 @@ export const OrderCard = memo(function OrderCard({
                 />
             )}
 
+            {duplicateAlert && (
+                <DuplicateAlertBanner
+                    alert={duplicateAlert}
+                    order={order}
+                    onCompare={onShowDuplicates}
+                    onCancel={onCancelWithReason}
+                />
+            )}
+
             <motion.div
                 layoutId={getLayoutId(`order-card-inner-${order.id}-${order.status}`)}
                 className={cn(
@@ -1044,7 +1061,12 @@ export const OrderCard = memo(function OrderCard({
                     !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && isShopOrder && "ring-2 ring-amber-300 bg-amber-50/30",
                     // Refunded orders - rose ring (MUST be before duplicates/new so it overrides them)
                     !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && hasRefund && "ring-2 ring-rose-300",
-                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && !hasDuplicates && isNew && "ring-2 ring-orange-300"
+                    !isBlacklisted && !(isReturn || order.status === 'rejected') && !isUrgent && !isShopOrder && !hasRefund && !hasDuplicates && isNew && "ring-2 ring-orange-300",
+                    // Last in the chain: `cn` is twMerge, so these win the ring/bg
+                    // conflict against every accent above except the blacklist ring.
+                    !isBlacklisted && duplicateAlert && (duplicateAlert.severity === "critical"
+                        ? "ring-2 ring-rose-500 bg-rose-50/60 dark:bg-rose-500/[0.07]"
+                        : "ring-2 ring-amber-400 bg-amber-50/50 dark:bg-amber-500/[0.06]")
                 )}
             >
                 {/* Shop Order Glow */}

@@ -17,6 +17,7 @@ import { RowHoverPreview } from '@/components/orders/table/hover-preview';
 import { useOrderStore } from '@/store/use-order-store';
 import type { TableDensity } from '@/components/orders/table/density-toggle';
 import { useLanguage } from '@/components/providers/language-provider';
+import type { DuplicateWindowAlert } from '@/lib/duplicate-window';
 
 // Column definitions for resizable columns
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -115,7 +116,8 @@ interface VirtualizedOrderTableProps {
     togglePin: (id: string) => void;
     setSelectedOrder: (order: Order) => void;
     setIsModalOpen: (open: boolean) => void;
-    phoneCounts: Map<string, number>;
+    /** 48h money-at-risk duplicate for an order, if it has one. */
+    getDuplicateWindowAlert?: (orderId: string) => DuplicateWindowAlert | undefined;
     setDuplicateOrder: (order: Order) => void;
     setShowDuplicateModal: (open: boolean) => void;
     modePrice: number;
@@ -292,6 +294,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
     scrollMargin,
     isSelected,
     isDuplicate,
+    duplicateSeverity,
     modePrice,
     togglePin,
     toggleOrderSelection,
@@ -465,14 +468,14 @@ const VirtualTableRow = memo(function VirtualTableRow({
                 ) : (
                 <div className="relative inline-flex items-center gap-1 group/phone">
                     <span
-                        className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && "text-amber-600 font-bold")}
+                        className={cn("font-mono text-xs hover:text-green-600 transition-colors cursor-pointer", !validatePhoneDetailed(order.phone).isValid ? "text-red-600 font-bold" : "text-foreground", isDuplicate && (duplicateSeverity === "critical" ? "text-rose-600 font-bold" : "text-amber-600 font-bold"))}
                         onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); }}
                     >
                         {formatPhoneDisplay(order.phone)}
                     </span>
                     {isDuplicate && (
                         <button onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }} className="p-0.5 rounded hover:bg-amber-100 transition-colors" title="View duplicate orders">
-                            <CopyPlus className="w-3 h-3 text-amber-500" />
+                            <CopyPlus className={cn("w-3 h-3", duplicateSeverity === "critical" ? "text-rose-500" : "text-amber-500")} />
                         </button>
                     )}
                     {!validatePhoneDetailed(order.phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
@@ -608,6 +611,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
         prevProps.displayIndex === nextProps.displayIndex &&
         prevProps.isSelected === nextProps.isSelected &&
         prevProps.isDuplicate === nextProps.isDuplicate &&
+        prevProps.duplicateSeverity === nextProps.duplicateSeverity &&
         prevProps.modePrice === nextProps.modePrice &&
         prevProps.isFlashing === nextProps.isFlashing &&
         prevProps.isFocused === nextProps.isFocused &&
@@ -633,7 +637,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     togglePin,
     setSelectedOrder,
     setIsModalOpen,
-    phoneCounts,
+    getDuplicateWindowAlert,
     setDuplicateOrder,
     setShowDuplicateModal,
     modePrice,
@@ -1111,7 +1115,12 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
 
                             const order = item.data;
                             const isSelected = selectedOrders.has(order.id);
-                            const isDuplicate = phoneCounts.get(order.phone.replace(/\s/g, ''))! > 1;
+                            // Was `phoneCounts > 1`: repeats of a phone within the rows on
+                            // screen, so every returning customer lit up — and under a
+                            // date window it only saw that window's repeats anyway. The
+                            // 48h alert is the duplicate that actually costs money.
+                            const duplicateAlert = getDuplicateWindowAlert?.(order.id);
+                            const isDuplicate = !!duplicateAlert;
 
                             return (
                                 <VirtualTableRow
@@ -1122,6 +1131,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                     scrollMargin={scrollMargin}
                                     isSelected={isSelected}
                                     isDuplicate={isDuplicate}
+                                    duplicateSeverity={duplicateAlert?.severity}
                                     modePrice={modePrice}
                                     togglePin={togglePin}
                                     toggleOrderSelection={toggleOrderSelection}

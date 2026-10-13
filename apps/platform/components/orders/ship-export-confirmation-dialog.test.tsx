@@ -63,3 +63,48 @@ describe("ship export — orders scheduled for a later day", () => {
         expect(onConfirmExport).toHaveBeenCalledWith({ includeScheduledLater: true });
     });
 });
+
+describe("ship export — 48h duplicate dispatch warning", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+    });
+    afterEach(() => vi.useRealTimers());
+
+    const twin = { id: "t", order_id: "3261004001", status: "in_transit" } as unknown as Order;
+
+    const renderWithTwins = (twinFor: Record<string, Order>) =>
+        render(
+            <ShipExportConfirmationDialog
+                open
+                onOpenChange={() => {}}
+                company="prime"
+                orders={orders}
+                currentTab="confirmed"
+                hasSelection
+                onConfirmExport={vi.fn()}
+                getDispatchTwin={(id) => twinFor[id]}
+            />,
+        );
+
+    it("names each order that would send a second courier to its customer", () => {
+        renderWithTwins({ "101": twin });
+        const warning = screen.getByTestId("ship-export-duplicate-warning");
+        expect(warning.textContent).toContain("#101 ↔ #3261004001");
+        expect(warning.textContent).toContain("In Transit");
+    });
+
+    it("ignores a twin on an order this export leaves home", () => {
+        // 103 is scheduled for a later day, so it is not shipped by default.
+        renderWithTwins({ "103": twin });
+        expect(screen.queryByTestId("ship-export-duplicate-warning")).toBeNull();
+
+        fireEvent.click(screen.getByRole("checkbox", { name: /Ship them today anyway/ }));
+        expect(screen.getByTestId("ship-export-duplicate-warning")).toBeTruthy();
+    });
+
+    it("stays silent without duplicates", () => {
+        renderWithTwins({});
+        expect(screen.queryByTestId("ship-export-duplicate-warning")).toBeNull();
+    });
+});

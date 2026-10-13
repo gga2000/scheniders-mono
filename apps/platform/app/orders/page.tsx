@@ -6,6 +6,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
+import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
 import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -174,6 +176,8 @@ export default function OrdersPage() {
         loadFilterPreset,
         deleteFilterPreset,
         hasDuplicates,
+        getDuplicateWindowAlert,
+        getConfirmBlockingTwin,
         getCustomerHistory,
         getCustomerOrderCount,
         mergeOrders,
@@ -656,7 +660,24 @@ export default function OrdersPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [filters, filterDuplicatesOnly, filterDueToday]);
 
+    /**
+     * Confirming or shipping an order whose 48h twin is already committed sends
+     * a second courier to the same customer. Every way to confirm or move to In
+     * Transit on this page comes through `duplicateGuard`: a card, the details
+     * modal, the table's status dropdown, the workflow tabs, the bulk bar and
+     * the floating selection bar. The courier export warns inside its own
+     * confirmation dialog instead (see ShipExportConfirmationDialog).
+     */
+    const duplicateGuard = useDuplicateDispatchGuard(orders, getConfirmBlockingTwin);
+
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
+        if (duplicateGuard.holdStatusChange(orderId, status, () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
+            return;
+        }
+        await runStatusUpdate(orderId, status, reason, reasonId);
+    };
+
+    const runStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
         try {
             const result = await updateOrderStatus(orderId, status, reason, reasonId);
@@ -705,22 +726,42 @@ export default function OrdersPage() {
         setShipConfirmKey,
     } = bulk;
 
+    /**
+     * The raw updater, routed through the duplicate guard — for the table's
+     * status dropdown and the workflow tabs. A held change resolves as not
+     * applied; the dialog's "anyway" button applies it.
+     */
+    const guardedStatusUpdate = async (
+        orderId: string,
+        status: Order["status"],
+        reason?: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+        if (duplicateGuard.holdStatusChange(orderId, status, () => { void updateOrderStatus(orderId, status, reason); })) {
+            return { success: false };
+        }
+        return updateOrderStatus(orderId, status, reason);
+    };
+
+    /** Bulk confirm and bulk In Transit, routed through the duplicate guard. */
+    const guardedBulkActions = {
+        ...bulkActions,
+        confirm: async () => {
+            const ids = Array.from(useOrderStore.getState().selectedOrders);
+            if (duplicateGuard.hold(ids, "confirm", () => { void bulkActions.confirm(); })) return;
+            await bulkActions.confirm();
+        },
+        inTransit: async () => {
+            const ids = Array.from(useOrderStore.getState().selectedOrders);
+            if (duplicateGuard.hold(ids, "dispatch", () => { void bulkActions.inTransit(); })) return;
+            await bulkActions.inTransit();
+        },
+    };
+    // The floating selection bar lives in OrderBulkDialogs and reads
+    // `bulk.bulkActions` — it must get the guarded set too, or bulk confirm
+    // from there walks straight past the guard.
+    const guardedBulk = { ...bulk, bulkActions: guardedBulkActions };
+
     const [showMapPanel, setShowMapPanel] = useState(false);
-
-    // Defer heavy array processing for analytics to keep UI responsive
-    const deferredFilteredOrders = React.useDeferredValue(filteredOrders);
-
-    // Calculate duplicate phone map for ghost detection
-    const phoneCounts = useMemo(() => {
-        const counts = new Map<string, number>();
-        deferredFilteredOrders.forEach(o => {
-            if (o.phone && !o.is_return) {
-                const normalized = o.phone.replace(/\s/g, '');
-                counts.set(normalized, (counts.get(normalized) || 0) + 1);
-            }
-        });
-        return counts;
-    }, [deferredFilteredOrders]);
 
     // Switch between regular and archived orders
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
@@ -1578,7 +1619,7 @@ export default function OrdersPage() {
 
                                             {/* Filters & Search Bar */}
                                             <OrdersFilterBar
-                                                bulkActions={bulkActions}
+                                                bulkActions={guardedBulkActions}
                                                 isBulkProcessing={isBulkProcessing}
                                                 hasActiveFilters={hasActiveFilters}
                                                 totalRiskCount={totalRiskCount}
@@ -1648,7 +1689,7 @@ export default function OrdersPage() {
                                     {workflowMode ? (
                                         <WorkflowTabs
                                             orders={filteredOrders}
-                                            onStatusUpdate={updateOrderStatus}
+                                            onStatusUpdate={guardedStatusUpdate}
                                             onUpdate={updateOrder}
                                             onViewDetails={handleViewDetails}
                                             isBlacklisted={isBlacklisted}
@@ -1775,6 +1816,7 @@ export default function OrdersPage() {
                                                             actionDock={actionDock}
                                                             getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
+                                                            getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                         />
                                                     ) : displayedOrders.length >= 10 ? (
@@ -1824,6 +1866,7 @@ export default function OrdersPage() {
                                                             actionDock={actionDock}
                                                             getRiskLevel={getRiskLevelByPhone}
                                                             hasDuplicates={hasDuplicates}
+                                                            getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                         />
                                                     ) : (
@@ -1858,6 +1901,7 @@ export default function OrdersPage() {
                                                                                 setDuplicateOrder(o);
                                                                                 setShowDuplicateModal(true);
                                                                             }}
+                                                                            duplicateAlert={getDuplicateWindowAlert(order.id)}
                                                                             onTogglePin={togglePin}
                                                                             onCloneOrder={cloneOrder}
                                                                             onScreenshot={setScreenshotOrder}
@@ -1905,11 +1949,11 @@ export default function OrdersPage() {
                                                     togglePin={togglePin}
                                                     setSelectedOrder={setSelectedOrderWithFetch}
                                                     setIsModalOpen={setIsModalOpen}
-                                                    phoneCounts={phoneCounts}
+                                                    getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                     setDuplicateOrder={setDuplicateOrder}
                                                     setShowDuplicateModal={setShowDuplicateModal}
                                                     modePrice={modePrice}
-                                                    updateOrderStatus={updateOrderStatus}
+                                                    updateOrderStatus={guardedStatusUpdate}
                                                     getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
                                                     setColumnFilters={setColumnFilters}
@@ -1966,7 +2010,17 @@ export default function OrdersPage() {
                         onStatusUpdate={handleStatusUpdate}
                     />
 
-                    <OrderBulkDialogs bulk={bulk} />
+                    <OrderBulkDialogs bulk={guardedBulk} getDispatchTwin={getConfirmBlockingTwin} />
+
+                    {/* Lives here rather than in either dialog group: it guards the
+                        card, the table and the bulk bar alike. */}
+                    <DuplicateConfirmDialog
+                        {...duplicateGuard.dialogProps}
+                        onCompare={(order) => {
+                            setDuplicateOrder(order);
+                            setShowDuplicateModal(true);
+                        }}
+                    />
 
                     {/* Scroll to Top Button */}
                     <ScrollToTopButton />

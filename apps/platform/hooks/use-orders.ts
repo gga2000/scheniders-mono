@@ -8,6 +8,7 @@ import type { Order } from "@/lib/supabase";
 import { useOrderFilters } from "@/hooks/use-order-filters";
 import { useOrderRealtime } from "@/hooks/use-order-realtime";
 import { useOrderAuxiliary } from "@/hooks/use-order-auxiliary";
+import { useDuplicateWindowAlerts } from "@/hooks/use-duplicate-window-alerts";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useAppLifecycle } from "@/hooks/use-app-lifecycle";
 import { useRealtimeHeartbeat } from "@/hooks/use-realtime-heartbeat";
@@ -129,6 +130,11 @@ export function useOrders() {
     // 3. Auxiliary — reference data, customer helpers, stats
     const auxiliaryHook = useOrderAuxiliary({ orders, archivedOrders });
 
+    // 48h money-at-risk duplicates. Needs the window, because a windowed view
+    // must look past its own edges to find a twin placed the day before.
+    const { getDuplicateWindowAlert, getConfirmBlockingTwin, duplicateCandidates } =
+        useDuplicateWindowAlerts(orders, ordersWindow);
+
     // While the cache still holds the complete set, both sides are computable —
     // so verify they agree before the windowed fetch makes the client's version
     // impossible to check. Dev-only; compiles to nothing in production.
@@ -230,6 +236,9 @@ export function useOrders() {
         // Detection & history
         getDuplicatesForOrder: auxiliaryHook.getDuplicatesForOrder,
         hasDuplicates: auxiliaryHook.hasDuplicates,
+        getDuplicateWindowAlert,
+        getConfirmBlockingTwin,
+        duplicateCandidates,
         getCustomerHistory: auxiliaryHook.getCustomerHistory,
         getCustomerOrderCount: auxiliaryHook.getCustomerOrderCount,
         getCustomerArchivedCount: auxiliaryHook.getCustomerArchivedCount,

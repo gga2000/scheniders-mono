@@ -55,7 +55,8 @@ export const LIST_COLUMNS = `
   delivered_at,
   completed_at,
   attribution,
-  ad_channel
+  ad_channel,
+  is_verified_customer
 `.trim();
 
 /**

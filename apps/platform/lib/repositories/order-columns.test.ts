@@ -73,6 +73,12 @@ describe("LIST_COLUMNS", () => {
         }
     });
 
+    it("carries is_verified_customer — the duplicate detector and its dismissal both read it", () => {
+        // Without it every list row arrives `undefined`, so "Not a duplicate"
+        // and "Same customer" are written but never seen, and the banner returns.
+        expect(names(LIST_COLUMNS)).toContain("is_verified_customer");
+    });
+
     it("does not request risk_data — it is attached after the fetch", () => {
         expect(names(LIST_COLUMNS)).not.toContain("risk_data");
     });

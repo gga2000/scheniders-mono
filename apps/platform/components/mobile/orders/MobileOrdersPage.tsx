@@ -17,6 +17,8 @@ import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-pan
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
+import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
+import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
 
 export function MobileOrdersPage() {
     const {
@@ -39,8 +41,13 @@ export function MobileOrdersPage() {
         getCustomerArchivedCount,
         getCustomerOrderCount,
         hasDuplicates,
+        getDuplicateWindowAlert,
+        getConfirmBlockingTwin,
         exportOrders,
     } = useOrdersContext();
+
+    // Same 48h confirm/ship guard as the desktop page.
+    const duplicateGuard = useDuplicateDispatchGuard(orders, getConfirmBlockingTwin);
 
     // Selected through `useShallow`; a bare `useOrderStore()` subscribes to the
     // whole store and re-renders this screen on every unrelated store change.
@@ -161,7 +168,20 @@ export function MobileOrdersPage() {
     }, [filteredOrders, safeCurrentPage]);
 
     const handleStatusUpdate = async (id: string, status: Order["status"]) => {
+        if (duplicateGuard.holdStatusChange(id, status, () => { void updateOrderStatus(id, status); })) return;
         await updateOrderStatus(id, status);
+    };
+
+    /** The details modal's status changes, through the same guard. */
+    const guardedStatusUpdate = async (
+        id: string,
+        status: Order["status"],
+        reason?: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+        if (duplicateGuard.holdStatusChange(id, status, () => { void updateOrderStatus(id, status, reason); })) {
+            return { success: false };
+        }
+        return updateOrderStatus(id, status, reason);
     };
 
     const handleViewDetails = (order: Order) => {
@@ -282,6 +302,7 @@ export function MobileOrdersPage() {
                     getCustomerArchivedCount={getCustomerArchivedCount}
                     getCustomerOrderCount={getCustomerOrderCount}
                     hasDuplicates={hasDuplicates}
+                    getDuplicateWindowAlert={getDuplicateWindowAlert}
                     onOpenTemplatePanel={(o) => {
                         setOrderForTemplate(o);
                         setTemplatePanelOpen(true);
@@ -306,7 +327,7 @@ export function MobileOrdersPage() {
                     open={!!selectedOrder}
                     onClose={() => setSelectedOrder(null)}
                     onUpdate={updateOrder}
-                    onStatusUpdate={updateOrderStatus}
+                    onStatusUpdate={guardedStatusUpdate}
                     onGetTimeline={getOrderTimeline}
                     onGetNotes={getOrderNotes}
                     onDelete={deleteOrder}
@@ -319,6 +340,8 @@ export function MobileOrdersPage() {
                     }}
                 />
             )}
+
+            <DuplicateConfirmDialog {...duplicateGuard.dialogProps} />
 
             {/* WhatsApp Template Panel */}
             {orderForTemplate && (
