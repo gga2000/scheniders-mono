@@ -118,6 +118,9 @@ export const listAttributeDefs = cache(
  * On any error the products pass through without attributes: an attribute
  * block is enrichment, and must never cost the page its product.
  */
+/** ~100 uuids keeps the PostgREST URL near 4KB, well under proxy limits. */
+const ATTRIBUTE_ID_CHUNK = 100;
+
 async function withAttributes(
   supabase: PublicClient,
   tenantId: string,
@@ -128,20 +131,30 @@ async function withAttributes(
   const defs = await listAttributeDefs(tenantId);
   if (defs.length === 0) return products;
 
-  const { data, error } = await supabase
-    .from("product_attribute_values")
-    .select("product_id, attribute_def_id, value")
-    .eq("tenant_id", tenantId)
-    .in(
-      "product_id",
-      products.map((p) => p.id),
-    );
+  // The catalogue and search pages pass the whole catalogue. One `.in()` with
+  // hundreds of uuids overflows the request URL, so query in chunks.
+  const ids = products.map((p) => p.id);
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += ATTRIBUTE_ID_CHUNK) {
+    chunks.push(ids.slice(i, i + ATTRIBUTE_ID_CHUNK));
+  }
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      supabase
+        .from("product_attribute_values")
+        .select("product_id, attribute_def_id, value")
+        .eq("tenant_id", tenantId)
+        .in("product_id", chunk),
+    ),
+  );
 
-  if (error) {
-    console.error("[queries.withAttributes]", error);
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    console.error("[queries.withAttributes]", failed.error);
     return products;
   }
-  if (!data || data.length === 0) return products;
+  const data = results.flatMap((r) => r.data ?? []);
+  if (data.length === 0) return products;
 
   const byProduct = new Map<string, typeof data>();
   for (const row of data) {
