@@ -2,7 +2,8 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "./supabase/server";
 import type { Tables } from "@scheniders/supabase";
-import type { ProductReview } from "@scheniders/shared";
+import type { ProductReview, ProductAttributeDef } from "@scheniders/shared";
+import { parseProductAttributeDefs, resolveProductAttributes } from "@scheniders/shared";
 import type { Product, Category, ProductVariant } from "./types";
 
 type PublicClient = ReturnType<typeof createSupabasePublicClient>;
@@ -79,6 +80,84 @@ async function withReviewStats(
   });
 }
 
+/**
+ * The tenant's attribute taxonomy. Small (a handful of rows per tenant) and
+ * read on any page that renders or filters attributes, so it gets its own
+ * cache entry rather than riding along with a product query.
+ *
+ * Malformed rows are dropped by `parseProductAttributeDefs` — the database
+ * CHECK already ties each kind to its required shape, so this is the second
+ * line of defence, not the first.
+ */
+export const listAttributeDefs = cache(
+  (tenantId: string): Promise<ProductAttributeDef[]> =>
+    publicCache(["listAttributeDefs", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("product_attribute_defs")
+        .select(
+          "id, key, name_i18n, kind, options, group_keys, range_min, range_max, unit_i18n, is_filterable, is_comparable, display_order",
+        )
+        .eq("tenant_id", tenantId)
+        .order("display_order", { ascending: true });
+
+      if (error) {
+        console.error("[queries.listAttributeDefs]", error);
+        return [];
+      }
+      return parseProductAttributeDefs(data ?? []);
+    }),
+);
+
+/**
+ * Attach merchant-defined attributes to a batch of products in ONE extra
+ * indexed query, mirroring `withReviewStats`. Products with no values pass
+ * through untouched, so `attributes` stays absent rather than empty — a
+ * section can then tell "this tenant has no taxonomy" from "this product
+ * has no values", and render nothing in both cases.
+ *
+ * On any error the products pass through without attributes: an attribute
+ * block is enrichment, and must never cost the page its product.
+ */
+async function withAttributes(
+  supabase: PublicClient,
+  tenantId: string,
+  products: Product[],
+): Promise<Product[]> {
+  if (products.length === 0) return products;
+
+  const defs = await listAttributeDefs(tenantId);
+  if (defs.length === 0) return products;
+
+  const { data, error } = await supabase
+    .from("product_attribute_values")
+    .select("product_id, attribute_def_id, value")
+    .eq("tenant_id", tenantId)
+    .in(
+      "product_id",
+      products.map((p) => p.id),
+    );
+
+  if (error) {
+    console.error("[queries.withAttributes]", error);
+    return products;
+  }
+  if (!data || data.length === 0) return products;
+
+  const byProduct = new Map<string, typeof data>();
+  for (const row of data) {
+    const list = byProduct.get(row.product_id);
+    if (list) list.push(row);
+    else byProduct.set(row.product_id, [row]);
+  }
+
+  return products.map((p) => {
+    const rows = byProduct.get(p.id);
+    if (!rows) return p;
+    const attributes = resolveProductAttributes(defs, rows);
+    return attributes.length > 0 ? { ...p, attributes } : p;
+  });
+}
+
 export const listProducts = cache(
   (
     tenantId: string,
@@ -149,8 +228,13 @@ export const getProductBySlug = cache(
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
-      const withStats = async (row: Record<string, unknown>) =>
-        (await withReviewStats(supabase, [normalizeProduct(row)]))[0] ?? null;
+      // The PDP is the one page that renders attributes today, so it is the
+      // only place that pays for the extra query. Grids stay lean until
+      // facet filtering needs them.
+      const withStats = async (row: Record<string, unknown>) => {
+        const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
+        return (await withAttributes(supabase, tenantId, withReviews))[0] ?? null;
+      };
 
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
       if (bySlug) return withStats(bySlug);
