@@ -208,6 +208,10 @@ export function deriveCatalogPage(v2: StoreConfigV2): PageConfig {
       // these only fill an empty header.
       eyebrow_i18n: rest.eyebrow_i18n ?? CATALOG_EYEBROW,
       subheading_i18n: rest.subheading_i18n ?? CATALOG_SUBHEADING,
+      // The catalog is the one place a shopper browses everything at once,
+      // so it is where narrowing by attribute earns its keep. The home grid
+      // deliberately stays server-rendered and ships no filtering JS.
+      enable_filters: true,
     };
   } else {
     const calm = v2.brand_kit?.shape?.rotation_intensity === "none";
@@ -220,6 +224,7 @@ export function deriveCatalogPage(v2: StoreConfigV2): PageConfig {
       scribble_color: "mint",
       manual_product_ids: [],
       pinned_product_ids: [],
+      enable_filters: true,
       ...(calm ? { card_style: "price_pill" } : {}),
     };
   }
