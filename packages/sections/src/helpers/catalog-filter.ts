@@ -7,6 +7,7 @@
 // another — is the failure this project has already fixed twice.
 // =====================================================================
 
+import type { LocaleCode } from "@scheniders/shared";
 import type { Product } from "../types";
 import { filterByQuery } from "./product-search";
 
@@ -22,6 +23,8 @@ export interface CatalogOpts {
   threshold?: number | null;
   /** Free-text search. Shares the matcher with the /search page. */
   query?: string;
+  /** Shopper's locale: lets search read attribute labels, as /search does. */
+  locale?: LocaleCode;
 }
 
 /** Buyable now — drives the unbuyable-last rule, not visibility. */
@@ -70,7 +73,7 @@ export function applyCatalog(products: Product[], opts: CatalogOpts): Product[] 
 
   // Search before the price split, so the "under / over" counts describe the
   // searched set rather than the whole catalogue.
-  if (opts.query) out = filterByQuery(out, opts.query);
+  if (opts.query) out = filterByQuery(out, opts.query, opts.locale);
 
   if (opts.price && opts.threshold != null) {
     out = out.filter((p) =>

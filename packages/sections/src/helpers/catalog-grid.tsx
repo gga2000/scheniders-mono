@@ -266,8 +266,8 @@ export function CatalogGrid({
   // nothing. `priceSplitFrom` already returns null in that case; it just has
   // to be asked about the right list.
   const searched = useMemo(
-    () => (query.trim() ? filterByQuery(products, query) : products),
-    [products, query],
+    () => (query.trim() ? filterByQuery(products, query, locale) : products),
+    [products, query, locale],
   );
   const threshold = useMemo(
     () => priceSplitFrom(searched.map((p) => p.price)),
@@ -283,14 +283,15 @@ export function CatalogGrid({
         price,
         threshold,
         query,
+        locale,
       }),
-    [products, sort, categoryId, categoryProductIds, price, threshold, query],
+    [products, sort, categoryId, categoryProductIds, price, threshold, query, locale],
   );
 
   // Every chip's count is produced by the SAME function that builds the
   // list, so a chip can never advertise a number it does not then yield.
   const chips = useMemo(() => {
-    const base = { categoryProductIds, price, threshold, query };
+    const base = { categoryProductIds, price, threshold, query, locale };
     return categories
       .map((c) => ({
         id: c.id,
@@ -300,7 +301,7 @@ export function CatalogGrid({
       }))
       // A chip that opens onto nothing is worse than no chip.
       .filter((c) => c.count > 0);
-  }, [categories, products, categoryProductIds, price, threshold, query]);
+  }, [categories, products, categoryProductIds, price, threshold, query, locale]);
 
   /**
    * Each price band's real yield, from the same function as the list. A band
@@ -308,20 +309,20 @@ export function CatalogGrid({
    * already follow.
    */
   const priceCounts = useMemo(() => {
-    const base = { categoryProductIds, categoryId, threshold, query };
+    const base = { categoryProductIds, categoryId, threshold, query, locale };
     return {
       under: applyCatalog(products, { ...base, price: "under" as const }).length,
       over: applyCatalog(products, { ...base, price: "over" as const }).length,
     };
-  }, [products, categoryProductIds, categoryId, threshold, query]);
+  }, [products, categoryProductIds, categoryId, threshold, query, locale]);
   const showPriceSplit =
     threshold != null && priceCounts.under > 0 && priceCounts.over > 0;
 
   const allCount = useMemo(
     () =>
-      applyCatalog(products, { categoryProductIds, price, threshold, query })
+      applyCatalog(products, { categoryProductIds, price, threshold, query, locale })
         .length,
-    [products, categoryProductIds, price, threshold, query],
+    [products, categoryProductIds, price, threshold, query, locale],
   );
 
   // A changed filter must start at page one — showing page two of a list the
