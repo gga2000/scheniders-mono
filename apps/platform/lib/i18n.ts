@@ -967,6 +967,14 @@ export const translations: Record<Locale, Record<string, string>> = {
         "attributes.error.groups": "Add at least one group.",
         "attributes.error.rangeNumbers": "The lowest and highest values must be numbers.",
         "attributes.error.rangeOrder": "The highest value must be greater than the lowest.",
+        "products.editor.nav.attributes": "Attributes",
+        "attributes.value.unset": "Not set",
+        "attributes.value.clear": "Clear",
+        "attributes.value.listPlaceholder": "bergamot، jasmine، amber",
+        "attributes.value.listHelp": "Separate words with a comma.",
+        "attributes.value.noTaxonomy": "You haven't defined any attributes yet.",
+        "attributes.value.defineThem": "Define them",
+        "attributes.value.manage": "Manage attributes",
 
         // ── QC Quarantine ──
         "qc.title": "QC Quarantine",
@@ -4281,6 +4289,14 @@ export const translations: Record<Locale, Record<string, string>> = {
         "attributes.error.groups": "أضف مجموعة وحدة على الأقل.",
         "attributes.error.rangeNumbers": "الأدنى والأعلى لازم يكونون أرقام.",
         "attributes.error.rangeOrder": "الأعلى لازم يكون أكبر من الأدنى.",
+        "products.editor.nav.attributes": "الخصائص",
+        "attributes.value.unset": "غير محدد",
+        "attributes.value.clear": "مسح",
+        "attributes.value.listPlaceholder": "برغموت، ياسمين، عنبر",
+        "attributes.value.listHelp": "افصل الكلمات بفاصلة.",
+        "attributes.value.noTaxonomy": "لحد الآن ما عرّفت أي خاصية.",
+        "attributes.value.defineThem": "عرّفها",
+        "attributes.value.manage": "إدارة الخصائص",
 
         // ── QC Quarantine ──
         "qc.title": "عزل الجودة",
