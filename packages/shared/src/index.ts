@@ -14,6 +14,7 @@ export * from "./discount";
 export type * from "./health-rules"; // values via "@scheniders/shared/health-rules"
 export * from "./locale";
 export * from "./loyalty";
+export * from "./order-bumps";
 export * from "./pixel";
 export * from "./price-tiers";
 // MOVED TO SUBPATH EXPORT: export * from "./preview-token";

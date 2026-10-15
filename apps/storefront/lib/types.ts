@@ -3,7 +3,7 @@
  * Base types come from @scheniders/shared; storefront extends them.
  */
 
-import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig, StoreConfigV2, PriceTier } from "@scheniders/shared";
+import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig, StoreConfigV2, PriceTier, OrderBumpOffer } from "@scheniders/shared";
 
 // Re-export shared types used directly
 export type { Category, CartItem, CheckoutFormData } from "@scheniders/shared";
@@ -20,6 +20,10 @@ export interface Tenant extends BaseTenant {
 export interface Product extends BaseProduct {
   /** Quantity price breaks (product_tiered_pricing). Populated on the PDP. */
   price_tiers?: PriceTier[];
+  /** Add-on offers (product_order_bumps). Populated on the PDP. */
+  order_bumps?: OrderBumpOffer[];
+  /** Products the offers point at, resolved with them. */
+  order_bump_products?: Product[];
   tenant_id: string;
   description: string | null;
   compare_at_price: number | null;

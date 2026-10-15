@@ -43,6 +43,8 @@ import {
   cn,
   buildPriceLadder,
   resolveTierPrice,
+  offersForProduct,
+  applyBumpDiscount,
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
@@ -270,6 +272,7 @@ export function PdpDirectOrderRender({
   const submitErrorId = `${uid}-submit-error`;
 
   const [qty, setQty] = useState(1);
+  const [bumpAccepted, setBumpAccepted] = useState(false);
   // Server-corrected unit price (422 `price_changed` self-heal); null until
   // the server reports a drift.
   const [livePrice, setLivePrice] = useState<number | null>(null);
@@ -373,7 +376,32 @@ export function PdpDirectOrderRender({
   // what they are charged cannot drift — see @scheniders/shared price-tiers.
   const ladder = buildPriceLadder(product.price_tiers, price, maxQty);
   const unitPrice = resolveTierPrice(product.price_tiers, qty, price);
-  const subtotal = unitPrice * qty;
+
+  // Order bump: one add-on offer attached to this product. Only the first is
+  // shown — a checkout form is not the place for a list of upsells. The
+  // offered product is resolved with the offer (never from a capped
+  // page-level list), and its discount applies to the same unit price the
+  // checkout server derives for one unit of it.
+  const bumpOffer = offersForProduct(product.order_bumps, product.id)[0] ?? null;
+  const bumpProduct = bumpOffer
+    ? ((product.order_bump_products ?? []).find((p) => p.id === bumpOffer.bump_product_id) ?? null)
+    : null;
+  const bumpAvailable =
+    bumpProduct != null &&
+    (bumpProduct.stock_quantity ?? 0) - (bumpProduct.reserved_quantity ?? 0) > 0;
+  const bumpBasePrice = bumpProduct
+    ? resolveTierPrice(bumpProduct.price_tiers, 1, bumpProduct.price)
+    : 0;
+  const bumpPrice =
+    bumpOffer && bumpProduct
+      ? applyBumpDiscount(bumpBasePrice, bumpOffer.discount_percentage)
+      : 0;
+  const acceptedBump =
+    bumpAccepted && bumpProduct && bumpAvailable
+      ? { product: bumpProduct, price: bumpPrice }
+      : null;
+
+  const subtotal = unitPrice * qty + (acceptedBump ? acceptedBump.price : 0);
   // Same per-governorate shipping engine as checkout_form so the total this
   // CTA shows matches what the server records for the order. Until the
   // shopper picks a governorate the fee is unknown — shown as "—", never a
@@ -550,6 +578,19 @@ export function PdpDirectOrderRender({
         quantity: qty,
       },
     ];
+    // An accepted bump is a second line at its discounted price. The server
+    // re-derives that discount too, and only honours it because this order
+    // also contains the parent product above.
+    if (acceptedBump) {
+      items.push({
+        product_id: acceptedBump.product.id,
+        variant_id: null,
+        name: acceptedBump.product.name,
+        variant_name: null,
+        price: acceptedBump.price,
+        quantity: 1,
+      });
+    }
     try {
       // Same endpoint + payload contract as the checkout_form section —
       // only `items` differs (a single line from ctx.product) plus the
@@ -1306,6 +1347,70 @@ export function PdpDirectOrderRender({
                 </span>
               </div>
             </div>
+
+            {/* ── Order bump ──
+                Immediately before the submit button, where an add-on belongs:
+                the decision to buy is already made, so this is an addition
+                rather than a distraction from it. A checkbox, not a second
+                CTA — it must never compete with the order button. */}
+            {bumpProduct && bumpAvailable && (
+              <label
+                className={cn(
+                  "flex cursor-pointer items-center gap-bk-sm p-bk-sm",
+                  PRESSABLE,
+                )}
+                style={{
+                  border: bumpAccepted
+                    ? "2px solid var(--bk-ink, #1a1a1a)"
+                    : "1px dashed var(--bk-divider, rgb(26 26 26 / 0.3))",
+                  borderRadius: "var(--bk-radius-input, 0.75rem)",
+                  backgroundColor: bumpAccepted
+                    ? "var(--bk-decor-a, #fff)"
+                    : "var(--bk-surface-alt, #fff)",
+                }}
+                data-layer="bump"
+                data-layer-label="Order bump"
+              >
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 shrink-0 accent-[var(--bk-primary,#ff5a8a)]"
+                  checked={bumpAccepted}
+                  onChange={(e) => setBumpAccepted(e.target.checked)}
+                />
+                {bumpProduct.image_url && (
+                  <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-bk-input">
+                    <Image
+                      src={bumpProduct.image_url}
+                      alt=""
+                      fill
+                      sizes="44px"
+                      unoptimized={!isOptimizableImageHost(bumpProduct.image_url)}
+                      className="object-cover"
+                    />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-sm font-black text-bk-ink">
+                    {bumpOffer?.headline || bumpProduct.name}
+                  </span>
+                  {bumpOffer?.description && (
+                    <span className="block font-body text-xs text-bk-ink-soft">
+                      {bumpOffer.description}
+                    </span>
+                  )}
+                  <span className="mt-0.5 flex items-baseline gap-1.5">
+                    <span className="font-display text-sm font-black tabular-nums text-bk-primary">
+                      <bdi>{formatPrice(bumpPrice, locale)}</bdi>
+                    </span>
+                    {bumpPrice < bumpBasePrice && (
+                      <span className="font-body text-[11px] tabular-nums text-bk-ink-soft line-through">
+                        <bdi>{formatPrice(bumpBasePrice, locale)}</bdi>
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </label>
+            )}
 
             {/* ── Submit + WhatsApp ── */}
             <div

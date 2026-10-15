@@ -148,3 +148,82 @@ describe("quantity price breaks", () => {
     expect(recordedOrder(fake)).toBeUndefined();
   });
 });
+
+const ADDON = "b1b2c3d4-e5f6-4789-ab12-cd34ef567890";
+
+function bumpTables(over: Row = {}): Record<string, Row[]> {
+  return baseTables({
+    products: [product(PERFUME, 35000), product(ADDON, 10000)],
+    product_order_bumps: [
+      {
+        tenant_id: TENANT,
+        product_id: PERFUME,
+        bump_product_id: ADDON,
+        discount_percentage: 30,
+        is_active: true,
+        ...over,
+      },
+    ],
+  });
+}
+
+describe("order bumps", () => {
+  it("honours the bump price when the parent is in the same order", async () => {
+    const fake = install(bumpTables());
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 35000, 1), line(ADDON, 7000, 1)],
+    });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items[1]).toMatchObject({ product_id: ADDON, price: 7000 });
+    expect(recordedOrder(fake)?.price).toBe(42000);
+  });
+
+  it("refuses the bump price on its own — it is not a coupon", async () => {
+    const fake = install(bumpTables());
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(ADDON, 7000, 1)] });
+    expect(res.issues?.[0]).toMatchObject({ product_id: ADDON, reason: "price_changed", new_price: 10000 });
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("refuses a deeper discount than the merchant set", async () => {
+    const fake = install(bumpTables());
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 35000, 1), line(ADDON, 1000, 1)],
+    });
+    expect(res.success).toBe(false);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("ignores an inactive offer", async () => {
+    const fake = install(bumpTables({ is_active: false }));
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 35000, 1), line(ADDON, 7000, 1)],
+    });
+    expect(res.success).toBe(false);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("ignores another tenant's offer", async () => {
+    const fake = install(bumpTables({ tenant_id: OTHER_TENANT }));
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 35000, 1), line(ADDON, 7000, 1)],
+    });
+    expect(res.success).toBe(false);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("fails closed when the offers cannot be read", async () => {
+    const fake = install(bumpTables(), ["product_order_bumps"]);
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 35000, 1)] });
+    expect(res.success).toBe(false);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+});

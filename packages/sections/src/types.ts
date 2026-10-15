@@ -13,6 +13,7 @@ import type {
   BaseTenant,
   BaseProduct,
   PriceTier,
+  OrderBumpOffer,
   BaseProductVariant,
   Category,
   ProductReview,
@@ -72,6 +73,13 @@ export interface Product extends BaseProduct {
    *  The SERVER re-derives the same price from these at checkout, so the
    *  ladder shown here and the price charged cannot drift. */
   price_tiers?: PriceTier[];
+  /** Add-on offers this product carries. Populated on the PDP; the checkout
+   *  server re-derives the discount and only honours it when this product is
+   *  in the same order. */
+  order_bumps?: OrderBumpOffer[];
+  /** The products those offers point at, resolved alongside them so a
+   *  section never has to hope they appear in a capped page-level list. */
+  order_bump_products?: Product[];
   /** Optional variant list — populated on the PDP. */
   variants?: ProductVariant[];
   /** Approved-review aggregates (real data, storefront-populated). Sections

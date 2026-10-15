@@ -8,7 +8,9 @@ import {
   computePointsRedemption,
   normalizeIraqiMobile,
   resolveTierPrice,
+  resolveBumpPrice,
   type PriceTier,
+  type OrderBumpOffer,
 } from "@scheniders/shared";
 import type {
   StoreConfigV2,
@@ -218,6 +220,33 @@ export async function submitCheckout(
     }
   }
 
+  // Order bumps. Like tiers, the server derives the discounted price itself:
+  // the price check below rejects anything it did not compute. The discount
+  // only applies when the bump's PARENT product is in this same order —
+  // otherwise the bump price would be a coupon claimable by ordering the
+  // add-on on its own.
+  const bumpOffers: OrderBumpOffer[] = [];
+  {
+    const { data: bumpRows, error: bumpsErr } = await supabase
+      .from("product_order_bumps")
+      .select("product_id, bump_product_id, discount_percentage, is_active")
+      .in("product_id", productIds)
+      .eq("tenant_id", payload.tenantId);
+    if (bumpsErr || !bumpRows) {
+      // Fail closed, for the same reason as the tier read above.
+      console.error("[checkout] bump lookup failed:", bumpsErr);
+      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+    }
+    for (const row of bumpRows) {
+      bumpOffers.push({
+        product_id: row.product_id,
+        bump_product_id: row.bump_product_id,
+        discount_percentage: Number(row.discount_percentage),
+        is_active: row.is_active,
+      });
+    }
+  }
+
   // EC24: validate every line and COLLECT per-item issues (unavailable /
   // repriced / bad quantity) instead of dead-ending on the first one with a
   // generic message — so the client can remove or re-price the offending lines
@@ -264,6 +293,12 @@ export async function submitCheckout(
     // Quantity break, after the base price is known and the quantity is
     // known good. A product with no tiers is unaffected.
     unitPrice = resolveTierPrice(tiersByProduct.get(i.product_id), i.quantity, unitPrice);
+
+    // Then the bump discount, if this line is an add-on to something else in
+    // the order. `productIds` is every product in this order, so a bump only
+    // discounts when its parent is genuinely present.
+    const bumpPrice = resolveBumpPrice(bumpOffers, productIds, i.product_id, unitPrice);
+    if (bumpPrice !== null) unitPrice = bumpPrice;
     // Price moved since add-to-cart — surface it (don't silently charge a
     // different amount than the shopper saw); they re-confirm at the new price.
     if (Math.round(i.price) !== Math.round(unitPrice)) {

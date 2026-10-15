@@ -125,6 +125,75 @@ async function withPriceTiers(
   });
 }
 
+/** Columns the PDP renders a product from — the PDP product itself and the
+ *  add-on products its order bumps point at. */
+const PDP_PRODUCT_COLUMNS =
+  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank";
+
+/**
+ * Add-on offers attached to one product. PDP only, like tiers — and like
+ * tiers, for DISPLAY: the checkout server re-reads the offers and derives the
+ * discount itself. The offered products are resolved here rather than looked
+ * up in a page-level product list, which is capped and would silently drop an
+ * offer pointing below the cut. Only orderable products are offered — the
+ * same visible / active / not archived / not supply bar as the PDP itself —
+ * and they carry their own quantity tiers so the discount is applied to the
+ * same unit price the checkout derives.
+ */
+async function withOrderBumps(
+  supabase: PublicClient,
+  tenantId: string,
+  product: Product,
+): Promise<Product> {
+  const { data, error } = await supabase
+    .from("product_order_bumps")
+    .select("product_id, bump_product_id, discount_percentage, headline, description, is_active, display_order")
+    .eq("tenant_id", tenantId)
+    .eq("product_id", product.id)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    console.error("[queries.withOrderBumps]", error);
+    return product;
+  }
+  if (!data || data.length === 0) return product;
+
+  const bumpIds = [...new Set(data.map((b) => b.bump_product_id))];
+  const { data: bumpRows, error: bumpProductsErr } = await supabase
+    .from("products")
+    .select(PDP_PRODUCT_COLUMNS)
+    .in("id", bumpIds)
+    .eq("tenant_id", tenantId)
+    .eq("is_visible", true)
+    .eq("status", "active")
+    .eq("is_archived", false)
+    .not("is_supply", "is", true);
+  if (bumpProductsErr) {
+    console.error("[queries.withOrderBumps] products", bumpProductsErr);
+    return product;
+  }
+  const bumpProducts = await withPriceTiers(
+    supabase,
+    tenantId,
+    (bumpRows ?? []).map((r) => normalizeProduct(r)),
+  );
+
+  return {
+    ...product,
+    order_bumps: data.map((b) => ({
+      product_id: b.product_id,
+      bump_product_id: b.bump_product_id,
+      discount_percentage: Number(b.discount_percentage),
+      headline: b.headline,
+      description: b.description,
+      is_active: b.is_active,
+      display_order: b.display_order,
+    })),
+    order_bump_products: bumpProducts,
+  };
+}
+
 export const listProducts = cache(
   (
     tenantId: string,
@@ -175,8 +244,7 @@ function decodeSlugParam(value: string): string {
 export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
     publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
-      const columns =
-        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank";
+      const columns = PDP_PRODUCT_COLUMNS;
 
       // The dynamic route param can arrive still percent-encoded, so a non-ASCII
       // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
@@ -195,11 +263,12 @@ export const getProductBySlug = cache(
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
-      // The PDP is the one page that can offer a quantity ladder, so it is
-      // the only read that pays for the tier query.
+      // The PDP is the one page that can offer a quantity ladder or an
+      // add-on, so it is the only read that pays for those queries.
       const withStats = async (row: Record<string, unknown>) => {
         const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
-        return (await withPriceTiers(supabase, tenantId, withReviews))[0] ?? null;
+        const withTiers = (await withPriceTiers(supabase, tenantId, withReviews))[0] ?? null;
+        return withTiers ? withOrderBumps(supabase, tenantId, withTiers) : null;
       };
 
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
