@@ -9,6 +9,8 @@ import {
   normalizeIraqiMobile,
   resolveTierPrice,
   resolveBumpPrice,
+  resolveFreeGift,
+  qualifiesForFreeGift,
   type PriceTier,
   type OrderBumpOffer,
 } from "@scheniders/shared";
@@ -321,11 +323,64 @@ export async function submitCheckout(
 
   // Subtotal of line items (server-verified prices — never the client's).
   const subtotal = verifiedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  // What the shopper is PAYING for, frozen before the server adds anything of
+  // its own. The engines that decide what was earned (bundles, delivery) read
+  // this, never the final line list: a free gift naming a bundle's product
+  // must not complete that bundle and pay out a discount nobody chose.
+  const paidItems: readonly CheckoutItem[] = [...verifiedItems];
+
+  // Free gift. Added HERE, by the server, from the verified subtotal — a
+  // zero-price line accepted from the client would be a free item anyone
+  // could post. The subtotal above excludes the gift by construction (it is
+  // appended after), so a free line can never count toward the threshold
+  // that earns it.
+  const freeGift = resolveFreeGift(tenant.store_config_v2?.commerce?.free_gift);
+  if (freeGift.productId && qualifiesForFreeGift(tenant.store_config_v2?.commerce?.free_gift, subtotal)) {
+    const giftId = freeGift.productId;
+    // Never gift something already being paid for: the shopper would lose a
+    // line they chose, or be handed a duplicate.
+    const alreadyInOrder = paidItems.some((i) => i.product_id === giftId);
+    if (!alreadyInOrder) {
+      const { data: gift, error: giftErr } = await supabase
+        .from("products")
+        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
+        .eq("id", giftId)
+        .eq("tenant_id", payload.tenantId)
+        .maybeSingle();
+      if (giftErr) {
+        // Fail closed like every other catalogue read here: the storefront
+        // promised this shopper a gift, so placing the order without it on a
+        // transient error would break that promise silently.
+        console.error("[checkout] free gift lookup failed:", giftErr);
+        return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+      }
+      const giftOrderable =
+        gift !== null &&
+        gift.status === "active" &&
+        !gift.is_archived &&
+        gift.is_visible &&
+        !gift.is_supply &&
+        (gift.stock_quantity ?? 0) - (gift.reserved_quantity ?? 0) > 0;
+      if (gift && giftOrderable) {
+        verifiedItems.push({
+          product_id: gift.id,
+          variant_id: null,
+          name: gift.short_name || gift.name,
+          variant_name: null,
+          price: 0,
+          quantity: 1,
+        });
+      }
+      // Withdrawn, Draft or out of stock: the order proceeds without it. The
+      // shopper loses nothing they paid for.
+    }
+  }
+
   // EC2: record the SAME delivery fee the storefront displays + the courier
   // collects (shared source of truth), so the order's recorded total
   // (price + delivery_fee) matches what the customer agreed to pay. Recomputed
   // server-side from the verified subtotal — the client value is never trusted.
-  const itemCount = verifiedItems.reduce((n, i) => n + i.quantity, 0);
+  const itemCount = paidItems.reduce((n, i) => n + i.quantity, 0);
   // Per-governorate shipping engine (falls back to the legacy flat fee when the
   // merchant hasn't configured rates). Same inputs the storefront displays.
   const deliveryFee = computeDeliveryFee(subtotal, itemCount, {
@@ -348,7 +403,7 @@ export async function submitCheckout(
   // order's total discount_amount alongside any coupon, so the recorded total
   // and the courier-collected amount both reflect them.
   const bundleSummary = computeBundleDiscounts(
-    verifiedItems,
+    paidItems,
     tenant.store_config_v2?.commerce?.bundles,
   );
   // Loyalty: redeem the points the customer chose to spend. Re-resolve against

@@ -397,6 +397,25 @@ export interface StoreCommerceConfig {
   bundles?: Bundle[];
   /** Points-based loyalty program (opt-in per tenant). */
   loyalty?: LoyaltyConfig;
+  /** Free gift above a spending threshold (opt-in per tenant). */
+  free_gift?: FreeGiftRewardConfig;
+}
+
+/**
+ * Free gift above a spending threshold. Off unless the merchant has both
+ * enabled it AND chosen a product: a threshold with no gift behind it is a
+ * promise the checkout cannot keep.
+ *
+ * Named apart from the legacy V1 `FreeGiftConfig` in store-config.ts, which
+ * carries a threshold and a label but no product — which is why it never
+ * delivered a gift either.
+ */
+export interface FreeGiftRewardConfig {
+  enabled?: boolean;
+  /** The product added to the order, at no charge. */
+  product_id?: string;
+  /** Item subtotal (IQD) at or above which the gift is added. */
+  threshold_iqd?: number;
 }
 
 export interface LoyaltyConfig {

@@ -227,3 +227,74 @@ describe("order bumps", () => {
     expect(recordedOrder(fake)).toBeUndefined();
   });
 });
+
+const GIFT = "c1b2c3d4-e5f6-4789-ab12-cd34ef567890";
+
+function giftTables(giftOver: Row = {}, commerceOver: Row = {}): Record<string, Row[]> {
+  const tables = baseTables({
+    products: [product(PERFUME, 35000), product(GIFT, 12000, giftOver)],
+  });
+  tables.tenants[0].store_config_v2 = {
+    commerce: {
+      shipping: { default_rate: { fee_iqd: 5000 } },
+      free_gift: { enabled: true, product_id: GIFT, threshold_iqd: 60000 },
+      ...commerceOver,
+    },
+  };
+  return tables;
+}
+
+describe("free gift", () => {
+  it("is added by the server, at zero, once the paid subtotal reaches the threshold", async () => {
+    const fake = install(giftTables());
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
+    expect(res.success).toBe(true);
+    const order = recordedOrder(fake);
+    expect(order?.items).toHaveLength(2);
+    expect(order?.items[1]).toMatchObject({ product_id: GIFT, price: 0, quantity: 1 });
+    // The gift adds nothing to what is collected.
+    expect(order?.price).toBe(65000);
+    expect(res.total).toBe(65000 + 5000);
+  });
+
+  it("is not added below the threshold", async () => {
+    const fake = install(giftTables());
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 35000, 1)] });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items).toHaveLength(1);
+  });
+
+  it("cannot be claimed by posting it at zero", async () => {
+    const fake = install(giftTables());
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 32500, 2), line(GIFT, 0, 1)],
+    });
+    expect(res.issues).toEqual([
+      { product_id: GIFT, variant_id: null, reason: "price_changed", new_price: 12000 },
+    ]);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("is skipped, not failed, when the gift is Draft or out of stock", async () => {
+    for (const over of [{ status: "draft" }, { stock_quantity: 0 }]) {
+      const fake = install(giftTables(over));
+      const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
+      expect(res.success).toBe(true);
+      expect(recordedOrder(fake)?.items).toHaveLength(1);
+    }
+  });
+
+  it("does not complete a bundle the shopper never paid into", async () => {
+    // A merchant bundle naming the gift product would otherwise complete the
+    // moment the server appended the gift, and pay out 2,000 nobody earned.
+    const fake = install(
+      giftTables({}, { bundles: [{ id: "b", product_ids: [PERFUME, GIFT], kind: "fixed", value: 2000 }] }),
+    );
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.discount_amount).toBe(0);
+    expect(res.total).toBe(65000 + 5000);
+  });
+});
