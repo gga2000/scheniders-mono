@@ -621,6 +621,10 @@ export function PdpDirectOrderRender({
       if (res.ok) {
         const data = (await res.json().catch(() => null)) as {
           orderNumber?: string;
+          /** The order's id — which order the post-purchase offer grows. */
+          orderId?: string;
+          /** Proof this browser placed it (server-minted, short-lived). */
+          upsellToken?: string;
           total?: number;
         } | null;
         const orderNumber = data?.orderNumber ?? "";
@@ -632,6 +636,12 @@ export function PdpDirectOrderRender({
             "schn:last-order",
             JSON.stringify({
               number: orderNumber,
+              // The order id and the server's proof let the thank-you page's
+              // post-purchase offer act on THIS order and no other. Session
+              // storage only, like the rest of the stash; additive, so older
+              // readers ignore them.
+              order_id: data?.orderId ?? null,
+              upsell_token: data?.upsellToken ?? null,
               // Lets the thank-you page greet the buyer by name; optional so
               // older readers of the stash keep working unchanged.
               customer_name: form.customer_name.trim(),

@@ -19,6 +19,7 @@ vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { verifyUpsellProof } from "@/lib/order-upsell-proof";
 
 const TENANT = "f1e2d3c4-b5a6-4789-8f12-cd34ef567890";
 const OTHER_TENANT = "0e0e0e0e-b5a6-4789-8f12-cd34ef567890";
@@ -225,6 +226,27 @@ describe("order bumps", () => {
     const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 35000, 1)] });
     expect(res.success).toBe(false);
     expect(recordedOrder(fake)).toBeUndefined();
+  });
+});
+
+describe("post-purchase proof", () => {
+  it("is minted only for the order this response created, under its tenant", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
+    install(baseTables());
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 35000, 1)] });
+    expect(verifyUpsellProof(res.upsellToken, "proof-root")).toMatchObject({
+      tenantId: TENANT,
+      orderId: "11111111-1111-4111-8111-111111111111",
+    });
+    vi.unstubAllEnvs();
+  });
+
+  it("is not minted for a rejected order", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
+    install(baseTables());
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 1, 1)] });
+    expect(res.upsellToken).toBeUndefined();
+    vi.unstubAllEnvs();
   });
 });
 

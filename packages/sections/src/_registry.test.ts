@@ -85,12 +85,13 @@ const EXPECTED_TYPES = [
   "faq_contact_split",
   "countdown_announcement",
   "pdp_direct_order",
+  "post_purchase_offer",
 ];
 
 describe("section registry", () => {
-  it("registers exactly 61 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(61);
-    expect(listSections()).toHaveLength(61);
+  it("registers exactly 62 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(62);
+    expect(listSections()).toHaveLength(62);
   });
 
   it("each section's defaultProps validates against its own schema", () => {

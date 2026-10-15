@@ -39,6 +39,9 @@ export interface FakeSupabaseOptions {
   failingTables?: string[];
   /** Return value per RPC name; defaults to `{ data: null, error: null }`. */
   rpc?: Record<string, (args: Row) => Result>;
+  /** Runs just before an update matches rows — lets a test model another
+   *  writer changing the row between the code's read and its write. */
+  beforeUpdate?: (table: string, tables: Record<string, Row[]>) => void;
 }
 
 export interface FakeSupabase {
@@ -73,6 +76,7 @@ export function createFakeSupabase(
         writes.push({ table, op, payload, matched: 1 });
         return { data: [payload], error: null };
       }
+      if (op === "update") options.beforeUpdate?.(table, tables);
       const rows = matching();
       if (op === "update") {
         for (const r of rows) {

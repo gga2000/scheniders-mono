@@ -17,6 +17,7 @@ export * from "./locale";
 export * from "./loyalty";
 export * from "./order-bumps";
 export * from "./pixel";
+export * from "./post-purchase";
 export * from "./price-tiers";
 // MOVED TO SUBPATH EXPORT: export * from "./preview-token";
 export * from "./redirects";

@@ -21,6 +21,8 @@ import type {
 } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
+import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
+import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
 
 interface CheckoutItem {
   product_id: string;
@@ -79,6 +81,10 @@ interface SubmitCheckoutResult {
   discount?: { code: string; amount: number };
   /** EC24: populated on a validation failure so the client can self-heal. */
   issues?: CheckoutIssue[];
+  /** Proof that the receiving browser placed this order, for the thank-you
+   *  page's post-purchase offer (see lib/order-upsell-proof). Only the
+   *  response that created the order carries it. */
+  upsellToken?: string;
 }
 
 /**
@@ -119,45 +125,15 @@ export async function submitCheckout(
     return { success: false, error: "المتجر غير متاح" };
   }
 
-  const tenant = tenantRaw as unknown as {
+  const tenant = tenantRaw as unknown as TenantOrderGateRow & {
     id: string;
-    status: string;
-    restrictions: {
-      paused_until?: string | null;
-      reason?: string | null;
-      blocks?: { new_orders?: boolean };
-    } | null;
     store_config_v2: StoreConfigV2 | null;
   };
 
-  if (
-    tenant.status !== "active" &&
-    tenant.status !== "trial" &&
-    tenant.status !== "limited"
-  ) {
-    return { success: false, error: "المتجر غير نشط حالياً" };
-  }
-
-  // Tenant pause guard — when admin paused the merchant with new_orders blocked,
-  // refuse the checkout. An expired pause window is treated as inactive.
-  if (tenant.status === "limited") {
-    const restrictions = tenant.restrictions ?? null;
-    const pausedUntil = restrictions?.paused_until
-      ? Date.parse(restrictions.paused_until)
-      : null;
-    // Lift the pause ONLY for a valid timestamp that is in the past. A missing
-    // OR unparseable (NaN) end date fails CLOSED — the store stays paused —
-    // rather than letting a malformed `paused_until` silently accept orders.
-    const stillPaused =
-      pausedUntil === null ||
-      Number.isNaN(pausedUntil) ||
-      pausedUntil > Date.now();
-    if (stillPaused && restrictions?.blocks?.new_orders) {
-      return {
-        success: false,
-        error: restrictions.reason || "المتجر متوقف مؤقتاً عن استقبال الطلبات",
-      };
-    }
+  // Inactive, or paused by an admin with new orders blocked.
+  const blocked = tenantOrderBlock(tenant);
+  if (blocked) {
+    return { success: false, error: blocked };
   }
 
   // Re-fetch canonical prices from the DB — never trust client-supplied amounts.
@@ -559,6 +535,14 @@ export async function submitCheckout(
     }
   }
 
+  // Post-purchase offer: hand THIS browser — and only this one — the proof
+  // that it placed the order. The upsell route re-derives everything else.
+  const proofSecret = upsellProofSecret();
+  const upsellToken =
+    orderId && proofSecret
+      ? signUpsellProof({ tenantId: payload.tenantId, orderId }, proofSecret)
+      : undefined;
+
   return {
     success: true,
     orderId: orderId ?? undefined,
@@ -567,5 +551,6 @@ export async function submitCheckout(
     ...(discount
       ? { discount: { code: discount.code, amount: discount.amount_iqd } }
       : {}),
+    ...(upsellToken ? { upsellToken } : {}),
   };
 }
