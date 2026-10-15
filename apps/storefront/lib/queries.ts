@@ -2,7 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "./supabase/server";
 import type { Tables } from "@scheniders/supabase";
-import type { ProductReview } from "@scheniders/shared";
+import type { PriceTier, ProductReview } from "@scheniders/shared";
 import type { Product, Category, ProductVariant } from "./types";
 
 type PublicClient = ReturnType<typeof createSupabasePublicClient>;
@@ -79,6 +79,52 @@ async function withReviewStats(
   });
 }
 
+/**
+ * Quantity price breaks for a batch of products, in ONE extra query. Read on
+ * the PDP only — it is the one page that can offer a ladder — and purely for
+ * DISPLAY: the checkout server re-reads the tiers itself and never trusts a
+ * price sent from the browser. On a read error the products pass through
+ * without a ladder (logged, like `withReviewStats`); the shopper then sees the
+ * base price and the server's `price_changed` reply corrects it at submit.
+ */
+async function withPriceTiers(
+  supabase: PublicClient,
+  tenantId: string,
+  products: Product[],
+): Promise<Product[]> {
+  if (products.length === 0) return products;
+  const { data, error } = await supabase
+    .from("product_tiered_pricing")
+    .select("product_id, min_quantity, max_quantity, price")
+    .eq("tenant_id", tenantId)
+    .in(
+      "product_id",
+      products.map((p) => p.id),
+    )
+    .order("min_quantity", { ascending: true });
+
+  if (error) {
+    console.error("[queries.withPriceTiers]", error);
+    return products;
+  }
+  if (!data || data.length === 0) return products;
+
+  const byProduct = new Map<string, PriceTier[]>();
+  for (const t of data) {
+    const list = byProduct.get(t.product_id) ?? [];
+    list.push({
+      min_quantity: t.min_quantity,
+      max_quantity: t.max_quantity,
+      price: Number(t.price),
+    });
+    byProduct.set(t.product_id, list);
+  }
+  return products.map((p) => {
+    const tiers = byProduct.get(p.id);
+    return tiers ? { ...p, price_tiers: tiers } : p;
+  });
+}
+
 export const listProducts = cache(
   (
     tenantId: string,
@@ -149,8 +195,12 @@ export const getProductBySlug = cache(
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
-      const withStats = async (row: Record<string, unknown>) =>
-        (await withReviewStats(supabase, [normalizeProduct(row)]))[0] ?? null;
+      // The PDP is the one page that can offer a quantity ladder, so it is
+      // the only read that pays for the tier query.
+      const withStats = async (row: Record<string, unknown>) => {
+        const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
+        return (await withPriceTiers(supabase, tenantId, withReviews))[0] ?? null;
+      };
 
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
       if (bySlug) return withStats(bySlug);
