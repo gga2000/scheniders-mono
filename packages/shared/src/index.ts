@@ -15,6 +15,7 @@ export * from "./format-hours";
 export * from "./discount";
 export * from "./free-gift";
 export type * from "./health-rules"; // values via "@scheniders/shared/health-rules"
+export * from "./line-pricing";
 export * from "./locale";
 export * from "./loyalty";
 export * from "./order-bumps";

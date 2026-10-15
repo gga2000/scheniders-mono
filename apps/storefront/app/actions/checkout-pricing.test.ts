@@ -188,6 +188,18 @@ describe("order bumps", () => {
     expect(recordedOrder(fake)).toBeUndefined();
   });
 
+  it("charges full price for an add-on bought beside its parent without the offer", async () => {
+    // The cart has no bump UI; the shopper was shown 10,000 and pays 10,000.
+    const fake = install(bumpTables());
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 35000, 1), line(ADDON, 10000, 1)],
+    });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items[1]).toMatchObject({ product_id: ADDON, price: 10000 });
+  });
+
   it("refuses a deeper discount than the merchant set", async () => {
     const fake = install(bumpTables());
     const res = await submitCheckout({

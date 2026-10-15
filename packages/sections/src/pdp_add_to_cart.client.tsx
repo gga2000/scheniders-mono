@@ -13,7 +13,7 @@
 "use client";
 
 import { useState } from "react";
-import { resolveI18n, pixelContentsFromItems } from "@scheniders/shared";
+import { resolveI18n, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import { ChunkyButton, MaterialIcon, WhatsAppIcon } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
@@ -51,21 +51,31 @@ export function PdpAddToCartRender({
   const oos =
     (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) <= 0;
 
+  // The merchant's quantity ladder, which this section never applied: it sent
+  // the base price for any quantity while the checkout resolved the ladder,
+  // so a shopper buying into a price break was told their prices had changed
+  // on submit. The line carries its base and ladder so the cart can re-apply
+  // the ladder when the quantity changes there.
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, product.price);
+  const cartLine = {
+    product_id: product.id,
+    variant_id: null,
+    name: product.name,
+    variant_name: null,
+    price: unitPrice,
+    quantity: qty,
+    image_url: product.image_url ?? null,
+    base_price: product.price,
+    ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
+  };
+
   function handleAdd() {
     if (oos) return;
-    addItem({
-      product_id: product!.id,
-      variant_id: null,
-      name: product!.name,
-      variant_name: null,
-      price: product!.price,
-      quantity: qty,
-      image_url: product!.image_url ?? null,
-    });
+    addItem(cartLine);
     trackPixel(
       "AddToCart",
       pixelContentsFromItems([
-        { product_id: product!.id, price: product!.price, quantity: qty },
+        { product_id: cartLine.product_id, price: cartLine.price, quantity: cartLine.quantity },
       ]),
     );
   }
@@ -171,7 +181,7 @@ export function PdpAddToCartRender({
                 )
               ) : (
                 <>
-                  {primaryLabel} — <bdi>{formatPrice(product.price * qty, locale)}</bdi>
+                  {primaryLabel} — <bdi>{formatPrice(unitPrice * qty, locale)}</bdi>
                 </>
               )}
             </ChunkyButton>

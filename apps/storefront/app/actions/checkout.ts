@@ -7,8 +7,7 @@ import {
   computePointsEarned,
   computePointsRedemption,
   normalizeIraqiMobile,
-  resolveTierPrice,
-  resolveBumpPrice,
+  resolveLineUnitPrice,
   resolveFreeGift,
   qualifiesForFreeGift,
   type PriceTier,
@@ -268,15 +267,22 @@ export async function submitCheckout(
       issue("invalid_quantity");
       continue;
     }
-    // Quantity break, after the base price is known and the quantity is
-    // known good. A product with no tiers is unaffected.
-    unitPrice = resolveTierPrice(tiersByProduct.get(i.product_id), i.quantity, unitPrice);
-
-    // Then the bump discount, if this line is an add-on to something else in
-    // the order. `productIds` is every product in this order, so a bump only
-    // discounts when its parent is genuinely present.
-    const bumpPrice = resolveBumpPrice(bumpOffers, productIds, i.product_id, unitPrice);
-    if (bumpPrice !== null) unitPrice = bumpPrice;
+    // The quantity break, then an order-bump discount — the one shared rule
+    // the cart and the product page also price with (@scheniders/shared
+    // line-pricing). `productIds` is every product in this order, so a bump
+    // only discounts when its parent is genuinely present, and only for a
+    // line priced at the bump (an offer the shopper accepted, not a rule:
+    // the cart has no bump UI). Anything else falls through to the strict
+    // comparison below, so a tampered line is rejected exactly as before.
+    unitPrice = resolveLineUnitPrice({
+      productId: i.product_id,
+      basePrice: unitPrice,
+      quantity: i.quantity,
+      shownPrice: i.price,
+      tiers: tiersByProduct.get(i.product_id),
+      bumps: bumpOffers,
+      orderProductIds: productIds,
+    });
     // Price moved since add-to-cart — surface it (don't silently charge a
     // different amount than the shopper saw); they re-confirm at the new price.
     if (Math.round(i.price) !== Math.round(unitPrice)) {
