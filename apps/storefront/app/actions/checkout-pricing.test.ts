@@ -384,6 +384,93 @@ describe("P2-1: stacked discounts", () => {
   });
 });
 
+describe("P2-3: an idempotent replay has no side effects", () => {
+  const KEY = "retry-key-0001";
+  const EXISTING = "33333333-3333-4333-8333-333333333333";
+
+  function loyaltyTables(orders: Row[] = []): Record<string, Row[]> {
+    const t = baseTables({ orders, customer_points: [{ tenant_id: TENANT, phone: "07701234567", balance: 5000 }] });
+    t.tenants[0].store_config_v2 = {
+      commerce: {
+        shipping: { default_rate: { fee_iqd: 5000 } },
+        loyalty: { enabled: true, earn_per_iqd: 0.001, redeem_value_iqd: 1, max_redeem_pct: 100 },
+      },
+    };
+    return t;
+  }
+  const pointsCalls = (fake: ReturnType<typeof createFakeSupabase>) =>
+    fake.rpcCalls.filter((c) => c.fn === "adjust_customer_points");
+
+  it("a retry of an order that already exists redeems, earns and mints nothing", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
+    const fake = createFakeSupabase(
+      loyaltyTables([
+        {
+          id: EXISTING,
+          order_id: "SH-0007",
+          tenant_id: TENANT,
+          idempotency_key: KEY,
+          price: 35000,
+          discount_amount: 2000,
+          delivery_fee: 5000,
+        },
+      ]),
+      { rpc: { create_order_atomic: () => ({ data: null, error: { message: "must not be called" } }) } },
+    );
+    vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      idempotencyKey: KEY,
+      redeemPoints: 2000,
+      items: [line(PERFUME, 35000, 1)],
+    });
+    expect(res).toMatchObject({ success: true, orderId: EXISTING, orderNumber: "SH-0007", total: 38000 });
+    expect(res.upsellToken).toBeUndefined();
+    expect(pointsCalls(fake)).toEqual([]);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    vi.unstubAllEnvs();
+  });
+
+  it("another tenant's order with the same key is not a replay", async () => {
+    const fake = createFakeSupabase(
+      loyaltyTables([{ id: EXISTING, order_id: "X-1", tenant_id: OTHER_TENANT, idempotency_key: KEY, price: 1 }]),
+      { rpc: { create_order_atomic: () => ({ data: { id: "11111111-1111-4111-8111-111111111111", order_id: "SH-1" }, error: null }) } },
+    );
+    vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
+    const res = await submitCheckout({ tenantId: TENANT, customer, idempotencyKey: KEY, items: [line(PERFUME, 35000, 1)] });
+    expect(res.orderId).toBe("11111111-1111-4111-8111-111111111111");
+  });
+
+  it("losing a concurrent race refunds its redemption and earns nothing, when the RPC reports the replay", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
+    const fake = createFakeSupabase(loyaltyTables(), {
+      rpc: {
+        create_order_atomic: () => ({
+          data: { id: EXISTING, order_id: "SH-0007", price: 35000, discount_amount: 2000, delivery_fee: 5000, idempotent_replay: true },
+          error: null,
+        }),
+      },
+    });
+    vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      idempotencyKey: KEY,
+      redeemPoints: 2000,
+      items: [line(PERFUME, 35000, 1)],
+    });
+    expect(res).toMatchObject({ success: true, orderId: EXISTING, total: 38000 });
+    expect(res.upsellToken).toBeUndefined();
+    const deltas = pointsCalls(fake).map((c) => [c.args._reason, c.args._delta]);
+    expect(deltas).toEqual([
+      ["redeem", -2000],
+      ["redeem_refund", 2000],
+    ]);
+    vi.unstubAllEnvs();
+  });
+});
+
 describe("post-purchase proof", () => {
   it("is minted only for the order this response created, under its tenant", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");

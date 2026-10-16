@@ -88,6 +88,32 @@ interface SubmitCheckoutResult {
   upsellToken?: string;
 }
 
+/** The answer for an order this idempotency key already placed: what was
+ *  recorded, with none of a new order's side effects. */
+function replayResult(row: {
+  id: string;
+  order_id: string | null;
+  price: number | null;
+  discount_amount: number | null;
+  delivery_fee: number | null;
+}): SubmitCheckoutResult {
+  const price = Number(row.price) || 0;
+  const discount = stackDiscounts(price, [Number(row.discount_amount) || 0]).total;
+  return {
+    success: true,
+    orderId: row.id,
+    orderNumber: row.order_id ?? undefined,
+    total: price - discount + (Number(row.delivery_fee) || 0),
+  };
+}
+
+/** create_order_atomic flags a replay once migration
+ *  20261017120000_create_order_atomic_reports_idempotent_replay is applied;
+ *  before that the key is simply absent. */
+function isReplayRow(row: Record<string, unknown> | null): boolean {
+  return row?.idempotent_replay === true;
+}
+
 /**
  * Creates an order in the platform DB via the create_order_atomic RPC.
  * Uses the service role client to bypass RLS — the storefront is trusted server code.
@@ -135,6 +161,25 @@ export async function submitCheckout(
   const blocked = tenantOrderBlock(tenant);
   if (blocked) {
     return { success: false, error: blocked };
+  }
+
+  // EC17 replay: this key already placed an order (the response was lost and
+  // the shopper tapped again). Answer with THAT order and do nothing else — no
+  // points redeemed or earned a second time, no new post-purchase proof, no
+  // second CAPI purchase. create_order_atomic would return the existing row
+  // too, but only after the redemption below had already run.
+  if (payload.idempotencyKey) {
+    const { data: existing, error: existingErr } = await supabase
+      .from("orders")
+      .select("id, order_id, price, discount_amount, delivery_fee")
+      .eq("tenant_id", payload.tenantId)
+      .eq("idempotency_key", payload.idempotencyKey)
+      .maybeSingle();
+    if (existingErr) {
+      console.error("[checkout] idempotency lookup failed:", existingErr);
+      return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
+    }
+    if (existing) return replayResult(existing);
   }
 
   // Re-fetch canonical prices from the DB — never trust client-supplied amounts.
@@ -535,18 +580,23 @@ export async function submitCheckout(
     _tenant_id: payload.tenantId,
   });
 
+  // Give back points deducted for a redemption this call did not end up using.
+  const refundRedemption = async (): Promise<void> => {
+    if (pointsUsed <= 0) return;
+    const { error: refundErr } = await supabase.rpc("adjust_customer_points", {
+      _tenant_id: payload.tenantId,
+      _phone: phone,
+      _delta: pointsUsed,
+      _reason: "redeem_refund",
+      _order_id: undefined,
+    });
+    if (refundErr) console.error("[checkout] points refund failed:", refundErr);
+  };
+
   if (error) {
     console.error("[checkout] create_order_atomic failed:", error);
-    // Refund any points deducted for a redemption — the order didn't go through.
-    if (pointsUsed > 0) {
-      await supabase.rpc("adjust_customer_points", {
-        _tenant_id: payload.tenantId,
-        _phone: phone,
-        _delta: pointsUsed,
-        _reason: "redeem_refund",
-        _order_id: undefined,
-      });
-    }
+    // The order didn't go through.
+    await refundRedemption();
     return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
   }
 
@@ -554,6 +604,20 @@ export async function submitCheckout(
   const raw = Array.isArray(data) ? data[0] : data;
   const orderRow = raw as Record<string, unknown> | null;
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
+
+  // A concurrent submit with the same key placed the order first: this call
+  // got that order back. Its redemption was never used — refund it — and
+  // none of a new order's side effects below apply.
+  if (orderRow && orderId && isReplayRow(orderRow)) {
+    await refundRedemption();
+    return replayResult({
+      id: orderId,
+      order_id: typeof orderRow.order_id === "string" ? orderRow.order_id : null,
+      price: Number(orderRow.price),
+      discount_amount: Number(orderRow.discount_amount),
+      delivery_fee: Number(orderRow.delivery_fee),
+    });
+  }
 
   // Loyalty: award points earned on this order. Best-effort — never fail it.
   if (loyaltyCfg?.enabled) {
