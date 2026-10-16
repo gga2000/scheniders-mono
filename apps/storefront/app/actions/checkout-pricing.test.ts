@@ -211,6 +211,63 @@ describe("order bumps", () => {
     expect(recordedOrder(fake)).toBeUndefined();
   });
 
+  it("P1-1: refuses N duplicate one-unit add-on lines at the bump price", async () => {
+    const fake = install(bumpTables());
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 35000, 1), line(ADDON, 7000, 1), line(ADDON, 7000, 1), line(ADDON, 7000, 1)],
+    });
+    expect(res.success).toBe(false);
+    expect(res.issues?.filter((x) => x.product_id === ADDON && x.reason === "invalid_quantity")).toHaveLength(2);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("P1-1: discounts one unit of an add-on per order, even across its variants", async () => {
+    const t = bumpTables();
+    t.product_variants = [
+      { id: "v-small", tenant_id: TENANT, product_id: ADDON, price: 10000, is_enabled: true },
+      { id: "v-large", tenant_id: TENANT, product_id: ADDON, price: 10000, is_enabled: true },
+    ];
+    const fake = install(t);
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [
+        line(PERFUME, 35000, 1),
+        { ...line(ADDON, 7000, 1), variant_id: "v-small" },
+        { ...line(ADDON, 7000, 1), variant_id: "v-large" },
+      ],
+    });
+    expect(res.issues).toEqual([
+      { product_id: ADDON, variant_id: "v-large", reason: "price_changed", new_price: 10000 },
+    ]);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("P2-2: reciprocal bumps cannot discount every line", async () => {
+    const t = bumpTables();
+    t.product_order_bumps.push({
+      tenant_id: TENANT,
+      product_id: ADDON,
+      bump_product_id: PERFUME,
+      discount_percentage: 30,
+      is_active: true,
+    });
+    const fake = install(t);
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 24500, 1), line(ADDON, 7000, 1)],
+    });
+    expect(res.success).toBe(false);
+    expect(res.issues?.map((x) => [x.product_id, x.new_price])).toEqual([
+      [PERFUME, 35000],
+      [ADDON, 10000],
+    ]);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
   it("refuses a deeper discount than the merchant set", async () => {
     const fake = install(bumpTables());
     const res = await submitCheckout({

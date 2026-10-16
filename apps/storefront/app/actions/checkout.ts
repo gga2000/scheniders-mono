@@ -7,7 +7,7 @@ import {
   computePointsEarned,
   computePointsRedemption,
   normalizeIraqiMobile,
-  resolveLineUnitPrice,
+  priceOrderLines,
   resolveFreeGift,
   qualifiesForFreeGift,
   type PriceTier,
@@ -229,7 +229,14 @@ export async function submitCheckout(
   // generic message — so the client can remove or re-price the offending lines
   // and the shopper isn't stuck in a retry loop.
   const issues: CheckoutIssue[] = [];
-  const verifiedItems: typeof payload.items = [];
+  // Lines that passed the per-line checks, with their catalogue base price.
+  // Pricing itself is order-level (a bump's discount depends on the other
+  // lines), so it runs once over all of them below.
+  const candidates: Array<{ item: CheckoutItem; basePrice: number }> = [];
+  // A product + variant appears once per order. The cart merges repeats, so
+  // a duplicate only comes from a hand-built request — the shape of the
+  // "N copies of a one-unit bump line" trick — and is refused, not merged.
+  const seenLines = new Set<string>();
   for (const i of payload.items) {
     const issue = (reason: CheckoutIssueReason, new_price?: number): void => {
       issues.push({ product_id: i.product_id, variant_id: i.variant_id, reason, new_price });
@@ -267,30 +274,47 @@ export async function submitCheckout(
       issue("invalid_quantity");
       continue;
     }
-    // The quantity break, then an order-bump discount — the one shared rule
-    // the cart and the product page also price with (@scheniders/shared
-    // line-pricing). `productIds` is every product in this order, so a bump
-    // only discounts when its parent is genuinely present, and only for a
-    // line priced at the bump (an offer the shopper accepted, not a rule:
-    // the cart has no bump UI). Anything else falls through to the strict
-    // comparison below, so a tampered line is rejected exactly as before.
-    unitPrice = resolveLineUnitPrice({
-      productId: i.product_id,
-      basePrice: unitPrice,
-      quantity: i.quantity,
-      shownPrice: i.price,
-      tiers: tiersByProduct.get(i.product_id),
-      bumps: bumpOffers,
-      orderProductIds: productIds,
-    });
-    // Price moved since add-to-cart — surface it (don't silently charge a
-    // different amount than the shopper saw); they re-confirm at the new price.
-    if (Math.round(i.price) !== Math.round(unitPrice)) {
-      issue("price_changed", unitPrice);
+    const lineKey = `${i.product_id}:${i.variant_id ?? ""}`;
+    if (seenLines.has(lineKey)) {
+      issue("invalid_quantity");
       continue;
     }
-    verifiedItems.push({ ...i, price: unitPrice });
+    seenLines.add(lineKey);
+    candidates.push({ item: i, basePrice: unitPrice });
   }
+
+  // The quantity break, then an order-bump discount — the one shared rule the
+  // cart and the product page also price with (@scheniders/shared
+  // line-pricing). A bump discounts one unit of its add-on per order, only
+  // beside a full-price parent, and only for a line priced at the bump (an
+  // offer the shopper accepted, not a rule: the cart has no bump UI).
+  const serverPrices = priceOrderLines(
+    candidates.map(({ item, basePrice }) => ({
+      productId: item.product_id,
+      basePrice,
+      quantity: item.quantity,
+      shownPrice: item.price,
+      tiers: tiersByProduct.get(item.product_id),
+    })),
+    bumpOffers,
+  );
+  const verifiedItems: CheckoutItem[] = [];
+  candidates.forEach(({ item }, idx) => {
+    const unitPrice = serverPrices[idx];
+    // Price moved since add-to-cart (or was tampered with) — surface it, don't
+    // silently charge a different amount than the shopper saw; they
+    // re-confirm at the server's price.
+    if (Math.round(item.price) !== Math.round(unitPrice)) {
+      issues.push({
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        reason: "price_changed",
+        new_price: unitPrice,
+      });
+      return;
+    }
+    verifiedItems.push({ ...item, price: unitPrice });
+  });
 
   if (issues.length > 0) {
     const hasPriceChange = issues.some((x) => x.reason === "price_changed");

@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { CartItem } from "@scheniders/shared";
-import { resolveLineUnitPrice } from "@scheniders/shared";
+import { priceOrderLines } from "@scheniders/shared";
 
 interface CartState {
   items: CartItem[];
@@ -27,7 +27,7 @@ interface CartState {
 
 /**
  * Re-apply the line's own quantity ladder for a new quantity, through the
- * same `resolveLineUnitPrice` the checkout server prices with. The cart
+ * same `priceOrderLines` the checkout server prices with. The cart
  * presents no order bumps, so it passes none: an add-on put in the cart on
  * its own is shown, and charged, its full price.
  *
@@ -41,15 +41,18 @@ function repriced(item: CartItem, quantity: number): CartItem {
   return {
     ...item,
     quantity,
-    price: resolveLineUnitPrice({
-      productId: item.product_id,
-      basePrice: item.base_price,
-      quantity,
-      shownPrice: item.base_price,
-      tiers: item.price_tiers,
-      bumps: null,
-      orderProductIds: [],
-    }),
+    price: priceOrderLines(
+      [
+        {
+          productId: item.product_id,
+          basePrice: item.base_price,
+          quantity,
+          shownPrice: item.base_price,
+          tiers: item.price_tiers,
+        },
+      ],
+      null,
+    )[0],
   };
 }
 
