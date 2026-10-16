@@ -41,6 +41,10 @@ export interface LinePricingInput {
 /** The authoritative unit price for a line. */
 export function resolveLineUnitPrice(input: LinePricingInput): number {
   const tiered = resolveTierPrice(input.tiers, input.quantity, input.basePrice);
+  // A bump is ONE add-on accepted beside its parent — every surface that
+  // offers one adds a single unit. Without this cap the discount would apply
+  // to up to the order's maximum quantity of the add-on.
+  if (input.quantity !== 1) return tiered;
   const bump = resolveBumpPrice(input.bumps, input.orderProductIds, input.productId, tiered);
   return bump !== null && Math.round(input.shownPrice) === Math.round(bump) ? bump : tiered;
 }

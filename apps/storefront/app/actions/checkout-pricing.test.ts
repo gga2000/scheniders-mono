@@ -200,6 +200,17 @@ describe("order bumps", () => {
     expect(recordedOrder(fake)?.items[1]).toMatchObject({ product_id: ADDON, price: 10000 });
   });
 
+  it("discounts one unit of the add-on, never a stack of it", async () => {
+    const fake = install(bumpTables());
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [line(PERFUME, 35000, 1), line(ADDON, 7000, 50)],
+    });
+    expect(res.issues?.[0]).toMatchObject({ product_id: ADDON, reason: "price_changed", new_price: 10000 });
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
   it("refuses a deeper discount than the merchant set", async () => {
     const fake = install(bumpTables());
     const res = await submitCheckout({

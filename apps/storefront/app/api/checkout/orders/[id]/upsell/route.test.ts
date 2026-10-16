@@ -297,6 +297,25 @@ describe("what lands on the order", () => {
     expect(fake.writes).toEqual([]);
   });
 
+  it("never appends a variant-less line for a product sold by variant", async () => {
+    const fake = install(tables({ product_variants: [{ id: "v1", tenant_id: TENANT, product_id: ADDON, price: 12000 }] }));
+    expect((await (await GET(getReq(proofFor()), ctx())).json()).offers).toEqual([]);
+    expect((await POST(postReq({ product_id: ADDON }, proofFor()), ctx())).status).toBe(409);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("does not chain: an accepted add-on does not unlock its own add-ons", async () => {
+    const NEXT = "d1b2c3d4-e5f6-4789-ab12-cd34ef567890";
+    const t = tables({
+      orders: [order({ items: [parentLine, { ...parentLine, product_id: ADDON, price: 8000 }] })],
+    });
+    t.product_order_bumps.push({ ...t.product_order_bumps[0], product_id: ADDON, bump_product_id: NEXT });
+    t.products.push({ ...t.products[0], id: NEXT });
+    const fake = install(t);
+    expect((await POST(postReq({ product_id: NEXT }, proofFor()), ctx())).status).toBe(409);
+    expect(fake.writes).toEqual([]);
+  });
+
   it("ignores another tenant's offer for the same product ids", async () => {
     const t = tables();
     t.product_order_bumps[0].tenant_id = OTHER_TENANT;

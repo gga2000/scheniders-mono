@@ -43,11 +43,20 @@ export function eligiblePostPurchaseOffers(
 ): PostPurchaseOffer[] {
   if (!bumps?.length || !lines.length) return [];
   const ordered = new Set(lines.map((l) => l.product_id));
+  // An add-on in the order is never itself a parent. Otherwise every accepted
+  // upsell would unlock the add-on's own add-ons, and "one more thing" would
+  // become a chain of discounted lines.
+  const addOnsInOrder = new Set(
+    bumps
+      .filter((b) => b.is_active !== false && ordered.has(b.product_id) && ordered.has(b.bump_product_id))
+      .map((b) => b.bump_product_id),
+  );
+  const parents = new Set([...ordered].filter((id) => !addOnsInOrder.has(id)));
 
   const best = new Map<string, PostPurchaseOffer>();
   for (const b of bumps) {
     if (b.is_active === false) continue;
-    if (!ordered.has(b.product_id)) continue;
+    if (!parents.has(b.product_id)) continue;
     if (ordered.has(b.bump_product_id)) continue;
     const pct = Math.min(100, Math.max(0, Number(b.discount_percentage) || 0));
     const existing = best.get(b.bump_product_id);

@@ -35,6 +35,16 @@ describe("eligiblePostPurchaseOffers", () => {
     expect(offers.filter((o) => o.product_id === SAMPLE)).toHaveLength(1);
   });
 
+  it("does not let an accepted add-on unlock its own add-ons", () => {
+    const chain: OrderBumpOffer[] = [
+      { product_id: A, bump_product_id: SAMPLE, discount_percentage: 20 },
+      { product_id: SAMPLE, bump_product_id: TRAVEL, discount_percentage: 50 },
+    ];
+    expect(
+      eligiblePostPurchaseOffers([{ product_id: A, quantity: 1 }, { product_id: SAMPLE, quantity: 1 }], chain),
+    ).toEqual([]);
+  });
+
   it("skips offers the merchant switched off", () => {
     const offers = eligiblePostPurchaseOffers([{ product_id: B, quantity: 1 }], BUMPS);
     expect(offers.map((o) => o.product_id)).not.toContain("off");

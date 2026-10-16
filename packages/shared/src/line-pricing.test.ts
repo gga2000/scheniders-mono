@@ -36,7 +36,13 @@ describe("resolveLineUnitPrice", () => {
     expect(resolveLineUnitPrice({ ...base, shownPrice: 7000, orderProductIds: ["addon"] })).toBe(10000);
   });
 
-  it("discounts the tiered price, not the base, when both apply", () => {
-    expect(resolveLineUnitPrice({ ...base, quantity: 3, shownPrice: 6300 })).toBe(6300);
+  it("discounts the tiered one-unit price, not the base, when both apply", () => {
+    const oneUnitTier = [{ min_quantity: 1, max_quantity: null, price: 9000 }];
+    expect(resolveLineUnitPrice({ ...base, tiers: oneUnitTier, shownPrice: 6300 })).toBe(6300);
+  });
+
+  it("discounts a single unit only — never a stack of the add-on", () => {
+    expect(resolveLineUnitPrice({ ...base, quantity: 3, shownPrice: 6300 })).toBe(9000);
+    expect(resolveLineUnitPrice({ ...base, quantity: 2, shownPrice: 7000, tiers: null })).toBe(10000);
   });
 });

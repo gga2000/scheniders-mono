@@ -194,10 +194,21 @@ async function loadOffers(svc: Svc, order: OwnedOrder): Promise<PricedOffer[]> {
     tiersByProduct.set(t.product_id, list);
   }
 
+  // A product sold by variant cannot be appended as a variant-less line: the
+  // shopper never chose a size, and the checkout prices variant lines from
+  // the variant row. Such add-ons are not offered here.
+  const { data: variantRows, error: variantsErr } = await svc
+    .from("product_variants")
+    .select("product_id")
+    .in("product_id", offerIds)
+    .eq("tenant_id", order.tenantId);
+  if (variantsErr) throw new UpsellReadError(`variant read failed: ${variantsErr.message}`);
+  const hasVariants = new Set((variantRows ?? []).map((v) => v.product_id));
+
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
   return offers.flatMap((offer) => {
     const p = byId.get(offer.product_id);
-    if (!p) return [];
+    if (!p || hasVariants.has(p.id)) return [];
     if ((p.stock_quantity ?? 0) - (p.reserved_quantity ?? 0) <= 0) return [];
     const listed = Number(p.website_price ?? p.price) || 0;
     if (listed <= 0) return [];
