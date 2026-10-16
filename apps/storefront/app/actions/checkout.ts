@@ -3,6 +3,7 @@
 import {
   computeDeliveryFee,
   computeDiscount,
+  stackDiscounts,
   computeBundleDiscounts,
   computePointsEarned,
   computePointsRedemption,
@@ -436,6 +437,15 @@ export async function submitCheckout(
     paidItems,
     tenant.store_config_v2?.commerce?.bundles,
   );
+  // Each engine caps itself at the subtotal; their SUM must be capped too, or a
+  // coupon plus a bundle records a negative total. Applied in sequence, each
+  // against what the previous left — and points are then priced against the
+  // remainder, so no points are spent on a discount the order cannot take.
+  const [couponApplied, bundleApplied] = stackDiscounts(subtotal, [
+    couponAmount,
+    bundleSummary.total_amount_iqd,
+  ]).applied;
+  const remainingForPoints = subtotal - couponApplied - bundleApplied;
   // Loyalty: redeem the points the customer chose to spend. Re-resolve against
   // the PUBLISHED config + the AUTHORITATIVE balance, then deduct atomically
   // (the RPC blocks an overdraw) BEFORE the order so the discount is baked into
@@ -453,7 +463,7 @@ export async function submitCheckout(
     const redemption = computePointsRedemption({
       balance: bal?.balance ?? 0,
       requestedPoints: payload.redeemPoints,
-      subtotalIqd: subtotal,
+      subtotalIqd: remainingForPoints,
       cfg: loyaltyCfg,
     });
     if (redemption.discount_iqd > 0) {
@@ -471,8 +481,11 @@ export async function submitCheckout(
     }
   }
 
-  const discountAmount =
-    couponAmount + bundleSummary.total_amount_iqd + pointsDiscount;
+  const discountAmount = stackDiscounts(subtotal, [
+    couponApplied,
+    bundleApplied,
+    pointsDiscount,
+  ]).total;
   const grandTotal = subtotal - discountAmount + deliveryFee;
 
   // Build the order payload in the shape create_order_atomic expects.
@@ -603,7 +616,7 @@ export async function submitCheckout(
     orderNumber: (orderRow?.order_id as string) ?? undefined,
     total: grandTotal,
     ...(discount
-      ? { discount: { code: discount.code, amount: discount.amount_iqd } }
+      ? { discount: { code: discount.code, amount: couponApplied } }
       : {}),
     ...(upsellToken ? { upsellToken } : {}),
   };

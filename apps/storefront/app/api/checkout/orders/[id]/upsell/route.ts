@@ -5,6 +5,7 @@ import {
   eligiblePostPurchaseOffers,
   postPurchasePrice,
   resolveTierPrice,
+  stackDiscounts,
   type GovernorateCode,
   type OrderBumpOffer,
   type PriceTier,
@@ -225,7 +226,10 @@ async function loadOffers(svc: Svc, order: OwnedOrder): Promise<PricedOffer[]> {
 
 /** What the courier collects: line subtotal, less discounts, plus delivery —
  *  the same sum the checkout returns as `total`. */
-const orderTotal = (price: number, discount: number, delivery: number) => price - discount + delivery;
+/** The stored discount is capped at the line subtotal, the same arithmetic the
+ *  checkout uses (`stackDiscounts`), so a total is never below delivery. */
+const orderTotal = (price: number, discount: number, delivery: number) =>
+  price - stackDiscounts(price, [discount]).total + delivery;
 
 const alreadyAdded = (order: OwnedOrder) =>
   NextResponse.json({

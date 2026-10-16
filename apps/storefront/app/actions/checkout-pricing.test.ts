@@ -356,6 +356,34 @@ describe("P1-2: products sold by variant", () => {
   });
 });
 
+describe("P2-1: stacked discounts", () => {
+  const A = "a2b2c3d4-e5f6-4789-ab12-cd34ef567890";
+  const B = "a3b2c3d4-e5f6-4789-ab12-cd34ef567890";
+
+  it("never discount more than the subtotal, so the courier still collects delivery", async () => {
+    // Coupon 30,000 and bundle 25,000 are each within the 40,000 subtotal,
+    // but together they are 55,000: the old sum recorded a -10,000 total.
+    const t = baseTables({ products: [product(A, 20000), product(B, 20000)] });
+    t.tenants[0].store_config_v2 = {
+      commerce: {
+        shipping: { default_rate: { fee_iqd: 5000 } },
+        discounts: [{ code: "BIG", kind: "fixed", value: 30000 }],
+        bundles: [{ id: "pair", product_ids: [A, B], kind: "fixed", value: 25000 }],
+      },
+    };
+    const fake = install(t);
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      couponCode: "BIG",
+      items: [line(A, 20000, 1), line(B, 20000, 1)],
+    });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.discount_amount).toBe(40000);
+    expect(res.total).toBe(5000);
+  });
+});
+
 describe("post-purchase proof", () => {
   it("is minted only for the order this response created, under its tenant", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");

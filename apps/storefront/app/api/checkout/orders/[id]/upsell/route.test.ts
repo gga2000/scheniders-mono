@@ -209,6 +209,12 @@ describe("what lands on the order", () => {
     expect(await res.json()).toMatchObject({ total: 38000 - 3000 + 5000 });
   });
 
+  it("P2-1: never reports a total below delivery when the stored discount exceeds the lines", async () => {
+    install(tables({ orders: [order({ discount_amount: 50000, delivery_fee: 5000 })] }));
+    const res = await POST(postReq({ product_id: ADDON }, proofFor()), ctx());
+    expect(await res.json()).toMatchObject({ success: true, total: 5000 });
+  });
+
   it("applies the discount to the add-on's own one-unit tier, like the checkout bump", async () => {
     install(
       tables({
