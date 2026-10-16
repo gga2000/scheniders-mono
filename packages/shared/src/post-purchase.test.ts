@@ -12,7 +12,7 @@ const BUMPS: OrderBumpOffer[] = [
 
 describe("eligiblePostPurchaseOffers", () => {
   it("offers the add-ons of what was ordered, best discount first", () => {
-    const offers = eligiblePostPurchaseOffers([{ product_id: A, quantity: 1 }], BUMPS);
+    const offers = eligiblePostPurchaseOffers([{ product_id: A, quantity: 1, price: 10000 }], BUMPS);
     expect(offers.map((o) => [o.product_id, o.discount_percentage])).toEqual([
       [TRAVEL, 25], [SAMPLE, 15],
     ]);
@@ -20,14 +20,14 @@ describe("eligiblePostPurchaseOffers", () => {
 
   it("never offers something already in the order", () => {
     const offers = eligiblePostPurchaseOffers(
-      [{ product_id: A, quantity: 1 }, { product_id: SAMPLE, quantity: 1 }], BUMPS,
+      [{ product_id: A, quantity: 1, price: 10000 }, { product_id: SAMPLE, quantity: 1, price: 10000 }], BUMPS,
     );
     expect(offers.map((o) => o.product_id)).toEqual([TRAVEL]);
   });
 
   it("keeps one entry per add-on and the better discount wins", () => {
     const offers = eligiblePostPurchaseOffers(
-      [{ product_id: A, quantity: 1 }, { product_id: B, quantity: 1 }], BUMPS,
+      [{ product_id: A, quantity: 1, price: 10000 }, { product_id: B, quantity: 1, price: 10000 }], BUMPS,
     );
     const sample = offers.find((o) => o.product_id === SAMPLE);
     expect(sample?.discount_percentage).toBe(30);
@@ -41,23 +41,27 @@ describe("eligiblePostPurchaseOffers", () => {
       { product_id: SAMPLE, bump_product_id: TRAVEL, discount_percentage: 50 },
     ];
     expect(
-      eligiblePostPurchaseOffers([{ product_id: A, quantity: 1 }, { product_id: SAMPLE, quantity: 1 }], chain),
+      eligiblePostPurchaseOffers([{ product_id: A, quantity: 1, price: 10000 }, { product_id: SAMPLE, quantity: 1, price: 10000 }], chain),
     ).toEqual([]);
   });
 
+  it("never treats a zero-price line (the free gift) as a parent", () => {
+    expect(eligiblePostPurchaseOffers([{ product_id: A, quantity: 1, price: 0 }], BUMPS)).toEqual([]);
+  });
+
   it("skips offers the merchant switched off", () => {
-    const offers = eligiblePostPurchaseOffers([{ product_id: B, quantity: 1 }], BUMPS);
+    const offers = eligiblePostPurchaseOffers([{ product_id: B, quantity: 1, price: 10000 }], BUMPS);
     expect(offers.map((o) => o.product_id)).not.toContain("off");
   });
 
   it("offers nothing for an order with no bumped products", () => {
-    expect(eligiblePostPurchaseOffers([{ product_id: "zzz", quantity: 1 }], BUMPS)).toEqual([]);
+    expect(eligiblePostPurchaseOffers([{ product_id: "zzz", quantity: 1, price: 10000 }], BUMPS)).toEqual([]);
     expect(eligiblePostPurchaseOffers([], BUMPS)).toEqual([]);
-    expect(eligiblePostPurchaseOffers([{ product_id: A, quantity: 1 }], null)).toEqual([]);
+    expect(eligiblePostPurchaseOffers([{ product_id: A, quantity: 1, price: 10000 }], null)).toEqual([]);
   });
 
   it("prices an accepted offer with the same rounding as a checkout bump", () => {
-    const [travel] = eligiblePostPurchaseOffers([{ product_id: A, quantity: 1 }], BUMPS);
+    const [travel] = eligiblePostPurchaseOffers([{ product_id: A, quantity: 1, price: 10000 }], BUMPS);
     expect(postPurchasePrice(10000, travel)).toBe(7500);
   });
 });

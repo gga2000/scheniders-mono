@@ -322,6 +322,20 @@ describe("what lands on the order", () => {
     expect(fake.writes).toEqual([]);
   });
 
+  it("P2-4: a free gift line is never the parent of an upsell", async () => {
+    // The order's only bump-eligible line is the zero-price gift the checkout
+    // added; it was never bought, so it earns no discounted add-on.
+    const GIFT = "e2b2c3d4-e5f6-4789-ab12-cd34ef567890";
+    const t = tables({
+      orders: [order({ items: [{ ...parentLine, product_id: "f0b2c3d4-e5f6-4789-ab12-cd34ef567890" }, { ...parentLine, product_id: GIFT, price: 0 }] })],
+    });
+    t.product_order_bumps[0].product_id = GIFT;
+    const fake = install(t);
+    expect((await (await GET(getReq(proofFor()), ctx())).json()).offers).toEqual([]);
+    expect((await POST(postReq({ product_id: ADDON }, proofFor()), ctx())).status).toBe(409);
+    expect(fake.writes).toEqual([]);
+  });
+
   it("ignores another tenant's offer for the same product ids", async () => {
     const t = tables();
     t.product_order_bumps[0].tenant_id = OTHER_TENANT;

@@ -16,6 +16,9 @@ import { applyBumpDiscount, type OrderBumpOffer } from "./order-bumps";
 export interface OrderedLine {
   product_id: string;
   quantity: number;
+  /** Unit price recorded on the order. A zero-price line (the free gift the
+   *  checkout adds) was never bought, so it is never a parent. */
+  price: number;
 }
 
 export interface PostPurchaseOffer {
@@ -51,7 +54,10 @@ export function eligiblePostPurchaseOffers(
       .filter((b) => b.is_active !== false && ordered.has(b.product_id) && ordered.has(b.bump_product_id))
       .map((b) => b.bump_product_id),
   );
-  const parents = new Set([...ordered].filter((id) => !addOnsInOrder.has(id)));
+  // Parents are lines the shopper actually PAID for: a zero-price line (the
+  // server-added free gift) earns no discounted add-on.
+  const paid = new Set(lines.filter((l) => l.price > 0).map((l) => l.product_id));
+  const parents = new Set([...paid].filter((id) => !addOnsInOrder.has(id)));
 
   const best = new Map<string, PostPurchaseOffer>();
   for (const b of bumps) {

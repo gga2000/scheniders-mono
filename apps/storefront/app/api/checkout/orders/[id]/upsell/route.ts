@@ -56,14 +56,14 @@ type Svc = ReturnType<typeof createSupabaseServiceClient>;
 /** What a stored order line must look like for eligibility. Lines that do
  *  not parse are kept on the order untouched — only their ids are needed
  *  here, and rewriting a line we do not understand would lose data. */
-const lineSchema = z.object({ product_id: z.string(), quantity: z.number() });
+const lineSchema = z.object({ product_id: z.string(), quantity: z.number(), price: z.number() });
 
 interface OwnedOrder {
   id: string;
   tenantId: string;
   /** The stored items array, exactly as read — appended to, never rebuilt. */
   rawItems: Json[];
-  lines: Array<{ product_id: string; quantity: number }>;
+  lines: Array<{ product_id: string; quantity: number; price: number }>;
   price: number;
   deliveryFee: number;
   discountAmount: number;
