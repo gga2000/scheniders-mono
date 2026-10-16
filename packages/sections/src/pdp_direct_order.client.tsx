@@ -61,6 +61,7 @@ import {
 } from "./helpers/primitives";
 import { PRESSABLE } from "./helpers/utils";
 import { useStoreBase } from "./helpers/store-context";
+import { VariantSelect } from "./helpers/variant-select";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
 import {
   formatCount,
@@ -288,6 +289,9 @@ export function PdpDirectOrderRender({
 
   const [qty, setQty] = useState(1);
   const [bumpAccepted, setBumpAccepted] = useState(false);
+  // The variant, for a product sold by variant. Nothing is pre-selected.
+  const [variantId, setVariantId] = useState<string | null>(null);
+  const [variantError, setVariantError] = useState(false);
   // Server-corrected unit price (422 `price_changed` self-heal); null until
   // the server reports a drift.
   const [livePrice, setLivePrice] = useState<number | null>(null);
@@ -367,7 +371,12 @@ export function PdpDirectOrderRender({
   // 422s with `new_price` when it drifted; `livePrice` adopts that correction
   // so the retry succeeds without a page reload (parity with checkout_form's
   // cart-store `updatePrice` self-heal).
-  const price = livePrice ?? product.price;
+  // A product sold by variant is bought as one of them, priced from the
+  // variant row — the checkout refuses a variant-less line for it.
+  const variants = product.variants ?? [];
+  const soldByVariant = variants.length > 0 || product.sold_by_variant === true;
+  const chosenVariant = variants.find((v) => v.id === variantId) ?? null;
+  const price = livePrice ?? chosenVariant?.price ?? product.price;
 
   const compareAt = product.compare_at_price;
   const onSale = compareAt != null && compareAt > price;
@@ -585,6 +594,12 @@ export function PdpDirectOrderRender({
       errors.alt_phone = s("phoneInvalid");
     }
     setFieldErrors(errors);
+    const missingVariant = soldByVariant && chosenVariant === null;
+    setVariantError(missingVariant);
+    if (missingVariant) {
+      document.getElementById(`${uid}-variant`)?.focus();
+      return;
+    }
     const firstInvalid = FIELD_ORDER.find((k) => errors[k]);
     if (firstInvalid || !phone) {
       fieldRefs.current[firstInvalid ?? "phone"]?.focus();
@@ -602,9 +617,9 @@ export function PdpDirectOrderRender({
     const items = [
       {
         product_id: product.id,
-        variant_id: null,
+        variant_id: chosenVariant?.id ?? null,
         name: product.name,
-        variant_name: null,
+        variant_name: chosenVariant?.name ?? null,
         // `unitPrice`, not `price`: with a quantity break selected the two
         // differ, and the server re-derives the break and rejects the base.
         price: unitPrice,
@@ -1190,6 +1205,21 @@ export function PdpDirectOrderRender({
                   {qtyTitle}
                 </h2>
               </div>
+              {soldByVariant && (
+                <VariantSelect
+                  id={`${uid}-variant`}
+                  variants={variants}
+                  value={variantId}
+                  onChange={(id) => {
+                    setVariantId(id);
+                    setLivePrice(null);
+                    setVariantError(false);
+                  }}
+                  locale={locale}
+                  basePrice={product.price}
+                  invalid={variantError}
+                />
+              )}
               {/* Tappable rungs when the merchant set price breaks. This
                   reframes the choice from "one?" to "how many?", and each
                   tile states the real saving rather than implying one.

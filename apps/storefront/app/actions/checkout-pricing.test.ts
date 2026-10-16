@@ -309,6 +309,53 @@ describe("order bumps", () => {
   });
 });
 
+describe("P1-2: products sold by variant", () => {
+  const SHIRT = "e1b2c3d4-e5f6-4789-ab12-cd34ef567890";
+  function variantTables(variants: Row[]): Record<string, Row[]> {
+    return baseTables({ products: [product(SHIRT, 25000)], product_variants: variants });
+  }
+
+  it("refuses a variant-less line, which would buy the XL at the parent price", async () => {
+    const fake = install(
+      variantTables([{ id: "v-xl", tenant_id: TENANT, product_id: SHIRT, price: 32000, is_enabled: true }]),
+    );
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(SHIRT, 25000, 1)] });
+    expect(res.issues).toEqual([{ product_id: SHIRT, variant_id: null, reason: "unavailable" }]);
+    expect(recordedOrder(fake)).toBeUndefined();
+  });
+
+  it("prices a line that names the variant from the variant row", async () => {
+    const fake = install(
+      variantTables([{ id: "v-xl", tenant_id: TENANT, product_id: SHIRT, price: 32000, is_enabled: true }]),
+    );
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [{ ...line(SHIRT, 32000, 1), variant_id: "v-xl" }],
+    });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items[0]).toMatchObject({ variant_id: "v-xl", price: 32000 });
+  });
+
+  it("refuses a disabled variant, and a variant-less line is fine once all are disabled", async () => {
+    install(variantTables([{ id: "v-xl", tenant_id: TENANT, product_id: SHIRT, price: 32000, is_enabled: false }]));
+    const viaVariant = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [{ ...line(SHIRT, 32000, 1), variant_id: "v-xl" }],
+    });
+    expect(viaVariant.issues?.[0]).toMatchObject({ reason: "unavailable" });
+    const plain = await submitCheckout({ tenantId: TENANT, customer, items: [line(SHIRT, 25000, 1)] });
+    expect(plain.success).toBe(true);
+  });
+
+  it("ignores another tenant's variant rows for the same product id", async () => {
+    install(variantTables([{ id: "v-x", tenant_id: OTHER_TENANT, product_id: SHIRT, price: 1, is_enabled: true }]));
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(SHIRT, 25000, 1)] });
+    expect(res.success).toBe(true);
+  });
+});
+
 describe("post-purchase proof", () => {
   it("is minted only for the order this response created, under its tenant", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");

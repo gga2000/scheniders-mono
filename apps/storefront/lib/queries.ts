@@ -125,6 +125,36 @@ async function withPriceTiers(
   });
 }
 
+/**
+ * Mark the products that are sold by variant (at least one enabled
+ * `product_variants` row), in ONE extra query per batch. Surfaces that add a
+ * product to the cart WITHOUT a variant picker — grid quick-add, bundles, the
+ * order bump — read this to send the shopper to the product page instead,
+ * because the checkout refuses a variant-less line for such a product
+ * (apps/storefront/lib/variant-products). Display-only: on a read error the
+ * products pass through unmarked (logged), and the checkout still refuses.
+ */
+async function withVariantFlags(
+  supabase: PublicClient,
+  products: Product[],
+): Promise<Product[]> {
+  if (products.length === 0) return products;
+  const { data, error } = await supabase
+    .from("product_variants")
+    .select("product_id")
+    .in(
+      "product_id",
+      products.map((p) => p.id),
+    )
+    .not("is_enabled", "is", false);
+  if (error) {
+    console.error("[queries.withVariantFlags]", error);
+    return products;
+  }
+  const flagged = new Set((data ?? []).map((v) => v.product_id));
+  return products.map((p) => (flagged.has(p.id) ? { ...p, sold_by_variant: true } : p));
+}
+
 /** Columns the PDP renders a product from — the PDP product itself and the
  *  add-on products its order bumps point at. */
 const PDP_PRODUCT_COLUMNS =
@@ -173,10 +203,14 @@ async function withOrderBumps(
     console.error("[queries.withOrderBumps] products", bumpProductsErr);
     return product;
   }
+  // A bump adds one variant-less unit, so an add-on sold by variant is not
+  // offered as one.
   const bumpProducts = await withPriceTiers(
     supabase,
     tenantId,
-    (bumpRows ?? []).map((r) => normalizeProduct(r)),
+    (await withVariantFlags(supabase, (bumpRows ?? []).map((r) => normalizeProduct(r)))).filter(
+      (p) => !p.sold_by_variant,
+    ),
   );
 
   return {
@@ -223,7 +257,10 @@ export const listProducts = cache(
         console.error("[queries.listProducts]", error);
         return [];
       }
-      return withReviewStats(supabase, (data ?? []).map(normalizeProduct));
+      return withVariantFlags(
+        supabase,
+        await withReviewStats(supabase, (data ?? []).map(normalizeProduct)),
+      );
     }),
 );
 
@@ -266,7 +303,10 @@ export const getProductBySlug = cache(
       // The PDP is the one page that can offer a quantity ladder or an
       // add-on, so it is the only read that pays for those queries.
       const withStats = async (row: Record<string, unknown>) => {
-        const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
+        const withReviews = await withVariantFlags(
+          supabase,
+          await withReviewStats(supabase, [normalizeProduct(row)]),
+        );
         const withTiers = (await withPriceTiers(supabase, tenantId, withReviews))[0] ?? null;
         return withTiers ? withOrderBumps(supabase, tenantId, withTiers) : null;
       };
@@ -331,7 +371,9 @@ export const getProductVariants = cache(
       const { data } = await supabase
         .from("product_variants")
         .select("id, product_id, tenant_id, name, price, stock_quantity, sku")
-        .eq("product_id", productId);
+        .eq("product_id", productId)
+        // A disabled variant is off sale; the checkout refuses it.
+        .not("is_enabled", "is", false);
       return (data ?? []) as ProductVariant[];
     }),
 );
@@ -527,12 +569,15 @@ export const listProductsInCategory = cache(
 
         type Row = { products: Record<string, unknown> | null };
         const rows = (data ?? []) as Row[];
-        return withReviewStats(
+        return withVariantFlags(
           supabase,
-          rows
-            .map((r) => r.products)
-            .filter((p): p is Record<string, unknown> => p !== null)
-            .map(normalizeProduct),
+          await withReviewStats(
+            supabase,
+            rows
+              .map((r) => r.products)
+              .filter((p): p is Record<string, unknown> => p !== null)
+              .map(normalizeProduct),
+          ),
         );
       },
     ),

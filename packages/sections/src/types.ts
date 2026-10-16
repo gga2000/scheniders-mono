@@ -73,6 +73,11 @@ export interface Product extends BaseProduct {
    *  The SERVER re-derives the same price from these at checkout, so the
    *  ladder shown here and the price charged cannot drift. */
   price_tiers?: PriceTier[];
+  /** True when the product has enabled variants: it must be bought as one of
+   *  them, so a surface without a variant picker (grid quick-add, bundles)
+   *  sends the shopper to the product page instead of adding it. The
+   *  checkout refuses a variant-less line for such a product regardless. */
+  sold_by_variant?: boolean;
   /** Add-on offers this product carries. Populated on the PDP; the checkout
    *  server re-derives the discount and only honours it when this product is
    *  in the same order. */

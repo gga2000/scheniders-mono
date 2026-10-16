@@ -21,6 +21,7 @@ import type {
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
+import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
 
 interface CheckoutItem {
@@ -152,12 +153,28 @@ export async function submitCheckout(
   const variantIds = payload.items
     .map((i) => i.variant_id)
     .filter((v): v is string => !!v);
-  type VariantRow = { id: string; product_id: string; price: number | null; tenant_id: string };
+  type VariantRow = {
+    id: string;
+    product_id: string;
+    price: number | null;
+    tenant_id: string;
+    is_enabled: boolean | null;
+  };
   const variantMap = new Map<string, VariantRow>();
+  // Products sold by variant: a line for one of them must name an enabled
+  // variant (see lib/variant-products).
+  let soldByVariant: Set<string>;
+  try {
+    soldByVariant = await productsSoldByVariant(supabase, payload.tenantId, productIds);
+  } catch (e) {
+    if (!(e instanceof VariantReadError)) throw e;
+    console.error("[checkout]", e.message);
+    return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+  }
   if (variantIds.length > 0) {
     const { data: variants, error: variantsErr } = await supabase
       .from("product_variants")
-      .select("id, product_id, price, tenant_id")
+      .select("id, product_id, price, tenant_id, is_enabled")
       .in("id", variantIds)
       .eq("tenant_id", payload.tenantId);
     if (variantsErr || !variants) {
@@ -258,12 +275,19 @@ export async function submitCheckout(
     let unitPrice: number;
     if (i.variant_id) {
       const variant = variantMap.get(i.variant_id);
-      if (!variant || variant.product_id !== i.product_id) {
+      if (!variant || variant.product_id !== i.product_id || variant.is_enabled === false) {
         issue("unavailable");
         continue;
       }
       unitPrice = Number(variant.price ?? product.website_price ?? product.price) || 0;
     } else {
+      // No variant named for a product sold by variant: no size for the
+      // courier and no price the merchant set — and a variant priced above
+      // the parent would otherwise be bought at the parent's price.
+      if (soldByVariant.has(i.product_id)) {
+        issue("unavailable");
+        continue;
+      }
       unitPrice = Number(product.website_price ?? product.price) || 0;
     }
     if (unitPrice <= 0 || !Number.isFinite(unitPrice)) {

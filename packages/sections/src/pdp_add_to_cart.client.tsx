@@ -12,11 +12,12 @@
 
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { resolveI18n, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import { ChunkyButton, MaterialIcon, WhatsAppIcon } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
+import { VariantSelect } from "./helpers/variant-select";
 import { formatPrice } from "./helpers/format";
 import { whatsappOrderLink, resolveTenantWhatsapp } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
@@ -33,6 +34,8 @@ export function PdpAddToCartRender({
   const locale = ctx.runtime.locale;
   const addItem = useCart((s) => s.addItem);
   const [qty, setQty] = useState(1);
+  const [variantId, setVariantId] = useState<string | null>(null);
+  const variantSelectId = useId();
 
   if (!product) return null;
 
@@ -56,21 +59,29 @@ export function PdpAddToCartRender({
   // so a shopper buying into a price break was told their prices had changed
   // on submit. The line carries its base and ladder so the cart can re-apply
   // the ladder when the quantity changes there.
-  const unitPrice = resolveTierPrice(product.price_tiers, qty, product.price);
+  //
+  // A product sold by variant is bought as one of them, priced from the
+  // variant row — the checkout refuses a variant-less line for it.
+  const variants = product.variants ?? [];
+  const soldByVariant = variants.length > 0 || product.sold_by_variant === true;
+  const chosenVariant = variants.find((v) => v.id === variantId) ?? null;
+  const needsVariant = soldByVariant && chosenVariant === null;
+  const basePrice = chosenVariant?.price ?? product.price;
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, basePrice);
   const cartLine = {
     product_id: product.id,
-    variant_id: null,
+    variant_id: chosenVariant?.id ?? null,
     name: product.name,
-    variant_name: null,
+    variant_name: chosenVariant?.name ?? null,
     price: unitPrice,
     quantity: qty,
     image_url: product.image_url ?? null,
-    base_price: product.price,
+    base_price: basePrice,
     ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
   };
 
   function handleAdd() {
-    if (oos) return;
+    if (oos || needsVariant) return;
     addItem(cartLine);
     trackPixel(
       "AddToCart",
@@ -82,6 +93,16 @@ export function PdpAddToCartRender({
 
   const ctaCluster = (
     <div className="flex flex-col gap-bk-sm">
+      {soldByVariant && (
+        <VariantSelect
+          id={variantSelectId}
+          variants={variants}
+          value={variantId}
+          onChange={setVariantId}
+          locale={locale}
+          basePrice={product.price}
+        />
+      )}
       {props.show_quantity_picker && (
         <div className="flex items-center gap-bk-sm">
           <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
@@ -129,7 +150,7 @@ export function PdpAddToCartRender({
         size="lg"
         fullWidth
         onClick={handleAdd}
-        disabled={oos}
+        disabled={oos || needsVariant}
       >
         <MaterialIcon name="shopping_bag" />
         {oos
@@ -170,7 +191,7 @@ export function PdpAddToCartRender({
               size="md"
               fullWidth
               onClick={handleAdd}
-              disabled={oos}
+              disabled={oos || needsVariant}
             >
               <MaterialIcon name="shopping_bag" />
               {oos ? (

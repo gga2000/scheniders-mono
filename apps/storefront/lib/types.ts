@@ -20,6 +20,9 @@ export interface Tenant extends BaseTenant {
 export interface Product extends BaseProduct {
   /** Quantity price breaks (product_tiered_pricing). Populated on the PDP. */
   price_tiers?: PriceTier[];
+  /** True when the product has enabled variants, so it must be bought as one
+   *  (see `withVariantFlags`). Absent means not sold by variant. */
+  sold_by_variant?: boolean;
   /** Add-on offers (product_order_bumps). Populated on the PDP. */
   order_bumps?: OrderBumpOffer[];
   /** Products the offers point at, resolved with them. */

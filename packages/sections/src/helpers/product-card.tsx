@@ -210,6 +210,10 @@ export function SchneidersProductCard({
         >
           {t ? "اشترِ الآن" : "Buy Now"}
         </StoreLink>
+        {/* Quick-add sends one variant-less unit, which a product sold by
+            variant cannot be bought as (the checkout refuses it). Such a
+            product is chosen on its page — the Buy Now link above. */}
+        {!product.sold_by_variant && (
         <button
           type="button"
           onClick={quickAdd}
@@ -234,6 +238,7 @@ export function SchneidersProductCard({
         >
           <MaterialIcon name={justAdded ? "check" : "add_shopping_cart"} className="text-lg" />
         </button>
+        )}
       </div>
       {showWhatsapp && (() => {
         const productPath = `/products/${product.slug ?? product.id}`;

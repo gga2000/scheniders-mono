@@ -18,6 +18,7 @@ import {
   verifyUpsellProof,
 } from "@/lib/order-upsell-proof";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
+import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -195,15 +196,9 @@ async function loadOffers(svc: Svc, order: OwnedOrder): Promise<PricedOffer[]> {
   }
 
   // A product sold by variant cannot be appended as a variant-less line: the
-  // shopper never chose a size, and the checkout prices variant lines from
-  // the variant row. Such add-ons are not offered here.
-  const { data: variantRows, error: variantsErr } = await svc
-    .from("product_variants")
-    .select("product_id")
-    .in("product_id", offerIds)
-    .eq("tenant_id", order.tenantId);
-  if (variantsErr) throw new UpsellReadError(`variant read failed: ${variantsErr.message}`);
-  const hasVariants = new Set((variantRows ?? []).map((v) => v.product_id));
+  // shopper never chose a size, and the checkout refuses such lines too (the
+  // same rule, lib/variant-products). Such add-ons are not offered here.
+  const hasVariants = await productsSoldByVariant(svc, order.tenantId, offerIds);
 
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
   return offers.flatMap((offer) => {
@@ -253,7 +248,7 @@ export async function GET(req: Request, { params }: Ctx): Promise<NextResponse> 
     if (!order || !tenant || tenantOrderBlock(tenant)) return notFound();
     return NextResponse.json({ success: true, offers: await loadOffers(svc, order) });
   } catch (e) {
-    if (!(e instanceof UpsellReadError)) throw e;
+    if (!(e instanceof UpsellReadError || e instanceof VariantReadError)) throw e;
     console.error("[upsell] GET", e.message);
     return unavailable();
   }
@@ -355,7 +350,7 @@ export async function POST(req: Request, { params }: Ctx): Promise<NextResponse>
       ),
     });
   } catch (e) {
-    if (!(e instanceof UpsellReadError)) throw e;
+    if (!(e instanceof UpsellReadError || e instanceof VariantReadError)) throw e;
     console.error("[upsell] POST", e.message);
     return unavailable();
   }
