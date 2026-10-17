@@ -25,6 +25,7 @@ export * from "./pixel";
 export * from "./post-purchase";
 export * from "./price-tiers";
 // MOVED TO SUBPATH EXPORT: export * from "./preview-token";
+export * from "./order-status";
 export * from "./redirects";
 export * from "./review";
 export * from "./schedule-time";
