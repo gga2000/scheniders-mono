@@ -77,15 +77,29 @@ function DeliveryPromise({
 }) {
   const locale = ctx.runtime.locale;
   const heading = resolveI18n(props.heading_i18n, locale);
-  const inspection = resolveI18n(props.inspection_text_i18n, locale);
+  // "Open it before you pay" is a promise the merchant makes at the door, so
+  // the store-wide switch (commerce.returns_policy.inspect_before_paying)
+  // governs the callout when it is set: off hides it even if the section
+  // still carries text, on shows it (the section's copy, or the default)
+  // when the merchant cleared the text. Unset keeps the section's own copy —
+  // tenants who never touched the switch render exactly as before.
+  const commerce = (
+    ctx.tenant as { store_config_v2?: Pick<StoreConfigV2, "commerce"> | null } | undefined
+  )?.store_config_v2?.commerce;
+  const inspectSwitch = commerce?.returns_policy?.inspect_before_paying;
+  const inspection =
+    inspectSwitch === false
+      ? null
+      : (resolveI18n(props.inspection_text_i18n, locale) ||
+        (inspectSwitch === true
+          ? resolveI18n(defaultProps.inspection_text_i18n, locale)
+          : null));
 
   // The merchant's shipping config is the truth when it carries one. The
   // section's own hours and list are the fallback for tenants who never set
   // it — never the other way round, or a merchant who sets a 12h Baghdad ETA
   // would keep seeing the 6h this file shipped with.
-  const shipping = (
-    ctx.tenant as { store_config_v2?: Pick<StoreConfigV2, "commerce"> | null } | undefined
-  )?.store_config_v2?.commerce?.shipping;
+  const shipping = commerce?.shipping;
   const baghdadHours = etaForGovernorate(shipping, "BG") ?? props.baghdad_hours;
   // Provinces: the slowest province ETA, but only when the config gives one
   // for EVERY province — a promise that holds for some provinces and is

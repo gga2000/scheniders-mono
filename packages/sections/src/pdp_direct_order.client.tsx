@@ -135,6 +135,8 @@ const STRINGS = {
   referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
   referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز." },
   referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم." },
+  /** Only rendered when commerce.returns_policy.inspect_before_paying is true. */
+  inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع" },
   quantity: { en: "Quantity", ar: "الكمية" },
   decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
   increase: { en: "Increase quantity", ar: "زيادة الكمية" },
@@ -592,6 +594,7 @@ export function PdpDirectOrderRender({
     ? etaForGovernorate(commerce?.shipping, chosenGovernorate)
     : null;
   const returnsDays = commerce?.returns_policy?.window_days;
+  const inspectBeforePaying = commerce?.returns_policy?.inspect_before_paying === true;
 
   // Honest social proof: the chip renders ONLY when the product actually has
   // approved reviews. `{count}` in the template becomes the real count, and
@@ -1488,7 +1491,7 @@ export function PdpDirectOrderRender({
                   {/* Merchant commitments only — the delivery promise is a
                       prop and the returns window comes from the tenant's
                       commerce config; neither is invented here. */}
-                  {(deliverySla || (returnsDays && returnsDays > 0) || pointsToEarn > 0) && (
+                  {(deliverySla || (returnsDays && returnsDays > 0) || pointsToEarn > 0 || inspectBeforePaying) && (
                     <ul className="mt-1 space-y-0.5 font-body text-xs text-bk-ink-soft">
                       {deliverySla && (
                         <li
@@ -1512,6 +1515,12 @@ export function PdpDirectOrderRender({
                         <li className="flex items-center gap-1" data-points-to-earn={pointsToEarn}>
                           <MaterialIcon name="loyalty" className="text-sm" />
                           {s("earnOnDelivery").replace("{points}", formatPoints(pointsToEarn, locale))}
+                        </li>
+                      )}
+                      {inspectBeforePaying && (
+                        <li className="flex items-center gap-1" data-inspect-before-paying>
+                          <MaterialIcon name="visibility" className="text-sm" />
+                          {s("inspectBeforePaying")}
                         </li>
                       )}
                     </ul>
