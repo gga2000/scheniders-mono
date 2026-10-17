@@ -180,6 +180,20 @@ export function ProductReviewsRender({
 
   // Form state.
   const [rating, setRating] = React.useState(0);
+  const formRef = React.useRef<HTMLFormElement>(null);
+
+  // Arriving on #reviews means the shopper was SENT here to write one (the
+  // tracker's "rate your order"). Take them to the form and put focus on
+  // the first star, so the intent survives the page load. Only on the hash
+  // — a normal PDP visit is never scrolled.
+  React.useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#reviews") return;
+    const form = formRef.current;
+    if (!form) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    form.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+    form.querySelector<HTMLElement>('[role="radiogroup"] button')?.focus({ preventScroll: true });
+  }, []);
   const [name, setName] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
@@ -299,7 +313,10 @@ export function ProductReviewsRender({
     t(`Review photo ${n}`, `صورة التقييم ${n}`);
 
   return (
-    <Section>
+    // `id="reviews"` is the landing point for "rate your order" — the
+    // order tracker links a delivered order to /products/<slug>#reviews.
+    // Without the anchor that link lands at the top of the page.
+    <Section id="reviews">
       <CenteredSectionHeader
         title={heading}
         align="start"
@@ -433,7 +450,7 @@ export function ProductReviewsRender({
               )}
             </p>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-bk-sm">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-bk-sm">
               <p className="font-display font-bold text-bk-ink">
                 {t("Write a review", "اكتب تقييمًا")}
               </p>
