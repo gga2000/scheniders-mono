@@ -19,6 +19,7 @@ export type * from "./health-rules"; // values via "@scheniders/shared/health-ru
 export * from "./line-pricing";
 export * from "./locale";
 export * from "./loyalty";
+export * from "./referral";
 export * from "./order-bumps";
 export * from "./pixel";
 export * from "./post-purchase";

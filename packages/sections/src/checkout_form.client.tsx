@@ -36,8 +36,12 @@ import {
   normalizeIraqiMobile,
   computePointsEarned,
   formatPoints,
+  computeReferralDiscount,
+  normalizeReferralCode,
+  stackDiscounts,
 } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, MaterialIcon, WhatsAppButton } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
@@ -74,6 +78,11 @@ const STRINGS = {
   cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
   useAll: { en: "Use all", ar: "استخدم الكل" },
   earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
+  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)" },
+  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M" },
+  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
+  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز." },
+  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم." },
   enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
   placeOrder: { en: "Place order", ar: "أكّد الطلب" },
   placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…" },
@@ -211,6 +220,21 @@ export function CheckoutFormRender({
   // Loyalty: the customer's balance (fetched by phone) + how many they redeem.
   const [pointsBalance, setPointsBalance] = useState<number | null>(null);
   const [redeemPoints, setRedeemPoints] = useState(0);
+  // Referral: the friend's code (from a shared ?ref= link or typed) and the
+  // server's verdict on it. The amount is previewed from the published
+  // program; the server re-checks eligibility and prices it again at submit.
+  const [referralCode, setReferralCode] = useState("");
+  const [referralState, setReferralState] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "valid"; pct: number; max: number | null }
+    | { kind: "invalid"; reason: "unknown" | "ineligible" | "off" }
+  >({ kind: "idle" });
+  const tenantId = ctx.tenant.id;
+  const commerceRef = {
+    current: (ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined)?.store_config_v2?.commerce,
+  };
+  const referralFieldId = useId();
   const [form, setForm] = useState({
     customer_name: "",
     phone: "",
@@ -224,6 +248,48 @@ export function CheckoutFormRender({
     notes: "",
     payment_method: "cod" as const,
   });
+  const referralProgram = commerceRef.current?.referral;
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const captured = captureReferral(tenantId);
+    if (captured) setReferralCode(captured);
+  }, [referralProgram?.enabled]);
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const code = normalizeReferralCode(referralCode);
+    if (!code) {
+      setReferralState({ kind: "idle" });
+      return;
+    }
+    let active = true;
+    setReferralState({ kind: "checking" });
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ tenant_id: tenantId, code });
+      const buyer = normalizeIraqiMobile(form.phone);
+      if (buyer) params.set("phone", buyer);
+      fetch(`/api/referral/validate?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { valid?: boolean; reason?: string; friend_discount_pct?: number; friend_max_discount_iqd?: number | null } | null) => {
+          if (!active) return;
+          if (d?.valid === true) {
+            setReferralState({ kind: "valid", pct: d.friend_discount_pct ?? 0, max: d.friend_max_discount_iqd ?? null });
+          } else {
+            const reason = d?.reason;
+            setReferralState({
+              kind: "invalid",
+              reason: reason === "ineligible" || reason === "off" ? reason : "unknown",
+            });
+          }
+        })
+        .catch(() => {
+          if (active) setReferralState({ kind: "idle" });
+        });
+    }, 500);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [referralProgram?.enabled, referralCode, form.phone]);
   const reassurance = resolveI18n(props.reassurance_text_i18n, locale);
   const callPromise = resolveI18n(props.call_promise_i18n, locale);
   const callPromiseNote = resolveI18n(props.call_promise_note_i18n, locale);
@@ -238,7 +304,6 @@ export function CheckoutFormRender({
   // phone, beacon the cart so a WhatsApp recovery nudge can go out if they
   // don't complete. Debounced; best-effort (keepalive) — failures are ignored,
   // and placing the order marks the cart recovered server-side.
-  const tenantId = ctx.tenant.id;
   useEffect(() => {
     if (items.length === 0) return;
     const recoveryPhone = normalizeIraqiMobile(form.phone);
@@ -295,19 +360,38 @@ export function CheckoutFormRender({
     items,
     commerce?.bundles,
   ).total_amount_iqd;
+  // A friend's code does not stack on a coupon (the server applies the same rule).
+  const referralWanted =
+    referralState.kind === "valid" && couponAmount === 0
+      ? computeReferralDiscount(subtotal, { enabled: true, friend_discount_pct: referralState.pct, friend_max_discount_iqd: referralState.max ?? undefined })
+      : 0;
+  // Stacked exactly as the server stacks them — coupon → bundle → referral,
+  // each against what the previous left — so the preview total is the one
+  // that gets recorded and the sum never exceeds the subtotal.
+  const [couponApplied, bundleApplied, referralAmount] = stackDiscounts(subtotal, [
+    couponAmount,
+    bundleAmount,
+    referralWanted,
+  ]).applied;
   // Loyalty: preview the points redemption (server re-validates vs the
-  // authoritative balance + config and records the real discount).
+  // authoritative balance + config and records the real discount). Priced
+  // against what the other discounts left, as the server prices it.
   const loyaltyCfg = commerce?.loyalty;
   const pointsRedemption = computePointsRedemption({
     balance: pointsBalance ?? 0,
     requestedPoints: redeemPoints,
-    subtotalIqd: subtotal,
+    subtotalIqd: subtotal - couponApplied - bundleApplied - referralAmount,
     cfg: loyaltyCfg,
   });
   const pointsDiscount = pointsRedemption.discount_iqd;
   // Credited by the database on delivery, never at placement.
   const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
-  const discountAmount = couponAmount + bundleAmount + pointsDiscount;
+  const discountAmount = stackDiscounts(subtotal, [
+    couponApplied,
+    bundleApplied,
+    referralAmount,
+    pointsDiscount,
+  ]).total;
   const total = subtotal - discountAmount + delivery;
   const returnsDays = commerce?.returns_policy?.window_days;
 
@@ -418,6 +502,9 @@ export function CheckoutFormRender({
             ? { event_id: purchaseEventIdRef.current }
             : {}),
           ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+          ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
+            ? { referral_code: normalizeReferralCode(referralCode) }
+            : {}),
           ab_test_arms: ctx.runtime.ab_test_arms,
         }),
       });
@@ -431,6 +518,7 @@ export function CheckoutFormRender({
           total?: number;
         } | null;
         const orderNumber = data?.orderNumber ?? "";
+        if (referralState.kind === "valid") clearCapturedReferral(tenantId);
         // Stash the just-placed order for the thank-you recap. This is the
         // privacy-safe path (only the buyer's browser holds it) — never fetch
         // an order by number on the public success page (enumeration risk).
@@ -859,6 +947,47 @@ export function CheckoutFormRender({
                 />
                 {reassurance}
               </p>
+            )}
+
+            {referralProgram?.enabled === true && (
+              <div data-testid="referral-field" className="space-y-1">
+                <label className={labelCls} htmlFor={referralFieldId}>
+                  {s("referralLabel")}
+                </label>
+                <input
+                  id={referralFieldId}
+                  type="text"
+                  name="referral_code"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  dir="ltr"
+                  maxLength={12}
+                  placeholder={s("referralPlaceholder")}
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  aria-invalid={referralState.kind === "invalid" || undefined}
+                  aria-describedby={referralState.kind === "idle" ? undefined : `${referralFieldId}-status`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+                {referralState.kind !== "idle" && (
+                  <p
+                    id={`${referralFieldId}-status`}
+                    role="status"
+                    data-referral-state={referralState.kind}
+                    className={`font-body text-xs ${referralState.kind === "invalid" ? "text-bk-danger" : "text-bk-ink-soft"}`}
+                  >
+                    {referralState.kind === "checking"
+                      ? "…"
+                      : referralState.kind === "valid"
+                        ? s("referralOff").replace("{amount}", `−${formatPrice(referralAmount, locale)}`)
+                        : referralState.reason === "ineligible"
+                          ? s("referralIneligible")
+                          : s("referralUnknown")}
+                  </p>
+                )}
+              </div>
             )}
 
             {pointsToEarn > 0 && (

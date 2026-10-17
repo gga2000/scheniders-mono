@@ -56,6 +56,8 @@ export const checkoutOrderBodySchema = z.object({
   event_id: z.string().min(8).max(100).optional(),
   /** Loyalty: points the customer chose to redeem (server re-validates). */
   redeem_points: z.number().int().min(0).optional(),
+  /** Referral: a friend's code (server re-checks eligibility + prices it). */
+  referral_code: z.string().min(1).max(32).optional(),
   // accepted and dropped — not forwarded to the order pipeline
   subtotal: z.number().optional(),
   locale: z.string().optional(),
@@ -102,6 +104,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       couponCode: data.coupon_code,
       purchaseEventId: data.event_id,
       redeemPoints: data.redeem_points,
+      referralCode: data.referral_code,
       customer: {
         customer_name: data.customer_name,
         phone: data.phone,

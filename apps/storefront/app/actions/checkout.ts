@@ -6,6 +6,8 @@ import {
   stackDiscounts,
   computeBundleDiscounts,
   computePointsRedemption,
+  computeReferralDiscount,
+  normalizeReferralCode,
   normalizeIraqiMobile,
   priceOrderLines,
   resolveFreeGift,
@@ -43,6 +45,8 @@ interface SubmitCheckoutPayload {
   purchaseEventId?: string;
   /** Loyalty: points the customer chose to redeem (server re-validates). */
   redeemPoints?: number;
+  /** Referral: a friend's code; eligibility + amount are re-resolved here. */
+  referralCode?: string;
   customer: {
     customer_name: string;
     phone: string;
@@ -481,15 +485,49 @@ export async function submitCheckout(
     paidItems,
     tenant.store_config_v2?.commerce?.bundles,
   );
+  // Referral: a friend's code on a FIRST order. Eligibility is one SQL rule
+  // (referral_check) that the preview endpoint also runs: the code exists in
+  // THIS tenant, it is not the buyer's own, and the buyer — by normalised
+  // phone — has no earlier live order with this store. The amount comes from
+  // the PUBLISHED config, never the client. It does not stack on a coupon.
+  let referral: { code: string; referrer_phone: string } | null = null;
+  let referralWanted = 0;
+  const referralCode = normalizeReferralCode(payload.referralCode);
+  if (referralCode && !discount) {
+    const commerce = tenant.store_config_v2?.commerce;
+    const amount = computeReferralDiscount(subtotal, commerce?.referral, commerce?.loyalty);
+    if (amount > 0) {
+      const { data: check, error: checkErr } = await supabase.rpc("referral_check", {
+        _tenant_id: payload.tenantId,
+        _code: referralCode,
+        _phone: phone,
+      });
+      if (checkErr) {
+        // Fail closed: the form previewed this discount, so placing the order
+        // without it on a transient error would charge more than was shown.
+        console.error("[checkout] referral check failed:", checkErr);
+        return { success: false, error: "تعذّر التحقق من رمز الصديق. حاول مرة أخرى." };
+      }
+      const row = Array.isArray(check) ? check[0] : null;
+      // The SQL already refuses a buyer's own code; the phone comparison here
+      // is the same rule, kept so no SQL change can quietly reopen it.
+      if (row?.ok && row.referrer_phone && row.referrer_phone !== phone) {
+        referral = { code: referralCode, referrer_phone: row.referrer_phone };
+        referralWanted = amount;
+      }
+    }
+  }
+
   // Each engine caps itself at the subtotal; their SUM must be capped too, or a
   // coupon plus a bundle records a negative total. Applied in sequence, each
   // against what the previous left — and points are then priced against the
   // remainder, so no points are spent on a discount the order cannot take.
-  const [couponApplied, bundleApplied] = stackDiscounts(subtotal, [
+  const [couponApplied, bundleApplied, referralApplied] = stackDiscounts(subtotal, [
     couponAmount,
     bundleSummary.total_amount_iqd,
+    referralWanted,
   ]).applied;
-  const remainingForPoints = subtotal - couponApplied - bundleApplied;
+  const remainingForPoints = subtotal - couponApplied - bundleApplied - referralApplied;
   // Loyalty: redeem the points the customer chose to spend. Re-resolve against
   // the PUBLISHED config + the AUTHORITATIVE balance, then deduct atomically
   // (the RPC blocks an overdraw) BEFORE the order so the discount is baked into
@@ -528,6 +566,7 @@ export async function submitCheckout(
   const discountAmount = stackDiscounts(subtotal, [
     couponApplied,
     bundleApplied,
+    referralApplied,
     pointsDiscount,
   ]).total;
   const grandTotal = subtotal - discountAmount + deliveryFee;
@@ -618,11 +657,28 @@ export async function submitCheckout(
     });
   }
 
+  // Referral attribution: the row trg_referral_order_changed pays the
+  // referrer from when THIS order is delivered (and takes back if it leaves
+  // that state). Written only for a new order — a replay returned above. The
+  // order is already placed and priced; a failed write loses the referrer's
+  // points, so it is logged, not hidden.
+  if (referral && orderId) {
+    const { error: referralErr } = await supabase.from("referrals").insert({
+      tenant_id: payload.tenantId,
+      order_id: orderId,
+      code: referral.code,
+      referrer_phone: referral.referrer_phone,
+      referee_phone: phone,
+      discount_iqd: referralApplied,
+    });
+    if (referralErr) console.error("[checkout] referral attribution failed:", referralErr);
+  }
+
   // Loyalty earn is NOT credited here. A COD order placed is not an order
   // paid: points are credited by trg_loyalty_order_changed when the order
   // reaches delivered/completed, and taken back if it leaves that state
-  // (live migrations 20260909225706 + 20260909225854). Redemption above stays at placement because
-  // the discount is baked into the order total.
+  // (live migrations 20260909225706 + 20260909225854). Redemption above
+  // stays at placement because the discount is baked into the order total.
 
   // Abandoned-cart recovery: this phone just ordered — mark any pending cart
   // recovered so the WhatsApp reminder sweep skips it. Best-effort: a failure
@@ -672,7 +728,9 @@ export async function submitCheckout(
     total: grandTotal,
     ...(discount
       ? { discount: { code: discount.code, amount: couponApplied } }
-      : {}),
+      : referral
+        ? { discount: { code: referral.code, amount: referralApplied } }
+        : {}),
     ...(upsellToken ? { upsellToken } : {}),
   };
 }
