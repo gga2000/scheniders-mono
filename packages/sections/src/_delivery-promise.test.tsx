@@ -88,3 +88,43 @@ describe("delivery_promise", () => {
     expect(html).toContain("6 ساعات");
   });
 });
+
+describe("delivery_promise — open-before-paying switch (C3)", () => {
+  const AR = "افحص طلبك مجاناً عند الاستلام";
+  function renderWith(returns_policy: Record<string, unknown> | undefined, inspection_text_i18n?: unknown): string {
+    return renderToStaticMarkup(
+      React.createElement(
+        StoreBaseProvider,
+        { base: "", children: null },
+        React.createElement(delivery_promise.render, {
+          props: { ...delivery_promise.defaultProps, ...(inspection_text_i18n !== undefined ? { inspection_text_i18n } : {}) },
+          ctx: {
+            tenant: {
+              id: "t1", business_name: "متجر",
+              store_config_v2: returns_policy ? { commerce: { returns_policy } } : null,
+            } as never,
+            runtime: { page_id: "home" as const, breakpoint: "mobile" as const, locale: "ar" as const,
+                       audience_segments: [], ab_test_arms: {}, now: new Date("2026-09-10T00:00:00Z") },
+            products: [], categories: [],
+          } as SectionRenderContext,
+        }),
+      ),
+    );
+  }
+  const defaultAr = delivery_promise.defaultProps.inspection_text_i18n?.ar ?? "";
+
+  it("unset switch keeps the section's own copy (untouched tenants render as before)", () => {
+    expect(defaultAr).not.toBe("");
+    expect(renderWith(undefined)).toContain(defaultAr);
+  });
+  it("switch off hides the callout even when the section still carries text", () => {
+    expect(renderWith({ inspect_before_paying: false })).not.toContain(defaultAr);
+    expect(renderWith({ inspect_before_paying: false })).not.toContain('data-i18n-field="inspection_text_i18n"');
+  });
+  it("switch on shows the default copy when the merchant cleared the text", () => {
+    expect(renderWith({ inspect_before_paying: true }, { ar: "" })).toContain(defaultAr);
+  });
+  it("switch on keeps the merchant's own text", () => {
+    expect(renderWith({ inspect_before_paying: true }, { ar: AR })).toContain(AR);
+  });
+});

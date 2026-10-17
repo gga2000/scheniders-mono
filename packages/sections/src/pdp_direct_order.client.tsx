@@ -118,6 +118,8 @@ const STRINGS = {
   deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}" },
   deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}" },
   totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل" },
+  /** Only rendered when commerce.returns_policy.inspect_before_paying is true. */
+  inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع" },
   quantity: { en: "Quantity", ar: "الكمية" },
   decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
   increase: { en: "Increase quantity", ar: "زيادة الكمية" },
@@ -462,6 +464,7 @@ export function PdpDirectOrderRender({
     ? etaForGovernorate(commerce?.shipping, chosenGovernorate)
     : null;
   const returnsDays = commerce?.returns_policy?.window_days;
+  const inspectBeforePaying = commerce?.returns_policy?.inspect_before_paying === true;
 
   // Honest social proof: the chip renders ONLY when the product actually has
   // approved reviews. `{count}` in the template becomes the real count, and
@@ -1353,7 +1356,7 @@ export function PdpDirectOrderRender({
                   {/* Merchant commitments only — the delivery promise is a
                       prop and the returns window comes from the tenant's
                       commerce config; neither is invented here. */}
-                  {(deliverySla || (returnsDays && returnsDays > 0)) && (
+                  {(deliverySla || (returnsDays && returnsDays > 0) || inspectBeforePaying) && (
                     <ul className="mt-1 space-y-0.5 font-body text-xs text-bk-ink-soft">
                       {deliverySla && (
                         <li
@@ -1371,6 +1374,12 @@ export function PdpDirectOrderRender({
                         <li className="flex items-center gap-1">
                           <MaterialIcon name="cached" className="text-sm" />
                           {returnsLine(returnsDays, locale)}
+                        </li>
+                      )}
+                      {inspectBeforePaying && (
+                        <li className="flex items-center gap-1" data-inspect-before-paying>
+                          <MaterialIcon name="visibility" className="text-sm" />
+                          {s("inspectBeforePaying")}
                         </li>
                       )}
                     </ul>
