@@ -27,6 +27,7 @@ import { CartRecoveryScreen } from "./cart-recovery-screen";
 import { BundlesScreen } from "./bundles-screen";
 import { PixelsScreen } from "./pixels-screen";
 import { LoyaltyScreen } from "./loyalty-screen";
+import { OrderStatusScreen } from "./order-status-screen";
 import { CustomPagesScreen } from "./custom-pages-screen";
 import { NavBuilderScreen } from "./nav-builder-screen";
 import { I18nScreen } from "./i18n-screen";
@@ -111,6 +112,8 @@ export function SystemScreenRouter({
                 <PixelsScreen builder={builder} onClose={onClose} />
             ) : screen === "loyalty" ? (
                 <LoyaltyScreen builder={builder} onClose={onClose} />
+            ) : screen === "order_status" ? (
+                <OrderStatusScreen builder={builder} onClose={onClose} />
             ) : screen === "custom_pages" ? (
                 <CustomPagesScreen
                     builder={builder}
