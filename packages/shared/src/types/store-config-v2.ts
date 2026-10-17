@@ -399,6 +399,8 @@ export interface StoreCommerceConfig {
   loyalty?: LoyaltyConfig;
   /** Free gift above a spending threshold (opt-in per tenant). */
   free_gift?: FreeGiftRewardConfig;
+  /** Per-stage copy for the order tracker. Missing stages use the shipped defaults. */
+  order_status_narratives?: Partial<Record<CustomerOrderStage, OrderStatusNarrative>>;
 }
 
 /**
@@ -417,6 +419,42 @@ export interface FreeGiftRewardConfig {
   /** Item subtotal (IQD) at or above which the gift is added. */
   threshold_iqd?: number;
 }
+
+/**
+ * What a shopper sees when they look up an order in a given customer-facing
+ * stage. Every string is merchant-editable; the shipped defaults are Iraqi
+ * dialect and assume the WhatsApp-confirmation flow. `{contact}` in any
+ * string is replaced with the tenant's contact number — never hardcoded.
+ */
+export interface OrderStatusNarrative {
+  title_i18n?: I18nString;
+  body_i18n?: I18nString;
+  /** What happens next, or what the shopper should do. */
+  next_i18n?: I18nString;
+  cta?: {
+    kind: "whatsapp" | "phone" | "link" | "review" | "reorder";
+    label_i18n?: I18nString;
+    /** Path for `link`; ignored for the other kinds, which resolve their own target. */
+    value?: string;
+  };
+}
+
+/**
+ * Customer-facing stages. Deliberately NOT the internal order status: the
+ * public lookup maps the 13 internal statuses down to these so anon never
+ * learns operational state, and the merchant edits copy per stage.
+ */
+export type CustomerOrderStage =
+  | "placed"
+  | "awaiting_confirmation"
+  | "confirmed"
+  | "shipped"
+  | "delivered"
+  | "no_response"
+  | "on_hold"
+  | "cancelled"
+  | "returning"
+  | "refunded";
 
 export interface LoyaltyConfig {
   /** Off by default — merchant must opt in. */
