@@ -7,17 +7,28 @@
 // service clients differently, and `packages/shared` must not depend on
 // either app's Supabase wiring. The SQL function is the shared part.
 //
-// Fails CLOSED. The routes behind it are oracles an attacker would like to
-// query without bound (referral codes); when the limiter cannot answer, the
-// database behind the route cannot either, so refusing loses nothing a real
-// shopper had.
+// What happens when the limiter cannot answer is the CALLER's decision, and
+// every call states it — there is no default:
+//
+//   - "fail-closed": refuse. For routes that are oracles an attacker would
+//     like to query without bound (referral codes); when the limiter cannot
+//     answer, the database behind the route cannot either, so refusing loses
+//     nothing a real shopper had.
+//   - "fail-open": serve, and log. For routes where the protected check is
+//     already enforced in SQL and an outage of the limiter alone must not
+//     take a shopper-facing feature down (order tracking: ownership is
+//     proven by order number + phone inside `lookup_order`).
 // =====================================================================
 
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
+export type RateLimitFailureMode = "fail-closed" | "fail-open";
+
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
+  /** Seconds until the window resets, for a Retry-After header. 0 when unknown. */
+  retryAfterSeconds: number;
 }
 
 /** Consume one unit from `key`'s window of `limit` per `windowSeconds`. */
@@ -25,6 +36,7 @@ export async function consumeRateLimit(
   key: string,
   limit: number,
   windowSeconds: number,
+  onUnavailable: RateLimitFailureMode,
 ): Promise<RateLimitResult> {
   const supabase = createSupabaseServiceClient();
   const { data, error } = await supabase.rpc("consume_rate_limit", {
@@ -34,10 +46,22 @@ export async function consumeRateLimit(
   });
   const row = Array.isArray(data) ? data[0] : null;
   if (error || !row) {
-    console.error("[rate-limit] limiter unavailable:", error?.message ?? "no row");
-    return { allowed: false, remaining: 0 };
+    console.error(
+      `[rate-limit] limiter unavailable (${onUnavailable}):`,
+      error?.message ?? "no row",
+    );
+    return onUnavailable === "fail-open"
+      ? { allowed: true, remaining: limit, retryAfterSeconds: 0 }
+      : { allowed: false, remaining: 0, retryAfterSeconds: 0 };
   }
-  return { allowed: row.allowed, remaining: row.remaining };
+  const resetAt = Date.parse(row.reset_at);
+  return {
+    allowed: row.allowed,
+    remaining: row.remaining,
+    retryAfterSeconds: Number.isFinite(resetAt)
+      ? Math.max(0, Math.ceil((resetAt - Date.now()) / 1000))
+      : 0,
+  };
 }
 
 /** The caller's address as the edge reports it (first x-forwarded-for hop). */

@@ -82,17 +82,22 @@ const STRINGS = {
     en: "No order matches those details.",
     ar: "لم نجد طلباً بهذه البيانات.",
   },
+  errRate: {
+    en: "Too many tries. Wait a few minutes, then try again.",
+    ar: "محاولات كثيرة. انتظر كم دقيقة وحاول مرة ثانية.",
+  },
   errServer: {
     en: "We couldn't reach the server. Try again in a moment.",
     ar: "تعذّر الاتصال بالخادم. حاول مرة أخرى بعد قليل.",
   },
 } as const;
 
-type LookupError = "invalid" | "not_found" | "server";
+type LookupError = "invalid" | "not_found" | "rate" | "server";
 
 const ERROR_STRING: Record<LookupError, { en: string; ar: string }> = {
   invalid: STRINGS.errInvalid,
   not_found: STRINGS.errNotFound,
+  rate: STRINGS.errRate,
   server: STRINGS.errServer,
 };
 
@@ -115,6 +120,7 @@ export function stageOf(order: OrderResult): CustomerOrderStage {
 function classify(status: number): LookupError {
   if (status === 400) return "invalid";
   if (status === 404) return "not_found";
+  if (status === 429) return "rate";
   return "server";
 }
 

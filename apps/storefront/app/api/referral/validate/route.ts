@@ -63,6 +63,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     `referral-validate:ip:${tenantId}:${clientIp(req.headers)}`,
     VALIDATE_PER_CALLER_PER_MIN,
     60,
+    "fail-closed",
   );
   if (!byCaller.allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
@@ -75,6 +76,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     `referral-validate:code:${tenantId}:${code}`,
     VALIDATE_PER_CODE_PER_MIN,
     60,
+    "fail-closed",
   );
   if (!byCode.allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
