@@ -23,6 +23,7 @@ import { useEffect, useId, useState } from "react";
 import { isValidIraqiMobile, resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, MaterialIcon } from "./helpers/primitives";
+import { StoreLink } from "./helpers/store-context";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./order_tracker";
 
@@ -51,33 +52,168 @@ const STATUS_LABEL: Record<
   delivered: { en: "Delivered", ar: "تم التسليم", icon: "task_alt" },
 };
 
-/** Big, friendly status banner shown above the timeline — driven entirely by
- *  the real order status (no fabricated ETA/driver). `tone` maps to a semantic
- *  token: "progress" while the order is moving, "positive" once it is on the
- *  last mile or delivered. */
-const STATUS_HERO: Record<
-  StatusStep,
-  { en: string; ar: string; tone: "progress" | "positive" }
-> = {
-  placed: { en: "Order received", ar: "تم استلام طلبك", tone: "progress" },
+/**
+ * The `stage` values `lookup_order` returns, which are the REAL state of the
+ * order. `status` is only the coarse 5-step timeline key: the RPC collapses
+ * cancelled, rejected, no_response and suspended into "placed", and
+ * refund_delivered into "delivered". Rendering `status` alone told every one
+ * of those customers "Order received" under a timeline implying it was on its
+ * way — 1,888 of this store's 5,239 orders at the time of writing.
+ *
+ * So the banner is driven by `stage`, and the timeline is only drawn for an
+ * order that is actually moving. A halted order has no next step, and drawing
+ * one is the lie.
+ */
+const TRACK_STAGES = [
+  "placed",
+  "awaiting_confirmation",
+  "confirmed",
+  "shipped",
+  "out_for_delivery",
+  "delivered",
+  "no_response",
+  "on_hold",
+  "cancelled",
+  "returning",
+  "refunded",
+] as const;
+
+export type TrackStage = (typeof TRACK_STAGES)[number];
+
+type StageTone = "progress" | "positive" | "attention" | "stopped";
+
+interface StageView {
+  /** Timeline step to highlight, or null to draw no timeline at all. */
+  step: StatusStep | null;
+  tone: StageTone;
+  en: string;
+  ar: string;
+  /** Second line: what happens next, or what the shopper can do about it. */
+  note?: { en: string; ar: string };
+  /** Offer the contact route — only where the shopper has to act. */
+  contact?: boolean;
+}
+
+const STAGE_VIEW: Record<TrackStage, StageView> = {
+  placed: {
+    step: "placed",
+    tone: "progress",
+    en: "Order received",
+    ar: "تم استلام طلبك",
+  },
+  awaiting_confirmation: {
+    step: "placed",
+    tone: "attention",
+    en: "We called — waiting for your confirmation",
+    ar: "تواصلنا وياك — بانتظار تأكيدك",
+    note: {
+      en: "Confirm the order and we'll send it out.",
+      ar: "ثبّت الطلب ونرسله.",
+    },
+    contact: true,
+  },
   confirmed: {
+    step: "confirmed",
+    tone: "progress",
     en: "Confirmed — getting it ready",
     ar: "تم التأكيد — نجهّز طلبك",
-    tone: "progress",
   },
-  shipped: { en: "Shipped", ar: "تم الشحن", tone: "progress" },
+  shipped: { step: "shipped", tone: "progress", en: "Shipped", ar: "تم الشحن" },
   out_for_delivery: {
+    step: "out_for_delivery",
+    tone: "positive",
     en: "On the way",
     ar: "في الطريق إليك",
-    tone: "positive",
   },
-  delivered: { en: "Delivered", ar: "تم التسليم", tone: "positive" },
+  delivered: {
+    step: "delivered",
+    tone: "positive",
+    en: "Delivered",
+    ar: "تم التسليم",
+  },
+  no_response: {
+    step: null,
+    tone: "attention",
+    en: "We tried to reach you and couldn't",
+    ar: "حاولنا نتصل بيك وما كدرنا نوصلك",
+    note: {
+      en: "Message us to confirm and we'll send it the same day.",
+      ar: "راسلنا وثبّت طلبك ونرسله بنفس اليوم.",
+    },
+    contact: true,
+  },
+  on_hold: {
+    step: null,
+    tone: "attention",
+    en: "Your order is on hold",
+    ar: "طلبك معلّق مؤقتاً",
+    note: {
+      en: "Message us and we'll pick it back up.",
+      ar: "راسلنا ونكمّل الطلب.",
+    },
+    contact: true,
+  },
+  cancelled: {
+    step: null,
+    tone: "stopped",
+    en: "This order was cancelled",
+    ar: "هذا الطلب ملغي",
+    note: {
+      en: "If you didn't cancel it, message us.",
+      ar: "إذا ما إنت اللي لغيته، راسلنا.",
+    },
+    contact: true,
+  },
+  returning: {
+    step: null,
+    tone: "attention",
+    en: "Your return is being processed",
+    ar: "طلب الإرجاع قيد المعالجة",
+    note: {
+      en: "The courier collects it and we refund you.",
+      ar: "المندوب راح يستلم العطر ونرجّع المبلغ.",
+    },
+  },
+  refunded: {
+    step: null,
+    tone: "positive",
+    en: "Refunded",
+    ar: "تم إرجاع المبلغ",
+    note: {
+      en: "We've refunded the full amount.",
+      ar: "رجّعنا المبلغ كامل.",
+    },
+  },
 };
 
-const HERO_BG: Record<"progress" | "positive", string> = {
+const HERO_BG: Record<StageTone, string> = {
   progress: "color-mix(in srgb, var(--bk-accent, #ffd84a) 16%, transparent)",
   positive: "color-mix(in srgb, var(--bk-success, #7cf0bd) 18%, transparent)",
+  attention: "color-mix(in srgb, var(--bk-accent, #ffd84a) 30%, transparent)",
+  stopped: "color-mix(in srgb, var(--bk-danger, #e5484d) 14%, transparent)",
 };
+
+/**
+ * Which stage to render. `stage` is authoritative; `status` is the fallback
+ * for a response that predates the API forwarding `stage` (and for the four
+ * values both fields share). An unrecognised value lands on "placed", which
+ * is what the RPC itself does with a status it does not know.
+ */
+export function resolveTrackStage(data: {
+  stage?: string | null;
+  status?: string | null;
+}): TrackStage {
+  const known = (v: string | null | undefined): TrackStage | null =>
+    v && (TRACK_STAGES as readonly string[]).includes(v)
+      ? (v as TrackStage)
+      : null;
+  return known(data.stage) ?? known(data.status) ?? "placed";
+}
+
+/** The banner + timeline decision for a stage. */
+export function trackStageView(stage: TrackStage): StageView {
+  return STAGE_VIEW[stage];
+}
 
 /** Chrome strings (ku resolves through the ar fallback chain). */
 const STRINGS = {
@@ -90,6 +226,7 @@ const STRINGS = {
   find: { en: "Find order", ar: "ابحث عن الطلب" },
   searching: { en: "Searching…", ar: "جارٍ البحث…" },
   order: { en: "Order", ar: "رقم الطلب" },
+  contact: { en: "Contact us", ar: "تواصل معنا" },
   // One message per failure class so the shopper knows what to change.
   errInvalid: {
     en: "Check the phone number and order number, then try again.",
@@ -115,14 +252,15 @@ const ERROR_STRING: Record<LookupError, { en: string; ar: string }> = {
 
 interface OrderResult {
   order_number: string;
-  status: StatusStep;
+  status: string;
+  /** Absent on a response from an older deploy — see `resolveTrackStage`. */
+  stage?: string;
   customer_name?: string;
   governorate?: string;
 }
 
-function statusIndex(s: string): number {
-  const idx = STATUS_STEPS.indexOf(s as StatusStep);
-  return idx === -1 ? 0 : idx;
+function stepIndex(step: StatusStep): number {
+  return STATUS_STEPS.indexOf(step);
 }
 
 function classify(status: number): LookupError {
@@ -252,6 +390,11 @@ export function OrderTrackerRender({
     "block font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
   const loading = status === "loading";
 
+  const stage = order ? resolveTrackStage(order) : "placed";
+  const view = trackStageView(stage);
+  // Hoisted out of the JSX so the null check narrows inside the map callback.
+  const timelineStep = view.step;
+
   return (
     <section className="px-4 py-bk-section-dense">
       <div
@@ -349,17 +492,36 @@ export function OrderTrackerRender({
             className="mt-bk-lg pt-bk-lg"
             style={{ borderTop: DASHED_DIVIDER }}
           >
-            {/* Real-status banner: token tint keyed by progress vs. positive. */}
-            <p
-              className="mb-bk-md p-bk-md text-center font-display font-black text-lg text-balance"
+            {/* Real-stage banner: token tint keyed by the stage's tone. A
+                halted order says so here, and gets no timeline below. */}
+            <div
+              className="mb-bk-md p-bk-md text-center"
               style={{
-                backgroundColor: HERO_BG[STATUS_HERO[order.status].tone],
+                backgroundColor: HERO_BG[view.tone],
                 border: INK_BORDER,
                 borderRadius: "var(--bk-radius-card, 1rem)",
               }}
             >
-              {t ? STATUS_HERO[order.status].ar : STATUS_HERO[order.status].en}
-            </p>
+              <p
+                className="font-display font-black text-lg text-balance"
+                data-track-stage={stage}
+              >
+                {t ? view.ar : view.en}
+              </p>
+              {view.note && (
+                <p className="mt-bk-2xs font-body text-sm text-balance">
+                  {t ? view.note.ar : view.note.en}
+                </p>
+              )}
+              {view.contact && (
+                <StoreLink
+                  href="/contact"
+                  className="mt-bk-xs inline-flex min-h-11 items-center font-label font-bold text-sm underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                >
+                  {resolveI18n(STRINGS.contact, locale)}
+                </StoreLink>
+              )}
+            </div>
             <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft">
               {resolveI18n(STRINGS.order, locale)}
             </p>
@@ -372,11 +534,12 @@ export function OrderTrackerRender({
                 {order.governorate ? ` — ${order.governorate}` : ""}
               </p>
             )}
-            {props.show_timeline && (
-              <ol className="mt-bk-md">
+            {props.show_timeline && timelineStep && (
+              <ol className="mt-bk-md" data-track-timeline>
                 {STATUS_STEPS.map((step, i) => {
-                  const reached = i <= statusIndex(order.status);
-                  const isCurrent = i === statusIndex(order.status);
+                  const current = stepIndex(timelineStep);
+                  const reached = i <= current;
+                  const isCurrent = i === current;
                   const isLast = i === STATUS_STEPS.length - 1;
                   return (
                     <li
@@ -394,7 +557,7 @@ export function OrderTrackerRender({
                             bottom: "0",
                             width: "var(--bk-border-thickness, 3px)",
                             backgroundColor:
-                              i < statusIndex(order.status)
+                              i < stepIndex(timelineStep)
                                 ? "var(--bk-success, #7cf0bd)"
                                 : "var(--bk-divider, rgb(26 26 26 / 0.15))",
                           }}
