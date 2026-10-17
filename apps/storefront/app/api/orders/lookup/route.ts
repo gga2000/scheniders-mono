@@ -12,9 +12,15 @@ const querySchema = z.object({
 
 const lookupRowSchema = z.object({
   order_number: z.string(),
+  /** Coarse bucket (placed/confirmed/shipped/delivered) — kept for older clients. */
   status: z.string(),
   customer_name: z.string().nullable(),
   governorate: z.string().nullable(),
+  /** Customer-facing stage (ten values). Optional so the row still validates
+   *  against the RPC as deployed before migration 20260909220811. */
+  stage: z.string().nullish(),
+  /** First ordered product's slug, for a "rate your order" link. */
+  review_product_slug: z.string().nullish(),
 });
 
 // lookup_order is a newly-added RPC (migration 20260606194612) that is not yet
@@ -72,6 +78,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       status: row.status,
       customer_name: row.customer_name ?? undefined,
       governorate: row.governorate ?? undefined,
+      stage: row.stage ?? undefined,
+      review_product_slug: row.review_product_slug ?? undefined,
     });
   } catch (e) {
     console.error("[api/orders/lookup]", e);
