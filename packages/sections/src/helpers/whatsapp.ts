@@ -114,6 +114,19 @@ export function resolveTenantWhatsapp(
 }
 
 /**
+ * The number the order tracker writes into `{contact}` and dials for its
+ * call button: the store's configured call number, else its WhatsApp number.
+ * The store builder's "Order tracking messages" preview resolves through this
+ * too, so the merchant sees exactly which lines survive on the storefront.
+ */
+export function resolveTrackerContact(tenant: unknown): string | null {
+  const t = (tenant ?? {}) as TenantContactShape;
+  const phone = t.store_config?.contact?.phone_number;
+  if (phone && isPlausiblePhone(phone)) return phone;
+  return resolveTenantWhatsapp(tenant);
+}
+
+/**
  * Resolve a tenant's voice-call number. Prefers an explicit `contact_phone`,
  * then the configured WhatsApp number, then a per-section override. Same
  * plausibility guard as {@link resolveTenantWhatsapp}.

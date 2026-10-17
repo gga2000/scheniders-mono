@@ -11,6 +11,7 @@ import {
   type CustomerOrderStage,
 } from "@scheniders/shared";
 import { StoreBaseProvider } from "./helpers/store-context";
+import { resolveTrackerContact } from "./helpers/whatsapp";
 import { OrderStatusPanel, safeLinkTarget, stageOf, type OrderResult } from "./order_tracker.client";
 
 const ORDER: OrderResult = { order_number: "4260910007", status: "placed", review_product_slug: "فيوجن" };
@@ -103,6 +104,22 @@ describe("OrderStatusPanel", () => {
     for (const stage of CUSTOMER_ORDER_STAGES) {
       expect(panel(stage), stage).not.toMatch(/\d+\s*(دقيقة|ساعة|minute|hour)/);
     }
+  });
+});
+
+describe("resolveTrackerContact", () => {
+  it("prefers the store's call number, then its WhatsApp number, then contact_phone", () => {
+    expect(resolveTrackerContact({ store_config: { contact: { phone_number: "07701112233", whatsapp_number: "07804445566" } } }))
+      .toBe("07701112233");
+    expect(resolveTrackerContact({ store_config: { contact: { whatsapp_number: "07804445566" } } })).toBe("07804445566");
+    expect(resolveTrackerContact({ store_config: null, contact_phone: "07507778899" })).toBe("07507778899");
+  });
+
+  it("skips a placeholder number and returns null when nothing plausible is set", () => {
+    expect(resolveTrackerContact({ store_config: { contact: { phone_number: "9647700000000", whatsapp_number: "07804445566" } } }))
+      .toBe("07804445566");
+    expect(resolveTrackerContact({ store_config: { contact: {} } })).toBeNull();
+    expect(resolveTrackerContact(null)).toBeNull();
   });
 });
 
