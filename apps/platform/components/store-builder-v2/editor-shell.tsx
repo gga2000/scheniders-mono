@@ -100,6 +100,8 @@ export interface EditorShellTenant {
     id: string;
     slug: string;
     business_name: string;
+    /** The number the storefront's order tracker fills `{contact}` with. */
+    tracking_contact?: string | null;
 }
 
 export interface EditorShellProps {
@@ -1677,6 +1679,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             screen={system_screen}
                             builder={builder}
                             tenantId={tenant.id}
+                            trackingContact={tenant.tracking_contact ?? null}
                             onClose={handleCloseSystemScreen}
                             onBrandKitChange={handleBrandKitChange}
                             onSelectCustomPage={handleSelectCustomPage}

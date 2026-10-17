@@ -32,6 +32,9 @@ import { I18nStringInput } from "./i18n-string-input";
 
 export interface OrderStatusScreenProps {
     builder: UseStoreBuilderV2Return;
+    /** The number the storefront's tracker fills `{contact}` with and dials —
+     *  resolved server-side from the tenant's contact settings. */
+    contact: string | null;
     onClose: () => void;
 }
 
@@ -67,12 +70,12 @@ function compact(n: OrderStatusNarrative): OrderStatusNarrative | undefined {
     return Object.keys(out).length ? out : undefined;
 }
 
-export function OrderStatusScreen({ builder, onClose }: OrderStatusScreenProps): React.ReactElement {
+export function OrderStatusScreen({ builder, contact: rawContact, onClose }: OrderStatusScreenProps): React.ReactElement {
     const locale = useEditorLocale();
     const overrides = builder.config.commerce?.order_status_narratives ?? {};
     // The same number the storefront dials — an empty value here means the
     // preview drops contact lines exactly as the tracker would.
-    const contact = builder.config.commerce?.whatsapp_number?.trim() || null;
+    const contact = rawContact?.trim() || null;
     const [open, setOpen] = useState<CustomerOrderStage>("placed");
 
     const setStage = useCallback(

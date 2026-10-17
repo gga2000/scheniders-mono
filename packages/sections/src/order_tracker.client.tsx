@@ -33,7 +33,7 @@ import {
 } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, ChunkyLink, MaterialIcon } from "./helpers/primitives";
-import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
+import { resolveTenantWhatsapp, resolveTrackerContact, whatsappDigits } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./order_tracker";
 
@@ -139,12 +139,9 @@ export function OrderTrackerRender({
 
   // Contact numbers and the merchant's per-stage copy both come from the
   // tenant — nothing here is hardcoded to any store.
-  const tenant = ctx.tenant as {
-    store_config?: { contact?: { whatsapp_number?: string | null; phone_number?: string | null } | null } | null;
-    store_config_v2?: Pick<StoreConfigV2, "commerce"> | null;
-  };
+  const tenant = ctx.tenant as { store_config_v2?: Pick<StoreConfigV2, "commerce"> | null };
   const whatsapp = resolveTenantWhatsapp(ctx.tenant);
-  const phone_number = tenant.store_config?.contact?.phone_number ?? whatsapp ?? null;
+  const phone_number = resolveTrackerContact(ctx.tenant);
   const narratives = tenant.store_config_v2?.commerce?.order_status_narratives ?? null;
   const narrative = (o: OrderResult): ResolvedNarrative =>
     resolveNarrative(stageOf(o), locale, narratives, phone_number);

@@ -23,8 +23,10 @@ function applyLast(setConfig: ReturnType<typeof vi.fn>, config: StoreConfigV2): 
 
 describe("OrderStatusScreen", () => {
     it("lists every customer stage with the shipped default as its preview", () => {
-        const { builder } = makeBuilder({ whatsapp_number: "07701234567" });
-        render(<OrderStatusScreen builder={builder} onClose={() => {}} />);
+        // The number comes from the tenant's contact settings (what the
+        // storefront tracker dials), never from the V2 config's own field.
+        const { builder } = makeBuilder({ whatsapp_number: "07800000001" });
+        render(<OrderStatusScreen builder={builder} contact="07701234567" onClose={() => {}} />);
         for (const stage of Object.keys(DEFAULT_NARRATIVES)) {
             expect(screen.getByTestId(`order-status-stage-${stage}`)).toBeTruthy();
         }
@@ -35,7 +37,7 @@ describe("OrderStatusScreen", () => {
 
     it("drops contact lines and buttons from the preview when no number is set — and says so", () => {
         const { builder } = makeBuilder();
-        render(<OrderStatusScreen builder={builder} onClose={() => {}} />);
+        render(<OrderStatusScreen builder={builder} contact={null} onClose={() => {}} />);
         expect(screen.getByTestId("order-status-no-contact")).toBeTruthy();
         const placed = screen.getByTestId("order-status-preview-placed").textContent ?? "";
         expect(placed).not.toContain("{contact}");
@@ -44,7 +46,7 @@ describe("OrderStatusScreen", () => {
 
     it("writes an edited headline under the stage and leaves untouched stages absent", () => {
         const { builder, setConfig, config } = makeBuilder();
-        render(<OrderStatusScreen builder={builder} onClose={() => {}} />);
+        render(<OrderStatusScreen builder={builder} contact={null} onClose={() => {}} />);
         fireEvent.change(screen.getByTestId("order-status-title-placed-input"), {
             target: { value: "Got it!" },
         });
@@ -58,7 +60,7 @@ describe("OrderStatusScreen", () => {
         const { builder, setConfig, config } = makeBuilder({
             order_status_narratives: { placed: { title_i18n: { en: "Got it!" } } },
         });
-        render(<OrderStatusScreen builder={builder} onClose={() => {}} />);
+        render(<OrderStatusScreen builder={builder} contact={null} onClose={() => {}} />);
         fireEvent.change(screen.getByTestId("order-status-title-placed-input"), { target: { value: "" } });
         expect(applyLast(setConfig, config).commerce?.order_status_narratives).toBeUndefined();
     });
@@ -70,7 +72,7 @@ describe("OrderStatusScreen", () => {
                 shipped: { body_i18n: { en: "Courier is on the way" } },
             },
         });
-        render(<OrderStatusScreen builder={builder} onClose={() => {}} />);
+        render(<OrderStatusScreen builder={builder} contact={null} onClose={() => {}} />);
         fireEvent.click(screen.getByTestId("order-status-reset-placed"));
         expect(applyLast(setConfig, config).commerce?.order_status_narratives).toEqual({
             shipped: { body_i18n: { en: "Courier is on the way" } },
@@ -79,7 +81,7 @@ describe("OrderStatusScreen", () => {
 
     it("switches a stage's button to a page link and stores the path", () => {
         const { builder, setConfig, config } = makeBuilder();
-        render(<OrderStatusScreen builder={builder} onClose={() => {}} />);
+        render(<OrderStatusScreen builder={builder} contact={null} onClose={() => {}} />);
         fireEvent.click(screen.getByTestId("order-status-toggle-shipped"));
         fireEvent.change(screen.getByTestId("order-status-cta-shipped"), { target: { value: "link" } });
         const withKind = applyLast(setConfig, config);
@@ -90,6 +92,7 @@ describe("OrderStatusScreen", () => {
         render(
             <OrderStatusScreen
                 builder={{ config: withKind, setConfig: setConfig2 } as unknown as UseStoreBuilderV2Return}
+                contact={null}
                 onClose={() => {}}
             />,
         );

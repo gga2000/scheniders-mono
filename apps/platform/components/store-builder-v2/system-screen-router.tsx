@@ -43,6 +43,8 @@ export interface SystemScreenRouterProps {
     /** I18n screen deep-jumps back into the canvas. */
     onI18nSelectPage: (page: PageId) => void;
     onI18nSelectSection: (page: PageId, sectionId: string) => void;
+    /** The number the storefront's order tracker fills `{contact}` with. */
+    trackingContact: string | null;
 }
 
 export function SystemScreenRouter({
@@ -54,6 +56,7 @@ export function SystemScreenRouter({
     onSelectCustomPage,
     onI18nSelectPage,
     onI18nSelectSection,
+    trackingContact,
 }: SystemScreenRouterProps): React.ReactElement {
     return (
         <>
@@ -113,7 +116,7 @@ export function SystemScreenRouter({
             ) : screen === "loyalty" ? (
                 <LoyaltyScreen builder={builder} onClose={onClose} />
             ) : screen === "order_status" ? (
-                <OrderStatusScreen builder={builder} onClose={onClose} />
+                <OrderStatusScreen builder={builder} contact={trackingContact} onClose={onClose} />
             ) : screen === "custom_pages" ? (
                 <CustomPagesScreen
                     builder={builder}
