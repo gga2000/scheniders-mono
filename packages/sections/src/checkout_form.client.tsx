@@ -34,6 +34,8 @@ import {
   pixelContentsFromItems,
   isValidIraqiMobile,
   normalizeIraqiMobile,
+  computePointsEarned,
+  formatPoints,
 } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
@@ -71,6 +73,7 @@ const STRINGS = {
   paymentMethod: { en: "Payment method", ar: "طريقة الدفع" },
   cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
   useAll: { en: "Use all", ar: "استخدم الكل" },
+  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
   enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
   placeOrder: { en: "Place order", ar: "أكّد الطلب" },
   placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…" },
@@ -302,6 +305,8 @@ export function CheckoutFormRender({
     cfg: loyaltyCfg,
   });
   const pointsDiscount = pointsRedemption.discount_iqd;
+  // Credited by the database on delivery, never at placement.
+  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
   const discountAmount = couponAmount + bundleAmount + pointsDiscount;
   const total = subtotal - discountAmount + delivery;
   const returnsDays = commerce?.returns_policy?.window_days;
@@ -853,6 +858,16 @@ export function CheckoutFormRender({
                   className="text-xl text-bk-primary"
                 />
                 {reassurance}
+              </p>
+            )}
+
+            {pointsToEarn > 0 && (
+              <p
+                data-points-to-earn={pointsToEarn}
+                className="inline-flex items-center gap-1.5 font-body text-sm text-bk-ink-soft"
+              >
+                <MaterialIcon name="loyalty" className="text-base" />
+                {s("earnOnDelivery").replace("{points}", formatPoints(pointsToEarn, locale))}
               </p>
             )}
 

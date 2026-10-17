@@ -48,6 +48,9 @@ import {
   summarizeDelivery,
   etaForGovernorate,
   formatHours,
+  computePointsEarned,
+  computePointsRedemption,
+  formatPoints,
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
@@ -118,6 +121,11 @@ const STRINGS = {
   deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}" },
   deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}" },
   totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل" },
+  youHavePoints: { en: "You have {points}", ar: "عندك {points}" },
+  useAll: { en: "Use all", ar: "استخدم الكل" },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
+  pointsOff: { en: "{amount} off", ar: "خصم {amount}" },
+  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
   quantity: { en: "Quantity", ar: "الكمية" },
   decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
   increase: { en: "Increase quantity", ar: "زيادة الكمية" },
@@ -332,6 +340,11 @@ export function PdpDirectOrderRender({
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
+  // Loyalty: the shopper's balance (fetched by phone, debounced) and how
+  // many points they choose to spend. The server re-resolves both against
+  // the published config and the authoritative balance.
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
 
   // Price drift: bring the price row on screen and flash it for 1.2 s so the
   // shopper sees WHAT changed before re-confirming.
@@ -456,8 +469,47 @@ export function PdpDirectOrderRender({
   const displayedDelivery: number | null = flatFeeKnown
     ? deliverySummary.fee.min
     : delivery;
-  const total = subtotal + (displayedDelivery ?? 0);
+  const loyaltyCfg = commerce?.loyalty;
+  const pointsRedemption = computePointsRedemption({
+    balance: pointsBalance ?? 0,
+    requestedPoints: redeemPoints,
+    subtotalIqd: subtotal,
+    cfg: loyaltyCfg,
+  });
+  const pointsDiscount = pointsRedemption.discount_iqd;
+  // Credited by the database when the order is delivered — never at
+  // placement — so this is a promise about delivery, worded as one.
+  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
+  const total = subtotal - pointsDiscount + (displayedDelivery ?? 0);
   const totalExcludesDelivery = displayedDelivery === null;
+
+  // Fetch the balance once a valid phone is in; reset the chosen redemption
+  // when the phone changes so a number cannot spend another's points.
+  useEffect(() => {
+    if (!loyaltyCfg?.enabled) return;
+    const balancePhone = normalizeIraqiMobile(form.phone);
+    setRedeemPoints(0);
+    if (!balancePhone) {
+      setPointsBalance(null);
+      return;
+    }
+    let active = true;
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ tenant_id: ctx.tenant.id, phone: balancePhone });
+      fetch(`/api/loyalty/balance?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { balance?: number } | null) => {
+          if (active) setPointsBalance(typeof d?.balance === "number" ? d.balance : 0);
+        })
+        .catch(() => {
+          /* balance just won't show */
+        });
+    }, 600);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [loyaltyCfg?.enabled, form.phone, ctx.tenant.id]);
   const etaHours = chosenGovernorate
     ? etaForGovernorate(commerce?.shipping, chosenGovernorate)
     : null;
@@ -660,6 +712,7 @@ export function PdpDirectOrderRender({
           subtotal,
           locale,
           idempotency_key: idempotencyKeyRef.current,
+          ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
           ...(purchaseEventIdRef.current
             ? { event_id: purchaseEventIdRef.current }
             : {}),
@@ -1353,7 +1406,7 @@ export function PdpDirectOrderRender({
                   {/* Merchant commitments only — the delivery promise is a
                       prop and the returns window comes from the tenant's
                       commerce config; neither is invented here. */}
-                  {(deliverySla || (returnsDays && returnsDays > 0)) && (
+                  {(deliverySla || (returnsDays && returnsDays > 0) || pointsToEarn > 0) && (
                     <ul className="mt-1 space-y-0.5 font-body text-xs text-bk-ink-soft">
                       {deliverySla && (
                         <li
@@ -1371,6 +1424,12 @@ export function PdpDirectOrderRender({
                         <li className="flex items-center gap-1">
                           <MaterialIcon name="cached" className="text-sm" />
                           {returnsLine(returnsDays, locale)}
+                        </li>
+                      )}
+                      {pointsToEarn > 0 && (
+                        <li className="flex items-center gap-1" data-points-to-earn={pointsToEarn}>
+                          <MaterialIcon name="loyalty" className="text-sm" />
+                          {s("earnOnDelivery").replace("{points}", formatPoints(pointsToEarn, locale))}
                         </li>
                       )}
                     </ul>
@@ -1522,6 +1581,50 @@ export function PdpDirectOrderRender({
                   </span>
                 </span>
               </label>
+            )}
+
+            {/* ── Loyalty points redemption ── */}
+            {loyaltyCfg?.enabled && (pointsBalance ?? 0) > 0 && (
+              <div
+                data-testid="pdp-redeem-points"
+                className="space-y-bk-xs rounded-bk-input bg-bk-decor-a/40 p-bk-sm"
+              >
+                <div className="flex items-center justify-between gap-bk-sm">
+                  <span className="inline-flex items-center gap-2 font-display text-sm font-black tabular-nums text-bk-ink">
+                    <MaterialIcon name="loyalty" className="text-xl" />
+                    {s("youHavePoints").replace("{points}", formatPoints(pointsBalance ?? 0, locale))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRedeemPoints(pointsBalance ?? 0)}
+                    className="min-h-11 font-label text-xs font-bold underline"
+                  >
+                    {s("useAll")}
+                  </button>
+                </div>
+                <div className="flex items-center gap-bk-sm" dir="ltr">
+                  <input
+                    type="number"
+                    min={0}
+                    max={pointsBalance ?? 0}
+                    inputMode="numeric"
+                    aria-label={s("enterPoints")}
+                    value={redeemPoints || ""}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                      setRedeemPoints(Math.min(n, pointsBalance ?? 0));
+                    }}
+                    className="w-24 px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                    style={inputStyle}
+                  />
+                  <span className="font-label text-sm font-bold tabular-nums">
+                    {pointsDiscount > 0
+                      ? s("pointsOff").replace("{amount}", `−${formatPrice(pointsDiscount, locale)}`)
+                      : s("enterPoints")}
+                  </span>
+                </div>
+              </div>
             )}
 
             {/* ── Submit + WhatsApp ── */}
