@@ -11,11 +11,18 @@
 
 | What | Where it actually lives |
 |---|---|
-| Launch audit charter, master ledger, 10-round audit, final register, remediation plan, verdict | branch **`feat/notifications-overhaul`** (pushed) |
+| **Launch audit charter** (the operative instructions) | **`main`** — canonical, as of this handoff commit |
+| Master ledger, 10-round audit, final register, remediation plan, verdict, the 6 matrices | branch **`feat/notifications-overhaul`** (pushed) |
 | Orders reliability audit (2026-10-11) — 21 files | **`main`**, as of this handoff commit |
-| Admin activity-logging fix | branch **`fix/admin-activity-logging`** (pushed, PR open — see §4) |
+| Admin activity-logging fix | branch **`fix/admin-activity-logging-v2`** (pushed, PR open — see §4) |
 
-So: `git fetch --all`, then read from `origin/feat/notifications-overhaul`, not from `main`.
+So: `git fetch --all`, then read the ledger set from `origin/feat/notifications-overhaul`, and the charter from `main`.
+
+**The charter copy on `feat/notifications-overhaul` is stale** — it predates the three revisions in §3. `main` has the
+current one. If that branch later merges and conflicts on this file, **keep `main`'s version.**
+
+**Do not rely on `feat/notifications-overhaul` staying put.** Other sessions push to it; a push of mine was rejected as
+diverged while writing this handoff. Copy anything you need out of it rather than working on it.
 
 ---
 
