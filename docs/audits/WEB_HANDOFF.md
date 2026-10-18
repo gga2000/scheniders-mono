@@ -37,7 +37,7 @@ one, so it is not code.
 |---|---|
 | **Launch audit charter** (the operative instructions) | **`main`** — canonical, as of this handoff commit |
 | Master ledger, 10-round audit, final register, remediation plan, verdict, the 6 matrices | branch **`feat/notifications-overhaul`** (pushed) |
-| Orders reliability audit (2026-10-11) — 21 files | **`main`**, as of this handoff commit |
+| Orders reliability audit (2026-10-11) — 21 files | **PR #144** (a concurrent session opened it; merge that, not mine) |
 | Admin activity-logging fix | branch **`fix/admin-activity-logging-v2`** (pushed, PR open — see §4) |
 
 So: `git fetch --all`, then read the ledger set from `origin/feat/notifications-overhaul`, and the charter from `main`.
@@ -98,8 +98,9 @@ whose header forbids applying it before six code changes.
 
 ### 2.3 Orders reliability audit (2026-10-11) — now on `main`
 
-`docs/audits/orders-reliability-2026-10-11/REGISTER.md` + 20 evidence files. **This was untracked until this handoff
-commit** — it was one `git clean` from being lost. Critic loop scored **5 → 6 → 7**, stopped at the 3-round cap below
+`docs/audits/orders-reliability-2026-10-11/REGISTER.md` + 20 evidence files, landing via **PR #144**. It was
+untracked — one `git clean` from being lost — and two sessions rescued it independently within two minutes, which is
+its own lesson about concurrent work here. Critic loop scored **5 → 6 → 7**, stopped at the 3-round cap below
 the 8 target, and the round-3 amendments in its §A **have not been re-scored**. 5 live security P0s; root cause is
 shared env.
 
