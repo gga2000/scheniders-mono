@@ -184,33 +184,40 @@ export default async function TenantLayout({ params, children }: Props) {
 
   // Schneiders-specific CSS vars (accent pair + wedge intensity) emitted on
   // the brand container so primitives + per-component reads can pick them up.
-  const CANDY_HEX: Record<string, string> = {
-    pink: "#ff5a8a",
-    mint: "#7cf0bd",
-    butter: "#ffd84a",
-    lilac: "#c5b6ff",
-    sky: "#9ad8ff",
-    cream: "#fff7ed",
-    ink: "#1a1a1a",
+  // The merchant picks an accent PAIR by candy name; those names now resolve
+  // to brand-kit tokens rather than the fixed pastels they used to be, so a
+  // tenant who recolours their kit recolours these too. The fallbacks are the
+  // original hexes, which are also the default kit's values — a tenant on the
+  // default kit renders exactly as before.
+  const ACCENT_TOKEN: Record<string, string> = {
+    pink: "var(--bk-primary, #ff5a8a)",
+    mint: "var(--bk-secondary, #7cf0bd)",
+    butter: "var(--bk-accent, #ffd84a)",
+    lilac: "var(--bk-decor-b, #c5b6ff)",
+    sky: "var(--bk-decor-c, #9ad8ff)",
+    cream: "var(--bk-surface, #fff7ed)",
+    ink: "var(--bk-ink, #1a1a1a)",
   };
-  const WEDGE_MULTIPLIER: Record<string, number> = {
-    none: 0,
-    subtle: 0.35,
-    playful: 1,
-    wild: 1.75,
+  /** The one readable foreground for each accent surface. */
+  const ACCENT_ON: Record<string, string> = {
+    pink: "var(--bk-on-primary, #ffffff)",
+    mint: "var(--bk-on-secondary, #1a1a1a)",
+    butter: "var(--bk-on-accent, #1a1a1a)",
+    lilac: "var(--bk-on-decor, #1a1a1a)",
+    sky: "var(--bk-on-decor, #1a1a1a)",
+    cream: "var(--bk-ink, #1a1a1a)",
+    ink: "#ffffff",
   };
-  const accentPrimary = CANDY_HEX[schn.accent_pair.primary ?? "pink"] ?? CANDY_HEX.pink;
-  const accentSecondary = CANDY_HEX[schn.accent_pair.secondary ?? "mint"] ?? CANDY_HEX.mint;
-  const wedge = WEDGE_MULTIPLIER[schn.wedge_intensity ?? "playful"] ?? 1;
+  const primaryName = schn.accent_pair.primary ?? "pink";
+  const secondaryName = schn.accent_pair.secondary ?? "mint";
+  const accentPrimary = ACCENT_TOKEN[primaryName] ?? ACCENT_TOKEN.pink;
+  const accentPrimaryOn = ACCENT_ON[primaryName] ?? ACCENT_ON.pink;
+  const accentSecondary = ACCENT_TOKEN[secondaryName] ?? ACCENT_TOKEN.mint;
 
   const schnVars: React.CSSProperties = {
     ["--schn-accent-primary" as string]: accentPrimary,
-    ["--schn-accent-primary-on" as string]:
-      schn.accent_pair.primary === "butter" || schn.accent_pair.primary === "mint" || schn.accent_pair.primary === "sky" || schn.accent_pair.primary === "lilac" || schn.accent_pair.primary === "cream"
-        ? "#1a1a1a"
-        : "#ffffff",
+    ["--schn-accent-primary-on" as string]: accentPrimaryOn,
     ["--schn-accent-secondary" as string]: accentSecondary,
-    ["--schn-wedge" as string]: String(wedge),
   };
 
   return (

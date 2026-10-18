@@ -37,12 +37,13 @@ type ScribbleColor = "butter" | "mint" | "lilac" | "sky" | "pink";
 
 const SCRIBBLE_HEX: Record<ScribbleColor, string> = {
   butter: "var(--bk-accent, #ffd84a)",
-  // Decorative candy surfaces read the fixed --bk-mint/--bk-lilac/--bk-sky
-  // tokens (not --bk-success / --bk-secondary, which a tenant can recolor and
-  // which previously made mint→emerald and lilac→mint).
-  mint: "var(--bk-mint, #7cf0bd)",
-  lilac: "var(--bk-lilac, #c5b6ff)",
-  sky: "var(--bk-sky, #9ad8ff)",
+  // The three decorative surfaces. Key names are historical (they are also
+  // schema enum values, so renaming them would fail Zod parse and silently
+  // drop the section); the VALUES now track the tenant's accent hue via
+  // --bk-decor-*, which is what "decorative" was always supposed to mean.
+  mint: "var(--bk-decor-a, #7cf0bd)",
+  lilac: "var(--bk-decor-b, #c5b6ff)",
+  sky: "var(--bk-decor-c, #9ad8ff)",
   pink: "var(--bk-primary, #ff5a8a)",
 };
 
@@ -89,7 +90,7 @@ export function PromoBar({
   return (
     <div
       className={cn(
-        "bg-candy-butter text-candy-ink font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
+        "bg-bk-accent text-bk-ink font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
         className,
       )}
       style={{
@@ -139,17 +140,17 @@ type CardBg =
  */
 const BG_MAP: Record<CardBg, string> = {
   white: "bg-white",
-  cream: "bg-candy-cream",
-  pink: "bg-candy-pink text-white",
-  mint: "bg-candy-mint",
-  butter: "bg-candy-butter",
-  lilac: "bg-candy-lilac",
-  sky: "bg-candy-sky",
-  ink: "bg-candy-ink text-white",
+  cream: "bg-bk-surface",
+  pink: "bg-bk-primary text-white",
+  mint: "bg-bk-secondary",
+  butter: "bg-bk-accent",
+  lilac: "bg-bk-decor-b",
+  sky: "bg-bk-decor-c",
+  ink: "bg-bk-ink text-white",
   success: "",
   "accent-primary":
     "bg-[var(--schn-accent-primary)] text-[var(--schn-accent-primary-on)]",
-  "accent-secondary": "bg-[var(--schn-accent-secondary)] text-candy-ink",
+  "accent-secondary": "bg-[var(--schn-accent-secondary)] text-bk-ink",
 };
 
 /** Brand-kit CSS variable override per surface tint. `undefined` means
@@ -161,12 +162,14 @@ const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
   // the hero secondary WhatsApp CTA.
   white: { bg: "#ffffff", fg: "var(--bk-ink, #1a1a1a)" },
   pink: { bg: "var(--bk-primary, #ff5a8a)", fg: "var(--bk-on-primary, #fff)" },
-  // Decorative candy surfaces read the fixed --bk-mint/--bk-lilac/--bk-sky
-  // tokens so they never drift when a tenant overrides success/secondary.
-  mint: { bg: "var(--bk-mint, #7cf0bd)", fg: "var(--bk-ink, #1a1a1a)" },
+  // Decorative surfaces — see SCRIBBLE_HEX. `on-decor` rather than `ink`
+  // because all three share one lightness band, so the correct foreground is
+  // a property of the band, not of the tenant's ink (which is light in a
+  // dark-surface store and was unreadable here).
+  mint: { bg: "var(--bk-decor-a, #7cf0bd)", fg: "var(--bk-on-decor, #1a1a1a)" },
   butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-ink, #1a1a1a)" },
-  lilac: { bg: "var(--bk-lilac, #c5b6ff)", fg: "var(--bk-ink, #1a1a1a)" },
-  sky: { bg: "var(--bk-sky, #9ad8ff)", fg: "var(--bk-ink, #1a1a1a)" },
+  lilac: { bg: "var(--bk-decor-b, #c5b6ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
+  sky: { bg: "var(--bk-decor-c, #9ad8ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
   cream: { bg: "var(--bk-surface, #fff7ed)", fg: "var(--bk-ink, #1a1a1a)" },
   ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "#fff" },
   success: {
@@ -295,7 +298,7 @@ const BTN_SIZE: Record<NonNullable<ChunkyButtonProps["size"]>, string> = {
 const baseBtn =
   "inline-flex items-center justify-center gap-2 font-display font-black bk-caps tracking-tight " +
   "hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] " +
-  "transition-[transform,box-shadow,background-color,color,opacity] duration-150 motion-reduce:transition-none";
+  "transition-[transform,box-shadow,background-color,color,opacity] duration-bk-fast motion-reduce:transition-none";
 
 function buttonStyle(bg: CardBg): CSSProperties {
   return {
@@ -875,7 +878,7 @@ export function WhatsAppButton({
       rel="noopener noreferrer"
       className={cn(
         "inline-flex items-center justify-center gap-2 font-display font-bold",
-        "transition-[transform,box-shadow,background-color,opacity] duration-150 motion-reduce:transition-none",
+        "transition-[transform,box-shadow,background-color,opacity] duration-bk-fast motion-reduce:transition-none",
         "hover:opacity-90 active:scale-[0.98]",
         BTN_SIZE[size],
         fullWidth && "w-full",

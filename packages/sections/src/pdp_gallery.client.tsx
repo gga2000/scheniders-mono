@@ -381,7 +381,7 @@ export function PdpGalleryRender({
   if (props.layout === "carousel") {
     return (
       <section className="py-6">
-        <div className="flex gap-bk-sm overflow-x-auto px-4 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-bk-sm overflow-x-auto px-4 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((src, i) => (
             <BentoCard
               key={`${i}-${src}`}
@@ -446,7 +446,7 @@ export function PdpGalleryRender({
         {overlayStickers}
       </BentoCard>
       {props.show_thumbnails && images.length > 1 && (
-        <div className="mt-bk-sm flex gap-bk-xs overflow-x-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-bk-sm flex gap-bk-xs overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((src, i) => (
             <button
               key={`${i}-${src}`}

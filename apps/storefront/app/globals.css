@@ -100,6 +100,18 @@ dd,
 
 /* ===========================
    Schneiders — Candy Bento
+   ---------------------------
+   These classes are the template's signature card, and they are applied
+   directly as class names in 19 files — the V1 fallback pages, the schneiders
+   components, and the V2 section helpers. Every value in them used to be a
+   literal, so a merchant who recoloured their brand kit still got a black
+   border, a black hard shadow, a white fill and a fixed corner radius. The
+   `candy-*` sweep in Wave 0 replaced Tailwind utilities in components; it
+   never reached this stylesheet.
+   The Candy palette *is* the default kit, so every fallback below is the
+   literal that was there before: ink #1a1a1a, surface-alt #ffffff, accent
+   #ffd84a, 3px / 4px borders, a 16px card radius. A default store renders
+   byte-identical; a recoloured one finally follows its own kit.
    =========================== */
 
 .material-symbols-outlined {
@@ -108,24 +120,27 @@ dd,
 
 /* The signature chunky-bordered card with hard offset shadow */
 .bento-card {
-  border: 3px solid #1a1a1a;
-  box-shadow: 4px 4px 0px 0px rgba(26, 26, 26, 1);
-  border-radius: 1rem;
-  background: white;
+  border: var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a);
+  box-shadow: 4px 4px 0px 0px var(--bk-ink, #1a1a1a);
+  border-radius: var(--bk-radius-card, 16px);
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 .bento-card-sm {
-  border: 3px solid #1a1a1a;
-  box-shadow: 2px 2px 0px 0px rgba(26, 26, 26, 1);
-  border-radius: 0.75rem;
-  background: white;
+  border: var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a);
+  box-shadow: 2px 2px 0px 0px var(--bk-ink, #1a1a1a);
+  /* The three sizes keep their proportions off the one radius token, so a
+     merchant on soft or square corners gets a consistent set, not one
+     rounded card beside two that ignored them. */
+  border-radius: calc(var(--bk-radius-card, 16px) * 0.75);
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 .bento-card-lg {
-  border: 3px solid #1a1a1a;
-  box-shadow: 6px 6px 0px 0px rgba(26, 26, 26, 1);
-  border-radius: 1.25rem;
-  background: white;
+  border: var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a);
+  box-shadow: 6px 6px 0px 0px var(--bk-ink, #1a1a1a);
+  border-radius: calc(var(--bk-radius-card, 16px) * 1.25);
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 /* Hand-drawn highlighter scribble underline (used behind section titles) */
@@ -140,18 +155,22 @@ dd,
   bottom: -6px;
   width: 104%;
   height: 0.75rem;
-  background-color: var(--scribble-color, #ffd84a);
+  background-color: var(--scribble-color, var(--bk-accent, #ffd84a));
   z-index: -1;
-  border-radius: 9999px;
+  border-radius: var(--bk-radius-pill, 9999px);
   transform: rotate(-1deg);
   opacity: 0.6;
 }
 
 .zigzag-border {
-  background-image: linear-gradient(135deg, #1a1a1a 25%, transparent 25%),
-    linear-gradient(225deg, #1a1a1a 25%, transparent 25%),
-    linear-gradient(45deg, #1a1a1a 25%, transparent 25%),
-    linear-gradient(315deg, #1a1a1a 25%, transparent 25%);
+  background-image: linear-gradient(
+      135deg,
+      var(--bk-ink, #1a1a1a) 25%,
+      transparent 25%
+    ),
+    linear-gradient(225deg, var(--bk-ink, #1a1a1a) 25%, transparent 25%),
+    linear-gradient(45deg, var(--bk-ink, #1a1a1a) 25%, transparent 25%),
+    linear-gradient(315deg, var(--bk-ink, #1a1a1a) 25%, transparent 25%);
   background-position: 10px 0, 10px 0, 0 0, 0 0;
   background-size: 10px 10px;
   background-repeat: repeat;
@@ -186,14 +205,14 @@ dd,
    =========================== */
 
 .bento-card-bold {
-  border: 4px solid #1a1a1a;
-  box-shadow: 6px 6px 0px 0px #1a1a1a;
-  border-radius: 1rem;
-  background: white;
+  border: var(--bk-border-thickness-bold, 4px) solid var(--bk-ink, #1a1a1a);
+  box-shadow: 6px 6px 0px 0px var(--bk-ink, #1a1a1a);
+  border-radius: var(--bk-radius-card, 16px);
+  background: var(--bk-surface-alt, #ffffff);
 }
 
 .chunky-border-bold {
-  border: 4px solid #1a1a1a;
+  border: var(--bk-border-thickness-bold, 4px) solid var(--bk-ink, #1a1a1a);
 }
 
 .wedge-mask-top {
@@ -210,17 +229,21 @@ dd,
 }
 
 .wobbly-button {
-  border: 3px solid #1a1a1a;
-  box-shadow: 4px 4px 0px 0px #1a1a1a;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  border: var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a);
+  box-shadow: 4px 4px 0px 0px var(--bk-ink, #1a1a1a);
+  /* The press feedback is pointer feedback, so it belongs on the fast tier
+     rather than on a literal that ignored BrandMotion.speed entirely. */
+  transition:
+    transform var(--bk-duration-fast, 100ms) ease,
+    box-shadow var(--bk-duration-fast, 100ms) ease;
 }
 .wobbly-button:hover {
   transform: translate(-1px, -1px);
-  box-shadow: 5px 5px 0px 0px #1a1a1a;
+  box-shadow: 5px 5px 0px 0px var(--bk-ink, #1a1a1a);
 }
 .wobbly-button:active {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px 0px #1a1a1a;
+  box-shadow: 2px 2px 0px 0px var(--bk-ink, #1a1a1a);
 }
 
 /* ===========================
@@ -269,6 +292,34 @@ dd,
 }
 
 /* ===========================
+   Looping motion under reduced motion
+   The reset above is the standard one, and it is right for an animation that
+   ends where it should: collapsing the duration lands it on its final frame.
+   A loop is the opposite. The marquee ends at `translateX(-50%)`, so the
+   reset froze every strip half-scrolled — content cut off on one side, blank
+   space on the other — which reads as broken rather than as still. A loop has
+   to be removed, not accelerated, so it sits at its starting frame.
+
+   This is central on purpose. Tailwind's `motion-reduce:` variant answers the
+   visitor's OS preference only; it cannot see a merchant who turned motion off
+   in their own brand kit, which is the `[data-bk-motion="reduce"]` case. One
+   rule covers both, and covers a section added later that nobody remembers to
+   annotate.
+   =========================== */
+[data-bk-motion="reduce"] .animate-marquee,
+[data-bk-motion="reduce"] .animate-marquee * {
+  animation: none !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-bk-motion] .animate-marquee,
+  [data-bk-motion] .animate-marquee * {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* ===========================
    Preview-mode click-to-edit highlight
    The parent editor frame paints its own precise overlay over the
    currently-hovered section using rects forwarded via postMessage. This
@@ -302,9 +353,11 @@ dd,
   .schn-section.reveal-in {
     opacity: 1;
     transform: none;
+    /* The reveal tier, so a merchant who chose "snappy" gets a snappy
+       reveal. This was a fixed 0.7s regardless of BrandMotion.speed. */
     transition:
-      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+      opacity var(--bk-duration-reveal, 700ms) cubic-bezier(0.16, 1, 0.3, 1),
+      transform var(--bk-duration-reveal, 700ms) cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 

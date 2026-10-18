@@ -41,7 +41,7 @@ function FilterChip({
       aria-pressed={active}
       className="inline-flex items-center gap-1 px-3.5 h-9 font-label font-bold text-xs uppercase tracking-wide transition-transform active:scale-95"
       style={{
-        backgroundColor: active ? activeBg : "#ffffff",
+        backgroundColor: active ? activeBg : "var(--bk-surface, #ffffff)",
         color: "var(--bk-ink, #1a1a1a)",
         border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
         borderRadius: "var(--bk-radius-pill, 9999px)",
@@ -109,7 +109,7 @@ export function FilterableProductGrid({
           <FilterChip
             active={onSale}
             onClick={toggleSale}
-            activeBg="var(--bk-mint, #7cf0bd)"
+            activeBg="var(--bk-decor-a, #7cf0bd)"
           >
             {t ? "تخفيضات" : "On Sale"}
           </FilterChip>

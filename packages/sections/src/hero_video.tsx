@@ -79,7 +79,7 @@ function HeroVideo({
             preload="metadata"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-candy-ink via-candy-lilac/60 to-candy-pink/60" />
+          <div className="absolute inset-0 bg-gradient-to-br from-bk-ink via-bk-decor-b/60 to-bk-primary/60" />
         )}
         <div
           className="absolute inset-0"

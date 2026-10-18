@@ -111,7 +111,7 @@ function HeroSplit({
             </div>
           </div>
           <div
-            className="relative min-h-[260px] lg:min-h-[420px] border-t-[3px] lg:border-t-0 lg:border-l-[3px] border-candy-ink"
+            className="relative min-h-[260px] lg:min-h-[420px] border-t-[3px] lg:border-t-0 lg:border-l-[3px] border-bk-ink"
             style={{ backgroundColor: "var(--bk-surface,#fff7ed)" }}
           >
             {props.image_url ? (
@@ -125,7 +125,7 @@ function HeroSplit({
                 className="absolute inset-0 w-full h-full object-cover"
               />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-candy-pink/30 via-candy-butter/40 to-candy-lilac/40" />
+              <div className="absolute inset-0 bg-gradient-to-br from-bk-primary/30 via-bk-accent/40 to-bk-decor-b/40" />
             )}
           </div>
         </div>

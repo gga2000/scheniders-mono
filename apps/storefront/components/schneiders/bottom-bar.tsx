@@ -28,7 +28,7 @@ export function StickyBottomBar({
   cta,
   variant = "mint",
 }: Props) {
-  const bg = variant === "pink" ? "bg-candy-pink" : "bg-candy-mint";
+  const bg = variant === "pink" ? "bg-bk-primary" : "bg-bk-success";
   const waHref = whatsapp
     ? `https://wa.me/${whatsapp.replace(/\D/g, "")}${whatsappMessage ? `?text=${encodeURIComponent(whatsappMessage)}` : ""}`
     : null;
@@ -37,7 +37,7 @@ export function StickyBottomBar({
   return (
     <div
       className={cn(
-        "fixed bottom-0 inset-x-0 z-50 border-t-4 border-candy-ink shadow-[0_-4px_0_0_rgba(26,26,26,1)] pb-safe",
+        "fixed bottom-0 inset-x-0 z-50 border-t-4 border-bk-ink shadow-[0_-4px_0_0_rgba(26,26,26,1)] pb-safe",
         bg,
       )}
     >
@@ -50,7 +50,7 @@ export function StickyBottomBar({
               <a
                 aria-label="Call us"
                 href={callHref}
-                className="w-12 h-12 bento-card-sm bg-white text-candy-ink flex items-center justify-center hover:scale-105 active:scale-95 transition-transform rounded-xl shrink-0"
+                className="w-12 h-12 bento-card-sm bg-white text-bk-ink flex items-center justify-center hover:scale-105 active:scale-95 transition-transform rounded-xl shrink-0"
               >
                 <MaterialIcon name="call" />
               </a>
@@ -64,9 +64,9 @@ export function StickyBottomBar({
               href={waHref ?? "#"}
               target={waHref ? "_blank" : undefined}
               rel={waHref ? "noreferrer" : undefined}
-              className="bento-card bg-white text-candy-ink font-display font-black text-base sm:text-lg px-5 py-3 flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
+              className="bento-card bg-white text-bk-ink font-display font-black text-base sm:text-lg px-5 py-3 flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
             >
-              <WhatsAppIcon className="w-5 h-5 text-candy-ink" />
+              <WhatsAppIcon className="w-5 h-5 text-bk-ink" />
               Order Now
             </a>
           )}
@@ -87,7 +87,7 @@ export function BottomBarCta({
   return (
     <StoreLink
       href={href}
-      className="bento-card bg-white text-candy-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
+      className="bento-card bg-white text-bk-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
     >
       {children}
     </StoreLink>

@@ -88,7 +88,7 @@ function PdpRelatedProductsRender({
           <SectionHeader title={heading} color="lilac" />
         </div>
       )}
-      <div className="flex gap-bk-sm overflow-x-auto px-4 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-bk-sm overflow-x-auto px-4 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((product, i) => (
           <div
             key={product.id}

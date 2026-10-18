@@ -50,7 +50,7 @@ function whatsappHref(raw: string | null | undefined): string | null {
 
 const PILL =
   "inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 py-3 font-display text-base font-bold " +
-  "transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]";
+  "transition-[transform,box-shadow,opacity] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]";
 
 /**
  * Localised, token-styled 404 body. Used inside the V2 chrome when the tenant
