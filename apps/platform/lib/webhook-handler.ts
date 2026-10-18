@@ -505,41 +505,21 @@ async function resolveMissingAttribution(webhook: LightFunnelsWebhook): Promise<
 }
 
 /**
- * Check if order already exists (duplicate detection)
+ * Check if a phone number is on `tenantId`'s blacklist. This runs on the
+ * service-role client, so RLS does not scope it: without the tenant filter one
+ * merchant's blacklist silently dropped another merchant's orders.
  */
-export async function checkDuplicateOrder(lightfunnelsOrderId: string): Promise<boolean> {
-    try {
-        const { data, error } = await supabase
-            .from("orders")
-            .select("id")
-            .eq("order_id", lightfunnelsOrderId)
-            .single();
-
-        if (error && error.code !== "PGRST116") {
-            // PGRST116 = not found, which is what we want
-            console.error("Error checking duplicate:", error);
-            return false;
-        }
-
-        return !!data; // Returns true if order exists
-    } catch (error) {
-        console.error("Error in duplicate check:", error);
-        return false;
-    }
-}
-
-/**
- * Check if phone number is blacklisted
- */
-export async function checkBlacklist(phone: string): Promise<{ isBlacklisted: boolean; reason?: string }> {
+export async function checkBlacklist(phone: string, tenantId: string): Promise<{ isBlacklisted: boolean; reason?: string }> {
     try {
         const formattedPhone = formatPhoneToStandard(phone);
 
         const { data, error } = await supabase
             .from("blacklist")
             .select("reason")
+            .eq("tenant_id", tenantId)
             .eq("phone", formattedPhone)
-            .single();
+            .limit(1)
+            .maybeSingle();
 
         if (error && error.code !== "PGRST116") {
             console.error("Error checking blacklist:", error);
@@ -553,47 +533,6 @@ export async function checkBlacklist(phone: string): Promise<{ isBlacklisted: bo
     } catch (error) {
         console.error("Error in blacklist check:", error);
         return { isBlacklisted: false };
-    }
-}
-
-/**
- * Check if customer has previously rejected orders
- */
-export async function checkRejectionHistory(phone: string): Promise<{
-    hasRejections: boolean;
-    rejectionCount: number;
-    lastRejectionReason?: string;
-    lastRejectionDate?: string;
-}> {
-    try {
-        const formattedPhone = formatPhoneToStandard(phone);
-
-        const { data, error } = await supabase
-            .from("orders")
-            .select("rejection_reason, created_at")
-            .eq("phone", formattedPhone)
-            .eq("status", "rejected")
-            .order("created_at", { ascending: false })
-            .limit(5); // Get last 5 rejections to understand pattern
-
-        if (error) {
-            console.error("Error checking rejection history:", error);
-            return { hasRejections: false, rejectionCount: 0 };
-        }
-
-        if (!data || data.length === 0) {
-            return { hasRejections: false, rejectionCount: 0 };
-        }
-
-        return {
-            hasRejections: true,
-            rejectionCount: data.length,
-            lastRejectionReason: data[0]?.rejection_reason,
-            lastRejectionDate: data[0]?.created_at,
-        };
-    } catch (error) {
-        console.error("Error in rejection history check:", error);
-        return { hasRejections: false, rejectionCount: 0 };
     }
 }
 
@@ -630,10 +569,14 @@ function extractCoreKeyword(lightfunnelsName: string): string {
 }
 
 /**
- * Find product by SKU for linking, with fallback to name matching
- * Uses multiple strategies for robust Arabic text matching
+ * Find one of `tenantId`'s products by SKU for linking, with fallback to name
+ * matching. Uses multiple strategies for robust Arabic text matching.
+ *
+ * Service-role client, so RLS does not scope it: without the tenant filter an
+ * order could be bound to — and decrement the stock of — another merchant's
+ * product with a similar name.
  */
-async function findProductBySku(sku: string | undefined, lightfunnelsName: string): Promise<{
+async function findProductBySku(sku: string | undefined, lightfunnelsName: string, tenantId: string): Promise<{
     id: string;
     name: string;
     short_name?: string | null;
@@ -645,16 +588,18 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
         const { data: skuMatch } = await supabase
             .from('products')
             .select('id, name, short_name, image_url, tag_color')
+            .eq('tenant_id', tenantId)
             .eq('sku', sku)
             .single();
 
         if (skuMatch) return skuMatch;
     }
 
-    // Fetch all products once for matching strategies
+    // Fetch the tenant's products once for matching strategies
     const { data: allProducts } = await supabase
         .from('products')
-        .select('id, name, short_name, image_url, tag_color, lightfunnels_aliases');
+        .select('id, name, short_name, image_url, tag_color, lightfunnels_aliases')
+        .eq('tenant_id', tenantId);
 
     if (!allProducts || allProducts.length === 0) return null;
 
@@ -748,12 +693,21 @@ async function findProductBySku(sku: string | undefined, lightfunnelsName: strin
  * Create order from webhook data
  */
 export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenantId?: string | null) {
+    // Every lookup below runs on the service-role client, where RLS does not
+    // apply, so each must be filtered by the tenant. With no tenant there is
+    // nothing safe to filter by, and the order would be created with a NULL
+    // tenant_id that no merchant can see.
+    if (!tenantId) {
+        console.error(`[createOrderFromWebhook] No tenant for order ${webhook.order_number}`);
+        return { success: false, error: "No tenant configured for this webhook" };
+    }
+
     try {
         // Format phone number
         const formattedPhone = formatPhoneToStandard(webhook.customer.phone);
 
         // Check blacklist
-        const blacklistResult = await checkBlacklist(formattedPhone);
+        const blacklistResult = await checkBlacklist(formattedPhone, tenantId);
         if (blacklistResult.isBlacklisted) {
             return {
                 success: false,
@@ -769,9 +723,12 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             const now = new Date();
             const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
+            // Same tenant only: a real order for this phone in ANOTHER tenant
+            // says nothing about this merchant's abandoned checkout.
             const { data: existingRealOrders, error: checkErr } = await supabase
                 .from("orders")
                 .select("id")
+                .eq("tenant_id", tenantId)
                 .eq("phone", formattedPhone)
                 .neq("status", "pending_checkout")
                 .gte("created_at", windowStart)
@@ -792,7 +749,10 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
         const lightfunnelsOrderId = webhook.order_number;
         console.log('[createOrderFromWebhook] order_id being sent to RPC:', lightfunnelsOrderId, '(webhook.order_id:', webhook.order_id, ', webhook.order_number:', webhook.order_number, ')');
 
-        // Check for duplicate by order_id
+        // Check for duplicate by order_id. Deliberately NOT tenant-filtered:
+        // orders.order_id carries a table-wide UNIQUE constraint
+        // (orders_order_id_key), so the insert would fail on any tenant's row.
+        // Only the id is read.
         const { data: existingOrder } = await supabase
             .from("orders")
             .select("id")
@@ -810,7 +770,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
         // Map items with SKU for product matching
         const items: OrderItem[] = await Promise.all(
             webhook.items.map(async (item) => {
-                const product = await findProductBySku(item.sku, item.name);
+                const product = await findProductBySku(item.sku, item.name, tenantId);
 
                 // CRITICAL FIX: Use local product data when matched
                 // This ensures we use our app's short names and images, not LightFunnels' full titles
@@ -934,7 +894,7 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
 
         // Use atomic RPC to create order with Lightfunnels order ID
         const { data, error } = await supabase
-            .rpc('create_order_atomic', { _order_data: orderData, _tenant_id: tenantId ?? null });
+            .rpc('create_order_atomic', { _order_data: orderData, _tenant_id: tenantId });
 
         if (error) {
             console.error("Error creating order:", error);
@@ -949,16 +909,12 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
         // A real order (not a checkout) supersedes the customer's abandoned
         // checkouts for the same tenant — soft-delete them.
         if (!webhook.is_checkout && formattedPhone) {
-            if (tenantId) {
-                await cleanupAbandonedCheckouts(supabase, {
-                    tenantId,
-                    phone: formattedPhone,
-                    checkoutId: webhook.checkout_id,
-                    orderNumber: webhook.order_number,
-                });
-            } else {
-                console.warn(`[Cleanup] No tenant for order ${webhook.order_number} — skipping abandoned-checkout cleanup`);
-            }
+            await cleanupAbandonedCheckouts(supabase, {
+                tenantId,
+                phone: formattedPhone,
+                checkoutId: webhook.checkout_id,
+                orderNumber: webhook.order_number,
+            });
         }
 
         return {

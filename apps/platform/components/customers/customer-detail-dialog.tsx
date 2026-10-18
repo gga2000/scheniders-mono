@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { trustEngine } from "@/lib/fraud-detector";
 import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -73,24 +74,30 @@ function monthYear(d?: string | null) {
 }
 
 function useCustomerDialogData(phone: string | null, limit = 60) {
+    // Every read is limited to the active tenant: RLS alone would merge the
+    // same phone's history across every tenant the user belongs to.
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customer-dialog", phone, limit],
-        enabled: !!phone,
+        queryKey: ["customer-dialog", tenantId, phone, limit],
+        enabled: !!phone && !!tenantId,
         staleTime: 5 * 60 * 1000,
         queryFn: async () => {
+            if (!tenantId) throw new Error("No active tenant");
             const normalized = trustEngine.normalizePhone(phone as string);
             const variants = [normalized, `0${normalized}`, `964${normalized}`, `+964${normalized}`];
 
             const [ordersRes, trustRes, tagRes, noteRes, countRes] = await Promise.all([
                 supabase.from("orders")
                     .select("id, order_id, created_at, items, price, discount_amount, delivery_fee, notes, address_details, city, governorate_code, status, payment_status, is_return, customer_name, secondary_phone")
+                    .eq("tenant_id", tenantId)
                     .in("phone", variants).order("created_at", { ascending: false }).limit(limit),
                 supabase.from("customer_trust")
                     .select("avg_basket, delivered_count, community_avg_rating, community_rating_count, score_breakdown, first_order_date")
+                    .eq("tenant_id", tenantId)
                     .eq("phone", normalized).maybeSingle(),
-                supabase.from("customer_tag_assignments").select("tag:customer_tags(name)").in("customer_phone", variants),
-                supabase.from("customer_notes").select("note, created_at").in("customer_phone", variants).order("created_at", { ascending: false }),
-                supabase.from("orders").select("id", { count: "exact", head: true }).in("phone", variants),
+                supabase.from("customer_tag_assignments").select("tag:customer_tags(name)").eq("tenant_id", tenantId).in("customer_phone", variants),
+                supabase.from("customer_notes").select("note, created_at").eq("tenant_id", tenantId).in("customer_phone", variants).order("created_at", { ascending: false }),
+                supabase.from("orders").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).in("phone", variants),
             ]);
 
             const orders = (ordersRes.data ?? []) as DialogOrder[];

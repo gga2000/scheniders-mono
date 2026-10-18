@@ -51,7 +51,7 @@ const DELIVERED_RECEIPT = {
             meta_data: { source_data: { callback_data: "staff_alert:ecf63b78-c155-4aa3-89d2-70f01087607e" } },
             message_status: "Delivered",
         },
-        customer: { phone_number: "7802301677", country_code: "+964" },
+        customer: { phone_number: "7801234567", country_code: "+964" },
     },
 };
 

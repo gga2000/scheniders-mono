@@ -42,7 +42,7 @@ export function useDuplicateWindowAlerts(
      */
     duplicateCandidates: Order[];
 } {
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
     const candidateWindow = duplicateCandidateWindow(window);
 
     // Only a windowed view needs the margin; with the complete set loaded the
@@ -51,8 +51,11 @@ export function useDuplicateWindowAlerts(
     // `orderKeys.all` alone a twin's status change would sit stale here.
     const { data: margin } = useQuery({
         queryKey: duplicateCandidateKeys.window(candidateWindow),
-        queryFn: () => orderRepository.findWindow(candidateWindow),
-        enabled: candidateWindow !== null && !!session && clientReady,
+        queryFn: () => {
+            if (!tenantId) throw new Error("No active tenant");
+            return orderRepository.findWindow(tenantId, candidateWindow);
+        },
+        enabled: candidateWindow !== null && !!session && clientReady && !!tenantId,
         staleTime: 60_000,
     });
 

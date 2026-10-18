@@ -61,9 +61,10 @@ interface ActivityExport {
 
 class CustomerDataExportService {
     /**
-     * Export all data for a customer (GDPR-style)
+     * Export all of `tenantId`'s data for a customer (GDPR-style). A phone can
+     * be a customer of several tenants; each tenant exports only its own.
      */
-    async exportCustomerData(phone: string): Promise<CustomerDataExport> {
+    async exportCustomerData(tenantId: string, phone: string): Promise<CustomerDataExport> {
         const normalizedPhone = this.normalizePhone(phone);
         const exportedAt = new Date().toISOString();
 
@@ -71,6 +72,7 @@ class CustomerDataExportService {
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
             .select("*")
+            .eq("tenant_id", tenantId)
             .or(`phone.eq.${normalizedPhone},secondary_phone.eq.${normalizedPhone}`)
             .order("created_at", { ascending: false });
 
@@ -83,6 +85,7 @@ class CustomerDataExportService {
         const { data: blacklistEntry } = await supabase
             .from("blacklist")
             .select("*")
+            .eq("tenant_id", tenantId)
             .eq("phone", normalizedPhone)
             .maybeSingle();
 
@@ -166,8 +169,8 @@ class CustomerDataExportService {
     /**
      * Generate downloadable JSON file
      */
-    async downloadAsJSON(phone: string): Promise<void> {
-        const data = await this.exportCustomerData(phone);
+    async downloadAsJSON(tenantId: string, phone: string): Promise<void> {
+        const data = await this.exportCustomerData(tenantId, phone);
         const json = JSON.stringify(data, null, 2);
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -184,8 +187,8 @@ class CustomerDataExportService {
     /**
      * Generate downloadable CSV file with orders
      */
-    async downloadAsCSV(phone: string): Promise<void> {
-        const data = await this.exportCustomerData(phone);
+    async downloadAsCSV(tenantId: string, phone: string): Promise<void> {
+        const data = await this.exportCustomerData(tenantId, phone);
 
         // CSV header
         const headers = [

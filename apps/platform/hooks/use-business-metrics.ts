@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export interface BusinessMetrics {
     total_customers: number;
@@ -20,9 +21,12 @@ export interface BusinessMetrics {
 }
 
 export function useBusinessMetrics() {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["business-metrics", "v2"],
+        queryKey: ["business-metrics", "v2", tenantId],
+        enabled: !!tenantId,
         queryFn: async (): Promise<BusinessMetrics> => {
+            if (!tenantId) throw new Error("No active tenant");
             // Get current date boundaries
             const now = new Date();
             const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -35,7 +39,8 @@ export function useBusinessMetrics() {
             // Fetch all customer aggregates in one query
             const { data: customers, error } = await supabase
                 .from("customer_aggregates")
-                .select("*");
+                .select("*")
+                .eq("tenant_id", tenantId);
 
             if (error) throw error;
             if (!customers) throw new Error("No customer data found");
@@ -76,21 +81,24 @@ export function useBusinessMetrics() {
             }).length;
 
             // Revenue growth vs last month (query orders table for accurate monthly revenue)
+            // `orders` has no `total` column; the order total is `price`.
             const { data: currentMonthOrders } = await supabase
                 .from("orders")
-                .select("total")
+                .select("price")
+                .eq("tenant_id", tenantId)
                 .gte("created_at", startOfMonth.toISOString())
                 .in("status", ["delivered", "confirmed"]);
 
             const { data: lastMonthOrders } = await supabase
                 .from("orders")
-                .select("total")
+                .select("price")
+                .eq("tenant_id", tenantId)
                 .gte("created_at", startOfLastMonth.toISOString())
                 .lte("created_at", endOfLastMonth.toISOString())
                 .in("status", ["delivered", "confirmed"]);
 
-            const currentMonthRevenue = currentMonthOrders?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
-            const lastMonthRevenue = lastMonthOrders?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
+            const currentMonthRevenue = currentMonthOrders?.reduce((sum, o) => sum + Number(o.price || 0), 0) || 0;
+            const lastMonthRevenue = lastMonthOrders?.reduce((sum, o) => sum + Number(o.price || 0), 0) || 0;
 
             const revenue_growth_percent =
                 lastMonthRevenue > 0

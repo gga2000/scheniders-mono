@@ -22,7 +22,7 @@ function order(overrides: Partial<Order> & { id: string }): Order {
         created_at: BASE,
         order_id: overrides.id,
         customer_name: "علي",
-        phone: "07802301677",
+        phone: "07801234567",
         items: [{ name: "عطر فولاريس", quantity: 1, price: 43000 }],
         price: 43000,
         status: "new",
@@ -185,7 +185,7 @@ describe("buildDuplicateWindowIndex — exclusions", () => {
 
     it("does not group two different customers", () => {
         const index = buildDuplicateWindowIndex([
-            order({ id: "a", phone: "07802301677" }),
+            order({ id: "a", phone: "07801234567" }),
             order({ id: "b", phone: "07712345678" }),
         ]);
         expect(index.size).toBe(0);
@@ -195,9 +195,9 @@ describe("buildDuplicateWindowIndex — exclusions", () => {
 describe("buildDuplicateWindowIndex — phone normalization", () => {
     it("collapses +964 / 964 / leading-zero / Arabic-Indic forms", () => {
         const index = buildDuplicateWindowIndex([
-            order({ id: "local", phone: "07802301677" }),
-            order({ id: "e164", phone: "+9647802301677" }),
-            order({ id: "cc", phone: "9647802301677" }),
+            order({ id: "local", phone: "07801234567" }),
+            order({ id: "e164", phone: "+9647801234567" }),
+            order({ id: "cc", phone: "9647801234567" }),
             order({ id: "arabic", phone: "٠٧٨٠٢٣٠١٦٧٧" }),
         ]);
         expect(index.get("local")?.twins).toHaveLength(3);
@@ -205,7 +205,7 @@ describe("buildDuplicateWindowIndex — phone normalization", () => {
 
     it("ignores spacing and dashes", () => {
         const index = buildDuplicateWindowIndex([
-            order({ id: "a", phone: "0780 230 1677" }),
+            order({ id: "a", phone: "0780 123 4567" }),
             order({ id: "b", phone: "0780-230-1677" }),
         ]);
         expect(index.get("a")?.primary.id).toBe("b");
@@ -241,7 +241,7 @@ describe("live scenario — orders 3260911001 / 3260911002", () => {
     const confirmedOne = order({
         id: "live-1",
         order_id: "3260911001",
-        phone: "07802301677",
+        phone: "07801234567",
         secondary_phone: "07811262261",
         status: "confirmed",
         created_at: "2026-09-11T07:09:38.123Z",
@@ -250,7 +250,7 @@ describe("live scenario — orders 3260911001 / 3260911002", () => {
     const contactedOne = order({
         id: "live-2",
         order_id: "3260911002",
-        phone: "07802301677",
+        phone: "07801234567",
         secondary_phone: "07811262261",
         status: "contacted",
         created_at: "2026-09-11T07:09:59.786Z",
@@ -292,7 +292,7 @@ describe("buildDuplicateWindowIndex — matching across both numbers", () => {
         const a = order({
             id: "a",
             order_id: "3260911004",
-            phone: "07802301677",
+            phone: "07801234567",
             secondary_phone: "07811262261",
             status: "confirmed",
             created_at: "2026-09-11T09:05:22.617Z",
@@ -301,7 +301,7 @@ describe("buildDuplicateWindowIndex — matching across both numbers", () => {
             id: "b",
             order_id: "3260911003",
             phone: "07811262261",
-            secondary_phone: "07802301677",
+            secondary_phone: "07801234567",
             status: "confirmed",
             created_at: "2026-09-11T08:15:55.856Z",
         });
@@ -315,20 +315,20 @@ describe("buildDuplicateWindowIndex — matching across both numbers", () => {
     });
 
     it("matches when only the secondary of one meets the primary of the other", () => {
-        const a = order({ id: "a", phone: "07802301677", secondary_phone: undefined });
-        const b = order({ id: "b", phone: "07712345678", secondary_phone: "07802301677" });
+        const a = order({ id: "a", phone: "07801234567", secondary_phone: undefined });
+        const b = order({ id: "b", phone: "07712345678", secondary_phone: "07801234567" });
 
         const index = buildDuplicateWindowIndex([a, b]);
         expect(index.get("a")?.primary.id).toBe("b");
         // b leads with a different number, so a's banner must name the shared one.
         expect(index.get("a")?.matchedOnPrimary).toBe(false);
         expect(index.get("b")?.matchedOnPrimary).toBe(false);
-        expect(index.get("b")?.sharedNumber).toBe("7802301677");
+        expect(index.get("b")?.sharedNumber).toBe("7801234567");
     });
 
     it("matches on a shared secondary alone", () => {
-        const a = order({ id: "a", phone: "07712345678", secondary_phone: "07802301677" });
-        const b = order({ id: "b", phone: "07733333333", secondary_phone: "07802301677" });
+        const a = order({ id: "a", phone: "07712345678", secondary_phone: "07801234567" });
+        const b = order({ id: "b", phone: "07733333333", secondary_phone: "07801234567" });
 
         const index = buildDuplicateWindowIndex([a, b]);
         expect(index.get("a")?.primary.id).toBe("b");
@@ -336,8 +336,8 @@ describe("buildDuplicateWindowIndex — matching across both numbers", () => {
     });
 
     it("counts a twin once even when both numbers match", () => {
-        const a = order({ id: "a", phone: "07802301677", secondary_phone: "07811262261" });
-        const b = order({ id: "b", phone: "07802301677", secondary_phone: "07811262261" });
+        const a = order({ id: "a", phone: "07801234567", secondary_phone: "07811262261" });
+        const b = order({ id: "b", phone: "07801234567", secondary_phone: "07811262261" });
 
         expect(buildDuplicateWindowIndex([a, b]).get("a")?.twins).toHaveLength(1);
     });
@@ -356,11 +356,11 @@ describe("buildDuplicateWindowIndex — matching across both numbers", () => {
     });
 
     it("still ignores an order whose only shared number sits outside the window", () => {
-        const a = order({ id: "a", phone: "07802301677", secondary_phone: "07811262261" });
+        const a = order({ id: "a", phone: "07801234567", secondary_phone: "07811262261" });
         const b = order({
             id: "b",
             phone: "07811262261",
-            secondary_phone: "07802301677",
+            secondary_phone: "07801234567",
             created_at: hoursFrom(BASE, 72),
         });
 
@@ -371,8 +371,8 @@ describe("buildDuplicateWindowIndex — matching across both numbers", () => {
 describe("matchedOnPrimary", () => {
     it("is true only when both orders lead with the shared number", () => {
         const index = buildDuplicateWindowIndex([
-            order({ id: "a", phone: "07802301677" }),
-            order({ id: "b", phone: "07802301677" }),
+            order({ id: "a", phone: "07801234567" }),
+            order({ id: "b", phone: "07801234567" }),
         ]);
         expect(index.get("a")?.matchedOnPrimary).toBe(true);
     });
@@ -381,8 +381,8 @@ describe("matchedOnPrimary", () => {
         // The shared number is a's primary but b's secondary — b's card shows a
         // different lead number, so the match needs explaining.
         const index = buildDuplicateWindowIndex([
-            order({ id: "a", phone: "07802301677", secondary_phone: "07811262261" }),
-            order({ id: "b", phone: "07811262261", secondary_phone: "07802301677" }),
+            order({ id: "a", phone: "07801234567", secondary_phone: "07811262261" }),
+            order({ id: "b", phone: "07811262261", secondary_phone: "07801234567" }),
         ]);
         expect(index.get("a")?.matchedOnPrimary).toBe(false);
         expect(index.get("b")?.matchedOnPrimary).toBe(false);
@@ -501,8 +501,8 @@ describe("compareTwinsFor — what the compare modal lines up", () => {
     });
 
     it("adds a twin matched only through the secondary number", () => {
-        const subject = order({ id: "s", phone: "07701112222", secondary_phone: "07802301677" });
-        const twin = order({ id: "t", phone: "07802301677", created_at: hoursFrom(BASE, 1) });
+        const subject = order({ id: "s", phone: "07701112222", secondary_phone: "07801234567" });
+        const twin = order({ id: "t", phone: "07801234567", created_at: hoursFrom(BASE, 1) });
         const alert = buildDuplicateWindowIndex([subject, twin]).get("s");
 
         expect(compareTwinsFor(subject, [subject, twin], alert).map(o => o.id)).toEqual(["t"]);

@@ -175,13 +175,14 @@ export interface ReasonUsage {
     total: number;
 }
 
-export async function fetchReasonUsage(kind: ReasonKind): Promise<ReasonUsage> {
+export async function fetchReasonUsage(tenantId: string, kind: ReasonKind): Promise<ReasonUsage> {
     const status = kind === "reject" ? "rejected" : "cancelled";
     try {
         type UsageRow = { reason_id: string | null; rejection_reason: string | null };
         const { data, error } = await supabase
             .from("orders")
             .select("reason_id, rejection_reason")
+            .eq("tenant_id", tenantId)
             .eq("status", status);
         if (error) throw error;
         const rows = (data ?? []) as UsageRow[];

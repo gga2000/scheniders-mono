@@ -9,16 +9,16 @@ afterEach(cleanup);
 
 describe("formatPhoneGrouped", () => {
     it("groups a local Iraqi number 4-3-4", () => {
-        expect(formatPhoneGrouped("07802301677")).toBe("0780 230 1677");
+        expect(formatPhoneGrouped("07801234567")).toBe("0780 123 4567");
     });
 
     it("strips the country code before grouping", () => {
-        expect(formatPhoneGrouped("+9647802301677")).toBe("0780 230 1677");
-        expect(formatPhoneGrouped("9647802301677")).toBe("0780 230 1677");
+        expect(formatPhoneGrouped("+9647801234567")).toBe("0780 123 4567");
+        expect(formatPhoneGrouped("9647801234567")).toBe("0780 123 4567");
     });
 
     it("converts Arabic-Indic digits", () => {
-        expect(formatPhoneGrouped("٠٧٨٠٢٣٠١٦٧٧")).toBe("0780 230 1677");
+        expect(formatPhoneGrouped("٠٧٨٠٢٣٠١٦٧٧")).toBe("0780 123 4567");
     });
 
     it("leaves non-standard lengths ungrouped", () => {
@@ -30,33 +30,33 @@ describe("formatPhoneGrouped", () => {
 
 describe("HighlightedPhone", () => {
     it("renders the grouped number", () => {
-        render(<HighlightedPhone phone="07802301677" query="" />);
-        expect(screen.getByText("0780 230 1677")).toBeTruthy();
+        render(<HighlightedPhone phone="07801234567" query="" />);
+        expect(screen.getByText("0780 123 4567")).toBeTruthy();
     });
 
     it("highlights a query that spans a group boundary", () => {
-        const { container } = render(<HighlightedPhone phone="07802301677" query="780230" />);
+        const { container } = render(<HighlightedPhone phone="07801234567" query="780230" />);
         const mark = container.querySelector("mark");
         expect(mark?.textContent).toBe("780 230");
     });
 
     it("highlights a full number typed without the leading zero", () => {
-        const { container } = render(<HighlightedPhone phone="07802301677" query="7802301677" />);
-        expect(container.querySelector("mark")?.textContent).toBe("780 230 1677");
+        const { container } = render(<HighlightedPhone phone="07801234567" query="7801234567" />);
+        expect(container.querySelector("mark")?.textContent).toBe("780 123 4567");
     });
 
     it("highlights a full number typed with the leading zero", () => {
-        const { container } = render(<HighlightedPhone phone="07802301677" query="07802301677" />);
-        expect(container.querySelector("mark")?.textContent).toBe("0780 230 1677");
+        const { container } = render(<HighlightedPhone phone="07801234567" query="07801234567" />);
+        expect(container.querySelector("mark")?.textContent).toBe("0780 123 4567");
     });
 
     it("does not highlight when the digits do not match", () => {
-        const { container } = render(<HighlightedPhone phone="07802301677" query="0555" />);
+        const { container } = render(<HighlightedPhone phone="07801234567" query="0555" />);
         expect(container.querySelector("mark")).toBeNull();
     });
 
     it("does not highlight for a non-numeric query", () => {
-        const { container } = render(<HighlightedPhone phone="07802301677" query="علي" />);
+        const { container } = render(<HighlightedPhone phone="07801234567" query="علي" />);
         expect(container.querySelector("mark")).toBeNull();
     });
 });

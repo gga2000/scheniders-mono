@@ -7,6 +7,7 @@ import { ArrowLeft, Filter, Eye, Download } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth/auth-provider";
 import { trustEngine } from "@/lib/fraud-detector";
 import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
 import { useVoiceNotes } from "@/hooks/use-voice-notes";
@@ -30,9 +31,15 @@ import { AddNoteModal } from "@/components/customers/modals/add-note-modal";
 import type { TrustTier } from "@/types/customer";
 
 function useCustomerProfile(phone: string) {
+    // RLS limits every read to the caller's tenants; the explicit tenant filter
+    // keeps the dossier to the tenant being worked in, so a phone that is a
+    // customer of two tenants never merges their orders, notes and trust.
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customer-profile", phone],
+        queryKey: ["customer-profile", tenantId, phone],
+        enabled: !!tenantId,
         queryFn: async () => {
+            if (!tenantId) throw new Error("No active tenant");
             const normalized = trustEngine.normalizePhone(phone);
             // Match every stored phone format for this person: bare (07…/7…), the
             // normalized key, `964…` and `+964…`. supabase-js encodes the leading
@@ -42,12 +49,14 @@ function useCustomerProfile(phone: string) {
             const { data: trust } = await supabase
                 .from("customer_trust")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .eq("phone", normalized)
                 .maybeSingle();
 
             const { data: aggRows } = await supabase
                 .from("customer_aggregates")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .in("customer_phone", phoneVariants)
                 .limit(1);
             const agg = aggRows?.[0] || null;
@@ -55,17 +64,20 @@ function useCustomerProfile(phone: string) {
             const { data: notes } = await supabase
                 .from("customer_notes")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .in("customer_phone", phoneVariants)
                 .order("created_at", { ascending: false });
 
             const { data: tagAssignments } = await supabase
                 .from("customer_tag_assignments")
                 .select("*, tag:customer_tags(*)")
+                .eq("tenant_id", tenantId)
                 .in("customer_phone", phoneVariants);
 
             const { data: blacklistRows } = await supabase
                 .from("blacklist")
                 .select("phone")
+                .eq("tenant_id", tenantId)
                 .in("phone", phoneVariants)
                 .limit(1);
             const blacklist = blacklistRows?.[0] || null;
@@ -80,6 +92,7 @@ function useCustomerProfile(phone: string) {
             const { data: orders } = await supabase
                 .from("orders")
                 .select("id, order_id, created_at, items, price, total_price:price, status, governorate_code")
+                .eq("tenant_id", tenantId)
                 .in("phone", phoneVariants)
                 .order("created_at", { ascending: false })
                 .limit(200);
@@ -142,6 +155,7 @@ function OrderStatusBadge({ status }: { status: string }) {
 
 function CustomerProfileContent({ phone }: { phone: string }) {
     const { t } = useLanguage();
+    const { tenantId } = useAuth();
     const router = useRouter();
     const store = useCustomerStore();
 
@@ -173,8 +187,9 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             {/* Floating export action (top-right). Lazy-loads customer-data-export to keep this route's bundle lean. */}
             <button
                 onClick={async () => {
+                    if (!tenantId) return;
                     const { customerDataExport } = await import("@/lib/customer-data-export");
-                    await customerDataExport.downloadAsJSON(phone);
+                    await customerDataExport.downloadAsJSON(tenantId, phone);
                 }}
                 title="Download all customer data as JSON"
                 className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
