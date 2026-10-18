@@ -10,9 +10,16 @@ const querySchema = z.object({
   phone: z.string().min(1),
 });
 
+// `stage` is the real state of the order; `status` is only the coarse 5-step
+// timeline key, which collapses cancelled / rejected / no_response /
+// suspended into "placed" and refund_delivered into "delivered". Dropping
+// `stage` here is what made the tracker tell a cancelled order's customer
+// "Order received". Optional so an older `lookup_order` still parses — the
+// client falls back to `status` when it is missing.
 const lookupRowSchema = z.object({
   order_number: z.string(),
   status: z.string(),
+  stage: z.string().nullable().optional(),
   customer_name: z.string().nullable(),
   governorate: z.string().nullable(),
 });
@@ -70,6 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({
       order_number: row.order_number,
       status: row.status,
+      stage: row.stage ?? undefined,
       customer_name: row.customer_name ?? undefined,
       governorate: row.governorate ?? undefined,
     });
