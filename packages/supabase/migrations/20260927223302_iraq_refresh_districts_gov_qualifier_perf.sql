@@ -49,8 +49,7 @@ BEGIN
     ),
     best AS (
         SELECT DISTINCT ON (id) id, district_id
-          FROM hit
-         ORDER BY id, is_gov_qualifier, len DESC, district_id
+          FROM hit ORDER BY id, is_gov_qualifier, len DESC, district_id
     )
     UPDATE iraq_locations l
        SET district_id = best.district_id, updated_at = now()
