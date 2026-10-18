@@ -169,7 +169,9 @@ export default function CommandCenterPage() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ((data as any)?.recentActivity ?? []) as Array<{
                 id: string;
-                admin_id: string;
+                admin_user_id: string | null;
+                admin_label: string | null;
+                actor_email: string | null;
                 action: string;
                 details: Record<string, unknown> | null;
                 tenant_id: string | null;

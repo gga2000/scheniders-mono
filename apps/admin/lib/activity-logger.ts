@@ -23,31 +23,57 @@ function normalizeAdminId(value: string | null): {
   return { uuid: null, label: value };
 }
 
-export async function logAdminActivity({
-  adminUserId,
-  adminLabel,
-  actorEmail,
-  tenantId,
-  action,
-  details = {},
-  ipAddress,
-  userAgent,
-}: LogParams) {
-  const supabase = createAdminClient();
+/**
+ * Build one audit row. Every writer goes through this so the column names live
+ * in exactly one place — three call sites previously inserted `admin_id`, which
+ * does not exist on the table, so no admin action was ever recorded.
+ */
+function buildRow(
+  { adminUserId, adminLabel, actorEmail, action, details = {}, ipAddress, userAgent }: LogParams,
+  tenantId: string | null
+) {
   const { uuid, label } = normalizeAdminId(adminUserId);
-
-  const { error } = await supabase.from("admin_activity_logs").insert({
+  return {
     admin_user_id: uuid,
     admin_label: adminLabel ?? label ?? "system",
     actor_email: actorEmail ?? null,
-    tenant_id: tenantId ?? null,
+    tenant_id: tenantId,
     action,
     details,
     ip_address: ipAddress ?? null,
     user_agent: userAgent ?? null,
-  });
+  };
+}
+
+export async function logAdminActivity(params: LogParams) {
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("admin_activity_logs")
+    .insert(buildRow(params, params.tenantId ?? null));
 
   if (error) {
     console.error("[Admin Activity Logger] Failed to log:", error);
+  }
+}
+
+/**
+ * Log one row per tenant for a bulk action, in a single insert. The envelope
+ * (actor, action, details) is shared; only `tenant_id` varies.
+ */
+export async function logAdminActivityBatch(
+  params: Omit<LogParams, "tenantId"> & { tenantIds: string[] }
+) {
+  const { tenantIds, ...envelope } = params;
+  if (tenantIds.length === 0) return;
+
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("admin_activity_logs")
+    .insert(tenantIds.map((tenantId) => buildRow(envelope, tenantId)));
+
+  if (error) {
+    console.error("[Admin Activity Logger] Failed to log batch:", error);
   }
 }
