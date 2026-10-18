@@ -13,6 +13,7 @@ import {
     Settings,
     FileText,
     Eye,
+    Tags,
 } from "lucide-react";
 
 export interface SectionDef {
@@ -29,6 +30,7 @@ const SECTIONS: SectionDef[] = [
     { id: "pricing", labelKey: "products.editor.nav.pricing", icon: DollarSign },
     { id: "variants", labelKey: "products.editor.nav.variants", icon: Layers },
     { id: "storefront", labelKey: "products.editor.nav.storefront", icon: Globe },
+    { id: "attributes", labelKey: "products.editor.nav.attributes", icon: Tags },
     { id: "inventory", labelKey: "products.editor.nav.inventory", icon: Box },
     { id: "cms", labelKey: "products.editor.nav.cms", icon: FileText },
     { id: "preview", labelKey: "products.editor.nav.preview", icon: Eye },

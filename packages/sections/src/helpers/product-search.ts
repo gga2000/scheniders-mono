@@ -9,38 +9,53 @@
 // with optional marks a shopper does not type. "الأكثر" and "الاكثر" differ
 // by one hamza, "عودة" and "عوده" by the final taa, and "٣٠" and "30" are
 // the same number in two digit sets. A plain substring match misses all
-// three, and the shopper reads that as "the store doesn't have it".
+// three, and the shopper reads that as "the store doesn't have it". The
+// folding itself lives in @scheniders/shared (`normalizeArabic`) so there is
+// exactly one definition of "the same word".
 // =====================================================================
 
+import { matchesAllTokens, resolveI18n, searchTokens } from "@scheniders/shared";
+import type { LocaleCode } from "@scheniders/shared";
 import type { Product } from "../types";
 
-/** Tashkeel, the superscript alef, and the tatweel used to stretch a word. */
-const MARKS = /[ً-ْٰـ]/g;
-
-/** Arabic-Indic (٠-٩) and extended Arabic-Indic (۰-۹) digits. */
-const AR_DIGITS = /[٠-٩۰-۹]/g;
-
 /**
- * The form two spellings of the same word collapse into. Lossy on purpose —
- * it is a search key, never anything shown to a shopper.
+ * Everything about a product that is worth searching: its own text, plus —
+ * when the shopper's locale is known — the merchant's attribute values. A
+ * shopper looking for "عنبر" means a perfume with amber in it, and only the
+ * note pyramid knows that.
+ *
+ * Only the human-readable side of an attribute is indexed, in the shopper's
+ * locale: option LABELS rather than their machine values, so nobody finds a
+ * product by typing "oriental" at an Arabic storefront. Without a locale
+ * there is no label to read, so only the product's own text is searched.
  */
-export function normalizeSearchText(input: string): string {
-  return input
-    .normalize("NFKC")
-    .replace(MARKS, "")
-    .replace(AR_DIGITS, (d) =>
-      String(d.charCodeAt(0) >= 0x06f0 ? d.charCodeAt(0) - 0x06f0 : d.charCodeAt(0) - 0x0660),
-    )
-    // Hamza carriers collapse onto their bare letter: a shopper types the
-    // easy form, the merchant typed the correct one.
-    .replace(/[أإآٱ]/g, "ا") // أ إ آ ٱ -> ا
-    .replace(/ى/g, "ي") // ى -> ي
-    .replace(/[ئ]/g, "ي") // ئ -> ي
-    .replace(/[ؤ]/g, "و") // ؤ -> و
-    .replace(/ة/g, "ه") // ة -> ه
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+function searchableText(product: Product, locale: LocaleCode | undefined): string {
+  const parts = [
+    product.name,
+    product.sku ?? "",
+    product.short_description ?? "",
+    product.description ?? "",
+  ];
+  if (locale) {
+    for (const attr of product.attributes ?? []) {
+      parts.push(resolveI18n(attr.def.name_i18n, locale));
+      switch (attr.kind) {
+        case "enum":
+          parts.push(resolveI18n(attr.option.label_i18n, locale) || attr.value);
+          break;
+        case "group_list":
+          for (const items of Object.values(attr.value)) parts.push(items.join(" "));
+          break;
+        case "text":
+          parts.push(resolveI18n(attr.value, locale));
+          break;
+        default:
+          // A number or a yes/no is not something anyone types into search.
+          break;
+      }
+    }
+  }
+  return parts.join(" ");
 }
 
 /**
@@ -52,23 +67,19 @@ export function normalizeSearchText(input: string): string {
  * An empty query matches everything: a search box that has not been typed in
  * is not a filter.
  */
-export function matchesQuery(product: Product, query: string): boolean {
-  const tokens = normalizeSearchText(query).split(" ").filter(Boolean);
+export function matchesQuery(product: Product, query: string, locale?: LocaleCode): boolean {
+  const tokens = searchTokens(query);
   if (tokens.length === 0) return true;
-  const hay = normalizeSearchText(
-    [
-      product.name,
-      product.sku ?? "",
-      product.short_description ?? "",
-      product.description ?? "",
-    ].join(" "),
-  );
-  return tokens.every((tok) => hay.includes(tok));
+  return matchesAllTokens(searchableText(product, locale), tokens);
 }
 
 /** `matchesQuery` over a list. Never mutates the input. */
-export function filterByQuery(products: Product[], query: string): Product[] {
-  const tokens = normalizeSearchText(query).split(" ").filter(Boolean);
+export function filterByQuery(
+  products: Product[],
+  query: string,
+  locale?: LocaleCode,
+): Product[] {
+  const tokens = searchTokens(query);
   if (tokens.length === 0) return products;
-  return products.filter((p) => matchesQuery(p, query));
+  return products.filter((p) => matchesAllTokens(searchableText(p, locale), tokens));
 }

@@ -14,8 +14,9 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { cn } from "./helpers/utils";
+import { useVariantStore } from "./helpers/variant-store";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./pdp_variants";
 
@@ -57,15 +58,26 @@ export function PdpVariantsRender({
   const visible = props.show_oos
     ? variants
     : variants.filter((v) => (v.stock_quantity ?? 1) > 0);
-  const [selected, setSelected] = useState<string | null>(
-    visible[0]?.id ?? null,
-  );
+  // The choice lives in the shared variant store so the buying sections on
+  // this page (direct-order form, buy box, add-to-cart) sell what was picked.
+  const productId = ctx.product?.id ?? "";
+  const selected = useVariantStore((s) => s.selected[productId] ?? null);
+  const select = useVariantStore((s) => s.select);
+  const registerPicker = useVariantStore((s) => s.registerPicker);
+  const setSelected = (id: string | null) => select(productId, id);
 
+  // Register as this product's picker so the direct-order form does not
+  // render a second one; keep the first sellable option selected by default.
   useEffect(() => {
-    if (selected && !visible.find((v) => v.id === selected)) {
-      setSelected(visible[0]?.id ?? null);
+    if (!productId) return;
+    return registerPicker(productId);
+  }, [productId, registerPicker]);
+  useEffect(() => {
+    if (!productId) return;
+    if (!selected || !visible.find((v) => v.id === selected)) {
+      select(productId, visible[0]?.id ?? null);
     }
-  }, [selected, visible]);
+  }, [productId, selected, visible, select]);
 
   if (!ctx.product || visible.length === 0) return null;
 

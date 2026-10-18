@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200" role="img" aria-label="Product details section preview">
+  <rect width="320" height="200" fill="#fff7ed"/>
+  <rect x="24" y="22" width="86" height="10" rx="5" fill="#1a1a1a"/>
+  <!-- chip -->
+  <rect x="24" y="48" width="62" height="18" rx="9" fill="#f2e4b0"/>
+  <rect x="34" y="54" width="42" height="6" rx="3" fill="#46330b"/>
+  <!-- meters -->
+  <rect x="24" y="82" width="52" height="6" rx="3" fill="#9b9b9b"/>
+  <rect x="24" y="94" width="272" height="8" rx="4" fill="#ffffff"/>
+  <rect x="24" y="94" width="200" height="8" rx="4" fill="#ff5a8a"/>
+  <rect x="24" y="112" width="44" height="6" rx="3" fill="#9b9b9b"/>
+  <rect x="24" y="124" width="272" height="8" rx="4" fill="#ffffff"/>
+  <rect x="24" y="124" width="128" height="8" rx="4" fill="#ff5a8a"/>
+  <!-- pyramid rows -->
+  <rect x="24" y="146" width="272" height="18" rx="6" fill="#ffffff"/>
+  <rect x="34" y="152" width="40" height="6" rx="3" fill="#9b9b9b"/>
+  <rect x="84" y="152" width="120" height="6" rx="3" fill="#1a1a1a"/>
+  <rect x="24" y="168" width="272" height="18" rx="6" fill="#ffffff"/>
+  <rect x="34" y="174" width="40" height="6" rx="3" fill="#9b9b9b"/>
+  <rect x="84" y="174" width="86" height="6" rx="3" fill="#1a1a1a"/>
+</svg>

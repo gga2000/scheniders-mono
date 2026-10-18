@@ -22,6 +22,7 @@ import type { Category, Product } from "../types";
 import { applyCatalog, priceSplitFrom, SORTS } from "./catalog-filter";
 import { filterByQuery } from "./product-search";
 import type { CatalogSort } from "./catalog-filter";
+import { buildFacets, matchesFacets, type FacetId } from "./attribute-facets";
 import { formatCount, formatPrice } from "./format";
 import { cn, PRESSABLE } from "./utils";
 import { MaterialIcon } from "./primitives";
@@ -76,8 +77,9 @@ function viewKey(
   price: "under" | "over" | null,
   pageSize: number,
   query: string,
+  facets: ReadonlySet<FacetId>,
 ): string {
-  return `${categoryId ?? ""}|${sort}|${price ?? ""}|${pageSize}|${query}`;
+  return `${categoryId ?? ""}|${sort}|${price ?? ""}|${pageSize}|${query}|${[...facets].sort().join(",")}`;
 }
 
 function chipStyle(active: boolean): CSSProperties {
@@ -150,6 +152,7 @@ export function CatalogGrid({
   locale,
   pageSize = 12,
   showSearch = false,
+  showFacets = false,
 }: {
   items: CatalogItem[];
   categories: Category[];
@@ -158,8 +161,14 @@ export function CatalogGrid({
   pageSize?: number;
   /** Opt-in: a store with a handful of products does not need a search box. */
   showSearch?: boolean;
+  /**
+   * Opt-in: one chip row per merchant-defined filterable attribute, built
+   * from what the loaded products actually carry. Renders nothing when no
+   * product has a filterable attribute value.
+   */
+  showFacets?: boolean;
 }) {
-  const products = useMemo(() => items.map((i) => i.product), [items]);
+  const allProducts = useMemo(() => items.map((i) => i.product), [items]);
   const cardById = useMemo(
     () => new Map(items.map((i) => [i.product.id, i.card])),
     [items],
@@ -171,10 +180,36 @@ export function CatalogGrid({
   const [sort, setSort] = useState<CatalogSort>("bestsellers");
   const [price, setPrice] = useState<"under" | "over" | null>(null);
   const [query, setQuery] = useState("");
+  const [selectedFacets, setSelectedFacets] = useState<ReadonlySet<FacetId>>(
+    () => new Set(),
+  );
   const [shown, setShown] = useState(pageSize);
   const [shownFor, setShownFor] = useState(() =>
-    viewKey(null, "bestsellers", null, pageSize, ""),
+    viewKey(null, "bestsellers", null, pageSize, "", new Set()),
   );
+
+  // Facets come from the whole loaded catalogue, so an option never vanishes
+  // because another control narrowed the list. Every control below then
+  // works on the facet-narrowed set, which keeps each chip's count equal to
+  // what it yields.
+  const facets = useMemo(
+    () => (showFacets ? buildFacets(allProducts, locale) : []),
+    [showFacets, allProducts, locale],
+  );
+  const products = useMemo(
+    () =>
+      selectedFacets.size === 0
+        ? allProducts
+        : allProducts.filter((p) => matchesFacets(p, selectedFacets, facets)),
+    [allProducts, selectedFacets, facets],
+  );
+  const toggleFacet = (id: FacetId) =>
+    setSelectedFacets((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const categoryId = useMemo(() => {
     if (!categoryHandle) return null;
@@ -204,6 +239,8 @@ export function CatalogGrid({
     if (pr === "under" || pr === "over") setPrice(pr);
     const search = q.get("q");
     if (search) setQuery(search);
+    const attrs = q.getAll("attr");
+    if (attrs.length > 0) setSelectedFacets(new Set(attrs));
   }, []);
 
   useEffect(() => {
@@ -213,13 +250,15 @@ export function CatalogGrid({
     sort === "bestsellers" ? q.delete("sort") : q.set("sort", sort);
     price ? q.set("price", price) : q.delete("price");
     query.trim() ? q.set("q", query.trim()) : q.delete("q");
+    q.delete("attr");
+    for (const id of selectedFacets) q.append("attr", id);
     const next = q.toString();
     window.history.replaceState(
       null,
       "",
       next ? `${window.location.pathname}?${next}` : window.location.pathname,
     );
-  }, [categoryHandle, sort, price, query]);
+  }, [categoryHandle, sort, price, query, selectedFacets]);
 
   // The split has to divide the set the shopper is looking at, not the shop.
   // A search that leaves two perfumes cannot be halved at the catalogue's
@@ -227,8 +266,8 @@ export function CatalogGrid({
   // nothing. `priceSplitFrom` already returns null in that case; it just has
   // to be asked about the right list.
   const searched = useMemo(
-    () => (query.trim() ? filterByQuery(products, query) : products),
-    [products, query],
+    () => (query.trim() ? filterByQuery(products, query, locale) : products),
+    [products, query, locale],
   );
   const threshold = useMemo(
     () => priceSplitFrom(searched.map((p) => p.price)),
@@ -244,14 +283,15 @@ export function CatalogGrid({
         price,
         threshold,
         query,
+        locale,
       }),
-    [products, sort, categoryId, categoryProductIds, price, threshold, query],
+    [products, sort, categoryId, categoryProductIds, price, threshold, query, locale],
   );
 
   // Every chip's count is produced by the SAME function that builds the
   // list, so a chip can never advertise a number it does not then yield.
   const chips = useMemo(() => {
-    const base = { categoryProductIds, price, threshold, query };
+    const base = { categoryProductIds, price, threshold, query, locale };
     return categories
       .map((c) => ({
         id: c.id,
@@ -261,7 +301,7 @@ export function CatalogGrid({
       }))
       // A chip that opens onto nothing is worse than no chip.
       .filter((c) => c.count > 0);
-  }, [categories, products, categoryProductIds, price, threshold, query]);
+  }, [categories, products, categoryProductIds, price, threshold, query, locale]);
 
   /**
    * Each price band's real yield, from the same function as the list. A band
@@ -269,33 +309,44 @@ export function CatalogGrid({
    * already follow.
    */
   const priceCounts = useMemo(() => {
-    const base = { categoryProductIds, categoryId, threshold, query };
+    const base = { categoryProductIds, categoryId, threshold, query, locale };
     return {
       under: applyCatalog(products, { ...base, price: "under" as const }).length,
       over: applyCatalog(products, { ...base, price: "over" as const }).length,
     };
-  }, [products, categoryProductIds, categoryId, threshold, query]);
+  }, [products, categoryProductIds, categoryId, threshold, query, locale]);
   const showPriceSplit =
     threshold != null && priceCounts.under > 0 && priceCounts.over > 0;
 
   const allCount = useMemo(
     () =>
-      applyCatalog(products, { categoryProductIds, price, threshold, query })
+      applyCatalog(products, { categoryProductIds, price, threshold, query, locale })
         .length,
-    [products, categoryProductIds, price, threshold, query],
+    [products, categoryProductIds, price, threshold, query, locale],
   );
 
   // A changed filter must start at page one — showing page two of a list the
   // shopper has not seen page one of is worse than no paging at all. Adjusted
   // during render, not in an effect: an effect would paint the stale page
   // first and then throw it away.
-  const key = viewKey(categoryId, sort, price, pageSize, query.trim());
+  const key = viewKey(
+    categoryId,
+    sort,
+    price,
+    pageSize,
+    query.trim(),
+    selectedFacets,
+  );
   if (shownFor !== key) {
     setShownFor(key);
     setShown(pageSize);
   }
 
-  const filtered = categoryId !== null || price !== null || query.trim() !== "";
+  const filtered =
+    categoryId !== null ||
+    price !== null ||
+    query.trim() !== "" ||
+    selectedFacets.size > 0;
   const page = visible.slice(0, shown);
 
   return (
@@ -412,6 +463,39 @@ export function CatalogGrid({
           ))}
         </div>
 
+        {/* One row per filterable attribute, in the merchant's own order.
+            Options within a row widen the list; rows narrow it. */}
+        {facets.map((facet) => (
+          <div
+            key={facet.key}
+            data-attribute-facet={facet.key}
+            className="flex flex-col gap-1.5"
+          >
+            <span
+              id={`catalog-facet-${facet.key}`}
+              className="font-body text-xs"
+              style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
+            >
+              {facet.name}
+            </span>
+            <div
+              role="group"
+              aria-labelledby={`catalog-facet-${facet.key}`}
+              className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+            >
+              {facet.options.map((option) => (
+                <Chip
+                  key={option.id}
+                  label={option.label}
+                  count={option.count}
+                  active={selectedFacets.has(option.id)}
+                  onClick={() => toggleFacet(option.id)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+
         {(showPriceSplit || filtered) && (
           <div className="flex flex-wrap items-center gap-2">
             {showPriceSplit && (
@@ -445,6 +529,7 @@ export function CatalogGrid({
                 onClick={() => {
                   setCategoryHandle(null);
                   setPrice(null);
+                  setSelectedFacets(new Set());
                 }}
                 className={cn("font-body text-sm underline underline-offset-4", PRESSABLE)}
                 style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}

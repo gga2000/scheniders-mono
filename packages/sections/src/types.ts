@@ -12,6 +12,7 @@
 import type {
   BaseTenant,
   BaseProduct,
+  ResolvedProductAttribute,
   BaseProductVariant,
   Category,
   ProductReview,
@@ -67,6 +68,11 @@ export interface Product extends BaseProduct {
    *  (`refresh_bestseller_ranks()`), never edited by hand — the storefront
    *  only reads the ordinal, never the underlying unit volumes. */
   bestseller_rank?: number | null;
+  /** Merchant-defined attributes, already paired with their definitions and
+   *  ordered by the merchant's `display_order`. Populated where a section
+   *  needs them (the PDP today); absent elsewhere, and sections must render
+   *  nothing rather than a placeholder when the list is empty. */
+  attributes?: ResolvedProductAttribute[];
   /** Optional variant list — populated on the PDP. */
   variants?: ProductVariant[];
   /** Approved-review aggregates (real data, storefront-populated). Sections
@@ -97,6 +103,9 @@ export type ReviewSummaryItem = Pick<
 >;
 
 export interface ProductVariant extends BaseProductVariant {
-  /** Variants always carry a concrete price when rendered. */
+  /** Variants always carry a concrete price when rendered (the product's when the row has none). */
   price: number;
+  reserved_quantity?: number | null;
+  compare_at_price?: number | null;
+  image_url?: string | null;
 }

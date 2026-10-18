@@ -2,7 +2,8 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "./supabase/server";
 import type { Tables } from "@scheniders/supabase";
-import type { ProductReview } from "@scheniders/shared";
+import type { ProductReview, ProductAttributeDef } from "@scheniders/shared";
+import { parseProductAttributeDefs, resolveProductAttributes } from "@scheniders/shared";
 import type { Product, Category, ProductVariant } from "./types";
 
 type PublicClient = ReturnType<typeof createSupabasePublicClient>;
@@ -79,10 +80,111 @@ async function withReviewStats(
   });
 }
 
+/**
+ * The tenant's attribute taxonomy. Small (a handful of rows per tenant) and
+ * read on any page that renders or filters attributes, so it gets its own
+ * cache entry rather than riding along with a product query.
+ *
+ * Malformed rows are dropped by `parseProductAttributeDefs` — the database
+ * CHECK already ties each kind to its required shape, so this is the second
+ * line of defence, not the first.
+ */
+export const listAttributeDefs = cache(
+  (tenantId: string): Promise<ProductAttributeDef[]> =>
+    publicCache(["listAttributeDefs", tenantId], async (supabase) => {
+      const { data, error } = await supabase
+        .from("product_attribute_defs")
+        .select(
+          "id, key, name_i18n, kind, options, group_keys, range_min, range_max, unit_i18n, is_filterable, is_comparable, display_order",
+        )
+        .eq("tenant_id", tenantId)
+        .order("display_order", { ascending: true });
+
+      if (error) {
+        console.error("[queries.listAttributeDefs]", error);
+        return [];
+      }
+      return parseProductAttributeDefs(data ?? []);
+    }),
+);
+
+/**
+ * Attach merchant-defined attributes to a batch of products in ONE extra
+ * indexed query, mirroring `withReviewStats`. Products with no values pass
+ * through untouched, so `attributes` stays absent rather than empty — a
+ * section can then tell "this tenant has no taxonomy" from "this product
+ * has no values", and render nothing in both cases.
+ *
+ * On any error the products pass through without attributes: an attribute
+ * block is enrichment, and must never cost the page its product.
+ */
+/** ~100 uuids keeps the PostgREST URL near 4KB, well under proxy limits. */
+const ATTRIBUTE_ID_CHUNK = 100;
+
+async function withAttributes(
+  supabase: PublicClient,
+  tenantId: string,
+  products: Product[],
+): Promise<Product[]> {
+  if (products.length === 0) return products;
+
+  const defs = await listAttributeDefs(tenantId);
+  if (defs.length === 0) return products;
+
+  // The catalogue and search pages pass the whole catalogue. One `.in()` with
+  // hundreds of uuids overflows the request URL, so query in chunks.
+  const ids = products.map((p) => p.id);
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += ATTRIBUTE_ID_CHUNK) {
+    chunks.push(ids.slice(i, i + ATTRIBUTE_ID_CHUNK));
+  }
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      supabase
+        .from("product_attribute_values")
+        .select("product_id, attribute_def_id, value")
+        .eq("tenant_id", tenantId)
+        .in("product_id", chunk),
+    ),
+  );
+
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    console.error("[queries.withAttributes]", failed.error);
+    return products;
+  }
+  const data = results.flatMap((r) => r.data ?? []);
+  if (data.length === 0) return products;
+
+  const byProduct = new Map<string, typeof data>();
+  for (const row of data) {
+    const list = byProduct.get(row.product_id);
+    if (list) list.push(row);
+    else byProduct.set(row.product_id, [row]);
+  }
+
+  return products.map((p) => {
+    const rows = byProduct.get(p.id);
+    if (!rows) return p;
+    const attributes = resolveProductAttributes(defs, rows);
+    return attributes.length > 0 ? { ...p, attributes } : p;
+  });
+}
+
 export const listProducts = cache(
   (
     tenantId: string,
-    opts: { categoryId?: string; limit?: number; offset?: number } = {},
+    opts: {
+      categoryId?: string;
+      limit?: number;
+      offset?: number;
+      /**
+       * Attach merchant-defined attributes. Opt-in because only the pages
+       * that offer facet filtering need them — the home grid would pay for
+       * an extra query and a bigger payload to render nothing.
+       */
+      withAttributes?: boolean;
+    } = {},
   ): Promise<Product[]> =>
     publicCache(["listProducts", tenantId, JSON.stringify(opts)], async (supabase) => {
       let q = supabase
@@ -108,7 +210,13 @@ export const listProducts = cache(
         console.error("[queries.listProducts]", error);
         return [];
       }
-      return withReviewStats(supabase, (data ?? []).map(normalizeProduct));
+      const products = await withReviewStats(
+        supabase,
+        (data ?? []).map(normalizeProduct),
+      );
+      return opts.withAttributes
+        ? withAttributes(supabase, tenantId, products)
+        : products;
     }),
 );
 
@@ -149,8 +257,13 @@ export const getProductBySlug = cache(
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
-      const withStats = async (row: Record<string, unknown>) =>
-        (await withReviewStats(supabase, [normalizeProduct(row)]))[0] ?? null;
+      // The PDP is the one page that renders attributes today, so it is the
+      // only place that pays for the extra query. Grids stay lean until
+      // facet filtering needs them.
+      const withStats = async (row: Record<string, unknown>) => {
+        const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
+        return (await withAttributes(supabase, tenantId, withReviews))[0] ?? null;
+      };
 
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
       if (bySlug) return withStats(bySlug);
@@ -209,10 +322,16 @@ export const getProductImages = cache((productId: string): Promise<string[]> =>
 export const getProductVariants = cache(
   (productId: string): Promise<ProductVariant[]> =>
     publicCache(["getProductVariants", productId], async (supabase) => {
+      // A disabled variant is not for sale; `is_enabled` is nullable and null
+      // means enabled (the column arrived after the rows).
       const { data } = await supabase
         .from("product_variants")
-        .select("id, product_id, tenant_id, name, price, stock_quantity, sku")
-        .eq("product_id", productId);
+        .select(
+          "id, product_id, tenant_id, name, price, stock_quantity, reserved_quantity, sku, compare_at_price, image_url, display_order",
+        )
+        .eq("product_id", productId)
+        .or("is_enabled.is.null,is_enabled.eq.true")
+        .order("display_order", { ascending: true, nullsFirst: false });
       return (data ?? []) as ProductVariant[];
     }),
 );
@@ -379,7 +498,7 @@ export const listProductsInCategory = cache(
   (
     tenantId: string,
     categoryId: string,
-    opts: { limit?: number; offset?: number } = {},
+    opts: { limit?: number; offset?: number; withAttributes?: boolean } = {},
   ): Promise<Product[]> =>
     publicCache(
       ["listProductsInCategory", tenantId, categoryId, JSON.stringify(opts)],
@@ -408,13 +527,16 @@ export const listProductsInCategory = cache(
 
         type Row = { products: Record<string, unknown> | null };
         const rows = (data ?? []) as Row[];
-        return withReviewStats(
+        const products = await withReviewStats(
           supabase,
           rows
             .map((r) => r.products)
             .filter((p): p is Record<string, unknown> => p !== null)
             .map(normalizeProduct),
         );
+        return opts.withAttributes
+          ? withAttributes(supabase, tenantId, products)
+          : products;
       },
     ),
 );
