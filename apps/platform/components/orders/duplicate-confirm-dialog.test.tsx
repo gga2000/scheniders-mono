@@ -13,7 +13,7 @@ const order = (overrides: Partial<Order> & { id: string }): Order => ({
     order_id: overrides.id,
     created_at: "2026-10-04T09:00:00.000Z",
     customer_name: "علي",
-    phone: "07802301677",
+    phone: "07801234567",
     items: [{ name: "عطر فولاريس", quantity: 1, price: 43000 }],
     price: 43000,
     status: "new",
