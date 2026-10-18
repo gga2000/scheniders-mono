@@ -5,6 +5,30 @@
 
 ---
 
+## 0. BLOCKER — GitHub Actions is billing-suspended, so nothing can be verified by CI
+
+As of **2026-10-18 23:34Z**, every CI run fails in 2–4 seconds without starting:
+
+> *"The job was not started because recent account payments have failed or your spending limit needs to be increased.
+> Please check the 'Billing & plans' section in your settings."*
+
+The last successful run was PR #141 at 2026-10-18 00:01Z. Confirmed on three separate PRs including a **docs-only**
+one, so it is not code.
+
+**Consequences, and they are the first thing to deal with:**
+
+- `turbo lint type-check build` — the only automated gate this repo has — **is not running on any PR**.
+- The standing "merge green PRs on sight" approval **cannot apply**: no PR can be green. Do not merge on a red
+  checkmark assuming it is this; read the annotation each time and confirm it is still the billing message.
+- Until it is fixed, **verify locally before merging** and say so explicitly in the PR: `pnpm type-check`,
+  `pnpm lint`, and `pnpm exec vitest run <path>` — with **Node 20**.
+- **Vercel is unaffected** and still builds (confirmed: `scheniders-platform` passed on PR #143), so preview deploys
+  remain a real signal. Vercel billing is separate from Actions billing.
+
+**Fix:** GitHub → Settings → Billing & plans. This is Ali's to do; it cannot be fixed from the repo.
+
+---
+
 ## 0. The one thing that will bite you immediately
 
 **Most of the audit work is NOT on `main`.** If you clone and look only at `main`, you will conclude none of it exists.
@@ -108,7 +132,10 @@ Three revisions were added on 2026-10-10 after the first run exposed gaps the ch
 
 ## 4. Open work, in the order I would do it
 
-1. **PR for `fix/admin-activity-logging`** — merge it if green. `admin_activity_logs` had **0 rows ever**: three
+1. **PR #143 `fix/admin-activity-logging-v2`** — open. **Cannot go green while §0 holds**; verified locally
+   instead (type-check clean, 35/35 admin tests, lint unchanged at 0 errors, re-verified on current `main` after a
+   clean cherry-pick) and `scheniders-platform` built on Vercel. Merge once §0 is resolved, or merge on the local
+   verification if you accept that. `admin_activity_logs` had **0 rows ever**: three
    writers inserted `admin_id`, a column that does not exist (it is `admin_user_id`), so PostgREST rejected every
    write, while 4 active `support_staff` accounts could suspend merchants, extend trials and mint wallet credit with
    no trail. The read path was broken identically — the Activity page, dashboard feed and `use-dashboard-stats` all
