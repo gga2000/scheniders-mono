@@ -28,7 +28,8 @@ import {
     useUpdateStatusMutation,
     useUpdateOrderMutation,
     useCreateOrderMutation,
-    orderKeys
+    orderKeys,
+    catchUpAfterOwnWrite,
 } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { classifyTransition } from "@/lib/order-status-machine";
@@ -120,6 +121,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     // Per-order debounce timers: coalesces rapid-fire status changes (300ms)
     // so only the final status is sent to Supabase.
     const statusDebounceRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+    // Per-order catch-up after a status change (see updateOrderStatus). The
+    // next change to the same order waits for it before reading its version.
+    const catchUpRef = useRef(new Map<string, Promise<void>>());
 
     // Abort controller for fetch
     // const isMountedRef = useRef(true);
@@ -225,6 +230,14 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 seqMap.set(orderId, mySeq);
                 diag.log(`[Diag:StatusUpdate] DEBOUNCE_FIRE orderId=${orderId} seq=${mySeq} elapsed=${(performance.now() - _t0).toFixed(1)}ms`);
 
+                // A previous status change on this order wrote the row twice
+                // (PATCH, then the history trigger). Its catch-up brings the
+                // second write — the version this change must be based on —
+                // into the cache. Wait for it (it never rejects), or this write
+                // would conflict with our own.
+                const pendingCatchUp = catchUpRef.current.get(orderId);
+                if (pendingCatchUp) await pendingCatchUp;
+
                 try {
                     const _tMut = performance.now();
                     diag.log(`[Diag:StatusUpdate] MUTATION_START orderId=${orderId} seq=${mySeq}`);
@@ -243,7 +256,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         .getQueryData<Order[]>(orderKeys.lists())
                         ?.find(o => o.id === orderId);
 
-                    await updateStatusMutation.mutateAsync({
+                    const { data: written } = await updateStatusMutation.mutateAsync({
                         orderId,
                         status,
                         rejectionReason,
@@ -307,6 +320,21 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             console.error("Exception recording status history:", historyErr);
                         }
                     }
+
+                    // Catch the caches up with what this change wrote — whether
+                    // the history insert ran, failed or was skipped. It replaces
+                    // the full refetch that used to run 2s after every change:
+                    // one delta from the sync watermark (floored at our PATCH, so
+                    // it always includes the trigger's second write of this row),
+                    // then the active search / duplicate-margin queries.
+                    const catchUp = catchUpAfterOwnWrite(queryClient, tenantId, {
+                        source: "statusSettled",
+                        since: written.updated_at,
+                    });
+                    catchUpRef.current.set(orderId, catchUp);
+                    void catchUp.then(() => {
+                        if (catchUpRef.current.get(orderId) === catchUp) catchUpRef.current.delete(orderId);
+                    });
 
                     // Log activity
                     if (previousOrder && previousOrder.status !== status) {

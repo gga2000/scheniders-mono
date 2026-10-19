@@ -77,7 +77,10 @@ export class RealtimeBatcher {
 
     // Mutation guard: track recently-mutated order IDs to prevent
     // stale realtime broadcasts from overwriting optimistic updates
-    private recentMutations = new Map<string, number>();
+    private recentMutations = new Map<string, { at: number; baseVersion?: number }>();
+    // The latest event the guard skipped, per guarded id, so a write that then
+    // FAILS can re-apply it (it may have been a peer's, not our echo).
+    private heldEvents = new Map<string, { event: RealtimeEvent } | { row: Order }>();
     private static readonly MUTATION_GUARD_MS = 3_000; // 3 seconds
 
     constructor(options: RealtimeBatcherOptions) {
@@ -93,9 +96,43 @@ export class RealtimeBatcher {
      * Mark an order as recently mutated. Realtime updates for this order
      * will be skipped for MUTATION_GUARD_MS to prevent stale broadcasts
      * from overwriting optimistic UI.
+     *
+     * With `baseVersion` (the cached version our write was based on) the guard
+     * skips only what can be our own write's echo: versions up to base+1. A
+     * status change writes the row twice — the PATCH (base+1), then the
+     * history trigger's actor update (base+2) — and that second write, like
+     * any later peer write, is newer than our optimistic state and applies.
      */
-    markMutated(orderId: string): void {
-        this.recentMutations.set(orderId, Date.now());
+    markMutated(orderId: string, baseVersion?: number): void {
+        this.recentMutations.set(orderId, { at: Date.now(), baseVersion });
+        this.heldEvents.delete(orderId);
+    }
+
+    /**
+     * End the guard for `orderId` early. With `replay`, re-apply the latest
+     * event it skipped: our write failed, so that event was not its echo.
+     */
+    releaseGuard(orderId: string, { replay }: { replay: boolean }): void {
+        const held = this.heldEvents.get(orderId);
+        this.recentMutations.delete(orderId);
+        this.heldEvents.delete(orderId);
+        if (!replay || !held) return;
+        diag.log(`[Diag:Batcher] RELEASE_REPLAY id=${orderId}`);
+        if ("event" in held) this.push(held.event);
+        else this.applyChangedOrders([held.row]);
+    }
+
+    /** Whether an incoming row for `id` is (possibly) the echo of our own guarded write. */
+    private isGuardedEcho(id: string, incomingVersion: unknown): boolean {
+        const guard = this.recentMutations.get(id);
+        if (!guard) return false;
+        if (Date.now() - guard.at > RealtimeBatcher.MUTATION_GUARD_MS) {
+            this.recentMutations.delete(id);
+            this.heldEvents.delete(id);
+            return false;
+        }
+        if (typeof guard.baseVersion !== "number" || typeof incomingVersion !== "number") return true;
+        return incomingVersion <= guard.baseVersion + 1;
     }
 
     /**
@@ -105,10 +142,15 @@ export class RealtimeBatcher {
     push(event: RealtimeEvent): void {
         const id = (event.new as Record<string, unknown>)?.id || (event.old as Record<string, unknown>)?.id || 'unknown';
 
-        // MUTATION GUARD check at push time (early skip)
-        if (event.eventType === "UPDATE" && typeof id === 'string' && this.recentMutations.has(id)) {
-            const elapsed = Date.now() - (this.recentMutations.get(id) || 0);
-            diag.log(`[Diag:Batcher] PUSH_SKIPPED id=${id} reason=mutationGuard (mutated ${elapsed}ms ago)`);
+        // MUTATION GUARD check at push time (early skip). A soft delete is never
+        // an echo of a status write: it always goes through.
+        if (
+            event.eventType === "UPDATE" && typeof id === 'string' &&
+            event.new?.deleted_at == null &&
+            this.isGuardedEcho(id, event.new?.version)
+        ) {
+            diag.log(`[Diag:Batcher] PUSH_SKIPPED id=${id} reason=mutationGuard`);
+            this.heldEvents.set(id, { event });
             return; // Actually skip — don't push stale realtime data into the buffer
         }
 
@@ -137,13 +179,7 @@ export class RealtimeBatcher {
             this.flushTimer = null;
         }
 
-        // Prune expired mutation guards
-        const now = Date.now();
-        for (const [id, ts] of this.recentMutations) {
-            if (now - ts > RealtimeBatcher.MUTATION_GUARD_MS) {
-                this.recentMutations.delete(id);
-            }
-        }
+        this.pruneGuards();
 
         // Build maps by id for efficient processing
         const inserts = new Map<string, Order>();
@@ -158,10 +194,24 @@ export class RealtimeBatcher {
                 // Fire notification for new orders
                 this.onNewOrder?.(order);
             } else if (event.eventType === "UPDATE" && event.new) {
+                // A soft delete (someone moved the order to the trash) arrives as
+                // an UPDATE. Read `deleted_at` off the RAW payload: the
+                // normalizer projects to the list columns, which do not include
+                // it, so after normalizing a trashed row looks like a live edit
+                // and stayed on screen as a ghost.
+                if (event.new.deleted_at != null) {
+                    const id = String(event.new.id);
+                    deletes.add(id);
+                    inserts.delete(id);
+                    updates.delete(id);
+                    continue;
+                }
+
                 const order = this.normalizer(event.new as unknown as Order) as Order;
 
-                // MUTATION GUARD: Skip realtime updates for orders we just mutated.
-                if (this.recentMutations.has(order.id)) {
+                // MUTATION GUARD: Skip realtime updates that can be our own echo.
+                if (this.isGuardedEcho(order.id, order.version)) {
+                    this.heldEvents.set(order.id, { event });
                     continue;
                 }
 
@@ -207,7 +257,7 @@ export class RealtimeBatcher {
                         if (!shouldApplyRealtimeUpdate(o, updated)) {
                             return o; // Keep current (newer) data
                         }
-                        return updated;
+                        return carryRiskData(o, updated);
                     }
                     return o;
                 })
@@ -248,22 +298,24 @@ export class RealtimeBatcher {
     applyChangedOrders(changed: Order[]): number {
         if (changed.length === 0) return 0;
 
-        // Prune expired mutation guards (mirror flush()).
-        const now = Date.now();
-        for (const [id, ts] of this.recentMutations) {
-            if (now - ts > RealtimeBatcher.MUTATION_GUARD_MS) this.recentMutations.delete(id);
-        }
+        this.pruneGuards();
 
         const updates = new Map<string, Order>();
         const archived = new Set<string>();
         for (const o of changed) {
-            // Don't clobber an order we just mutated optimistically.
-            if (this.recentMutations.has(o.id)) continue;
+            // Don't clobber an order we just mutated optimistically with what
+            // can be its own echo (a newer version, e.g. the history trigger's
+            // base+2 write, applies).
+            if (this.isGuardedEcho(o.id, o.version)) {
+                this.heldEvents.set(o.id, { row: o });
+                continue;
+            }
             if (o.is_archived) { archived.add(o.id); continue; }
             updates.set(o.id, o);
         }
 
         let applied = 0;
+        const win = this.getWindow?.() ?? null;
         this.queryClient.setQueryData<Order[]>(this.queryKey, (old) => {
             if (!old) return old;
 
@@ -278,12 +330,15 @@ export class RealtimeBatcher {
                         return o;
                     }
                     applied++;
-                    return updated;
-                });
+                    // Moved out of the loaded window (e.g. its date changed while
+                    // we were offline): drop it, as flush() does for live events.
+                    if (!belongsInWindow(updated, win)) return null;
+                    return carryRiskData(o, updated);
+                })
+                .filter((o): o is Order => o !== null);
 
             // Genuinely-new rows (not already in the list) → prepend (newest-first),
             // but only those belonging to the loaded window.
-            const win = this.getWindow?.() ?? null;
             const newOnes: Order[] = [];
             for (const [, order] of updates) {
                 if (!belongsInWindow(order, win)) continue;
@@ -297,6 +352,16 @@ export class RealtimeBatcher {
         return applied;
     }
 
+    private pruneGuards(): void {
+        const now = Date.now();
+        for (const [id, guard] of this.recentMutations) {
+            if (now - guard.at > RealtimeBatcher.MUTATION_GUARD_MS) {
+                this.recentMutations.delete(id);
+                this.heldEvents.delete(id);
+            }
+        }
+    }
+
     /**
      * Cancel pending flush and clear buffer (for cleanup).
      */
@@ -307,5 +372,19 @@ export class RealtimeBatcher {
         }
         this.buffer = [];
         this.recentMutations.clear();
+        this.heldEvents.clear();
     }
+}
+
+/**
+ * Keep the cached `risk_data` when an incoming row has none. Realtime payloads
+ * never carry it (it is not a column; `withRiskData` attaches it after a
+ * fetch), so replacing the row dropped every risk badge until the next full
+ * refetch. Only while the phone is unchanged: risk is keyed by phone.
+ */
+function carryRiskData(cached: Order, incoming: Order): Order {
+    if (incoming.risk_data === undefined && incoming.phone === cached.phone && cached.risk_data !== undefined) {
+        return { ...incoming, risk_data: cached.risk_data };
+    }
+    return incoming;
 }

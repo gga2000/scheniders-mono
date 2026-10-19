@@ -13,6 +13,7 @@ import {
     useLoadedOrdersWindowKey,
 } from "@/hooks/orders-list-coverage";
 import { listCovers } from "@/lib/orders/coverage-key";
+import { normalizePhoneLikeDb } from "@/lib/customer-trust-risk";
 import { useEffect, useRef, useState } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
@@ -148,6 +149,7 @@ export async function syncOrdersDelta(
             return;
         }
         const applied = batcher.applyChangedOrders(changed);
+        propagateRiskData(queryClient, changed);
         advanceSyncWatermark(queryClient, changed, commitGen);
         diag.log(`[Diag:RQ:Delta] source=${source} since=${since} fetched=${changed.length} applied=${applied} took=${(performance.now() - _t).toFixed(1)}ms`);
     } catch (err) {
@@ -640,13 +642,15 @@ export function useUpdateStatusMutation() {
         onMutate: async ({ orderId, status, rejectionReason, last_status_changed_by_name, last_status_changed_by_avatar }) => {
             const mutSeq = nextMutationSeq(orderId);
             diag.log(`[Diag:RQ:StatusMut] onMutate orderId=${orderId} status=${status} mutSeq=${mutSeq}`);
-            const batcher = getOrderBatcher();
 
-            // Mark as recently mutated so realtime batcher skips stale broadcasts
-            batcher?.markMutated(orderId);
+            // Only this row is snapshotted: a whole-array rollback would also
+            // undo every realtime update other rows received meanwhile.
+            const previousRow = queryClient.getQueryData<Order[]>(orderKeys.lists())?.find((o) => o.id === orderId);
+
+            // Guard the row against our own write's echo (versions up to base+1);
+            // the history trigger's base+2 write and later peer writes apply.
+            getOrderBatcher()?.markMutated(orderId, previousRow?.version);
             await cancelListFetches(queryClient, tenantId);
-
-            const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 
             // Optimistic update
             queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
@@ -674,7 +678,7 @@ export function useUpdateStatusMutation() {
                 return updated;
             });
 
-            return { previousOrders, mutSeq };
+            return { previousRow, mutSeq };
         },
         onSuccess: ({ orderId, data }, variables, context) => {
             // LATEST-WINS: If a newer mutation has started for this order,
@@ -685,26 +689,33 @@ export function useUpdateStatusMutation() {
             }
             diag.log(`[Diag:RQ:StatusMut] onSuccess orderId=${orderId} mutSeq=${context?.mutSeq}`);
 
-            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
-                const updated = old?.map((order) =>
-                    order.id === orderId ? { ...order, ...data } : order
-                );
-                return updated;
-            });
+            // The PATCH response, into every list-prefixed cache (main list,
+            // search, duplicate margin) — version-checked, and only the keys
+            // each cached row already has: the response is `select()` (every
+            // column), and the margin columns must never enter a list cache.
+            queryClient.setQueriesData<Order[]>({ queryKey: orderKeys.lists() }, (old) => patchRow(old, data));
         },
         onError: (err, variables, context) => {
-            diag.log(`[Diag:RQ:StatusMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} mutSeq=${context?.mutSeq} rollingBack=${!!context?.previousOrders}`);
+            diag.log(`[Diag:RQ:StatusMut] onError orderId=${variables.orderId} err=${err instanceof Error ? err.message : err} mutSeq=${context?.mutSeq} reverting=${!!context?.previousRow}`);
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't rollback — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(variables.orderId, context.mutSeq)) return;
 
             reportOrderError(err, { operation: "updateOrderStatus", orderId: variables.orderId, extra: { status: variables.status } });
 
-            if (context?.previousOrders) {
-                queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
+            // Revert only the fields the optimistic write set, and only while
+            // the row is still at the version that write was based on.
+            if (context?.previousRow) {
+                const previousRow = context.previousRow;
+                queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => revertOptimisticStatus(old, previousRow));
             }
 
-            if (err instanceof Error && err.message === "CONFLICT_DETECTED") {
+            const conflict = err instanceof Error && err.message === "CONFLICT_DETECTED";
+            // A non-conflict failure means the event the guard skipped was not
+            // our echo: re-apply it. A conflict is superseded by the refetch.
+            getOrderBatcher()?.releaseGuard(variables.orderId, { replay: !conflict });
+
+            if (conflict) {
                 toast.error("Order was modified elsewhere. Refreshing data...", { duration: 3000 });
                 // Force a fresh refetch immediately
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -712,16 +723,114 @@ export function useUpdateStatusMutation() {
                 toast.error(err instanceof Error ? err.message : "Failed to update order status.");
             }
         },
-        // Self-healing: re-sync cache from Supabase after every mutation settles.
-        // This catches any subtle optimistic/realtime desync within 2 seconds.
-        onSettled: () => {
-            diag.log(`[Diag:RQ:StatusMut] onSettled — scheduling refetch in 2s`);
-            setTimeout(() => {
-                diag.log(`[Diag:RQ:StatusMut] onSettled REFETCH fired (2s delayed)`);
-                queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-            }, 2000);
-        },
+        // No onSettled refetch. The status change's only caller,
+        // useOrderCrud.updateOrderStatus, runs `catchUpAfterOwnWrite` once
+        // the history row (and the trigger's base+2 write) has landed. It used
+        // to re-download the whole window 2s after every status change.
     });
+}
+
+/** The fields the optimistic status write sets — and so the only ones a failed write reverts. */
+const OPTIMISTIC_STATUS_FIELDS = [
+    "status", "rejection_reason", "delivered_at", "last_status_changed_by_name", "last_status_changed_by_avatar",
+] as const satisfies readonly (keyof Order)[];
+
+/** Revert the optimistic fields of `previous.id`, if the cached row is still at `previous.version`. */
+export function revertOptimisticStatus(rows: Order[] | undefined, previous: Order): Order[] | undefined {
+    if (!rows) return rows;
+    let changed = false;
+    const next = rows.map((o) => {
+        if (o.id !== previous.id || o.version !== previous.version) return o;
+        changed = true;
+        const reverted: Order = { ...o };
+        for (const key of OPTIMISTIC_STATUS_FIELDS) {
+            Object.assign(reverted, { [key]: previous[key] });
+        }
+        return reverted;
+    });
+    return changed ? next : rows;
+}
+
+/**
+ * Write a server row into a cached list: skipped when the cache already holds
+ * a newer version, and limited to the keys the cached row already has (so a
+ * `select()` response cannot add the margin columns to a list cache). Returns
+ * `rows` unchanged when nothing differs.
+ */
+export function patchRow(rows: Order[] | undefined, data: Order): Order[] | undefined {
+    if (!Array.isArray(rows)) return rows;
+    let changed = false;
+    const next = rows.map((o) => {
+        if (o.id !== data.id) return o;
+        if (typeof o.version === "number" && typeof data.version === "number" && data.version < o.version) return o;
+        const source = data as unknown as Record<string, unknown>;
+        const current = o as unknown as Record<string, unknown>;
+        let patched: Record<string, unknown> | null = null;
+        for (const key of Object.keys(current)) {
+            if (key in source && source[key] !== current[key]) {
+                patched ??= { ...current };
+                patched[key] = source[key];
+            }
+        }
+        if (!patched) return o;
+        changed = true;
+        return patched as unknown as Order;
+    });
+    return changed ? next : rows;
+}
+
+function riskDataEqual(a: Order["risk_data"], b: Order["risk_data"]): boolean {
+    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+/**
+ * `risk_data` is a pure function of (tenant, normalized phone): a status change
+ * moves the customer's trust row in the same transaction, so every cached
+ * order with that phone has new risk. Delta rows carry fresh `risk_data`
+ * (withRiskData); copy it onto same-customer rows in the main list. No request.
+ */
+export function propagateRiskData(queryClient: QueryClient, changed: readonly Order[]): void {
+    const fresh = new Map<string, Order["risk_data"]>();
+    for (const row of changed) {
+        if (row.risk_data === undefined || !row.tenant_id) continue;
+        const phone = normalizePhoneLikeDb(row.phone);
+        if (phone) fresh.set(`${row.tenant_id}|${phone}`, row.risk_data);
+    }
+    if (fresh.size === 0) return;
+    queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+        if (!old) return old;
+        let changedAny = false;
+        const next = old.map((o) => {
+            if (!o.tenant_id) return o;
+            const risk = fresh.get(`${o.tenant_id}|${normalizePhoneLikeDb(o.phone)}`);
+            if (risk === undefined || riskDataEqual(o.risk_data, risk)) return o;
+            changedAny = true;
+            return { ...o, risk_data: risk };
+        });
+        return changedAny ? next : old;
+    });
+}
+
+/**
+ * After our own write has fully landed (for a status change: the PATCH and the
+ * history row whose trigger writes the row again), bring every list cache up
+ * to date: one catch-up delta for the main list — it carries our row at its
+ * final version, any peer writes since the watermark, and fresh risk — then a
+ * refetch of the ACTIVE list sub-keys (search, the duplicate margin), which
+ * realtime never patches. This is what the 2s full refetch used to do, at the
+ * cost of one delta and the small sub-queries. Never rejects.
+ */
+export async function catchUpAfterOwnWrite(
+    queryClient: QueryClient,
+    tenantId: string | null,
+    { source, since }: { source: string; since?: string },
+): Promise<void> {
+    if (!tenantId) return;
+    await requestOrdersCatchUp(queryClient, tenantId, { source, since });
+    const mainKeyLength = orderKeys.lists().length;
+    await queryClient
+        .invalidateQueries({ queryKey: orderKeys.lists(), predicate: (q) => q.queryKey.length > mainKeyLength })
+        .catch((err: unknown) => { diag.error("[Diag:RQ:CatchUp] sub-key refresh failed", err); });
 }
 
 /**
