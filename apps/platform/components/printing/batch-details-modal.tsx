@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate } from "@/lib/utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 interface BatchDetailsModalProps {
     isOpen: boolean;
@@ -274,7 +275,7 @@ export function BatchDetailsModal({
                                                 <div className="text-right">
                                                     <p className="font-bold text-foreground">{formatIQD(order.price)}</p>
                                                     <p className="text-xs text-muted">
-                                                        {order.items?.length || 0} items
+                                                        {mergeOrderItems(order.items).length} items
                                                     </p>
                                                 </div>
                                             </div>

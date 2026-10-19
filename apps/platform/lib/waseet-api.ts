@@ -16,6 +16,7 @@ import { formatPhoneToStandard } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
 import type { Order } from "@/types/order";
 import { computeCodAmount } from "@/lib/order-money";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import type {
     WaseetApiResult,
     WaseetCity,
@@ -490,7 +491,7 @@ export function mapOrderToWaseet(
     const location = [order.city, order.address_details].filter(Boolean).join(" - ") || "غير محدد";
 
     // 4. Product type (join item names)
-    const typeName = order.items?.map(item => item.name).filter(Boolean).join(" + ") || "عطور";
+    const typeName = mergeOrderItems(order.items).map(item => item.name).filter(Boolean).join(" + ") || "عطور";
 
     // 5. Items count (sum of quantities)
     const itemsNumber = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
