@@ -264,7 +264,7 @@ function CategorySpotlightPair({
                       fill
                       unoptimized={!isOptimizableImageHost(item.image_url)}
                       sizes={cardSizes}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-bk-base motion-reduce:transition-none group-hover:scale-105"
                     />
                   ) : (
                     /* No image yet: tinted placeholder so the card still
@@ -298,7 +298,7 @@ function CategorySpotlightPair({
                       // subject — on the best-sellers card it covered the
                       // bottles it was selling — and gave it no edge to
                       // line up with. Both cards now place it identically.
-                      className="absolute bottom-4 start-4 inline-flex max-w-[calc(100%-2rem)] items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-0.5"
+                      className="absolute bottom-4 start-4 inline-flex max-w-[calc(100%-2rem)] items-center gap-2 px-5 py-2.5 font-semibold text-sm sm:text-base transition-transform duration-bk-fast motion-reduce:transition-none group-hover:-translate-y-0.5"
                       style={{
                         backgroundColor: "var(--bk-surface, #ffffff)",
                         color: "var(--bk-ink, #1a1a1a)",
@@ -319,7 +319,7 @@ function CategorySpotlightPair({
                           <bdi>{item.count}</bdi>
                         </span>
                       )}
-                      <ChevronGlyph className="shrink-0 opacity-70 transition-transform duration-150 motion-reduce:transition-none group-hover:translate-x-0.5" />
+                      <ChevronGlyph className="shrink-0 opacity-70 transition-transform duration-bk-fast motion-reduce:transition-none group-hover:translate-x-0.5" />
                     </span>
                   )}
                 </div>

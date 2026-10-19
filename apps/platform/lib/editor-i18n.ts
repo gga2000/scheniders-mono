@@ -1242,6 +1242,27 @@ export const STRINGS = {
         disc_max_off: { en: "Max off", ar: "أقصى خصم", ku: "زۆرترین داشکاندن" },
         disc_remove_aria: { en: "Remove code", ar: "إزالة الكود", ku: "لابردنی کۆد" },
 
+        /* Shipping rates — the delivery fee a customer is quoted at checkout. */
+        ship_heading: { en: "Delivery fees", ar: "أجور التوصيل", ku: "کرێی گەیاندن" },
+        ship_close_aria: { en: "Close delivery fees", ar: "إغلاق أجور التوصيل", ku: "داخستنی کرێی گەیاندن" },
+        ship_intro: { en: "What a customer is charged for delivery at checkout. The same figure is shown in the cart, quoted on the order, and recorded with it.", ar: "المبلغ الذي يُحتسب على الزبون للتوصيل عند إتمام الطلب. نفس الرقم يظهر في السلة ويُثبت مع الطلب.", ku: "ئەو بڕەی لە کڕیار وەردەگیرێت بۆ گەیاندن لە کاتی پارەدان. هەمان ژمارە لە سەبەتەدا دەردەکەوێت و لەگەڵ داواکاریەکەدا تۆمار دەکرێت." },
+        ship_mode_free: { en: "Free delivery", ar: "توصيل مجاني", ku: "گەیاندنی بەخۆڕایی" },
+        ship_mode_free_hint: { en: "Nobody is charged for delivery, anywhere.", ar: "لا أحد يدفع أجور توصيل، في أي محافظة.", ku: "کەس کرێی گەیاندن نادات، لە هیچ پارێزگایەک." },
+        ship_mode_flat: { en: "One fee everywhere", ar: "أجرة واحدة لكل المحافظات", ku: "یەک کرێ بۆ هەموو شوێنێک" },
+        ship_mode_flat_hint: { en: "The same fee for every governorate.", ar: "نفس الأجرة لكل محافظة.", ku: "هەمان کرێ بۆ هەموو پارێزگایەک." },
+        ship_mode_by_gov: { en: "A fee per governorate", ar: "أجرة لكل محافظة", ku: "کرێیەک بۆ هەر پارێزگایەک" },
+        ship_mode_by_gov_hint: { en: "A default fee, and your own figure wherever it differs.", ar: "أجرة افتراضية، ورقمك الخاص حيث تختلف.", ku: "کرێیەکی بنەڕەتی، و ژمارەی خۆت لە هەر شوێنێک کە جیاواز بێت." },
+        ship_fee_label: { en: "Fee (IQD)", ar: "الأجرة (د.ع)", ku: "کرێ (IQD)" },
+        ship_free_over_label: { en: "Free above", ar: "مجاني فوق", ku: "بەخۆڕایی لەسەروو" },
+        ship_free_over_hint: { en: "Leave blank to charge the fee on every order.", ar: "اتركه فارغاً لاحتساب الأجرة على كل طلب.", ku: "بەتاڵی بهێڵەوە بۆ وەرگرتنی کرێ لە هەموو داواکارییەک." },
+        ship_default_fee: { en: "Default fee", ar: "الأجرة الافتراضية", ku: "کرێی بنەڕەتی" },
+        ship_override_col: { en: "Governorate", ar: "المحافظة", ku: "پارێزگا" },
+        ship_override_placeholder: { en: "default", ar: "الافتراضي", ku: "بنەڕەت" },
+        ship_unset_warning: { en: "Delivery fees are not set. Until they are, the platform charges a flat 5,000 IQD and waives it above 75,000 — figures you did not choose. Pick an option below.", ar: "أجور التوصيل غير محددة. حتى تحددها، تحتسب المنصة 5,000 د.ع ثابتة وتعفيها فوق 75,000 — أرقام لم تخترها. اختر خياراً أدناه.", ku: "کرێی گەیاندن دیاری نەکراوە. تاکو دیاری دەکەیت، پلاتفۆرمەکە 5,000 IQD وەردەگرێت و لەسەروو 75,000 چاوپۆشی دەکات — ژمارەی تۆ هەڵنەبژاردوون. خوارەوە هەڵبژێرە." },
+        ship_preview_heading: { en: "What a customer pays", ar: "ما يدفعه الزبون", ku: "ئەوەی کڕیار دەیدات" },
+        ship_preview_free: { en: "Free", ar: "مجاني", ku: "بەخۆڕایی" },
+        ship_preview_basket: { en: "On a {n} IQD basket", ar: "على سلة بـ {n} د.ع", ku: "لەسەر سەبەتەی {n} IQD" },
+
         // Redirects screen
         redir_close_aria: { en: "Close redirects", ar: "إغلاق التحويلات", ku: "داخستنی ئاراستەکردنەکان" },
         redir_heading: { en: "Redirects", ar: "التحويلات", ku: "ئاراستەکردنەکان" },

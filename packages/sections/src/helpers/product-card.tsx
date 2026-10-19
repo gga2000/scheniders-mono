@@ -15,12 +15,12 @@ import { useCart } from "./cart-store";
 type Tint = "mint" | "lilac" | "butter" | "sky" | "pink" | "cream";
 
 const TINT_BG: Record<Tint, string> = {
-  mint: "bg-candy-mint/30",
-  lilac: "bg-candy-lilac/30",
-  butter: "bg-candy-butter/30",
-  sky: "bg-candy-sky/30",
-  pink: "bg-candy-pink/15",
-  cream: "bg-candy-cream",
+  mint: "bg-bk-secondary/30",
+  lilac: "bg-bk-decor-b/30",
+  butter: "bg-bk-accent/30",
+  sky: "bg-bk-decor-c/30",
+  pink: "bg-bk-primary/15",
+  cream: "bg-bk-surface",
 };
 
 interface Props {
@@ -157,7 +157,7 @@ export function SchneidersProductCard({
             priority={priority}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className={cn(
-              "object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]",
+              "object-cover transition-transform duration-bk-base ease-out group-hover:scale-[1.04]",
               !inStock && "opacity-60 grayscale",
             )}
           />

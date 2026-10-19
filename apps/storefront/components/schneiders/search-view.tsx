@@ -19,13 +19,13 @@ interface Props {
 const TRENDING = ["sneakers", "skincare", "perfume", "summer dress", "watches"];
 
 const TILE_BG_CLASS = {
-  mint: "bg-candy-mint",
-  butter: "bg-candy-butter",
-  pink: "bg-candy-pink text-white",
-  sky: "bg-candy-sky",
-  lilac: "bg-candy-lilac",
-  cream: "bg-candy-cream",
-  ink: "bg-candy-ink text-white",
+  mint: "bg-bk-decor-a",
+  butter: "bg-bk-accent",
+  pink: "bg-bk-primary text-white",
+  sky: "bg-bk-decor-c",
+  lilac: "bg-bk-decor-b",
+  cream: "bg-bk-surface",
+  ink: "bg-bk-ink text-white",
 } as const;
 
 export function SchneidersSearchView({ products, whatsappNumber, schneidersConfig }: Props) {
@@ -57,7 +57,7 @@ export function SchneidersSearchView({ products, whatsappNumber, schneidersConfi
     <div className="space-y-6">
       {/* Search bar */}
       <BentoCard bg="white" className="p-3 flex items-center gap-2">
-        <span className="bento-card-sm bg-candy-pink w-10 h-10 flex items-center justify-center rounded-xl shrink-0">
+        <span className="bento-card-sm bg-bk-primary w-10 h-10 flex items-center justify-center rounded-xl shrink-0">
           <MaterialIcon name="search" className="text-white text-xl" />
         </span>
         <input
@@ -72,7 +72,7 @@ export function SchneidersSearchView({ products, whatsappNumber, schneidersConfi
             type="button"
             onClick={() => pushQuery("")}
             aria-label="Clear search"
-            className="bento-card-sm bg-candy-butter w-10 h-10 flex items-center justify-center rounded-xl shrink-0"
+            className="bento-card-sm bg-bk-accent w-10 h-10 flex items-center justify-center rounded-xl shrink-0"
           >
             <MaterialIcon name="close" className="text-xl" />
           </button>
@@ -96,9 +96,9 @@ export function SchneidersSearchView({ products, whatsappNumber, schneidersConfi
                   )}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="bento-card bg-white text-candy-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
+                  className="bento-card bg-white text-bk-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 rounded-xl uppercase hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
                 >
-                  <WhatsAppIcon className="w-5 h-5 text-candy-mint" />
+                  <WhatsAppIcon className="w-5 h-5 text-bk-success" />
                   Ask us
                 </a>
               )}

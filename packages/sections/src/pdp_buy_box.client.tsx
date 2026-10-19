@@ -21,6 +21,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { stockLeftFor, useSelectedVariant, useVariantStore } from "./helpers/variant-store";
 import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import {
@@ -88,9 +89,19 @@ export function PdpBuyBoxRender({
     return { sizeVariants: sizes, otherVariants: others };
   }, [variants]);
 
-  const [variantId, setVariantId] = useState<string | null>(
-    variants[0]?.id ?? null,
-  );
+  // The buy box is itself a picker: its choice goes through the shared store
+  // so a direct-order form or add-to-cart on the same page sells the same
+  // variant, and it registers so no second inline picker appears. Nothing is
+  // pre-selected — the shopper picks before the product can be added.
+  const productId = product?.id ?? "";
+  const chosen = useSelectedVariant(product);
+  const registerPicker = useVariantStore((s) => s.registerPicker);
+  const variantId = chosen.variant?.id ?? null;
+  const setVariantId = chosen.select;
+  useEffect(() => {
+    if (!productId || variants.length === 0) return;
+    return registerPicker(productId);
+  }, [productId, variants.length, registerPicker]);
   const [qty, setQty] = useState(1);
 
   // WhatsApp deep-link embeds the absolute page URL — only known client-side,
@@ -130,8 +141,8 @@ export function PdpBuyBoxRender({
     return null;
   }
 
-  const activeVariant =
-    variants.find((v) => v.id === variantId) ?? variants[0] ?? null;
+  const activeVariant = chosen.variant;
+  const needsVariant = chosen.needsVariant;
   const basePrice = activeVariant?.price ?? product.price;
   // See `pdp_add_to_cart`: the ladder was never applied here either, so the
   // displayed total and the checkout's disagreed at any tier quantity.
@@ -148,9 +159,10 @@ export function PdpBuyBoxRender({
           100,
       )
     : 0;
-  const stockLeft =
-    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
-  const oos = stockLeft <= 0;
+  // The chosen variant's stock; before a choice there is none to count, and
+  // the CTA asks for the option rather than calling the product sold out.
+  const stockLeft = stockLeftFor(product, activeVariant);
+  const oos = !needsVariant && stockLeft <= 0;
 
   const ctaLabel = resolveI18n(props.add_to_cart_label_i18n, locale);
   const codLabel = resolveI18n(props.cod_badge_label_i18n, locale);
@@ -161,7 +173,7 @@ export function PdpBuyBoxRender({
     typeof ratingValue === "number" && typeof ratingCount === "number";
 
   function handleAdd() {
-    if (oos || !product) return;
+    if (oos || needsVariant || !product) return;
     addItem({
       product_id: product.id,
       variant_id: activeVariant?.id ?? null,
@@ -169,7 +181,7 @@ export function PdpBuyBoxRender({
       variant_name: activeVariant?.name ?? null,
       price: unitPrice,
       quantity: qty,
-      image_url: product.image_url ?? null,
+      image_url: activeVariant?.image_url ?? product.image_url ?? null,
       base_price: basePrice,
       ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
     });
@@ -188,7 +200,7 @@ export function PdpBuyBoxRender({
     v: ProductVariantLite;
     big?: boolean;
   }) => {
-    const isActive = (variantId ?? variants[0]?.id) === v.id;
+    const isActive = variantId === v.id;
     const vOos = v.stock_quantity === 0;
     return (
       <button
@@ -227,8 +239,12 @@ export function PdpBuyBoxRender({
           <span
             className="inline-block font-display font-black text-xs uppercase px-2 py-1"
             style={{
-              backgroundColor: onSale ? "var(--bk-primary, #ff5a8a)" : "var(--bk-sky, #9ad8ff)",
-              color: onSale ? "var(--bk-on-primary, #fff)" : "var(--bk-ink, #1a1a1a)",
+              backgroundColor: onSale
+                ? "var(--bk-primary, #ff5a8a)"
+                : "var(--bk-decor-c, #9ad8ff)",
+              color: onSale
+                ? "var(--bk-on-primary, #fff)"
+                : "var(--bk-on-decor, #1a1a1a)",
               border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
               borderRadius: "calc(var(--bk-radius-input, 0.5rem) * 0.6)",
             }}
@@ -247,7 +263,7 @@ export function PdpBuyBoxRender({
             <div className="flex items-center gap-2">
               <span
                 className="text-lg drop-shadow-[1px_1px_0px_#1a1a1a]"
-                style={{ color: "var(--bk-mint, #7cf0bd)" }}
+                style={{ color: "var(--bk-success, #25d366)" }}
                 aria-hidden="true"
               >
                 {"★".repeat(Math.round(ratingValue!))}
@@ -368,15 +384,15 @@ export function PdpBuyBoxRender({
                     aria-label={t ? "زيادة الكمية" : "Increase quantity"}
                     className="w-11 h-11 flex items-center justify-center"
                     style={{
-                      color: "var(--bk-ink, #1a1a1a)",
-                      backgroundColor: "var(--bk-mint, #7cf0bd)",
+                      color: "var(--bk-on-decor, #1a1a1a)",
+                      backgroundColor: "var(--bk-decor-a, #7cf0bd)",
                       borderLeft: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                     }}
                   >
                     <MaterialIcon name="add" />
                   </button>
                 </div>
-                {!oos && stockLeft > 0 && stockLeft <= 10 && (
+                {!oos && !needsVariant && stockLeft > 0 && stockLeft <= 10 && (
                   <p className="text-xs font-label font-bold text-bk-ink-soft mt-bk-2xs">
                     {t ? `بقي ${stockLeft} فقط` : `Only ${stockLeft} left`}
                   </p>
@@ -399,10 +415,14 @@ export function PdpBuyBoxRender({
             size="lg"
             fullWidth
             onClick={handleAdd}
-            disabled={oos}
+            disabled={oos || needsVariant}
           >
             <MaterialIcon name="shopping_bag" />
-            {oos ? (t ? "نفد المخزون" : "Out of stock") : ctaLabel}
+            {oos
+              ? t ? "نفد المخزون" : "Out of stock"
+              : needsVariant
+                ? t ? "اختر الخيار" : "Choose an option"
+                : ctaLabel}
           </ChunkyButton>
         </div>
 
@@ -431,8 +451,8 @@ export function PdpBuyBoxRender({
               data-testid="pdp-whatsapp-cta"
               className="inline-flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-display font-black uppercase tracking-wide"
               style={{
-                backgroundColor: "var(--bk-mint, #7cf0bd)",
-                color: "var(--bk-ink, #1a1a1a)",
+                backgroundColor: "var(--bk-success, #25d366)",
+                color: "var(--bk-on-primary, #1a1a1a)",
                 border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                 borderRadius: "var(--bk-radius-input, 0.75rem)",
                 boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
@@ -448,8 +468,8 @@ export function PdpBuyBoxRender({
           <div
             className="inline-flex items-center gap-2 px-3 py-2 font-label font-bold text-xs uppercase tracking-[0.15em]"
             style={{
-              backgroundColor: "var(--bk-mint, #7cf0bd)",
-              color: "var(--bk-ink, #1a1a1a)",
+              backgroundColor: "var(--bk-decor-a, #7cf0bd)",
+              color: "var(--bk-on-decor, #1a1a1a)",
               border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
               borderRadius: "var(--bk-radius-pill, 9999px)",
               boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
@@ -465,11 +485,11 @@ export function PdpBuyBoxRender({
       <div
         aria-hidden={!showSticky}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-40 transition-transform duration-300 ease-out motion-reduce:transition-none",
+          "fixed inset-x-0 bottom-0 z-40 transition-transform duration-bk-base ease-out motion-reduce:transition-none",
           showSticky ? "translate-y-0" : "translate-y-full pointer-events-none",
         )}
         style={{
-          backgroundColor: "var(--bk-mint, #7cf0bd)",
+          backgroundColor: "var(--bk-decor-a, #7cf0bd)",
           borderTop: "var(--bk-border-thickness-bold, 4px) solid var(--bk-ink, #1a1a1a)",
           boxShadow: "0 -4px 0 0 var(--bk-ink, #1a1a1a)",
         }}
@@ -487,9 +507,13 @@ export function PdpBuyBoxRender({
             </span>
           </div>
           <div className="shrink-0">
-            <ChunkyButton type="button" bg="pink" size="md" onClick={handleAdd} disabled={oos}>
+            <ChunkyButton type="button" bg="pink" size="md" onClick={handleAdd} disabled={oos || needsVariant}>
               <MaterialIcon name="shopping_bag" />
-              {oos ? (t ? "نفد" : "Sold Out") : ctaLabel}
+              {oos
+                ? t ? "نفد" : "Sold Out"
+                : needsVariant
+                  ? t ? "اختر الخيار" : "Choose an option"
+                  : ctaLabel}
             </ChunkyButton>
           </div>
         </div>

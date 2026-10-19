@@ -1,5 +1,6 @@
 export * from "./utils";
 export * from "./abandoned-cart";
+export * from "./arabic-search";
 export * from "./bundle";
 export * from "./governorates";
 export * from "./types";
@@ -24,6 +25,7 @@ export * from "./order-bumps";
 export * from "./pixel";
 export * from "./post-purchase";
 export * from "./price-tiers";
+export * from "./product-attribute";
 // MOVED TO SUBPATH EXPORT: export * from "./preview-token";
 export * from "./order-status";
 export * from "./redirects";

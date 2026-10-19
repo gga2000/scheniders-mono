@@ -126,7 +126,7 @@ function BrandStory({
             /* No accent image: a designed editorial panel (brand mark +
                business name + eyebrow) instead of an empty gradient block. */
             <>
-              <div className="absolute inset-0 bg-gradient-to-br from-candy-lilac via-candy-sky/50 to-candy-mint/50" />
+              <div className="absolute inset-0 bg-gradient-to-br from-bk-decor-b via-bk-decor-c/50 to-bk-secondary/50" />
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
                 <span
                   className="flex h-14 w-14 items-center justify-center"

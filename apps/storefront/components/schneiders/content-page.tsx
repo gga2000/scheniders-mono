@@ -22,7 +22,7 @@ export function PageHeader({ eyebrow, title, subtitle, color = "butter", badge }
       <ScribbleHeading color={color} as="h1">
         {title}
       </ScribbleHeading>
-      {subtitle && <p className="font-body text-base text-candy-ink/80 leading-relaxed pt-1">{subtitle}</p>}
+      {subtitle && <p className="font-body text-base text-bk-ink/80 leading-relaxed pt-1">{subtitle}</p>}
       {badge && (
         <p className="pt-2">
           <Sticker bg="cream" rotate={-2} size="xs">

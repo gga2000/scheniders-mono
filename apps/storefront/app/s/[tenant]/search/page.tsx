@@ -64,7 +64,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
   // The whole visible catalogue: search_results_grid filters it server-side
   // from runtime.search_query, so a capped fetch would silently hide matches.
   const [products, categories] = await Promise.all([
-    listProducts(tenant.id),
+    listProducts(tenant.id, { withAttributes: true }),
     listCategories(tenant.id),
   ]);
 

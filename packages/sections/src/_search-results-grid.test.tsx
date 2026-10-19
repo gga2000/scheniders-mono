@@ -9,6 +9,7 @@ import { StoreBaseProvider } from "./helpers/store-context";
 
 import search_results_grid from "./search_results_grid";
 import { filterProductsByQuery } from "./search_results_grid.client";
+import { parseProductAttributeDefs, resolveProductAttributes } from "@scheniders/shared";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 
@@ -137,5 +138,67 @@ describe("search_results_grid — server-side filtering", () => {
     expect(html).toContain("لا توجد منتجات تطابق بحثك.");
     expect(html).toContain("بحثت عن: &quot;zzz&quot;");
     expect(html).not.toContain("عطر الورد");
+  });
+});
+
+describe("filterProductsByQuery — Arabic spelling and attributes", () => {
+  const withAttrs = (over: Partial<Product>): Product => ({
+    id: "x",
+    name: "منتج",
+    price: 1000,
+    stock_quantity: 1,
+    reserved_quantity: 0,
+    is_archived: false,
+    ...over,
+  });
+
+  const DEFS = parseProductAttributeDefs([
+    {
+      id: "d1", key: "scent_family", kind: "enum", display_order: 0,
+      name_i18n: { ar: "العائلة العطرية" },
+      options: [{ value: "oriental", label_i18n: { ar: "شرقي" } }],
+    },
+    {
+      id: "d2", key: "notes", kind: "group_list", display_order: 1,
+      name_i18n: { ar: "هرم الروائح" }, group_keys: [{ key: "base" }],
+    },
+  ]);
+
+  const oriental = withAttrs({
+    id: "p1",
+    sku: "P1",
+    name: "عطر فيوجن",
+    attributes: resolveProductAttributes(DEFS, [
+      { product_id: "p1", attribute_def_id: "d1", value: "oriental" },
+      { product_id: "p1", attribute_def_id: "d2", value: { base: ["عنبر", "مسك"] } },
+    ]),
+  });
+  const plain = withAttrs({ id: "p2", sku: "P2", name: "عطر ويفر" });
+  const pool = [oriental, plain];
+
+  it("matches a name however the shopper spells it", () => {
+    // Stored "عطرية", typed "عطريه" — both are correct Arabic.
+    const p = withAttrs({ id: "p3", sku: "P3", name: "مياه عطرية" });
+    expect(filterProductsByQuery([p], "عطريه").map((x) => x.sku)).toEqual(["P3"]);
+    expect(filterProductsByQuery([p], "عِطْرية").map((x) => x.sku)).toEqual(["P3"]);
+  });
+
+  it("finds a product by a note it contains", () => {
+    // "عنبر" is nowhere in the name or description — only in the attributes.
+    expect(filterProductsByQuery(pool, "عنبر").map((p) => p.sku)).toEqual(["P1"]);
+  });
+
+  it("finds a product by its scent family label", () => {
+    expect(filterProductsByQuery(pool, "شرقي").map((p) => p.sku)).toEqual(["P1"]);
+  });
+
+  it("does not match the machine value behind a label", () => {
+    // "oriental" is a database key, not something an Arabic shopper types,
+    // and indexing it would produce results nobody can explain.
+    expect(filterProductsByQuery(pool, "oriental")).toEqual([]);
+  });
+
+  it("still requires every token", () => {
+    expect(filterProductsByQuery(pool, "عنبر ويفر")).toEqual([]);
   });
 });

@@ -27,7 +27,7 @@ function scrollTrack(trackId: string, direction: -1 | 1): void {
 
 const ARROW_CLS =
   "hidden sm:inline-flex h-11 w-11 items-center justify-center rounded-full " +
-  "transition-[opacity,transform] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.95] " +
+  "transition-[opacity,transform] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.95] " +
   "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2";
 
 const ARROW_STYLE = {

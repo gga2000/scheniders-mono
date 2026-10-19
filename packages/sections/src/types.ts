@@ -14,6 +14,7 @@ import type {
   BaseProduct,
   PriceTier,
   OrderBumpOffer,
+  ResolvedProductAttribute,
   BaseProductVariant,
   Category,
   ProductReview,
@@ -85,6 +86,11 @@ export interface Product extends BaseProduct {
   /** The products those offers point at, resolved alongside them so a
    *  section never has to hope they appear in a capped page-level list. */
   order_bump_products?: Product[];
+  /** Merchant-defined attributes, already paired with their definitions and
+   *  ordered by the merchant's `display_order`. Populated where a section
+   *  needs them (the PDP today); absent elsewhere, and sections must render
+   *  nothing rather than a placeholder when the list is empty. */
+  attributes?: ResolvedProductAttribute[];
   /** Optional variant list — populated on the PDP. */
   variants?: ProductVariant[];
   /** Approved-review aggregates (real data, storefront-populated). Sections
@@ -115,6 +121,9 @@ export type ReviewSummaryItem = Pick<
 >;
 
 export interface ProductVariant extends BaseProductVariant {
-  /** Variants always carry a concrete price when rendered. */
+  /** Variants always carry a concrete price when rendered (the product's when the row has none). */
   price: number;
+  reserved_quantity?: number | null;
+  compare_at_price?: number | null;
+  image_url?: string | null;
 }

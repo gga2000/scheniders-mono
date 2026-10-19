@@ -145,8 +145,8 @@ function DeliveryPromise({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div
             className={
-              "relative bg-white p-5 shadow-bento-sm " +
-              (visitorIsBaghdad ? "ring-4 ring-candy-pink/40" : "")
+              "relative bg-white p-5 shadow-bk-button " +
+              (visitorIsBaghdad ? "ring-4 ring-bk-primary/40" : "")
             }
             style={statCardStyle}
           >
@@ -169,8 +169,8 @@ function DeliveryPromise({
           </div>
           <div
             className={
-              "relative bg-white p-5 shadow-bento-sm " +
-              (visitorGov && !visitorIsBaghdad ? "ring-4 ring-candy-pink/40" : "")
+              "relative bg-white p-5 shadow-bk-button " +
+              (visitorGov && !visitorIsBaghdad ? "ring-4 ring-bk-primary/40" : "")
             }
             style={statCardStyle}
           >
@@ -201,7 +201,7 @@ function DeliveryPromise({
               {covered.map((g) => (
                 <span
                   key={g}
-                  className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-white border-[3px] border-candy-ink rounded-full px-3 py-1"
+                  className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-white border-bk border-bk-ink rounded-full px-3 py-1"
                 >
                   {governorateLabel(g, locale)}
                 </span>
@@ -214,7 +214,7 @@ function DeliveryPromise({
             data-i18n-field="inspection_text_i18n"
             className="mt-5 font-body text-sm sm:text-base text-bk-ink-soft inline-flex items-center gap-2"
           >
-            <MaterialIcon name="verified" className="text-xl text-candy-pink" />
+            <MaterialIcon name="verified" className="text-xl text-bk-primary" />
             {inspection}
           </p>
         )}

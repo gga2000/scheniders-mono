@@ -22,7 +22,7 @@ import { fillTemplate } from "./wa";
 import { FreeGiftStripe } from "./free-gift-stripe";
 import { cn } from "@/lib/utils";
 
-const TINTS = ["bg-candy-mint/30", "bg-candy-lilac/30", "bg-candy-butter/30", "bg-candy-sky/30"];
+const TINTS = ["bg-bk-decor-a/30", "bg-bk-decor-b/30", "bg-bk-accent/30", "bg-bk-decor-c/30"];
 const ROTATIONS = ["rotate-0", "rotate-[0.5deg]", "-rotate-[0.5deg]", "rotate-[0.25deg]"];
 
 interface Props {
@@ -74,7 +74,7 @@ export function SchneidersCartView({ tenant }: Props) {
 
   if (!mounted) {
     return (
-      <div className="py-16 text-center font-display font-bold text-candy-ink/60">
+      <div className="py-16 text-center font-display font-bold text-bk-ink/60">
         Loading your cart…
       </div>
     );
@@ -104,7 +104,7 @@ export function SchneidersCartView({ tenant }: Props) {
     <div className="space-y-6">
       <header>
         <ScribbleHeading color="butter" as="h1">Your Cart</ScribbleHeading>
-        <p className="font-body text-sm text-candy-ink/70 mt-2">
+        <p className="font-body text-sm text-bk-ink/70 mt-2">
           {items.length} item{items.length === 1 ? "" : "s"} waiting to come home with you ✨
         </p>
       </header>
@@ -121,11 +121,11 @@ export function SchneidersCartView({ tenant }: Props) {
               className={cn("p-4", rotate)}
             >
               <div className="flex gap-3">
-                <div className={cn("w-20 h-20 rounded-xl border-[3px] border-candy-ink relative overflow-hidden shrink-0", tint)}>
+                <div className={cn("w-20 h-20 rounded-xl border-[3px] border-bk-ink relative overflow-hidden shrink-0", tint)}>
                   {item.image_url ? (
                     <Image src={item.image_url} alt={item.name} fill className="object-cover mix-blend-multiply" />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-candy-ink/40 font-display font-bold text-xs">
+                    <div className="absolute inset-0 flex items-center justify-center text-bk-ink/40 font-display font-bold text-xs">
                       No image
                     </div>
                   )}
@@ -134,19 +134,19 @@ export function SchneidersCartView({ tenant }: Props) {
                   <div>
                     <h3 className="font-body font-bold text-base leading-tight line-clamp-2">{item.name}</h3>
                     {item.variant_name && (
-                      <p className="font-label text-xs text-candy-ink/60 mt-0.5">{item.variant_name}</p>
+                      <p className="font-label text-xs text-bk-ink/60 mt-0.5">{item.variant_name}</p>
                     )}
                     <p className="font-display font-black text-lg mt-1">{formatPrice(item.price)}</p>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-3 pt-3 border-t-2 border-dashed border-candy-ink/10">
+              <div className="flex items-center justify-between mt-3 pt-3 border-t-2 border-dashed border-bk-ink/10">
                 <div className="inline-flex items-center bento-card-sm bg-white overflow-hidden p-0.5 rounded-xl">
                   <button
                     type="button"
                     onClick={() => updateQuantity(item.product_id, item.variant_id, item.quantity - 1)}
                     aria-label="Decrease quantity"
-                    className="w-8 h-8 flex items-center justify-center font-display font-black text-xl hover:bg-candy-cream rounded-lg"
+                    className="w-8 h-8 flex items-center justify-center font-display font-black text-xl hover:bg-bk-surface rounded-lg"
                   >
                     −
                   </button>
@@ -155,7 +155,7 @@ export function SchneidersCartView({ tenant }: Props) {
                     type="button"
                     onClick={() => updateQuantity(item.product_id, item.variant_id, item.quantity + 1)}
                     aria-label="Increase quantity"
-                    className="w-8 h-8 flex items-center justify-center font-display font-black text-xl bg-candy-mint border-2 border-candy-ink rounded-lg"
+                    className="w-8 h-8 flex items-center justify-center font-display font-black text-xl bg-bk-decor-a border-2 border-bk-ink rounded-lg"
                   >
                     +
                   </button>
@@ -164,7 +164,7 @@ export function SchneidersCartView({ tenant }: Props) {
                   type="button"
                   onClick={() => removeItem(item.product_id, item.variant_id)}
                   aria-label="Remove item"
-                  className="w-10 h-10 bento-card-sm bg-candy-butter rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                  className="w-10 h-10 bento-card-sm bg-bk-accent rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
                 >
                   <MaterialIcon name="delete" className="text-lg" />
                 </button>
@@ -183,7 +183,7 @@ export function SchneidersCartView({ tenant }: Props) {
           <div className="flex items-center justify-between">
             <Sticker bg="butter" rotate={-3} size="xs">✨ Have a code?</Sticker>
             {firstCodeHint && (
-              <SectionEyebrow className="text-candy-ink/70">Try {firstCodeHint}</SectionEyebrow>
+              <SectionEyebrow className="text-bk-ink/70">Try {firstCodeHint}</SectionEyebrow>
             )}
           </div>
           <div className="flex gap-2">
@@ -191,14 +191,14 @@ export function SchneidersCartView({ tenant }: Props) {
               value={promo}
               onChange={(e) => setPromo(e.target.value)}
               placeholder="Enter promo code"
-              className="flex-1 bento-card-sm bg-candy-cream rounded-xl px-4 py-3 font-body font-bold uppercase tracking-wider text-sm placeholder:opacity-50 focus:outline-none"
+              className="flex-1 bento-card-sm bg-bk-surface rounded-xl px-4 py-3 font-body font-bold uppercase tracking-wider text-sm placeholder:opacity-50 focus:outline-none"
             />
             <ChunkyButton bg="butter" onClick={applyPromo}>
               Apply
             </ChunkyButton>
           </div>
           {promoMsg && (
-            <p className={cn("font-label text-xs font-bold", appliedDiscount > 0 ? "text-candy-ink" : "text-candy-pink")}>
+            <p className={cn("font-label text-xs font-bold", appliedDiscount > 0 ? "text-bk-ink" : "text-bk-primary")}>
               {promoMsg}
             </p>
           )}
@@ -216,15 +216,15 @@ export function SchneidersCartView({ tenant }: Props) {
         <div className="space-y-2 font-body text-sm">
           <Row label="Subtotal" value={formatPrice(subtotal)} />
           {appliedDiscount > 0 && (
-            <Row label="Discount" value={`−${formatPrice(appliedDiscount)}`} valueClass="text-candy-pink font-bold" />
+            <Row label="Discount" value={`−${formatPrice(appliedDiscount)}`} valueClass="text-bk-primary font-bold" />
           )}
           <Row
             label="Delivery"
             value={deliveryFee === 0 ? "FREE 🎉" : formatPrice(deliveryFee)}
-            valueClass={deliveryFee === 0 ? "text-candy-mint font-display font-black" : ""}
+            valueClass={deliveryFee === 0 ? "text-bk-success font-display font-black" : ""}
           />
         </div>
-        <div className="border-t-[3px] border-dashed border-candy-ink/30 mt-4 pt-4 flex items-center justify-between">
+        <div className="border-t-[3px] border-dashed border-bk-ink/30 mt-4 pt-4 flex items-center justify-between">
           <span className="font-display font-black text-xl uppercase">Total</span>
           <span className="font-display font-black text-3xl">{formatPrice(total)}</span>
         </div>
@@ -252,7 +252,7 @@ export function SchneidersCartView({ tenant }: Props) {
       <ChunkyLink href="/checkout" bg="pink" size="lg" fullWidth className="font-display font-black text-xl">
         Checkout — {formatPrice(total)} <MaterialIcon name="arrow_forward" className="text-xl" />
       </ChunkyLink>
-      <p className="font-body text-xs text-center text-candy-ink/60 -mt-3">
+      <p className="font-body text-xs text-center text-bk-ink/60 -mt-3">
         Cash on delivery available • No upfront payment
       </p>
 
@@ -260,18 +260,18 @@ export function SchneidersCartView({ tenant }: Props) {
         <>
           {/* "OR" divider */}
           <div className="flex items-center gap-3 my-2">
-            <div className="flex-1 h-[3px] bg-candy-ink/20" />
-            <span className="font-display font-black text-sm uppercase text-candy-ink/60">OR</span>
-            <div className="flex-1 h-[3px] bg-candy-ink/20" />
+            <div className="flex-1 h-[3px] bg-bk-ink/20" />
+            <span className="font-display font-black text-sm uppercase text-bk-ink/60">OR</span>
+            <div className="flex-1 h-[3px] bg-bk-ink/20" />
           </div>
 
           <a
             href={waHref}
             target="_blank"
             rel="noreferrer"
-            className="bento-card bg-white text-candy-ink font-display font-black text-base px-5 py-4 flex items-center justify-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
+            className="bento-card bg-white text-bk-ink font-display font-black text-base px-5 py-4 flex items-center justify-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all rounded-xl uppercase tracking-tight"
           >
-            <WhatsAppIcon className="w-5 h-5 text-candy-mint" />
+            <WhatsAppIcon className="w-5 h-5 text-bk-success" />
             Order on WhatsApp
           </a>
         </>
@@ -283,7 +283,7 @@ export function SchneidersCartView({ tenant }: Props) {
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-candy-ink/70">{label}</span>
+      <span className="text-bk-ink/70">{label}</span>
       <span className={cn("font-bold", valueClass)}>{value}</span>
     </div>
   );
@@ -297,13 +297,13 @@ type FallbackCategory = {
 };
 
 const TILE_BG_CLASS: Record<NonNullable<FallbackCategory["bg"]>, string> = {
-  mint: "bg-candy-mint",
-  butter: "bg-candy-butter",
-  pink: "bg-candy-pink text-white",
-  sky: "bg-candy-sky",
-  lilac: "bg-candy-lilac",
-  cream: "bg-candy-cream",
-  ink: "bg-candy-ink text-white",
+  mint: "bg-bk-decor-a",
+  butter: "bg-bk-accent",
+  pink: "bg-bk-primary text-white",
+  sky: "bg-bk-decor-c",
+  lilac: "bg-bk-decor-b",
+  cream: "bg-bk-surface",
+  ink: "bg-bk-ink text-white",
 };
 
 export function EmptyCartState({
@@ -333,7 +333,7 @@ export function EmptyCartState({
         <h1 className="font-display font-black text-3xl uppercase mb-2">
           {heading}
         </h1>
-        <p className="font-body text-sm text-candy-ink/80">Let&apos;s fix that! ✨</p>
+        <p className="font-body text-sm text-bk-ink/80">Let&apos;s fix that! ✨</p>
       </BentoCard>
 
       <ChunkyLink href="/" bg="pink" size="lg" fullWidth>

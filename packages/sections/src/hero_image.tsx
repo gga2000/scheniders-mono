@@ -130,7 +130,7 @@ function HeroImageRender({
             <div className="absolute inset-0 bg-black/40" />
           </div>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-candy-butter via-candy-pink/30 to-candy-lilac" />
+          <div className="absolute inset-0 bg-gradient-to-br from-bk-accent via-bk-primary/30 to-bk-decor-b" />
         )}
 
         <div className="relative z-10 p-6 sm:p-10 max-w-xl">
