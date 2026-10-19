@@ -330,15 +330,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // instrumentation-client.ts: this provider is in the root layout, and a
     // static import would put the SDK on every route's first load.
     const sentryUserId = user?.id ?? null;
-    const sentryUserEmail = user?.email ?? null;
     useEffect(() => {
-        const identity = sentryIdentityFor(sentryUserId, sentryUserEmail, tenantId, role);
+        const identity = sentryIdentityFor(sentryUserId, tenantId, role);
         void import("@sentry/nextjs").then((Sentry) => {
             Sentry.setUser(identity.user);
             Sentry.setTag("tenant_id", identity.tags.tenant_id);
             Sentry.setTag("user_role", identity.tags.user_role);
         });
-    }, [sentryUserId, sentryUserEmail, tenantId, role]);
+    }, [sentryUserId, tenantId, role]);
 
     // Whether the current user already has a Google identity linked.
     const googleLinked = !!user?.identities?.some((i) => i.provider === 'google');
