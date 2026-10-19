@@ -77,3 +77,29 @@ Extra corrections found while doing this (not in the critic's list):
 - Status conflicts left for Phase 2 (listed in REGRESSION.md Cross-source duplicates): page-audits OBS-1 / OBS-D1 / REL-D2 are Fixed although no Sentry DSN is set in prod (D-09); ML SEC-26 / PR F-16 Partially fixed vs FR / OR Still open for the same webhook issue (D-01); several by-scope differences (D-18, D-25, D-26, D-30, D-33, D-45).
 
 Totals after round 1 (script): 749 rows: 286 Fixed, 126 Partially fixed, 290 Still open, 0 Regressed, 23 No longer applicable, 24 Unverifiable. 94 non-fixed P0-class rows. 38 new live-issue leads in REGRESSION.md (11 confirmed by the critic, 27 HYPOTHESIS).
+
+## Phase 1 — round 2
+
+Critic: [critic/phase1-round2.md](critic/phase1-round2.md). **Accuracy 8.5/10.** The score is at or above 8, so the Phase 1 critic loop stops here. All round-1 changes were confirmed applied, and all 25 fresh samples were correct on status.
+
+Changes applied (every row of the critic's "Rows that must still change" table):
+1. **page-audits OBS-1** → Partially fixed. The code sends tagged reports (`lib/order-telemetry.ts`), but prod has no `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN`, `sentry.client.config.ts:4` reads the DSN from env, and there is no `instrumentation.ts`, so nothing is reported. Cross-refs ML OPS-01, FR V-6 and OR OBS-1/ORD-4.
+2. **page-audits OBS-D1** → Partially fixed. The events half is Fixed (48 `dashboard_*` rows). Sentry is inert in prod, and `hooks/use-announcements.ts` has no Sentry call (grep = 0).
+3. **page-audits REL-D2** → Partially fixed. Widget error states are Fixed. Sentry is inert in prod, and `hooks/use-batch-analytics.ts:73` still discards its query error (`const { data: orderData }`).
+4. **Counts** → re-run by `count.py`. page-audits is now 82 Fixed / 20 Partially fixed (Counts section and ID list regenerated). The all-files total in REGRESSION.md is now 283 / 129 / 290 / 0 / 23 / 24 = 749.
+5. **REGRESSION.md D-09** → Agree (Partially fixed).
+6. **REGRESSION.md P0-list header** → now states that 35 `Blocking (150)` final-register rows and NEW-48 ("P1 (arguably P0)") are excluded. It also says that P-G1 to P-G11 and P-R3.1 to P-R3.6 have no P0 twin in the list. The script re-count confirms 35.
+7. **REGRESSION.md leads** → the section is renamed "Live issues found or re-confirmed during Phase 1". NEW-P1-04, -05, -19, -23, -32 and -35 are labelled "Re-confirmed (prior audit)", and each is mapped to its prior ID. Counts: 32 new (9 Confirmed, 23 HYPOTHESIS) and 6 re-confirmed (2 Confirmed, 4 HYPOTHESIS).
+8. **NEW-P1-16** → `pg_policies` query and result added: `performance_bonuses.tenant_isolation_insert/update/delete` are membership-only. The table is missing from the list at `20261019100100_tenant_admin_only_writes.sql:157-167`.
+9. **NEW-P1-18** → `pg_default_acl` query and result added: for both `postgres` and `supabase_admin`, anon and authenticated get EXECUTE on functions, `arwdDxtm` on tables and `rwU` on sequences.
+10. **NEW-P1-22** → `role_table_grants` query and result added: all 8 table/role pairs hold every privilege, TRUNCATE included.
+11. **NEW-P1-24** → policy `orders.tenant_isolation_select` (no role test) added, along with authenticated column SELECT on `price`, `product_cost` and `net_profit`, `v_orders_with_risk` `security_invoker=true`, and `get_dashboard_metrics(text)` having an admin role test with no `VIEW_FINANCIALS`.
+12. **NEW-P1-37** → file paths added (`packages/sections/src/*.tsx` `thumbnail:` declarations, `_types.ts:83`, `apps/storefront/public/sections/`, `section-picker.tsx:704-706`). A re-run gives 27 missing.
+13. **store-builder-qc E3** → `nav-builder-screen.tsx:41,48-72`, `page-tree.tsx:190` and `system-screen-router.tsx:120-121`.
+14. **store-builder-qc QC-FIND-2** → `qc-detail-drawer.tsx:49,74-76,152`.
+15. **store-builder-qc BA-1.6** → the card order is cited with lines (`brand-kit-editor.tsx:263,350-359,421,…`), plus the eyedropper (`brand-kit/controls.tsx:392-395,418`) and a "Coming soon" grep (= 0). The full-screen half is now addressed: it is still full-screen by design (`system-screen-router.tsx:81-86`, `inspector-rail.tsx:69-71`). The status stays Fixed, and the Notes say that a literal reading of this half is a won't-do.
+16. **orders-reliability STATE-6** → the exact query is given (tenant `b5c4…f45a`, `source='lightfunnels'`, `created_at >= '2026-10-12'`, soft-deleted rows included), giving 39/30 = 77%. With `deleted_at is null` the figure is 32/24 = 75%, which reconciles with the critic's number.
+
+DB access for 8–11 and 16 was SELECT-only on `sduvpgqwhxragxtxztur`, counts and catalog data only, with no PII.
+
+Totals after round 2 (script): 749 rows: 283 Fixed, 129 Partially fixed, 290 Still open, 0 Regressed, 23 No longer applicable, 24 Unverifiable. There are 94 non-fixed P0-class rows (unchanged). There are 38 leads: 32 new and 6 re-confirmed.

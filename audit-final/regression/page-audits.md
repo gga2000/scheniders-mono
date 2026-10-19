@@ -47,7 +47,7 @@ Key SQL used (the results are quoted in the rows):
 | INT-1 | Orders audit + ledger (SHIPPED) | P1 | Bulk-image Gemini no auth | Fixed | `components/orders/bulk-upload-modal.tsx:84` sends `Authorization: Bearer`. | — |
 | INT-2 | Orders audit + ledger (SHIPPED) | P1 | Waseet double-submit | Fixed | `app/api/waseet/submit-orders/route.ts:176-195` atomic claim UPDATE on `waseet_qr_id IS NULL` + stale window. | — |
 | INT-3 | Orders audit + ledger (SHIPPED) | P1 | XLSX under-collects delivery + gov arg slot | Fixed | `lib/export-utils.ts:213` `'السعر مع التوصيل': computeCodAmount(order)`; `:181-188` `extractGovernorate(undefined, govCode, undefined)` (code slot). | Cross-ref MONEY-1. |
-| OBS-1 | Orders audit + ledger (SHIPPED) | P1 | Zero Sentry on orders | Fixed | `lib/order-telemetry.ts:1` imports Sentry; `reportOrderError` referenced in 9 files under app/orders, components/orders, hooks. | — |
+| OBS-1 | Orders audit + ledger (SHIPPED) | P1 | Zero Sentry on orders | Partially fixed | Code half done: `lib/order-telemetry.ts:1` imports Sentry and sends tagged reports; `reportOrderError` referenced in 9 files under app/orders, components/orders, hooks. Outcome half still open: prod env has no `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN` (`scratchpad/vercel-env-platform.txt`), `apps/platform/sentry.client.config.ts:4` reads the DSN from env, and no `instrumentation.ts` exists, so every `captureException` is a silent no-op and the orders surface still reports nothing in prod. | Phase 1 round 2 (D-09): the audit's premise "Sentry is configured" is false today. Cross-ref ML OPS-01, FR V-6, OR OBS-1/ORD-4. |
 | OBS-3 | Orders audit + ledger (SHIPPED) | P1→P2 | No business-metric events | Fixed | SQL: views `v_shipping_export_outcomes`, `v_whatsapp_delivery_rate`, `v_whatsapp_message_outcomes` exist; `shipping_export_log` 26 rows; `whatsapp_logs` since 2026-09-10: 1,372 rows, 1,135 with `interakt_message_id` (all were NULL before). | Whether Interakt still calls the receipt webhook was not verified. |
 | ARCH-1 | Orders audit + ledger (SHIPPED) | P1 | page.tsx 3,129 lines | Partially fixed | `wc -l app/orders/page.tsx` = **2,058** (ledger R24 claimed 1,928, so it has grown back by 130). | Still a ~2k-line client component. |
 | ARCH-2 | Orders audit + ledger (SHIPPED) | P1 | Mock assignment data on live paths | Fixed | `grep mockEmployees\|mockAssignment` → 0 hits; worker gone. | The ledger's leftover is still there: `/team` AssignmentRulesTab saves rules to localStorage, and nothing reads them (`components/team/assignment-rules-tab.tsx:25,33`). |
@@ -70,14 +70,14 @@ Key SQL used (the results are quoted in the rows):
 | DV-D1 | Dashboard audit + ledger (PENDING) | P1 | Date-range filter placebo | Fixed | `app/page.tsx:95-103` `rangeQuery = useDashboardMetricsQuery(dateRange)` feeds pipeline, heatmap, avg-time, rejection, leaderboards and the map (`useGeoFacts(dateRange)`). | — |
 | MOB-D1 | Dashboard audit + ledger (PENDING) | P1 | Mobile shows 3 of 23 widgets; unmasked revenue | Partially fixed | `components/mobile/dashboard/MobileDashboardPage.tsx:95-135` adds TodayStrip, OrderPipeline and DeliverySuccessRate to the cards + urgency triad; revenue masked and from the RPC (`MobileDashboardCards.tsx:36`). | Still no trend, feed, range filter, leaderboards or announcements on mobile. The audit called only some of these "accidental holes". |
 | VIS-D1 | Dashboard audit + ledger (PENDING) | P1 | Dual-axis chart, non-zero baseline | Fixed | `components/dashboard/widgets/revenue-trend-chart.tsx:8-20,163-190` one measure at a time, a single YAxis `domain={[0,'auto']}`. | — |
-| OBS-D1 | Dashboard audit + ledger (PENDING) | P1 | Zero Sentry + events | Fixed | `lib/analytics/track-event.ts` inserts into `analytics_events` (RLS on, insert-own policy); SQL: **48** `dashboard_*` events, last 2026-10-17. Sentry in the metrics hook (`use-dashboard-metrics-query.ts:101`). | — |
+| OBS-D1 | Dashboard audit + ledger (PENDING) | P1 | Zero Sentry + events | Partially fixed | Events half Fixed: `lib/analytics/track-event.ts` inserts into `analytics_events` (RLS on, insert-own policy); SQL: **48** `dashboard_*` events, last 2026-10-17. Sentry half not done: the metrics hook calls Sentry (`use-dashboard-metrics-query.ts:101`) but Sentry is inert in prod (no DSN env; `sentry.client.config.ts:4`; no `instrumentation.ts`), and `hooks/use-announcements.ts` has no Sentry call at all (grep `-i sentry` = 0), although the item explicitly asked for it on announcements writes. | Phase 1 round 2 (D-09). Cross-ref OBS-1, ML OPS-01. |
 | PROC-D1 | Dashboard ledger (analysis) | P1 | Orders fixes stranded on unmerged branch | Fixed | Orders fixes are present in deployed 87e5e40 (SEC-2/3, MONEY-1 rows above); `git merge-base --is-ancestor db5caff2 87e5e40` true. | — |
 | COR-D5 | Dashboard ledger (APPROVED R3) | P2 | Deleted/pending_checkout counted | Fixed | Q3 `ws` and `recent_orders`: `deleted_at IS NULL AND status <> 'pending_checkout'`. | `suspended` is still counted, deliberately. |
 | COR-D6 | Dashboard ledger (APPROVED R4) | P2 | Staff board last-toucher / bots | Fixed | Q3 `staff_stats` counts `activity_logs` `order.status_change` with `user_id IS NOT NULL`. | Grouped by display name, so two users with the same name would merge (minor). |
 | COR-D7 | Dashboard ledger (APPROVED R4 + carry-forward) | P2 | Rate honesty / small-n | Partially fixed | Q3: rates return NULL when the denominator is 0; `week-over-week.tsx:28-33` pp only on %; `today-strip.tsx:12-16,92` money delta goes through FinancialValue. **Small-n** labelling: none (no n / sample guard in `delivery-success-rate.tsx`). | — |
 | SEC-D3 | Dashboard ledger (PENDING) | P3 | get_dashboard_metrics EXECUTE to PUBLIC | Fixed | Q1 ACL `{postgres,authenticated,service_role}`; no PUBLIC. | — |
 | SEC-D4 | Dashboard ledger (PENDING) | P2 | Announcement writes admin-gated client-side only | Fixed | Q2 announcements INSERT/UPDATE/DELETE policies: `tenant_id IN (get_user_tenant_ids()) AND is_tenant_admin(tenant_id)`. | — |
-| REL-D2 | Dashboard ledger (PENDING) | P2 | No widget error states / Sentry | Fixed | `components/dashboard/widget-boundary.tsx` (ErrorBoundary, Sentry per widget) wraps every widget in `app/page.tsx`; `WidgetLoadError` placeholders `:150-152,264-268`. | — |
+| REL-D2 | Dashboard ledger (PENDING) | P2 | No widget error states / Sentry | Partially fixed | Widget error states Fixed: `components/dashboard/widget-boundary.tsx` (ErrorBoundary, Sentry per widget) wraps every widget in `app/page.tsx`; `WidgetLoadError` placeholders `:150-152,264-268`. Still open: the per-widget Sentry call is inert in prod (no DSN env; `sentry.client.config.ts:4`; no `instrumentation.ts`), and the cited silent catch remains: `hooks/use-batch-analytics.ts:73` destructures only `{ data: orderData }`, discarding that query's error. | Phase 1 round 2 (D-09). `use-batch-analytics` is now used only on `/reports`. Cross-ref OBS-1. |
 | TMP-D1 | Dashboard ledger (PENDING) | P2 | Browser-clock boundaries; current-hour highlight | Partially fixed | Client engine removed (ENG-D1); greeting uses `baghdadHour` (`app/page.tsx:143`). **Still** `components/dashboard/widgets/orders-per-hour.tsx:13-14` `new Date().getHours()` highlights the viewer's local hour against Baghdad-bucketed bars. | — |
 | TMP-D2 | Dashboard ledger (PENDING) | P3 | "This week" on rolling 7d | Fixed | `lib/i18n.ts:177` "Last 7 days vs the 7 before" (AR `:3500`). | — |
 | DV-D2 | Dashboard ledger (PENDING) | P2 | Dead Search/Bell; feed rows not clickable | Partially fixed | Dead buttons removed (`app/page.tsx:230-234` comment). `RecentOrdersFeed` is still rendered without `onOrderClick` (`app/page.tsx:339-342`), so feed rows aren't clickable. | — |
@@ -142,19 +142,19 @@ Key SQL used (the results are quoted in the rows):
 
 ## Counts
 
-Recomputed by script from the table rows in Phase 1 round 1 (`scratchpad/p1fix/count.py`: every table row under the findings heading, Status column, first matching status value).
+Recomputed by script from the table rows in Phase 1 round 2 (`scratchpad/p1fix/count.py`: every table row under the findings heading, Status column, first matching status value).
 
 | Status | Rows |
 |---|---|
-| Fixed | 85 |
-| Partially fixed | 17: SEC-5, COR-3, ARCH-1, SEC-D2, COR-D1, PERF-D1, MOB-D1, COR-D7, TMP-D1, DV-D2, I18N-D2, ARCH-D2, ARCH-D3, COM-D1, P1-4, P1-18, NEW-P1-10 |
+| Fixed | 82 |
+| Partially fixed | 20: SEC-5, COR-3, OBS-1, ARCH-1, SEC-D2, COR-D1, PERF-D1, MOB-D1, OBS-D1, COR-D7, REL-D2, TMP-D1, DV-D2, I18N-D2, ARCH-D2, ARCH-D3, COM-D1, P1-4, P1-18, NEW-P1-10 |
 | Still open | 7: MOB-1, I18N-2, PERF-6, OOS-2, OOS-3, OOS-6, NEW-P1-09 |
 | Regressed | 0 |
 | No longer applicable | 5: COR-2, DATA-1, OOS-1, P1-22, P1-27 |
 | Unverifiable | 0 |
 | **Total** | **114** |
 
-P1-27 is No longer applicable (out of scope per program). MOB-1 is Still open but closed as won't-do by the user. Phase 1 round 1 added NEW-P1-09 (Still open) and NEW-P1-10 (Partially fixed).
+P1-27 is No longer applicable (out of scope per program). MOB-1 is Still open but closed as won't-do by the user. Phase 1 round 1 added NEW-P1-09 (Still open) and NEW-P1-10 (Partially fixed). Phase 1 round 2 moved OBS-1, OBS-D1 and REL-D2 from Fixed to Partially fixed (D-09: Sentry has no DSN in prod).
 
 ## New observations (no prior audit recorded these)
 
