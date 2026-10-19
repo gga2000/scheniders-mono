@@ -30,20 +30,20 @@ export function FreeGiftStripe({
     <BentoCard bg={unlocked ? "mint" : "butter"} rotate={unlocked ? -1 : 1} className="p-4 space-y-3">
       <div className="flex items-center gap-3">
         {config.image_url ? (
-          <div className="w-12 h-12 rounded-xl border-[3px] border-candy-ink overflow-hidden bg-white shrink-0 relative">
+          <div className="w-12 h-12 rounded-xl border-[3px] border-bk-ink overflow-hidden bg-white shrink-0 relative">
             <Image src={config.image_url} alt="" fill className="object-cover" sizes="48px" />
           </div>
         ) : (
-          <div className="w-12 h-12 rounded-xl border-[3px] border-candy-ink flex items-center justify-center bg-white text-2xl shrink-0">
+          <div className="w-12 h-12 rounded-xl border-[3px] border-bk-ink flex items-center justify-center bg-white text-2xl shrink-0">
             🎁
           </div>
         )}
         <div className="flex-1 min-w-0">
           <p className="font-display font-black uppercase text-sm leading-tight">{label}</p>
           {unlocked ? (
-            <p className="font-body text-xs text-candy-ink/80 mt-0.5">Added to your order automatically.</p>
+            <p className="font-body text-xs text-bk-ink/80 mt-0.5">Added to your order automatically.</p>
           ) : (
-            <p className="font-body text-xs text-candy-ink/80 mt-0.5">
+            <p className="font-body text-xs text-bk-ink/80 mt-0.5">
               Add {formatPrice(remaining)} more to unlock.
             </p>
           )}
@@ -54,9 +54,9 @@ export function FreeGiftStripe({
           </Sticker>
         )}
       </div>
-      <div className="h-3 w-full rounded-full border-[3px] border-candy-ink bg-white overflow-hidden">
+      <div className="h-3 w-full rounded-full border-[3px] border-bk-ink bg-white overflow-hidden">
         <div
-          className="h-full bg-candy-pink transition-all"
+          className="h-full bg-bk-primary transition-all"
           style={{ width: `${progress}%` }}
           aria-label={`${progress}% to free gift`}
         />

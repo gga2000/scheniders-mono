@@ -42,7 +42,7 @@ export default async function AllProductsPage({ params }: Props) {
   if (!tenant) notFound();
 
   const [products, categories, categoryProductIds] = await Promise.all([
-    listProducts(tenant.id),
+    listProducts(tenant.id, { withAttributes: true }),
     listCategories(tenant.id),
     // Products belong to up to six categories, so the chip rail needs the
     // join table — products.category_id is only the primary one.

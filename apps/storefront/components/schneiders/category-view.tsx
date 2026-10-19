@@ -22,7 +22,7 @@ interface Props {
 
 type Sort = "popular" | "price-low" | "price-high" | "newest";
 
-const TILE_BG = ["bg-candy-mint", "bg-candy-lilac", "bg-candy-butter", "bg-candy-sky"];
+const TILE_BG = ["bg-bk-decor-a", "bg-bk-decor-b", "bg-bk-accent", "bg-bk-decor-c"];
 
 export function SchneidersCategoryView({ category, products }: Props) {
   const [filter, setFilter] = useState<"all" | "sale" | "instock" | "bestsellers">("all");
@@ -46,8 +46,8 @@ export function SchneidersCategoryView({ category, products }: Props) {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-candy-ink/60">
-        Home <span className="text-candy-pink">›</span> {category.name}
+      <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink/60">
+        Home <span className="text-bk-primary">›</span> {category.name}
       </p>
 
       {/* Category hero */}
@@ -73,9 +73,9 @@ export function SchneidersCategoryView({ category, products }: Props) {
         <div className="flex gap-3 px-4 overflow-x-auto hide-scrollbar pb-2">
           {[
             { id: "all" as const, label: "All", color: "bg-white" },
-            { id: "sale" as const, label: "On Sale 🔥", color: "bg-candy-pink text-white" },
-            { id: "instock" as const, label: "In Stock ✓", color: "bg-candy-mint" },
-            { id: "bestsellers" as const, label: "Best Sellers ⭐", color: "bg-candy-butter" },
+            { id: "sale" as const, label: "On Sale 🔥", color: "bg-bk-primary text-white" },
+            { id: "instock" as const, label: "In Stock ✓", color: "bg-bk-success" },
+            { id: "bestsellers" as const, label: "Best Sellers ⭐", color: "bg-bk-accent" },
           ].map((opt, i) => (
             <button
               key={opt.id}
@@ -94,7 +94,7 @@ export function SchneidersCategoryView({ category, products }: Props) {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
-            className="bento-card-sm rounded-2xl px-4 py-2 font-display font-bold text-xs uppercase bg-candy-lilac whitespace-nowrap shrink-0"
+            className="bento-card-sm rounded-2xl px-4 py-2 font-display font-bold text-xs uppercase bg-bk-decor-b whitespace-nowrap shrink-0"
           >
             <option value="popular">Sort: Popular ↕</option>
             <option value="price-low">Price ↑</option>
@@ -109,7 +109,7 @@ export function SchneidersCategoryView({ category, products }: Props) {
         <BentoCard bg="lilac" rotate={-1} className="p-8 text-center">
           <div className="text-5xl mb-2" style={{ transform: "rotate(-8deg)" }}>🤷‍♀️</div>
           <h2 className="font-display font-black text-2xl uppercase mb-1">Nothing here yet</h2>
-          <p className="font-body text-sm text-candy-ink/70 mb-4">Try a different filter or come back soon.</p>
+          <p className="font-body text-sm text-bk-ink/70 mb-4">Try a different filter or come back soon.</p>
           <ChunkyLink href="/" bg="pink" size="md">Browse all</ChunkyLink>
         </BentoCard>
       ) : (

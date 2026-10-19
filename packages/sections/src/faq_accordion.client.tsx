@@ -30,10 +30,10 @@ export function FaqAccordionRender({
   const [query, setQuery] = useState("");
 
   const tintVars = [
-    "var(--bk-mint, #7cf0bd)",
+    "var(--bk-decor-a, #7cf0bd)",
     "var(--bk-accent, #ffd84a)",
-    "var(--bk-sky, #9ad8ff)",
-    "var(--bk-lilac, #c5b6ff)",
+    "var(--bk-decor-c, #9ad8ff)",
+    "var(--bk-decor-b, #c5b6ff)",
   ] as const;
 
   const heading = resolveI18n(props.heading_i18n, locale);

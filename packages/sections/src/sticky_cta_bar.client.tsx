@@ -144,7 +144,7 @@ export function StickyCtaBarRender({
     <div
       className={cn(
         "fixed bottom-0 inset-x-0 z-40 sm:hidden backdrop-blur px-bk-xs pt-bk-xs flex items-center gap-bk-xs shadow-[0_-6px_0_0_rgba(26,26,26,0.06)]",
-        "transition-[transform,opacity] duration-200 motion-reduce:transition-none",
+        "transition-[transform,opacity] duration-bk-base motion-reduce:transition-none",
         hidden && "translate-y-full opacity-0 pointer-events-none",
       )}
       aria-hidden={hidden || undefined}

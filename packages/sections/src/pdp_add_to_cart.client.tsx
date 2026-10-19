@@ -14,6 +14,7 @@
 
 import { useId, useState } from "react";
 import { resolveI18n, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
+import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import { trackPixel } from "./helpers/pixels";
 import { ChunkyButton, MaterialIcon, WhatsAppIcon } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
@@ -34,9 +35,11 @@ export function PdpAddToCartRender({
   const locale = ctx.runtime.locale;
   const addItem = useCart((s) => s.addItem);
   const [qty, setQty] = useState(1);
-  const [variantId, setVariantId] = useState<string | null>(null);
   const variantSelectId = useId();
-
+  // The variant comes from the shared store: a pdp_variants section or the
+  // buy box on this page may have chosen it, and the inline select below
+  // (shown only when no picker is on the page) writes to the same place.
+  const chosen = useSelectedVariant(product);
   if (!product) return null;
 
   const primaryLabel = resolveI18n(props.primary_label_i18n, locale);
@@ -51,8 +54,10 @@ export function PdpAddToCartRender({
     locale,
   );
 
-  const oos =
-    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) <= 0;
+  // Before a variant is chosen there is no stock to count — the product row's
+  // own stock is not what a variant product sells — so the button reads as
+  // waiting for the choice, not as sold out.
+  const oos = !chosen.needsVariant && stockLeftFor(product, chosen.variant) <= 0;
 
   // The merchant's quantity ladder, which this section never applied: it sent
   // the base price for any quantity while the checkout resolved the ladder,
@@ -61,11 +66,10 @@ export function PdpAddToCartRender({
   // the ladder when the quantity changes there.
   //
   // A product sold by variant is bought as one of them, priced from the
-  // variant row — the checkout refuses a variant-less line for it.
-  const variants = product.variants ?? [];
-  const soldByVariant = variants.length > 0 || product.sold_by_variant === true;
-  const chosenVariant = variants.find((v) => v.id === variantId) ?? null;
-  const needsVariant = soldByVariant && chosenVariant === null;
+  // variant row — the checkout refuses a variant-less line for it, so the
+  // button stays disabled until the shopper has chosen.
+  const chosenVariant = chosen.variant;
+  const needsVariant = chosen.needsVariant;
   const basePrice = chosenVariant?.price ?? product.price;
   const unitPrice = resolveTierPrice(product.price_tiers, qty, basePrice);
   const cartLine = {
@@ -75,7 +79,7 @@ export function PdpAddToCartRender({
     variant_name: chosenVariant?.name ?? null,
     price: unitPrice,
     quantity: qty,
-    image_url: product.image_url ?? null,
+    image_url: chosenVariant?.image_url ?? product.image_url ?? null,
     base_price: basePrice,
     ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
   };
@@ -93,12 +97,12 @@ export function PdpAddToCartRender({
 
   const ctaCluster = (
     <div className="flex flex-col gap-bk-sm">
-      {soldByVariant && (
+      {chosen.soldByVariant && !chosen.pickerMounted && (
         <VariantSelect
           id={variantSelectId}
-          variants={variants}
-          value={variantId}
-          onChange={setVariantId}
+          variants={chosen.variants}
+          value={chosen.variant?.id ?? null}
+          onChange={chosen.select}
           locale={locale}
           basePrice={product.price}
         />

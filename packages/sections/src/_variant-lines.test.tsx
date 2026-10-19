@@ -65,13 +65,14 @@ function renderSection(
 describe("products sold by variant", () => {
   it("the direct-order form asks for the variant, with nothing pre-selected", () => {
     const html = renderSection(pdp_direct_order as never, withVariants);
-    expect(html).toContain("اختر الخيار");
+    expect(html).toContain('data-layer="variants"');
     expect(html).toContain("XL");
-    expect(html.match(/<option[^>]*value="v-[^"]*"[^>]*selected/g)).toBeNull();
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).not.toContain('aria-pressed="true"');
   });
 
   it("the direct-order form shows no chooser for a plain product", () => {
-    expect(renderSection(pdp_direct_order as never, base)).not.toContain("اختر الخيار");
+    expect(renderSection(pdp_direct_order as never, base)).not.toContain('data-layer="variants"');
   });
 
   it("add-to-cart cannot add until a variant is chosen", () => {

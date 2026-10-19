@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { filterByQuery, matchesQuery, normalizeSearchText } from "./product-search";
+import { normalizeArabic } from "@scheniders/shared";
+import { filterByQuery, matchesQuery } from "./product-search";
 import type { Product } from "../types";
 
 function product(over: Partial<Product> & { name: string }): Product {
@@ -13,36 +14,36 @@ function product(over: Partial<Product> & { name: string }): Product {
   } as Product;
 }
 
-describe("normalizeSearchText", () => {
+describe("normalizeArabic", () => {
   it("collapses the hamza carriers a shopper does not type", () => {
-    expect(normalizeSearchText("الأكثر")).toBe(normalizeSearchText("الاكثر"));
-    expect(normalizeSearchText("إحساس")).toBe(normalizeSearchText("احساس"));
-    expect(normalizeSearchText("آمال")).toBe(normalizeSearchText("امال"));
+    expect(normalizeArabic("الأكثر")).toBe(normalizeArabic("الاكثر"));
+    expect(normalizeArabic("إحساس")).toBe(normalizeArabic("احساس"));
+    expect(normalizeArabic("آمال")).toBe(normalizeArabic("امال"));
   });
 
   it("collapses the final taa and the alef maqsura", () => {
-    expect(normalizeSearchText("عودة")).toBe(normalizeSearchText("عوده"));
-    expect(normalizeSearchText("ليلى")).toBe(normalizeSearchText("ليلي"));
+    expect(normalizeArabic("عودة")).toBe(normalizeArabic("عوده"));
+    expect(normalizeArabic("ليلى")).toBe(normalizeArabic("ليلي"));
   });
 
   it("strips tashkeel and the tatweel", () => {
-    expect(normalizeSearchText("عَوْدٌ")).toBe(normalizeSearchText("عود"));
-    expect(normalizeSearchText("عـــود")).toBe(normalizeSearchText("عود"));
+    expect(normalizeArabic("عَوْدٌ")).toBe(normalizeArabic("عود"));
+    expect(normalizeArabic("عـــود")).toBe(normalizeArabic("عود"));
   });
 
   it("reads Arabic-Indic digits as the same number", () => {
-    expect(normalizeSearchText("٣٠ مل")).toBe("30 مل");
-    expect(normalizeSearchText("۵۰")).toBe("50");
+    expect(normalizeArabic("٣٠ مل")).toBe("30 مل");
+    expect(normalizeArabic("۵۰")).toBe("50");
   });
 
   it("folds case and collapses whitespace", () => {
-    expect(normalizeSearchText("  Blue   OUD ")).toBe("blue oud");
+    expect(normalizeArabic("  Blue   OUD ")).toBe("blue oud");
   });
 
   it("leaves a distinct word distinct", () => {
     // The normalizer is lossy, not blind: these must not collapse together.
-    expect(normalizeSearchText("عود")).not.toBe(normalizeSearchText("ورد"));
-    expect(normalizeSearchText("عود")).not.toBe(normalizeSearchText("عودي"));
+    expect(normalizeArabic("عود")).not.toBe(normalizeArabic("ورد"));
+    expect(normalizeArabic("عود")).not.toBe(normalizeArabic("عودي"));
   });
 });
 

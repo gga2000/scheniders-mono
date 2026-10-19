@@ -11,8 +11,13 @@
 
 import { useMemo, useState } from "react";
 import type { LocaleCode } from "@scheniders/shared";
+import { buildFacets, matchesFacets, type FacetId } from "./attribute-facets";
 import type { Product } from "../types";
 import { SchneidersProductCard } from "./product-card";
+// PricePillCard lives in product_grid, which imports this module — the cycle
+// is safe because the binding is only read at render time, and
+// search_results_grid.client.tsx already imports it the same way.
+import { PricePillCard } from "../product_grid";
 import { BentoCard, ChunkyButton, MaterialIcon } from "./primitives";
 
 const PAGE_SIZE = 8;
@@ -41,7 +46,7 @@ function FilterChip({
       aria-pressed={active}
       className="inline-flex items-center gap-1 px-3.5 h-9 font-label font-bold text-xs uppercase tracking-wide transition-transform active:scale-95"
       style={{
-        backgroundColor: active ? activeBg : "#ffffff",
+        backgroundColor: active ? activeBg : "var(--bk-surface, #ffffff)",
         color: "var(--bk-ink, #1a1a1a)",
         border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
         borderRadius: "var(--bk-radius-pill, 9999px)",
@@ -60,27 +65,41 @@ export function FilterableProductGrid({
   products,
   locale,
   whatsappPhone,
+  cardStyle = "standard",
+  showStars = false,
+  showDiscountBadge = false,
+  lowStockThreshold,
 }: {
   products: Product[];
   locale: LocaleCode;
   whatsappPhone: string | null;
+  /** Match the card the surrounding grid would have drawn. */
+  cardStyle?: "standard" | "price_pill";
+  /** price_pill card options, forwarded so the card matches the flat grid. */
+  showStars?: boolean;
+  showDiscountBadge?: boolean;
+  lowStockThreshold?: number;
 }) {
   const t = locale !== "en";
   const [onSale, setOnSale] = useState(false);
   const [underPrice, setUnderPrice] = useState(false);
+  const [selected, setSelected] = useState<Set<FacetId>>(() => new Set());
   const [visible, setVisible] = useState(PAGE_SIZE);
+
+  const facets = useMemo(() => buildFacets(products, locale), [products, locale]);
 
   const filtered = useMemo(
     () =>
       products.filter((p) => {
         if (onSale && !isOnSale(p)) return false;
         if (underPrice && p.price >= PRICE_THRESHOLD) return false;
+        if (!matchesFacets(p, selected, facets)) return false;
         return true;
       }),
-    [products, onSale, underPrice],
+    [products, onSale, underPrice, selected, facets],
   );
 
-  const anyFilter = onSale || underPrice;
+  const anyFilter = onSale || underPrice || selected.size > 0;
   const shown = filtered.slice(0, visible);
   const hasMore = filtered.length > visible;
 
@@ -93,9 +112,19 @@ export function FilterableProductGrid({
     setUnderPrice((v) => !v);
     setVisible(PAGE_SIZE);
   };
+  const toggleFacet = (id: FacetId) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setVisible(PAGE_SIZE);
+  };
   const clearAll = () => {
     setOnSale(false);
     setUnderPrice(false);
+    setSelected(new Set());
     setVisible(PAGE_SIZE);
   };
 
@@ -103,13 +132,42 @@ export function FilterableProductGrid({
 
   return (
     <div>
-      {/* Filter chips */}
+      {/* One row per filterable attribute, in the merchant's own order. */}
+      {facets.map((facet) => (
+        <div key={facet.key} className="mb-bk-sm">
+          <p
+            id={`facet-${facet.key}`}
+            className="mb-bk-2xs font-label font-bold text-[11px] uppercase tracking-[0.15em] text-bk-ink-soft"
+          >
+            {facet.name}
+          </p>
+          <div
+            role="group"
+            aria-labelledby={`facet-${facet.key}`}
+            className="flex flex-wrap items-center gap-bk-xs"
+          >
+            {facet.options.map((option) => (
+              <FilterChip
+                key={option.id}
+                active={selected.has(option.id)}
+                onClick={() => toggleFacet(option.id)}
+                activeBg="var(--bk-decor-a, #7cf0bd)"
+              >
+                {option.label}
+                <span className="tabular-nums opacity-60">{option.count}</span>
+              </FilterChip>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Quick filters */}
       <div className="flex flex-wrap items-center gap-bk-xs mb-bk-md">
         {hasSaleItems && (
           <FilterChip
             active={onSale}
             onClick={toggleSale}
-            activeBg="var(--bk-mint, #7cf0bd)"
+            activeBg="var(--bk-decor-a, #7cf0bd)"
           >
             {t ? "تخفيضات" : "On Sale"}
           </FilterChip>
@@ -150,16 +208,28 @@ export function FilterableProductGrid({
       ) : (
         <>
           <div className="grid grid-cols-2 gap-bk-sm sm:gap-bk-md md:grid-cols-3 lg:grid-cols-4">
-            {shown.map((product, i) => (
-              <SchneidersProductCard
-                key={product.id}
-                product={product}
-                index={i}
-                priority={i < 4}
-                whatsappPhone={whatsappPhone}
-                locale={locale}
-              />
-            ))}
+            {shown.map((product, i) =>
+              cardStyle === "price_pill" ? (
+                <PricePillCard
+                  key={product.id}
+                  product={product}
+                  locale={locale}
+                  priority={i < 4}
+                  showStars={showStars}
+                  showDiscountBadge={showDiscountBadge}
+                  lowStockThreshold={lowStockThreshold}
+                />
+              ) : (
+                <SchneidersProductCard
+                  key={product.id}
+                  product={product}
+                  index={i}
+                  priority={i < 4}
+                  whatsappPhone={whatsappPhone}
+                  locale={locale}
+                />
+              ),
+            )}
           </div>
 
           <div className="mt-bk-lg flex flex-col items-center gap-bk-xs">

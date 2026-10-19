@@ -622,7 +622,7 @@ export function ConversationList() {
                 </div>
 
                 {/* Filter chips */}
-                <div className="flex gap-1 overflow-x-auto px-3 pb-2 scrollbar-none">
+                <div className="flex gap-1 overflow-x-auto px-3 pb-2 scrollbar-hide">
                     {FILTER_CHIPS.map(({ key, labelKey, fallback }) => {
                         const isActive = filter === key;
                         return (

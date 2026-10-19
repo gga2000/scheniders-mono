@@ -26,7 +26,7 @@ import type { TemplateHomeProps } from "../registry";
 
 const DEFAULT_SECTIONS_ORDER = ["hero", "trust", "categories", "forYou", "newArrivals", "about"];
 
-const TILE_BG = ["bg-candy-mint", "bg-candy-lilac", "bg-candy-butter", "bg-candy-sky"];
+const TILE_BG = ["bg-bk-decor-a", "bg-bk-decor-b", "bg-bk-accent", "bg-bk-decor-c"];
 
 export default function SchneidersHome({ tenant, products, categories }: TemplateHomeProps) {
   const hero = tenant.store_config?.hero;
@@ -78,7 +78,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
               className="object-cover z-0"
             />
           ) : (
-            <div className="absolute inset-0 z-0 bg-gradient-to-br from-candy-pink/80 via-candy-lilac to-candy-mint" />
+            <div className="absolute inset-0 z-0 bg-gradient-to-br from-bk-primary/80 via-bk-decor-b to-bk-decor-a" />
           )}
           <div className="absolute inset-0 bg-black/35 z-0" />
 
@@ -117,16 +117,16 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
                 target="_blank"
                 rel="noreferrer"
                 aria-label="WhatsApp"
-                className="bento-card-sm bg-white text-candy-ink w-14 h-14 rounded-xl flex items-center justify-center hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all"
+                className="bento-card-sm bg-white text-bk-ink w-14 h-14 rounded-xl flex items-center justify-center hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all"
               >
-                <WhatsAppIcon className="w-6 h-6 text-candy-mint" />
+                <WhatsAppIcon className="w-6 h-6 text-bk-decor-a" />
               </a>
             )}
             {secondaryKind === "call" && phone && (
               <a
                 href={`tel:${phone.replace(/\s/g, "")}`}
                 aria-label="Call us"
-                className="bento-card-sm bg-white text-candy-ink w-14 h-14 rounded-xl flex items-center justify-center hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all"
+                className="bento-card-sm bg-white text-bk-ink w-14 h-14 rounded-xl flex items-center justify-center hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all"
               >
                 <MaterialIcon name="call" className="text-2xl" />
               </a>
@@ -135,7 +135,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
               <StoreLink
                 href={`/categories/${firstCategorySlug}`}
                 aria-label={`Browse ${categories[0]?.name ?? "category"}`}
-                className="bento-card-sm bg-white text-candy-ink w-14 h-14 rounded-xl flex items-center justify-center hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all"
+                className="bento-card-sm bg-white text-bk-ink w-14 h-14 rounded-xl flex items-center justify-center hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all"
               >
                 <MaterialIcon name="grid_view" className="text-2xl" />
               </StoreLink>
@@ -183,10 +183,10 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
               >
                 <div className={`flex items-center transform ${isLeft ? "rotate-2" : "-rotate-2"} ${isLeft ? "justify-between" : "justify-between flex-row-reverse"} gap-4`}>
                   <div className={isLeft ? "" : "text-right"}>
-                    <span className="bg-white text-candy-ink font-bold text-xs px-3 py-1 rounded-full border-[3px] border-candy-ink shadow-bento-sm w-fit mb-2 inline-block">
+                    <span className="bg-white text-bk-ink font-bold text-xs px-3 py-1 rounded-full border-[3px] border-bk-ink shadow-bento-sm w-fit mb-2 inline-block">
                       {i === 0 ? "Explore" : i === 1 ? "New" : i === 2 ? "Trending" : "Hot"}
                     </span>
-                    <h3 className="font-display font-black text-3xl text-candy-ink uppercase leading-tight">
+                    <h3 className="font-display font-black text-3xl text-bk-ink uppercase leading-tight">
                       {cat.name}
                     </h3>
                   </div>
@@ -196,12 +196,12 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
                       alt={cat.name}
                       width={80}
                       height={80}
-                      className="w-20 h-20 rounded-xl border-[3px] border-candy-ink object-cover bg-white shadow-bento-sm shrink-0"
+                      className="w-20 h-20 rounded-xl border-[3px] border-bk-ink object-cover bg-white shadow-bento-sm shrink-0"
                     />
                   ) : (
                     <MaterialIcon
                       name={i === 0 ? "checkroom" : i === 1 ? "spa" : i === 2 ? "redeem" : "shopping_bag"}
-                      className="text-6xl text-candy-ink drop-shadow-[2px_2px_0_#1a1a1a]"
+                      className="text-6xl text-bk-ink drop-shadow-[2px_2px_0_#1a1a1a]"
                     />
                   )}
                 </div>
@@ -221,7 +221,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
           {testimonial.enabled !== false && (
             <BentoCard bg="mint" size="md" rotate={-3} className="p-6 z-10">
               <div className="flex items-start gap-3 transform rotate-3">
-                <div className="w-12 h-12 rounded-full border-2 border-candy-ink shrink-0 bg-white overflow-hidden flex items-center justify-center font-display font-black text-lg">
+                <div className="w-12 h-12 rounded-full border-2 border-bk-ink shrink-0 bg-white overflow-hidden flex items-center justify-center font-display font-black text-lg">
                   {testimonial.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={testimonial.avatar_url} alt={reviewerName} className="w-full h-full object-cover" />
@@ -252,7 +252,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
             <BentoCard bg="pink" size="md" rotate={3} className="p-6 -mt-8 ml-4">
               <div className="flex justify-between items-center transform -rotate-3 mt-4">
                 <div className="text-white min-w-0">
-                  <span className="bg-candy-ink text-white font-display font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-tighter mb-1 inline-block">
+                  <span className="bg-bk-ink text-white font-display font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-tighter mb-1 inline-block">
                     Trending
                   </span>
                   <h4 className="font-display font-black text-xl leading-none uppercase truncate">
@@ -266,7 +266,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
                     alt={reviewProduct.name}
                     width={80}
                     height={80}
-                    className="w-20 h-20 bg-white rounded-xl border-[3px] border-candy-ink rotate-6 object-cover shadow-bento-sm shrink-0"
+                    className="w-20 h-20 bg-white rounded-xl border-[3px] border-bk-ink rotate-6 object-cover shadow-bento-sm shrink-0"
                   />
                 )}
               </div>
@@ -285,7 +285,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
           <BentoCard bg="white" className="p-8 text-center">
             <SectionEyebrow>Coming Soon</SectionEyebrow>
             <p className="font-display font-black text-xl mt-3">No products yet</p>
-            <p className="font-body text-sm text-candy-ink/60 mt-1">
+            <p className="font-body text-sm text-bk-ink/60 mt-1">
               Drop us a line on WhatsApp — we&apos;ll let you know when we go live.
             </p>
           </BentoCard>
@@ -308,7 +308,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
     about: about?.enabled ? (
       <section key="about">
         <BentoCard bg="lilac" size="md" rotate={1} className="p-6">
-          <SectionEyebrow className="text-candy-ink/80">{about.title ? "Our Story" : "About"}</SectionEyebrow>
+          <SectionEyebrow className="text-bk-ink/80">{about.title ? "Our Story" : "About"}</SectionEyebrow>
           <h2 className="font-display font-black text-3xl mt-2 mb-3 uppercase leading-tight">
             {about.title || "Made with love."}
           </h2>
