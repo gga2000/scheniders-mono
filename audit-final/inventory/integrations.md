@@ -1,5 +1,7 @@
 # Integrations / Crons / Env / Tests / Deps / Debris / Sentry inventory
 
+> **Errata (Phase 0 critic round 2):** test totals in §4.1 and the §4.4 list are updated to the pinned `6bde0f4` (253 tracked test files; the 11 files added by #136/#137 are listed). Line refs re-checked at `6bde0f4`: `apps/platform/app/products/page.tsx:56` (was 55), `packages/sections/src/pdp_direct_order.client.tsx:336` (was 327), `packages/sections/src/pdp_buy_box.client.tsx:131` (was 120). §2.14 (Meta / TikTok Conversions API) and §2.15 (storefront tracking pixels) were added. The `x-vercel-cron` spoofability in §1 is unverified.
+>
 > **Errata (Phase 0 critic round 1):** the claim in the cron section that `auto_move_to_no_response` is executable by anon describes the repo migration only. That function **does not exist in the live database** (see database.md, missing functions), so there is no live anon grant.
 
 Repo: /home/claude/scheniders-mono @ bf432f7 (read-only recon, 2026-10-19).
@@ -16,14 +18,14 @@ Only `apps/platform` has cron routes (10). `apps/admin/vercel.json` and `apps/st
 |---|---|---|---|---|---|---|
 | abandoned-cart-recovery | GET, POST | GET: `requireCronAuth` P/app/api/cron/abandoned-cart-recovery/route.ts:125 (fail-closed). POST: QStash `Receiver.verify` :138-153, 401 if signing keys unset (:141-146) | vercel.json `0 7 * * *`. NO QStash publisher anywhere targets this route → POST handler is dead | 30 (:14) | No claim; stamps `reminded_at` after a successful send; the update result is NOT checked (:112-116) → resend possible; two concurrent runs can double-send | abandoned_carts (reminded_at); external Interakt send |
 | auto-follow-up | POST only | QStash `Receiver.verify` P/app/api/cron/auto-follow-up/route.ts:22-40; 401 when keys unset (:27-29) | QStash one-off delayed messages: `scheduleFollowUp` P/lib/qstash.ts:33-62 (publisher of the *discount* step is this route itself, :176-186). No caller of the initial `scheduleFollowUp(...,"reminder")` exists in the repo (grep: only call site is auto-follow-up/route.ts:184) → the reminder chain is never started by code in this repo | 30 (:14) | CAS claim on `contact_count` (:101-111), rollback of claim on send failure (:136-140). Payload `JSON.parse(body)` unvalidated (:42) | orders (contact_count, last_contacted_at, follow-up stamp), whatsapp_logs (:149), order_status_history + orders via flagOrderForWhatsAppFailure (P/lib/whatsapp-error-handler.ts:85,100,129) |
-| auto-no-response | GET | CRON_SECRET fail-closed P/app/api/cron/auto-no-response/route.ts:25-29, BUT then `x-vercel-cron: 1` header alone bypasses the bearer check (:31-39) — header is client-spoofable | **NOT scheduled** (not in vercel.json; no QStash publisher; no pg_cron job calls it) | 30 (:10) | Pure SQL, idempotent | orders (via rpc `auto_move_to_no_response`, :46). Client falls back to ANON key if service key unset (:7) |
+| auto-no-response | GET | CRON_SECRET fail-closed P/app/api/cron/auto-no-response/route.ts:25-29, BUT then `x-vercel-cron: 1` header alone bypasses the bearer check (:31-39) — whether an external client can spoof that header (i.e. whether Vercel strips it from inbound requests) is **unverified**; A6 tests it on a preview (CONTEXT L-04). Also note `auto_move_to_no_response` does not exist live (CONTEXT L-35), so the RPC at :46 fails | **NOT scheduled** (not in vercel.json; no QStash publisher; no pg_cron job calls it) | 30 (:10) | Pure SQL, idempotent | orders (via rpc `auto_move_to_no_response`, :46). Client falls back to ANON key if service key unset (:7) |
 | backup | GET | `requireCronAuth` P/app/api/cron/backup/route.ts:99 | vercel.json `0 0 * * *` | none (no export) | New timestamped folder each run (`upsert:true`), non-destructive | storage bucket `vault_backups` (:130-135), security_logs (:150). Reads orders, mv_customer_aggregates, products |
 | cleanup-deleted-orders | GET | `requireCronAuth` P/app/api/cron/cleanup-deleted-orders/route.ts:22 | vercel.json `0 1 * * *` | none (has `fetchCache='force-no-store'` :7) | Batched (`limit(CLEANUP_BATCH_SIZE)` :44), idempotent | orders HARD DELETE across all tenants (:63-67, `.delete()` :65), order_deletion_log (:91) |
 | process-checkouts | GET, POST | GET `requireCronAuth` P/app/api/cron/process-checkouts/route.ts:136-143; POST QStash verify :150-170 | **NOT in vercel.json.** Triggered by QStash one-off delayed message from LF webhook (`scheduleCheckoutProcessing` P/lib/qstash.ts:71-93, called P/app/api/webhooks/lightfunnels/route.ts:128). Also called from browser by P/components/settings/lightfunnels-settings.tsx:186 with NO Authorization header → always 401/503 (broken button) | none | Optimistic claim on `attempts` (:55-61), `createOrderFromWebhook` duplicate detection | checkout_queue (attempts/processed_at/last_error :57,92,107), orders via rpc create_order_atomic (P/lib/webhook-handler.ts:937) + soft-delete of pending checkouts (:1044) |
 | process-checkouts-manual | GET | Signed-in user via `verifyAccessToken` P/app/api/cron/process-checkouts-manual/route.ts:28-35 (any tenant's user, no role check, drains a GLOBAL queue) | **NOT scheduled** (manual, from /debug, documented in P/LIGHTFUNNELS_TROUBLESHOOTING.md:78, P/WEBHOOK_DIAGNOSTICS.md:46, P/QUICK_FIX.md:8) | none | Same CAS as above (:93-94) | checkout_queue, orders |
 | subscription-renew | GET | Hand-rolled `authHeader !== \`Bearer ${process.env.CRON_SECRET}\`` P/app/api/cron/subscription-renew/route.ts:30-33 — NOT migrated to requireCronAuth. If CRON_SECRET is unset, header `Authorization: Bearer undefined` passes (fail-open) | vercel.json `0 3 * * *` | 60 (:8) | NONE: no lock, `charge_wallet_atomic` called with `_order_id:null` and no reference id (:107-112); errors of follow-up updates are not checked (:88-96, :119-126, :139-161) → if period update fails after a charge, next run charges again; concurrent runs double-charge | subscriptions, tenants, usage_tracking (upsert :158), wallet via rpc charge_wallet_atomic |
 | trial-suspend | GET | Same hand-rolled check P/app/api/cron/trial-suspend/route.ts:17-20 (`Bearer undefined` fail-open) | vercel.json `0 6 * * *` | 30 (:8) | Conditional update `status='trial'`, idempotent | tenants (:25-30) |
-| waseet-sync | GET | `if (cronSecret && authHeader !== ...)` P/app/api/cron/waseet-sync/route.ts:22-30 — **FAIL-OPEN when CRON_SECRET unset**, plus spoofable `x-vercel-cron: 1` bypass (:26) | vercel.json `0 12 * * *` | 60 (:7) | Skips unchanged status ids (:113) | orders (:134-137), order_status_history (:147), waseet_api_logs + app_settings(waseet_token) via lib |
+| waseet-sync | GET | `if (cronSecret && authHeader !== ...)` P/app/api/cron/waseet-sync/route.ts:22-30 — **FAIL-OPEN when CRON_SECRET unset**, plus an `x-vercel-cron: 1` bypass (:26) whose spoofability is **unverified** (CONTEXT L-04) | vercel.json `0 12 * * *` | 60 (:7) | Skips unchanged status ids (:113) | orders (:134-137), order_status_history (:147), waseet_api_logs + app_settings(waseet_token) via lib |
 
 Shared helper: P/lib/cron-auth.ts:27-41 (`requireCronAuth`, fail-closed). Used by backup, cleanup-deleted-orders, process-checkouts GET, abandoned-cart-recovery GET only. Not used by trial-suspend, subscription-renew, waseet-sync, auto-no-response.
 
@@ -119,6 +121,29 @@ General finding: **no outbound server fetch to a third party has a timeout** (no
 ### 2.13 Other external: RapidAPI (admin)
 - apps/admin/app/api/leads/analyze-profile/route.ts: `RAPIDAPI_KEY ?? ""` (:21), fetch :65 no timeout, `.catch(() => ({posts:[]}))` / `.catch(() => ({reels:[]}))` swallow (:107-108), `catch {}` :39; auth `requireAdmin` :159-161.
 
+### 2.14 Meta Conversions API and TikTok Events API (storefront, server-side)
+Added in Phase 0 critic round 2; read at `6bde0f4`.
+- Module: `apps/storefront/lib/capi.ts` (149 lines). Endpoints: Meta `https://graph.facebook.com/v19.0/<meta_pixel_id>/events?access_token=<meta_capi_token>` (:116, :125); TikTok `https://business-api.tiktok.com/open_api/v1.3/event/track/` with header `Access-Token: <tiktok_capi_token>` (:117, :137-141).
+- Event: Meta `Purchase` (:52), TikTok `CompletePayment` (:97), currency `IQD`, value = order grand total, `event_id` shared with the browser pixel for dedup. PII: phone normalised to `964…` (:19-25) and SHA-256 hashed (:14-16, :46, :88); email and name hashed when present (:48-49, :90). Optional Meta `test_event_code` (:73-75).
+- Credentials: per tenant, not env. Read from `tenant.store_config_v2.globals.analytics_pixels.base` (`apps/storefront/app/actions/checkout.ts:416-418`); fields `meta_capi_token`, `tiktok_capi_token`, `capi_test_event_code` (`packages/shared/src/types/store-config.ts:262,264`), entered as secret fields in `apps/platform/components/store-builder-v2/pixels-screen.tsx:48-49`. Redacted before config reaches the browser (`packages/shared/src/pixel.ts:57-69`, applied at `apps/storefront/lib/tenant.ts:91-95`). The `tenants` row itself is `anon`-readable for trial/active tenants (policy `public_storefront_read`; CONTEXT L-40, HYPOTHESIS on exposure). Live: 0 tenants have a CAPI token (MEASURED 2026-10-19).
+- Call site (only one): `sendPurchaseCapi` (`capi.ts:120`) from `submitCheckout`, `apps/storefront/app/actions/checkout.ts:421`, guarded by `payload.purchaseEventId && analytics` (:419). `purchaseEventId` comes from the `/api/checkout/orders` body `event_id` (`apps/storefront/app/api/checkout/orders/route.ts:103`) or the direct server-action payload (`checkout.ts:35`).
+- Error handling: each `fetch` has `.catch(() => undefined)` (:131, :144); results go through `Promise.allSettled` (:148); the HTTP status of a response is never read, so a 4xx/5xx from Meta/TikTok is silent; the call site wraps it in `try { … } catch { /* CAPI is best-effort */ }` (`checkout.ts:420-434`, swallowed `catch {}` at :432). No logging, no metric.
+- Timeout / retry: none. `submitCheckout` **awaits** the call (`checkout.ts:421`), so a slow Meta/TikTok endpoint delays the shopper's order confirmation (HYPOTHESIS on impact size; A9 measures). No retry, no queue.
+- Tests: `apps/storefront/lib/capi.test.ts` (4 cases) covers only the payload builders `buildMetaPurchaseEvent` / `buildTikTokPurchaseEvent` (:28, :44, :52, :60); `sendPurchaseCapi` (network, error handling) and the `checkout.ts` call site have no test (grep `sendPurchaseCapi` in the test file: 0). `packages/shared/src/pixel.test.ts` covers the redaction helper.
+
+### 2.15 Storefront tracking pixels (browser-side)
+Added in Phase 0 critic round 2; read at `6bde0f4`.
+- Component: `apps/storefront/components/schneiders/analytics-pixels.tsx` (174 lines), rendered by `apps/storefront/app/s/[tenant]/layout.tsx:239` with `schn.analytics` overlaid by `store_config_v2.globals.analytics_pixels.base`. Scripts use Next `<Script strategy="afterInteractive">`.
+- IDs are validated by shape before use (`isPlausiblePixelId`, :25-46).
+- Hosts loaded in the shopper's browser:
+  - Google Tag Manager `https://www.googletagmanager.com/gtm.js` (:64) and `ns.html` noscript (:71). When a GTM id is set, the component returns early (:53-80) and renders **only** GTM.
+  - Meta Pixel `https://connect.facebook.net/en_US/fbevents.js` (:114).
+  - TikTok Pixel `https://analytics.tiktok.com/i18n/pixel/events.js` (:127).
+  - Google Analytics gtag `https://www.googletagmanager.com/gtag/js` (:140).
+  - Snap Pixel `https://sc-static.net/scevent.min.js` (:160).
+- Live configuration (MEASURED 2026-10-19, `tenants.store_config_v2`): 1 tenant has `meta_pixel_id`, 1 has `tiktok_pixel_id`; 0 have Snap, GA or GTM ids.
+- Consent: no consent gate in the component (grep `consent` in the file finds only TikTok's own method names at :127). Whether one is needed is a Phase 2 / Ali question.
+
 ---
 
 ## 3. Env vars
@@ -145,7 +170,7 @@ General finding: **no outbound server fetch to a third party has a timeout** (no
 - **LIGHTFUNNELS_TENANT_ID** — apps/platform/lib/env.ts:98
 - **LIGHTFUNNELS_WEBHOOK_AUTH_MODE** — apps/platform/lib/env.ts:101
 - **LIGHTFUNNELS_WEBHOOK_SECRET** — apps/platform/lib/env.ts:97, apps/platform/scripts/diagnose-webhook.ts:30, apps/platform/scripts/diagnose-webhook.ts:183
-- **NEXT_PUBLIC_CATEGORIES_V2** — apps/platform/app/products/page.tsx:55
+- **NEXT_PUBLIC_CATEGORIES_V2** — apps/platform/app/products/page.tsx:56
 - **NEXT_PUBLIC_DEV_ROOT_DOMAIN** — apps/storefront/app/s/[tenant]/not-found.tsx:19, apps/storefront/proxy.ts:93
 - **NEXT_PUBLIC_PLATFORM_ORIGIN** — apps/storefront/components/schneiders-preview-bridge.tsx:20, apps/storefront/lib/preview-origin.ts:29, apps/storefront/lib/preview-origin.ts:46
 - **NEXT_PUBLIC_ROOT_DOMAIN** — apps/storefront/app/s/[tenant]/not-found.tsx:18, apps/storefront/proxy.ts:92
@@ -158,7 +183,7 @@ General finding: **no outbound server fetch to a third party has a timeout** (no
 - **NEXT_PUBLIC_SUPABASE_URL** — apps/admin/app/api/auth/callback/route.ts:13, apps/admin/hooks/use-admin-auth.ts:56, apps/admin/hooks/use-admin-realtime.ts:13, apps/admin/lib/admin-env.ts:12, apps/admin/lib/admin-fetch.ts:7, apps/admin/middleware.ts:10, apps/platform/app/layout.tsx:79, apps/platform/check-anon.mjs:5, apps/platform/check-ids.mjs:5, apps/platform/check-risk.js:4, apps/platform/check_constraint.js:8, apps/platform/lib/env.ts:74, apps/platform/middleware.ts:22, apps/platform/query-products.mjs:5, apps/platform/scripts/add-secondary-phones.ts:8, apps/platform/scripts/add-tag-color-column.ts:7, apps/platform/scripts/apply-persistence.ts:9, apps/platform/scripts/assign-sources.ts:6, apps/platform/scripts/backup-database.js:22, apps/platform/scripts/check-old-format-orders.ts:7, apps/platform/scripts/check-orders.ts:7, apps/platform/scripts/clear-attention-flags.ts:7, apps/platform/scripts/consolidate-order-ids.ts:7, apps/platform/scripts/debug-risk.ts:9, apps/platform/scripts/debug_split_order.ts:9, apps/platform/scripts/debug_visibility.ts:8, apps/platform/scripts/delete-test-orders.ts:7, apps/platform/scripts/diagnose-webhook.ts:16, apps/platform/scripts/diagnose-webhook.ts:28, apps/platform/scripts/fix-delivery-orders.ts:7, apps/platform/scripts/fix-excel-import.ts:9, apps/platform/scripts/fix-imported-orders.ts:8, apps/platform/scripts/fix-notes-field.ts:8, apps/platform/scripts/fix-notes.ts:7, apps/platform/scripts/fix-prices.ts:8, apps/platform/scripts/fix-sequence-numbers.ts:16, apps/platform/scripts/import-orders.ts:10, apps/platform/scripts/import-taslihat.ts:10, apps/platform/scripts/link-products-to-catalogue.ts:7, apps/platform/scripts/match-products.ts:7, apps/platform/scripts/migrate-statuses.ts:6, apps/platform/scripts/process-delivery-data.ts:8, apps/platform/scripts/remove-dlv-prefix.ts:7, apps/platform/scripts/restore-catalogue-items.ts:7, apps/platform/scripts/update-notes.ts:7, apps/platform/test-verify.ts:7, apps/storefront/app/api/orders/lookup/route.ts:32, apps/storefront/components/sections/NewsletterSection.tsx:27, apps/storefront/lib/supabase/server.ts:21, apps/storefront/lib/supabase/server.ts:50, apps/storefront/lib/supabase/server.ts:72
 - **NEXT_PUBLIC_SUPPORT_WHATSAPP** — apps/platform/components/auth/account-not-provisioned.tsx:14
 - **NEXT_PUBLIC_VAPID_PUBLIC_KEY** — apps/platform/hooks/chat/use-web-push.ts:74
-- **NODE_ENV** — apps/platform/app/api/generate-batch-pdf/route.ts:9, apps/platform/app/api/payslip-pdf/route.ts:10, apps/platform/components/error-boundary.tsx:91, apps/platform/components/pwa/dev-service-worker-cleanup.tsx:7, apps/platform/lib/diag.ts:3, apps/platform/lib/diag.ts:10, apps/platform/lib/order-aggregate-parity.ts:47, apps/platform/lib/order-telemetry.ts:67, apps/platform/lib/perf-trace.ts:30, apps/platform/lib/pwa.tsx:13, apps/platform/next.config.ts:8, apps/storefront/app/%5Fpreview/[tenant]/[page_id]/page.tsx:308, apps/storefront/proxy.ts:26, packages/sections/src/category_grid.tsx:77, packages/sections/src/pdp_buy_box.client.tsx:120, packages/sections/src/pdp_direct_order.client.tsx:327, packages/sections/src/pdp_info_tabs.client.tsx:48, packages/sections/src/_report.ts:27
+- **NODE_ENV** — apps/platform/app/api/generate-batch-pdf/route.ts:9, apps/platform/app/api/payslip-pdf/route.ts:10, apps/platform/components/error-boundary.tsx:91, apps/platform/components/pwa/dev-service-worker-cleanup.tsx:7, apps/platform/lib/diag.ts:3, apps/platform/lib/diag.ts:10, apps/platform/lib/order-aggregate-parity.ts:47, apps/platform/lib/order-telemetry.ts:67, apps/platform/lib/perf-trace.ts:30, apps/platform/lib/pwa.tsx:13, apps/platform/next.config.ts:8, apps/storefront/app/%5Fpreview/[tenant]/[page_id]/page.tsx:308, apps/storefront/proxy.ts:26, packages/sections/src/category_grid.tsx:77, packages/sections/src/pdp_buy_box.client.tsx:131, packages/sections/src/pdp_direct_order.client.tsx:336, packages/sections/src/pdp_info_tabs.client.tsx:48, packages/sections/src/_report.ts:27
 - **PREVIEW_TOKEN_SECRET** — apps/platform/app/store/edit/page.tsx:141, apps/storefront/app/%5Fpreview/[tenant]/[page_id]/page.tsx:307
 - **QSTASH_CURRENT_SIGNING_KEY** — apps/platform/lib/env.ts:106, apps/platform/scripts/diagnose-webhook.ts:32, apps/platform/scripts/diagnose-webhook.ts:187
 - **QSTASH_NEXT_SIGNING_KEY** — apps/platform/lib/env.ts:107, apps/platform/scripts/diagnose-webhook.ts:33
@@ -201,14 +226,14 @@ Other tracked real-looking keys: `git grep` for JWTs finds only apps/platform/do
 ## 4. Tests
 
 ### 4.1 Totals
-242 git-tracked `*.test.*`/`*.spec.*` files; 2,142 `it(`/`test(` call sites (regex count incl. `.each`/`.only`/`.skip`; 0 skip/todo found).
+253 git-tracked `*.test.*`/`*.spec.*` files at `6bde0f4` (251 `*.test.*` + 2 Playwright `*.spec.ts`; 242 at bf432f7 + 11 added by #136/#137); 2,250 `it(`/`test(` call sites (2,142 at bf432f7 + 108 in the 11 new files; regex count incl. `.each`/`.only`/`.skip`; 0 skip/todo found). Vitest reports 250 files / 2,601 tests at `6bde0f4` (CONTEXT §3); the gap to 251 is `scripts/migrate-store-config-v2/mapper.test.ts`, which no vitest config picks up.
 | Area | Files | Cases |
 |---|---|---|
-| apps/platform | 172 (170 vitest + 2 Playwright) | 1,386 |
-| apps/storefront | 13 | 115 |
+| apps/platform | 173 (171 vitest + 2 Playwright) | 1,400 |
+| apps/storefront | 17 | 141 |
 | apps/admin | 3 | 28 |
-| packages/shared | 22 | 254 |
-| packages/sections | 31 | 350 |
+| packages/shared | 24 | 288 |
+| packages/sections | 35 | 384 |
 | packages/ui | 0 | 0 |
 | scripts/migrate-store-config-v2 | 1 | (see table) |
 
@@ -253,6 +278,7 @@ apps/platform/.storybook/main.ts, preview.ts; 7 stories: P/components/ui/button.
 | apps/platform/components/orders/product-picker.test.tsx | 13 | 0 |
 | apps/platform/components/orders/ship-export-confirmation-dialog.test.tsx | 5 | 0 |
 | apps/platform/components/orders/sticky-filter-bar.test.tsx | 4 | 0 |
+| apps/platform/components/products/attribute-form-modal.test.ts | 14 | 0 |
 | apps/platform/components/store-builder-v2/auto-form.test.tsx | 23 | 0 |
 | apps/platform/components/store-builder-v2/block-layers-panel.test.tsx | 4 | 0 |
 | apps/platform/components/store-builder-v2/brand-kit-editor.test.tsx | 18 | 0 |
@@ -411,9 +437,13 @@ apps/platform/.storybook/main.ts, preview.ts; 7 stories: P/components/ui/button.
 | apps/storefront/components/schneiders-preview-bridge.test.tsx | 18 | 0 |
 | apps/storefront/components/schneiders-preview-live-renderer.test.tsx | 10 | 0 |
 | apps/storefront/components/schneiders/pixel-route-change.test.tsx | 3 | 0 |
+| apps/storefront/components/schneiders/v1-theming.test.ts | 4 | 0 |
 | apps/storefront/lib/arabic-bidi-css.test.ts | 4 | 0 |
+| apps/storefront/lib/brand-kit-alpha.test.ts | 6 | 0 |
+| apps/storefront/lib/candy-bento-tokens.test.ts | 12 | 0 |
 | apps/storefront/lib/capi.test.ts | 4 | 0 |
 | apps/storefront/lib/product-status-filter.test.ts | 8 | 0 |
+| apps/storefront/lib/section-class-resolution.test.tsx | 4 | 0 |
 | apps/storefront/lib/seo.test.ts | 7 | 0 |
 | apps/storefront/lib/storefront-runtime.test.ts | 27 | 0 |
 | apps/storefront/lib/tenant.test.ts | 2 | 0 |
@@ -421,11 +451,13 @@ apps/platform/.storybook/main.ts, preview.ts; 7 stories: P/components/ui/button.
 | packages/sections/src/RenderSection.overlay.test.tsx | 5 | 0 |
 | packages/sections/src/RenderSection.sticky.test.tsx | 4 | 0 |
 | packages/sections/src/_chrome.test.tsx | 19 | 0 |
+| packages/sections/src/_facets.test.ts | 15 | 0 |
 | packages/sections/src/_lazy-section.test.tsx | 3 | 0 |
 | packages/sections/src/_order-confirmation.test.tsx | 16 | 0 |
 | packages/sections/src/_pdp-form.test.tsx | 13 | 0 |
 | packages/sections/src/_pdp-gallery.test.tsx | 10 | 0 |
 | packages/sections/src/_pdp-social.test.tsx | 15 | 0 |
+| packages/sections/src/_pdp-variants.test.tsx | 3 | 0 |
 | packages/sections/src/_registry.test.ts | 13 | 0 |
 | packages/sections/src/_render-smoke.test.tsx | 14 | 0 |
 | packages/sections/src/_search-results-grid.test.tsx | 6 | 0 |
@@ -438,17 +470,20 @@ apps/platform/.storybook/main.ts, preview.ts; 7 stories: P/components/ui/button.
 | packages/sections/src/helpers/format.test.ts | 4 | 0 |
 | packages/sections/src/helpers/primitives.test.tsx | 5 | 0 |
 | packages/sections/src/helpers/product-search.test.ts | 14 | 0 |
+| packages/sections/src/helpers/variant-store.test.ts | 4 | 0 |
 | packages/sections/src/helpers/whatsapp.test.ts | 8 | 0 |
 | packages/sections/src/html_embed.test.tsx | 2 | 0 |
 | packages/sections/src/order_tracker.stage.test.ts | 9 | 0 |
 | packages/sections/src/pdp-price.test.tsx | 4 | 0 |
 | packages/sections/src/product-card.test.tsx | 17 | 0 |
+| packages/sections/src/product_attributes.test.tsx | 12 | 0 |
 | packages/sections/src/section-default-claims.test.ts | 2 | 0 |
 | packages/sections/src/site_footer.address.test.ts | 5 | 0 |
 | packages/sections/src/site_footer.links.test.tsx | 2 | 0 |
 | packages/sections/src/site_footer.reward.test.tsx | 3 | 0 |
 | packages/sections/src/testimonial-stage.test.tsx | 9 | 0 |
 | packages/shared/src/abandoned-cart.test.ts | 5 | 0 |
+| packages/shared/src/arabic-search.test.ts | 17 | 0 |
 | packages/shared/src/brand-kit-vars.test.ts | 23 | 0 |
 | packages/shared/src/bundle.test.ts | 5 | 0 |
 | packages/shared/src/custom-pages.test.ts | 18 | 0 |
@@ -461,6 +496,7 @@ apps/platform/.storybook/main.ts, preview.ts; 7 stories: P/components/ui/button.
 | packages/shared/src/phone.test.ts | 7 | 0 |
 | packages/shared/src/pixel.test.ts | 5 | 0 |
 | packages/shared/src/preview-token.test.ts | 5 | 0 |
+| packages/shared/src/product-attribute.test.ts | 17 | 0 |
 | packages/shared/src/prune-orphaned-variants.test.ts | 5 | 0 |
 | packages/shared/src/redirects.test.ts | 14 | 0 |
 | packages/shared/src/review.test.ts | 3 | 0 |

@@ -6,8 +6,10 @@ Phase 0 (reconnaissance) output. Read this first at the start of every step and 
 
 | Item | Value |
 |---|---|
-| Current phase | **Phase 0 — critic round 1 gaps fixed; awaiting critic round 2, then Ali's approval to start Phase 1** |
+| Current phase | **Phase 0 — critic round 2 gaps fixed (see CRITIC_LOG); awaiting critic round 3, then Ali's approval to start Phase 1** |
 | Audit pinned to | `main` @ `6bde0f4` (2026-10-18, "Merge #137 port-flagship-attributes"). Inventories by subagents were taken at `bf432f7` (two PRs earlier: #136 brand-kit chrome, #137 product attributes); line numbers in `inventory/*.md` may drift slightly for files those PRs touched. |
+| Live DB snapshot | First snapshot 2026-10-19 (pre-PR #146); **re-snapshot 2026-10-19 00:41 UTC** after PR #146's two migrations were applied live (L-38). All DB counts in this file are the 00:41 UTC values. |
+| `origin/main` vs pin | `origin/main` is at `87e5e40` (2026-10-19 03:42 +0300), 11 commits / 433 files ahead of the pinned `6bde0f4` (incl. PR #145 live migration history, PR #146 tenancy hardening, PR #147). The pinned snapshot is behind `main`; re-pinning is a Phase 1 decision. |
 | Working branch | `claude/project-thread-kakb65` (holds only `audit-final/`) |
 | Mirror for Ali | `/mnt/project-files/audit-final/` |
 | Supabase | `sduvpgqwhxragxtxztur` (NEW). Read-only SQL only. OLD `ibfdugifekivquwprqjc` never touched. |
@@ -56,18 +58,24 @@ Other assumptions are stated where used and labelled **ASSUMPTION**.
    Vercel Cron (6 daily) ───▶ platform /api/cron/*        QStash one-offs ─▶ auto-follow-up, process-checkouts
                                                                                       │
              ┌──────────────── Supabase sduvpgqwhxragxtxztur (PG 17, eu-central-1) ──┴───────────┐
-             │ 166 tables (all RLS on, 0 FORCE), 8 views, 1 matview, 182 functions (126 DEFINER),  │
-             │ 343 policies, 8 buckets, realtime on 4 tables + chat broadcast, 13 pg_cron jobs     │
+             │ 166 tables (all RLS on, 0 FORCE), 8 views, 1 matview, 183 functions (126 DEFINER),  │
+             │ 345 policies, 47 triggers, 8 buckets, realtime on 4 tables + chat broadcast,        │
+             │ 13 pg_cron jobs, 343 migrations  (re-snapshot 2026-10-19 00:41 UTC, L-38)           │
              └─────────────────────────────────────────────────────────────────────────────────────┘
-   Outbound: Al-Waseet (one shared platform account), Interakt, Lightfunnels API, Gemini, Anthropic,
-             RapidAPI (admin), QStash, web push (VAPID), headless Chromium (PDF)
+   Outbound: Interakt, Lightfunnels API, Gemini, Anthropic, RapidAPI (admin), QStash, web push (VAPID),
+             headless Chromium (PDF),
+             Meta Conversions API + TikTok Events API (storefront submitCheckout, server-side, per-tenant tokens),
+             Al-Waseet (one shared platform account) — code path present but UNUSED IN PROD (L-36: no WASEET_* env,
+             no API log since 2026-09-09, no order with waseet_submitted_at)
+   Browser-side (storefront /s/[tenant] layout): Meta Pixel (connect.facebook.net), TikTok Pixel
+             (analytics.tiktok.com), Snap Pixel (sc-static.net), Google Tag Manager / gtag (www.googletagmanager.com)
 ```
 
 Inventories (`file:line`; completeness re-checked by the Phase 0 critic, see `critic/phase0-round1.md`):
 - `inventory/platform.md` — pages, guard model, 53 route handlers (52 under `app/api` + `app/link-google/claim`) with auth/tenant/Zod/service-role/rate-limit per route, 15 server actions, middleware, 7 Supabase client factories, auth helpers, 15 realtime channels, 38 storage calls, 61 RPC calls, PWA/push/chat.
 - `inventory/storefront-admin.md` — same for storefront and admin, incl. checkout price/idempotency path, tenant resolution, admin role checks, impersonation, caching keys.
-- `inventory/integrations.md` — 10 crons (auth, schedule, idempotency, maxDuration), 13 integrations (auth/signature, timeouts, retries, swallowed catches), every env var by file, every test file with case counts, dependencies (heavy/client), 53 tracked debris files, Sentry.
-- `inventory/database.md` — every table (RLS, tenant_id, nullability, policies, size), every policy (cmd/roles), views, all 182 functions with DEFINER/grant/search_path flags, buckets, realtime, pg_cron, advisors.
+- `inventory/integrations.md` — 10 crons (auth, schedule, idempotency, maxDuration), 15 integration sections (13 + Meta/TikTok Conversions API + storefront tracking pixels) (auth/signature, timeouts, retries, swallowed catches), every env var by file, every test file with case counts, dependencies (heavy/client), 53 tracked debris files, Sentry.
+- `inventory/database.md` — every table (RLS, tenant_id, nullability, policies, size), every policy (cmd/roles), views, all 183 functions with DEFINER/grant/search_path flags, 47 triggers, buckets, realtime, pg_cron, advisors, and the diff between the first snapshot and the 00:41 UTC re-snapshot.
 - `inventory/migration-drift.md` — live vs repo migration versions.
 - `inventory/advisors-performance.json` — raw performance advisors.
 
@@ -96,7 +104,7 @@ Run on `bf432f7` first, then re-run on the pinned `6bde0f4`; results below are f
 | `pnpm build` (CI-equivalent env) | **pass** (3/3 apps) after proxy CA fix; first attempt failed only on Google Fonts TLS through this sandbox's proxy (environmental) | Platform build warns that `@serwist/next` does not support Turbopack; the committed `apps/platform/public/sw.js` (last changed 2026-09-12) is **not regenerated** by the build (`git status` clean after build). |
 | Playwright | **not run — there is nothing real to run.** `e2e/example.spec.ts` is the Playwright scaffold that visits playwright.dev; `e2e/orders.spec.ts` contains only `expect(true).toBe(true)`. Effective e2e coverage = 0. `playwright.config.ts` webServer runs `pnpm dev`. | |
 | `pnpm audit --prod` | **145 advisories: 4 critical, 73 high, 57 moderate, 11 low** | Critical: `next@16.0.10` (GHSA-2xp9-vwfh-vxw4 unauthenticated RCE in Image Optimization API; GHSA-p293-qw3h-jr36 RCE on Windows hosts; patched ≥16.3.3) and `jspdf` (path traversal ≤3.0.4; HTML injection ≤4.2.0). High includes 13 more `next` advisories (incl. middleware/proxy bypass), `xlsx` (prototype pollution, ReDoS, no npm fix), `pdfjs-dist` (JS execution on malicious PDF), `sharp`, `prosemirror-view` XSS, `basic-ftp`, `fast-uri`, `ws`, `tmp`, `extract-zip`. |
-| Supabase security advisors | 1 ERROR, 30 WARN, 4 INFO | `customer_aggregates` SECURITY DEFINER view; 26 mutable search_path; `pg_net` in public; `lookup_order` anon-callable definer; 64 authenticated-callable definers; leaked-password protection off; 4 RLS-no-policy tables. |
+| Supabase security advisors (re-run 2026-10-19 00:54 UTC, after L-38) | 1 ERROR finding; 82 WARN findings (19 + 1 + 1 + 60 + 1, listed right); 4 INFO findings | ERROR: `customer_aggregates` SECURITY DEFINER view. WARN: 19 mutable search_path (was 26); `pg_net` in public; `lookup_order` anon-callable definer; 60 authenticated-callable definers (was 64); leaked-password protection off. INFO: RLS on with no policy on `account_link_tokens`, `api_rate_limits`, `chat_push_config`, `security_logs`. |
 | Supabase performance advisors | 112 unindexed FKs; 43 `auth_rls_initplan`; 190 unused indexes; 57 multiple-permissive-policy overlaps; 1 duplicate index | |
 | Vercel runtime errors, last 7 days | platform: 5 groups; storefront: 0; admin: 0 | Platform: expired-JWT on `/api/settings/auto-send` (10×, 5 users); Interakt 400 invalid phone from `/api/webhooks/lightfunnels` (2×); **`/api/delivery-import/parse` crashes loading `pdf-parse` (`DOMMatrix is not defined`)** then fails to render `/500` (2×, last 2026-10-17); invalid refresh token in middleware (2×). Low counts reflect low traffic (1 active tenant), not health. |
 | Sentry top issues | **not available** — no Sentry connector in this session, and `NEXT_PUBLIC_SENTRY_DSN` is not set on any Vercel project. | |
@@ -124,7 +132,9 @@ Browser /s/[tenant]/checkout
   submitCheckout (apps/storefront/app/actions/checkout.ts, service-role client)
     → tenant status re-check (live) → price/total from DB (server-side)
     → adjust_customer_points (redeem, BEFORE order, no idempotency)
-    → rpc create_order_atomic(_order_data incl. idempotency_key, _tenant_id)
+    → rpc create_order_atomic(_order_data incl. idempotency_key, _tenant_id)            (checkout.ts:365)
+         on RPC error: adjust_customer_points(+pointsUsed, reason "redeem_refund") (:374-380), its error
+         ignored; return failure
          live triggers on orders (12, read from pg_trigger 2026-10-19):
            BEFORE INS/UPD: trg_orders_created_at_not_future
            BEFORE UPD:     increment_orders_version, trg_order_completed_at, trg_orders_updated_at
@@ -136,7 +146,11 @@ Browser /s/[tenant]/checkout
          order_status_history INSERT → trigger_update_order_last_actor
          (increment_order_usage and notify_order_push exist as functions but are attached to no trigger;
           whether create_order_atomic calls them directly is checked in A3)
-    → adjust_customer_points (earn, AFTER order, no idempotency)
+    → adjust_customer_points (earn, AFTER order, no idempotency)                        (:391-402)
+    → abandoned_carts UPDATE recovered_at for (tenant, phone, recovered_at IS NULL)      (:407-412, result unchecked)
+    → sendPurchaseCapi (lib/capi.ts:120) if payload.purchaseEventId and tenant analytics config (:419-435):
+         Meta graph.facebook.com/v19.0/<pixel>/events and/or TikTok open_api/v1.3/event/track/, hashed
+         phone/email/name, no timeout, per-call .catch(() => undefined) (capi.ts:131,144) + outer catch {} (:432)
     → experiment event write (service role)
   ← /checkout/success?order=…  (echoes number, no DB read)
   Track: /s/[tenant]/track → /api/orders/lookup → rpc lookup_order (anon, DEFINER)
@@ -157,8 +171,15 @@ Interakt → /api/webhooks/interakt/[tenantId] (tenant from URL) → order statu
 ```
 Orders page → confirm/follow-up (status updates via client + RLS; auto-follow-up via QStash)
  → print (client PDF: jspdf/html2canvas; server: /api/generate-batch-pdf headless Chromium)
- → /api/waseet/submit-orders (role-gated, idempotent claim) → Al-Waseet (single platform account)
- → status sync: /api/cron/waseet-sync once daily 12:00 UTC (+ manual) → orders, order_status_history
+ → [UNUSED IN PROD, L-36] /api/waseet/submit-orders (role-gated, idempotent claim) → Al-Waseet (single platform
+    account): lib/waseet-api.ts:101-103 throws without WASEET_USERNAME/PASSWORD, which no Vercel target sets;
+    0 orders ever have waseet_submitted_at; last waseet_api_logs row 2026-09-09 08:42 UTC
+ → [UNUSED IN PROD, L-36] status sync: /api/cron/waseet-sync daily 12:00 UTC (+ manual) → orders, order_status_history
+    (scheduled, but cannot authenticate to Al-Waseet without the env vars)
+ → what actually happens today (MEASURED 2026-10-19): 230 orders marked delivered and 53 of 388 orders created in
+    the last 30 days carry a delivery_order_id, while 6 delivery_imports rows were created in the same 30 days.
+    HYPOTHESIS: delivery_order_id is set by delivery import or typed by hand; proof = order_status_history /
+    delivery_import_items for those 53 orders (Phase 2).
  → delivered/returned → process_return / undo_return RPCs; /returns/scan (ZXing)
  → delivery-import: /api/delivery-import/{parse,confirm,rollback} (pdf-parse/xlsx) → orders
 ```
@@ -192,7 +213,7 @@ Storefront: host → proxy.ts → /s/[tenant]; tenant_domains anon lookup; 60 s 
 | Orders total / last 30 days | 23,291 / 388 (≈ 13/day, all one tenant) |
 | Busiest day / busiest hour in last 90 days | 136 orders / 15 orders |
 | Largest tenant (all time) | 5,239 orders |
-| Status changes per order | 3.3 all-time (77,187 / 23,228); 3.49 over last 30 days |
+| Status changes per order | **3.38 all-time = 78,824 / 23,291** (exact `count(*)`, MEASURED 2026-10-19 00:44 UTC; the earlier 3.3 used `reltuples` estimates); 3.49 over last 30 days |
 | WhatsApp log rows per order (30 d) | 2.9 (1,139 / 388) |
 | Notifications per order (30 d) | 4.2 (1,629 / 388) |
 | Wallet transactions per order (30 d) | 0.12 |
@@ -210,7 +231,7 @@ Launch load (1,500 ordering shoppers/day across 5 tenants) is **~115× today's r
 |---|---|---|
 | Peak-hour share | **30% of daily traffic in one hour** | Required by the brief as a stress factor. It is **3.5× the measured top hour (8.5%)** and models an ad-driven burst on top of the evening peak. |
 | Session→order conversion | 20% | ASSUMPTION, typical for COD social traffic. |
-| Storefront share of orders | 100% of the 1,500 (design case) | ASSUMPTION: the brief's 1,500 are shoppers "opening the app and placing orders". Other channels (WhatsApp, Lightfunnels, manual) add on top; at today's mix they would add ~3× more orders to the platform side. |
+| Storefront share of orders | 100% of the 1,500 (design case) | ASSUMPTION: the brief's 1,500 are shoppers "opening the app and placing orders". Other channels (WhatsApp, Lightfunnels, manual) add on top; at today's mix they would add ~3.4× more orders to the platform side ((1,784 + 729 + 690 + 452 + 438) / 1,203). |
 | Staff | 4 per tenant, 2 devices/tabs each | ASSUMPTION |
 | Writes per order lifecycle | ≈ 25 | ASSUMPTION built from the live trigger list (§4.1): create ≈ 8 rows (order, status-history row, notification, notification deliveries, inventory ledger, trust, loyalty) + 3.49 status changes × ≈ 5 rows (history, notification, deliveries, trust, last-actor). A3/A8 measure it. |
 | Status changes per order | 3.49 | MEASURED (30 d) |
@@ -226,7 +247,7 @@ Launch load (1,500 ordering shoppers/day across 5 tenants) is **~115× today's r
 | DB writes/day (order lifecycle) | ≈ 37,500 | ≈ 375,000 | × 25 |
 | Order status changes/day | ≈ 5,200 | ≈ 52,000 | × 3.49 |
 | WhatsApp messages/day (Interakt) | ≈ 4,350 | ≈ 43,500 | × 2.9 |
-| Lightfunnels webhooks/day | ≈ 200 | ≈ 2,000 | 13% measured channel share, if LF tenants exist |
+| Lightfunnels webhooks/day (**on top of** the 1,500, per §5.2) | ≈ 860 | ≈ 8,600 | 1,500 × 690 / 1,203 (today's LF : storefront ratio, 90 d), only if LF tenants exist. Not included in the 1,500 orders or the 37,500 writes above. |
 | Wallet transactions/day | ≈ 180 | ≈ 1,800 | × 0.12 |
 | Staff / staff devices | 20 / 40 | 200 / 400 | 4 per tenant, 2 devices each |
 
@@ -237,6 +258,8 @@ Launch load (1,500 ordering shoppers/day across 5 tenants) is **~115× today's r
 | Orders in peak hour | 450 | 4,500 | 30% |
 | Order creations/s | 0.13 | 1.25 | ÷ 3,600 |
 | DB writes/s (order lifecycle) | ≈ 3.1 | ≈ 31 | 37,500 × 30% ÷ 3,600 |
+| DB writes/s (whatsapp_logs) | ≈ 0.36 | ≈ 3.6 | 4,350 × 30% ÷ 3,600 |
+| **DB writes/s, total of the modelled sources** | **≈ 3.5** | **≈ 35** | order lifecycle + whatsapp_logs + wallet (180 × 30% ÷ 3,600 ≈ 0.015). Excludes non-storefront orders (§5.2: ~3.4× more at today's mix), storefront_events / analytics_events, activity_logs and checkout_queue — A8 measures those. |
 | Storefront sessions in peak hour | 2,250 | 22,500 | 30% of sessions |
 | Concurrent shoppers | ≈ 190 | ≈ 1,900 | 5-minute average session (ASSUMPTION) |
 | Storefront page views/s | ≈ 5 | ≈ 50 | 8 page views per session (ASSUMPTION) |
@@ -273,7 +296,7 @@ The inventory subagents flagged the items below. They are **leads for Phase 1/2*
 
 **Tenancy / auth**
 - L-01 `apps/platform/app/api/domains/verify/route.ts`: service role, `domain_id` from body, no auth.
-- L-02 Webhook auth defaults to "monitor" (`lib/webhook-auth.ts:169-174, :197-198`); prod env has no `*_AUTH_MODE` → unauthenticated Lightfunnels orders and Interakt updates accepted.
+- L-02 Webhook auth defaults to "monitor" (`lib/webhook-auth.ts:169-174, :197-198`); prod env has no `*_AUTH_MODE` → **unauthenticated** (no credential presented) Lightfunnels orders and Interakt updates are accepted. A request that presents an **invalid** signature/secret is rejected in every mode, monitor included (`enforceWebhookAuth`, `lib/webhook-auth.ts:197-198`: `rejected = result.status === "invalid" || (… && mode === "enforce")`).
 - L-03 Telegram webhook secret only checked if env set (`telegram/webhook/route.ts:79-85`); prod env has no `TELEGRAM_WEBHOOK_SECRET`.
 - L-04 Cron auth fail-open patterns: `trial-suspend:17-20`, `subscription-renew:30-33` (template-string compare), `waseet-sync:22-30` and `auto-no-response:31-39` (accept an `x-vercel-cron` header as auth; whether Vercel strips that header from external requests is unverified — A6 tests it on a preview). Prod has `CRON_SECRET` set, so the "unset" branch is not live today; the header path may be.
 - L-05 Any signed-in user of any tenant can use the shared Al-Waseet account (`waseet/receive-invoice`, invoices, global `waseet_city_mappings` POST).
@@ -283,7 +306,7 @@ The inventory subagents flagged the items below. They are **leads for Phase 1/2*
 - L-09 Open redirects: platform `auth/callback:17-20`, admin `auth/callback:8,36`.
 - L-10 Tenant from `current_tenant_id` without membership check: `settings/staff-alert`, `settings/order-pipeline`, `waseet/submit-orders`, `chat/push/subscribe`; global `user_profiles.role` used instead of tenant role.
 - L-11 Page protection is client-only (`PageGuard` renders children before redirect); `/finances`, `/vault`, `/store/**`, `/returns/scan`, `/sentry-test` have no role gate.
-- L-12 Admin: wallet top-up has no permission check and a read-then-write race; 13 admin handlers rely only on middleware "is admin"; impersonation audit insert writes a non-existent column and swallows the error; bulk top-up calls non-existent `increment_wallet_balance`/`wallets` and reports success.
+- L-12 Admin: wallet top-up has no permission check and a read-then-write race; 12 admin handlers rely only on middleware "is admin" (no route-level auth helper; grep for `requireAdmin*|requireSuperAdmin|getUser(` finds none): `admin/watchlist/[tenantId]`, `billing/topup`, `dashboard/stats`, `merchants/[id]/audit-log`, `merchants/[id]/convert-trial`, `merchants/[id]/extend-subscription`, `merchants/[id]/extend-trial`, `merchants/[id]/notes`, `merchants/[id]/orders`, `merchants/[id]/pause`, `merchants/[id]/tags`, `merchants/[id]/unpause` (all under `apps/admin/app/api/`); the 13th route without a helper is the public `auth/callback`; impersonation audit insert writes a non-existent column and swallows the error; bulk top-up calls non-existent `increment_wallet_balance`/`wallets` and reports success.
 - L-13 Storefront `submitCheckout` is a public server action with no Zod; loyalty points redeemable by anyone with a phone number and double-applied on retries.
 - L-14 `/api/cart/abandoned` accepts any `tenant_id`/phone → can make a merchant's WhatsApp reminder job message arbitrary numbers; client-sent prices.
 - L-15 Policies referencing `auth.jwt` on `bom_items` and `product_categories` (possible forgeable-claim RLS, prior B-class).
@@ -291,8 +314,11 @@ The inventory subagents flagged the items below. They are **leads for Phase 1/2*
 - L-17 Customer data mixed across tenants in `webhook-handler.ts` (`checkBlacklist` ignores tenant; dedup query cross-tenant).
 
 - L-34 Storage policies on `product-images` allow INSERT/UPDATE/DELETE to role `public` with only `bucket_id = 'product-images'` (MEASURED in `pg_policies`): anyone, signed in or not, may be able to overwrite or delete any tenant's product images. `qc-evidence` lets any authenticated user delete any object. `tenant-assets` is public and allows `image/svg+xml` (stored-XSS vector).
-- L-35 Code calls DB functions that do not exist live (MEASURED): `auto_move_to_no_response`, `merge_categories`, `split_category`, `increment_wallet_balance`.
-- L-37 Dead realtime subscriptions (MEASURED at publication level): `supabase_realtime` publishes only `orders`, `qc_quarantine`, `qc_quarantine_events`, `notifications`. Eight subscribed tables are not published, so these channels never fire: platform `activity_logs` (components/providers/global-activity-provider.tsx:26, components/team/hooks/use-team-realtime.ts:88), `expenses` (hooks/use-expenses.ts:189), `announcements` (hooks/use-announcements.ts:83); admin `tenants`, `wallet`, `wallet_transactions`, `subscriptions`, `admin_activity_logs` (apps/admin/hooks/use-admin-realtime.ts:58-62). Callers of the generic hooks/use-realtime-query.ts take a table argument and are not yet enumerated (Phase 2). User impact to confirm in Phase 2.
+- L-35 Code calls DB functions that do not exist live (MEASURED, `pg_proc` 2026-10-19 00:41 UTC): `auto_move_to_no_response` (`apps/platform/app/api/cron/auto-no-response/route.ts:46`), `merge_categories` (`apps/platform/hooks/use-categories-query.ts:263`), `split_category` (`:288`), `increment_wallet_balance` (`apps/admin/app/api/bulk/route.ts:173`), `search_orders_v2` (`apps/platform/lib/repositories/order-repository.ts:448`, with a direct-select fallback at `:453`; repo migration not applied, L-21), `exec_sql` (tracked scripts `apps/platform/scripts/add-tag-color-column.ts:16`, `apps/platform/scripts/apply-persistence.ts:41`).
+- L-37 Dead realtime subscriptions (MEASURED at publication level): `supabase_realtime` publishes only `orders`, `qc_quarantine`, `qc_quarantine_events`, `notifications`. Eight subscribed tables are not published, so these channels never fire: platform `activity_logs` (components/providers/global-activity-provider.tsx:26, components/team/hooks/use-team-realtime.ts:88), `expenses` (hooks/use-expenses.ts:189), `announcements` (hooks/use-announcements.ts:83); admin `tenants`, `wallet`, `wallet_transactions`, `subscriptions`, `admin_activity_logs` (apps/admin/hooks/use-admin-realtime.ts:58-62). The generic `hooks/use-realtime-query.ts` (channel at `:141`) has exactly one caller, `apps/platform/hooks/use-order-realtime.ts:40`, with `table: "orders"` (published, so that channel does fire). User impact of the eight dead subscriptions to confirm in Phase 2.
+- L-38 **Live DB moved past the pinned snapshot via PR #146** (MEASURED 2026-10-19 00:41 UTC). Migrations `20261019100000 secdef_rpc_tenant_guards` and `20261019100100 tenant_admin_only_writes` were applied live from PR #146 (`fix/tenancy-secdef-hardening`, commit `6c0d157`, merged to `main` as `6c75d9b` after the pinned `6bde0f4`). They are intended changes, not drift: audit them as ordinary changes. Effect: functions 182→183 (new INVOKER `tenant_members_guard_self_change`), policies 343→345 (`tenant_members` ALL policy replaced by admin-only INSERT/UPDATE/DELETE; 30 `tenant_isolation_*` write policies on 10 payroll/settings/integration/domain tables now require `is_tenant_admin`), triggers 46→47 (`trg_tenant_members_guard_self_change`), EXECUTE revoked from `authenticated` on 4 DEFINER functions (60 remain), 7 DEFINER `search_path`s pinned (0 unpinned), 6 function bodies gain tenant guards, `anon` loses all privileges on `orders`. Full diff: `inventory/database.md` → "Live drift since the first snapshot". Files: `packages/supabase/migrations/20261019100000_secdef_rpc_tenant_guards.sql`, `…20261019100100_tenant_admin_only_writes.sql` on `origin/main`. `schema_migrations` stores no statements and `created_by` is NULL for both. Consequences for Phase 1: (a) leads that predate it must be re-checked against live, at least L-10 (tenant role checks) and the INVOKER/DEFINER grant counts in COVERAGE; (b) the pinned snapshot is behind `main` (`origin/main` = `87e5e40`, 11 commits ahead) — decide whether to re-pin.
+- L-39 Code queries relations that do not exist live (MEASURED, no `pg_class` row, 2026-10-19), so these reads/writes fail at runtime with a PostgREST "relation not found" error: `customers` — `apps/platform/hooks/use-bulk-actions.ts:26`, inside `exportToCSV` (`:19`); the only consumer, `apps/platform/app/customers/page.tsx:45`, destructures only `bulkAddTags`, so the failing path is currently unreachable from the UI. `order_items` — `apps/platform/hooks/use-store-analytics.ts:33` (top product in the store command center; `components/store-command-center/command-center.tsx:30`); its `{ data: items }` ignores the error, so the KPI silently shows no top product (HYPOTHESIS until run). `activity_log` (singular; the live table is `activity_logs`) — `apps/platform/lib/customer-data-export.ts:95` (read) and `:240` (insert), lazy-loaded from `apps/platform/app/customers/[phone]/page.tsx:176`. `wallets` is already in L-12. Sits next to L-35.
+- L-40 Per-tenant Meta CAPI / TikTok Events API tokens are stored in `tenants.store_config_v2.globals.analytics_pixels.base` (`packages/shared/src/types/store-config.ts:262,264`). The storefront redacts them before sending config to the browser (`packages/shared/src/pixel.ts:57-69`, called at `apps/storefront/lib/tenant.ts:91-95`), but the `tenants` row itself is readable by `anon` for every trial/active tenant (policy `public_storefront_read`, `has_column_privilege('anon','public.tenants','store_config_v2','SELECT')` = true, MEASURED). HYPOTHESIS: anyone with the public anon key can read a tenant's CAPI token via PostgREST once one is configured; today 0 tenants have a token (MEASURED), 1 has a Meta pixel id and 1 a TikTok pixel id. Proof = anon `select store_config_v2 from tenants` on a branch with a token set (A1).
 - L-36 Al-Waseet API is unused in production (MEASURED, §5.1): no `WASEET_*` env vars, no cached token, no API log since 2026-09-09, no order ever has `waseet_submitted_at`. Whether this is a broken launch journey or a deliberate manual process is a Phase 2 / Ali question.
 
 **Money / data**

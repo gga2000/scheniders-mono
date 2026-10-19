@@ -1,6 +1,6 @@
 # Database inventory — Supabase `sduvpgqwhxragxtxztur`
 
-Captured 2026-10-19 with read-only SQL (`pg_class`, `pg_policies`, `pg_proc`, `storage.buckets`, `pg_publication_tables`, `cron.job`) and `get_advisors`. Project: `scheniders-platform`, Postgres 17.6.1.104, eu-central-1, status ACTIVE_HEALTHY. The OLD project `ibfdugifekivquwprqjc` was not touched.
+Captured 2026-10-19 with read-only SQL; **re-snapshot 2026-10-19 00:41 UTC** after two migrations from PR #146 were applied live (merged to `main` after the pinned commit `6bde0f4`) (see "Live drift since the first snapshot" below; every count in this file is now the 00:41 UTC value unless marked otherwise) (`pg_class`, `pg_policies`, `pg_proc`, `storage.buckets`, `pg_publication_tables`, `cron.job`) and `get_advisors`. Project: `scheniders-platform`, Postgres 17.6.1.104, eu-central-1, status ACTIVE_HEALTHY. The OLD project `ibfdugifekivquwprqjc` was not touched.
 
 ## Totals
 
@@ -9,9 +9,9 @@ Captured 2026-10-19 with read-only SQL (`pg_class`, `pg_policies`, `pg_proc`, `s
 | Tables (public) | 166 |
 | Views | 8 (7 `security_invoker=true`, 1 `customer_aggregates` = SECURITY DEFINER view, `security_barrier`) |
 | Materialized views | 1 (`mv_customer_aggregates`, no anon/authenticated SELECT) |
-| Functions (public) | 182 — 126 SECURITY DEFINER; 64 definer callable by `authenticated`; 1 definer callable by `anon` (`lookup_order`); 7 definer without pinned `search_path` |
-| RLS policies | 343 |
-| Triggers (non-internal) | 46 (listed below) |
+| Functions (public) | 183 — 126 SECURITY DEFINER (60 callable by `authenticated`, 1 callable by `anon` = `lookup_order`, 0 without pinned `search_path`); 57 SECURITY INVOKER (46 callable by `anon` and `authenticated`, 9 by `authenticated` only, 2 by neither). EXECUTE by `authenticated`: 115 in total; by `anon`: 47. First snapshot: 182 / 64 / 1 / 7 |
+| RLS policies | 345 (first snapshot 343) |
+| Triggers (non-internal, `public` tables) | 47 (listed below; first snapshot 46). All schemas: 56 |
 | Indexes | 479 |
 | Storage buckets | 8 |
 | Realtime publication tables | 4 |
@@ -176,7 +176,7 @@ telegram_link_codes: ALL[public]
 telegram_pending_orders: SELECT[public]
 tenant_domains: DELETE[authenticated] INSERT[authenticated] SELECT[anon+authenticated] SELECT[authenticated] UPDATE[authenticated]
 tenant_integrations: DELETE[public] INSERT[public] SELECT[public] UPDATE[public]
-tenant_members: ALL[public] SELECT[public]
+tenant_members: DELETE[authenticated] INSERT[authenticated] SELECT[public] UPDATE[authenticated]   ← changed by 20261019100100 (was ALL[public] SELECT[public])
 tenant_public_stats: SELECT[public]
 tenant_slug_history: SELECT[anon+authenticated]{TRUE}
 tenants: SELECT[public] SELECT[authenticated] UPDATE[authenticated]
@@ -199,6 +199,39 @@ whatsapp_outreach_templates: ALL[public]
 
 "public" in the role column means the policy applies to every role including `anon`; the USING clause decides. Each policy body is examined per role in A1.
 
+## Live drift since the first snapshot (MEASURED 2026-10-19 00:41 UTC)
+
+Two migrations from PR #146 (`fix/tenancy-secdef-hardening`, intended tenancy hardening) were applied to production after the first snapshot. They are ordinary changes that reached `main` after the pinned commit, so the pinned snapshot is behind `main`; this audit (read-only) did not apply them. Phase 1 audits them like any other change.
+
+| Version | Name | `statements` stored | `created_by` | Source file |
+|---|---|---|---|---|
+| 20261019100000 | secdef_rpc_tenant_guards | 0 (empty) | NULL | `packages/supabase/migrations/20261019100000_secdef_rpc_tenant_guards.sql` on remote branch `fix/tenancy-secdef-hardening`, commit `6c0d157` (author `gga2000`, 2026-10-19 03:02 +0300), merged to `origin/main` by PR #146 (`6c75d9b`, 03:32 +0300). Not on the pinned `6bde0f4`. |
+| 20261019100100 | tenant_admin_only_writes | 0 (empty) | NULL | same branch / commit / PR, file `20261019100100_tenant_admin_only_writes.sql` |
+
+Both version numbers are later than the moment they were observed (10:00 / 10:01 on a date whose UTC clock read 00:41), so the version is a chosen label, not an apply time. `schema_migrations` does not record who applied them (`created_by` NULL, `statements` empty). Timing from git (MEASURED): branch commit `6c0d157` at 00:02 UTC; PR #146 merged at 00:32 UTC. The exact apply time is not recorded.
+
+Diff against the first snapshot, by catalog (pg_proc / pg_policies / pg_trigger compared against the lists in this file):
+
+**Functions** (183 vs 182)
+- New: `tenant_members_guard_self_change()` — SECURITY INVOKER, `search_path=public, pg_temp`, EXECUTE only `postgres`, `service_role` (MEASURED `proacl`).
+- EXECUTE revoked from `authenticated` (DEFINER, now `service_role` only): `get_seed_automation_status()`, `in_quiet_hours(uuid, uuid)`, `notification_channel_enabled(uuid, uuid, text, text)`, `tenant_block_active(uuid, text)` — matches `20261019100000…sql:269-275`.
+- `search_path` now pinned to `public, pg_temp` (were NO_SEARCH_PATH): `get_current_tenant_id`, `is_tenant_admin` (`…sql:284-285`), `qc_log_status_change` (`:290`), `get_customer_percentile`, `get_customer_score_audit_log`, `get_customer_trust_history`, `increment_order_usage` (re-created with `SET search_path`, `:31-144`, `:155-180`).
+- Bodies replaced (CREATE OR REPLACE in `20261019100000…sql`): `get_customer_percentile`, `get_customer_score_audit_log`, `get_customer_trust_history`, `increment_order_usage`, `increment_usage_tracking`, `adjust_customer_points`. Live bodies of all six now reference both `auth.role()` and `get_user_tenant_ids()` (MEASURED). The first snapshot stored no body hashes, so "changed today" rests on the migration file, not on a before/after body diff.
+- Grants restated without net change vs this file: `inv_apply`, `refresh_customer_aggregates`, `iraq_flag_ambiguous_placements`, `adjust_customer_points`, `increment_usage_tracking` (all already DEFINER without `auth`).
+
+**Policies** (345 vs 343). Per-table `cmd[roles]` multiset compared for all 162 tables: one table differs.
+- `tenant_members`: `admin_manage_members` (ALL, public) dropped; added `tenant_admin_insert_members`, `tenant_admin_update_members`, `tenant_admin_delete_members` (authenticated; `tenant_id ∈ get_user_tenant_ids() AND is_tenant_admin(tenant_id) AND user_id <> auth.uid()`). Net +2.
+- Same `cmd[roles]`, predicate changed (`ALTER POLICY` in `20261019100100…sql:151-174`): `tenant_isolation_insert` / `_update` / `_delete` on `employee_salary_configs`, `role_salary_defaults`, `payroll_records`, `salary_advances`, `salary_penalties`, `salary_config_history`, `tenant_integrations`, `tenant_domains`, `settings`, `app_settings` — 30 policies now require `is_tenant_admin(tenant_id)` (MEASURED: 30 of 30 reference it). The `cmd[roles]` list above cannot show this.
+
+**Triggers** (47 vs 46)
+- New: `tenant_members.trg_tenant_members_guard_self_change` BEFORE INSERT OR UPDATE OR DELETE → `tenant_members_guard_self_change()`.
+
+**Table privileges** (`20261019100100…sql:184-213`, MEASURED for two samples): `anon` has no SELECT or INSERT on `public.orders` and no INSERT on `public.tenant_members`; `authenticated` has no TRUNCATE on `public.orders`.
+
+**Unchanged:** 166 tables (all RLS on), 126 DEFINER, 1 anon-callable DEFINER (`lookup_order`), 13 pg_cron jobs.
+
+`origin/main` has also moved past the pinned commit: 11 commits after `6bde0f4` up to `87e5e40` (2026-10-19 03:42 +0300), 433 files changed, including PR #145 ("mirror production's full migration history into the repo") and PR #146. The audit stays pinned to `6bde0f4`; Phase 1 must decide whether to re-pin.
+
 ## Views
 
 | View | Options | anon SELECT | authenticated SELECT |
@@ -215,7 +248,7 @@ whatsapp_outreach_templates: ALL[public]
 
 ## Functions (public schema)
 
-Legend: `[DEFINER,auth,anon,NO_SEARCH_PATH]` = SECURITY DEFINER, EXECUTE granted to authenticated / anon, `search_path` not pinned.
+Legend: `[DEFINER,auth,anon,NO_SEARCH_PATH]` = SECURITY DEFINER, EXECUTE granted to authenticated / anon, `search_path` not pinned. In this list only DEFINER rows carry `auth`/`anon`; the EXECUTE grants of INVOKER functions are listed after the block and in COVERAGE.md. Lines marked `←` changed between the first snapshot and the 00:41 UTC re-snapshot.
 
 ```
 adjust_customer_points(_tenant_id uuid, _phone text, _delta integer, _reason text, _order_id uuid) [DEFINER]
@@ -278,22 +311,22 @@ enforce_order_created_at_not_future()
 enforce_product_block() [DEFINER]
 enforce_storefront_writes_block() [DEFINER]
 generate_seed_orders() [DEFINER]
-get_current_tenant_id() [DEFINER,auth,NO_SEARCH_PATH]
+get_current_tenant_id() [DEFINER,auth]   ← 20261019100000: search_path pinned (was NO_SEARCH_PATH)
 get_customer_dashboard_stats() [DEFINER,auth]
 get_customer_order_counts(_tenant_id uuid, _phones text[]) [DEFINER,auth]
-get_customer_percentile(target_phone text, target_city text) [DEFINER,auth,NO_SEARCH_PATH]
+get_customer_percentile(target_phone text, target_city text) [DEFINER,auth]   ← 20261019100000: search_path pinned (was NO_SEARCH_PATH)
 get_customer_reliability(p_phone text) [DEFINER,auth]
-get_customer_score_audit_log(target_phone text, log_limit integer, log_offset integer) [DEFINER,auth,NO_SEARCH_PATH]
-get_customer_trust_history(target_phone text, months integer) [DEFINER,auth,NO_SEARCH_PATH]
+get_customer_score_audit_log(target_phone text, log_limit integer, log_offset integer) [DEFINER,auth]   ← 20261019100000: search_path pinned (was NO_SEARCH_PATH)
+get_customer_trust_history(target_phone text, months integer) [DEFINER,auth]   ← 20261019100000: search_path pinned (was NO_SEARCH_PATH)
 get_dashboard_metrics(p_range text)
 get_order_duplicate_flags(_tenant_id uuid, _order_ids uuid[]) [DEFINER,auth]
 get_orders_aggregates(_tenant_id uuid, _date_from date, _date_to date, _city text, _product text, _priority text, _payment_status text, _is_return boolean, _order_type text) [DEFINER,auth]
 get_paginated_customers(search_query text, status_filter text, city_filter text, sort_by text, sort_desc boolean, page_limit integer, page_offset integer, min_ltv bigint, max_ltv bigint, last_order_within_days integer, tag_id_filter text, trust_tier_filter text, min_trust_score integer, max_trust_score integer, value_filter text, risk_filter text, last_order_before_days integer, first_order_within_days integer, first_delivery_pending boolean) [DEFINER,auth]
 get_product_sales()
-get_seed_automation_status() [DEFINER,auth]
+get_seed_automation_status() [DEFINER]   ← 20261019100000: EXECUTE revoked from authenticated (was DEFINER,auth)
 get_user_tenant_ids() [DEFINER,auth]
-in_quiet_hours(p_user_id uuid, p_tenant_id uuid) [DEFINER,auth]
-increment_order_usage(p_tenant_id uuid) [DEFINER,NO_SEARCH_PATH]
+in_quiet_hours(p_user_id uuid, p_tenant_id uuid) [DEFINER]   ← 20261019100000: EXECUTE revoked from authenticated (was DEFINER,auth)
+increment_order_usage(p_tenant_id uuid) [DEFINER]   ← 20261019100000: search_path pinned (was NO_SEARCH_PATH)
 increment_order_version()
 increment_usage_tracking(_tenant_id uuid, _year integer, _month integer) [DEFINER]
 inv_apply(p_order_id uuid, p_items jsonb, p_status text, p_sign integer, p_tenant_id uuid) [DEFINER]
@@ -304,7 +337,7 @@ iraq_flag_ambiguous_placements() [DEFINER]
 iraq_refresh_location_districts() [DEFINER]
 iraq_resolve_address(p_text text, p_governorate_code text, p_min_similarity real)
 iraq_resolve_location(p_text text, p_governorate_code text, p_min_similarity real)
-is_tenant_admin(p_tenant_id uuid) [DEFINER,auth,NO_SEARCH_PATH]
+is_tenant_admin(p_tenant_id uuid) [DEFINER,auth]   ← 20261019100000: search_path pinned (was NO_SEARCH_PATH)
 leads_after_upsert()
 leads_before_upsert()
 log_cart_recovered_notification() [DEFINER]
@@ -332,7 +365,7 @@ mirror_order_notification_update() [DEFINER]
 normalize_arabic_text_for_search(_text text)
 normalize_phone(input_phone text)
 normalize_phone_for_search(_phone text)
-notification_channel_enabled(p_user_id uuid, p_tenant_id uuid, p_category text, p_channel text) [DEFINER,auth]
+notification_channel_enabled(p_user_id uuid, p_tenant_id uuid, p_category text, p_channel text) [DEFINER]   ← 20261019100000: EXECUTE revoked from authenticated (was DEFINER,auth)
 notification_feed(p_limit integer, p_before timestamp with time zone, p_filter text) [DEFINER,auth]
 notification_stats(p_days integer) [DEFINER,auth]
 notification_unread_count() [DEFINER,auth]
@@ -345,7 +378,7 @@ progress_seed_orders() [DEFINER]
 prune_notification_deliveries(p_keep_days integer) [DEFINER]
 prune_order_notifications(p_keep_days integer) [DEFINER]
 publish_store_config_v2(p_tenant_id uuid, p_config jsonb, p_diff_summary jsonb, p_expected_rev bigint) [DEFINER,auth]
-qc_log_status_change() [DEFINER,NO_SEARCH_PATH]
+qc_log_status_change() [DEFINER]   ← 20261019100000: search_path pinned (was NO_SEARCH_PATH)
 recompute_inventory(p_tenant_id uuid) [DEFINER,auth]
 referral_check(_tenant_id uuid, _code text, _phone text) [DEFINER]
 referral_order_changed() [DEFINER]
@@ -366,7 +399,8 @@ split_order_atomic(_original_order_id uuid, _kept_items jsonb, _returned_items j
 split_order_atomic(_original_order_id uuid, _kept_items jsonb, _returned_items jsonb) [DEFINER,auth]
 storefront_funnel(_tenant_id uuid, _from timestamp with time zone, _to timestamp with time zone)
 sync_product_primary_category()
-tenant_block_active(p_tenant_id uuid, p_block text) [DEFINER,auth]
+tenant_block_active(p_tenant_id uuid, p_block text) [DEFINER]   ← 20261019100000: EXECUTE revoked from authenticated (was DEFINER,auth)
+tenant_members_guard_self_change()   ← NEW in 20261019100100 (SECURITY INVOKER trigger function; EXECUTE revoked from PUBLIC, anon, authenticated)
 tg_order_reasons_updated_at()
 tg_product_attribute_defs_updated_at()
 tg_product_attribute_values_tenant_guard() [DEFINER]
@@ -402,9 +436,19 @@ waseet_strip_article(p_key text)
 zero_oversold(p_tenant_id uuid) [DEFINER,auth]
 ```
 
-Functions the app code calls that do **not** exist live (MEASURED, `pg_proc` 2026-10-19): `auto_move_to_no_response`, `merge_categories`, `split_category`, `increment_wallet_balance`. `get_orders_aggregates` exists live; platform recon could not find its definition in the repo.
+Functions the code calls that do **not** exist live (MEASURED, `pg_proc` 2026-10-19 00:41 UTC), 6:
+- `auto_move_to_no_response` — `apps/platform/app/api/cron/auto-no-response/route.ts:46` (defined only in repo file `packages/supabase/migrations/20_auto_no_response.sql`, never applied live)
+- `merge_categories` — `apps/platform/hooks/use-categories-query.ts:263`
+- `split_category` — `apps/platform/hooks/use-categories-query.ts:288`
+- `increment_wallet_balance` — `apps/admin/app/api/bulk/route.ts:173`
+- `search_orders_v2` — `apps/platform/lib/repositories/order-repository.ts:448` (falls back to direct selects when missing, `:453`; repo migration `20261012120000_search_orders_v2.sql` not applied live)
+- `exec_sql` — `apps/platform/scripts/add-tag-color-column.ts:16`, `apps/platform/scripts/apply-persistence.ts:41` (tracked one-off scripts, not app runtime)
 
-Non-DEFINER (SECURITY INVOKER) functions with EXECUTE granted to `anon` (46; they run with the caller's rights, so risk depends on what they read/write — A1 checks each): bom_items_set_updated_at, calculate_customer_trust, chat_capture_edit, chat_conversations_guard_update, chat_members_guard_update, chat_messages_guard_update, compute_lead_predictions, compute_lead_tier, enforce_order_created_at_not_future, get_product_sales, increment_order_version, inv_phase, iraq_district_identity_key, iraq_resolve_location, leads_after_upsert, leads_before_upsert, normalize_arabic_text_for_search, normalize_phone, normalize_phone_for_search, order_base_id, order_search_matches, order_source_actor_label, risk_level_calc, search_orders, set_admin_users_updated_at, set_order_completed_at, set_orders_updated_at, set_updated_at_storefront, sync_product_primary_category, tg_order_reasons_updated_at, trigger_update_trust_on_blacklist, trigger_update_trust_on_order, trigger_update_trust_on_rating, update_filter_preset_timestamp, uuid_generate_v4, value_tier_calc, waseet_clean_name, waseet_collapse_repeats, waseet_dedupe_key, waseet_district, waseet_kind_of_token, waseet_name_key_sorted, waseet_place_kind, waseet_search_key, waseet_sort_tokens, waseet_strip_article.
+Relations the code queries that do **not** exist live (MEASURED, `pg_class` 2026-10-19): `customers` (`apps/platform/hooks/use-bulk-actions.ts:26`), `order_items` (`apps/platform/hooks/use-store-analytics.ts:33`), `activity_log` (`apps/platform/lib/customer-data-export.ts:95`, `:240`), `wallets` (`apps/admin/app/api/bulk/route.ts:180`, `:191`). See CONTEXT L-12 and L-39. `get_orders_aggregates` exists live; platform recon could not find its definition in the repo.
+
+SECURITY INVOKER functions executable by `authenticated` only (9, MEASURED 00:41 UTC): chat_topic_conv_id, chat_topic_conversation, chat_topic_user, clear_notification_feed, get_dashboard_metrics, iraq_resolve_address, loyalty_phone_key, mark_notifications_read, storefront_funnel. INVOKER functions with no `anon`/`authenticated` EXECUTE (2): tenant_members_guard_self_change, tg_product_attribute_defs_updated_at.
+
+Non-DEFINER (SECURITY INVOKER) functions with EXECUTE granted to `anon` (46, all also granted to `authenticated`; they run with the caller's rights, so risk depends on what they read/write — A1 checks each): bom_items_set_updated_at, calculate_customer_trust, chat_capture_edit, chat_conversations_guard_update, chat_members_guard_update, chat_messages_guard_update, compute_lead_predictions, compute_lead_tier, enforce_order_created_at_not_future, get_product_sales, increment_order_version, inv_phase, iraq_district_identity_key, iraq_resolve_location, leads_after_upsert, leads_before_upsert, normalize_arabic_text_for_search, normalize_phone, normalize_phone_for_search, order_base_id, order_search_matches, order_source_actor_label, risk_level_calc, search_orders, set_admin_users_updated_at, set_order_completed_at, set_orders_updated_at, set_updated_at_storefront, sync_product_primary_category, tg_order_reasons_updated_at, trigger_update_trust_on_blacklist, trigger_update_trust_on_order, trigger_update_trust_on_rating, update_filter_preset_timestamp, uuid_generate_v4, value_tier_calc, waseet_clean_name, waseet_collapse_repeats, waseet_dedupe_key, waseet_district, waseet_kind_of_token, waseet_name_key_sorted, waseet_place_kind, waseet_search_key, waseet_sort_tokens, waseet_strip_article.
 
 ## Storage buckets
 
@@ -459,7 +503,7 @@ Tables: orders, qc_quarantine, qc_quarantine_events, notifications (postgres_cha
 
 Any other broadcast/presence topic (e.g. `returns:${token}`, `presence:${orderId}` from platform recon §7) is a **public channel** unless the client opts into private channels.
 
-## Triggers (46, `pg_trigger`, non-internal)
+## Triggers (47, `pg_trigger`, non-internal, `public` tables; re-snapshot 00:41 UTC)
 
 ```
 abandoned_carts: trg_log_cart_recovered_notification→log_cart_recovered_notification (AFTER UPD)
@@ -486,7 +530,7 @@ products: trg_enforce_product_block→enforce_product_block (BEFORE INS UPD); tr
 qc_quarantine: qc_log_status_trigger→qc_log_status_change (AFTER INS UPD)
 shipping_export_log: trg_log_shipping_notification→log_shipping_notification (AFTER INS)
 store_pages: trg_store_pages_updated_at→set_updated_at_storefront (BEFORE UPD)
-tenant_members: trg_chat_add_member_to_general→chat_add_member_to_general (AFTER INS UPD); trg_log_team_notification→log_team_notification (AFTER INS UPD)
+tenant_members: trg_chat_add_member_to_general→chat_add_member_to_general (AFTER INS UPD); trg_log_team_notification→log_team_notification (AFTER INS UPD); trg_tenant_members_guard_self_change→tenant_members_guard_self_change (BEFORE INS UPD DEL)   ← NEW in 20261019100100
 tenants: trg_enforce_storefront_writes_block→enforce_storefront_writes_block (BEFORE UPD)
 wallet: trg_log_wallet_notification→log_wallet_notification (AFTER UPD)
 ```
@@ -515,13 +559,13 @@ Seed-order generators exist in production (inactive) — `generate_seed_orders` 
 
 ## Advisors (2026-10-19)
 
-**Security:** ERROR 1 (security-definer view `customer_aggregates`); WARN 26 mutable search_path functions; WARN 1 `pg_net` in public; WARN 1 anon-callable definer (`lookup_order`); WARN 64 authenticated-callable definers; WARN leaked-password protection disabled; INFO 4 RLS-enabled-no-policy.
+**Security (first snapshot; advisors not re-run after the 00:41 UTC re-snapshot):** ERROR 1 (security-definer view `customer_aggregates`); WARN 26 mutable search_path functions (catalog at 00:41 UTC: 19 public functions have no `search_path` setting, 0 of them DEFINER); WARN 1 `pg_net` in public; WARN 1 anon-callable definer (`lookup_order`); WARN 64 authenticated-callable definers (catalog at 00:41 UTC: 60); WARN leaked-password protection disabled; INFO 4 RLS-enabled-no-policy.
 
 **Performance:** 112 unindexed foreign keys; 43 `auth_rls_initplan` (per-row `auth.*()` re-evaluation); 190 unused indexes; 57 multiple-permissive-policy overlaps; 1 duplicate index (`iraq_district_areas`). Full JSON: `advisors-performance.json`.
 
 ## Migration drift (summary — detail in `migration-drift.md`)
 
-- Live history: 341 versions. Repo: 262 files with 14-digit versions (258 distinct) + 20 non-timestamped files.
-- Version numbers diverge almost entirely (276 live-only, 193 repo-only), because most repo files were applied through MCP and got a new live version. Name-level reconciliation is an A4 task.
+- Live history: 343 versions at 00:41 UTC (341 at the first snapshot; +`20261019100000`, +`20261019100100`, see below). Repo: 262 files with 14-digit versions (258 distinct) + 20 non-timestamped files.
+- Version numbers diverge almost entirely (278 live-only at the 00:41 UTC re-snapshot against `6bde0f4` — 276 + the two PR #146 versions, which are on `origin/main` — and 193 repo-only), because most repo files were applied through MCP and got a new live version. Name-level reconciliation is an A4 task.
 - **Repo-only and probably not applied:** `20261012120000_search_orders_v2.sql`, `20261014120000_v_orders_with_risk_contact_columns.sql` — verify the app does not already depend on them (A4).
 - **Live-only Iraq-location migrations (2026-09-16 → 2026-10-03, ~80)** have no repo file on `main`. That area belongs to the "Iraq locations cleanup" thread (branch `feat/notifications-overhaul`) — treated as data only.

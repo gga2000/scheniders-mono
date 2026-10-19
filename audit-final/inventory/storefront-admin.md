@@ -19,11 +19,11 @@ All paths relative to `/home/claude/scheniders-mono/apps/`. Line numbers are fro
 | middleware/proxy | `proxy.ts` (Next 16 name) | `middleware.ts` (old Next ≤15 name, still honored by 16) |
 | Service-role client calls | 10 call sites (7 in API/action + 2 in lib/tenant.ts preview + factory) | 79 `createAdminClient()` call sites (every API route) |
 | Anon/SSR clients | `createSupabaseServerClient` x1 (reviews GET), `createSupabasePublicClient` x3 (tenant.ts x2, queries.ts x1), ad-hoc anon `createClient` x1 (orders/lookup) | SSR `createServerClient` x3 (middleware, api-auth, auth/callback); browser client x4 |
-| API routes with Zod | 6/6 | 16/57 |
-| API routes with route-level auth | 0/6 (public by design) | 44/57 (13 rely on middleware only, 1 is the public auth callback) |
+| API routes with Zod | 6/6 (7/7 at `6bde0f4`, see errata) | 14/57 (corrected from 16: 13 files import `zod` and call `.safeParse`/`.parse`, plus `api/admin/leads-table-layout/route.ts`, which uses an imported `layoutSchema.safeParse` at :37 and :53; grep re-run at `6bde0f4`) |
+| API routes with route-level auth | 0/6 (public by design) | 44/57 have a route-level helper; the other 13 = 12 that rely on middleware only + 1 public `auth/callback` (corrected: the earlier "13 + 1" counted the callback twice; 44 + 12 + 1 = 57). The 12: `admin/watchlist/[tenantId]`, `billing/topup`, `dashboard/stats`, `merchants/[id]/audit-log`, `merchants/[id]/convert-trial`, `merchants/[id]/extend-subscription`, `merchants/[id]/extend-trial`, `merchants/[id]/notes`, `merchants/[id]/orders`, `merchants/[id]/pause`, `merchants/[id]/tags`, `merchants/[id]/unpause` |
 | Rate limiting | **none** | **none** (only an upstream 429 detector in leads/analyze-profile) |
 | Sentry | **absent** (no sentry.*.config, no instrumentation.ts, no withSentryConfig, no dep) | **absent** (same) |
-| unstable_cache usage | 13 cache keys (lib/tenant.ts x2, lib/queries.ts x11) | 0 |
+| unstable_cache usage | 14 cache keys (lib/tenant.ts x2 at :111, :132; lib/queries.ts x12 `publicCache(` call sites at :94, :189, :239, :293, :311, :324, :340, :372, :413, :462, :479, :503 — `listAttributeDefs` :94 is new in #137) | 0 |
 | RPC call sites | 5 (create_order_atomic x1, adjust_customer_points x3, lookup_order x1) | 3 (increment_wallet_balance x1 — does not exist; get_seed_automation_status; toggle_seed_automation) |
 | Storage call sites | 2 (`review-photos` upload + getPublicUrl) | 0 |
 
@@ -134,7 +134,7 @@ Idempotency:
 |---|---|---|---|
 | `createSupabaseServerClient()` (SSR, cookies) | :17 | anon | `app/api/reviews/route.ts:39` (1) |
 | `createSupabaseServiceClient()` | :48 | **service role** | `app/actions/checkout.ts:100`; `app/api/checkout/orders/route.ts:130`; `app/api/cart/abandoned/route.ts:49`; `app/api/exp-event/route.ts:44`; `app/api/loyalty/balance/route.ts:30`; `app/api/newsletter/route.ts:79`; `app/api/reviews/route.ts:120`; `lib/tenant.ts:179` (`getTenantForPreview`); `lib/tenant.ts:195` (`getTenantByCustomDomainForPreview`) — 9 call sites |
-| `createSupabasePublicClient()` (cookie-free anon) | :70 | anon | `lib/tenant.ts:115`, `lib/tenant.ts:137`, `lib/queries.ts:25` (3) |
+| `createSupabasePublicClient()` (cookie-free anon) | :70 | anon | `lib/tenant.ts:115`, `lib/tenant.ts:137`, `lib/queries.ts:26` (3) |
 | ad-hoc `createClient` (anon, untyped) | `app/api/orders/lookup/route.ts:31` | anon | 1 |
 
 `NEXT_PUBLIC_*` env uses `!` non-null assertions (server.ts :21-22, :50-51, :72-73; lookup :32-33) — banned pattern per CLAUDE.md.
@@ -152,7 +152,7 @@ Absent: no `sentry.client.config.*`, `sentry.server.config.*`, `sentry.edge.conf
 
 - `lib/tenant.ts:111-123` `getTenantBySlug`: `unstable_cache(..., ["storefront-tenant-slug", slug], {revalidate: 60, tags: ["storefront-tenant", "storefront-tenant-${slug}"]})` — key **tenant-scoped (slug)**. Line ~118 key.
 - `lib/tenant.ts:132-157` `getTenantByCustomDomain`: key `["storefront-tenant-domain", domain]` (:152), tags incl. `storefront-tenant-domain-${domain}` — **tenant-scoped (domain)**.
-- `lib/queries.ts:20-29` `publicCache(keyParts)` → key `["storefront-catalog", ...keyParts]`, revalidate 60, tag `["storefront-catalog"]` only (one global tag → any on-demand revalidation would flush every tenant; nothing calls `revalidateTag` today, so merchant publishes are visible only after ≤60s).
+- `lib/queries.ts:21-30` `publicCache(keyParts)` → key `["storefront-catalog", ...keyParts]`, revalidate 60, tag `["storefront-catalog"]` only (one global tag → any on-demand revalidation would flush every tenant; nothing calls `revalidateTag` today, so merchant publishes are visible only after ≤60s).
   - `listProducts` :87 key `[listProducts, tenantId, JSON(opts)]` — tenant-scoped
   - `getProductBySlug` :131 `[getProductBySlug, tenantId, slugOrId]` — tenant-scoped
   - `listApprovedReviews` :180 `[listApprovedReviews, tenantId, productId]` — tenant-scoped
