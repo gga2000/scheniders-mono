@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 import { z } from "zod";
 
 const bodySchema = z.object({
@@ -7,9 +8,13 @@ const bodySchema = z.object({
 });
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Same permission as POST /api/trials/extend.
+  const auth = await requireAdminPermission(request, "extend_trial");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {

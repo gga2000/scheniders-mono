@@ -163,18 +163,10 @@ export type AdminAction =
   | "impersonate"
   | "bulk_action"
   | "export_data"
-  | "update_settings";
-
-export const ADMIN_PERMISSIONS: Record<AdminRole, AdminAction[]> = {
-  super_admin: [
-    "top_up_wallet", "adjust_balance", "change_plan", "extend_trial",
-    "suspend_tenant", "reactivate_tenant", "add_note", "send_notification",
-    "impersonate", "bulk_action", "export_data", "update_settings",
-  ],
-  support_staff: [
-    "extend_trial", "add_note", "send_notification", "impersonate", "export_data",
-  ],
-};
+  | "update_settings"
+  | "manage_subscription"
+  | "manage_tags"
+  | "manage_commissions";
 
 // Merchant table column definitions
 export type MerchantColumnId =

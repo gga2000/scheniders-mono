@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 const PauseSchema = z.object({
   duration_days: z.number().int().positive().max(365).optional(),
@@ -18,9 +19,13 @@ const PauseSchema = z.object({
 });
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Restricts the merchant (status -> limited) — super_admin only.
+  const auth = await requireAdminPermission(request, "suspend_tenant");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
@@ -46,7 +51,7 @@ export async function POST(
 
     const restrictions = {
       paused_at: now.toISOString(),
-      paused_by: "system",
+      paused_by: auth.user.email ?? auth.user.id,
       paused_until: pausedUntil,
       reason: parsed.data.reason ?? null,
       blocks: {
@@ -72,7 +77,8 @@ export async function POST(
     }
 
     await logAdminActivity({
-      adminUserId: "system",
+      adminUserId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
       tenantId: id,
       action: "pause_tenant",
       details: { restrictions, duration_days: parsed.data.duration_days ?? null },

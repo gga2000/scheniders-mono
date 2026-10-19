@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,12 +26,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const admin = await requireAdmin(token);
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Commission configs drive employee payouts — super_admin only, otherwise a
+  // support_staff employee could raise their own rate.
+  const auth = await requireAdminPermission(request, "manage_commissions");
+  if (auth instanceof NextResponse) return auth;
 
+  try {
     const body = await request.json();
     const supabase = createAdminClient();
 
