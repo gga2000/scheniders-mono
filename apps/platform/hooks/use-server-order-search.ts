@@ -43,14 +43,17 @@ export function useServerOrderSearch(
     term: string | null | undefined,
     { limit = MAX_SEARCH_RESULTS, liveOrders }: { limit?: number; liveOrders?: readonly Order[] } = {},
 ): ServerOrderSearch {
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
     const parsed = useMemo(() => parseOrderSearchTerm(term), [term]);
     const text = parsed?.text ?? "";
 
     const query = useQuery({
         queryKey: orderSearchKeys.term(text, limit),
-        queryFn: () => orderRepository.search(text, limit),
-        enabled: parsed !== null && !!session && clientReady,
+        queryFn: () => {
+            if (!tenantId) throw new Error("No active tenant");
+            return orderRepository.search(tenantId, text, limit);
+        },
+        enabled: parsed !== null && !!session && clientReady && !!tenantId,
         staleTime: 15_000,
         gcTime: 60_000,
         // Keep the previous term's matches on screen while the next term loads,

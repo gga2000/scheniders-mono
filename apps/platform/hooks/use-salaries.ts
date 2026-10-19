@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import type {
     EmployeePayrollData,
     PayrollCalculation,
@@ -197,6 +198,7 @@ export function useSalaries(
     periodOverrides: EmployeePeriodOverrides = new Map(),
     periodMode: PeriodMode = "custom"
 ) {
+    const { tenantId } = useAuth();
     const [employees, setEmployees] = useState<UserProfileRow[]>([]);
     const [activityLogs, setActivityLogs] = useState<ActivityLogRow[]>([]);
     const [completedOrders, setCompletedOrders] = useState<CompletedOrderRow[]>([]);
@@ -230,7 +232,9 @@ export function useSalaries(
     }, [globalPeriodStart, globalPeriodEnd, periodOverrides]);
 
     const fetchData = useCallback(async () => {
-        if (!fetchStart || !fetchEnd) return;
+        // Payroll counts this tenant's orders only; RLS alone would add every
+        // other tenant the viewer belongs to.
+        if (!fetchStart || !fetchEnd || !tenantId) return;
         await Promise.resolve();
         setIsLoading(true);
 
@@ -313,6 +317,7 @@ export function useSalaries(
                 supabase
                     .from("orders")
                     .select("id, created_at, completed_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status")
+                    .eq("tenant_id", tenantId)
                     .eq("status", "completed")
                     .gte("completed_at", wStart)
                     .lte("completed_at", wEnd)
@@ -328,6 +333,7 @@ export function useSalaries(
                 supabase
                     .from("orders")
                     .select("id, created_at, order_id, customer_name, status, original_order_id")
+                    .eq("tenant_id", tenantId)
                     .eq("is_return", true)
                     .order("created_at", { ascending: true })
                     .range(from, to)
@@ -340,6 +346,7 @@ export function useSalaries(
                 supabase
                     .from("orders")
                     .select("id, created_at, status")
+                    .eq("tenant_id", tenantId)
                     .gte("created_at", wStart)
                     .lte("created_at", wEnd)
                     .order("created_at", { ascending: true })
@@ -361,7 +368,7 @@ export function useSalaries(
         setLastPayrollDates(map);
         if (paidInWindowRes.data) setPaidRecordsInWindow(paidInWindowRes.data as typeof paidRecordsInWindow);
         setIsLoading(false);
-    }, [fetchStart, fetchEnd, periodMode]);
+    }, [fetchStart, fetchEnd, periodMode, tenantId]);
 
     // fetchData() awaits Promise.resolve() before any setState.
     // eslint-disable-next-line react-hooks/set-state-in-effect

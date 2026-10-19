@@ -16,13 +16,13 @@ import type { OrderWindow } from "@/lib/order-window";
  * one uses the settled window.
  */
 
-const H = vi.hoisted(() => ({ findWindow: vi.fn() }));
+const H = vi.hoisted(() => ({ findWindow: vi.fn(), tenantId: "tenant-1" as string | null }));
 
 vi.mock("@/lib/repositories/order-repository", () => ({
     orderRepository: { findWindow: H.findWindow },
 }));
 vi.mock("@/components/auth/auth-provider", () => ({
-    useAuth: () => ({ session: { access_token: "t" }, clientReady: true }),
+    useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId }),
 }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -41,6 +41,7 @@ function wrapper() {
 beforeEach(() => {
     H.findWindow.mockReset();
     H.findWindow.mockResolvedValue([]);
+    H.tenantId = "tenant-1";
     sessionStorage.clear();
 });
 
@@ -60,7 +61,7 @@ describe("useOrdersQuery window gating", () => {
 
         await waitFor(() => expect(H.findWindow).toHaveBeenCalled());
         expect(H.findWindow).toHaveBeenCalledTimes(1);
-        expect(H.findWindow).toHaveBeenCalledWith(null);
+        expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null);
     });
 
     it("refuses a sessionStorage snapshot of a different window", async () => {
@@ -70,7 +71,16 @@ describe("useOrdersQuery window gating", () => {
 
         const { result } = renderHook(() => useOrdersQuery(null, true), { wrapper: wrapper() });
 
-        await waitFor(() => expect(H.findWindow).toHaveBeenCalledWith(null));
+        await waitFor(() => expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null));
         await waitFor(() => expect(result.current.data).toEqual([]));
+    });
+
+    it("does not fetch until the active tenant is known", async () => {
+        // RLS alone would return every tenant the user belongs to; the list is
+        // one tenant's book, so with no tenant there is nothing to ask for.
+        H.tenantId = null;
+        renderHook(() => useOrdersQuery(null, true), { wrapper: wrapper() });
+        await new Promise((r) => setTimeout(r, 20));
+        expect(H.findWindow).not.toHaveBeenCalled();
     });
 });

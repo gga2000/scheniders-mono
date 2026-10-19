@@ -14,7 +14,6 @@ import {
     type OrderPriority,
     type PaymentStatus,
 } from "@/lib/supabase";
-import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { cleanPhoneForExport } from "@/lib/export-utils";
 import { exportOrders as exportOrdersFromUtils } from "@/lib/order-export-utils";
 import { calculateTotal } from "@/lib/order-utils";
@@ -134,18 +133,21 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     }
 
+    /**
+     * Load the active tenant's archived orders into `orderKeys.archived()`, the
+     * cache `useArchivedOrdersQuery` (and so the archive view) reads. This used
+     * to run its own `select("*")` with no tenant filter and drop the result,
+     * so the archive view stayed empty while every column — margin included —
+     * was downloaded.
+     */
     async function fetchArchivedOrders() {
+        if (!tenantId) return { success: false, error: "No tenant context" };
         try {
-            const { data, error: fetchError } = await supabase
-                .from("orders")
-                .select("*")
-                .eq("is_archived", true)
-                .order("created_at", { ascending: false });
-
-            if (fetchError) throw fetchError;
-
-            const ordersWithDefaults = (data || []).map(normalizeOrder);
-            return { success: true, count: ordersWithDefaults.length };
+            const archived = await queryClient.fetchQuery({
+                queryKey: orderKeys.archived(),
+                queryFn: () => orderRepository.findArchived(tenantId),
+            });
+            return { success: true, count: archived.length };
         } catch (err) {
             console.error("Error fetching archived orders:", err);
             return { success: false, error: err instanceof Error ? err.message : "Failed to fetch archived orders" };
@@ -878,6 +880,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         const order = orders.find(o => o.id === orderId);
         if (!order) return { success: false, error: "Order not found" };
 
+        if (!tenantId) return { success: false, error: "No tenant context" };
+
         const phone = order.phone;
         optimisticUpdate((prev) =>
             prev.map((o) =>
@@ -886,9 +890,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         );
 
         try {
+            // Verifying a customer here must never touch another tenant's
+            // orders for the same phone number.
             const { data, error } = await supabase
                 .from("orders")
                 .update({ is_verified_customer: true })
+                .eq("tenant_id", tenantId)
                 .eq("phone", phone)
                 .select("id");
 

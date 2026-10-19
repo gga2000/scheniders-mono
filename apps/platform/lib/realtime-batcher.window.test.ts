@@ -70,3 +70,35 @@ describe("RealtimeBatcher window awareness", () => {
         expect(rows(queryClient).map(o => o.id).sort()).toEqual(["elsewhere", "existing"]);
     });
 });
+
+/**
+ * The orders channel is filtered on tenant_id (postgres_changes takes a single
+ * filter), so archived rows now reach the batcher and it alone keeps them out of
+ * the active list.
+ */
+describe("RealtimeBatcher archived rows", () => {
+    it("neither prepends nor notifies an archived INSERT", async () => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        queryClient.setQueryData(KEY, [order("existing", IN_WINDOW)]);
+        const onNewOrder = vi.fn();
+        const batcher = new RealtimeBatcher({ queryClient, queryKey: KEY, flushDelayMs: 1, onNewOrder });
+        batcher.push({ eventType: "INSERT", new: order("archived", IN_WINDOW, { is_archived: true }) } as never);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(rows(queryClient).map(o => o.id)).toEqual(["existing"]);
+        expect(onNewOrder).not.toHaveBeenCalled();
+    });
+
+    it("removes a loaded row when an UPDATE archives it", async () => {
+        const { queryClient, batcher } = setup(false, [order("existing", IN_WINDOW), order("kept", IN_WINDOW)]);
+        batcher.push({ eventType: "UPDATE", new: order("existing", IN_WINDOW, { is_archived: true, version: 2 }) } as never);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(rows(queryClient).map(o => o.id)).toEqual(["kept"]);
+    });
+
+    it("does not add an archived row that was never loaded", async () => {
+        const { queryClient, batcher } = setup(false, [order("existing", IN_WINDOW)]);
+        batcher.push({ eventType: "UPDATE", new: order("unloaded", IN_WINDOW, { is_archived: true }) } as never);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(rows(queryClient).map(o => o.id)).toEqual(["existing"]);
+    });
+});
