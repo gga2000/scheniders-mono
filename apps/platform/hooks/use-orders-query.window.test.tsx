@@ -19,7 +19,7 @@ import type { OrderWindow } from "@/lib/order-window";
 const H = vi.hoisted(() => ({ findWindow: vi.fn(), tenantId: "tenant-1" as string | null }));
 
 vi.mock("@/lib/repositories/order-repository", () => ({
-    orderRepository: { findWindow: H.findWindow },
+    orderRepository: { findWindow: H.findWindow, findLatestUpdatedAt: async () => "2026-10-12T09:00:00.000Z" },
 }));
 vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId }),

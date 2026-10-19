@@ -103,6 +103,15 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         expectAllTenantScoped();
     });
 
+    it("findLatestUpdatedAt: the sync high-water mark", async () => {
+        respond(() => ({ data: { updated_at: "2026-10-18T10:00:00.000Z" }, error: null }));
+        await expect(orderRepository.findLatestUpdatedAt(TENANT)).resolves.toBe("2026-10-18T10:00:00.000Z");
+        const [q] = queriesOn("orders");
+        expect(q.ops.filter((o) => o.op === "order").map((o) => o.args)).toEqual([["updated_at", { ascending: false }]]);
+        expect(q.ops.some((o) => o.op === "limit" && o.args[0] === 1)).toBe(true);
+        expectAllTenantScoped();
+    });
+
     it("findArchived: every archived page", async () => {
         await orderRepository.findArchived(TENANT);
         expect(queriesOn("orders").some((q) => hasEq(q, "is_archived", true))).toBe(true);

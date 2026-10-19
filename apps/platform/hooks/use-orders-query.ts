@@ -1,4 +1,18 @@
-import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useIsMutating, type QueryClient, type QueryState } from "@tanstack/react-query";
+import {
+    ORDERS_LIST_MUTATION_KEY,
+    advanceSyncWatermark,
+    cancelListFetches,
+    ensureCoverage,
+    getCommitGeneration,
+    getSyncWatermark,
+    markListLoaded,
+    setActiveWindowKey,
+    trackListFetch,
+    useFailedOrdersWindowKey,
+    useLoadedOrdersWindowKey,
+} from "@/hooks/orders-list-coverage";
+import { listCovers } from "@/lib/orders/coverage-key";
 import { useEffect, useRef, useState } from "react";
 import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
@@ -11,7 +25,7 @@ import { createOrderAction } from "@/app/actions/orders";
 import type { CreateOrderInput } from "@/types/order";
 import type { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
-import type { OrderWindow } from "@/lib/order-window";
+import { windowCacheKey, type OrderWindow } from "@/lib/order-window";
 import { FutureOrderDateError } from "@/lib/order-date-guard";
 import { reportOrderError } from "@/lib/order-telemetry";
 // Refetch trigger constants
@@ -41,13 +55,69 @@ export function setOrderBatcher(b: RealtimeBatcher | null) { _orderBatcher = b; 
 function getOrderBatcher() { return _orderBatcher; }
 
 /**
- * Incremental delta sync — used on realtime reconnect / app-reopen / heartbeat
- * drift INSTEAD of re-pulling the entire orders table (~5.8MB / 3k+ rows).
- * Fetches only rows changed since the cache's high-water mark (max updated_at)
- * and merges them through the batcher (same rules as live events). Falls back to
- * a full invalidate when there's no cache/batcher/tenant or the delta fetch fails.
+ * Every hook that touches the list cache calls this first: it creates the
+ * per-client coverage store (hooks/orders-list-coverage.ts) and wires its
+ * mutation flush to the catch-up delta. Idempotent.
  */
-export async function syncOrdersDelta(queryClient: QueryClient, tenantId: string | null, source: string): Promise<void> {
+function coverage(queryClient: QueryClient): QueryClient {
+    ensureCoverage(queryClient, {
+        listKey: orderKeys.lists(),
+        onMainKeyFlush: (tenantId) => { void requestOrdersCatchUp(queryClient, tenantId, { source: "mutationCancel" }); },
+    });
+    return queryClient;
+}
+
+/** The fetch-start high-water mark, or null (reported) when it cannot be read. */
+async function readListMark(tenantId: string): Promise<string | null> {
+    try {
+        return await orderRepository.findLatestUpdatedAt(tenantId);
+    } catch (err) {
+        // The list fetch still runs; the previous watermark (older, so a safe
+        // lower bound) is kept, or a later delta falls back to a refetch.
+        reportOrderError(err, { operation: "orders-sync-watermark", tenantId });
+        return null;
+    }
+}
+
+/**
+ * How far before a fetch-start mark the first delta after it reads. `updated_at`
+ * is `now()` — the transaction START — so a write stamped just before the mark
+ * can commit after the list pages were read. Applied once, from a fetch mark.
+ */
+export const DELTA_OVERLAP_MS = 120_000;
+/** The same allowance for commit lag, from a delta's own watermark. Small: it re-reads tenant-wide changes. */
+export const DELTA_SKEW_MS = 10_000;
+/**
+ * PostgREST's `max-rows` on this project (confirmed live: an unpaged select
+ * returns exactly 1,000). `findChangedSince` is one unpaged select, newest
+ * first, so a result this long may be missing its OLDEST rows: it cannot
+ * advance the watermark, and the main list is refetched instead.
+ */
+export const DELTA_ROW_CAP = 1000;
+
+function minIso(a: string, b: string | undefined): string {
+    return b && Date.parse(b) < Date.parse(a) ? b : a;
+}
+
+/**
+ * Incremental delta sync — used on realtime reconnect / app-reopen / heartbeat
+ * drift and after our own status changes, INSTEAD of re-pulling the whole
+ * window. Fetches every row changed since the sync watermark (the tenant-wide
+ * high-water mark read before the last list fetch, raised by each complete
+ * delta) and merges them through the batcher (same rules as live events).
+ *
+ * `opts.since` only lowers the start (a caller that knows its own write is
+ * newer than it). Falls back to a full invalidate when there's no
+ * cache/batcher/tenant or the delta fetch fails, and to an exact refetch of
+ * the main list when there is no watermark or the delta hit DELTA_ROW_CAP.
+ */
+export async function syncOrdersDelta(
+    queryClient: QueryClient,
+    tenantId: string | null,
+    source: string,
+    opts: { since?: string } = {},
+): Promise<void> {
+    coverage(queryClient);
     const cached = queryClient.getQueryData<Order[]>(orderKeys.lists());
     const batcher = getOrderBatcher();
     if (!cached || cached.length === 0 || !batcher || !tenantId) {
@@ -55,24 +125,99 @@ export async function syncOrdersDelta(queryClient: QueryClient, tenantId: string
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         return;
     }
-    // High-water mark: the newest updated_at currently in cache.
-    let since = '';
-    for (const o of cached) {
-        if (o.updated_at && o.updated_at > since) since = o.updated_at;
-    }
-    if (!since) {
-        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    const mark = getSyncWatermark(queryClient);
+    if (!mark) {
+        // No fetch-start mark (e.g. a snapshot hydrated without one). The cache's
+        // own newest `updated_at` is not a safe start: client-rewritten rows carry
+        // the client clock. Re-read the window instead.
+        diag.log(`[Diag:RQ:Delta] source=${source} — no sync watermark, refetching the list`);
+        void queryClient.refetchQueries({ queryKey: orderKeys.lists(), exact: true }, { cancelRefetch: false });
         return;
     }
+    const since = minIso(
+        new Date(Date.parse(mark.at) - (mark.fromFetch ? DELTA_OVERLAP_MS : DELTA_SKEW_MS)).toISOString(),
+        opts.since,
+    );
+    const commitGen = getCommitGeneration(queryClient);
     try {
         const _t = performance.now();
         const changed = await orderRepository.findChangedSince(tenantId, since);
+        if (changed.length >= DELTA_ROW_CAP) {
+            diag.warn(`[Diag:RQ:Delta] overflow source=${source} since=${since} fetched=${changed.length} — watermark kept, refetching the list`);
+            void queryClient.refetchQueries({ queryKey: orderKeys.lists(), exact: true }, { cancelRefetch: false });
+            return;
+        }
         const applied = batcher.applyChangedOrders(changed);
+        advanceSyncWatermark(queryClient, changed, commitGen);
         diag.log(`[Diag:RQ:Delta] source=${source} since=${since} fetched=${changed.length} applied=${applied} took=${(performance.now() - _t).toFixed(1)}ms`);
     } catch (err) {
         diag.error(`[Diag:RQ:Delta] source=${source} FAILED — full refetch`, err);
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     }
+}
+
+interface CatchUpQueue {
+    running: Promise<void> | null;
+    /** Requests that arrived while `running` was in flight, merged into one follow-up. */
+    next: { promise: Promise<void>; resolve: () => void; tenantId: string; source: string; since?: string } | null;
+}
+const catchUps = new WeakMap<QueryClient, CatchUpQueue>();
+
+/**
+ * Schedule a catch-up delta for the list cache. The one way mutation code asks
+ * for one.
+ *
+ * Coalesced per client: at most one delta in flight, and every request that
+ * arrives meanwhile shares ONE follow-up (lowest `since` wins). The returned
+ * promise resolves only after a delta that STARTED AFTER THE REQUEST has
+ * finished — a request never resolves on an in-flight delta that could not
+ * contain its write. It never rejects (`syncOrdersDelta` reports and falls
+ * back). A null tenant is a no-op: the list query is disabled then, and a
+ * full invalidate would only refetch nothing.
+ */
+export function requestOrdersCatchUp(
+    queryClient: QueryClient,
+    tenantId: string | null,
+    { source, since }: { source: string; since?: string },
+): Promise<void> {
+    if (!tenantId) return Promise.resolve();
+    let queue = catchUps.get(queryClient);
+    if (!queue) {
+        queue = { running: null, next: null };
+        catchUps.set(queryClient, queue);
+    }
+    const q = queue;
+
+    const start = (t: string, s: string, floor: string | undefined): Promise<void> => {
+        const run = syncOrdersDelta(queryClient, t, s, { since: floor })
+            .catch((err: unknown) => { diag.error(`[Diag:RQ:Delta] catch-up source=${s} threw`, err); })
+            .then(() => {
+                const follow = q.next;
+                q.next = null;
+                if (follow) {
+                    q.running = start(follow.tenantId, follow.source, follow.since);
+                    void q.running.then(follow.resolve);
+                } else {
+                    q.running = null;
+                }
+            });
+        return run;
+    };
+
+    if (!q.running) {
+        q.running = start(tenantId, source, since);
+        return q.running;
+    }
+    if (!q.next) {
+        let resolve: () => void = () => {};
+        const promise = new Promise<void>((r) => { resolve = r; });
+        q.next = { promise, resolve, tenantId, source, since };
+    } else {
+        q.next.tenantId = tenantId;
+        q.next.source = `${q.next.source}+${source}`;
+        if (since) q.next.since = q.next.since ? minIso(q.next.since, since) : since;
+    }
+    return q.next.promise;
 }
 
 // Per-order mutation sequence: prevents stale onSuccess/onError from
@@ -111,10 +256,9 @@ const SWR_TS_KEY = 'schneiders_orders_swr_ts';
 const SWR_WINDOW_KEY = 'schneiders_orders_swr_window';
 const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
 
-/** A stable string for a window, so a snapshot is only ever reused for the window it holds. */
-export function windowCacheKey(window: OrderWindow): string {
-    return window ? `${window.fromInstant}-${window.toInstant}` : "all";
-}
+// Moved to lib/order-window so pure modules (useOrderFilters) can use it
+// without importing this one; re-exported for existing imports.
+export { windowCacheKey };
 
 export function writeSwrCache(orders: Order[], windowKey: string): void {
     // An empty result is not worth caching, and caching it is actively harmful:
@@ -172,12 +316,38 @@ export function ordersCacheIsCompleteSet(window: OrderWindow): boolean {
     return window === null;
 }
 
+/** One row per id, first occurrence kept (the list is newest-first). */
+export function dedupeById(rows: Order[]): Order[] {
+    const seen = new Set<string>();
+    let duplicate = false;
+    for (const row of rows) {
+        if (seen.has(row.id)) { duplicate = true; break; }
+        seen.add(row.id);
+    }
+    if (!duplicate) return rows;
+    const kept = new Map<string, Order>();
+    for (const row of rows) if (!kept.has(row.id)) kept.set(row.id, row);
+    return [...kept.values()];
+}
+
+/**
+ * Whether a window change must cancel the in-flight list fetch before
+ * refetching. React Query cancels a running fetch on refetch only when data
+ * already exists; with none it JOINS it, and the first fetch — for the old
+ * window — commits under the new filter.
+ */
+export function shouldCancelBeforeWindowRefetch(state: Pick<QueryState<unknown>, "data" | "fetchStatus"> | undefined): boolean {
+    return !!state && state.data === undefined && state.fetchStatus === "fetching";
+}
+
 // Fetch the active tenant's orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
 async function fetchOrders(tenantId: string, window: OrderWindow = null): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
-    const result = await orderRepository.findWindow(tenantId, window);
+    // Pages are read in parallel, so an order inserted mid-fetch can shift a
+    // row across a page boundary and arrive twice; it must count once.
+    const result = dedupeById(await orderRepository.findWindow(tenantId, window));
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
@@ -214,7 +384,7 @@ function requireTenant(tenantId: string | null): string {
  * @param refetchTrigger - Optional trigger to force refetch
  */
 export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true, refetchTrigger?: string) {
-    const queryClient = useQueryClient();
+    const queryClient = coverage(useQueryClient());
     const { session, clientReady, tenantId } = useAuth();
 
     // The query key deliberately does NOT include the window. Realtime, every
@@ -241,6 +411,12 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
     windowRef.current = window;
 
     const windowKey = windowCacheKey(window);
+
+    // The window the page shows; coverage compares the loaded window with it.
+    useEffect(() => {
+        setActiveWindowKey(queryClient, windowKey);
+    }, [windowKey, queryClient]);
+
     const isFirstWindow = useRef(true);
     useEffect(() => {
         if (isFirstWindow.current) {
@@ -248,7 +424,14 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
             isFirstWindow.current = false;
             return;
         }
-        void queryClient.refetchQueries({ queryKey: orderKeys.lists() });
+        void (async () => {
+            // A first load still running for the OLD window would be joined, not
+            // replaced, and commit under the new filter. Cancel it first.
+            if (shouldCancelBeforeWindowRefetch(queryClient.getQueryState(orderKeys.lists()))) {
+                await queryClient.cancelQueries({ queryKey: orderKeys.lists(), exact: true });
+            }
+            await queryClient.refetchQueries({ queryKey: orderKeys.lists() });
+        })();
     }, [windowKey, queryClient]);
 
     // Force refetch when trigger changes
@@ -272,21 +455,29 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
     useEffect(() => {
         if (!filtersSettled || snapshotChecked) return;
         if (queryClient.getQueryData(orderKeys.lists()) === undefined) {
-            const snapshot = readSwrCache(windowCacheKey(windowRef.current));
+            const snapshotKey = windowCacheKey(windowRef.current);
+            const snapshot = readSwrCache(snapshotKey);
             if (snapshot) {
                 diag.log(`[Diag:RQ:SWR] Hydrated ${snapshot.orders.length} orders from sessionStorage`);
-                queryClient.setQueryData(orderKeys.lists(), snapshot.orders, { updatedAt: snapshot.savedAt });
+                // The snapshot is a whole window as it was fetched: it covers that window.
+                markListLoaded(queryClient, snapshotKey, null);
+                queryClient.setQueryData(orderKeys.lists(), dedupeById(snapshot.orders), { updatedAt: snapshot.savedAt });
             }
         }
         setSnapshotChecked(true);
     }, [filtersSettled, snapshotChecked, queryClient]);
 
-    return useQuery({
+    // CRITICAL: Wait for Supabase client's internal session to be ready
+    // Not just React state - the client must have completed _initialize()
+    const enabled = !!session && clientReady && !!tenantId && filtersSettled && snapshotChecked;
+
+    const query = useQuery({
         queryKey: orderKeys.lists(),
-        queryFn: () => fetchOrders(requireTenant(tenantId), windowRef.current),
-        // CRITICAL: Wait for Supabase client's internal session to be ready
-        // Not just React state - the client must have completed _initialize()
-        enabled: !!session && clientReady && !!tenantId && filtersSettled && snapshotChecked,
+        queryFn: () => {
+            const t = requireTenant(tenantId);
+            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => readListMark(t), () => fetchOrders(t, windowRef.current));
+        },
+        enabled,
         // Short staleTime — realtime patches keep cache fresh between refetches
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
@@ -298,6 +489,27 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
         retry: 2,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
     });
+
+    // Coverage reconciler. Whenever the query is idle and enabled, no list
+    // mutation is pending, and the loaded window does not cover the one on
+    // screen, fetch it. That ends every uncovered state: a window-change fetch
+    // a mutation cancelled, a first load cancelled before it committed, a
+    // snapshot of a different window. It cannot loop: a started fetch is not
+    // idle, a commit covers the window, and a failed fetch for THIS window sets
+    // `failedKey`, which leaves the query's own error and retry UI in charge.
+    const loadedKey = useLoadedOrdersWindowKey();
+    const failedKey = useFailedOrdersWindowKey();
+    const listMutations = useIsMutating({ mutationKey: ORDERS_LIST_MUTATION_KEY });
+    const fetchStatus = query.fetchStatus;
+    useEffect(() => {
+        if (!enabled || fetchStatus !== "idle" || listMutations > 0) return;
+        if (listCovers(loadedKey, windowKey)) return;
+        if (failedKey === windowKey) return;
+        diag.log(`[Diag:RQ:Coverage] reconcile loaded=${loadedKey} active=${windowKey} — refetching`);
+        void queryClient.refetchQueries({ queryKey: orderKeys.lists(), exact: true }, { cancelRefetch: false });
+    }, [enabled, fetchStatus, listMutations, loadedKey, failedKey, windowKey, queryClient]);
+
+    return query;
 }
 
 /**
@@ -322,9 +534,11 @@ export function useArchivedOrdersQuery(enabled: boolean = true) {
  * useUpdateOrderMutation - Optimistic update for order changes
  */
 export function useUpdateOrderMutation() {
-    const queryClient = useQueryClient();
+    const queryClient = coverage(useQueryClient());
+    const { tenantId } = useAuth();
 
     return useMutation({
+        mutationKey: [...ORDERS_LIST_MUTATION_KEY, "update"],
         mutationFn: async ({ orderId, updates, expectedVersion }: { orderId: string; updates: Partial<Order>; expectedVersion?: number }) => {
             const data = await orderRepository.update(orderId, updates, expectedVersion);
             return { orderId, updates, data };
@@ -333,7 +547,7 @@ export function useUpdateOrderMutation() {
         onMutate: async ({ orderId, updates }) => {
             diag.log(`[Diag:RQ:UpdateMut] onMutate orderId=${orderId} fields=${Object.keys(updates).join(',')}`);
             getOrderBatcher()?.markMutated(orderId);
-            await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+            await cancelListFetches(queryClient, tenantId);
 
             // Snapshot current data to revert if the request fails
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
@@ -390,9 +604,11 @@ export function useUpdateOrderMutation() {
  * useUpdateStatusMutation - Optimistic status change
  */
 export function useUpdateStatusMutation() {
-    const queryClient = useQueryClient();
+    const queryClient = coverage(useQueryClient());
+    const { tenantId } = useAuth();
 
     return useMutation({
+        mutationKey: [...ORDERS_LIST_MUTATION_KEY, "status"],
         mutationFn: async ({
             orderId,
             status,
@@ -428,7 +644,7 @@ export function useUpdateStatusMutation() {
 
             // Mark as recently mutated so realtime batcher skips stale broadcasts
             batcher?.markMutated(orderId);
-            await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+            await cancelListFetches(queryClient, tenantId);
 
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 
@@ -513,7 +729,7 @@ export function useUpdateStatusMutation() {
  * Call this on navigation link hover to preload data before user clicks
  */
 export function usePrefetchOrders() {
-    const queryClient = useQueryClient();
+    const queryClient = coverage(useQueryClient());
     const { tenantId } = useAuth();
 
     return () => {
@@ -522,7 +738,7 @@ export function usePrefetchOrders() {
             queryKey: orderKeys.lists(),
             // Prefetch on hover has no filter context; it warms the unwindowed
             // list and the real query replaces it with the active window.
-            queryFn: () => fetchOrders(tenantId, null),
+            queryFn: () => trackListFetch(queryClient, "all", () => readListMark(tenantId), () => fetchOrders(tenantId, null)),
             // Match staleTime from useOrdersQuery
             staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });
@@ -533,15 +749,17 @@ export function usePrefetchOrders() {
  * useDeleteOrderMutation - Optimistic delete
  */
 export function useDeleteOrderMutation() {
-    const queryClient = useQueryClient();
+    const queryClient = coverage(useQueryClient());
+    const { tenantId } = useAuth();
 
     return useMutation({
+        mutationKey: [...ORDERS_LIST_MUTATION_KEY, "delete"],
         mutationFn: async (orderId: string) => {
             await orderRepository.update(orderId, { deleted_at: new Date().toISOString() });
             return orderId;
         },
         onMutate: async (orderId) => {
-            await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+            await cancelListFetches(queryClient, tenantId);
 
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 
@@ -567,12 +785,13 @@ export function useDeleteOrderMutation() {
  * useCreateOrderMutation - Optimistic create
  */
 export function useCreateOrderMutation() {
-    const queryClient = useQueryClient();
+    const queryClient = coverage(useQueryClient());
     // The server action derives the tenant from this token — the client no
     // longer tells the server which tenant to write into.
-    const { session } = useAuth();
+    const { session, tenantId } = useAuth();
 
     return useMutation({
+        mutationKey: [...ORDERS_LIST_MUTATION_KEY, "create"],
         mutationFn: async (orderData: CreateOrderInput) => {
             const result = await createOrderAction(orderData, session?.access_token ?? "");
             if (!result.success || !result.data) {
@@ -582,7 +801,7 @@ export function useCreateOrderMutation() {
             return result.data;
         },
         onMutate: async (newOrder) => {
-            await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+            await cancelListFetches(queryClient, tenantId);
 
             const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
 

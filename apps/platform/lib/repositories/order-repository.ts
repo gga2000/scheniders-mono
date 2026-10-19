@@ -423,6 +423,27 @@ export const orderRepository = {
         return withRiskData(tenantId, (data || []).map(row => normalizeOrder(row as unknown as Order)));
     },
 
+    /**
+     * The newest `updated_at` among the tenant's orders (archived included,
+     * trashed excluded — the same rows `findChangedSince` reads), or null when
+     * there are none. Read BEFORE a list fetch, it is the point the fetched
+     * cache is known complete up to: every later change has a later stamp and
+     * a delta from here (minus an overlap) returns it. One row, the same shape
+     * as the realtime heartbeat's check.
+     */
+    async findLatestUpdatedAt(tenantId: string): Promise<string | null> {
+        const { data, error } = await supabase
+            .from("orders")
+            .select("updated_at")
+            .eq("tenant_id", tenantId)
+            .is("deleted_at", null)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        if (error) throw error;
+        return (data as { updated_at: string | null } | null)?.updated_at ?? null;
+    },
+
     /** Fetch all archived orders, newest first. */
     async findArchived(tenantId: string): Promise<Order[]> {
         let allData: any[] = [];
