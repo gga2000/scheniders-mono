@@ -16,7 +16,7 @@ import type { OrderWindow } from "@/lib/order-window";
 //   const { batcherRef } = useRealtimeQuery({
 //       table: "orders",
 //       queryKey: ["orders", "list"],
-//       filter: { column: "is_archived", value: false },
+//       filter: { column: "tenant_id", value: tenantId },
 //       normalizer: normalizeOrder,
 //       onReconnect: () => refetch(),
 //   });
@@ -33,7 +33,7 @@ interface UseRealtimeQueryOptions<T> {
     /** Optional normalizer for incoming records */
     normalizer?: (raw: unknown) => T;
 
-    /** Optional filter for the subscription (e.g., only non-archived) */
+    /** Optional filter for the subscription (e.g., only the active tenant) */
     filter?: {
         column: string;
         value: string | number | boolean;
@@ -132,7 +132,7 @@ export function useRealtimeQuery<T extends { id: string }>({
             table,
         };
 
-        // Add optional filter (e.g., "is_archived=eq.false")
+        // Add optional filter (e.g., "tenant_id=eq.<uuid>")
         if (stableFilterStr) {
             subscriptionConfig.filter = stableFilterStr;
         }

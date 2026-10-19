@@ -121,6 +121,7 @@ export function useOrders() {
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
+        tenantId,
         getWindow: () => ordersWindowRef.current,
         onReconnect: () => {
             // Reconnect: flush any missed events via an incremental delta sync,
@@ -129,11 +130,15 @@ export function useOrders() {
         }
     });
 
-    // Register batcher for mutation guard (mutations call markMutated on it)
+    // Register batcher for mutation guard (mutations call markMutated on it).
+    // The realtime channel, and with it the batcher, is created once the tenant
+    // is known and recreated on a tenant switch; the ref itself never changes,
+    // so tenantId is what re-runs this after useOrderRealtime's effect has set
+    // the new batcher (effects run in declaration order).
     useEffect(() => {
         setOrderBatcher(batcherRef.current);
         return () => setOrderBatcher(null);
-    }, [batcherRef]);
+    }, [batcherRef, tenantId]);
 
     // Server-computed aggregates. These describe the whole filter, not the rows
     // that happen to be loaded, which is what lets the fetch narrow to a window
