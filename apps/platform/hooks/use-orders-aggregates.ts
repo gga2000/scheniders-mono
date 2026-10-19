@@ -6,7 +6,13 @@ import { useAuth } from "@/components/auth/auth-provider";
 import type { OrderFilters } from "@/lib/supabase";
 
 /**
- * Status-chip counts, filter options and headline stats, computed by the server.
+ * Status counts, filter options and headline stats, computed by the server.
+ *
+ * The dashboard reads all of it. The orders page no longer reads
+ * `status_counts`: its chips are counted over the rows the list shows, with
+ * the list's own predicates (lib/orders/order-chips.ts), because these were
+ * never invalidated by list writes and used different rules for completed and
+ * refunds (the 219-vs-119 incident, 2026-10-17).
  *
  * These were derived by scanning every loaded order, which is a large part of
  * why the page had to download the whole book. Worse, they are the numbers a
@@ -27,7 +33,15 @@ export type OrdersAggregates = {
     total_risk_count: number;
 };
 
-export function useOrdersAggregates(filters: OrderFilters) {
+/**
+ * `options.enabled` lets a caller hold the query until its filter is final.
+ * The orders page passes `filtersSettled`: its filter state starts at a seed
+ * and is then replaced by the merchant's saved filter, and querying the seed
+ * cost one RPC for numbers nobody saw. The dashboard passes nothing and keeps
+ * the query enabled, unchanged. A disabled observer on the same key never stops
+ * an enabled one.
+ */
+export function useOrdersAggregates(filters: OrderFilters, options: { enabled?: boolean } = {}) {
     const { tenantId } = useAuth();
 
     // Only the filters the RPC understands. Free-text search is NOT among them:
@@ -52,7 +66,7 @@ export function useOrdersAggregates(filters: OrderFilters) {
             if (error) throw error;
             return data as unknown as OrdersAggregates;
         },
-        enabled: !!tenantId,
+        enabled: !!tenantId && (options.enabled ?? true),
         staleTime: 30_000,
     });
 }

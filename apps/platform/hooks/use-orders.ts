@@ -140,11 +140,17 @@ export function useOrders() {
         return () => setOrderBatcher(null);
     }, [batcherRef, tenantId]);
 
-    // Server-computed aggregates. These describe the whole filter, not the rows
-    // that happen to be loaded, which is what lets the fetch narrow to a window
-    // without the status chips and stat cards quietly reporting the window's
-    // numbers as if they were the filter's.
-    const { data: serverAggregates } = useOrdersAggregates(filters);
+    // Server-computed aggregates — on this page ONLY for what the loaded rows
+    // cannot answer: the city / product option lists of the whole filter and
+    // the headline `stats` cards that are not a count of a list the page opens
+    // (revenue, conversion, velocity). Never for a clickable count: those are
+    // derived from the rows the list shows (see `statusCounts`), and while the
+    // cache does not cover the active window they are hidden, not substituted
+    // from the RPC, whose predicates differ.
+    //
+    // Held until the saved filter has replaced the seed (`filtersSettled`), so
+    // the seed's numbers are never fetched.
+    const { data: serverAggregates } = useOrdersAggregates(filters, { enabled: filtersSettled });
 
 
     // 3. Auxiliary — reference data, customer helpers, stats
