@@ -5,31 +5,25 @@
 
 ---
 
-## 0. BLOCKER — GitHub Actions is billing-suspended, so nothing can be verified by CI
+## 0. CI history you should know about (resolved 2026-10-19)
 
-As of **2026-10-18 23:34Z**, every CI run fails in 2–4 seconds without starting:
+Between **2026-10-18 23:34Z** and **2026-10-19**, every CI run failed in 2–4 seconds without starting:
 
-> *"The job was not started because recent account payments have failed or your spending limit needs to be increased.
-> Please check the 'Billing & plans' section in your settings."*
+> *"The job was not started because recent account payments have failed or your spending limit needs to be increased."*
 
-The last successful run was PR #141 at 2026-10-18 00:01Z. Confirmed on three separate PRs including a **docs-only**
-one, so it is not code.
+**Ali resolved the billing suspension on 2026-10-19 and CI runs again.** Kept here for two reasons:
 
-**Consequences, and they are the first thing to deal with:**
+1. **If you see a 2–4 second CI failure, read the annotation before debugging code.** It reproduced on a docs-only PR,
+   so a fast red check is not evidence of a code problem. `gh run view <id>` shows the reason in ANNOTATIONS.
+2. **Any PR opened during that window has a stale red check** and needs `gh run rerun <id>` — a re-push is not
+   required. PRs #142, #143 and #144 were all re-run after the fix.
 
-- `turbo lint type-check build` — the only automated gate this repo has — **is not running on any PR**.
-- The standing "merge green PRs on sight" approval **cannot apply**: no PR can be green. Do not merge on a red
-  checkmark assuming it is this; read the annotation each time and confirm it is still the billing message.
-- Until it is fixed, **verify locally before merging** and say so explicitly in the PR: `pnpm type-check`,
-  `pnpm lint`, and `pnpm exec vitest run <path>` — with **Node 20**.
-- **Vercel is unaffected** and still builds (confirmed: `scheniders-platform` passed on PR #143), so preview deploys
-  remain a real signal. Vercel billing is separate from Actions billing.
-
-**Fix:** GitHub → Settings → Billing & plans. This is Ali's to do; it cannot be fixed from the repo.
+Standing approval is "merge green PRs on sight," which only means anything when green is achievable. Confirm the check
+actually ran rather than trusting its colour.
 
 ---
 
-## 0. The one thing that will bite you immediately
+## 1. The one thing that will bite you immediately
 
 **Most of the audit work is NOT on `main`.** If you clone and look only at `main`, you will conclude none of it exists.
 
@@ -50,7 +44,7 @@ diverged while writing this handoff. Copy anything you need out of it rather tha
 
 ---
 
-## 1. Hard constraints — violating any of these wastes a day
+## 2. Hard constraints — violating any of these wastes a day
 
 1. **Vercel deploys are blocked unless the commit author is `gga2000`.** Use exactly:
    ```
@@ -72,18 +66,18 @@ diverged while writing this handoff. Copy anything you need out of it rather tha
 
 ---
 
-## 2. Audit state — three engagements, none closed
+## 3. Audit state — three engagements, none closed
 
-### 2.1 Platform audit, 10 rounds (2026-09-17) — `feat/notifications-overhaul`
+### 3.1 Platform audit, 10 rounds (2026-09-17) — `feat/notifications-overhaul`
 
 - `docs/audits/MASTER_FINDINGS_LEDGER_2026-09-17.md` — **105 findings** (19 P0 / 37 P1 / 29 P2), 38 areas
   VERIFIED-OK, stable IDs. **Quote these IDs.**
 - `docs/audits/SOTA_PLATFORM_AUDIT_2026-09-17.md` — rounds 1–10, the evidence per ID.
 - `docs/audits/SOTA_AND_OMS_GAP_ASSESSMENT_2026-09-16.md` — product/strategic gaps (`PROD-*`).
 
-### 2.2 Final launch audit, 1 iteration — `feat/notifications-overhaul`
+### 3.2 Final launch audit, 1 iteration — `feat/notifications-overhaul`
 
-Ran against the charter in §3. Produced all eight deliverables:
+Ran against the charter in §4. Produced all eight deliverables:
 `FINAL_AUDIT_REGISTER.md` (44 new findings + all 105 prior IDs adjudicated), `INVARIANT_WRITE_SITE_MATRIX.md`,
 `TRUST_BOUNDARY_MATRIX.md`, `MULTI_TENANT_FANOUT_REPORT.md`, `SCALE_PROJECTION_REPORT.md`,
 `SURFACE_QUALITY_REPORT.md`, `ITERATION_LOG.md`, `LAUNCH_READINESS_VERDICT.md`, plus `FINAL_REMEDIATION_PLAN.md`.
@@ -96,7 +90,7 @@ It corrected the 2026-09-17 ledger in seven measurable ways — 159 public table
 **refuted the charter's own claim** that SEC-01/SEC-02 are "single SQL statements" — the fix is an unapplied migration
 whose header forbids applying it before six code changes.
 
-### 2.3 Orders reliability audit (2026-10-11) — now on `main`
+### 3.3 Orders reliability audit (2026-10-11) — now on `main`
 
 `docs/audits/orders-reliability-2026-10-11/REGISTER.md` + 20 evidence files, landing via **PR #144**. It was
 untracked — one `git clean` from being lost — and two sessions rescued it independently within two minutes, which is
@@ -104,7 +98,7 @@ its own lesson about concurrent work here. Critic loop scored **5 → 6 → 7**,
 the 8 target, and the round-3 amendments in its §A **have not been re-scored**. 5 live security P0s; root cause is
 shared env.
 
-### 2.4 Perf & craft audit — FAILED
+### 3.4 Perf & craft audit — FAILED
 
 Scored **5 → 4 → 3** across three rounds and **built nothing**; when two fixes were finally attempted, **both were
 wrong** (one had cause and direction backwards, one the magnitude). Do not treat its findings as conclusions. Live P0
@@ -112,7 +106,7 @@ from it: customer phones reach Meta via `/track`.
 
 ---
 
-## 3. The charter — use it, and note it has been revised
+## 4. The charter — use it, and note it has been revised
 
 `docs/audits/FINAL_LAUNCH_AUDIT_CHARTER.md` on `feat/notifications-overhaul`. Paste from `===BEGIN===`. It defines
 the 7-axis method (invariant · trust-boundary · flow · multi-tenant fan-out · scale · pattern-backport · surface),
@@ -125,18 +119,17 @@ Three revisions were added on 2026-10-10 after the first run exposed gaps the ch
   there; the long tail never did. Every finding must carry the SHA it was verified at.
 - **§0.2 Proof-of-fix carve-out** — each iteration carries its **top-ranked finding** to a working, measured fix in a
   throwaway worktree, then discards it. Not to ship — to test whether the finding was understood. A register whose top
-  finding was never built caps at **7** on Actionability. This exists because of §2.4.
+  finding was never built caps at **7** on Actionability. This exists because of §3.4.
 - **§7.3** — a **falling score is the loop working**, not failing. Stall condition is "no new ground covered," not "no
   score improvement."
 
 ---
 
-## 4. Open work, in the order I would do it
+## 5. Open work, in the order I would do it
 
-1. **PR #143 `fix/admin-activity-logging-v2`** — open. **Cannot go green while §0 holds**; verified locally
-   instead (type-check clean, 35/35 admin tests, lint unchanged at 0 errors, re-verified on current `main` after a
-   clean cherry-pick) and `scheniders-platform` built on Vercel. Merge once §0 is resolved, or merge on the local
-   verification if you accept that. `admin_activity_logs` had **0 rows ever**: three
+1. **PR #143 `fix/admin-activity-logging-v2`** — merge it if green. Also verified locally: type-check clean,
+   35/35 admin tests, lint unchanged at 0 errors, re-verified on current `main` after a clean cherry-pick, and
+   `scheniders-platform` built on Vercel. `admin_activity_logs` had **0 rows ever**: three
    writers inserted `admin_id`, a column that does not exist (it is `admin_user_id`), so PostgREST rejected every
    write, while 4 active `support_staff` accounts could suspend merchants, extend trials and mint wallet credit with
    no trail. The read path was broken identically — the Activity page, dashboard feed and `use-dashboard-stats` all
@@ -145,7 +138,7 @@ Three revisions were added on 2026-10-10 after the first run exposed gaps the ch
    columns. 7 new tests; verified they fail on 4 of 7 cases when the bug is reintroduced.
 2. **The six items in `LAUNCH_READINESS_VERDICT.md`** that must close before the *current* merchant is safe. Read them
    at the deployed SHA first (§0.1) — two were already withdrawn as fixed in production.
-3. **Re-score the orders reliability register** (§2.3) — it stopped at 7 and its amendments were never graded.
+3. **Re-score the orders reliability register** (§3.3) — it stopped at 7 and its amendments were never graded.
 4. **Decide the two design questions** that block everything downstream:
    - **SEC-30** — authorization has no single source of truth. Three role vocabularies across three tables
      (`tenant_members.role` holds only `admin`/`member`, and 19 of 23 rows are `admin`; `user_profiles.role` models
@@ -160,7 +153,7 @@ Three revisions were added on 2026-10-10 after the first run exposed gaps the ch
 
 ---
 
-## 5. The diagnosis that should shape every fix
+## 6. The diagnosis that should shape every fix
 
 Across 10 rounds, **in eleven of twelve cases where something was wrong, the correct version already existed in the
 same repository**:
@@ -176,7 +169,7 @@ same repository**:
 | `requireCronAuth` (fails closed, with written rationale) | the Telegram webhook, which fails open |
 | `unfurl` (six-layer SSRF defence) | `generate-batch-pdf`, which renders arbitrary HTML |
 | per-slug cache tags on `getTenantBySlug` | one shared catalog tag for all tenants |
-| `logAdminActivity` (right columns) | three writers using `admin_id` — **fixed, §4.1** |
+| `logAdminActivity` (right columns) | three writers using `admin_id` — **fixed, §5.1** |
 
 So for each finding: **find the sibling that got it right, apply the same thing, then add the gate that stops it
 drifting again.** The gates matter more than any individual fix — the disease is drift, not ignorance.
@@ -187,10 +180,10 @@ Six gates are identified and **none is in place**: `vitest run` in CI (tests exi
 
 ---
 
-## 6. Traps this project has already paid for
+## 7. Traps this project has already paid for
 
 - **Check the outcome, not the telemetry.** An empty log table means the logging moved at least as often as the
-  feature died. Query what the feature *changes*. (Got this wrong twice on WhatsApp. §4.1 is another instance — the
+  feature died. Query what the feature *changes*. (Got this wrong twice on WhatsApp. §5.1 is another instance — the
   table was empty because the writer was broken.)
 - **Verify by independent recomputation.** A fix that agrees with its own forecast is unverified. Check the catalog,
   not the comments, for column types.
@@ -214,7 +207,7 @@ Six gates are identified and **none is in place**: `vitest run` in CI (tests exi
 
 ---
 
-## 7. Scale target — the number every decision is measured against
+## 8. Scale target — the number every decision is measured against
 
 **150 merchants × 25 orders/day = 3,750 orders/day** ⇒ 112,500/month, ~1.37M/year.
 
