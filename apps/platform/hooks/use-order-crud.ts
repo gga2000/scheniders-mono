@@ -105,7 +105,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     };
 
     // Mutations
-    const updateStatusMutation = useUpdateStatusMutation();
+    // This hook inserts the history row after the PATCH (its trigger writes the
+    // order again) and catches up once that lands — see updateOrderStatus.
+    const updateStatusMutation = useUpdateStatusMutation({ catchUp: "caller" });
     const updateOrderMutation = useUpdateOrderMutation();
     const createOrderMutation = useCreateOrderMutation();
 

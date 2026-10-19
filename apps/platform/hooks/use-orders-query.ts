@@ -665,10 +665,25 @@ export function useUpdateOrderMutation() {
     });
 }
 
+export interface UpdateStatusMutationOptions {
+    /**
+     * Who brings the list caches up to date after a successful write.
+     * - "mutation" (default): onSuccess runs `catchUpAfterOwnWrite` from the
+     *   PATCH's `updated_at` — one delta (our row, peer writes realtime missed,
+     *   fresh risk) and a refresh of the active search / duplicate-margin keys.
+     *   Every plain caller (the chat status dropdown and /status) gets this.
+     * - "caller": the caller writes again after the PATCH and must catch up
+     *   once that lands. useOrderCrud inserts the history row, whose trigger
+     *   writes the order a second time (base+2); a catch-up here would run
+     *   before it and the caller's would follow — two deltas for one change.
+     */
+    catchUp?: "mutation" | "caller";
+}
+
 /**
  * useUpdateStatusMutation - Optimistic status change
  */
-export function useUpdateStatusMutation() {
+export function useUpdateStatusMutation({ catchUp = "mutation" }: UpdateStatusMutationOptions = {}) {
     const queryClient = coverage(useQueryClient());
     const { tenantId } = useAuth();
 
@@ -744,6 +759,14 @@ export function useUpdateStatusMutation() {
             return { previousRow, mutSeq };
         },
         onSuccess: ({ orderId, data }, variables, context) => {
+            // This write landed, superseded or not: catch the caches up with it.
+            // The delta merges through the batcher, whose guard keeps a newer
+            // in-flight optimistic row. Not awaited — mutate() resolves on the
+            // PATCH, and the catch-up never rejects.
+            if (catchUp === "mutation") {
+                void catchUpAfterOwnWrite(queryClient, tenantId, { source: "statusMutation", since: data.updated_at });
+            }
+
             // LATEST-WINS: If a newer mutation has started for this order,
             // don't overwrite the cache — the newer mutation's optimistic state is correct.
             if (context?.mutSeq != null && !isMutationCurrent(orderId, context.mutSeq)) {
@@ -786,10 +809,10 @@ export function useUpdateStatusMutation() {
                 toast.error(err instanceof Error ? err.message : "Failed to update order status.");
             }
         },
-        // No onSettled refetch. The status change's only caller,
-        // useOrderCrud.updateOrderStatus, runs `catchUpAfterOwnWrite` once
-        // the history row (and the trigger's base+2 write) has landed. It used
-        // to re-download the whole window 2s after every status change.
+        // No onSettled refetch: it re-downloaded the whole window 2s after
+        // every status change. A successful write is caught up by one delta —
+        // in onSuccess above, or by a `catchUp: "caller"` caller
+        // (useOrderCrud.updateOrderStatus, after its history row lands).
     });
 }
 

@@ -80,7 +80,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { useOrderCrud } from "./use-order-crud";
-import { orderKeys, requestOrdersCatchUp, setOrderBatcher, useOrdersQuery } from "./use-orders-query";
+import { orderKeys, requestOrdersCatchUp, setOrderBatcher, useOrdersQuery, useUpdateStatusMutation } from "./use-orders-query";
 
 const SEARCH_KEY = [...orderKeys.lists(), "search", "0770", 20] as const;
 const MARGIN_KEY = [...orderKeys.lists(), "duplicate-candidates", "all"] as const;
@@ -265,6 +265,34 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
         expect(H.findWindow.mock.calls[2]).toEqual([TENANT, null]);
         await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
         expect(H.findWindow).toHaveBeenCalledTimes(3);
+    });
+
+    it("a status change made outside useOrderCrud (the chat callers) still runs one catch-up", async () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        setOrderBatcher(new RealtimeBatcher({ queryClient: qc, queryKey: orderKeys.lists(), flushDelayMs: 1, getWindow: () => null }));
+        qc.setQueryData(SEARCH_KEY, [{ ...listShape(dbRow("o1")), deleted_at: null, waseet_qr_id: "QR-1" }]);
+        const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+        // order-action-bar.tsx / composer.tsx: the mutation alone, plain mutate().
+        const { result } = renderHook(() => {
+            const list = useOrdersQuery(null, true);
+            useQuery({ queryKey: MARGIN_KEY, queryFn: async () => { marginFetches++; return [] as Order[]; }, staleTime: 60_000 });
+            return { list, status: useUpdateStatusMutation() };
+        }, { wrapper });
+        await waitFor(() => expect(result.current.list.data?.length).toBe(H.db.length));
+        await waitFor(() => expect(marginFetches).toBe(1));
+        // A colleague edits o2 and realtime missed it: only a catch-up brings it in.
+        Object.assign(dbRow("o2"), { status: "rejected", version: 2, updated_at: tick() });
+
+        act(() => { result.current.status.mutate({ orderId: "o1", status: "confirmed", expectedVersion: 4 }); });
+
+        await waitFor(() => expect(cached(qc, "o2")).toMatchObject({ status: "rejected", version: 2 }));
+        expect(cached(qc, "o1")).toMatchObject({ status: "confirmed", version: 5 });
+        await waitFor(() => expect(marginFetches).toBe(2));
+        await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
+        expect(H.findChangedSince).toHaveBeenCalledTimes(1);
+        // The delta started at or below our own write.
+        expect(Date.parse(H.findChangedSince.mock.calls[0][1] as string)).toBeLessThanOrEqual(Date.parse(dbRow("o1").updated_at as string));
+        expect(H.historyInsert).not.toHaveBeenCalled();
     });
 
     it("a response older than the cache does not roll the row back", async () => {
