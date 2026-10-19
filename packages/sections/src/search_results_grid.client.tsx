@@ -54,13 +54,16 @@ const INK_BORDER =
  * and the catalogue's own search box answer a query identically — and so
  * both get the Arabic normalization a bare `includes` lacks: this used to
  * fold case only, which meant "الاكثر" found nothing on a store whose
- * products are named "الأكثر".
+ * products are named "الأكثر". With the shopper's locale the matcher also
+ * reads the merchant's attribute labels, so "عنبر" finds a perfume whose
+ * note pyramid has amber in it.
  */
 export function filterProductsByQuery(
   products: Product[],
   query: string,
+  locale: LocaleCode = "ar",
 ): Product[] {
-  return filterByQuery(products, query);
+  return filterByQuery(products, query, locale);
 }
 
 function resultsLine(count: number, query: string, locale: LocaleCode): string {
@@ -128,7 +131,7 @@ export function SearchResultsGridRender({
   const base = useStoreBase();
   const searchId = useId();
   const query = ctx.runtime.search_query?.trim() ?? "";
-  const results = filterProductsByQuery(ctx.products, query);
+  const results = filterProductsByQuery(ctx.products, query, ctx.runtime.locale);
 
   const emptyMessage = resolveI18n(props.empty_state_message_i18n, locale);
   const phone = resolveTenantWhatsapp(ctx.tenant);

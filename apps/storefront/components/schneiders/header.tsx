@@ -37,14 +37,14 @@ export function SchneidersHeader({
     <>
       {promoText && <PromoBar>{promoText}</PromoBar>}
 
-      <header className="sticky top-0 z-40 bg-candy-cream border-b-4 border-candy-ink h-16 flex justify-between items-center px-4 w-full shadow-bento-sm">
+      <header className="sticky top-0 z-40 bg-bk-surface border-b-4 border-bk-ink h-16 flex justify-between items-center px-4 w-full shadow-bento-sm">
         {showBack ? (
           <StoreLink
             href="/"
             aria-label="Go back"
             className="w-10 h-10 flex items-center justify-center bento-card-sm bg-white hover:scale-105 active:scale-95 transition-transform rounded-full"
           >
-            <MaterialIcon name="arrow_back" className="text-candy-ink font-bold" />
+            <MaterialIcon name="arrow_back" className="text-bk-ink font-bold" />
           </StoreLink>
         ) : (
           <button
@@ -53,7 +53,7 @@ export function SchneidersHeader({
             onClick={() => setOpen((v) => !v)}
             className="w-10 h-10 flex items-center justify-center bento-card-sm bg-white hover:scale-105 active:scale-95 transition-transform rounded-full"
           >
-            <MaterialIcon name={open ? "close" : "menu"} className="text-candy-ink font-bold" />
+            <MaterialIcon name={open ? "close" : "menu"} className="text-bk-ink font-bold" />
           </button>
         )}
 
@@ -62,7 +62,7 @@ export function SchneidersHeader({
           aria-label={tenant.business_name || "Schneiders"}
           className="min-w-0 max-w-[60%] flex justify-center"
         >
-          <span className="inline-flex items-center -rotate-2 px-3 py-1 bento-card-sm bg-candy-butter font-display font-black text-xl sm:text-2xl text-candy-ink tracking-tight uppercase truncate">
+          <span className="inline-flex items-center -rotate-2 px-3 py-1 bento-card-sm bg-bk-accent font-display font-black text-xl sm:text-2xl text-bk-ink tracking-tight uppercase truncate">
             {tenant.business_name || "Schneiders"}
           </span>
         </StoreLink>
@@ -70,7 +70,7 @@ export function SchneidersHeader({
         <StoreLink
           href="/cart"
           aria-label="View cart"
-          className="bento-card-sm bg-candy-mint text-candy-ink font-bold px-3 py-1.5 flex items-center gap-1 hover:scale-105 active:scale-95 transition-transform rounded-full"
+          className="bento-card-sm bg-bk-decor-a text-bk-ink font-bold px-3 py-1.5 flex items-center gap-1 hover:scale-105 active:scale-95 transition-transform rounded-full"
         >
           <span className="text-sm">🛍</span>
           <span className="font-label">{cartCount}</span>
@@ -79,7 +79,7 @@ export function SchneidersHeader({
 
       {/* Mobile drawer for category navigation */}
       {open && categories.length > 0 && (
-        <div className="bg-candy-cream border-b-4 border-candy-ink shadow-bento-sm">
+        <div className="bg-bk-surface border-b-4 border-bk-ink shadow-bento-sm">
           <nav className="px-4 py-3 grid grid-cols-2 gap-2">
             <StoreLink
               href="/"
@@ -91,7 +91,7 @@ export function SchneidersHeader({
               🏠 Home
             </StoreLink>
             {categories.slice(0, 7).map((cat, i) => {
-              const tint = ["bg-candy-mint", "bg-candy-butter", "bg-candy-lilac", "bg-candy-sky", "bg-candy-pink text-white", "bg-white", "bg-candy-cream"][i % 7];
+              const tint = ["bg-bk-decor-a", "bg-bk-accent", "bg-bk-decor-b", "bg-bk-decor-c", "bg-bk-primary text-white", "bg-white", "bg-bk-surface"][i % 7];
               return (
                 <StoreLink
                   key={cat.id}

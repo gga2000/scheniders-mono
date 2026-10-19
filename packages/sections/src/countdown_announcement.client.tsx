@@ -172,7 +172,7 @@ export function CountdownAnnouncement({
               )}
               <span className="flex flex-col items-center">
                 <span
-                  className="min-w-[2rem] rounded-md px-1 py-0.5 text-center font-bold text-xs sm:text-sm leading-tight tabular-nums"
+                  className="min-w-[2rem] rounded-bk-input px-1 py-0.5 text-center font-bold text-xs sm:text-sm leading-tight tabular-nums"
                   style={{
                     backgroundColor:
                       "color-mix(in srgb, var(--bk-surface, #ffffff) 14%, transparent)",

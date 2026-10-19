@@ -81,7 +81,7 @@ export function CountdownCard({
             {segments.map((value, i) => (
               <div
                 key={i}
-                className="bg-white border-[3px] border-candy-ink rounded-xl shadow-bento-sm p-bk-sm sm:p-bk-md text-center"
+                className="bg-white border-bk border-bk-ink rounded-bk-input shadow-bk-button p-bk-sm sm:p-bk-md text-center"
               >
                 <div className="font-display font-black text-3xl sm:text-5xl leading-none tabular-nums">
                   {String(value).padStart(2, "0")}

@@ -21,6 +21,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useVariantStore } from "./helpers/variant-store";
 import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import {
@@ -88,9 +89,19 @@ export function PdpBuyBoxRender({
     return { sizeVariants: sizes, otherVariants: others };
   }, [variants]);
 
-  const [variantId, setVariantId] = useState<string | null>(
-    variants[0]?.id ?? null,
-  );
+  // The buy box is itself a picker: its choice goes through the shared store
+  // so a direct-order form or add-to-cart on the same page sells the same
+  // variant, and it registers so no second inline picker appears.
+  const productId = product?.id ?? "";
+  const storedVariantId = useVariantStore((s) => s.selected[productId] ?? null);
+  const selectVariant = useVariantStore((s) => s.select);
+  const registerPicker = useVariantStore((s) => s.registerPicker);
+  const variantId = storedVariantId ?? variants[0]?.id ?? null;
+  const setVariantId = (id: string | null) => selectVariant(productId, id);
+  useEffect(() => {
+    if (!productId || variants.length === 0) return;
+    return registerPicker(productId);
+  }, [productId, variants.length, registerPicker]);
   const [qty, setQty] = useState(1);
 
   // WhatsApp deep-link embeds the absolute page URL — only known client-side,
@@ -222,8 +233,12 @@ export function PdpBuyBoxRender({
           <span
             className="inline-block font-display font-black text-xs uppercase px-2 py-1"
             style={{
-              backgroundColor: onSale ? "var(--bk-primary, #ff5a8a)" : "var(--bk-sky, #9ad8ff)",
-              color: onSale ? "var(--bk-on-primary, #fff)" : "var(--bk-ink, #1a1a1a)",
+              backgroundColor: onSale
+                ? "var(--bk-primary, #ff5a8a)"
+                : "var(--bk-decor-c, #9ad8ff)",
+              color: onSale
+                ? "var(--bk-on-primary, #fff)"
+                : "var(--bk-on-decor, #1a1a1a)",
               border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
               borderRadius: "calc(var(--bk-radius-input, 0.5rem) * 0.6)",
             }}
@@ -242,7 +257,7 @@ export function PdpBuyBoxRender({
             <div className="flex items-center gap-2">
               <span
                 className="text-lg drop-shadow-[1px_1px_0px_#1a1a1a]"
-                style={{ color: "var(--bk-mint, #7cf0bd)" }}
+                style={{ color: "var(--bk-success, #25d366)" }}
                 aria-hidden="true"
               >
                 {"★".repeat(Math.round(ratingValue!))}
@@ -363,8 +378,8 @@ export function PdpBuyBoxRender({
                     aria-label={t ? "زيادة الكمية" : "Increase quantity"}
                     className="w-11 h-11 flex items-center justify-center"
                     style={{
-                      color: "var(--bk-ink, #1a1a1a)",
-                      backgroundColor: "var(--bk-mint, #7cf0bd)",
+                      color: "var(--bk-on-decor, #1a1a1a)",
+                      backgroundColor: "var(--bk-decor-a, #7cf0bd)",
                       borderLeft: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                     }}
                   >
@@ -426,8 +441,8 @@ export function PdpBuyBoxRender({
               data-testid="pdp-whatsapp-cta"
               className="inline-flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-display font-black uppercase tracking-wide"
               style={{
-                backgroundColor: "var(--bk-mint, #7cf0bd)",
-                color: "var(--bk-ink, #1a1a1a)",
+                backgroundColor: "var(--bk-success, #25d366)",
+                color: "var(--bk-on-primary, #1a1a1a)",
                 border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                 borderRadius: "var(--bk-radius-input, 0.75rem)",
                 boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
@@ -443,8 +458,8 @@ export function PdpBuyBoxRender({
           <div
             className="inline-flex items-center gap-2 px-3 py-2 font-label font-bold text-xs uppercase tracking-[0.15em]"
             style={{
-              backgroundColor: "var(--bk-mint, #7cf0bd)",
-              color: "var(--bk-ink, #1a1a1a)",
+              backgroundColor: "var(--bk-decor-a, #7cf0bd)",
+              color: "var(--bk-on-decor, #1a1a1a)",
               border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
               borderRadius: "var(--bk-radius-pill, 9999px)",
               boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
@@ -460,11 +475,11 @@ export function PdpBuyBoxRender({
       <div
         aria-hidden={!showSticky}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-40 transition-transform duration-300 ease-out motion-reduce:transition-none",
+          "fixed inset-x-0 bottom-0 z-40 transition-transform duration-bk-base ease-out motion-reduce:transition-none",
           showSticky ? "translate-y-0" : "translate-y-full pointer-events-none",
         )}
         style={{
-          backgroundColor: "var(--bk-mint, #7cf0bd)",
+          backgroundColor: "var(--bk-decor-a, #7cf0bd)",
           borderTop: "var(--bk-border-thickness-bold, 4px) solid var(--bk-ink, #1a1a1a)",
           boxShadow: "0 -4px 0 0 var(--bk-ink, #1a1a1a)",
         }}

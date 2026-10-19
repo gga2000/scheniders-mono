@@ -29,7 +29,7 @@ export function ProductCard({ product, variant = "default", className }: Props) 
             alt={product.name}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-cover group-hover:scale-105 transition-transform duration-bk-base motion-reduce:transition-none"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-zinc-300">

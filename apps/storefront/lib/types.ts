@@ -3,7 +3,7 @@
  * Base types come from @scheniders/shared; storefront extends them.
  */
 
-import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig, StoreConfigV2 } from "@scheniders/shared";
+import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig, StoreConfigV2, ResolvedProductAttribute } from "@scheniders/shared";
 
 // Re-export shared types used directly
 export type { Category, CartItem, CheckoutFormData } from "@scheniders/shared";
@@ -18,6 +18,9 @@ export interface Tenant extends BaseTenant {
 }
 
 export interface Product extends BaseProduct {
+  /** Merchant-defined attributes, resolved against the tenant's taxonomy.
+   *  Populated on the PDP; see `withAttributes` in lib/queries.ts. */
+  attributes?: ResolvedProductAttribute[];
   tenant_id: string;
   description: string | null;
   compare_at_price: number | null;

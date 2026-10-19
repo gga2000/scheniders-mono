@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminActivityBatch } from "@/lib/activity-logger";
 
 const BulkActionSchema = z.object({
   action: z.enum([
@@ -238,21 +239,15 @@ export async function POST(request: NextRequest) {
           `[bulk_send_notification] Sending to ${tenant_ids.length} tenants: "${message}"`
         );
 
-        // Insert activity logs for each tenant
-        const { error: notifLogError } = await supabase
-          .from("admin_activity_logs")
-          .insert(
-            tenant_ids.map((tid) => ({
-              admin_id: "system",
-              action: "bulk_send_notification",
-              details: { tenant_ids, params: { message } },
-              tenant_id: tid,
-            }))
-          );
-
-        if (notifLogError) {
-          console.error("Failed to log send_notification:", notifLogError);
-        }
+        // Insert activity logs for each tenant. Attributed to the admin who
+        // ran the action, not to "system" — they are the actor on record.
+        await logAdminActivityBatch({
+          adminUserId: auth.user.id,
+          actorEmail: auth.user.email ?? null,
+          tenantIds: tenant_ids,
+          action: "bulk_send_notification",
+          details: { tenant_ids, params: { message } },
+        });
         break;
       }
     }
@@ -262,14 +257,13 @@ export async function POST(request: NextRequest) {
     // (skip send_notification — it already logs its own entries above)
     // -----------------------------------------------------------------
     if (action !== "send_notification") {
-      await supabase.from("admin_activity_logs").insert(
-        tenant_ids.map((tid) => ({
-          admin_id: auth.user.id,
-          action: `bulk_${action}`,
-          details: { tenant_ids, params },
-          tenant_id: tid,
-        }))
-      );
+      await logAdminActivityBatch({
+        adminUserId: auth.user.id,
+        actorEmail: auth.user.email ?? null,
+        tenantIds: tenant_ids,
+        action: `bulk_${action}`,
+        details: { tenant_ids, params },
+      });
     }
 
     return NextResponse.json({

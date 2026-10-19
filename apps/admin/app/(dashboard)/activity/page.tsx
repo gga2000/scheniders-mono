@@ -20,7 +20,9 @@ interface ActivityLog {
   action: string;
   details: Record<string, unknown> | null;
   tenant_id: string | null;
-  admin_id: string;
+  admin_user_id: string | null;
+  admin_label: string | null;
+  actor_email: string | null;
   created_at: string;
   business_name?: string;
 }
@@ -125,6 +127,20 @@ function summarizeDetails(details: Record<string, unknown> | null): string {
 function shortenId(id: string): string {
   if (!id) return "\u2014";
   return id.length > 8 ? `${id.slice(0, 8)}...` : id;
+}
+
+/** Who performed the action. `admin_label` is the human-readable actor the
+ *  writer records (a name, or "system"); fall back to the email, then to a
+ *  shortened user id. Rows written before 2026-10 have none of the three. */
+function actorLabel(log: {
+  admin_label: string | null;
+  actor_email: string | null;
+  admin_user_id: string | null;
+}): string {
+  if (log.admin_label) return log.admin_label;
+  if (log.actor_email) return log.actor_email;
+  if (log.admin_user_id) return shortenId(log.admin_user_id);
+  return "\u2014";
 }
 
 /* ------------------------------------------------------------------ */
@@ -274,7 +290,7 @@ export default function ActivityLogPage() {
                         {log.business_name || (log.tenant_id ? shortenId(log.tenant_id) : "\u2014")}
                       </td>
                       <td className="p-3 text-foreground/50 font-mono text-xs">
-                        {shortenId(log.admin_id)}
+                        {actorLabel(log)}
                       </td>
                     </tr>
                   );

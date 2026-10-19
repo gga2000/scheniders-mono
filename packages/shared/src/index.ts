@@ -1,5 +1,6 @@
 export * from "./utils";
 export * from "./abandoned-cart";
+export * from "./arabic-search";
 export * from "./bundle";
 export * from "./governorates";
 export * from "./types";
@@ -15,6 +16,7 @@ export type * from "./health-rules"; // values via "@scheniders/shared/health-ru
 export * from "./locale";
 export * from "./loyalty";
 export * from "./pixel";
+export * from "./product-attribute";
 // MOVED TO SUBPATH EXPORT: export * from "./preview-token";
 export * from "./redirects";
 export * from "./review";

@@ -50,6 +50,7 @@ import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-uti
 import { QCQuarantineTab } from "@/components/products/qc-quarantine-tab";
 import { SuppliesTab } from "@/components/products/supplies-tab";
 import { CategoriesTab } from "@/components/products/categories-tab";
+import { AttributesTab } from "@/components/products/attributes-tab";
 import { CategoriesTabV2 } from "@/components/categories/v2/categories-tab-v2";
 
 const CATEGORIES_V2_ENABLED = process.env.NEXT_PUBLIC_CATEGORIES_V2 !== "0";
@@ -149,7 +150,7 @@ function ProductsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const activeTab = (searchParams?.get("tab") as "products" | "categories" | "quarantine" | "supplies") || "products";
+    const activeTab = (searchParams?.get("tab") as "products" | "categories" | "attributes" | "quarantine" | "supplies") || "products";
     const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues | null>(null);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -846,7 +847,7 @@ function ProductsContent() {
 
                     {/* Mobile Tabs */}
                     <div className="md:hidden flex bg-[var(--background)] p-1 rounded-2xl border border-[var(--card-border)] w-fit max-w-full overflow-x-auto scrollbar-hide">
-                        {(["products", "categories", "quarantine", "supplies"] as const).map((tab) => (
+                        {(["products", "categories", "attributes", "quarantine", "supplies"] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => router.push(tab === "products" ? "/products" : `/products?tab=${tab}`)}
@@ -863,6 +864,7 @@ function ProductsContent() {
                     </div>
 
                     {activeTab === "categories" && (CATEGORIES_V2_ENABLED ? <CategoriesTabV2 /> : <CategoriesTab />)}
+                    {activeTab === "attributes" && <AttributesTab />}
                     {activeTab === "quarantine" && <QCQuarantineTab />}
                     {activeTab === "supplies" && <SuppliesTab onEdit={handleEditProduct} onAdd={handleAddSupply} />}
 

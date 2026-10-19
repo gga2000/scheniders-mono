@@ -114,7 +114,7 @@ export default async function ReturnsPolicy({
           body: (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="font-display font-bold uppercase text-sm text-candy-mint mb-1">
+                <p className="font-display font-bold uppercase text-sm text-bk-success mb-1">
                   ✓ Yes
                 </p>
                 <ul className="space-y-1 list-disc list-inside text-xs">
@@ -124,7 +124,7 @@ export default async function ReturnsPolicy({
                 </ul>
               </div>
               <div>
-                <p className="font-display font-bold uppercase text-sm text-candy-pink mb-1">
+                <p className="font-display font-bold uppercase text-sm text-bk-primary mb-1">
                   ✗ No
                 </p>
                 <ul className="space-y-1 list-disc list-inside text-xs">

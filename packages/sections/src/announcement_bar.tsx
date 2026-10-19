@@ -37,14 +37,15 @@ const defaultProps: Props = {
   speed: "normal",
 };
 
-/** Background reads the candy tokens (fixed mint/lilac/sky, themeable
- *  accent/primary/ink) so the bar stays on-palette per tenant. */
+/** Background reads brand tokens only — the three decorative surfaces plus
+ *  accent/primary/ink — so the bar recolours with the tenant. Enum keys are
+ *  schema values and must not be renamed. */
 const BAR_BG: Record<z.infer<typeof barBg>, string> = {
   butter: "var(--bk-accent, #ffd84a)",
-  mint: "var(--bk-mint, #7cf0bd)",
+  mint: "var(--bk-decor-a, #7cf0bd)",
   pink: "var(--bk-primary, #ff5a8a)",
-  lilac: "var(--bk-lilac, #c5b6ff)",
-  sky: "var(--bk-sky, #9ad8ff)",
+  lilac: "var(--bk-decor-b, #c5b6ff)",
+  sky: "var(--bk-decor-c, #9ad8ff)",
   ink: "var(--bk-ink, #1a1a1a)",
 };
 
