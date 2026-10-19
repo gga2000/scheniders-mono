@@ -22,6 +22,7 @@ import { generateExcelReport } from "@/lib/excel-report-generator";
 import { toast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { useAuth } from "@/components/auth/auth-provider";
 
 // ============================================
 // TYPES
@@ -83,6 +84,7 @@ export function ExportReportModal({
     currentDateFrom,
     currentDateTo,
 }: ExportReportModalProps) {
+    const { tenantId } = useAuth();
     const [format, setFormat] = useState<ExportFormat | null>(null);
     const [scope, setScope] = useState<ExportScope | null>(null);
     const [reportType, setReportType] = useState<ReportType>("order_list");
@@ -117,11 +119,14 @@ export function ExportReportModal({
         isError: scopeFetchFailed,
     } = useQuery({
         queryKey: ["orders", "export-scope", serverScopeRange?.from ?? "all", serverScopeRange?.to ?? "all"],
-        queryFn: () => orderRepository.findForExport({
-            dateFrom: serverScopeRange?.from,
-            dateTo: serverScopeRange?.to,
-        }),
-        enabled: open && serverScopeRange !== null,
+        queryFn: () => {
+            if (!tenantId) throw new Error("No active tenant");
+            return orderRepository.findForExport(tenantId, {
+                dateFrom: serverScopeRange?.from,
+                dateTo: serverScopeRange?.to,
+            });
+        },
+        enabled: open && serverScopeRange !== null && !!tenantId,
         staleTime: 60_000,
     });
 
@@ -149,18 +154,19 @@ export function ExportReportModal({
     const { data: scopeCounts } = useQuery({
         queryKey: ["orders", "export-scope-counts"],
         queryFn: async () => {
+            if (!tenantId) throw new Error("No active tenant");
             const today = getTodayRange();
             const week = getThisWeekRange();
             const month = getThisMonthRange();
             const [todayCount, weekCount, monthCount, allCount] = await Promise.all([
-                orderRepository.countForExport({ dateFrom: today.from, dateTo: today.to }),
-                orderRepository.countForExport({ dateFrom: week.from, dateTo: week.to }),
-                orderRepository.countForExport({ dateFrom: month.from, dateTo: month.to }),
-                orderRepository.countForExport({}),
+                orderRepository.countForExport(tenantId, { dateFrom: today.from, dateTo: today.to }),
+                orderRepository.countForExport(tenantId, { dateFrom: week.from, dateTo: week.to }),
+                orderRepository.countForExport(tenantId, { dateFrom: month.from, dateTo: month.to }),
+                orderRepository.countForExport(tenantId, {}),
             ]);
             return { today: todayCount, this_week: weekCount, this_month: monthCount, all: allCount };
         },
-        enabled: open,
+        enabled: open && !!tenantId,
         staleTime: 60_000,
     });
 

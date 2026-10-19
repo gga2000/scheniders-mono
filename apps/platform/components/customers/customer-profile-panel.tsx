@@ -28,7 +28,7 @@ interface CustomerProfilePanelProps {
 export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelProps) {
     const { phone } = customerSummary;
     const { t } = useLanguage();
-    const { session } = useAuth();
+    const { session, tenantId } = useAuth();
 
     // The server action authenticates the caller and derives their tenant from
     // this token, so the duplicate check only ever sees this tenant's orders.
@@ -39,12 +39,15 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
 
     // Fetch the deep order history and notes for this specific customer
     const { data: deepData, isLoading, isError } = useQuery({
-        queryKey: ["customer", "deep", phone],
+        queryKey: ["customer", "deep", tenantId, phone],
+        enabled: !!tenantId,
         queryFn: async () => {
-            // 1. Fetch all orders
+            if (!tenantId) throw new Error("No active tenant");
+            // 1. Fetch this tenant's orders for the phone
             const { data: orders, error: ordersError } = await supabase
                 .from("orders")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .eq("phone", phone)
                 .order("created_at", { ascending: false });
 

@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase, Order } from "@/lib/supabase";
 import { orderKeys, syncOrdersDelta } from "@/hooks/use-orders-query";
 import { diag } from "@/lib/diag";
+import { useAuth } from "@/components/auth/auth-provider";
 
 // =============================================
 // REALTIME HEARTBEAT
@@ -36,12 +37,15 @@ export function useRealtimeHeartbeat({
     enabled = true,
 }: UseRealtimeHeartbeatOptions = {}) {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const isCheckingRef = useRef(false);
 
     const checkHeartbeat = useCallback(async () => {
         // Prevent overlapping checks
         if (isCheckingRef.current) return;
+        // The cache holds one tenant's orders; compare against that tenant only.
+        if (!tenantId) return;
         isCheckingRef.current = true;
 
         try {
@@ -49,6 +53,7 @@ export function useRealtimeHeartbeat({
             const { data, error } = await supabase
                 .from("orders")
                 .select("updated_at")
+                .eq("tenant_id", tenantId)
                 .eq("is_archived", false)
                 .order("updated_at", { ascending: false })
                 .limit(1)
@@ -77,7 +82,7 @@ export function useRealtimeHeartbeat({
             diag.log(`[Diag:Heartbeat] CHECK drift=${Math.round(drift / 1000)}s serverLatest=${new Date(serverLatest).toISOString()} clientLatest=${new Date(clientLatest).toISOString()}`);
             if (drift > 5_000) {
                 diag.log(`[Diag:Heartbeat] DRIFT reason=cacheDrift drift=${Math.round(drift / 1000)}s — incremental delta sync`);
-                await syncOrdersDelta(queryClient, "heartbeatDrift");
+                await syncOrdersDelta(queryClient, tenantId, "heartbeatDrift");
             }
         } catch (err) {
             // Heartbeat failures are non-critical — just log
@@ -85,7 +90,7 @@ export function useRealtimeHeartbeat({
         } finally {
             isCheckingRef.current = false;
         }
-    }, [queryClient]);
+    }, [queryClient, tenantId]);
 
     useEffect(() => {
         if (!enabled) return;
