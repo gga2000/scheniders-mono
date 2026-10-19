@@ -14,12 +14,16 @@
 --   * it does not fold Persian digits (۰-۹).
 --
 -- WHAT THIS ADDS
---   * search_orders_v2(p_term, p_limit) RETURNS SETOF orders.
+--   * search_orders_v2(p_tenant_id, p_term, p_limit) RETURNS SETOF orders.
 --     SECURITY INVOKER: the caller's own RLS policy on `orders`
---     (tenant_isolation_select) scopes every row. No tenant id is taken from the
---     client. Returning SETOF orders lets PostgREST project the exact list
---     columns the app already selects from the table (`?select=…`), so this
---     exposes nothing a direct `orders` select does not.
+--     (tenant_isolation_select) still decides which rows are readable, and
+--     p_tenant_id narrows the search to the tenant the app is working in, so a
+--     user who belongs to two tenants never gets both books mixed into one
+--     result list. A tenant id the caller is not a member of matches nothing
+--     (RLS), and a NULL one returns no rows. Returning SETOF orders lets
+--     PostgREST project the exact list columns the app already selects from the
+--     table (`?select=…`), so this exposes nothing a direct `orders` select
+--     does not.
 --   * Archived and trashed rows ARE returned; the app labels them.
 --   * Ranking: exact order/sequence/delivery/QR id, then exact phone, then
 --     partial matches — newest first within each — so the order a term names is
@@ -56,7 +60,12 @@ CREATE INDEX IF NOT EXISTS idx_orders_delivery_order_id
     ON public.orders (delivery_order_id)
     WHERE delivery_order_id IS NOT NULL AND delivery_order_id <> '';
 
-CREATE OR REPLACE FUNCTION public.search_orders_v2(p_term text, p_limit integer DEFAULT 20)
+-- An earlier draft of this file took (p_term, p_limit) with no tenant. It was
+-- never applied to the NEW project, but drop it if a copy exists anywhere so no
+-- unscoped overload survives beside the tenant-scoped one.
+DROP FUNCTION IF EXISTS public.search_orders_v2(text, integer);
+
+CREATE OR REPLACE FUNCTION public.search_orders_v2(p_tenant_id uuid, p_term text, p_limit integer DEFAULT 20)
 RETURNS SETOF public.orders
 LANGUAGE plpgsql
 STABLE
@@ -76,7 +85,7 @@ BEGIN
     -- prints in front of every number.
     v_text := btrim(translate(COALESCE(p_term, ''), '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789'));
     v_text := btrim(regexp_replace(v_text, '^#+', ''));
-    IF char_length(v_text) < 2 THEN
+    IF p_tenant_id IS NULL OR char_length(v_text) < 2 THEN
         RETURN;
     END IF;
 
@@ -102,13 +111,14 @@ BEGIN
     RETURN QUERY
     SELECT o.*
     FROM public.orders o
-    WHERE o.sequence_number = v_seq
+    WHERE o.tenant_id = p_tenant_id
+      AND (o.sequence_number = v_seq
        OR lower(o.order_id) LIKE '%' || v_like || '%'
        OR o.delivery_order_id = v_text
        OR o.waseet_qr_id = v_text
        OR public.normalize_phone_for_search(o.phone) LIKE '%' || v_phone || '%'
        OR public.normalize_phone_for_search(o.secondary_phone) LIKE '%' || v_phone || '%'
-       OR public.normalize_arabic_text_for_search(o.customer_name) LIKE '%' || v_name || '%'
+       OR public.normalize_arabic_text_for_search(o.customer_name) LIKE '%' || v_name || '%')
     ORDER BY
         CASE
             WHEN o.sequence_number = v_seq
@@ -129,14 +139,14 @@ BEGIN
 END;
 $function$;
 
-COMMENT ON FUNCTION public.search_orders_v2(text, integer) IS
-    'Normalized order search over the caller''s tenants (RLS, SECURITY INVOKER). '
+COMMENT ON FUNCTION public.search_orders_v2(uuid, text, integer) IS
+    'Normalized order search within one tenant (p_tenant_id, further limited by RLS; SECURITY INVOKER). '
     'Matches phone/secondary phone in any format, order id, sequence number, '
     'delivery/QR id and Arabic-normalized customer name; includes archived and '
     'trashed rows. Ranking mirrors apps/platform/lib/order-server-search.ts.';
 
 -- A PUBLIC grant is what anon would inherit; revoking from anon alone is a no-op.
-REVOKE ALL ON FUNCTION public.search_orders_v2(text, integer) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.search_orders_v2(text, integer) FROM anon;
-GRANT EXECUTE ON FUNCTION public.search_orders_v2(text, integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.search_orders_v2(text, integer) TO service_role;
+REVOKE ALL ON FUNCTION public.search_orders_v2(uuid, text, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.search_orders_v2(uuid, text, integer) FROM anon;
+GRANT EXECUTE ON FUNCTION public.search_orders_v2(uuid, text, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.search_orders_v2(uuid, text, integer) TO service_role;

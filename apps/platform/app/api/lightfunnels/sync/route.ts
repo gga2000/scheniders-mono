@@ -8,6 +8,19 @@ import {
     removeAccessToken,
 } from '@/lib/lightfunnels-api';
 import { requireRequestCaller } from '@/lib/auth/require-request-caller';
+import { env } from '@/lib/env';
+
+/**
+ * The tenant imported orders belong to. LightFunnels is attributed to a single
+ * tenant via env, the same rule the live order webhook uses
+ * (app/api/webhooks/lightfunnels/route.ts). Without it the import created
+ * orders with no tenant and cleaned up abandoned checkouts across every tenant.
+ */
+function lightfunnelsTenant(): string | null {
+    return env.LIGHTFUNNELS_TENANT_ID ?? null;
+}
+
+const NO_TENANT_RESPONSE = { success: false, error: 'Sync not configured (missing LIGHTFUNNELS_TENANT_ID)' };
 
 /**
  * POST /api/lightfunnels/sync
@@ -54,16 +67,19 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
+                const tenantId = lightfunnelsTenant();
+                if (!tenantId) return NextResponse.json(NO_TENANT_RESPONSE, { status: 503 });
+
                 console.log('[Sync] Starting with dateFrom:', dateFrom, 'dateTo:', dateTo);
 
-                const summary = await syncOrders(token, {
+                const summary = await syncOrders(token, tenantId, {
                     dateFrom,
                     dateTo,
                     maxOrders: maxOrders || 500,
                 });
 
                 // Also sync checkouts by default when doing a general sync
-                const checkoutSummary = await syncCheckouts(token, {
+                const checkoutSummary = await syncCheckouts(token, tenantId, {
                     dateFrom,
                     dateTo,
                     maxCheckouts: maxOrders || 500,
@@ -84,7 +100,10 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                const summary = await syncCheckouts(token, {
+                const tenantId = lightfunnelsTenant();
+                if (!tenantId) return NextResponse.json(NO_TENANT_RESPONSE, { status: 503 });
+
+                const summary = await syncCheckouts(token, tenantId, {
                     dateFrom,
                     dateTo,
                     maxCheckouts: maxOrders || 500,

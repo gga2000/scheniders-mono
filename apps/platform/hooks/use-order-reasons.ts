@@ -53,12 +53,16 @@ export function useOrderReasons(
 }
 
 export function useReasonUsage(kind: ReasonKind, opts?: { enabled?: boolean }) {
+    const { tenantId } = useAuth();
     const query = useQuery({
         queryKey: orderReasonKeys.usage(kind),
-        queryFn: () => fetchReasonUsage(kind),
+        queryFn: () => {
+            if (!tenantId) throw new Error("No active tenant");
+            return fetchReasonUsage(tenantId, kind);
+        },
         staleTime: 10 * 60 * 1000,
         gcTime: 30 * 60 * 1000,
-        enabled: opts?.enabled ?? true,
+        enabled: (opts?.enabled ?? true) && !!tenantId,
     });
     return {
         usage: query.data ?? { counts: {}, total: 0 },

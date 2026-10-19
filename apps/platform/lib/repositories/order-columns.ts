@@ -64,6 +64,26 @@ export const LIST_COLUMNS = `
   is_verified_customer
 `.trim();
 
+/** LIST_COLUMNS as names, for projecting a row that arrived with every column. */
+export const LIST_COLUMN_NAMES: readonly string[] = LIST_COLUMNS.split(",").map((c) => c.trim());
+
+/**
+ * Keep only the LIST_COLUMNS keys of an `orders` row.
+ *
+ * Realtime delivers the WHOLE row (all 84 columns, margin included) to every
+ * tenant member: realtime.apply_rls filters columns only by column privilege,
+ * and `authenticated` holds SELECT on every `orders` column. Projecting the
+ * payload keeps the list cache to the same shape a list fetch produces, so
+ * margin values never land in a non-admin's client cache through realtime.
+ */
+export function pickListColumns(row: Record<string, unknown>): Record<string, unknown> {
+    const picked: Record<string, unknown> = {};
+    for (const name of LIST_COLUMN_NAMES) {
+        if (name in row) picked[name] = row[name];
+    }
+    return picked;
+}
+
 /**
  * Columns needed to build an export file. The list view deliberately omits some
  * of these to keep the page payload down, but `lib/export-utils.ts` reads them:

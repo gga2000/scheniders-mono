@@ -11,7 +11,9 @@ interface ActivityFeedProps {
     details: Record<string, unknown> | null;
     tenant_id: string | null;
     created_at: string;
-    admin_id: string;
+    admin_user_id: string | null;
+    admin_label: string | null;
+    actor_email: string | null;
   }>;
   isLoading?: boolean;
 }

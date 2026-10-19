@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXPORT_COLUMNS, LIST_COLUMNS } from "./order-columns";
+import { EXPORT_COLUMNS, LIST_COLUMNS, LIST_COLUMN_NAMES, pickListColumns } from "./order-columns";
 
 /**
  * Checked-in copy of `public.orders`' columns on the NEW project
@@ -81,5 +81,26 @@ describe("LIST_COLUMNS", () => {
 
     it("does not request risk_data — it is attached after the fetch", () => {
         expect(names(LIST_COLUMNS)).not.toContain("risk_data");
+    });
+});
+
+describe("pickListColumns (realtime payload projection)", () => {
+    // A realtime postgres_changes payload carries the whole row: every column
+    // the subscriber has SELECT on, which for `authenticated` is all of them.
+    const fullRow: Record<string, unknown> = Object.fromEntries(
+        [...ORDERS_TABLE_COLUMNS].map((c) => [c, `v:${c}`]),
+    );
+
+    it("keeps exactly the LIST_COLUMNS keys", () => {
+        expect(Object.keys(pickListColumns(fullRow)).sort()).toEqual([...LIST_COLUMN_NAMES].sort());
+    });
+
+    it("drops the margin columns and the idempotency key", () => {
+        const picked = pickListColumns(fullRow);
+        for (const c of [...MARGIN_COLUMNS, "idempotency_key"]) expect(picked).not.toHaveProperty(c);
+    });
+
+    it("does not invent keys a partial payload lacks", () => {
+        expect(pickListColumns({ id: "o1", product_cost: 900 })).toEqual({ id: "o1" });
     });
 });
