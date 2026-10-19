@@ -9,7 +9,12 @@
 // a choice belongs to this page view.
 //
 // `pickers` counts mounted picker sections per product, so a buying section
-// can render its own inline choice only when no picker is on the page.
+// can render its own inline choice only when no picker is on the page. A
+// section registers only while it actually shows options: a registered picker
+// that renders nothing would hide the inline choice and leave the shopper
+// with no way to pick. Each picker marks its options with
+// `variantPickerAnchor(productId)` so a buying section can send the shopper
+// there (`focusVariantPicker`) when they try to buy without choosing.
 //
 // A product with variants is bought as one of them: the checkout refuses a
 // variant-less line for it and prices the line from the variant row. So
@@ -57,7 +62,13 @@ export interface SelectedVariant {
   /** True while the product is sold by variant and none is chosen — the
    *  buying sections must not add or submit it in this state. */
   needsVariant: boolean;
-  /** True when a pdp_variants section is on the page for this product. */
+  /** True when the product is sold by variant and none can be bought — every
+   *  variant is out of stock, or the product has none to offer. The buying
+   *  sections show it as sold out rather than asking for a choice that
+   *  cannot be made. */
+  soldOut: boolean;
+  /** True when a picker section (pdp_variants, the buy box) is on the page
+   *  for this product and showing its options. */
   pickerMounted: boolean;
   select: (variantId: string | null) => void;
 }
@@ -75,11 +86,14 @@ export function useSelectedVariant(product: Product | null | undefined): Selecte
   const select = useVariantStore((s) => s.select);
   const variant = variants.find((v) => v.id === chosenId) ?? null;
   const soldByVariant = variants.length > 0 || product?.sold_by_variant === true;
+  const soldOut =
+    soldByVariant && (product == null || !variants.some((v) => stockLeftFor(product, v) > 0));
   return {
     variants,
     variant,
     soldByVariant,
     needsVariant: soldByVariant && variant === null,
+    soldOut,
     pickerMounted,
     select: (variantId) => select(productId, variantId),
   };
@@ -89,4 +103,23 @@ export function useSelectedVariant(product: Product | null | undefined): Selecte
 export function stockLeftFor(product: Product, variant: ProductVariant | null): number {
   if (variant) return (variant.stock_quantity ?? 0) - (variant.reserved_quantity ?? 0);
   return (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+}
+
+/** Spread on the element that holds a picker's options, so a buying section
+ *  can bring the shopper to it. */
+export function variantPickerAnchor(productId: string): { "data-variant-picker": string } {
+  return { "data-variant-picker": productId };
+}
+
+/** Scroll to the product's picker section and focus its first available
+ *  option. Called by a buying section when the shopper tries to buy before
+ *  choosing and the choice lives in another section. */
+export function focusVariantPicker(productId: string): void {
+  if (typeof document === "undefined") return;
+  const anchor = Array.from(document.querySelectorAll<HTMLElement>("[data-variant-picker]")).find(
+    (el) => el.dataset.variantPicker === productId,
+  );
+  if (!anchor) return;
+  anchor.scrollIntoView?.({ block: "center" });
+  anchor.querySelector<HTMLElement>("button:not(:disabled), select:not(:disabled)")?.focus();
 }

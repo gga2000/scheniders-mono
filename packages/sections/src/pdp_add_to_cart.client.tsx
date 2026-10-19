@@ -57,7 +57,9 @@ export function PdpAddToCartRender({
   // Before a variant is chosen there is no stock to count — the product row's
   // own stock is not what a variant product sells — so the button reads as
   // waiting for the choice, not as sold out.
-  const oos = !chosen.needsVariant && stockLeftFor(product, chosen.variant) <= 0;
+  // A product sold by variant with none in stock is sold out outright.
+  const oos =
+    chosen.soldOut || (!chosen.needsVariant && stockLeftFor(product, chosen.variant) <= 0);
 
   // The merchant's quantity ladder, which this section never applied: it sent
   // the base price for any quantity while the checkout resolved the ladder,

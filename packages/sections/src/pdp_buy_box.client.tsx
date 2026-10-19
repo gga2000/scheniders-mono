@@ -21,7 +21,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { stockLeftFor, useSelectedVariant, useVariantStore } from "./helpers/variant-store";
+import { stockLeftFor, useSelectedVariant, useVariantStore, variantPickerAnchor } from "./helpers/variant-store";
 import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import {
@@ -91,17 +91,20 @@ export function PdpBuyBoxRender({
 
   // The buy box is itself a picker: its choice goes through the shared store
   // so a direct-order form or add-to-cart on the same page sells the same
-  // variant, and it registers so no second inline picker appears. Nothing is
-  // pre-selected — the shopper picks before the product can be added.
+  // variant, and it registers so no second inline picker appears — only while
+  // it shows its pills, or the form would hide its own choice and leave none
+  // on the page. Nothing is pre-selected — the shopper picks before the
+  // product can be added.
   const productId = product?.id ?? "";
   const chosen = useSelectedVariant(product);
   const registerPicker = useVariantStore((s) => s.registerPicker);
   const variantId = chosen.variant?.id ?? null;
   const setVariantId = chosen.select;
+  const showsPills = props.show_variant_picker && variants.length > 0;
   useEffect(() => {
-    if (!productId || variants.length === 0) return;
+    if (!productId || !showsPills) return;
     return registerPicker(productId);
-  }, [productId, variants.length, registerPicker]);
+  }, [productId, showsPills, registerPicker]);
   const [qty, setQty] = useState(1);
 
   // WhatsApp deep-link embeds the absolute page URL — only known client-side,
@@ -161,8 +164,9 @@ export function PdpBuyBoxRender({
     : 0;
   // The chosen variant's stock; before a choice there is none to count, and
   // the CTA asks for the option rather than calling the product sold out.
+  // Sold by variant with none in stock is sold out, not a choice to make.
   const stockLeft = stockLeftFor(product, activeVariant);
-  const oos = !needsVariant && stockLeft <= 0;
+  const oos = chosen.soldOut || (!needsVariant && stockLeft <= 0);
 
   const ctaLabel = resolveI18n(props.add_to_cart_label_i18n, locale);
   const codLabel = resolveI18n(props.cod_badge_label_i18n, locale);
@@ -316,7 +320,7 @@ export function PdpBuyBoxRender({
             style={{ borderStyle: "dashed" }}
           >
             {props.show_variant_picker && sizeVariants.length > 0 && (
-              <div data-layer="variants" data-layer-label="Size pills">
+              <div data-layer="variants" data-layer-label="Size pills" {...variantPickerAnchor(product.id)}>
                 <div className="flex justify-between items-end mb-bk-xs">
                   <h3 className="font-display font-black text-lg uppercase">
                     {t ? "المقاس" : "Size"}
@@ -336,7 +340,7 @@ export function PdpBuyBoxRender({
             )}
 
             {props.show_variant_picker && otherVariants.length > 0 && (
-              <div data-layer="variants" data-layer-label="Option pills">
+              <div data-layer="variants" data-layer-label="Option pills" {...variantPickerAnchor(product.id)}>
                 <h3 className="font-display font-black text-lg uppercase mb-bk-xs">
                   {t ? "الخيار" : "Option"}
                 </h3>
