@@ -22,7 +22,8 @@ import {
     useDeleteCategoryMutation,
 } from "@/hooks/use-categories-query";
 import { useProductsCrud } from "@/hooks/use-products-crud";
-import type { Category } from "@/types/product";
+import type { Category, CategoryScope } from "@/types/product";
+import { CategoryScopeControl } from "@/components/products/category-scope-control";
 import { cn } from "@/lib/utils";
 
 export function CategoriesTab() {
@@ -84,6 +85,12 @@ export function CategoriesTab() {
         } else if (selectedCategory) {
             await updateMutation.mutateAsync({ id: selectedCategory.id, data });
         }
+    };
+
+    // Scope is a single-field write, so it saves on click rather than making the
+    // merchant open the edit modal to change one setting.
+    const handleScopeChange = async (id: string, scope: CategoryScope) => {
+        await updateMutation.mutateAsync({ id, data: { scope } });
     };
 
     const handleDelete = async (id: string) => {
@@ -172,6 +179,7 @@ export function CategoriesTab() {
                                 deleteConfirmId={deleteConfirmId}
                                 onConfirmDelete={handleDelete}
                                 onCancelDelete={() => setDeleteConfirmId(null)}
+                                onScopeChange={handleScopeChange}
                                 depth={0}
                             />
                         ))}
@@ -202,6 +210,7 @@ interface CategoryRowProps {
     deleteConfirmId: string | null;
     onConfirmDelete: (id: string) => void;
     onCancelDelete: () => void;
+    onScopeChange: (id: string, scope: CategoryScope) => void;
     depth: number;
 }
 
@@ -216,6 +225,7 @@ function CategoryRow({
     deleteConfirmId,
     onConfirmDelete,
     onCancelDelete,
+    onScopeChange,
     depth,
 }: CategoryRowProps) {
     const [expanded, setExpanded] = useState(true);
@@ -296,6 +306,12 @@ function CategoryRow({
                         {category.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </div>
 
+                    {/* Who the category is for — staff, customers, or both */}
+                    <CategoryScopeControl
+                        value={category.scope ?? "both"}
+                        onChange={(next) => onScopeChange(category.id, next)}
+                    />
+
                     {/* Actions */}
                     {isConfirming ? (
                         <div className="flex items-center gap-2">
@@ -346,6 +362,7 @@ function CategoryRow({
                                 deleteConfirmId={deleteConfirmId}
                                 onConfirmDelete={onConfirmDelete}
                                 onCancelDelete={onCancelDelete}
+                                onScopeChange={onScopeChange}
                                 depth={depth + 1}
                             />
                         ))}
