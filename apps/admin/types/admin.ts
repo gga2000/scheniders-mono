@@ -166,7 +166,8 @@ export type AdminAction =
   | "update_settings"
   | "manage_subscription"
   | "manage_tags"
-  | "manage_commissions";
+  | "manage_commissions"
+  | "convert_lead";
 
 // Merchant table column definitions
 export type MerchantColumnId =

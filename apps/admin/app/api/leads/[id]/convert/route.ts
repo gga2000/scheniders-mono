@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
+import { z } from "zod";
+import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
+
+/** A converted merchant always starts on this plan; changing it afterwards is
+ *  `change_plan` (super_admin), so the caller does not get to pick it here. */
+const CONVERSION_PLAN = "starter";
+
+const bodySchema = z.object({
+  notes: z.string().trim().max(2000).optional(),
+});
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const admin = await requireAdmin(token);
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Open to support_staff by design — see `convert_lead` in admin-permissions.ts.
+  const auth = await requireAdminPermission(request, "convert_lead");
+  if (auth instanceof NextResponse) return auth;
 
+  try {
     const { id } = await params;
-    const body = await request.json();
+    const parsed = bodySchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid body" },
+        { status: 400 }
+      );
+    }
+    const notes = parsed.data.notes || null;
     const supabase = createAdminClient();
 
     // Fetch the lead
@@ -58,7 +74,7 @@ export async function POST(
         .insert({
           business_name: lead.merchant_name,
           slug,
-          plan: body.plan || "starter",
+          plan: CONVERSION_PLAN,
           status: "active",
           trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
           is_prospect: false,
@@ -76,26 +92,28 @@ export async function POST(
       tenantId = tenant.id;
 
       // Create wallet
-      await supabase.from("wallet").insert({
+      const { error: walletError } = await supabase.from("wallet").insert({
         tenant_id: tenantId,
         balance_iqd: 0,
         threshold_iqd: 5000,
       });
+      if (walletError) throw walletError;
     }
 
     // Create subscription
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    await supabase.from("subscriptions").insert({
+    const { error: subscriptionError } = await supabase.from("subscriptions").insert({
       tenant_id: tenantId,
-      plan: body.plan || "starter",
+      plan: CONVERSION_PLAN,
       status: "active",
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
     });
+    if (subscriptionError) throw subscriptionError;
 
     // Update lead
-    await supabase
+    const { error: leadUpdateError } = await supabase
       .from("leads")
       .update({
         converted_tenant_id: tenantId,
@@ -103,15 +121,19 @@ export async function POST(
         status: "converted",
       })
       .eq("id", id);
+    if (leadUpdateError) throw leadUpdateError;
 
-    // Log activity
-    await supabase.from("lead_activities").insert({
+    // Log activity — attributed to the authenticated caller, never to a
+    // client-supplied id.
+    const { error: activityError } = await supabase.from("lead_activities").insert({
       lead_id: id,
       activity_type: "conversion",
       title: "Lead converted to merchant",
-      metadata: { tenant_id: tenantId },
-      created_by: body.created_by || null,
+      description: notes,
+      metadata: { tenant_id: tenantId, plan: CONVERSION_PLAN },
+      created_by: auth.user.id,
     });
+    if (activityError) throw activityError;
 
     // Create commission record if lead has an assigned employee
     if (lead.assigned_to || lead.created_by) {

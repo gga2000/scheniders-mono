@@ -88,6 +88,8 @@ function req(
 }
 
 const idParams = { params: Promise.resolve({ id: TENANT }) };
+const LEAD = "44444444-4444-4444-8444-444444444444";
+const leadParams = { params: Promise.resolve({ id: LEAD }) };
 
 type Case = {
   name: string;
@@ -172,6 +174,20 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/extend-trial/route");
       return POST(req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 7 }), idParams);
+    },
+  },
+  {
+    name: "POST /api/trials/extend (extend_trial)",
+    call: async (t) => {
+      const { POST } = await import("./trials/extend/route");
+      return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 7 }));
+    },
+  },
+  {
+    name: "POST /api/leads/[id]/convert (convert_lead)",
+    call: async (t) => {
+      const { POST } = await import("./leads/[id]/convert/route");
+      return POST(req(`/api/leads/${LEAD}/convert`, "POST", t, {}), leadParams);
     },
   },
   {
@@ -288,6 +304,142 @@ describe("actor attribution", () => {
       admin_user_id: SUPPORT_ID,
       admin_label: "agent@example.com",
     });
+  });
+});
+
+/**
+ * `extend_trial` is a support_staff permission. It must only move the trial
+ * clock of a tenant that is on trial — never write `status`, or a support agent
+ * could lift a pause (`limited`) or suspension that needs `reactivate_tenant`.
+ */
+describe("trial extension cannot change tenant status", () => {
+  const ROUTES: Case[] = [
+    {
+      name: "POST /api/merchants/[id]/extend-trial",
+      call: async (t) => {
+        const { POST } = await import("./merchants/[id]/extend-trial/route");
+        return POST(req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 30 }), idParams);
+      },
+    },
+    {
+      name: "POST /api/trials/extend",
+      call: async (t) => {
+        const { POST } = await import("./trials/extend/route");
+        return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 30 }));
+      },
+    },
+  ];
+
+  const BLOCKED = ["limited", "suspended", "active", "cancelled"].flatMap((status) =>
+    ROUTES.map((r) => ({ ...r, status })),
+  );
+
+  it.each(BLOCKED)(
+    "$name — support_staff gets 400 for a $status tenant and nothing is written",
+    async ({ call, status }) => {
+      dbResult = {
+        data: { id: TENANT, trial_ends_at: "2026-10-01T00:00:00.000Z", status },
+        error: null,
+      };
+      const res = await call("support");
+      expect(res.status).toBe(400);
+      expect(dbCalls.some((c) => c.method === "update")).toBe(false);
+    },
+  );
+
+  it.each(ROUTES)("$name — a trialing tenant gets a later trial end and no status write", async ({ call }) => {
+    const trialEnd = "2099-01-01T00:00:00.000Z";
+    dbResult = { data: { id: TENANT, trial_ends_at: trialEnd, status: "trial" }, error: null };
+    const res = await call("support");
+
+    expect(res.status).toBe(200);
+    const update = dbCalls.find((c) => c.method === "update");
+    expect(update?.args[0]).toEqual({ trial_ends_at: "2099-01-31T00:00:00.000Z" });
+    // The write itself is conditional on the tenant still being on trial.
+    expect(dbCalls.filter((c) => c.method === "eq").map((c) => c.args)).toContainEqual([
+      "status",
+      "trial",
+    ]);
+  });
+
+  it("caps a single extension at 90 days on both routes", async () => {
+    dbResult = { data: { id: TENANT, trial_ends_at: null, status: "trial" }, error: null };
+    const { POST: perMerchant } = await import("./merchants/[id]/extend-trial/route");
+    const { POST: trials } = await import("./trials/extend/route");
+
+    const a = await perMerchant(
+      req(`/api/merchants/${TENANT}/extend-trial`, "POST", "super", { days: 91 }),
+      idParams,
+    );
+    const b = await trials(req("/api/trials/extend", "POST", "super", { tenant_id: TENANT, days: 91 }));
+    expect(a.status).toBe(400);
+    expect(b.status).toBe(400);
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("extends from now when the tenant has no trial end yet", async () => {
+    dbResult = { data: { id: TENANT, trial_ends_at: null, status: "trial" }, error: null };
+    const { POST } = await import("./trials/extend/route");
+    const res = await POST(req("/api/trials/extend", "POST", "support", { tenant_id: TENANT, days: 3 }));
+
+    expect(res.status).toBe(200);
+    const update = dbCalls.find((c) => c.method === "update");
+    const written = (update?.args[0] as { trial_ends_at: string }).trial_ends_at;
+    expect(Number.isNaN(Date.parse(written))).toBe(false);
+  });
+});
+
+describe("lead conversion", () => {
+  it("ignores a client-chosen plan and creator: starter plan, attributed to the caller", async () => {
+    dbResult = {
+      data: {
+        id: TENANT,
+        status: "store_built",
+        prospect_tenant_id: TENANT,
+        assigned_to: null,
+        created_by: null,
+      },
+      error: null,
+    };
+    const { POST } = await import("./leads/[id]/convert/route");
+    const res = await POST(
+      req(`/api/leads/${LEAD}/convert`, "POST", "support", {
+        plan: "enterprise",
+        created_by: SUPER_ID,
+        notes: "signed on the call",
+      }),
+      leadParams,
+    );
+
+    expect(res.status).toBe(200);
+    const inserts = dbCalls.filter((c) => c.method === "insert").map((c) => c.args[0]);
+    expect(inserts).toContainEqual(expect.objectContaining({ tenant_id: TENANT, plan: "starter" }));
+    expect(inserts).toContainEqual(
+      expect.objectContaining({
+        lead_id: LEAD,
+        activity_type: "conversion",
+        created_by: SUPPORT_ID,
+        description: "signed on the call",
+      }),
+    );
+    expect(JSON.stringify(inserts)).not.toContain("enterprise");
+  });
+});
+
+describe("pause attribution", () => {
+  it("stores the admin's uuid in tenants.restrictions.paused_by, never the email", async () => {
+    dbResult = { data: { id: TENANT, status: "limited", restrictions: {} }, error: null };
+    const { POST } = await import("./merchants/[id]/pause/route");
+    const res = await POST(
+      req(`/api/merchants/${TENANT}/pause`, "POST", "super", { duration_days: 7 }),
+      idParams,
+    );
+
+    expect(res.status).toBe(200);
+    const update = dbCalls.find((c) => c.method === "update");
+    const restrictions = (update?.args[0] as { restrictions: { paused_by: string } }).restrictions;
+    expect(restrictions.paused_by).toBe(SUPER_ID);
+    expect(JSON.stringify(update?.args[0])).not.toContain("boss@example.com");
   });
 });
 

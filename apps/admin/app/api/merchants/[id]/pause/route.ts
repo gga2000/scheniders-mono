@@ -51,7 +51,10 @@ export async function POST(
 
     const restrictions = {
       paused_at: now.toISOString(),
-      paused_by: auth.user.email ?? auth.user.id,
+      // The admin's uuid, per the documented restrictions schema. Never the
+      // email: tenant members can read tenants.restrictions, and the email is
+      // already in admin_activity_logs.actor_email (admin-only).
+      paused_by: auth.user.id,
       paused_until: pausedUntil,
       reason: parsed.data.reason ?? null,
       blocks: {

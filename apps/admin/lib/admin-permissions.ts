@@ -10,6 +10,12 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         paid (grants paid time without a payment).
  *   manage_tags         — overwrite a merchant's tags.
  *   manage_commissions  — edit commission configs / recalculate payouts.
+ *   convert_lead        — turn a sales lead into a live merchant on the
+ *                         starter plan (30-day subscription row, 14-day trial
+ *                         clock). Open to support_staff on purpose: closing a
+ *                         lead is the sales team's job and it is what earns
+ *                         their commission. The plan is not caller-chosen;
+ *                         upgrading afterwards is `change_plan`.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -28,6 +34,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "manage_subscription",
     "manage_tags",
     "manage_commissions",
+    "convert_lead",
   ]),
   support_staff: new Set([
     "extend_trial",
@@ -35,6 +42,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "send_notification",
     "impersonate",
     "export_data",
+    "convert_lead",
   ]),
 };
 
