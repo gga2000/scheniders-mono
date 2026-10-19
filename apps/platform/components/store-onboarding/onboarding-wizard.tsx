@@ -46,6 +46,7 @@ import {
     STARTER_TEMPLATES,
     type WizardIndustry,
 } from "@/lib/starter-store";
+import type { StoreTemplate } from "@/lib/store-templates";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -805,10 +806,7 @@ function TemplateStep({
                                         : "border-border shadow-(--card-shadow) hover:-translate-y-0.5 hover:border-(--border-hover)",
                                 )}
                             >
-                                <TemplateThumbnail
-                                    sections={tpl.pages.home ?? []}
-                                    selected={selected}
-                                />
+                                <TemplateThumbnail template={tpl} selected={selected} />
                                 <div className="flex items-center justify-between gap-2">
                                     <span className="truncate text-sm font-semibold text-foreground">
                                         {name}
@@ -837,45 +835,90 @@ function TemplateStep({
     );
 }
 
-/* Candy palette literals — the storefront's decorative tokens, used to
-   make each template preview read like a real (miniature) page instead
-   of grey placeholder bars (UX-20 / [E5]). */
-const PREVIEW_CANDY = {
-    pink: "#ff5a8a",
-    mint: "#7cf0bd",
-    butter: "#ffd84a",
-    lilac: "#c5b6ff",
-    sky: "#9ad8ff",
-    cream: "#fff7ed",
-    ink: "#1a1a1a",
-} as const;
+/**
+ * Preview palette for one template, taken from its own brand kit, so each
+ * preview reads like a real (miniature) page (UX-20 / [E5]).
+ *
+ * This used to be a fixed Candy Bento palette, which meant every template in
+ * the picker rendered in identical colours — the merchant was choosing a look
+ * from six swatches that all looked the same. The decorative tints mirror
+ * `buildBrandKitVars`: each is its source hue mixed most of the way toward
+ * the page surface, so a dark template previews dark.
+ */
+interface PreviewPalette {
+    ink: string;
+    surface: string;
+    card: string;
+    primary: string;
+    accent: string;
+    tintA: string;
+    tintB: string;
+    tintC: string;
+    radius: string;
+    border: string;
+}
+
+/** Mix two `#rrggbb` colours; `t` is how far to move from `a` to `b`. */
+function mixHex(a: string, b: string, t: number): string {
+    const parse = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const [ar, ag, ab] = parse(a);
+    const [br, bg, bb] = parse(b);
+    const ch = (x: number, y: number) =>
+        Math.round(x + (y - x) * t)
+            .toString(16)
+            .padStart(2, "0");
+    return `#${ch(ar, br)}${ch(ag, bg)}${ch(ab, bb)}`;
+}
+
+const PREVIEW_RADIUS: Record<StoreTemplate["brand_kit"]["shape"]["radius"], string> = {
+    none: "0px",
+    soft: "3px",
+    round: "5px",
+    pill: "7px",
+};
+
+function previewPalette(tpl: StoreTemplate): PreviewPalette {
+    const c = tpl.brand_kit.colors;
+    const shape = tpl.brand_kit.shape;
+    return {
+        ink: c.ink,
+        surface: c.surface,
+        card: c.surface_alt,
+        primary: c.primary,
+        accent: c.accent,
+        tintA: mixHex(c.success, c.surface, 0.72),
+        tintB: mixHex(c.secondary, c.surface, 0.72),
+        tintC: mixHex(c.accent, c.surface, 0.72),
+        radius: PREVIEW_RADIUS[shape.radius],
+        border: shape.border_thickness === "none" ? "transparent" : `${c.ink}22`,
+    };
+}
 
 /** One miniature block per section type — stylized, not literal. */
-function PreviewBlock({ type }: { type: string }): React.ReactElement {
-    const c = PREVIEW_CANDY;
+function PreviewBlock({ type, c }: { type: string; c: PreviewPalette }): React.ReactElement {
     if (type.startsWith("hero")) {
         return (
             <div
                 className="flex flex-col justify-center gap-1 rounded-md px-2 py-2"
-                style={{ background: `linear-gradient(120deg, ${c.butter}, ${c.pink}55)` }}
+                style={{ background: `linear-gradient(120deg, ${c.accent}, ${c.primary}55)` }}
             >
                 <span className="h-1.5 w-3/5 rounded-full" style={{ backgroundColor: c.ink }} />
                 <span className="h-1 w-2/5 rounded-full" style={{ backgroundColor: `${c.ink}55` }} />
                 <span
-                    className="mt-0.5 h-2 w-1/3 rounded-full border"
-                    style={{ backgroundColor: c.mint, borderColor: c.ink }}
+                    className="mt-0.5 h-2 w-1/3 border"
+                    style={{ backgroundColor: c.primary, borderColor: c.border, borderRadius: c.radius }}
                 />
             </div>
         );
     }
     if (type === "promo_banner" || type === "sticky_cta_bar") {
-        return <div className="h-1.5 rounded-full" style={{ backgroundColor: c.pink }} />;
+        return <div className="h-1.5 rounded-full" style={{ backgroundColor: c.primary }} />;
     }
     if (type.includes("grid") || type === "image_gallery") {
         return (
             <div className="grid grid-cols-4 gap-0.5">
-                {[c.mint, c.lilac, c.butter, c.sky].map((bg, i) => (
-                    <span key={i} className="h-3 rounded-sm border border-black/15" style={{ backgroundColor: bg }} />
+                {[c.tintA, c.tintB, c.accent, c.tintC].map((bg, i) => (
+                    <span key={i} className="h-3 rounded-sm border" style={{ backgroundColor: bg, borderColor: c.border, borderRadius: c.radius }} />
                 ))}
             </div>
         );
@@ -884,14 +927,14 @@ function PreviewBlock({ type }: { type: string }): React.ReactElement {
         return (
             <div className="flex gap-0.5">
                 {[0, 1, 2].map((i) => (
-                    <span key={i} className="h-2.5 flex-1 rounded-sm border border-black/10" style={{ backgroundColor: c.cream }} />
+                    <span key={i} className="h-2.5 flex-1 border" style={{ backgroundColor: c.card, borderColor: c.border, borderRadius: c.radius }} />
                 ))}
             </div>
         );
     }
     if (type === "countdown_card") {
         return (
-            <div className="flex items-center justify-center gap-0.5 rounded-md py-1" style={{ backgroundColor: c.lilac }}>
+            <div className="flex items-center justify-center gap-0.5 rounded-md py-1" style={{ backgroundColor: c.tintB }}>
                 {[0, 1, 2].map((i) => (
                     <span key={i} className="h-1.5 w-2 rounded-sm" style={{ backgroundColor: c.ink }} />
                 ))}
@@ -901,8 +944,8 @@ function PreviewBlock({ type }: { type: string }): React.ReactElement {
     if (type === "trust_strip" || type === "cod_card" || type === "delivery_promise") {
         return (
             <div className="flex gap-0.5">
-                {[c.mint, c.butter, c.sky].map((bg, i) => (
-                    <span key={i} className="h-1.5 flex-1 rounded-full border border-black/15" style={{ backgroundColor: bg }} />
+                {[c.tintA, c.accent, c.tintC].map((bg, i) => (
+                    <span key={i} className="h-1.5 flex-1 rounded-full border" style={{ backgroundColor: bg, borderColor: c.border }} />
                 ))}
             </div>
         );
@@ -910,42 +953,60 @@ function PreviewBlock({ type }: { type: string }): React.ReactElement {
     if (type.startsWith("newsletter")) {
         return (
             <div className="flex gap-0.5">
-                <span className="h-2 flex-1 rounded-sm border border-black/15 bg-white" />
-                <span className="h-2 w-1/4 rounded-sm" style={{ backgroundColor: c.pink }} />
+                <span className="h-2 flex-1 rounded-sm border"
+                    style={{ backgroundColor: c.card, borderColor: c.border }} />
+                <span className="h-2 w-1/4 rounded-sm" style={{ backgroundColor: c.primary }} />
             </div>
         );
     }
     // Text-ish fallback (brand_story, about, founder, policy…)
     return (
         <div className="flex flex-col gap-0.5">
-            <span className="h-1 w-4/5 rounded-full bg-black/25" />
-            <span className="h-1 w-3/5 rounded-full bg-black/15" />
+            <span className="h-1 w-4/5 rounded-full" style={{ backgroundColor: `${c.ink}40` }} />
+            <span className="h-1 w-3/5 rounded-full" style={{ backgroundColor: `${c.ink}26` }} />
         </div>
     );
 }
 
 function TemplateThumbnail({
-    sections,
+    template,
     selected,
 }: {
-    sections: Array<{ type: string }>;
+    template: StoreTemplate;
     selected: boolean;
 }) {
-    const visible = sections.slice(0, 5);
+    const c = previewPalette(template);
+    const visible = (template.pages.home ?? []).slice(0, 5);
     return (
-        <div
-            aria-hidden="true"
-            className={cn(
-                "flex aspect-video w-full flex-col justify-start gap-1 overflow-hidden rounded-lg border px-2 py-2 transition-colors",
-                selected ? "border-foreground/40" : "border-black/10",
-            )}
-            style={{ backgroundColor: PREVIEW_CANDY.cream }}
-        >
-            {visible.map((s, i) => (
-                <div key={i} className={cn(i === 0 && s.type.startsWith("hero") && "flex-1")}>
-                    <PreviewBlock type={s.type} />
-                </div>
-            ))}
+        <div className="flex flex-col gap-1.5">
+            <div
+                aria-hidden="true"
+                className={cn(
+                    "flex aspect-video w-full flex-col justify-start gap-1 overflow-hidden rounded-lg border px-2 py-2 transition-colors",
+                    selected ? "border-foreground/40" : "border-black/10",
+                )}
+                style={{ backgroundColor: c.surface }}
+            >
+                {visible.map((s, i) => (
+                    <div key={i} className={cn(i === 0 && s.type.startsWith("hero") && "flex-1")}>
+                        <PreviewBlock type={s.type} c={c} />
+                    </div>
+                ))}
+            </div>
+            {/* The palette itself, so the choice is legible at a glance rather
+             *  than inferred from six near-identical block diagrams. */}
+            <div aria-hidden="true" className="flex items-center gap-1">
+                {[c.primary, c.accent, c.tintB, c.ink].map((hex, i) => (
+                    <span
+                        key={i}
+                        className="h-3 w-3 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: hex }}
+                    />
+                ))}
+                <span className="ms-auto truncate text-[10px] text-muted-foreground">
+                    {template.brand_kit.typography.display}
+                </span>
+            </div>
         </div>
     );
 }

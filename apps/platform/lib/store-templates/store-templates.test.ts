@@ -18,6 +18,40 @@ const SPEED = ["slow", "normal", "snappy"];
 const FORMALITY = ["formal", "casual", "playful", "luxe"];
 const HEX = /^#[0-9a-f]{6}$/;
 
+/**
+ * Google Fonts families confirmed to serve 400, 500, 600 and 700, the
+ * weights body copy, labels and headings use. Checked 2026-10-19 against the
+ * live css2 endpoint with a browser user-agent; the Arabic entries were also
+ * confirmed to ship an `arabic` subset.
+ *
+ * A family that lacks a weight still answers HTTP 200 (the endpoint just
+ * leaves that face out), so nothing fails loudly: the browser synthesises
+ * the missing weight, and faux-bold Arabic looks broken. Almarai (400/700/800)
+ * and Tajawal (no 600) were caught this way. Verify a family the same way
+ * before adding it here.
+ */
+const WEIGHT_COMPLETE_FONTS = new Set([
+    // Latin
+    "Bricolage Grotesque",
+    "DM Sans",
+    "Inter Tight",
+    "Jost",
+    "Manrope",
+    "Outfit",
+    "Playfair Display",
+    "Space Grotesk",
+    // Arabic
+    "Alexandria",
+    "Baloo Bhaijaan 2",
+    "Cairo",
+    "El Messiri",
+    "IBM Plex Sans Arabic",
+    "Noto Kufi Arabic",
+    "Noto Sans Arabic",
+    "Readex Pro",
+    "Reem Kufi",
+]);
+
 describe("store templates", () => {
     it("ships exactly six directions with unique ids", () => {
         expect(STORE_TEMPLATES).toHaveLength(6);
@@ -73,6 +107,19 @@ describe("store templates", () => {
             expect(FORMALITY).toContain(bk.voice.formality);
             expect(bk.typography.display_ar, `${tpl.id} arabic display`).toBeTruthy();
             expect(bk.typography.body_ar, `${tpl.id} arabic body`).toBeTruthy();
+        }
+    });
+
+    it("only uses fonts that ship every weight the storefront renders", () => {
+        for (const tpl of STORE_TEMPLATES) {
+            const { display, body, display_ar, body_ar } = tpl.brand_kit.typography;
+            for (const family of [display, body, display_ar, body_ar]) {
+                if (!family) continue;
+                expect(
+                    WEIGHT_COMPLETE_FONTS.has(family),
+                    `${tpl.id}: "${family}" is not a verified weight-complete family`,
+                ).toBe(true);
+            }
         }
     });
 
