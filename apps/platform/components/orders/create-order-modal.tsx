@@ -558,7 +558,7 @@ export function CreateOrderModal({
                                         setFormData(prev => ({
                                             ...prev,
                                             customer_name: "علي-تيست",
-                                            phone: "07802301677",
+                                            phone: "07801234567",
                                             secondary_phone: "07811262261",
                                             city: "واسط",
                                             address_details: "العزيزية - الجمعية",

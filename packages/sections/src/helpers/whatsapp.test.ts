@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 import { whatsappOrderLink, whatsappCartLink } from "./whatsapp";
 
 // A real, plausible Iraqi number (no 6+ identical-digit run, so it passes the
-// placeholder guard). wa.me digits = 9647802301677.
-const PHONE = "+964 (780) 230-1677";
-const PHONE_DIGITS = "9647802301677";
+// placeholder guard). wa.me digits = 9647801234567.
+const PHONE = "+964 (780) 123-4567";
+const PHONE_DIGITS = "9647801234567";
 
 describe("whatsappOrderLink", () => {
   it("returns null when no phone is provided", () => {

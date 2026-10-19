@@ -148,8 +148,8 @@ export function resolveTenantPhone(
 /**
  * Normalise a phone number to the international digits `wa.me` expects.
  * The market is Iraq (country code 964), and merchants typically store local
- * numbers (leading 0, e.g. `0780 230 1677`). `wa.me` needs the international
- * form with no `+`/`0` (`9647802301677`), so:
+ * numbers (leading 0, e.g. `0780 123 4567`). `wa.me` needs the international
+ * form with no `+`/`0` (`9647801234567`), so:
  *   - `00964…`  → strip the `00` IDD prefix
  *   - `0XXXXXXXXXX` (local) → drop the leading 0, prepend `964`
  *   - already `964…` → unchanged
