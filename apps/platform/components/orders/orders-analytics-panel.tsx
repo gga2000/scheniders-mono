@@ -30,7 +30,23 @@ interface OrdersAnalyticsPanelProps {
     setFilters: (filters: OrderFilters) => void;
     /** Orders with a data-quality problem or a rejection, for "Needs Attention". */
     flaggedCount: number;
+    /**
+     * Urgent / no response / returns pending, each the length of the list its
+     * click opens (useOrderFilters). Falls back to `stats` when absent.
+     */
+    attentionCounts?: OrdersContextValue["attentionCounts"];
+    /**
+     * Status and Needs Attention numbers render "—": the list they would
+     * describe is not the one on screen (search, archive, a refinement, or a
+     * window still loading). See lib/orders/count-visibility.ts.
+     */
+    countsHidden?: boolean;
+    /** The Flagged number renders "—" (its own visibility rule). */
+    flaggedCountHidden?: boolean;
 }
+
+/** What a count shows while it would not describe the list on screen. */
+const HIDDEN = "—";
 
 /**
  * The collapsible analytics panel above the orders toolbar.
@@ -46,6 +62,9 @@ export function OrdersAnalyticsPanel({
     filters,
     setFilters,
     flaggedCount,
+    attentionCounts,
+    countsHidden = false,
+    flaggedCountHidden = false,
 }: OrdersAnalyticsPanelProps) {
     const { t } = useLanguage();
 
@@ -78,7 +97,7 @@ export function OrdersAnalyticsPanel({
                                             <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">{t("orders.status.new")}</span>
                                         </div>
                                         <div className="flex items-baseline gap-1">
-                                            <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{statusCounts.new || 0}</h3>
+                                            <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.new}</h3>
                                             <span className="text-sm font-medium text-rose-600/80">orders</span>
                                         </div>
                                     </div>
@@ -97,7 +116,7 @@ export function OrdersAnalyticsPanel({
                                             <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">{t("orders.status.contacted")}</span>
                                         </div>
                                         <div className="flex items-baseline gap-1">
-                                            <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{statusCounts.contacted || 0}</h3>
+                                            <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.contacted}</h3>
                                             <span className="text-sm font-medium text-amber-600/80">active</span>
                                         </div>
                                     </div>
@@ -116,7 +135,7 @@ export function OrdersAnalyticsPanel({
                                             <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">{t("orders.status.confirmed")}</span>
                                         </div>
                                         <div className="flex items-baseline gap-1">
-                                            <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{statusCounts.confirmed || 0}</h3>
+                                            <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.confirmed}</h3>
                                             <span className="text-sm font-medium text-violet-600/80">ready</span>
                                         </div>
                                     </div>
@@ -135,7 +154,7 @@ export function OrdersAnalyticsPanel({
                                             <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">{t("orders.status.inTransit")}</span>
                                         </div>
                                         <div className="flex items-baseline gap-1">
-                                            <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{statusCounts.in_transit || 0}</h3>
+                                            <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.in_transit}</h3>
                                             <span className="text-sm font-medium text-orange-600/80">shipped</span>
                                         </div>
                                     </div>
@@ -206,25 +225,25 @@ export function OrdersAnalyticsPanel({
                                                     <ShieldCheck className="w-4 h-4 text-rose-600" />
                                                     <span className="text-sm text-foreground/70">{t("orders.stats.flagged")}</span>
                                                 </div>
-                                                <span className="font-bold text-rose-600">{flaggedCount}</span>
+                                                <span className="font-bold text-rose-600" data-attention="flagged">{flaggedCountHidden ? HIDDEN : flaggedCount}</span>
                                             </div>
                                             <div className="flex justify-between items-center group/item hover:bg-red-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, priority: 'urgent' })}>
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                                     <span className="text-sm text-foreground/70">{t("orders.stats.urgent")}</span>
                                                 </div>
-                                                <span className="font-bold text-red-600">{stats.urgentOrders}</span>
+                                                <span className="font-bold text-red-600" data-attention="urgent">{countsHidden ? HIDDEN : (attentionCounts?.urgent ?? stats.urgentOrders)}</span>
                                             </div>
                                             <div className="flex justify-between items-center group/item hover:bg-orange-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'no_response' })}>
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-2 h-2 rounded-full bg-orange-400" />
                                                     <span className="text-sm text-foreground/70">{t("orders.stats.noResponse")}</span>
                                                 </div>
-                                                <span className="font-bold text-orange-600">{stats.noResponseOrders}</span>
+                                                <span className="font-bold text-orange-600" data-attention="no_response">{countsHidden ? HIDDEN : (attentionCounts?.noResponse ?? stats.noResponseOrders)}</span>
                                             </div>
                                             <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100 group/item hover:bg-yellow-50/50 p-1 rounded-lg transition-colors cursor-pointer" onClick={() => setFilters({ ...filters, status: 'return_pending' })}>
                                                 <span className="text-sm text-foreground/70">{t("orders.stats.returnsPending")}</span>
-                                                <span className="font-bold text-yellow-600">{stats.returnPendingOrders}</span>
+                                                <span className="font-bold text-yellow-600" data-attention="return_pending">{countsHidden ? HIDDEN : (attentionCounts?.returnPending ?? stats.returnPendingOrders)}</span>
                                             </div>
                                         </div>
                                     </div>

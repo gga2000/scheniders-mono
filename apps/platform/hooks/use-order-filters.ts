@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useDeferredValue, useRef, useLayoutEffect, useEffect } from "react";
+import { useState, useMemo, useDeferredValue, useRef, useLayoutEffect, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { reportOrderError } from "@/lib/order-telemetry";
@@ -11,8 +11,10 @@ import {
     saveFilterPresetsToStorage,
     createFilterPreset,
 } from "@/lib/order-filter-utils";
-import { windowFromDateFilter, orderInDateWindow } from "@/lib/order-window";
-import { orderMatchesAdChannel, summarizeAdChannels } from "@/lib/ad-channel-filter";
+import { summarizeAdChannels } from "@/lib/ad-channel-filter";
+import { filterOrders } from "@/lib/orders/filter-orders";
+import { countOrderChips, type OrderChipCounts } from "@/lib/orders/order-chips";
+import { countProductsInView } from "@/lib/orders/product-match";
 
 // =============================================
 // ORDER FILTERS HOOK
@@ -111,117 +113,50 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
     const deferredFilters = useDeferredValue(filters);
 
     // =============================================
-    // FILTER APPLICATION
+    // DERIVED COMPUTATIONS
+    //
+    // Everything below is computed from the deferred values only, so the list
+    // and every count change in the same render. The status chips, the list,
+    // the product and channel tallies and the Needs Attention counts all run
+    // `filterOrders` over the same rows: each count is, by construction, the
+    // length of the list its click opens (see lib/orders/order-chips.ts).
     // =============================================
 
-    const applyFilters = useCallback(
-        (ordersToFilter: Order[], activeFilters: OrderFilters = filters): Order[] => {
-            const dateWindow = windowFromDateFilter(activeFilters.dateFrom, activeFilters.dateTo);
-            return ordersToFilter.filter((order) => {
-                // Status filter
-                const statusFilter = activeFilters.status as string;
-                if (statusFilter && statusFilter !== "all") {
-                    if (statusFilter === "needs_review") {
-                        if (order.notes && order.notes.includes('⚠️')) {
-                            // This order needs review
-                        } else if ((!order.items || order.items.length === 0) && order.customer_name !== 'Manual Order') {
-                            // Empty items and not a manual order
-                        } else if (order.customer_name?.startsWith('Customer ') && order.customer_name !== 'Customer') {
-                            // Placeholder customer name
-                        } else {
-                            return false;
-                        }
-                    } else if (statusFilter === "refunds") {
-                        // All return transactions (RTN), at any point in their lifecycle.
-                        if (!order.is_return) return false;
-                    } else if (statusFilter === "refunded") {
-                        if ((order.refund_status || "none") !== "refunded") return false;
-                    } else if (statusFilter === "refund_pending") {
-                        if ((order.refund_status || "none") !== "pending") return false;
-                    } else if (statusFilter === "replacements") {
-                        if (!(order.is_replacement || order.order_id?.startsWith("RPL-"))) return false;
-                    } else if (statusFilter === "completed") {
-                        // Completed tab shows genuine sales only; refunds and replacements
-                        // live in their own tabs.
-                        const rs = order.refund_status || "none";
-                        const isReplacement = order.is_replacement || (order.order_id?.startsWith("RPL-") ?? false);
-                        if (order.status !== "completed" || rs === "refunded" || rs === "pending" || isReplacement) return false;
-                    } else if (statusFilter === "confirmed") {
-                        // Include both confirmed orders AND return_pending orders (refund/replacement orders)
-                        if (order.status !== "confirmed" && order.status !== "return_pending") {
-                            return false;
-                        }
-                    } else if (order.status !== statusFilter) {
-                        return false;
-                    }
-                }
+    const {
+        status: dStatus,
+        orderType: dOrderType,
+        dateFrom: dDateFrom,
+        dateTo: dDateTo,
+        city: dCity,
+        product: dProduct,
+        priority: dPriority,
+        paymentStatus: dPaymentStatus,
+        adChannel: dAdChannel,
+        isReturn: dIsReturn,
+    } = deferredFilters;
 
-                // Order-type sub-filter (refund / replacement) — narrows the
-                // Confirmed & All tabs to return or replacement orders.
-                const orderTypeFilter = (activeFilters as { orderType?: 'refund' | 'replacement' }).orderType;
-                if (orderTypeFilter === "refund") {
-                    if (!order.is_return) return false;
-                } else if (orderTypeFilter === "replacement") {
-                    const isReplacement = order.is_replacement || (order.order_id?.startsWith("RPL-") ?? false);
-                    if (!isReplacement) return false;
-                }
+    // The list's filter without its status: every FILTER_FIELDS_READ field but
+    // one. A chip click changes only `status`, so this — and the counts taken
+    // over it — keep their identity across chip switches.
+    const nonStatusFilters = useMemo<OrderFilters>(() => ({
+        orderType: dOrderType,
+        dateFrom: dDateFrom,
+        dateTo: dDateTo,
+        city: dCity,
+        product: dProduct,
+        priority: dPriority,
+        paymentStatus: dPaymentStatus,
+        adChannel: dAdChannel,
+        isReturn: dIsReturn,
+    }), [dOrderType, dDateFrom, dDateTo, dCity, dProduct, dPriority, dPaymentStatus, dAdChannel, dIsReturn]);
 
-                // Date range filter — the same rule the server fetch and realtime
-                // use (lib/order-window): Baghdad calendar days, and an order
-                // scheduled for a day in the range belongs to it as well as the
-                // day it arrived. This used to compare against the browser's
-                // local midnight on `created_at` alone, so a postponed order never
-                // showed on its day and a device outside Iraq drew different day
-                // lines from the fetch it was filtering.
-                if (dateWindow && !orderInDateWindow(order, dateWindow)) {
-                    return false;
-                }
-
-                // City filter
-                if (activeFilters.city && order.city !== activeFilters.city) {
-                    return false;
-                }
-
-                // Product filter
-                if (activeFilters.product) {
-                    const hasProduct = order.items?.some((item) =>
-                        item.name.toLowerCase().includes(activeFilters.product!.toLowerCase())
-                    );
-                    if (!hasProduct) return false;
-                }
-
-                // Priority filter
-                if (activeFilters.priority && order.priority !== activeFilters.priority) {
-                    return false;
-                }
-
-                // Payment status filter
-                if (activeFilters.paymentStatus && order.payment_status !== activeFilters.paymentStatus) {
-                    return false;
-                }
-
-                // Ad-channel filter — "only what Instagram brought in".
-                if (!orderMatchesAdChannel(order, activeFilters.adChannel)) {
-                    return false;
-                }
-
-                // Return orders filter
-                if (activeFilters.isReturn !== undefined && order.is_return !== activeFilters.isReturn) {
-                    return false;
-                }
-
-                // Free-text search is not a filter on the window: it replaces
-                // the window with server matches (see `filteredOrders`).
-
-                return true;
-            });
-        },
-        [filters]
+    /** The rows every status chip counts over: the list's filter with status = all. */
+    const countView = useMemo(
+        () => filterOrders(deferredOrders, { ...nonStatusFilters, status: "all" }),
+        [deferredOrders, nonStatusFilters],
     );
 
-    // =============================================
-    // DERIVED COMPUTATIONS
-    // =============================================
+    const statusCounts = useMemo<OrderChipCounts>(() => countOrderChips(countView), [countView]);
 
     const filteredOrders = useMemo(() => {
         // Search results keep the server's ranking (exact number, then exact
@@ -229,7 +164,9 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         // order the term names under newer partial matches.
         if (deferredSearchResults) return deferredSearchResults;
 
-        const filtered = applyFilters(deferredOrders, deferredFilters);
+        // The status filter over the count view is the full list filter: every
+        // other predicate has already been applied, and they are conjunctive.
+        const filtered = filterOrders(countView, { status: dStatus });
 
         // Parsing `created_at` inside the comparator allocated two Date objects
         // per comparison — on a few thousand orders that is tens of thousands of
@@ -245,48 +182,21 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
             if (!a.is_pinned && b.is_pinned) return 1;
             return (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0);
         });
-    }, [deferredOrders, deferredSearchResults, deferredFilters, applyFilters]);
+    }, [countView, deferredSearchResults, dStatus]);
 
-    const statusCounts = useMemo(() => {
-        const filtersWithoutStatus = { ...deferredFilters, status: 'all' as const };
-        const matchingOrders = applyFilters(deferredOrders, filtersWithoutStatus);
-
-        const counts: Record<string, number> = {
-            all: matchingOrders.length,
-            new: 0,
-            contacted: 0,
-            confirmed: 0,
-            cancelled: 0,
-            in_transit: 0,
-            delivered: 0,
-            completed: 0,
-            rejected: 0,
-            no_response: 0,
-            return_pending: 0,
-            refund_delivered: 0,
-            refund_failed: 0,
-            refunds: 0,
-            pending_checkout: 0,
-            suspended: 0,
-        };
-
-        matchingOrders.forEach(order => {
-            if (order.status in counts) {
-                counts[order.status]++;
-            }
-            // Unified refunds count: return_pending + refund_delivered + refund_failed
-            if (["return_pending", "refund_delivered", "refund_failed"].includes(order.status)) {
-                counts.refunds++;
-            }
-            // Include return_pending orders in confirmed count (refund/replacement orders)
-            if (order.status === "return_pending") {
-                counts.confirmed++;
-            }
-        });
-
-
-        return counts;
-    }, [deferredOrders, deferredFilters, applyFilters]);
+    // Needs Attention, each equal to the list its click opens:
+    //   no response     → { ...filters, status: 'no_response' }    (a chip)
+    //   returns pending → { ...filters, status: 'return_pending' } (exact status)
+    //   urgent          → { ...filters, priority: 'urgent' }       (status kept)
+    const urgentCount = useMemo(
+        () => filterOrders(deferredOrders, { ...nonStatusFilters, status: dStatus, priority: "urgent" }).length,
+        [deferredOrders, nonStatusFilters, dStatus],
+    );
+    const attentionCounts = useMemo(() => ({
+        urgent: urgentCount,
+        noResponse: statusCounts.no_response,
+        returnPending: countView.filter((o) => o.status === "return_pending").length,
+    }), [urgentCount, statusCounts, countView]);
 
     const availableCities = useMemo(() => {
         return [...new Set(deferredOrders.map((o) => o.city).filter(Boolean))] as string[];
@@ -298,37 +208,24 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
 
     // Products present in the orders matching the CURRENT view (every active
     // filter except the product filter itself — so picking a product doesn't
-    // collapse the suggestion row to a single chip). Mirrors `statusCounts`.
-    // Count = number of visible orders containing that product.
+    // collapse the suggestion row to a single chip). Each count is the length
+    // of the list that chip opens (lib/orders/product-match.ts).
     const availableProductsInView = useMemo(() => {
-        const filtersWithoutProduct = { ...deferredFilters, product: undefined };
         // While searching, the view IS the search results.
-        const matchingOrders = deferredSearchResults ?? applyFilters(deferredOrders, filtersWithoutProduct);
-
-        const counts = new Map<string, number>();
-        for (const order of matchingOrders) {
-            // De-dupe per order so an order with the same product twice counts once.
-            const namesInOrder = new Set(
-                (order.items ?? []).map((i) => i.name).filter(Boolean) as string[]
-            );
-            for (const name of namesInOrder) {
-                counts.set(name, (counts.get(name) ?? 0) + 1);
-            }
-        }
-
-        return [...counts.entries()]
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-    }, [deferredOrders, deferredSearchResults, deferredFilters, applyFilters]);
+        const matchingOrders = deferredSearchResults
+            ?? filterOrders(deferredOrders, { ...nonStatusFilters, status: dStatus, product: undefined });
+        return countProductsInView(matchingOrders);
+    }, [deferredOrders, deferredSearchResults, nonStatusFilters, dStatus]);
 
     // Orders per ad channel over the CURRENT view minus the channel filter itself,
-    // so picking Instagram does not collapse the row to a single chip. Mirrors
-    // `availableProductsInView`: it follows the status tab, date range and other
-    // filters, and — like everything client-side here — only the loaded window.
+    // so picking Instagram does not collapse the row to a single chip. Its
+    // `total` is the list the "all channels" chip opens.
     const adChannelSummary = useMemo(() => {
-        const filtersWithoutChannel = { ...deferredFilters, adChannel: undefined };
-        return summarizeAdChannels(deferredSearchResults ?? applyFilters(deferredOrders, filtersWithoutChannel));
-    }, [deferredOrders, deferredSearchResults, deferredFilters, applyFilters]);
+        return summarizeAdChannels(
+            deferredSearchResults
+                ?? filterOrders(deferredOrders, { ...nonStatusFilters, status: dStatus, adChannel: undefined }),
+        );
+    }, [deferredOrders, deferredSearchResults, nonStatusFilters, dStatus]);
 
     // =============================================
     // PRESET OPERATIONS
@@ -422,6 +319,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         filterPresets,
         filteredOrders,
         statusCounts,
+        attentionCounts,
         availableCities,
         availableProducts,
         availableProductsInView,

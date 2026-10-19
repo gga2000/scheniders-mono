@@ -134,11 +134,19 @@ export function MobileOrdersPage() {
         return result;
     }, [hookFilteredOrders, filters.riskLevel, filterDueToday]);
 
-    // Postponed orders whose day has arrived, over the loaded window — counted
-    // the same way as the desktop chip.
+    // Postponed orders whose day has arrived, over the list the toggle narrows —
+    // the same rows and predicate as the filter, so the badge equals the list
+    // it opens. It used to count the raw cache, ignoring the status tab.
     const dueTodayCount = useMemo(
-        () => orders.filter((o: Order) => isScheduleDue(o.status, o.scheduled_date)).length,
-        [orders],
+        () => hookFilteredOrders.filter((o: Order) => isScheduleDue(o.status, o.scheduled_date)).length,
+        [hookFilteredOrders],
+    );
+
+    // The risk badge, over the same list with the risk predicate. It read
+    // `statusCounts.flagged`, a key no count ever set, so it was always 0.
+    const riskCount = useMemo(
+        () => hookFilteredOrders.filter((o: Order) => orderMatchesRiskLevel(o, filters.riskLevel ?? "flagged")).length,
+        [hookFilteredOrders, filters.riskLevel],
     );
 
     // ARCH-6: the order store is module-level, so an open modal, a bulk
@@ -265,7 +273,7 @@ export function MobileOrdersPage() {
                     filters={filters as Parameters<typeof StickyFilterBar>[0]["filters"]}
                     setFilters={(newFilters) => setFilters(newFilters as Parameters<typeof setFilters>[0])}
                     statusCounts={statusCounts}
-                    totalRiskCount={statusCounts?.flagged || 0}
+                    totalRiskCount={riskCount}
                     showFilters={filterModalOpen}
                     setShowFilters={setFilterModalOpen}
                     hasActiveFilters={Object.values(filters).some((v) => v !== "all" && v !== "")}

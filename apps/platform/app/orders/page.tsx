@@ -203,6 +203,7 @@ export default function OrdersPage() {
         // Check order ID
         // Duplicate management
         statusCounts,
+        attentionCounts,
         ordersAreComplete,
         filtersSettled,
         // Message templates
@@ -552,8 +553,10 @@ export default function OrdersPage() {
 
 
 
-    // Defer heavy list inputs to prevent main-thread blocking during concurrent renders
-    const defHookFilteredOrders = React.useDeferredValue(hookFilteredOrders);
+    // Defer heavy list inputs to prevent main-thread blocking during concurrent renders.
+    // `hookFilteredOrders` is not re-deferred: useOrderFilters derives it, and
+    // every count in the context, from its own deferred values only, so the
+    // list and the counts above it always come from the same render.
     const defColumnFilters = React.useDeferredValue(debouncedColumnFilters);
     const defFilterDuplicatesOnly = React.useDeferredValue(filterDuplicatesOnly);
     const defFilterDueToday = React.useDeferredValue(filterDueToday);
@@ -564,7 +567,7 @@ export default function OrdersPage() {
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
     const filteredOrders = useMemo(() => {
-        let result = [...defHookFilteredOrders];
+        let result = [...hookFilteredOrders];
 
         // 1. Apply Column Filters
         Object.entries(defColumnFilters || {}).forEach(([key, value]) => {
@@ -646,31 +649,30 @@ export default function OrdersPage() {
             return createdAt(b) - createdAt(a);
         });
         return result;
-    }, [defHookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel]);
-
-    const defOrders = React.useDeferredValue(orders);
+    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
     // Counted with the same predicate the filter uses, so the number on the card
     // can never disagree with the list you get after clicking it.
     const flaggedCount = useMemo(() => {
-        return defHookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
-    }, [defHookFilteredOrders]);
+        return hookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
+    }, [hookFilteredOrders]);
 
     // Orders parked for a later day whose day has arrived — the "due today" queue.
-    // Same predicate as the filter, so the chip's count matches its list.
-    // Counted over the loaded window: with the default (today) window that is
-    // every order scheduled for today; older overdue ones show on their own day.
+    // Same rows and predicate as the filter, so the badge is the length of the
+    // list the toggle opens. It used to count the raw cache, ignoring the
+    // status tab and every other filter.
     const dueTodayCount = useMemo(() => {
-        if (!defOrders) return 0;
-        return defOrders.filter(o => isScheduleDue(o.status, o.scheduled_date)).length;
-    }, [defOrders]);
+        return hookFilteredOrders.filter(o => isScheduleDue(o.status, o.scheduled_date)).length;
+    }, [hookFilteredOrders]);
 
-    // Calculate global risk count for the key filter button (all orders)
+    // The risk badge: the list with the risk filter on, over the same rows.
+    // Turning the toggle on also clears status and dates, so with it off this
+    // only equals that list when status and dates are already clear — the
+    // visibility rule hides it otherwise (lib/orders/count-visibility.ts).
     const totalRiskCount = useMemo(() => {
-        if (!defOrders) return 0;
-        return defOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
-    }, [defOrders]);
+        return hookFilteredOrders.filter(o => orderMatchesRiskLevel(o, defRiskLevel ?? 'flagged')).length;
+    }, [hookFilteredOrders, defRiskLevel]);
 
     // Scroll to top when filters change to prevent empty list illusion
     useEffect(() => {
@@ -1609,6 +1611,7 @@ export default function OrdersPage() {
                                                 filters={filters}
                                                 setFilters={setFilters}
                                                 flaggedCount={flaggedCount}
+                                                attentionCounts={attentionCounts}
                                             />
 
                                             {/* Order Pipeline — collapsible funnel overview, sits above the search bar (hidden by default) */}

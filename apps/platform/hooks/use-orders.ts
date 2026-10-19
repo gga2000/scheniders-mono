@@ -170,11 +170,15 @@ export function useOrders() {
     // the same false alarm ten times a page load. A guard that cries wolf on a
     // healthy page is worse than no guard: it trains you to scroll past the line
     // that will one day be real.
+    //
+    // Status counts are no longer compared: the page takes them from the
+    // client, with the list's own predicates, which deliberately differ from
+    // the RPC's (completed excludes refunds and replacements; refunds is
+    // `is_return`), so the two are not expected to agree.
     useEffect(() => {
         if (!serverAggregates || !ordersAreComplete) return;
-        assertAggregateParity("status counts", filterHook.statusCounts, serverAggregates.status_counts);
         assertAggregateParity("stats", auxiliaryHook.stats as unknown as Record<string, number>, serverAggregates.stats);
-    }, [serverAggregates, ordersAreComplete, filterHook.statusCounts, auxiliaryHook.stats]);
+    }, [serverAggregates, ordersAreComplete, auxiliaryHook.stats]);
 
 
     // 4. CRUD — all order mutations, undo, notes, timeline, etc.
@@ -193,7 +197,13 @@ export function useOrders() {
         orders,
         isRefreshing,
         ordersPending,
-        statusCounts: serverAggregates?.status_counts ?? filterHook.statusCounts,
+        // Taken over the same rows as `filteredOrders`, with the same predicate
+        // table (lib/orders/order-chips.ts), so a chip's number is the length
+        // of the list it opens. Never the RPC's: its rules differ and it is not
+        // invalidated by list writes (the 219-vs-119 incident, 2026-10-17).
+        statusCounts: filterHook.statusCounts,
+        /** Needs Attention counts, each the length of the list its click opens. */
+        attentionCounts: filterHook.attentionCounts,
         // Archive
         archivedOrders,
         fetchArchivedOrders: crudHook.fetchArchivedOrders,
