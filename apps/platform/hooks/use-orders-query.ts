@@ -252,30 +252,84 @@ if (typeof window !== 'undefined') {
 // SESSION STORAGE SWR CACHE
 // Shows stale data instantly on refresh while
 // fresh data loads in the background (~2.5s).
+// A hydrated snapshot is a first paint only: it
+// is marked stale, so the mount always refetches.
 // =============================================
 const SWR_CACHE_KEY = 'schneiders_orders_swr';
 const SWR_TS_KEY = 'schneiders_orders_swr_ts';
 const SWR_WINDOW_KEY = 'schneiders_orders_swr_window';
+/** The fetch-start sync watermark the snapshot is complete up to (see orders-list-coverage). */
+const SWR_MARK_KEY = 'schneiders_orders_swr_mark';
+const SWR_KEYS = [SWR_CACHE_KEY, SWR_TS_KEY, SWR_WINDOW_KEY, SWR_MARK_KEY] as const;
 const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
+/**
+ * Snapshot size bounds. sessionStorage stores UTF-16 (2 bytes a char) and
+ * Safari's quota is ~5 MB, so 1.5M chars (~3 MB) leaves room for the rest of
+ * the origin. A list row with its risk_data serializes to ~2.2K chars (live,
+ * 2026-10-19: mean 2,244, p99 2,696 over 1,000 rows), so 650 rows ≈ 1.46M.
+ * The row cap is checked BEFORE stringifying, so a full-book fetch (5,000+
+ * rows) costs nothing here; the char cap catches unusually large rows.
+ */
+export const SWR_MAX_ROWS = 650;
+export const SWR_MAX_CHARS = 1_500_000;
 
 // Moved to lib/order-window so pure modules (useOrderFilters) can use it
 // without importing this one; re-exported for existing imports.
 export { windowCacheKey };
 
-export function writeSwrCache(orders: Order[], windowKey: string): void {
+/** Storage errors that recur on every write in a session (quota, blocked storage): reported once per page load. */
+const reportedStorageErrors = new Set<string>();
+
+function reportSwrError(err: unknown, operation: string, extra: Record<string, unknown> = {}): void {
+    const name = err instanceof DOMException ? err.name : null;
+    if (name === "QuotaExceededError" || name === "SecurityError") {
+        const key = `${operation}:${name}`;
+        if (reportedStorageErrors.has(key)) return;
+        reportedStorageErrors.add(key);
+    }
+    reportOrderError(err, { operation, extra });
+}
+
+/** Remove every snapshot key: after a failed write the keys may disagree with each other. */
+export function clearSwrCache(): void {
+    try {
+        for (const key of SWR_KEYS) sessionStorage.removeItem(key);
+    } catch (err) {
+        reportSwrError(err, "orders-swr-clear");
+    }
+}
+
+export function writeSwrCache(orders: Order[], windowKey: string, mark: string | null = null): void {
     // An empty result is not worth caching, and caching it is actively harmful:
     // hydrating from it makes React Query report `isLoading: false` with no rows,
     // which is indistinguishable from "this merchant has no orders". See
     // readSwrCache.
     if (orders.length === 0) return;
+    // Too large for the quota. Skipped before serializing, and the existing
+    // snapshot is left alone: it is keyed to its own window and age-limited, so
+    // it stays correct (a sidebar full-book prefetch no longer wipes Today's).
+    if (orders.length > SWR_MAX_ROWS) {
+        diag.log(`[Diag:RQ:SWR] skip oversize rows=${orders.length} max=${SWR_MAX_ROWS}`);
+        return;
+    }
+    // Measure the SYNCHRONOUS main-thread serialization cost + payload size.
+    const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
+    if (serialized.length > SWR_MAX_CHARS) {
+        diag.log(`[Diag:RQ:SWR] skip oversize chars=${serialized.length} max=${SWR_MAX_CHARS} rows=${orders.length}`);
+        return;
+    }
     try {
-        // Measure the SYNCHRONOUS main-thread serialization cost + payload size.
-        const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
         sessionStorage.setItem(SWR_CACHE_KEY, serialized);
         sessionStorage.setItem(SWR_TS_KEY, String(Date.now()));
         sessionStorage.setItem(SWR_WINDOW_KEY, windowKey);
-    } catch {
-        // sessionStorage full or unavailable — non-critical
+        if (mark) sessionStorage.setItem(SWR_MARK_KEY, mark);
+        else sessionStorage.removeItem(SWR_MARK_KEY);
+    } catch (err) {
+        // Reported, not rethrown: this runs inside the list queryFn, and a
+        // snapshot failure must not fail the fetch. A partial write leaves
+        // the keys disagreeing, so all of them are removed.
+        clearSwrCache();
+        reportSwrError(err, "orders-swr-write", { rows: orders.length, chars: serialized.length });
     }
 }
 
@@ -284,7 +338,7 @@ export function writeSwrCache(orders: Order[], windowKey: string): void {
  * refused: hydrating one showed, say, today's rows under an "All Orders" filter
  * as if they were fresh.
  */
-export function readSwrCache(windowKey: string): { orders: Order[]; savedAt: number } | null {
+export function readSwrCache(windowKey: string): { orders: Order[]; savedAt: number; mark: string | null } | null {
     try {
         const ts = sessionStorage.getItem(SWR_TS_KEY);
         if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
@@ -299,8 +353,11 @@ export function readSwrCache(windowKey: string): { orders: Order[]; savedAt: num
         // state while the real fetch is still in flight. A merchant with 4,778
         // orders was shown "When you receive orders, they'll appear here".
         if (!Array.isArray(parsed) || parsed.length === 0) return null;
-        return { orders: parsed, savedAt: Number(ts) };
-    } catch {
+        return { orders: parsed, savedAt: Number(ts), mark: sessionStorage.getItem(SWR_MARK_KEY) };
+    } catch (err) {
+        // Corrupt or unreadable: report it, drop it, and load from the server.
+        reportSwrError(err, "orders-swr-read");
+        clearSwrCache();
         return null;
     }
 }
@@ -343,7 +400,7 @@ export function shouldCancelBeforeWindowRefetch(state: Pick<QueryState<unknown>,
 }
 
 // Fetch the active tenant's orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
-async function fetchOrders(tenantId: string, window: OrderWindow = null): Promise<Order[]> {
+async function fetchOrders(tenantId: string, window: OrderWindow = null, mark: string | null = null): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
@@ -359,7 +416,7 @@ async function fetchOrders(tenantId: string, window: OrderWindow = null): Promis
     const resolved = resolveStaleContacted(result);
 
     // Persist to sessionStorage for SWR on next refresh
-    writeSwrCache(resolved, windowCacheKey(window));
+    writeSwrCache(resolved, windowCacheKey(window), mark);
 
     return resolved;
 }
@@ -461,9 +518,15 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
             const snapshot = readSwrCache(snapshotKey);
             if (snapshot) {
                 diag.log(`[Diag:RQ:SWR] Hydrated ${snapshot.orders.length} orders from sessionStorage`);
-                // The snapshot is a whole window as it was fetched: it covers that window.
-                markListLoaded(queryClient, snapshotKey, null);
+                // The snapshot is a whole window as it was fetched: it covers that
+                // window, and is complete up to the mark its fetch read.
+                markListLoaded(queryClient, snapshotKey, snapshot.mark);
                 queryClient.setQueryData(orderKeys.lists(), dedupeById(snapshot.orders), { updatedAt: snapshot.savedAt });
+                // A first paint only. It can be behind our own writes (the 2s
+                // refetch that used to follow every status change is gone) and
+                // anyone else's, so mark it stale: the query, enabled in this
+                // same pass, refetches on mount.
+                void queryClient.invalidateQueries({ queryKey: orderKeys.lists(), exact: true, refetchType: "none" });
             }
         }
         setSnapshotChecked(true);
@@ -477,7 +540,7 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
         queryKey: orderKeys.lists(),
         queryFn: () => {
             const t = requireTenant(tenantId);
-            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => readListMark(t), () => fetchOrders(t, windowRef.current));
+            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => readListMark(t), (mark) => fetchOrders(t, windowRef.current, mark));
         },
         enabled,
         // Short staleTime — realtime patches keep cache fresh between refetches
@@ -847,7 +910,7 @@ export function usePrefetchOrders() {
             queryKey: orderKeys.lists(),
             // Prefetch on hover has no filter context; it warms the unwindowed
             // list and the real query replaces it with the active window.
-            queryFn: () => trackListFetch(queryClient, "all", () => readListMark(tenantId), () => fetchOrders(tenantId, null)),
+            queryFn: () => trackListFetch(queryClient, "all", () => readListMark(tenantId), (mark) => fetchOrders(tenantId, null, mark)),
             // Match staleTime from useOrdersQuery
             staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });

@@ -75,6 +75,21 @@ describe("useOrdersQuery window gating", () => {
         await waitFor(() => expect(result.current.data).toEqual([]));
     });
 
+    it("hydrates a same-window snapshot as a first paint, then refetches it once even within the stale time", async () => {
+        // Without the 2s refetch after a status change, a snapshot can be
+        // behind our own writes: it must never stand in for a fetch.
+        sessionStorage.setItem("schneiders_orders_swr", JSON.stringify([{ id: "snap", status: "new" }]));
+        sessionStorage.setItem("schneiders_orders_swr_ts", String(Date.now()));
+        sessionStorage.setItem("schneiders_orders_swr_window", "all");
+        H.findWindow.mockResolvedValue([{ id: "fresh", status: "confirmed" }]);
+
+        const { result } = renderHook(() => useOrdersQuery(null, true), { wrapper: wrapper() });
+        await waitFor(() => expect(result.current.data?.map((o) => o.id)).toEqual(["fresh"]));
+        expect(H.findWindow).toHaveBeenCalledTimes(1);
+        await new Promise((r) => setTimeout(r, 20));
+        expect(H.findWindow).toHaveBeenCalledTimes(1);
+    });
+
     it("does not fetch until the active tenant is known", async () => {
         // RLS alone would return every tenant the user belongs to; the list is
         // one tenant's book, so with no tenant there is nothing to ask for.

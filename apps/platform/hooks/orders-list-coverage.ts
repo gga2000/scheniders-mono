@@ -198,7 +198,8 @@ export async function trackListFetch<T>(
     qc: QueryClient,
     windowKey: string,
     readMark: () => Promise<string | null>,
-    run: () => Promise<T>,
+    /** Receives the mark, so a snapshot of the rows can store what they are complete up to. */
+    run: (mark: string | null) => Promise<T>,
 ): Promise<T> {
     const store = storeFor(qc);
     const token = ++store.tokenSeq;
@@ -212,7 +213,7 @@ export async function trackListFetch<T>(
     if (store.inFlight?.token === token) store.inFlight.mark = mark;
 
     try {
-        return await run();
+        return await run(mark);
     } catch (err) {
         // `fetchOrders` ignores the abort signal, so a cancelled fetch resolves
         // and is discarded by React Query; a rejection here is a real error.
