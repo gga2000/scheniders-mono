@@ -3,6 +3,7 @@
 import { useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 // Decomposed hooks
 import { useOrderFilters } from "@/hooks/use-order-filters";
@@ -46,13 +47,14 @@ export function useOrders() {
     // REACT QUERY INTEGRATION FOR CACHING
     // =============================================
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
 
     // On app reopen, sync ONLY the delta (rows changed since the cache's
     // high-water mark) instead of re-pulling the whole ~5.8MB table. Skip when
     // there's no cache yet — the query fetches on its own once the session is ready.
     useAppLifecycle(() => {
         if (queryClient.getQueryData(orderKeys.lists())) {
-            void syncOrdersDelta(queryClient, "appReopen");
+            void syncOrdersDelta(queryClient, tenantId, "appReopen");
         }
     });
 
@@ -119,19 +121,24 @@ export function useOrders() {
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
+        tenantId,
         getWindow: () => ordersWindowRef.current,
         onReconnect: () => {
             // Reconnect: flush any missed events via an incremental delta sync,
             // not a full-table refetch.
-            void syncOrdersDelta(queryClient, "realtimeReconnect");
+            void syncOrdersDelta(queryClient, tenantId, "realtimeReconnect");
         }
     });
 
-    // Register batcher for mutation guard (mutations call markMutated on it)
+    // Register batcher for mutation guard (mutations call markMutated on it).
+    // The realtime channel, and with it the batcher, is created once the tenant
+    // is known and recreated on a tenant switch; the ref itself never changes,
+    // so tenantId is what re-runs this after useOrderRealtime's effect has set
+    // the new batcher (effects run in declaration order).
     useEffect(() => {
         setOrderBatcher(batcherRef.current);
         return () => setOrderBatcher(null);
-    }, [batcherRef]);
+    }, [batcherRef, tenantId]);
 
     // Server-computed aggregates. These describe the whole filter, not the rows
     // that happen to be loaded, which is what lets the fetch narrow to a window

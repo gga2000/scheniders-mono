@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export type IdentityEventType = "name" | "city" | "address" | "phone";
 
@@ -12,14 +13,16 @@ export interface IdentityEvent {
 }
 
 export function useIdentityTimeline(phone: string | undefined) {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["identity-timeline", phone],
+        queryKey: ["identity-timeline", tenantId, phone],
         queryFn: async (): Promise<IdentityEvent[]> => {
-            if (!phone) return [];
+            if (!phone || !tenantId) return [];
 
             const { data, error } = await supabase
                 .from("orders")
                 .select("customer_name, city, address_details, created_at, phone, secondary_phone")
+                .eq("tenant_id", tenantId)
                 .or(`phone.eq.${phone},secondary_phone.eq.${phone}`)
                 .order("created_at", { ascending: true });
             if (error) throw error;
@@ -61,7 +64,7 @@ export function useIdentityTimeline(phone: string | undefined) {
 
             return events;
         },
-        enabled: !!phone,
+        enabled: !!phone && !!tenantId,
         staleTime: 5 * 60 * 1000,
     });
 }

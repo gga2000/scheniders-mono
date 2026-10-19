@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { supabase, Order, OrderFilters, PrintBatch } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX, cleanPhoneForExport } from "@/lib/export-utils";
 
 // =============================================
@@ -50,6 +51,7 @@ export interface PrintStats {
 // =============================================
 
 export function usePrinting(orders: Order[]) {
+    const { tenantId } = useAuth();
     // State
     const [batches, setBatches] = useState<PrintBatch[]>([]);
     const [printHistory, setPrintHistory] = useState<PrintHistoryEntry[]>([]);
@@ -439,10 +441,13 @@ export function usePrinting(orders: Order[]) {
     // =============================================
 
     async function getCustomerOrderCount(phone: string): Promise<number> {
+        // The label counts this customer's orders with the merchant printing it.
+        if (!tenantId) return 1;
         try {
             const { count, error } = await supabase
                 .from("orders")
-                .select("*", { count: "exact", head: true })
+                .select("id", { count: "exact", head: true })
+                .eq("tenant_id", tenantId)
                 .eq("phone", phone)
                 .in("status", ["confirmed", "delivered", "in_transit"]);
 

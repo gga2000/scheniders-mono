@@ -2,10 +2,12 @@
 
 import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { generateFullSnapshot, restoreFromSnapshot, downloadSnapshot } from "@/lib/backup-utils";
 import { AlertTriangle, Upload, CheckCircle, Database, Download, FileSpreadsheet, Loader2 } from "lucide-react";
 
 export function DataSettings() {
+    const { tenantId } = useAuth();
     const [exporting, setExporting] = useState<string | null>(null);
 
     const downloadCSV = (content: string, filename: string) => {
@@ -51,9 +53,10 @@ export function DataSettings() {
     };
 
     const handleExportOrders = async () => {
+        if (!tenantId) return;
         setExporting("orders");
         try {
-            const { data, error } = await supabase.from('orders').select('*');
+            const { data, error } = await supabase.from('orders').select('*').eq('tenant_id', tenantId);
             if (error) throw error;
             const csv = convertToCSV(data);
             downloadCSV(csv, `orders_backup_${new Date().toISOString().split('T')[0]}.csv`);
@@ -86,9 +89,10 @@ export function DataSettings() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleCreateSnapshot = async () => {
+        if (!tenantId) return;
         setIsSnapshotting(true);
         try {
-            const snapshot = await generateFullSnapshot();
+            const snapshot = await generateFullSnapshot(tenantId);
             downloadSnapshot(snapshot);
             alert("Snapshot created successfully!");
         } catch (error) {

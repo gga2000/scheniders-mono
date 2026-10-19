@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import type { TrustScoreBreakdownItem, TrustAuditEvent } from "@/types/customer";
 
 export function useTrustScoreHistory(phone: string | undefined) {
@@ -57,19 +58,23 @@ export function useTrustAuditLog(phone: string | undefined, limit = 20, offset =
 }
 
 export function useTrustScoreBreakdown(phone: string | undefined) {
+    // customer_trust is keyed (tenant_id, phone): without the tenant filter a
+    // phone known to two of the caller's tenants makes maybeSingle() fail.
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customer-trust-breakdown", phone],
+        queryKey: ["customer-trust-breakdown", tenantId, phone],
         queryFn: async () => {
-            if (!phone) return [];
+            if (!phone || !tenantId) return [];
             const { data, error } = await supabase
                 .from("customer_trust")
                 .select("score_breakdown")
+                .eq("tenant_id", tenantId)
                 .eq("phone", phone)
                 .maybeSingle();
             if (error) throw error;
             return (data?.score_breakdown || []) as TrustScoreBreakdownItem[];
         },
-        enabled: !!phone,
+        enabled: !!phone && !!tenantId,
         staleTime: 5 * 60 * 1000,
     });
 }
