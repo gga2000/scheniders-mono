@@ -42,6 +42,13 @@ const attributes = (product: Product) =>
   React.createElement(product_attributes.render, { props: product_attributes.defaultProps, ctx: ctx(product) });
 const page = (...children: React.ReactElement[]) =>
   React.createElement(StoreBaseProvider, { base: "", children: null }, ...children);
+/** The direct-order form's submit button, whatever it is labelled. */
+const submitButton = (): HTMLButtonElement => {
+  const el = document.querySelector('form button[type="submit"]');
+  if (!(el instanceof HTMLButtonElement)) throw new Error("no submit button");
+  return el;
+};
+const alerts = () => screen.queryAllByRole("alert").map((a) => a.textContent ?? "");
 
 beforeEach(() => {
   useVariantStore.setState({ selected: {}, pickers: {} });
@@ -63,8 +70,7 @@ describe("pdp_direct_order variants (W6.5)", () => {
     expect(buttons).toHaveLength(3);
     expect((buttons[1] as HTMLButtonElement).disabled).toBe(true); // 100ml sold out
     // Submitting without a choice is refused with a message, not a sold-out state.
-    fireEvent.click(screen.getByRole("button", { name: /اطلب|تأكيد|order/i }));
-    const alerts = () => screen.queryAllByRole("alert").map((a) => a.textContent ?? "");
+    fireEvent.click(submitButton());
     expect(alerts().some((t) => t.includes("اختار الخيار أول"))).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
     fireEvent.click(buttons[2]);
@@ -86,8 +92,56 @@ describe("pdp_direct_order variants (W6.5)", () => {
     render(page(form(single)));
     const group = screen.getByRole("group", { name: "اختار الخيار" });
     expect(group.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0);
-    fireEvent.click(screen.getByRole("button", { name: /اطلب|تأكيد|order/i }));
+    fireEvent.click(submitButton());
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("with a picker section on the page, an Order tap without a choice says why and goes to the picker", () => {
+    render(page(picker(sized), form(sized)));
+    // The CTA asks for the choice instead of reading as a working Order button.
+    expect(submitButton().textContent).toContain("اختار الخيار");
+    expect(submitButton().disabled).toBe(false);
+    fireEvent.click(submitButton());
+    expect(fetch).not.toHaveBeenCalled();
+    expect(alerts().some((t) => t.includes("اختار الخيار أول"))).toBe(true);
+    // Focus lands on the picker's first option that can be bought.
+    expect(document.activeElement?.textContent).toBe("50ml");
+    // Choosing clears the message and the CTA goes back to ordering.
+    fireEvent.click(screen.getByRole("button", { name: "200ml" }));
+    expect(alerts().some((t) => t.includes("اختار الخيار أول"))).toBe(false);
+    expect(submitButton().textContent).not.toContain("اختار الخيار");
+  });
+
+  it("with the buy box owning the choice, an Order tap without a choice says why", () => {
+    render(page(buyBox(sized), form(sized)));
+    fireEvent.click(submitButton());
+    expect(fetch).not.toHaveBeenCalled();
+    expect(alerts().some((t) => t.includes("اختار الخيار أول"))).toBe(true);
+    expect(document.activeElement?.textContent).toContain("50ml");
+  });
+
+  it("a picker that hides sold-out options and has none left neither registers nor leaves a dead Order button", () => {
+    const allOut: Product = {
+      ...sized,
+      variants: sized.variants!.map((v) => ({ ...v, stock_quantity: 0 })),
+    };
+    const hidingPicker = React.createElement(pdp_variants.render, {
+      props: { ...pdp_variants.defaultProps, show_oos: false },
+      ctx: ctx(allOut),
+    });
+    render(page(hidingPicker, form(allOut)));
+    expect(useVariantStore.getState().pickers[plain.id] ?? 0).toBe(0);
+    // Nothing can be bought, so the form says sold out rather than asking.
+    expect(submitButton().disabled).toBe(true);
+    expect(submitButton().textContent).toContain("نفد المخزون");
+  });
+
+  it("states no stock count before a variant is chosen, then the chosen variant's own", () => {
+    render(page(picker(sized), form(sized)));
+    // 1 was a placeholder before the choice; it must never read as "only 1 left".
+    expect(screen.queryByText(/باقي \d+ قطع فقط/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "200ml" }));
+    expect(screen.getByText(/باقي 2 قطع فقط/)).toBeTruthy();
   });
 });
 

@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo } from "react";
 import { cn } from "./helpers/utils";
-import { useVariantStore } from "./helpers/variant-store";
+import { useVariantStore, variantPickerAnchor } from "./helpers/variant-store";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./pdp_variants";
 
@@ -67,26 +67,31 @@ export function PdpVariantsRender({
   const setSelected = (id: string | null) => select(productId, id);
 
   // Register as this product's picker so the direct-order form does not
-  // render a second one. Nothing is selected by default — the shopper picks
-  // (see helpers/variant-store); a choice that is no longer offered here is
+  // render a second one — but only while there are options to show. With
+  // show_oos off and every variant sold out this section renders nothing, and
+  // a registered picker that renders nothing would hide the form's own
+  // choice too. Nothing is selected by default — the shopper picks (see
+  // helpers/variant-store); a choice that is no longer offered here is
   // dropped rather than swapped for another the shopper never chose.
+  const showsOptions = ctx.product != null && visible.length > 0;
   useEffect(() => {
-    if (!productId) return;
+    if (!productId || !showsOptions) return;
     return registerPicker(productId);
-  }, [productId, registerPicker]);
+  }, [productId, showsOptions, registerPicker]);
   useEffect(() => {
     if (!productId || !selected) return;
     if (!visible.find((v) => v.id === selected)) select(productId, null);
   }, [productId, selected, visible, select]);
 
-  if (!ctx.product || visible.length === 0) return null;
+  if (!showsOptions) return null;
+  const anchor = variantPickerAnchor(productId);
 
   const locale = ctx.runtime.locale;
   const labelText = locale !== "en" ? "اختر الخيار" : "Choose option";
 
   if (props.layout === "dropdown") {
     return (
-      <section className="px-4 py-4">
+      <section className="px-4 py-4" {...anchor}>
         <label className="block">
           <span className="block font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
             {labelText}
@@ -124,7 +129,7 @@ export function PdpVariantsRender({
 
   if (props.layout === "swatches") {
     return (
-      <section className="px-4 py-4">
+      <section className="px-4 py-4" {...anchor}>
         <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
           {labelText}
         </p>
@@ -173,7 +178,7 @@ export function PdpVariantsRender({
 
   // Buttons (default)
   return (
-    <section className="px-4 py-4">
+    <section className="px-4 py-4" {...anchor}>
       <p className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft mb-bk-xs">
         {labelText}
       </p>
