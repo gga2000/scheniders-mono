@@ -217,3 +217,53 @@ order ⇒ ~12,700 rows/day, ~4.6M/year. Order status writes measure **~1.7 s** e
 database time per day with ~40% of it inside a 3-hour evening peak.
 
 Plan as though launching worldwide, even though the first cut is a few real tenants.
+
+---
+
+## 9. Kickoff prompt for a fresh session
+
+Paste this into a new Claude Code session on this repo. It is deliberately short — this document is the context.
+
+```text
+Repo: gga2000/scheniders-mono — multi-tenant e-commerce SaaS + OMS for the Iraq market.
+I'm continuing launch-readiness work handed over from a local Claude Code session.
+
+FIRST, before anything else: read docs/audits/WEB_HANDOFF.md in full (it's on main).
+It tells you what exists, where it lives, what has already been corrected, and what's next.
+Do NOT infer state from main alone — the master ledger, the 10-round audit, the final
+register, the remediation plan and the verdict all live on origin/feat/notifications-overhaul,
+and main does not show them. Treat that branch as read-only: other sessions push to it.
+
+Then confirm back to me, in your own words:
+  1. The two design decisions in §5.4 that gate everything downstream, and why nothing
+     measurable improves until they're settled.
+  2. Which of the six items in LAUNCH_READINESS_VERDICT.md you'd do first, and what you'd
+     re-verify before scheduling any of them.
+  3. One thing in the handoff you think is wrong or out of date. Check, don't flatter —
+     PRs #143, #145 and #146 merged after it was written and may have closed items.
+
+Hard constraints (full list in §2 — violating one wastes a day):
+  - Commit author MUST be: gga2000 <235769697+gga2000@users.noreply.github.com>
+    Any other author silently blocks the Vercel deploy — no build runs at all.
+  - pnpm only; Node 20 for installs (Node 24 crashes pnpm install). Never npm install.
+  - LTR only: <html lang> yes, <html dir> never, in every locale including Arabic.
+  - IQD, whole numbers with separators, no tax/VAT anywhere.
+  - Supabase is NEW sduvpgqwhxragxtxztur — never the OLD ibfdugifekivquwprqjc.
+  - Standing approval: merge green PRs on sight. But confirm the check actually RAN —
+    see §0 on 2-4 second CI failures.
+
+Working rules:
+  - Before scheduling any finding, re-read it at the deployed SHA (§0.1 of the charter
+    explains why; two findings were already withdrawn as fixed in production).
+  - Verify locally too: pnpm type-check, pnpm lint, pnpm exec vitest run <path>.
+  - Phase 1 of the charter is read-only. Do not start Phase 3 coding on the big register
+    until the §5.4 design decisions are made.
+  - §7 is the trap list. Read it once properly — every entry on it has already cost time.
+
+Then work the §5 list in order.
+```
+
+**One verification only a human can do**, carried over from the handover: exercise an admin action — an impersonation
+or any bulk action — and confirm `admin_activity_logs` gets a row with `admin_user_id` and `actor_email` populated.
+The table being empty was the original symptom (§5.1), so the table filling is the only proof the fix works. It was
+still at 0 rows when #143 merged, which is expected: deployed, not yet exercised.
