@@ -58,7 +58,7 @@ import {
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
-import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
+import { focusVariantPicker, stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import {
   BentoCard,
   ChunkyButton,
@@ -309,6 +309,7 @@ export function PdpDirectOrderRender({
   const referralFieldId = `${uid}-referral_code`;
   const errorId = (k: FieldKey) => `${uid}-${k}-error`;
   const submitErrorId = `${uid}-submit-error`;
+  const variantErrorId = `${uid}-variant-error`;
 
   const [qty, setQty] = useState(1);
   const [bumpAccepted, setBumpAccepted] = useState(false);
@@ -477,15 +478,22 @@ export function PdpDirectOrderRender({
   // the hero badge, and it lacked their guard against a zero price — which
   // would have read as 100% off rather than no discount at all.
   const discountPct = discountPercent(price, compareAt);
-  // Sold by variant and none chosen: there is nothing to count yet; the form
-  // asks for the choice at submit instead of calling the product sold out.
+  // Sold by variant and none chosen: there is no stock to count yet, so
+  // `stockLeft` is null — not a placeholder number that the quantity cap and
+  // the urgency line would read as real. The form asks for the choice at
+  // submit instead of calling the product sold out, unless no variant can be
+  // bought at all (`soldOut`), which is sold out.
   const awaitingVariant = chosen.needsVariant;
-  const stockLeft = awaitingVariant ? 1 : stockLeftFor(product, chosen.variant);
-  const oos = stockLeft <= 0;
+  const stockLeft: number | null = awaitingVariant
+    ? null
+    : stockLeftFor(product, chosen.variant);
+  const oos = chosen.soldOut || (stockLeft !== null && stockLeft <= 0);
   const maxQty = Math.min(
     props.max_qty,
-    stockLeft > 0 ? stockLeft : props.max_qty,
+    stockLeft !== null && stockLeft > 0 ? stockLeft : props.max_qty,
   );
+  // The "choose an option" message shows only while a choice is still owed.
+  const showVariantError = variantError && awaitingVariant;
   const atMinQty = qty <= 1;
   const atMaxQty = qty >= maxQty;
 
@@ -629,7 +637,7 @@ export function PdpDirectOrderRender({
   const urgencyMaxStock = props.urgency_max_stock ?? DEFAULT_URGENCY_MAX_STOCK;
   const urgency = urgencyRaw
     ? urgencyRaw.includes("{count}")
-      ? stockLeft > 0 && stockLeft <= urgencyMaxStock
+      ? stockLeft !== null && stockLeft > 0 && stockLeft <= urgencyMaxStock
         ? urgencyRaw.replace("{count}", String(stockLeft))
         : null
       : urgencyRaw
@@ -738,12 +746,18 @@ export function PdpDirectOrderRender({
       errors.alt_phone = s("phoneInvalid");
     }
     setFieldErrors(errors);
-    // The option sits above the form, so it is the first thing to fix.
+    // The option is the first thing to fix. It is either this form's own
+    // pills or, when a picker section owns the choice, that section — the
+    // message then shows beside the submit button, where the shopper tapped.
     setVariantError(awaitingVariant);
     const firstInvalid = FIELD_ORDER.find((k) => errors[k]);
     if (awaitingVariant) {
-      variantPillsRef.current?.scrollIntoView?.({ block: "center" });
-      variantPillsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+      if (chosen.pickerMounted) {
+        focusVariantPicker(product.id);
+      } else {
+        variantPillsRef.current?.scrollIntoView?.({ block: "center" });
+        variantPillsRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+      }
       return;
     }
     if (firstInvalid || !phone) {
@@ -1389,8 +1403,8 @@ export function PdpDirectOrderRender({
                     );
                   })}
                 </div>
-                {variantError && (
-                  <p role="alert" className={errorCls}>
+                {showVariantError && (
+                  <p id={variantErrorId} role="alert" className={errorCls}>
                     {s("chooseVariantFirst")}
                   </p>
                 )}
@@ -1826,7 +1840,12 @@ export function PdpDirectOrderRender({
                 aria-busy={submitting || undefined}
                 aria-disabled={submitting || undefined}
                 aria-describedby={
-                  status === "error" ? submitErrorId : undefined
+                  [
+                    showVariantError ? variantErrorId : null,
+                    status === "error" ? submitErrorId : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined
                 }
               >
                 {submitting ? (
@@ -1839,10 +1858,24 @@ export function PdpDirectOrderRender({
                   </>
                 ) : oos ? (
                   s("outOfStock")
+                ) : awaitingVariant ? (
+                  s("chooseVariant")
                 ) : (
                   submitLabel
                 )}
               </ChunkyButton>
+
+              {/* A picker section owns the choice, so the form has no pills to
+                  hang the message on — say it here, where the shopper tapped. */}
+              {showVariantError && chosen.pickerMounted && (
+                <p
+                  id={variantErrorId}
+                  role="alert"
+                  className="text-center font-label font-bold text-sm text-bk-danger"
+                >
+                  {s("chooseVariantFirst")}
+                </p>
+              )}
 
               {reassurance && (
                 <p
