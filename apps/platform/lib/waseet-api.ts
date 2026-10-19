@@ -586,3 +586,161 @@ export async function getDefaultPackageSizeId(): Promise<number> {
 export async function testConnection(): Promise<WaseetApiResult<WaseetStatus[]>> {
     return fetchStatuses();
 }
+
+// =============================================
+// LOCATION CATALOGUE SYNC
+// =============================================
+
+export interface LocationSyncResult {
+    cities: number;
+    regions: number;
+    failedCities: number[];
+    duplicates: number;
+    districts: number;
+    splitNames: number;
+    reviewPairs: number;
+}
+
+/**
+ * Refresh the local mirror of Al-Waseet's delivery destinations into
+ * `waseet_cities` / `waseet_regions`.
+ *
+ * An Al-Waseet order can only be created with a `region_id` that exists in
+ * their catalogue, so checkout reads the mirror instead of calling their API
+ * per keystroke. Both source endpoints are unauthenticated, but they still
+ * count against the 30-req/30s budget, hence the shared rate limiter.
+ *
+ * Rows are upserted, never deleted: an id that disappears upstream may still
+ * be referenced by an order we already shipped.
+ */
+export async function syncLocationCatalog(triggeredBy = "manual"): Promise<WaseetApiResult<LocationSyncResult>> {
+    const supabaseAdmin = createSupabaseServiceClient();
+
+    const citiesResult = await waseetRequest<WaseetCity[]>("citys", "GET", undefined, undefined, {
+        requiresAuth: false,
+        triggeredBy,
+    });
+
+    if (!citiesResult.success || !citiesResult.data) {
+        return { success: false, error: citiesResult.error || "Al-Waseet returned no cities" };
+    }
+
+    const cityRows = citiesResult.data.map(c => ({
+        id: Number(c.id),
+        name_ar: c.city_name,
+        synced_at: new Date().toISOString(),
+    }));
+
+    const { error: cityError } = await supabaseAdmin
+        .from("waseet_cities")
+        .upsert(cityRows, { onConflict: "id" });
+
+    if (cityError) {
+        return { success: false, error: `Failed to upsert cities: ${cityError.message}` };
+    }
+
+    let regionCount = 0;
+    const failedCities: number[] = [];
+
+    for (const city of cityRows) {
+        const regionsResult = await waseetRequest<WaseetRegion[]>("regions", "GET", { city_id: city.id }, undefined, {
+            requiresAuth: false,
+            triggeredBy,
+        });
+
+        if (!regionsResult.success || !regionsResult.data) {
+            failedCities.push(city.id);
+            continue;
+        }
+
+        const regionRows = regionsResult.data.map(r => ({
+            id: Number(r.id),
+            city_id: city.id,
+            name_ar: r.region_name,
+            synced_at: new Date().toISOString(),
+        }));
+
+        if (regionRows.length === 0) continue;
+
+        const { error: regionError } = await supabaseAdmin
+            .from("waseet_regions")
+            .upsert(regionRows, { onConflict: "id" });
+
+        if (regionError) {
+            failedCities.push(city.id);
+            continue;
+        }
+
+        regionCount += regionRows.length;
+    }
+
+    // Name cleaning is done by generated columns, so it is already applied by
+    // the time the upsert returns. Grouping is not: duplicates, districts and
+    // the review queue all have to look across sibling rows, so they are
+    // rebuilt here — in this order, since districts read the canonical names
+    // and the review queue only compares canonical rows.
+    const { data: duplicates, error: canonicalError } = await supabaseAdmin
+        .rpc("waseet_refresh_canonical_regions");
+
+    if (canonicalError) {
+        return { success: false, error: `Failed to refresh canonical regions: ${canonicalError.message}` };
+    }
+
+    // Districts, the un-glue pass and districts again: splitting a run-together
+    // name needs the district vocabulary, and the split then exposes districts
+    // that were hidden inside a glued token.
+    const { error: firstDistrictError } = await supabaseAdmin.rpc("waseet_refresh_districts");
+
+    if (firstDistrictError) {
+        return { success: false, error: `Failed to refresh districts: ${firstDistrictError.message}` };
+    }
+
+    const { data: splitCount, error: splitError } = await supabaseAdmin
+        .rpc("waseet_refresh_split_names");
+
+    if (splitError) {
+        return { success: false, error: `Failed to split run-together names: ${splitError.message}` };
+    }
+
+    const { data: districtRows, error: districtError } = await supabaseAdmin
+        .rpc("waseet_refresh_districts");
+
+    if (districtError) {
+        return { success: false, error: `Failed to refresh districts: ${districtError.message}` };
+    }
+
+    // Reference data that hangs off the names: the official postal code, and
+    // the curated area -> municipality gazetteer. Both key off the cleaned
+    // names, so they run after the split.
+    const { error: postalError } = await supabaseAdmin.rpc("waseet_refresh_postal_codes");
+
+    if (postalError) {
+        return { success: false, error: `Failed to match postal codes: ${postalError.message}` };
+    }
+
+    const { error: municipalityError } = await supabaseAdmin.rpc("waseet_refresh_municipalities");
+
+    if (municipalityError) {
+        return { success: false, error: `Failed to match municipalities: ${municipalityError.message}` };
+    }
+
+    const { data: reviewPairs, error: reviewError } = await supabaseAdmin
+        .rpc("waseet_refresh_region_review");
+
+    if (reviewError) {
+        return { success: false, error: `Failed to refresh the region review queue: ${reviewError.message}` };
+    }
+
+    return {
+        success: true,
+        data: {
+            cities: cityRows.length,
+            regions: regionCount,
+            failedCities,
+            duplicates: duplicates ?? 0,
+            districts: districtRows?.[0]?.districts ?? 0,
+            splitNames: splitCount ?? 0,
+            reviewPairs: reviewPairs ?? 0,
+        },
+    };
+}
