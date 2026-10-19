@@ -14,7 +14,7 @@ function orderPayload(utm?: Array<{ k: string; v: string }>) {
             id: "order_hnIxTFemTest",
             _id: 118653464,
             name: "7455",
-            phone: "07802301677",
+            phone: "07801234567",
             customer: { full_name: "Test Customer" },
             shipping_address: { city: "بغداد", line1: "الكرادة" },
             items: [{ title: "عطر", price: 25000, sku: "SKU-1" }],
@@ -28,7 +28,7 @@ function apiCheckout(utm?: Array<{ k: string; v: string }>) {
     return {
         id: "checkout_abc",
         _id: 119148519,
-        phone: "07802301677",
+        phone: "07801234567",
         customer: { full_name: "Test Customer" },
         shipping_address: { city: "بغداد", line1: "الكرادة" },
         variants: [{ quantity: 1, variant: { title: "عطر", price: 25000, sku: "SKU-1" } }],

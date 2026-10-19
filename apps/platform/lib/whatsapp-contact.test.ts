@@ -8,7 +8,7 @@ import {
     type OrderPhones,
 } from "./whatsapp-contact";
 
-const PRIMARY = "07802301677";
+const PRIMARY = "07801234567";
 const SECONDARY = "07811262261";
 
 function phones(overrides: Partial<OrderPhones> = {}): OrderPhones {

@@ -591,7 +591,7 @@ export async function generateA6InvoiceHTML(order: Order, options: EnhancedLabel
     // QR code should contain the same as displayed for consistency
     const qrCodeData = displayOrderIdForInvoice;
 
-    // Format phone number with spaces for readability (e.g., 0770 230 1677)
+    // Format phone number with spaces for readability (e.g., 0770 123 4567)
     const formatPhoneWithSpaces = (phone: string): string => {
         const cleaned = phone?.replace(/\D/g, '') || '';
         if (cleaned.length === 11) {
@@ -749,7 +749,7 @@ export async function generateA6InvoiceModern(order: Order, options: EnhancedLab
     // Display order ID
     const displayOrderId = getBaseOrderId(order.order_id);
 
-    // Format phone with spaces for Iraqi format (0780 230 1677)
+    // Format phone with spaces for Iraqi format (0780 123 4567)
     const formatPhoneSpaced = (phone: string): string => {
         if (!phone) return '';
         // Remove any non-digit characters except +
@@ -763,7 +763,7 @@ export async function generateA6InvoiceModern(order: Order, options: EnhancedLab
         // Remove leading zeros if more than one
         cleaned = cleaned.replace(/^0+/, '0');
 
-        // Format as 0780 230 1677 (4-3-4 pattern)
+        // Format as 0780 123 4567 (4-3-4 pattern)
         if (cleaned.length === 11) {
             return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
         } else if (cleaned.length === 10) {

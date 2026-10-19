@@ -8,7 +8,7 @@ export function formatCompactIQD(value: number): string {
     return Math.round(value).toLocaleString('en-US');
 }
 
-/** Iraqi phone for display: any input → "0780 230 1677" (LTR, Western digits). */
+/** Iraqi phone for display: any input → "0780 123 4567" (LTR, Western digits). */
 export function formatPhoneDisplay(raw: string): string {
     let digits = (raw || '').replace(/\D/g, '');
     if (digits.startsWith('964') && digits.length > 10) digits = digits.slice(3);
@@ -17,7 +17,7 @@ export function formatPhoneDisplay(raw: string): string {
     return `0${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 }
 
-/** Normalise any Iraqi phone to E.164 digits without "+": "07802301677" → "9647802301677". */
+/** Normalise any Iraqi phone to E.164 digits without "+": "07801234567" → "9647801234567". */
 export function toIraqE164(raw: string): string {
     let d = (raw || '').replace(/\D/g, '');
     if (d.startsWith('964')) d = d.slice(3);
