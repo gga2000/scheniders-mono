@@ -177,7 +177,7 @@ async function withAttributes(
  *  20260817125055_anon_products_column_lockdown.sql and later grants) —
  *  an ungranted column fails the whole anon select. */
 export const PRODUCT_COLUMNS =
-  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank, brand, size_ml, display_name";
+  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank, brand, size_ml, display_name, gender";
 
 
 export const listProducts = cache(
@@ -587,5 +587,12 @@ function normalizeProduct(row: Record<string, unknown>): Product {
     price: r.website_price ?? r.price,
     gallery_urls: coerceGalleryUrls(row.gallery_urls),
     feature_cards: coerceFeatureCards(row.feature_cards),
+    gender: coerceGender(row.gender),
   };
+}
+
+/** products.gender is CHECK-constrained to this set; anything else (an
+ *  older row shape, a builder fixture) renders no tag rather than a raw value. */
+function coerceGender(raw: unknown): Product["gender"] {
+  return raw === "men" || raw === "women" || raw === "unisex" ? raw : null;
 }

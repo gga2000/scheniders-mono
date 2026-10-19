@@ -1,9 +1,10 @@
-// Express identity label: brand eyebrow, the perfume name as the h1, then
-// size and the real rating. Every fact is merchant-entered product data;
-// absent data simply isn't shown.
+// Express identity label: the perfume name as the h1, then quiet tags —
+// brand, who it is for, bottle size — and the real rating. Every fact is
+// merchant-entered product data; absent data simply isn't shown.
 
+import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
-import { Stars } from "../helpers/primitives";
+import { MaterialIcon, Stars } from "../helpers/primitives";
 import type { Product } from "../types";
 import { readsRtl, xs } from "./text";
 
@@ -23,6 +24,32 @@ export function displayNameOf(product: Product): string {
   return stripped || name;
 }
 
+const GENDER_ICON = { men: "man", women: "woman", unisex: "wc" } as const;
+
+function Tag({
+  children,
+  strong,
+  className,
+}: {
+  children: React.ReactNode;
+  strong?: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-7 items-center gap-1 rounded-bk-pill px-2.5 font-bk-body text-xs font-bold",
+        strong
+          ? "bg-bk-secondary text-bk-on-secondary"
+          : "border-bk border-bk-divider text-bk-ink-soft",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function IdentityLabel({
   product,
   locale,
@@ -39,47 +66,43 @@ export function IdentityLabel({
   const rtl = readsRtl(locale);
   const brand = product.brand?.trim();
   const size = product.size_ml;
-  const align = rtl ? "items-end text-right" : "items-start text-left";
+  const gender = product.gender;
   const rating = showRating && reviewCount > 0;
+  const align = rtl ? "items-end text-right" : "items-start text-left";
 
   return (
-    <div className={`flex flex-col gap-1 ${align}`}>
-      {brand && (
-        <p
-          className="font-bk-body text-xs font-bold uppercase tracking-[0.18em] text-bk-ink-soft"
-          translate="no"
-        >
-          {brand}
-        </p>
-      )}
-      <h1 className="font-bk-display text-[28px] font-black leading-[1.1] text-bk-ink text-balance">
+    <div className={cn("flex flex-col gap-2", align)}>
+      <h1 className="font-bk-display text-[30px] font-black leading-[1.1] text-bk-ink text-balance">
         {displayNameOf(product)}
       </h1>
-      {(size || rating) && (
-        <div
-          className={`mt-0.5 flex flex-wrap items-center gap-2 ${rtl ? "flex-row-reverse" : ""}`}
-        >
+      {(brand || gender || size || rating) && (
+        <div className={cn("flex flex-wrap items-center gap-1.5", rtl && "flex-row-reverse")}>
+          {brand && (
+            <Tag strong>
+              <span translate="no" className="tracking-wide">
+                {brand}
+              </span>
+            </Tag>
+          )}
+          {gender && (
+            <Tag>
+              <MaterialIcon name={GENDER_ICON[gender]} className="text-sm" />
+              {xs(gender, locale)}
+            </Tag>
+          )}
           {size ? (
-            <span className="rounded-bk-pill border-bk border-bk-divider px-2.5 py-0.5 font-bk-body text-xs font-bold tabular-nums text-bk-ink-soft">
+            <Tag className="tabular-nums">
               <bdi>{xs("sizeMl", locale, { n: size })}</bdi>
-            </span>
+            </Tag>
           ) : null}
           {rating && (
-            <span
-              className={`flex items-center gap-1.5 font-bk-body text-xs font-bold text-bk-ink ${rtl ? "flex-row-reverse" : ""}`}
-            >
-              <Stars
-                value={avgRating}
-                size={13}
-                label={`${avgRating.toFixed(1)} / 5`}
-              />
-              <span className="tabular-nums">
-                <bdi>{avgRating.toFixed(1)}</bdi>
+            <Tag className={cn("text-bk-ink", rtl && "flex-row-reverse")}>
+              <Stars value={avgRating} size={12} label={`${avgRating.toFixed(1)} / 5`} />
+              <bdi className="tabular-nums">{avgRating.toFixed(1)}</bdi>
+              <span className="font-normal text-bk-ink-soft">
+                ({xs("reviews", locale, { count: reviewCount })})
               </span>
-              <span className="text-bk-ink-soft underline decoration-bk-divider underline-offset-2">
-                {xs("reviews", locale, { count: reviewCount })}
-              </span>
-            </span>
+            </Tag>
           )}
         </div>
       )}

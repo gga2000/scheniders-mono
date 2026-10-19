@@ -130,6 +130,11 @@ const schema = z.object({
     .max(SOON_PAYMENT_METHODS.length)
     .optional()
     .catch(undefined),
+  /** Express: label beside the struck price (e.g. "price before the
+   *  discount"). A merchant claim about the struck price, so empty = none. */
+  compare_label_i18n: i18nStringOptional.catch(undefined),
+  /** Express: label beside the price the shopper pays. Empty = none. */
+  price_label_i18n: i18nStringOptional.catch(undefined),
   /** Express: show the concrete "you save X" amount. Off unless the merchant
    *  confirms the struck prices are real regular prices. */
   show_savings: z.boolean().optional().catch(undefined),

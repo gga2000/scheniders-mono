@@ -24,6 +24,7 @@ import { IdentityLabel, displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
 import { OfferClock } from "./offer-clock";
 import { OrderLine } from "./order-line";
+import { phoneDigits, phoneIssue } from "./phone";
 import { PricePlate } from "./price-plate";
 
 export function PdpExpress({ model: m }: { model: ExpressModel }) {
@@ -60,6 +61,8 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
               discountPct={m.discountPct}
               qty={m.qty}
               showSavings={props.show_savings === true}
+              compareLabel={resolveI18n(props.compare_label_i18n, locale)}
+              priceLabel={resolveI18n(props.price_label_i18n, locale)}
               locale={locale}
               flash={m.priceFlashAt !== null}
               plateRef={m.priceRowRef}
@@ -73,7 +76,18 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
         <form
           id={DIRECT_ORDER_FORM_ID}
           noValidate
-          onSubmit={(e) => m.onSubmit(e, { addressSuffix: landmark })}
+          onSubmit={(e) => {
+            // The express phone check is stricter than the shared one (it
+            // also knows the operator ranges): a number it rejects never
+            // posts, and focus goes back to the field showing why.
+            const issue = phoneIssue(phoneDigits(m.form.phone), true);
+            if (m.form.phone.trim() !== "" && issue && issue !== "short") {
+              e.preventDefault();
+              document.getElementById(m.fieldA11yCore("phone").id)?.focus();
+              return;
+            }
+            void m.onSubmit(e, { addressSuffix: landmark });
+          }}
           onFocusCapture={m.onFormFocus}
           className="scroll-mt-24 space-y-bk-md pt-bk-xs"
         >
@@ -139,6 +153,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
               decreaseLabel={m.s("decrease")}
               increaseLabel={m.s("increase")}
               soon={props.payment_soon ?? []}
+              idBase={m.submitErrorId}
             />
           )}
 

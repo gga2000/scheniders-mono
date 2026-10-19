@@ -4,9 +4,28 @@
 
 export const EXPRESS_STRINGS = {
   formTitle: {
-    en: "Your name, number and address — we'll lock in your order",
-    ar: "اكتب اسمك ورقمك وعنوانك، ونثبّتلك الطلب",
+    en: "Start with your mobile number",
+    ar: "اكتب رقم موبايلك ونكمل طلبك",
   },
+  phoneShort: {
+    en: "The number is short: {count} of 11 digits",
+    ar: "الرقم ناقص: {count} من 11 رقم",
+  },
+  phoneLong: {
+    en: "The number is too long: Iraqi mobiles are 11 digits",
+    ar: "الرقم أطول من اللازم: رقم الموبايل العراقي 11 رقم",
+  },
+  phonePrefix: {
+    en: "Iraqi mobile numbers start with 07",
+    ar: "رقم الموبايل العراقي يبدي بـ 07",
+  },
+  phoneOperator: {
+    en: "Check the number: it should start 075, 077, 078 or 079",
+    ar: "تأكد من الرقم: لازم يبدي بـ 075 أو 077 أو 078 أو 079",
+  },
+  men: { en: "Men", ar: "رجالي" },
+  women: { en: "Women", ar: "نسائي" },
+  unisex: { en: "Unisex", ar: "للجنسين" },
   greeting: { en: "Welcome, {name}", ar: "هلا {name}، نوّرتنا" },
   addressPrompt: { en: "Where should we deliver?", ar: "وين نوصّلها إلك؟" },
   addressPromptNamed: {
@@ -33,8 +52,7 @@ export const EXPRESS_STRINGS = {
   quantity: { en: "Quantity", ar: "الكمية" },
   payment: { en: "Payment", ar: "الدفع" },
   cashOnDelivery: { en: "Cash on delivery", ar: "كاش عند الاستلام" },
-  soonList: { en: "Soon: {list}", ar: "قريباً: {list}" },
-  listSep: { en: ", ", ar: "، " },
+  soon: { en: "Soon", ar: "قريباً" },
   qi_card: { en: "Qi Card", ar: "كي كارد" },
   zain_cash: { en: "Zain Cash", ar: "زين كاش" },
   discount: { en: "OFF", ar: "خصم" },
@@ -44,7 +62,6 @@ export const EXPRESS_STRINGS = {
   },
   youSave: { en: "You save {amount}", ar: "توفّر {amount}" },
   onQty: { en: "on {count} pieces", ar: "على {count} قطع" },
-  itemsLine: { en: "{name} × {count}", ar: "{name} × {count}" },
   delivery: { en: "Delivery", ar: "التوصيل" },
   deliveryFreeEverywhere: {
     en: "Free to every governorate",
@@ -53,7 +70,6 @@ export const EXPRESS_STRINGS = {
   deliveryFree: { en: "Free", ar: "مجاني" },
   deliveryPending: { en: "Choose governorate", ar: "اختر المحافظة" },
   savingsRow: { en: "Your saving", ar: "توفيرك" },
-  total: { en: "You pay on delivery", ar: "تدفع عند الاستلام" },
   totalPlain: { en: "Total", ar: "المجموع" },
   submitSubline: {
     en: "{total} · cash on delivery",
@@ -61,10 +77,7 @@ export const EXPRESS_STRINGS = {
   },
   whatsapp: { en: "Order on WhatsApp", ar: "اطلب عبر واتساب" },
   morePhotos: { en: "See {count} photos", ar: "شوف {count} صور" },
-  closePhotos: { en: "Close photos", ar: "سكّر الصور" },
   photoOf: { en: "Photo {n} of {total}", ar: "صورة {n} من {total}" },
-  pauseRotation: { en: "Pause photos", ar: "وقّف الصور" },
-  playRotation: { en: "Play photos", ar: "شغّل الصور" },
   reviews: { en: "{count} reviews", ar: "{count} تقييم" },
   sizeMl: { en: "{n} ml", ar: "{n} مل" },
   clockAria: {

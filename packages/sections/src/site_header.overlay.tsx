@@ -4,10 +4,12 @@
 // site_header — overlay surface (floating_pill only)
 // =====================================================================
 // The header takes no flow space and floats over the page's full-bleed
-// hero as two glass chips: the menu at the left, the wordmark at the
+// hero as two glass chips: the wordmark at the left, the menu at the
 // right. A hero marks its bottom edge with [data-pdp-hero-end]; once that
 // edge scrolls up under the chips the bar turns solid so it never sits
 // as bare chips over the form. A page with no hero mark renders solid.
+// With the instance's `sticky` off, the chips simply scroll away with the
+// hero — the header is part of the photo, not a bar.
 // =====================================================================
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -93,21 +95,6 @@ export function OverlayHeader({
         )}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-          {hasSheet ? (
-            <button
-              ref={toggleRef}
-              type="button"
-              onClick={() => setOpen((o) => !o)}
-              aria-label={menuLabel}
-              aria-expanded={open}
-              aria-controls={sheetId}
-              className={cn(chip, "w-11 justify-center")}
-            >
-              <MaterialIcon name={open ? "close" : "menu"} className="text-2xl" />
-            </button>
-          ) : (
-            <span aria-hidden="true" />
-          )}
           <StoreLink
             href="/"
             onClick={close}
@@ -132,6 +119,21 @@ export function OverlayHeader({
               />
             )}
           </StoreLink>
+          {hasSheet ? (
+            <button
+              ref={toggleRef}
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-label={menuLabel}
+              aria-expanded={open}
+              aria-controls={sheetId}
+              className={cn(chip, "w-11 justify-center")}
+            >
+              <MaterialIcon name={open ? "close" : "menu"} className="text-2xl" />
+            </button>
+          ) : (
+            <span aria-hidden="true" />
+          )}
         </div>
       </div>
       {hasSheet && (

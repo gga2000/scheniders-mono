@@ -42,6 +42,7 @@ export interface Product extends BaseProduct {
   brand?: string | null;
   display_name?: string | null;
   size_ml?: number | null;
+  gender?: "men" | "women" | "unisex" | null;
   /** Approved-review aggregates, merged in by lib/queries (real data only). */
   review_count?: number;
   avg_rating?: number;

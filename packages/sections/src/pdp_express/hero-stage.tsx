@@ -1,11 +1,11 @@
 "use client";
 
-// Express hero stage: a smaller, never-cropped product photo on a soft
-// brand gradient. Extra photos live in a small deck at the bottom-left
-// that rotates on its own; tapping it opens the focus strip below the
-// hero so the shopper can study one photo at a time.
+// Express hero stage: the product photo fills the top half of the screen,
+// edge to edge. Extra photos live in a small deck at its bottom-left that
+// rotates on its own; tapping the deck slides a row of thumbnails out
+// under the photo, and tapping a thumbnail makes it the main photo.
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import Image from "next/image";
 import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "@scheniders/shared";
@@ -34,22 +34,23 @@ function usePrefersReducedMotion(): boolean {
 const ThumbDeck = memo(function ThumbDeck({
   images,
   total,
-  alt,
   intervalMs,
+  paused,
+  open,
   locale,
-  onOpen,
+  onToggle,
 }: {
-  /** The extra photos only — the cover is already the hero. */
+  /** The photos the deck cycles through (every photo but the one shown). */
   images: string[];
-  /** Every photo, cover included (the badge count). */
+  /** Every photo, the shown one included (the badge count). */
   total: number;
-  alt: string;
   intervalMs: number;
+  paused: boolean;
+  open: boolean;
   locale: LocaleCode;
-  onOpen: (index: number) => void;
+  onToggle: () => void;
 }) {
   const [front, setFront] = useState(0);
-  const [paused, setPaused] = useState(false);
   const reduce = usePrefersReducedMotion();
   const running = !paused && !reduce && images.length > 1;
 
@@ -58,10 +59,7 @@ const ThumbDeck = memo(function ThumbDeck({
     let id: ReturnType<typeof setInterval> | null = null;
     const start = () => {
       if (id === null) {
-        id = setInterval(
-          () => setFront((f) => (f + 1) % images.length),
-          intervalMs,
-        );
+        id = setInterval(() => setFront((f) => (f + 1) % images.length), intervalMs);
       }
     };
     const stop = () => {
@@ -83,144 +81,52 @@ const ThumbDeck = memo(function ThumbDeck({
     .map((d) => (front + d) % images.length);
 
   return (
-    <div className="absolute bottom-3 left-3 z-10 flex items-end gap-2">
-      <button
-        type="button"
-        // +1: the focus strip lists the cover first.
-        onClick={() => onOpen(front + 1)}
-        aria-label={xs("morePhotos", locale, { count: total })}
-        className="relative h-[84px] w-[64px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus rounded-bk-input"
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={xs("morePhotos", locale, { count: total })}
+      className="absolute bottom-4 left-4 z-10 h-[78px] w-[60px] rounded-bk-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+    >
+      {stack
+        .slice()
+        .reverse()
+        .map((imgIndex) => {
+          const depth = stack.indexOf(imgIndex);
+          const src = images[imgIndex];
+          if (!src) return null;
+          return (
+            <span
+              key={imgIndex}
+              aria-hidden="true"
+              className="absolute inset-0 overflow-hidden rounded-bk-input border-bk-bold border-bk-surface bg-bk-surface shadow-bk-card transition-[transform,opacity] duration-bk-base ease-out motion-reduce:transition-none"
+              style={{
+                transform: `translate(${depth * 7}px, ${depth * -5}px) scale(${1 - depth * 0.08})`,
+                opacity: depth === 0 ? 1 : 1 - depth * 0.3,
+                zIndex: 3 - depth,
+              }}
+            >
+              <Image
+                src={src}
+                alt=""
+                fill
+                sizes="60px"
+                unoptimized={!isOptimizableImageHost(src)}
+                className="object-cover"
+              />
+            </span>
+          );
+        })}
+      <span
+        aria-hidden="true"
+        className="absolute -bottom-1.5 -right-1.5 z-10 flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-bk-pill bg-bk-secondary px-1.5 font-bk-display text-[11px] font-black tabular-nums text-bk-on-secondary"
       >
-        {stack
-          .slice()
-          .reverse()
-          .map((imgIndex) => {
-            const depth = stack.indexOf(imgIndex);
-            const src = images[imgIndex];
-            if (!src) return null;
-            return (
-              <span
-                key={imgIndex}
-                aria-hidden="true"
-                className="absolute inset-0 overflow-hidden rounded-bk-input border-bk border-bk-surface bg-bk-surface shadow-bk-card transition-[transform,opacity] duration-bk-base ease-out motion-reduce:transition-none"
-                style={{
-                  transform: `translate(${depth * 7}px, ${depth * -5}px) scale(${1 - depth * 0.08})`,
-                  opacity: depth === 0 ? 1 : 1 - depth * 0.3,
-                  zIndex: 3 - depth,
-                }}
-              >
-                <Image
-                  src={src}
-                  alt=""
-                  fill
-                  sizes="64px"
-                  unoptimized={!isOptimizableImageHost(src)}
-                  className="object-cover"
-                />
-              </span>
-            );
-          })}
-        <span
-          aria-hidden="true"
-          className="absolute -bottom-1.5 -right-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-bk-pill bg-bk-secondary px-1.5 font-bk-display text-[11px] font-black tabular-nums text-bk-on-secondary"
-        >
-          {total}
-        </span>
-      </button>
-      {images.length > 1 && !reduce && (
-        <button
-          type="button"
-          onClick={() => setPaused((p) => !p)}
-          aria-pressed={paused}
-          aria-label={xs(paused ? "playRotation" : "pauseRotation", locale)}
-          className="flex h-11 w-11 items-center justify-center"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-bk-pill bg-bk-surface/80 text-bk-ink shadow-bk-card backdrop-blur-sm">
-            <MaterialIcon
-              name={paused ? "play_arrow" : "pause"}
-              className="text-base"
-            />
-          </span>
-        </button>
-      )}
-      <span className="sr-only">{alt}</span>
-    </div>
+        <MaterialIcon name={open ? "expand_less" : "photo_library"} className="text-[13px]" />
+        {total}
+      </span>
+    </button>
   );
 });
-
-/** The inline focus strip under the hero — every photo, one at a time,
- *  swipeable, never cropped. */
-function FocusPanel({
-  images,
-  alt,
-  startIndex,
-  locale,
-  onClose,
-}: {
-  images: string[];
-  alt: string;
-  startIndex: number;
-  locale: LocaleCode;
-  onClose: () => void;
-}) {
-  const stripRef = useRef<HTMLDivElement | null>(null);
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-  const [current, setCurrent] = useState(startIndex);
-
-  useEffect(() => {
-    const strip = stripRef.current;
-    if (strip) strip.scrollLeft = strip.clientWidth * startIndex;
-    closeRef.current?.focus({ preventScroll: true });
-  }, [startIndex]);
-
-  return (
-    <div className="bg-bk-surface-alt pb-bk-sm">
-      <div
-        ref={stripRef}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          setCurrent(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)));
-        }}
-        className={cn(
-          "flex snap-x snap-mandatory overflow-x-auto",
-          HIDE_SCROLLBAR,
-        )}
-      >
-        {images.map((src, i) => (
-          <div
-            key={`${i}-${src}`}
-            className="relative aspect-[4/5] max-h-[72vh] w-full shrink-0 snap-center"
-          >
-            <Image
-              src={src}
-              alt={xs("photoOf", locale, { n: i + 1, total: images.length }) + ` — ${alt}`}
-              fill
-              sizes="100vw"
-              unoptimized={!isOptimizableImageHost(src)}
-              className="object-contain"
-            />
-          </div>
-        ))}
-      </div>
-      <div className="flex h-11 items-center justify-between px-4">
-        <span className="font-bk-body text-sm tabular-nums text-bk-ink-soft">
-          <bdi>
-            {Math.min(current, images.length - 1) + 1} / {images.length}
-          </bdi>
-        </span>
-        <button
-          ref={closeRef}
-          type="button"
-          onClick={onClose}
-          className="flex h-11 items-center gap-1 px-2 font-bk-body text-sm font-bold text-bk-ink"
-        >
-          <MaterialIcon name="close" className="text-lg" />
-          {xs("closePhotos", locale)}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export function HeroStage({
   images,
@@ -233,67 +139,96 @@ export function HeroStage({
   locale: LocaleCode;
   intervalMs: number;
 }) {
-  const [focusAt, setFocusAt] = useState<number | null>(null);
-  const cover = images[0];
-  const extras = images.slice(1);
-
-  if (!cover) return null;
+  const [active, setActive] = useState(0);
+  const [thumbsOpen, setThumbsOpen] = useState(false);
+  const current = images[active] ?? images[0];
+  if (!current) return null;
+  const others = images.filter((_, i) => i !== active);
 
   return (
     <div>
-      <div
-        className="relative h-[260px] w-full overflow-hidden supports-[height:1svh]:h-[clamp(232px,35svh,320px)]"
-        style={{
-          background:
-            "linear-gradient(to bottom, var(--bk-surface-alt), var(--bk-surface))",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setFocusAt(0)}
-          aria-label={xs("morePhotos", locale, { count: images.length })}
-          className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bk-focus"
-        >
-          {/* The LCP element: optimised, high priority, never cropped. */}
-          <Image
-            src={cover}
-            alt={alt}
-            fill
-            priority
-            fetchPriority="high"
-            sizes="(min-width: 1024px) 50vw, 70vw"
-            unoptimized={!isOptimizableImageHost(cover)}
-            className="object-contain px-6 pb-3 pt-10"
-          />
-        </button>
-        {extras.length > 0 && (
+      <div className="relative h-[50vh] w-full overflow-hidden bg-bk-surface-alt supports-[height:1svh]:h-[50svh]">
+        {images.map((src, i) =>
+          // Every photo is mounted once so switching is an instant crossfade;
+          // only the cover is the LCP candidate (priority), the rest lazy.
+          i === active || i === 0 ? (
+            <Image
+              key={src}
+              src={src}
+              alt={i === active ? alt : ""}
+              fill
+              priority={i === 0}
+              fetchPriority={i === 0 ? "high" : undefined}
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              unoptimized={!isOptimizableImageHost(src)}
+              className={cn(
+                "object-cover transition-opacity duration-bk-base motion-reduce:transition-none",
+                i === active ? "opacity-100" : "opacity-0",
+              )}
+            />
+          ) : null,
+        )}
+        {/* Soft scrims so the floating store name / menu and the deck read
+            on any photo. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-24"
+          style={{
+            background:
+              "linear-gradient(to bottom, color-mix(in srgb, var(--bk-secondary) 35%, transparent), transparent)",
+          }}
+        />
+        {others.length > 0 && (
           <ThumbDeck
-            images={extras}
+            images={others}
             total={images.length}
-            alt={alt}
             intervalMs={intervalMs}
+            paused={thumbsOpen}
+            open={thumbsOpen}
             locale={locale}
-            onOpen={(i) => setFocusAt(i)}
+            onToggle={() => setThumbsOpen((o) => !o)}
           />
         )}
         <div data-pdp-hero-end aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px" />
       </div>
-      <div
-        className="grid transition-[grid-template-rows] duration-bk-base ease-out motion-reduce:transition-none"
-        style={{ gridTemplateRows: focusAt === null ? "0fr" : "1fr" }}
-      >
-        <div className="min-h-0 overflow-hidden" inert={focusAt === null}>
-          {focusAt !== null && (
-            <FocusPanel
-              images={images}
-              alt={alt}
-              startIndex={focusAt}
-              locale={locale}
-              onClose={() => setFocusAt(null)}
-            />
-          )}
+
+      {images.length > 1 && (
+        <div
+          className="grid transition-[grid-template-rows] duration-bk-base ease-out motion-reduce:transition-none"
+          style={{ gridTemplateRows: thumbsOpen ? "1fr" : "0fr" }}
+        >
+          <div className="min-h-0 overflow-hidden" inert={!thumbsOpen}>
+            <div
+              role="group"
+              aria-label={xs("morePhotos", locale, { count: images.length })}
+              className={cn("flex gap-2 overflow-x-auto px-4 py-3", HIDE_SCROLLBAR)}
+            >
+              {images.map((src, i) => (
+                <button
+                  key={`${i}-${src}`}
+                  type="button"
+                  onClick={() => setActive(i)}
+                  aria-pressed={i === active}
+                  aria-label={xs("photoOf", locale, { n: i + 1, total: images.length })}
+                  className={cn(
+                    "relative h-16 w-14 shrink-0 overflow-hidden rounded-bk-input border-bk-bold transition-[border-color,opacity] duration-bk-fast motion-reduce:transition-none",
+                    i === active ? "border-bk-ink" : "border-transparent opacity-70",
+                  )}
+                >
+                  <Image
+                    src={src}
+                    alt=""
+                    fill
+                    sizes="56px"
+                    unoptimized={!isOptimizableImageHost(src)}
+                    className="object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

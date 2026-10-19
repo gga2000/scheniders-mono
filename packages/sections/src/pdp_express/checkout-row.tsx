@@ -1,6 +1,6 @@
-// Express checkout: the total ledger and the CTA row — a compact WhatsApp
-// tile on the left of the big submit. The "you pay on delivery" wording
-// and the price subline only render when the delivery fee is actually
+// Express checkout: a quiet receipt (item, delivery, total) and the CTA
+// row — a compact WhatsApp tile on the left of the big submit. The price
+// subline under the submit only renders when the delivery fee is actually
 // known (chosen governorate, or free everywhere), so a fee-charging store
 // is never told a total that leaves delivery out.
 
@@ -31,34 +31,58 @@ export function isDeliveryFreeEverywhere(
 function Row({
   rtl,
   label,
+  note,
   value,
   strong,
 }: {
   rtl: boolean;
   label: string;
+  note?: string;
   value: React.ReactNode;
   strong?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "flex items-baseline justify-between gap-3",
+        "flex items-center justify-between gap-3",
+        strong ? "py-3" : "py-2",
         rtl && "flex-row-reverse",
-        strong ? "text-bk-ink" : "text-bk-ink-soft",
       )}
     >
-      <span className={cn("font-bk-body", strong ? "text-[15px] font-black" : "text-[13px]")}>
-        {label}
+      <span
+        className={cn(
+          "flex min-w-0 items-baseline gap-1.5 font-bk-body",
+          rtl && "flex-row-reverse",
+          strong ? "text-[15px] font-black text-bk-ink" : "text-[13px] text-bk-ink-soft",
+        )}
+      >
+        <span className="truncate">{label}</span>
+        {note && <bdi className="shrink-0 text-xs text-bk-ink-faint tabular-nums">{note}</bdi>}
       </span>
       <span
         className={cn(
-          "tabular-nums",
-          strong ? "font-bk-display text-[28px] font-black leading-none" : "font-bk-body text-[13px] font-bold",
+          "shrink-0 whitespace-nowrap tabular-nums",
+          strong
+            ? "font-bk-display text-[22px] font-black leading-none text-bk-ink"
+            : "font-bk-body text-[13px] font-bold text-bk-ink",
         )}
       >
         {value}
       </span>
     </div>
+  );
+}
+
+/** A chrome template with an amount in it, the amount isolated in <bdi>
+ *  so the bidi algorithm cannot move it across the Arabic words. */
+function WithAmount({ template, amount }: { template: string; amount: string }) {
+  const [before, after] = template.split("{total}");
+  return (
+    <>
+      {before}
+      <bdi>{amount}</bdi>
+      {after}
+    </>
   );
 }
 
@@ -78,44 +102,45 @@ export function CheckoutRow({ m, locale }: { m: ExpressModel; locale: LocaleCode
 
   return (
     <div className="space-y-bk-sm">
-      <div className="space-y-1.5 rounded-bk-card bg-bk-surface-alt px-4 py-3">
-        <Row
-          rtl={rtl}
-          label={xs("itemsLine", locale, { name: displayNameOf(m.product), count: m.qty })}
-          value={<bdi>{formatPrice(m.subtotal, locale)}</bdi>}
-        />
-        {saving > 0 && (
+      <div className="divide-y divide-dashed divide-bk-divider rounded-bk-card border-bk border-bk-divider px-4">
+        <div>
           <Row
             rtl={rtl}
-            label={xs("savingsRow", locale)}
-            value={<bdi>−{formatPrice(saving, locale)}</bdi>}
+            label={displayNameOf(m.product)}
+            note={`× ${m.qty}`}
+            value={<bdi>{formatPrice(m.subtotal, locale)}</bdi>}
           />
-        )}
-        <Row
-          rtl={rtl}
-          label={xs("delivery", locale)}
-          value={
-            <span data-delivery-fee>
-              {freeEverywhere ? (
-                <span className="text-bk-success">{xs("deliveryFreeEverywhere", locale)}</span>
-              ) : m.delivery === null ? (
-                xs("deliveryPending", locale)
-              ) : m.delivery === 0 ? (
-                xs("deliveryFree", locale)
-              ) : (
-                <bdi>{formatPrice(m.delivery, locale)}</bdi>
-              )}
-            </span>
-          }
-        />
-        <div className="border-t border-dashed border-bk-divider pt-2">
+          {saving > 0 && (
+            <Row
+              rtl={rtl}
+              label={xs("savingsRow", locale)}
+              value={<bdi>−{formatPrice(saving, locale)}</bdi>}
+            />
+          )}
           <Row
             rtl={rtl}
-            strong
-            label={xs(deliveryKnown ? "total" : "totalPlain", locale)}
-            value={<bdi>{formatPrice(m.total, locale)}</bdi>}
+            label={xs("delivery", locale)}
+            value={
+              <span data-delivery-fee>
+                {freeEverywhere ? (
+                  <span className="text-bk-success">{xs("deliveryFreeEverywhere", locale)}</span>
+                ) : m.delivery === null ? (
+                  <span className="font-normal text-bk-ink-faint">{xs("deliveryPending", locale)}</span>
+                ) : m.delivery === 0 ? (
+                  <span className="text-bk-success">{xs("deliveryFree", locale)}</span>
+                ) : (
+                  <bdi>{formatPrice(m.delivery, locale)}</bdi>
+                )}
+              </span>
+            }
           />
         </div>
+        <Row
+          rtl={rtl}
+          strong
+          label={xs("totalPlain", locale)}
+          value={<bdi>{formatPrice(m.total, locale)}</bdi>}
+        />
       </div>
 
       <div className="flex items-stretch gap-2" data-layer="submit" data-layer-label="Order buttons">
@@ -146,7 +171,10 @@ export function CheckoutRow({ m, locale }: { m: ExpressModel; locale: LocaleCode
           </span>
           {!m.oos && !m.submitting && deliveryKnown && (
             <span className="font-bk-body text-xs font-bold opacity-80">
-              {xs("submitSubline", locale, { total: formatPrice(m.total, locale) })}
+              <WithAmount
+                template={xs("submitSubline", locale)}
+                amount={formatPrice(m.total, locale)}
+              />
             </span>
           )}
         </button>

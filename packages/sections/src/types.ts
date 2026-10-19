@@ -59,6 +59,8 @@ export interface Product extends BaseProduct {
   brand?: string | null;
   display_name?: string | null;
   size_ml?: number | null;
+  /** Who the scent is marketed to; null = no tag. */
+  gender?: "men" | "women" | "unisex" | null;
   /** Ordered gallery photo URLs (products.gallery_urls jsonb, coerced to a
    *  clean string[] by the consuming app before it reaches sections). */
   gallery_urls?: string[];
