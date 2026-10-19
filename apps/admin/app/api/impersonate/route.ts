@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminActivity } from "@/lib/activity-logger";
 
 const impersonateSchema = z.object({
   tenant_id: z.string().min(1),
@@ -47,22 +48,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the impersonation action — record the real admin actor.
-    const { error: logError } = await supabase
-      .from("admin_activity_logs")
-      .insert({
-        admin_id: auth.user.id,
-        action: "impersonate",
-        details: {
-          tenant_id,
-          business_name: tenant.business_name,
-        },
+    // Non-blocking: the helper reports a write failure and does not throw.
+    await logAdminActivity({
+      adminUserId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      tenantId: tenant_id,
+      action: "impersonate",
+      details: {
         tenant_id,
-      });
-
-    if (logError) {
-      console.error("Failed to log impersonation:", logError);
-      // Non-blocking: continue even if logging fails
-    }
+        business_name: tenant.business_name,
+      },
+    });
 
     return NextResponse.json({
       success: true,

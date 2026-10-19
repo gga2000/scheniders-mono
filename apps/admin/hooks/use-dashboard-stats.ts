@@ -8,7 +8,9 @@ import { useQuery } from "@tanstack/react-query";
 
 export interface ActivityLog {
   id: string;
-  admin_id: string;
+  admin_user_id: string | null;
+  admin_label: string | null;
+  actor_email: string | null;
   action: string;
   details: Record<string, unknown> | null;
   tenant_id: string | null;
