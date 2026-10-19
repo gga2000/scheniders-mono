@@ -310,8 +310,8 @@ describe("WhatsApp CTAs use the brand's success green, not Candy mint", () => {
           ctx: {
             tenant: {
               id: "t1",
-              contact_phone: "07802301677",
-              store_config: { contact: { whatsapp_number: "07802301677" } },
+              contact_phone: "07801234567",
+              store_config: { contact: { whatsapp_number: "07801234567" } },
             },
             runtime: {
               page_id: "product",

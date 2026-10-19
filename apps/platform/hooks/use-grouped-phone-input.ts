@@ -17,7 +17,7 @@ function caretAfterNonSpace(display: string, nonSpaceCount: number): number {
 }
 
 /**
- * Wires a phone <input> to show 4-3-4 grouping ("0780 230 1677") while form state
+ * Wires a phone <input> to show 4-3-4 grouping ("0780 123 4567") while form state
  * keeps the un-spaced value. Spread the result onto the input:
  *   const phoneInput = useGroupedPhoneInput(value, setValue);
  *   <input {...phoneInput} />

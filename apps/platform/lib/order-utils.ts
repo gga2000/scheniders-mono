@@ -128,13 +128,13 @@ export function formatPhoneForDisplay(phone: string | undefined | null): string 
     return cleaned;
 }
 
-/** "07802301677" -> "0780 230 1677". Caller guarantees an 11-digit local mobile. */
+/** "07801234567" -> "0780 123 4567". Caller guarantees an 11-digit local mobile. */
 function groupLocalMobile(local: string): string {
     return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
 }
 
 /**
- * Group an Iraqi mobile into 4-3-4 for on-screen reading: 07802301677 -> "0780 230 1677".
+ * Group an Iraqi mobile into 4-3-4 for on-screen reading: 07801234567 -> "0780 123 4567".
  * Builds on formatPhoneForDisplay (+964 / 964 / Arabic digits), and additionally reads
  * 00964… and the zero-less 7XXXXXXXXX form as a local 07… number.
  * Anything that is not an Iraqi mobile (short, foreign, landline) is returned in its
@@ -152,7 +152,7 @@ export function formatPhoneGrouped(phone: string | undefined | null): string {
 
 /**
  * Progressive 4-3-4 grouping for a phone <input> while the user types:
- * "0780" -> "0780", "07802" -> "0780 2", "07802301677" -> "0780 230 1677".
+ * "0780" -> "0780", "07801" -> "0780 1", "07801234567" -> "0780 123 4567".
  * Only a pure run of up to 11 digits beginning with 0 is grouped; anything else
  * (+964…, 964…, letters, overlong) is shown exactly as typed so nothing the user
  * entered is hidden or rewritten. Pair with unformatPhoneInput.
@@ -176,11 +176,11 @@ export function unformatPhoneInput(display: string): string {
 /**
  * Normalize phone input to standard Iraqi format (07XXXXXXXXX)
  * Accepts:
- *   - Arabic numerals (٠٧٨٠٢٣٠١٦٧٧)
- *   - +964 format (+9647802301677)
- *   - 964 format (9647802301677)
- *   - No-zero format (7802301677)
- *   - Standard format (07802301677)
+ *   - Arabic numerals (٠٧٨٠١٢٣٤٥٦٧)
+ *   - +964 format (+9647801234567)
+ *   - 964 format (9647801234567)
+ *   - No-zero format (7801234567)
+ *   - Standard format (07801234567)
  * Returns cleaned 07XXXXXXXXX string ready for storage/display
  */
 export function normalizeIraqiPhone(phone: string): string {
