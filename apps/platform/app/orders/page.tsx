@@ -14,6 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Order, OrderItem } from "@/lib/supabase";
 import type { OrderFilters } from "@/types/order";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { countVisibility } from "@/lib/orders/count-visibility";
 import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
 import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
@@ -204,6 +205,7 @@ export default function OrdersPage() {
         // Duplicate management
         statusCounts,
         attentionCounts,
+        countViewFacts,
         ordersAreComplete,
         filtersSettled,
         // Message templates
@@ -674,6 +676,20 @@ export default function OrdersPage() {
         return hookFilteredOrders.filter(o => orderMatchesRiskLevel(o, defRiskLevel ?? 'flagged')).length;
     }, [hookFilteredOrders, defRiskLevel]);
 
+    // Which counts describe the list on screen. All inputs are deferred, like
+    // the list itself, so a count never shows for one render against the
+    // previous list. Hidden counts render "—" (search, archive, a refinement,
+    // or rows still loading for the window).
+    const defShowArchived = React.useDeferredValue(showArchived);
+    const countVis = useMemo(() => countVisibility({
+        facts: countViewFacts,
+        archived: defShowArchived,
+        columnFilter: Object.values(defColumnFilters || {}).some(Boolean),
+        riskLevel: defRiskLevel,
+        duplicatesOnly: defFilterDuplicatesOnly,
+        dueToday: defFilterDueToday,
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday]);
+
     // Scroll to top when filters change to prevent empty list illusion
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -987,7 +1003,7 @@ export default function OrdersPage() {
                                                     </button>
                                                     <div className="flex items-center gap-2">
                                                         <Package className="w-5 h-5 text-foreground" />
-                                                        <span className="font-bold text-lg text-foreground">{filteredOrders.length}</span>
+                                                        <span className="font-bold text-lg text-foreground" data-orders-header-count>{filteredOrders.length}</span>
                                                         <span className="text-muted text-sm">orders</span>
                                                     </div>
                                                     {selectedOrders.size > 0 && (
@@ -1091,7 +1107,7 @@ export default function OrdersPage() {
                                                             </div>
                                                             <div className="flex flex-col leading-none">
                                                                 <div className="flex items-baseline gap-1.5">
-                                                                    <span className="text-2xl font-black text-foreground dark:text-white">
+                                                                    <span className="text-2xl font-black text-foreground dark:text-white" data-orders-header-count>
                                                                         {filteredOrders.length}
                                                                     </span>
                                                                     <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">{t("orders.title")}</span>
@@ -1612,6 +1628,8 @@ export default function OrdersPage() {
                                                 setFilters={setFilters}
                                                 flaggedCount={flaggedCount}
                                                 attentionCounts={attentionCounts}
+                                                countsHidden={!countVis.chips}
+                                                flaggedCountHidden={!countVis.flaggedCard}
                                             />
 
                                             {/* Order Pipeline — collapsible funnel overview, sits above the search bar (hidden by default) */}
@@ -1627,6 +1645,7 @@ export default function OrdersPage() {
                                                         <div className="pb-4">
                                                             <OrderPipeline
                                                                 statusCounts={statusCounts}
+                                                                countsHidden={!countVis.chips}
                                                                 activeStatus={typeof filters.status === "string" ? filters.status : undefined}
                                                                 onSelectStatus={(status) =>
                                                                     setFilters({ ...filters, status: status as Order["status"] | undefined })
@@ -1644,6 +1663,9 @@ export default function OrdersPage() {
                                                 hasActiveFilters={hasActiveFilters}
                                                 totalRiskCount={totalRiskCount}
                                                 dueTodayCount={dueTodayCount}
+                                                countsHidden={!countVis.chips}
+                                                dueTodayCountHidden={!countVis.dueTodayBadge}
+                                                riskCountHidden={!countVis.riskBadge}
                                                 showSubFilters={showSubFilters}
                                                 toggleSubFilters={toggleSubFilters}
                                                 onOpenScanner={() => setIsScannerOpen(true)}
@@ -1666,6 +1688,9 @@ export default function OrdersPage() {
                                                     filterDueToday={filterDueToday}
                                                     setFilterDueToday={setFilterDueToday}
                                                     dueTodayCount={dueTodayCount}
+                                                    countsHidden={!countVis.chips}
+                                                    dueTodayCountHidden={!countVis.dueTodayBadge}
+                                                    riskCountHidden={!countVis.riskBadge}
                                                     showSubFilters={showSubFilters}
                                                     isMobile={true}
                                                 />

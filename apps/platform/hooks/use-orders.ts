@@ -23,6 +23,7 @@ import {
     orderKeys,
     setOrderBatcher,
 } from "@/hooks/use-orders-query";
+import { useLoadedOrdersWindowKey } from "@/hooks/orders-list-coverage";
 
 import { useEffect } from "react";
 import { useOrderFilterState } from "@/hooks/use-order-filter-state";
@@ -110,6 +111,10 @@ export function useOrders() {
     // exact view the merchant left.
     const orderSearch = useServerOrderSearch(filters.searchQuery, { liveOrders: orders });
 
+    // The window the cached rows were loaded for (null: nothing committed yet).
+    // Counts are only shown while it covers the filter's window.
+    const loadedWindowKey = useLoadedOrdersWindowKey();
+
     // 1. Filters — filter state, presets, persistence, derived lists
     const filterHook = useOrderFilters({
         orders,
@@ -117,6 +122,7 @@ export function useOrders() {
         filters,
         setFilters,
         clearFilters,
+        loadedWindowKey: cachedOrders === undefined ? null : loadedWindowKey,
     });
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
@@ -210,6 +216,13 @@ export function useOrders() {
         statusCounts: filterHook.statusCounts,
         /** Needs Attention counts, each the length of the list its click opens. */
         attentionCounts: filterHook.attentionCounts,
+        /**
+         * Whether the counts describe the list on screen (not searching, rows
+         * loaded for the filter's window), from the list's own deferred render.
+         * Pages combine it with their refinements via lib/orders/count-visibility.
+         */
+        countViewFacts: filterHook.countViewFacts,
+        statusCountsReady: filterHook.countViewFacts.ready,
         // Archive
         archivedOrders,
         fetchArchivedOrders: crudHook.fetchArchivedOrders,

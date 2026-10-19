@@ -15,6 +15,8 @@ import { summarizeAdChannels } from "@/lib/ad-channel-filter";
 import { filterOrders } from "@/lib/orders/filter-orders";
 import { countOrderChips, type OrderChipCounts } from "@/lib/orders/order-chips";
 import { countProductsInView } from "@/lib/orders/product-match";
+import { listCovers } from "@/lib/orders/coverage-key";
+import { windowCacheKey, windowFromDateFilter } from "@/lib/order-window";
 
 // =============================================
 // ORDER FILTERS HOOK
@@ -35,9 +37,28 @@ interface UseOrderFiltersOptions {
      * and trashed included — instead of the filtered window.
      */
     searchResults: Order[] | null;
+    /**
+     * The window (`windowCacheKey`) the `orders` were loaded for, or null when
+     * nothing has been loaded. Omitted (undefined), the caller asserts the rows
+     * are the complete set for whatever window the filters name.
+     */
+    loadedWindowKey?: string | null;
 }
 
-export function useOrderFilters({ orders, searchResults, filters, setFilters, clearFilters }: UseOrderFiltersOptions) {
+/**
+ * Whether the counts describe the list on screen, from the same deferred
+ * render as the list:
+ *  - `ready`: not searching, and the loaded rows cover the filter's window.
+ *  - `statusIsAll` / `windowIsAll`: the deferred filter has no status / dates.
+ * The page combines these with its own refinements (lib/orders/count-visibility.ts).
+ */
+export interface CountViewFacts {
+    ready: boolean;
+    statusIsAll: boolean;
+    windowIsAll: boolean;
+}
+
+export function useOrderFilters({ orders, searchResults, filters, setFilters, clearFilters, loadedWindowKey }: UseOrderFiltersOptions) {
 
     // WF-3: saved views used to live only in localStorage, so they did not follow
     // a user to another device or browser and were lost when site data was
@@ -108,7 +129,11 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         return () => { cancelled = true; };
     }, [tenantId]);
 
-    const deferredOrders = useDeferredValue(orders);
+    // The rows and the window they were loaded for are deferred TOGETHER, so no
+    // render pairs one window's rows with another's coverage.
+    const snapshot = useMemo(() => ({ orders, loadedWindowKey }), [orders, loadedWindowKey]);
+    const deferredSnapshot = useDeferredValue(snapshot);
+    const deferredOrders = deferredSnapshot.orders;
     const deferredSearchResults = useDeferredValue(searchResults);
     const deferredFilters = useDeferredValue(filters);
 
@@ -197,6 +222,19 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         noResponse: statusCounts.no_response,
         returnPending: countView.filter((o) => o.status === "return_pending").length,
     }), [urgentCount, statusCounts, countView]);
+
+    const deferredLoadedKey = deferredSnapshot.loadedWindowKey;
+    const countViewFacts = useMemo<CountViewFacts>(() => {
+        const window = windowFromDateFilter(dDateFrom, dDateTo);
+        return {
+            // Search hits are not narrowed by status, channel or product, so no
+            // count describes them. Otherwise the rows must cover the window.
+            ready: deferredSearchResults === null &&
+                (deferredLoadedKey === undefined || listCovers(deferredLoadedKey, windowCacheKey(window))),
+            statusIsAll: !dStatus || dStatus === "all",
+            windowIsAll: window === null,
+        };
+    }, [deferredSearchResults, deferredLoadedKey, dDateFrom, dDateTo, dStatus]);
 
     const availableCities = useMemo(() => {
         return [...new Set(deferredOrders.map((o) => o.city).filter(Boolean))] as string[];
@@ -320,6 +358,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         filteredOrders,
         statusCounts,
         attentionCounts,
+        countViewFacts,
         availableCities,
         availableProducts,
         availableProductsInView,

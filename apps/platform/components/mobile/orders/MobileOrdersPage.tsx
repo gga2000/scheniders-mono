@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
+import { countVisibility } from "@/lib/orders/count-visibility";
 import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
@@ -39,6 +40,7 @@ export function MobileOrdersPage() {
         setFilters,
         statusCounts,
         adChannelSummary,
+        countViewFacts,
         getCustomerArchivedCount,
         getCustomerOrderCount,
         hasDuplicates,
@@ -148,6 +150,17 @@ export function MobileOrdersPage() {
         () => hookFilteredOrders.filter((o: Order) => orderMatchesRiskLevel(o, filters.riskLevel ?? "flagged")).length,
         [hookFilteredOrders, filters.riskLevel],
     );
+
+    // Same rule as desktop (lib/orders/count-visibility.ts). Mobile has no
+    // archive view or column filters, and its duplicates toggle does not filter.
+    const countVis = useMemo(() => countVisibility({
+        facts: countViewFacts,
+        archived: false,
+        columnFilter: false,
+        riskLevel: filters.riskLevel,
+        duplicatesOnly: false,
+        dueToday: filterDueToday,
+    }), [countViewFacts, filters.riskLevel, filterDueToday]);
 
     // ARCH-6: the order store is module-level, so an open modal, a bulk
     // selection or a half-finished inline edit outlived this page and came back
@@ -284,6 +297,9 @@ export function MobileOrdersPage() {
                     filterDueToday={filterDueToday}
                     setFilterDueToday={setFilterDueToday}
                     dueTodayCount={dueTodayCount}
+                    countsHidden={!countVis.chips}
+                    dueTodayCountHidden={!countVis.dueTodayBadge}
+                    riskCountHidden={!countVis.riskBadge}
                     isMobile={true}
                     className="-mx-4 bg-transparent border-b-0 shadow-none sticky top-12"
                 />
@@ -294,6 +310,7 @@ export function MobileOrdersPage() {
                     summary={adChannelSummary}
                     selected={filters.adChannel}
                     onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
+                    countsHidden={!countVis.chips}
                     // One scrollable line: a wrapping row would grow the sticky header.
                     className="-mx-4 flex-nowrap overflow-x-auto px-4 [scrollbar-width:none] [&>button]:shrink-0"
                 />
