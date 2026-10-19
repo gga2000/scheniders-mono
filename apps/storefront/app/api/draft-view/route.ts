@@ -16,7 +16,7 @@ const querySchema = z.object({
 
 /** How long one draft-view session lasts; the token's own expiry (checked
  *  on every request) still wins when it is sooner. */
-const DRAFT_VIEW_MAX_AGE_SECONDS = 60 * 60;
+const DRAFT_VIEW_MAX_AGE_SECONDS = 12 * 60 * 60;
 
 /** A relative, same-origin path — never "//host" or "/\host", which
  *  browsers treat as protocol-relative (an open redirect). */

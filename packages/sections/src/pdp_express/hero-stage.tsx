@@ -33,12 +33,16 @@ function usePrefersReducedMotion(): boolean {
  *  tick never re-renders the order form. */
 const ThumbDeck = memo(function ThumbDeck({
   images,
+  total,
   alt,
   intervalMs,
   locale,
   onOpen,
 }: {
+  /** The extra photos only — the cover is already the hero. */
   images: string[];
+  /** Every photo, cover included (the badge count). */
+  total: number;
   alt: string;
   intervalMs: number;
   locale: LocaleCode;
@@ -82,8 +86,9 @@ const ThumbDeck = memo(function ThumbDeck({
     <div className="absolute bottom-3 left-3 z-10 flex items-end gap-2">
       <button
         type="button"
-        onClick={() => onOpen(front)}
-        aria-label={xs("morePhotos", locale, { count: images.length })}
+        // +1: the focus strip lists the cover first.
+        onClick={() => onOpen(front + 1)}
+        aria-label={xs("morePhotos", locale, { count: total })}
         className="relative h-[84px] w-[64px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus rounded-bk-input"
       >
         {stack
@@ -119,7 +124,7 @@ const ThumbDeck = memo(function ThumbDeck({
           aria-hidden="true"
           className="absolute -bottom-1.5 -right-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-bk-pill bg-bk-secondary px-1.5 font-bk-display text-[11px] font-black tabular-nums text-bk-on-secondary"
         >
-          {images.length}
+          {total}
         </span>
       </button>
       {images.length > 1 && !reduce && (
@@ -263,7 +268,8 @@ export function HeroStage({
         </button>
         {extras.length > 0 && (
           <ThumbDeck
-            images={images}
+            images={extras}
+            total={images.length}
             alt={alt}
             intervalMs={intervalMs}
             locale={locale}

@@ -29,23 +29,37 @@ import type { Props } from "./sticky_cta_bar";
 
 const DEFAULT_SCROLL_TARGET_ID = "direct-order";
 
-/** Listens for the in-page order form's submit button; `true` while it is
- *  on screen. SSR + missing target → `false` (the bar stays visible). */
-function useFormSubmitVisible(targetId: string, enabled: boolean): boolean {
-  const [visible, setVisible] = React.useState(false);
+/** Listens for the in-page order form; `true` while it is on screen.
+ *  "submit" watches the form's submit button (SSR + missing target →
+ *  `false`, the bar stays visible). "form" watches the whole form and
+ *  starts `true` so a first-screen form is never covered on first paint;
+ *  a missing target turns it `false` after mount. */
+function useFormSubmitVisible(
+  targetId: string,
+  enabled: boolean,
+  mode: "submit" | "form",
+): boolean {
+  const [visible, setVisible] = React.useState(enabled && mode === "form");
   React.useEffect(() => {
     if (!enabled) return;
-    const submit = document.querySelector<HTMLElement>(
-      `#${CSS.escape(targetId)} button[type=submit]`,
-    );
-    if (!submit) return;
+    const form = document.getElementById(targetId);
+    const target =
+      mode === "form"
+        ? form
+        : document.querySelector<HTMLElement>(
+            `#${CSS.escape(targetId)} button[type=submit]`,
+          );
+    if (!target) {
+      if (mode === "form") setVisible(false);
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => setVisible(entry?.isIntersecting ?? false),
-      { threshold: 0.5 },
+      { threshold: mode === "form" ? 0 : 0.5 },
     );
-    observer.observe(submit);
+    observer.observe(target);
     return () => observer.disconnect();
-  }, [targetId, enabled]);
+  }, [targetId, enabled, mode]);
   return visible;
 }
 
@@ -97,6 +111,7 @@ export function StickyCtaBarRender({
   const formSubmitVisible = useFormSubmitVisible(
     scrollTargetId,
     showProductPrice,
+    props.hide_while ?? "submit",
   );
   const hidden = showProductPrice && formSubmitVisible;
 

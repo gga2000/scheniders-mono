@@ -1,6 +1,7 @@
 // Express order line: quantity and payment, each one quiet row. Cash on
 // delivery is the (only) live method; merchant-announced methods show as
-// non-selectable "soon" chips — the order still posts payment_method cod.
+// one muted, non-selectable "soon" line — the order still posts
+// payment_method cod.
 
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -74,25 +75,27 @@ export function OrderLine({
           </button>
         </div>
       </div>
-      <div className={cn(row, "py-2.5")}>
-        <span className={label}>{xs("payment", locale)}</span>
-        <div className={cn("flex flex-wrap items-center gap-1.5", rtl ? "justify-start flex-row-reverse" : "justify-end")}>
-          <span className="inline-flex h-8 items-center gap-1 rounded-bk-pill bg-bk-secondary px-3 font-bk-body text-xs font-bold text-bk-on-secondary">
+      {/* The live method plus announced ones, as one unwrapped row; the
+          group is named for assistive tech instead of a visible label. */}
+      <div
+        role="group"
+        aria-label={xs("payment", locale)}
+        className={cn("flex items-center gap-1.5 py-2.5", rtl ? "flex-row-reverse" : "")}
+      >
+        <div className={cn("flex min-w-0 flex-1 items-center gap-1.5", rtl && "flex-row-reverse")}>
+          <span className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-bk-pill bg-bk-secondary px-2.5 font-bk-body text-xs font-bold text-bk-on-secondary">
             <MaterialIcon name="check" className="text-sm text-bk-primary" />
             {xs("cashOnDelivery", locale)}
           </span>
-          {soonMethods.map((method) => (
-            <span
-              key={method}
-              aria-disabled="true"
-              className="inline-flex h-8 items-center gap-1 rounded-bk-pill border-bk border-dashed border-bk-divider px-2.5 font-bk-body text-xs font-bold text-bk-ink-faint"
-            >
-              {xs(method, locale)}
-              <span className="rounded-bk-pill bg-bk-surface-alt px-1.5 py-px text-[10px] text-bk-ink-soft">
-                {xs("soon", locale)}
-              </span>
+          {soonMethods.length > 0 && (
+            <span className="min-w-0 truncate font-bk-body text-[11px] font-bold text-bk-ink-faint">
+              {xs("soonList", locale, {
+                list: soonMethods
+                  .map((method) => xs(method, locale))
+                  .join(xs("listSep", locale)),
+              })}
             </span>
-          ))}
+          )}
         </div>
       </div>
     </div>
