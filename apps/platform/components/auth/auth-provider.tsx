@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 import { supabase } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
@@ -27,6 +28,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentUserIdRef = useRef<string | null>(null);
     const profileLoadedRef = useRef(false);
     const deferredLogoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Attach identity to Sentry once, here, so every error captured anywhere in
+    // the platform is attributable to a user, a tenant and a role. Only the user
+    // id is sent (no email). Cleared on sign-out so a shared machine does not
+    // attribute the next session's errors to the previous user.
+    useEffect(() => {
+        if (user) {
+            Sentry.setUser({ id: user.id });
+            Sentry.setTag("tenant_id", tenantId ?? "none");
+            Sentry.setTag("user_role", role ?? "unknown");
+        } else {
+            Sentry.setUser(null);
+            Sentry.setTag("tenant_id", undefined);
+            Sentry.setTag("user_role", undefined);
+        }
+    }, [user, tenantId, role]);
 
     // Keep ref in sync with state (ref is readable inside useEffect closures)
     const markProfileLoaded = useCallback((loaded: boolean) => {

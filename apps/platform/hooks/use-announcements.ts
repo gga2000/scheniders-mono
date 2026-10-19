@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import { toast } from "sonner";
+import * as Sentry from "@sentry/nextjs";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -64,6 +65,7 @@ export function useAnnouncements() {
         // A failed read must not render as "no announcements" — an empty list is
         // a fact, a failure is not.
         if (fetchError) {
+            Sentry.captureException(fetchError, { tags: { area: "dashboard", op: "announcements.read" } });
             setError(fetchError.message);
         } else {
             setError(null);
@@ -99,6 +101,7 @@ export function useAnnouncements() {
         }
         const { error: insertError } = await supabase.from('announcements').insert(row);
         if (insertError) {
+            Sentry.captureException(insertError, { tags: { area: "dashboard", op: "announcements.create" } });
             toast.error(`Could not post announcement: ${insertError.message}`);
             return false;
         }
@@ -113,6 +116,7 @@ export function useAnnouncements() {
             .update({ is_pinned: !currentlyPinned })
             .eq('id', id);
         if (pinError) {
+            Sentry.captureException(pinError, { tags: { area: "dashboard", op: "announcements.pin" } });
             toast.error(`Could not update announcement: ${pinError.message}`);
             return;
         }
@@ -127,6 +131,7 @@ export function useAnnouncements() {
             .update({ is_active: false })
             .eq('id', id);
         if (deleteError) {
+            Sentry.captureException(deleteError, { tags: { area: "dashboard", op: "announcements.delete" } });
             toast.error(`Could not delete announcement: ${deleteError.message}`);
             return;
         }
