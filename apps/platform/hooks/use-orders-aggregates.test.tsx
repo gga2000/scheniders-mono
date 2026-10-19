@@ -12,7 +12,8 @@ import { useOrdersAggregates } from "./use-orders-aggregates";
 
 function wrapper() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    const Wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    return Wrapper;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
