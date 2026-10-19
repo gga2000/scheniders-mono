@@ -29,7 +29,7 @@ Phase 0 (reconnaissance) output. Read this first at the start of every step and 
 
 ## 1. Assumptions (CONFIG blanks Ali left empty)
 
-These are defaults chosen by the coordinator; each is an assumption until Ali confirms.
+These were defaults chosen by the coordinator. **Ali confirmed all of them on 2026-10-19 01:15 UTC.**
 
 | CONFIG item | Assumed value | Effect on the audit |
 |---|---|---|
@@ -321,7 +321,7 @@ The inventory subagents flagged the items below. They are **leads for Phase 1/2*
 - L-40 Per-tenant Meta CAPI / TikTok Events API tokens are stored in `tenants.store_config_v2.globals.analytics_pixels.base` (`packages/shared/src/types/store-config.ts:262,264`). The storefront redacts them before sending config to the browser (`packages/shared/src/pixel.ts:57-69`, called at `apps/storefront/lib/tenant.ts:91-95`), but the `tenants` row itself is readable by `anon` for every trial/active tenant (policy `public_storefront_read`, `has_column_privilege('anon','public.tenants','store_config_v2','SELECT')` = true, MEASURED). HYPOTHESIS: anyone with the public anon key can read a tenant's CAPI token via PostgREST once one is configured; today 0 tenants have a token (MEASURED), 1 has a Meta pixel id and 1 a TikTok pixel id. Proof = anon `select store_config_v2 from tenants` on a branch with a token set (A1).
 - L-41 Live edge function `migrate-scheniders-iraq-product-images` exists only in the database project (not in the repo): ACTIVE, `verify_jwt=true`, body is an inert "decommissioned" stub (MEASURED via `list_edge_functions` / `get_edge_function`, critic round 3). Risk negligible; candidate for deletion in Phase 3 plan.
 - L-42 `packages/supabase/config.toml:5` sets `project_id = "ibfdugifekivquwprqjc"`, the OLD project id. In the Supabase CLI this field is a local stack label, not a link target, so it does not route migrations to the old project by itself (inferred from the file's own comment at :3-4). Still a confusion risk given CLAUDE.md's two-project warning.
-- L-36 Al-Waseet API is unused in production (MEASURED, §5.1): no `WASEET_*` env vars, no cached token, no API log since 2026-09-09, no order ever has `waseet_submitted_at`. Whether this is a broken launch journey or a deliberate manual process is a Phase 2 / Ali question.
+- L-36 Al-Waseet API is unused in production (MEASURED, §5.1): no `WASEET_*` env vars, no cached token, no API log since 2026-09-09, no order ever has `waseet_submitted_at`. Whether this is a broken launch journey or a deliberate manual process is a Phase 2 / Ali question. **Ali 2026-10-19: manual Waseet handling is deliberate, leave it as is.** Not a finding; the unused API path is audited only as dead/unreachable code.
 
 **Money / data**
 - L-18 `subscription-renew` not idempotent (double charge on overlap/retry).
