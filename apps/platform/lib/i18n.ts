@@ -2887,6 +2887,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.filler.unmark": "Remove filler mark",
         "products.filler.marked": "{count} marked as filler",
         "products.filler.unmarked": "{count} no longer filler",
+        "products.filler.group": "Filler products",
+        "products.filler.show": "Show",
+        "products.filler.hide": "Hide",
+        "products.filler.shownBySearch": "Shown because you are searching",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "Order Confirmation",
@@ -6207,6 +6211,10 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.filler.unmark": "شيل علامة الإضافي",
         "products.filler.marked": "تعلّم {count} كمنتجات إضافية",
         "products.filler.unmarked": "{count} ما عادت إضافية",
+        "products.filler.group": "منتجات إضافية",
+        "products.filler.show": "إظهار",
+        "products.filler.hide": "إخفاء",
+        "products.filler.shownBySearch": "ظاهرة لأنك تدور",
 
         // ── Message Templates ──
         "orders.msgTemplate.confirmation": "تأكيد الطلب",
