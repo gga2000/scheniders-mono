@@ -38,6 +38,10 @@ export interface Product extends BaseProduct {
   /** Per-product feature cards (products.feature_cards jsonb, coerced to
    *  well-shaped entries). Rendered as note-highlight cards on the PDP. */
   feature_cards?: { image_url?: string; title: string; body: string }[];
+  /** Merchant-entered public identity shown on the PDP (null = hidden). */
+  brand?: string | null;
+  display_name?: string | null;
+  size_ml?: number | null;
   /** Approved-review aggregates, merged in by lib/queries (real data only). */
   review_count?: number;
   avg_rating?: number;

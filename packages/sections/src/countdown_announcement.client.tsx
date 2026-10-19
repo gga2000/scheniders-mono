@@ -26,6 +26,7 @@ import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import type { SectionRenderContext } from "./_types";
 import type { barBg, Props } from "./countdown_announcement";
+import { computeCountdown, type CountdownTick } from "./helpers/countdown";
 
 /** Band colour + its contrast text read the brand-kit tokens so the bar
  *  stays on-palette (no hardcoded white). */
@@ -39,55 +40,6 @@ const BAR: Record<z.infer<typeof barBg>, { bg: string; fg: string }> = {
     fg: "var(--bk-surface, #ffffff)",
   },
 };
-
-interface Tick {
-  hours: number;
-  minutes: number;
-  seconds: number;
-}
-
-/**
- * Milliseconds until the countdown target.
- * daily_reset targets the next local midnight (evergreen); fixed_end
- * targets the ISO datetime, clamped at zero once it passes;
- * evergreen_minutes loops on a fixed wall-clock cycle of
- * `duration_minutes` (epoch-aligned, so every visitor sees the same
- * remaining time and it never sits at zero). A fixed_end bar without a
- * usable `ends_at` degrades to the daily reset so the bar never renders
- * a frozen garbage value.
- */
-function remainingMs(
-  mode: Props["mode"],
-  endsAt: string | undefined,
-  durationMinutes: number | undefined,
-  now: Date,
-): number {
-  if (mode === "fixed_end" && endsAt) {
-    const target = new Date(endsAt).getTime();
-    if (!Number.isNaN(target)) return Math.max(0, target - now.getTime());
-  }
-  if (mode === "evergreen_minutes") {
-    const cycle = (durationMinutes ?? 150) * 60 * 1000;
-    return cycle - (now.getTime() % cycle);
-  }
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  return Math.max(0, midnight.getTime() - now.getTime());
-}
-
-function compute(
-  mode: Props["mode"],
-  endsAt: string | undefined,
-  durationMinutes: number | undefined,
-  now: Date,
-): Tick {
-  const ms = remainingMs(mode, endsAt, durationMinutes, now);
-  return {
-    hours: Math.floor(ms / (1000 * 60 * 60)),
-    minutes: Math.floor(ms / (1000 * 60)) % 60,
-    seconds: Math.floor(ms / 1000) % 60,
-  };
-}
 
 /** Small flame glyph (Material "local_fire_department" path, inline). */
 function FlameIcon({ className }: { className?: string }) {
@@ -121,11 +73,11 @@ export function CountdownAnnouncement({
 
   // `null` until mounted: the server and the hydrating client both render
   // "--" so the digits never mismatch; the interval fills real values.
-  const [tick, setTick] = useState<Tick | null>(null);
+  const [tick, setTick] = useState<CountdownTick | null>(null);
   useEffect(() => {
     const update = () =>
       setTick(
-        compute(props.mode, props.ends_at, props.duration_minutes, new Date()),
+        computeCountdown(props.mode, props.ends_at, props.duration_minutes, new Date()),
       );
     update();
     const id = setInterval(update, 1000);

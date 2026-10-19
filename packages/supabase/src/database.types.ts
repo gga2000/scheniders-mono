@@ -5423,6 +5423,7 @@ export type Database = {
           barcode: string | null
           bestseller_rank: number | null
           booking_enabled: boolean
+          brand: string | null
           category_id: string | null
           compare_at_price: number | null
           cost: number | null
@@ -5430,6 +5431,7 @@ export type Database = {
           created_at: string
           description: string | null
           dimensions_json: Json | null
+          display_name: string | null
           display_order: number
           download_url: string | null
           duration_minutes: number | null
@@ -5453,6 +5455,7 @@ export type Database = {
           reserved_quantity: number
           short_description: string | null
           short_name: string | null
+          size_ml: number | null
           sku: string | null
           slug: string | null
           status: string
@@ -5467,6 +5470,7 @@ export type Database = {
           barcode?: string | null
           bestseller_rank?: number | null
           booking_enabled?: boolean
+          brand?: string | null
           category_id?: string | null
           compare_at_price?: number | null
           cost?: number | null
@@ -5474,6 +5478,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           dimensions_json?: Json | null
+          display_name?: string | null
           display_order?: number
           download_url?: string | null
           duration_minutes?: number | null
@@ -5497,6 +5502,7 @@ export type Database = {
           reserved_quantity?: number
           short_description?: string | null
           short_name?: string | null
+          size_ml?: number | null
           sku?: string | null
           slug?: string | null
           status?: string
@@ -5511,6 +5517,7 @@ export type Database = {
           barcode?: string | null
           bestseller_rank?: number | null
           booking_enabled?: boolean
+          brand?: string | null
           category_id?: string | null
           compare_at_price?: number | null
           cost?: number | null
@@ -5518,6 +5525,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           dimensions_json?: Json | null
+          display_name?: string | null
           display_order?: number
           download_url?: string | null
           duration_minutes?: number | null
@@ -5541,6 +5549,7 @@ export type Database = {
           reserved_quantity?: number
           short_description?: string | null
           short_name?: string | null
+          size_ml?: number | null
           sku?: string | null
           slug?: string | null
           status?: string

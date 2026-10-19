@@ -69,9 +69,10 @@ import type { Props } from "./pdp_direct_order";
 // exported by a "use client" module is an opaque reference on the server).
 // The two-way import is benign — the constant is only read at render time.
 import { DEFAULT_URGENCY_MAX_STOCK } from "./pdp_direct_order";
+import { PdpExpress } from "./pdp_express/express-view";
 
 /** Chrome strings (Kurdish resolves through the ar fallback chain). */
-const STRINGS = {
+export const STRINGS = {
   fullName: { en: "Full name", ar: "الاسم الكامل" },
   namePlaceholder: { en: "Your name", ar: "اكتب اسمك" },
   phone: { en: "Phone number", ar: "رقم الهاتف" },
@@ -228,7 +229,7 @@ interface CheckoutIssue {
   new_price?: number;
 }
 
-type FieldKey =
+export type FieldKey =
   | "customer_name"
   | "phone"
   | "alt_phone"
@@ -245,11 +246,19 @@ const FIELD_ORDER: readonly FieldKey[] = [
   "address_details",
 ];
 
-type FormState = Record<FieldKey, string>;
-type FieldErrors = Partial<Record<FieldKey, string>>;
-type FieldElement = HTMLInputElement | HTMLSelectElement;
+export type FormState = Record<FieldKey, string>;
+export type FieldErrors = Partial<Record<FieldKey, string>>;
+export type FieldElement = HTMLInputElement | HTMLSelectElement;
 
-function isGovernorateCode(v: string): v is GovernorateCode {
+/** Per-layout submit options. Classic submits with none, so its request
+ *  body is unchanged. */
+export interface SubmitOptions {
+  /** Appended to address_details as " - {suffix}" when non-empty (the
+   *  express layout's optional nearest-landmark field). */
+  addressSuffix?: string;
+}
+
+export function isGovernorateCode(v: string): v is GovernorateCode {
   return IRAQ_GOVERNORATES.some((g) => g.code === v);
 }
 
@@ -510,7 +519,10 @@ export function PdpDirectOrderRender({
     );
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(
+    e: React.FormEvent<HTMLFormElement>,
+    opts?: SubmitOptions,
+  ) {
     e.preventDefault();
     if (!product || oos || status === "submitting") return;
 
@@ -548,6 +560,10 @@ export function PdpDirectOrderRender({
     if (!purchaseEventIdRef.current) {
       purchaseEventIdRef.current = newPixelEventId();
     }
+    const suffix = opts?.addressSuffix?.trim();
+    const addressDetails = suffix
+      ? `${form.address_details.trim()} - ${suffix}`
+      : form.address_details.trim();
     const items = [
       {
         product_id: product.id,
@@ -572,7 +588,7 @@ export function PdpDirectOrderRender({
           phone,
           governorate_code: form.governorate_code,
           city: governorateName ?? form.governorate_code,
-          address_details: form.address_details.trim(),
+          address_details: addressDetails,
           ...(altPhone ? { alt_phone: altPhone } : {}),
           payment_method: "cod",
           items,
@@ -689,8 +705,9 @@ export function PdpDirectOrderRender({
   const stepperBtnCls =
     "flex h-11 w-11 items-center justify-center transition-opacity duration-bk-fast motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
 
-  /** Shared a11y wiring for one field. */
-  function fieldA11y(k: FieldKey) {
+  /** Layout-neutral a11y wiring for one field (id, error linkage, focus
+   *  ref); each layout adds its own styling. */
+  function fieldA11yCore(k: FieldKey) {
     const err = fieldErrors[k];
     return {
       id: fieldId(k),
@@ -699,6 +716,14 @@ export function PdpDirectOrderRender({
       ref: (el: FieldElement | null) => {
         fieldRefs.current[k] = el;
       },
+    };
+  }
+
+  /** Shared a11y wiring for one field. */
+  function fieldA11y(k: FieldKey) {
+    const err = fieldErrors[k];
+    return {
+      ...fieldA11yCore(k),
       style: err ? { ...inputStyle, ...invalidStyle } : inputStyle,
     };
   }
@@ -761,6 +786,65 @@ export function PdpDirectOrderRender({
     activeImage && galleryImages.includes(activeImage)
       ? activeImage
       : (product.image_url ?? galleryImages[0]);
+
+  if (props.layout === "express") {
+    return (
+      <PdpExpress
+        model={{
+          props,
+          ctx,
+          product,
+          locale,
+          s,
+          price,
+          compareAt: compareAt ?? null,
+          onSale,
+          discountPct,
+          qty,
+          setQty,
+          maxQty,
+          atMinQty,
+          atMaxQty,
+          subtotal,
+          delivery,
+          total,
+          shipping: commerce?.shipping,
+          returnsDays,
+          reviewCount,
+          avgRating,
+          form,
+          set,
+          fieldErrors,
+          fieldError,
+          validateOnBlur,
+          fieldA11yCore,
+          errorId,
+          onSubmit,
+          onFormFocus,
+          status,
+          errorMsg,
+          submitting,
+          submitErrorId,
+          oos,
+          stockLeft,
+          urgency,
+          waHref,
+          galleryImages,
+          priceRowRef,
+          priceFlashAt,
+          chosen,
+          variantError,
+          setVariantError,
+          variantPillsRef,
+          reassurance,
+          deliverySla,
+          featureCards,
+          featureCardsTitle,
+          trustChips,
+        }}
+      />
+    );
+  }
 
   return (
     <section className="px-4 py-4">

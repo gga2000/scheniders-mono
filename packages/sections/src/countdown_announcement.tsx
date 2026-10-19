@@ -20,13 +20,13 @@ import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 import { CountdownAnnouncement } from "./countdown_announcement.client";
+import { countdownModeSchema } from "./helpers/countdown";
 
 export const barBg = z.enum(["secondary", "ink"]);
-const modeSchema = z.enum(["daily_reset", "fixed_end", "evergreen_minutes"]);
 
 const schema = z.object({
   label_i18n: i18nStringSchema,
-  mode: modeSchema,
+  mode: countdownModeSchema,
   /** ISO datetime the countdown targets — only read when mode is "fixed_end". */
   ends_at: z.string().describe("datetime").optional(),
   /** Loop length for "evergreen_minutes": the bar counts down this many

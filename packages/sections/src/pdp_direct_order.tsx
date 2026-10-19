@@ -29,9 +29,17 @@ import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 import { PdpDirectOrderRender } from "./pdp_direct_order.client";
+import { countdownModeSchema } from "./helpers/countdown";
 
 export const DEFAULT_URGENCY_MAX_STOCK = 10;
 const DEFAULT_MAX_QTY = 10;
+/** Express hero: how long each extra photo leads the thumbnail deck. */
+export const DEFAULT_DECK_ROTATE_MS = 4000;
+
+/** Payment methods a merchant can announce as "coming soon" in the express
+ *  layout. Shown as non-selectable chips — the order still posts
+ *  `payment_method: "cod"`. */
+export const SOON_PAYMENT_METHODS = ["qi_card", "zain_cash"] as const;
 
 const schema = z.object({
   /** Optional social-proof chip above the title. A `{count}` token in the
@@ -96,6 +104,43 @@ const schema = z.object({
     )
     .max(6)
     .optional(),
+
+  // ── Express layout (opt-in) ─────────────────────────────────────────
+  // Every field below is optional and `.catch`-guarded: a malformed stored
+  // value degrades to the classic layout (or drops one element) instead of
+  // failing the parse, which would silently remove the whole buy box.
+  /** "express" = the compact first-screen funnel (hero stage, identity
+   *  label, price plate, offer clock, progressive form). Absent/"classic" =
+   *  the classic layout, byte-identical for every existing config. */
+  layout: z.enum(["classic", "express"]).optional().catch(undefined),
+  /** Express: the offer clock strip under the price plate. Renders only
+   *  while the product is genuinely discounted. */
+  offer_clock: z
+    .object({
+      mode: countdownModeSchema,
+      ends_at: z.string().describe("datetime").optional(),
+      duration_minutes: z.number().int().min(1).max(1440).optional(),
+      label_i18n: i18nStringSchema,
+    })
+    .optional()
+    .catch(undefined),
+  /** Express: payment methods announced as "coming soon" (not selectable). */
+  payment_soon: z
+    .array(z.enum(SOON_PAYMENT_METHODS))
+    .max(SOON_PAYMENT_METHODS.length)
+    .optional()
+    .catch(undefined),
+  /** Express: show the concrete "you save X" amount. Off unless the merchant
+   *  confirms the struck prices are real regular prices. */
+  show_savings: z.boolean().optional().catch(undefined),
+  /** Express: ms each extra photo leads the hero's thumbnail deck. */
+  deck_rotate_ms: z.number().int().min(1500).max(20000).optional().catch(undefined),
+  /** Express form heading. Empty = the generic chrome heading. */
+  express_form_title_i18n: i18nStringOptional.catch(undefined),
+  /** Express greeting after the name is entered; `{name}` = first name. */
+  greeting_i18n: i18nStringOptional.catch(undefined),
+  /** Express address prompt; `{name}` = first name once known. */
+  address_prompt_i18n: i18nStringOptional.catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

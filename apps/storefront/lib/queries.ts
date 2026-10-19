@@ -171,6 +171,15 @@ async function withAttributes(
   });
 }
 
+/** The product columns every storefront product read selects. One list so a
+ *  new public column cannot reach the PDP through one query and be missing
+ *  from another. Each name must be in anon's column grant on products (see
+ *  20260817125055_anon_products_column_lockdown.sql and later grants) —
+ *  an ungranted column fails the whole anon select. */
+export const PRODUCT_COLUMNS =
+  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank, brand, size_ml, display_name";
+
+
 export const listProducts = cache(
   (
     tenantId: string,
@@ -189,9 +198,7 @@ export const listProducts = cache(
     publicCache(["listProducts", tenantId, JSON.stringify(opts)], async (supabase) => {
       let q = supabase
         .from("products")
-        .select(
-          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank",
-        )
+        .select(PRODUCT_COLUMNS)
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
         .eq("status", "active")
@@ -237,8 +244,7 @@ function decodeSlugParam(value: string): string {
 export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
     publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
-      const columns =
-        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank";
+      const columns = PRODUCT_COLUMNS;
 
       // The dynamic route param can arrive still percent-encoded, so a non-ASCII
       // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
@@ -506,7 +512,7 @@ export const listProductsInCategory = cache(
         let q = supabase
           .from("product_categories")
           .select(
-            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank)",
+            `products!inner(${PRODUCT_COLUMNS})`,
           )
           .eq("category_id", categoryId)
           .eq("tenant_id", tenantId)
