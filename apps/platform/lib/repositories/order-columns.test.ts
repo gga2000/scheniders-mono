@@ -98,7 +98,8 @@ describe("LIST_COLUMNS", () => {
             },
         });
         const variants: OrderFilters[] = [
-            { status: "needs_review" }, { status: "completed" }, { status: "refunds" }, { status: "refunded" },
+            // `needs_review` is not in the status union but the filter still honours it.
+            { status: "needs_review" as OrderFilters["status"] }, { status: "completed" }, { status: "refunds" }, { status: "refunded" },
             { status: "replacements" }, { status: "return_pending" }, { orderType: "refund" }, { orderType: "replacement" },
             { dateFrom: "2026-10-12", dateTo: "2026-10-12" }, { city: "Basra" }, { product: "x" }, { priority: "urgent" },
             { paymentStatus: "cod" }, { adChannel: "instagram" }, { isReturn: true },
