@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { orderRepository } from "@/lib/repositories/order-repository";
+import { useAuth } from "@/components/auth/auth-provider";
 import { classifyScannedOrder, type ScanResult } from "@/lib/returns/classify-scan";
 import { playScanBeep, playErrorBuzz } from "@/lib/returns/sounds";
 import type { Order } from "@/types/order";
@@ -27,6 +28,16 @@ function makeToken(): string {
 }
 
 export function useReturnsSession(open: boolean) {
+    // Read through a ref so a late-arriving tenant never re-subscribes the
+    // pairing channel. With no tenant yet, a scan resolves to "not found".
+    const { tenantId } = useAuth();
+    const tenantIdRef = useRef(tenantId);
+    useEffect(() => { tenantIdRef.current = tenantId; }, [tenantId]);
+    const findScanned = useCallback((ref: string): Promise<Order | null> => {
+        const current = tenantIdRef.current;
+        return current ? orderRepository.findByScanRef(current, ref) : Promise.resolve(null);
+    }, []);
+
     const [token] = useState<string>(() => {
         if (typeof window === "undefined") return makeToken();
         const existing = window.localStorage.getItem("returns:lastToken");
@@ -84,10 +95,10 @@ export function useReturnsSession(open: boolean) {
                     channel.send({ type: "broadcast", event: "ack", payload: { order_id: orderId, result: "duplicate", customer: dup.order?.customer_name } });
                     return;
                 }
-                // findByScanRef is tenant-scoped via RLS on v_orders_with_risk and
-                // resolves order_id, the short sequence_number, or the carrier QR id.
+                // findByScanRef is limited to the active tenant and resolves
+                // order_id, the short sequence_number, or the carrier QR id.
                 let order: Order | null = null;
-                try { order = await orderRepository.findByScanRef(orderId); } catch { order = null; }
+                try { order = await findScanned(orderId); } catch { order = null; }
                 const result = classifyScannedOrder(order);
                 if (order) playScanBeep(); else playErrorBuzz(); // accepted vs not found
                 const row: ScannedReturn = { key: `${orderId}-${Date.now()}`, orderId, order, result, ts: Date.now() };
@@ -102,7 +113,7 @@ export function useReturnsSession(open: boolean) {
                 if (status === "SUBSCRIBED") await channel.track({ role: "cockpit", online_at: new Date().toISOString() });
             });
         return () => { channel.unsubscribe(); };
-    }, [open, token]);
+    }, [open, token, findScanned]);
 
     const markProcessed = useCallback((orderId: string) => {
         setItems((prev) => prev.map((i) => (i.orderId === orderId ? { ...i, result: "done" as ScanResult } : i)));
@@ -122,11 +133,11 @@ export function useReturnsSession(open: boolean) {
         const item = itemsRef.current.find((i) => i.key === key);
         if (!item) return;
         let order: Order | null = null;
-        try { order = await orderRepository.findByScanRef(item.orderId); } catch { return; }
+        try { order = await findScanned(item.orderId); } catch { return; }
         setItems((prev) => prev.map((i) => i.key === key
             ? { ...i, order, result: i.result === "done" ? "done" : classifyScannedOrder(order) }
             : i));
-    }, []);
+    }, [findScanned]);
 
     const clearSession = useCallback(() => {
         setItems([]);
@@ -140,12 +151,12 @@ export function useReturnsSession(open: boolean) {
         const existing = itemsRef.current.find((i) => i.orderId === orderId);
         if (existing) { playErrorBuzz(); setSelectedKey(existing.key); return; }
         let order: Order | null = null;
-        try { order = await orderRepository.findByScanRef(orderId); } catch { order = null; }
+        try { order = await findScanned(orderId); } catch { order = null; }
         if (order) playScanBeep(); else playErrorBuzz();
         const row: ScannedReturn = { key: `${orderId}-${Date.now()}`, orderId, order, result: classifyScannedOrder(order), ts: Date.now() };
         setItems((prev) => [row, ...prev]);
         setSelectedKey(row.key);
-    }, []);
+    }, [findScanned]);
 
     const counts = useMemo(() => ({
         scanned: items.length,

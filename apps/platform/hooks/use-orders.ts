@@ -3,6 +3,7 @@
 import { useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 // Decomposed hooks
 import { useOrderFilters } from "@/hooks/use-order-filters";
@@ -46,13 +47,14 @@ export function useOrders() {
     // REACT QUERY INTEGRATION FOR CACHING
     // =============================================
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
 
     // On app reopen, sync ONLY the delta (rows changed since the cache's
     // high-water mark) instead of re-pulling the whole ~5.8MB table. Skip when
     // there's no cache yet — the query fetches on its own once the session is ready.
     useAppLifecycle(() => {
         if (queryClient.getQueryData(orderKeys.lists())) {
-            void syncOrdersDelta(queryClient, "appReopen");
+            void syncOrdersDelta(queryClient, tenantId, "appReopen");
         }
     });
 
@@ -123,7 +125,7 @@ export function useOrders() {
         onReconnect: () => {
             // Reconnect: flush any missed events via an incremental delta sync,
             // not a full-table refetch.
-            void syncOrdersDelta(queryClient, "realtimeReconnect");
+            void syncOrdersDelta(queryClient, tenantId, "realtimeReconnect");
         }
     });
 

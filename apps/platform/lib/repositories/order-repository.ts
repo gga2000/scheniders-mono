@@ -75,6 +75,15 @@ export function buildVersionedIdFilter(ids: readonly string[], expectedVersions?
  * All Supabase queries for the `orders` table go through here.
  * This decouples query construction from hooks/components,
  * making it easy to swap backends or add instrumentation.
+ *
+ * Every read that is not keyed by the globally unique row `id` takes the
+ * active `tenantId` (the caller's `user_profiles.current_tenant_id`, from
+ * `useAuth`) and filters on it. RLS remains the enforcement — it limits rows to
+ * the tenants the user belongs to — but RLS alone returns the UNION of those
+ * tenants, so a user in two tenants would see both books mixed into one list
+ * and a per-tenant number (sequence_number) could resolve to the wrong
+ * tenant's order. The filter also lets the planner use the tenant-leading
+ * indexes.
  */
 
 /**
@@ -99,7 +108,7 @@ const RPC_NOT_FOUND = "PGRST202";
  */
 let searchRpcMissing = false;
 
-async function fetchTrustRows(phones: string[]): Promise<TrustRow[]> {
+async function fetchTrustRows(tenantId: string, phones: string[]): Promise<TrustRow[]> {
     if (phones.length === 0) return [];
 
     if (phones.length <= TRUST_LOOKUP_MAX_PHONES) {
@@ -109,7 +118,7 @@ async function fetchTrustRows(phones: string[]): Promise<TrustRow[]> {
         }
         const results = await Promise.all(
             chunks.map(chunk =>
-                supabase.from("customer_trust").select(TRUST_RISK_COLUMNS).in("phone", chunk),
+                supabase.from("customer_trust").select(TRUST_RISK_COLUMNS).eq("tenant_id", tenantId).in("phone", chunk),
             ),
         );
         const rows: TrustRow[] = [];
@@ -120,10 +129,12 @@ async function fetchTrustRows(phones: string[]): Promise<TrustRow[]> {
         return rows;
     }
 
-    // RLS (tenant_isolation_all) scopes this to the caller's tenants.
+    // RLS (tenant_isolation_all) limits this to the caller's tenants; the
+    // tenant filter keeps it to the one the list belongs to.
     const { count, error: countErr } = await supabase
         .from("customer_trust")
-        .select("phone", { count: "exact", head: true });
+        .select("phone", { count: "exact", head: true })
+        .eq("tenant_id", tenantId);
     if (countErr) throw countErr;
     const total = count ?? 0;
     const results = await Promise.all(
@@ -131,6 +142,7 @@ async function fetchTrustRows(phones: string[]): Promise<TrustRow[]> {
             supabase
                 .from("customer_trust")
                 .select(TRUST_RISK_COLUMNS)
+                .eq("tenant_id", tenantId)
                 .order("tenant_id", { ascending: true })
                 .order("phone", { ascending: true })
                 .range(i * PAGE, i * PAGE + PAGE - 1),
@@ -147,9 +159,10 @@ async function fetchTrustRows(phones: string[]): Promise<TrustRow[]> {
 /**
  * Attach `risk_data` to list rows read from `orders`, reproducing
  * `v_orders_with_risk`'s LEFT JOIN on (tenant_id, normalize_phone(phone)).
- * Rows are already tenant-scoped by RLS, and so is `customer_trust`.
+ * `rows` all belong to `tenantId` (every list read below filters on it), so
+ * only that tenant's `customer_trust` rows are fetched.
  */
-async function withRiskData(rows: Order[]): Promise<Order[]> {
+async function withRiskData(tenantId: string, rows: Order[]): Promise<Order[]> {
     if (rows.length === 0) return rows;
 
     const phones = new Set<string>();
@@ -159,7 +172,7 @@ async function withRiskData(rows: Order[]): Promise<Order[]> {
     }
 
     const trust = new Map<string, TrustRow>();
-    for (const ct of await fetchTrustRows([...phones])) {
+    for (const ct of await fetchTrustRows(tenantId, [...phones])) {
         trust.set(trustKey(ct.tenant_id, normalizePhoneLikeDb(ct.phone)), ct);
     }
 
@@ -173,7 +186,7 @@ async function withRiskData(rows: Order[]): Promise<Order[]> {
 export const orderRepository = {
     /** Fetch all active (non-archived) orders, newest first.
      *  Uses a count query + parallel page fetches to cut latency in half. */
-    async findAll(): Promise<Order[]> {
+    async findAll(tenantId: string): Promise<Order[]> {
         const _t = performance.now();
         diag.log(`[Diag:Repo] findAll START`);
 
@@ -185,6 +198,7 @@ export const orderRepository = {
         const { count, error: countErr } = await supabase
             .from("orders")
             .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             .eq("is_archived", false);
 
@@ -206,6 +220,7 @@ export const orderRepository = {
             return supabase
                 .from("orders")
                 .select(LIST_COLUMNS)
+                .eq("tenant_id", tenantId)
                 .is("deleted_at", null)
                 .eq("is_archived", false)
                 .order("created_at", { ascending: false })
@@ -227,7 +242,7 @@ export const orderRepository = {
             }
         }
 
-        const result = await withRiskData(allData.map(row => normalizeOrder(row as unknown as Order)));
+        const result = await withRiskData(tenantId, allData.map(row => normalizeOrder(row as unknown as Order)));
         diag.log(`[Diag:Repo] findAll OK rows=${allData.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
         return result;
     },
@@ -237,10 +252,10 @@ export const orderRepository = {
      *
      * Exports must never be limited to whatever the page happens to have
      * loaded: "this month" or "all orders" has to mean what it says, even once
-     * the list fetch is windowed. Tenant scoping comes from RLS on `orders`,
-     * same as every other list read here. No `risk_data`: exports never read it.
+     * the list fetch is windowed. Scoped to `tenantId`, like every other list
+     * read here. No `risk_data`: exports never read it.
      */
-    async findForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<Order[]> {
+    async findForExport(tenantId: string, opts: { dateFrom?: string; dateTo?: string } = {}): Promise<Order[]> {
         const _t = performance.now();
         const step = 1000;
         const fromTs = opts.dateFrom ? `${opts.dateFrom}T00:00:00.000Z` : null;
@@ -249,6 +264,7 @@ export const orderRepository = {
         let countQuery = supabase
             .from("orders")
             .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             .eq("is_archived", false);
         if (fromTs) countQuery = countQuery.gte("created_at", fromTs);
@@ -266,6 +282,7 @@ export const orderRepository = {
                 let q = supabase
                     .from("orders")
                     .select(EXPORT_COLUMNS)
+                    .eq("tenant_id", tenantId)
                     .is("deleted_at", null)
                     .eq("is_archived", false);
                 if (fromTs) q = q.gte("created_at", fromTs);
@@ -297,8 +314,8 @@ export const orderRepository = {
      * Rides idx_orders_tenant_active_created — measured 0.388 ms / 47 buffers for
      * 50 rows, against 4,019 kB for the full book.
      */
-    async findWindow(window: OrderWindow): Promise<Order[]> {
-        if (!window) return this.findAll();
+    async findWindow(tenantId: string, window: OrderWindow): Promise<Order[]> {
+        if (!window) return this.findAll(tenantId);
 
         const _t = performance.now();
         const step = 1000;
@@ -325,6 +342,7 @@ export const orderRepository = {
         const { count, error: countErr } = await supabase
             .from("orders")
             .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             .eq("is_archived", false)
             .or(inWindow);
@@ -339,6 +357,7 @@ export const orderRepository = {
                 supabase
                     .from("orders")
                     .select(LIST_COLUMNS)
+                    .eq("tenant_id", tenantId)
                     .is("deleted_at", null)
                     .eq("is_archived", false)
                     .or(inWindow)
@@ -357,7 +376,7 @@ export const orderRepository = {
         }
 
         diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return withRiskData(rows.map(row => normalizeOrder(row as Order)));
+        return withRiskData(tenantId, rows.map(row => normalizeOrder(row as Order)));
     },
 
     /**
@@ -368,10 +387,11 @@ export const orderRepository = {
      * the window the page happens to hold, or the picker promises one thing and
      * the file delivers another.
      */
-    async countForExport(opts: { dateFrom?: string; dateTo?: string } = {}): Promise<number> {
+    async countForExport(tenantId: string, opts: { dateFrom?: string; dateTo?: string } = {}): Promise<number> {
         let q = supabase
             .from("orders")
             .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             .eq("is_archived", false);
         if (opts.dateFrom) q = q.gte("created_at", `${opts.dateFrom}T00:00:00.000Z`);
@@ -386,20 +406,21 @@ export const orderRepository = {
      * Returns both active and newly-archived orders so the client can
      * update its cache accordingly.
      */
-    async findChangedSince(sinceTimestamp: string): Promise<Order[]> {
+    async findChangedSince(tenantId: string, sinceTimestamp: string): Promise<Order[]> {
         const { data, error } = await supabase
             .from("orders")
             .select(LIST_COLUMNS)
+            .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             .gte("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
         if (error) throw error;
-        return withRiskData((data || []).map(row => normalizeOrder(row as unknown as Order)));
+        return withRiskData(tenantId, (data || []).map(row => normalizeOrder(row as unknown as Order)));
     },
 
     /** Fetch all archived orders, newest first. */
-    async findArchived(): Promise<Order[]> {
+    async findArchived(tenantId: string): Promise<Order[]> {
         let allData: any[] = [];
         let from = 0;
         const step = 1000;
@@ -408,6 +429,7 @@ export const orderRepository = {
             const { data, error } = await supabase
                 .from("orders")
                 .select(LIST_COLUMNS)
+                .eq("tenant_id", tenantId)
                 .is("deleted_at", null)
                 .eq("is_archived", true)
                 .order("created_at", { ascending: false })
@@ -423,7 +445,7 @@ export const orderRepository = {
             if (!data || data.length < step) break;
         }
 
-        return withRiskData(allData.map(row => normalizeOrder(row as unknown as Order)));
+        return withRiskData(tenantId, allData.map(row => normalizeOrder(row as unknown as Order)));
     },
 
     /**
@@ -433,11 +455,11 @@ export const orderRepository = {
      *
      * Prefers `search_orders_v2` (migration 20261012120000: indexed, and folds
      * Arabic name variants). Until that migration is applied the RPC does not
-     * exist (PostgREST PGRST202); the same search then runs as two RLS-scoped
-     * selects on `orders`. Any OTHER error is thrown — a failing search must not
-     * read as "no orders match".
+     * exist (PostgREST PGRST202); the same search then runs as two selects on
+     * `orders`. Both paths are limited to `tenantId`. Any OTHER error is
+     * thrown — a failing search must not read as "no orders match".
      */
-    async search(term: string, limit = MAX_SEARCH_RESULTS): Promise<Order[]> {
+    async search(tenantId: string, term: string, limit = MAX_SEARCH_RESULTS): Promise<Order[]> {
         const parsed = parseOrderSearchTerm(term);
         if (!parsed) return [];
         const cappedLimit = Math.min(Math.max(1, limit), MAX_SEARCH_RESULTS);
@@ -445,7 +467,7 @@ export const orderRepository = {
         let rows: Order[] | null = null;
         if (!searchRpcMissing) {
             const { data, error } = await supabase
-                .rpc("search_orders_v2", { p_term: parsed.text, p_limit: cappedLimit })
+                .rpc("search_orders_v2", { p_tenant_id: tenantId, p_term: parsed.text, p_limit: cappedLimit })
                 .select(SEARCH_COLUMNS);
             if (error) {
                 if (error.code !== RPC_NOT_FOUND) throw error;
@@ -463,6 +485,7 @@ export const orderRepository = {
                     supabase
                         .from("orders")
                         .select(SEARCH_COLUMNS)
+                        .eq("tenant_id", tenantId)
                         .or(or)
                         .order("created_at", { ascending: false })
                         .order("id", { ascending: false })
@@ -478,7 +501,7 @@ export const orderRepository = {
         }
 
         const ranked = rankSearchResults(parsed, [rows], cappedLimit);
-        return withRiskData(ranked.map(row => normalizeOrder(row)));
+        return withRiskData(tenantId, ranked.map(row => normalizeOrder(row)));
     },
 
     /** Fetch a single order by ID (all columns for detail view). */
@@ -496,11 +519,12 @@ export const orderRepository = {
         return data ? normalizeOrder(data) : null;
     },
 
-    /** Fetch a single order by its display order_id (not the uuid). Returns null if none. Tenant-scoped via RLS. */
-    async findByOrderId(orderId: string): Promise<Order | null> {
+    /** Fetch a single order of `tenantId` by its display order_id (not the uuid). Returns null if none. */
+    async findByOrderId(tenantId: string, orderId: string): Promise<Order | null> {
         const { data, error } = await supabase
             .from("v_orders_with_risk")
             .select("*")
+            .eq("tenant_id", tenantId)
             .eq("order_id", orderId)
             .limit(1)
             .maybeSingle();
@@ -519,15 +543,17 @@ export const orderRepository = {
      *      and on invoices, so the one people type when a label won't scan,
      *   3. the delivery company's `waseet_qr_id` printed on its own label.
      * First exact match wins (deterministic; order_id takes precedence over a
-     * colliding sequence_number). All lookups are tenant-scoped via RLS on
-     * v_orders_with_risk. Returns null only when nothing matches.
+     * colliding sequence_number). Every lookup is limited to `tenantId`:
+     * sequence_number is only unique per tenant, so without it a user in two
+     * tenants could get the other tenant's order. Returns null only when
+     * nothing matches.
      */
-    async findByScanRef(ref: string): Promise<Order | null> {
+    async findByScanRef(tenantId: string, ref: string): Promise<Order | null> {
         const value = (ref ?? "").trim();
         if (!value) return null;
 
         // 1. Canonical order_id (exact). Most labels carry this.
-        const byOrderId = await this.findByOrderId(value);
+        const byOrderId = await this.findByOrderId(tenantId, value);
         if (byOrderId) return byOrderId;
 
         // 2. Short per-tenant sequence_number — only attempt for a pure integer.
@@ -537,6 +563,7 @@ export const orderRepository = {
                 const { data, error } = await supabase
                     .from("v_orders_with_risk")
                     .select("*")
+                    .eq("tenant_id", tenantId)
                     .eq("sequence_number", seq)
                     .limit(1)
                     .maybeSingle();
@@ -549,6 +576,7 @@ export const orderRepository = {
         const { data, error } = await supabase
             .from("v_orders_with_risk")
             .select("*")
+            .eq("tenant_id", tenantId)
             .eq("waseet_qr_id", value)
             .limit(1)
             .maybeSingle();

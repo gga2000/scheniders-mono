@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
+import { pickListColumns } from "@/lib/repositories/order-columns";
 import { notificationService } from "@/lib/notification-service";
 import { orderKeys } from "@/hooks/use-orders-query";
 import { useRealtimeQuery } from "@/hooks/use-realtime-query";
@@ -42,7 +43,7 @@ export function useOrderRealtime({ onReconnect, getWindow }: UseOrderRealtimeOpt
         table: "orders",
         queryKey: orderKeys.lists(),
         filter: { column: "is_archived", value: false },
-        normalizer: (payload: unknown) => normalizeOrder(payload as Order),
+        normalizer: (payload: unknown) => normalizeOrder(pickListColumns(payload as Record<string, unknown>) as unknown as Order),
         onReconnect,
         onInsert: handleInsert,
         batchDelayMs: 200,

@@ -45,12 +45,12 @@ function getOrderBatcher() { return _orderBatcher; }
  * drift INSTEAD of re-pulling the entire orders table (~5.8MB / 3k+ rows).
  * Fetches only rows changed since the cache's high-water mark (max updated_at)
  * and merges them through the batcher (same rules as live events). Falls back to
- * a full invalidate when there's no cache/batcher or the delta fetch fails.
+ * a full invalidate when there's no cache/batcher/tenant or the delta fetch fails.
  */
-export async function syncOrdersDelta(queryClient: QueryClient, source: string): Promise<void> {
+export async function syncOrdersDelta(queryClient: QueryClient, tenantId: string | null, source: string): Promise<void> {
     const cached = queryClient.getQueryData<Order[]>(orderKeys.lists());
     const batcher = getOrderBatcher();
-    if (!cached || cached.length === 0 || !batcher) {
+    if (!cached || cached.length === 0 || !batcher || !tenantId) {
         diag.log(`[Diag:RQ:Delta] source=${source} — no cache/batcher, full refetch`);
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         return;
@@ -66,7 +66,7 @@ export async function syncOrdersDelta(queryClient: QueryClient, source: string):
     }
     try {
         const _t = performance.now();
-        const changed = await orderRepository.findChangedSince(since);
+        const changed = await orderRepository.findChangedSince(tenantId, since);
         const applied = batcher.applyChangedOrders(changed);
         diag.log(`[Diag:RQ:Delta] source=${source} since=${since} fetched=${changed.length} applied=${applied} took=${(performance.now() - _t).toFixed(1)}ms`);
     } catch (err) {
@@ -172,12 +172,12 @@ export function ordersCacheIsCompleteSet(window: OrderWindow): boolean {
     return window === null;
 }
 
-// Fetch all active orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
-async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
+// Fetch the active tenant's orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
+async function fetchOrders(tenantId: string, window: OrderWindow = null): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
-    const result = await orderRepository.findWindow(window);
+    const result = await orderRepository.findWindow(tenantId, window);
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
@@ -192,9 +192,15 @@ async function fetchOrders(window: OrderWindow = null): Promise<Order[]> {
     return resolved;
 }
 
-// Fetch archived orders
-async function fetchArchivedOrders(): Promise<Order[]> {
-    return orderRepository.findArchived();
+/**
+ * The active tenant, or a thrown error. Queries that call this are disabled
+ * until `useAuth` has a tenant, so it only throws if one runs anyway (a manual
+ * refetch before the profile loads) — and then it must fail rather than read
+ * every tenant RLS happens to allow.
+ */
+function requireTenant(tenantId: string | null): string {
+    if (!tenantId) throw new Error("No active tenant");
+    return tenantId;
 }
 
 /**
@@ -209,7 +215,7 @@ async function fetchArchivedOrders(): Promise<Order[]> {
  */
 export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true, refetchTrigger?: string) {
     const queryClient = useQueryClient();
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
 
     // The query key deliberately does NOT include the window. Realtime, every
     // mutation, delta sync and the sessionStorage SWR cache all read and write
@@ -277,10 +283,10 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
 
     return useQuery({
         queryKey: orderKeys.lists(),
-        queryFn: () => fetchOrders(windowRef.current),
+        queryFn: () => fetchOrders(requireTenant(tenantId), windowRef.current),
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
-        enabled: !!session && clientReady && filtersSettled && snapshotChecked,
+        enabled: !!session && clientReady && !!tenantId && filtersSettled && snapshotChecked,
         // Short staleTime — realtime patches keep cache fresh between refetches
         staleTime: 30 * 1000, // 30 seconds
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
@@ -298,10 +304,11 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
  * useArchivedOrdersQuery - React Query hook for archived orders
  */
 export function useArchivedOrdersQuery(enabled: boolean = true) {
+    const { tenantId } = useAuth();
     return useQuery({
         queryKey: orderKeys.archived(),
-        queryFn: fetchArchivedOrders,
-        enabled,
+        queryFn: () => orderRepository.findArchived(requireTenant(tenantId)),
+        enabled: enabled && !!tenantId,
         // Archived orders don't need real-time freshness
         staleTime: CACHE_PRESETS.STATIC.staleTime * 2, // 1 hour
         gcTime: CACHE_PRESETS.STATIC.gcTime * 2,
@@ -507,13 +514,15 @@ export function useUpdateStatusMutation() {
  */
 export function usePrefetchOrders() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
 
     return () => {
+        if (!tenantId) return;
         queryClient.prefetchQuery({
             queryKey: orderKeys.lists(),
             // Prefetch on hover has no filter context; it warms the unwindowed
             // list and the real query replaces it with the active window.
-            queryFn: () => fetchOrders(null),
+            queryFn: () => fetchOrders(tenantId, null),
             // Match staleTime from useOrdersQuery
             staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         });

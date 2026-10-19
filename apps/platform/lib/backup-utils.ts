@@ -19,7 +19,12 @@ export interface DatabaseSnapshot {
 
 const CURRENT_VERSION = 1;
 
-export async function generateFullSnapshot(): Promise<DatabaseSnapshot> {
+/**
+ * Snapshot of one tenant's orders and customer data. RLS already limits each
+ * read to the caller's tenants; the tenant filter keeps a user who belongs to
+ * several from exporting (and later restoring) them all as one book.
+ */
+export async function generateFullSnapshot(tenantId: string): Promise<DatabaseSnapshot> {
     try {
         // Parallel fetch for speed
         const [
@@ -29,11 +34,11 @@ export async function generateFullSnapshot(): Promise<DatabaseSnapshot> {
             { data: tags },
             { data: assignments },
         ] = await Promise.all([
-            supabase.from('orders').select('*'),
-            supabase.from('customer_metadata').select('*'),
-            supabase.from('customer_notes').select('*'),
-            supabase.from('customer_tags').select('*'),
-            supabase.from('customer_tag_assignments').select('*'),
+            supabase.from('orders').select('*').eq('tenant_id', tenantId),
+            supabase.from('customer_metadata').select('*').eq('tenant_id', tenantId),
+            supabase.from('customer_notes').select('*').eq('tenant_id', tenantId),
+            supabase.from('customer_tags').select('*').eq('tenant_id', tenantId),
+            supabase.from('customer_tag_assignments').select('*').eq('tenant_id', tenantId),
         ]);
 
         return {
