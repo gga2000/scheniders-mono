@@ -100,6 +100,25 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         expectAllTenantScoped();
     });
 
+    it("findByIds: chunked, de-duplicated, trashed rows excluded", async () => {
+        const ids = Array.from({ length: 150 }, (_, i) => `id-${i}`);
+        await orderRepository.findByIds(TENANT, [...ids, "id-0", "id-1"]);
+        const reads = queriesOn("orders");
+        expect(reads.length).toBe(2);
+        const requested = reads.flatMap((q) => {
+            const inOp = q.ops.find((o) => o.op === "in");
+            return inOp ? (inOp.args[1] as string[]) : [];
+        });
+        expect(requested.sort()).toEqual([...ids].sort());
+        expect(reads.every((q) => q.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at" && o.args[1] === null))).toBe(true);
+        expectAllTenantScoped();
+    });
+
+    it("findByIds with no ids makes no request", async () => {
+        expect(await orderRepository.findByIds(TENANT, [])).toEqual([]);
+        expect(scopedReads()).toEqual([]);
+    });
+
     it("the trust lookup over the whole book is tenant-scoped too", async () => {
         // > 200 distinct phones switches withRiskData to the paged full-book read.
         const many = Array.from({ length: 201 }, (_, i) => ({
