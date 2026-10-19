@@ -71,6 +71,21 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         expectAllTenantScoped();
     });
 
+    it("findAll and findWindow page in a total order: created_at desc, then id desc", async () => {
+        // Parallel pages over created_at alone repeat or skip rows wherever a
+        // run of equal timestamps straddles a 1,000-row boundary.
+        await orderRepository.findAll(TENANT);
+        await orderRepository.findWindow(TENANT, WINDOW);
+        const pages = queriesOn("orders").filter((q) => q.ops.some((o) => o.op === "range"));
+        expect(pages.length).toBe(2);
+        for (const page of pages) {
+            expect(page.ops.filter((o) => o.op === "order").map((o) => o.args)).toEqual([
+                ["created_at", { ascending: false }],
+                ["id", { ascending: false }],
+            ]);
+        }
+    });
+
     it("findWindow: windowed count and pages", async () => {
         const rows = await orderRepository.findWindow(TENANT, WINDOW);
         expect(rows.map((r) => r.id)).toEqual(["o1"]);

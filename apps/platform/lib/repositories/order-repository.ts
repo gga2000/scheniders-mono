@@ -224,6 +224,10 @@ export const orderRepository = {
                 .is("deleted_at", null)
                 .eq("is_archived", false)
                 .order("created_at", { ascending: false })
+                // Tie-break on id, as findWindow does: parallel pages over a
+                // non-unique sort key can repeat or skip rows at page
+                // boundaries, and a skipped row is missing from every count.
+                .order("id", { ascending: false })
                 .range(from, from + step - 1);
         });
 
