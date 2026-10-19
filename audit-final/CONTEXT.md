@@ -6,7 +6,8 @@ Phase 0 (reconnaissance) output. Read this first at the start of every step and 
 
 | Item | Value |
 |---|---|
-| Current phase | **Phase 0 complete (critic round 3: ready for Phase 1). Awaiting Ali's approval to start Phase 1** |
+| Current phase | **Phase 1 — regression sweep in progress (approved by Ali 2026-10-19 01:16 UTC)** |
+| Phase 1+ verification SHA | **87e5e40** — the commit all three Vercel production projects run (Vercel `list_deployments`, 2026-10-19). Phase 0 inventory was taken at 6bde0f4; main is at 577805c (#150, Iraq locations data only, not yet deployed). Findings from Phase 1 on cite 87e5e40. |
 | Audit pinned to | `main` @ `6bde0f4` (2026-10-18, "Merge #137 port-flagship-attributes"). Inventories by subagents were taken at `bf432f7` (two PRs earlier: #136 brand-kit chrome, #137 product attributes); line numbers in `inventory/*.md` may drift slightly for files those PRs touched. |
 | Live DB snapshot | First snapshot 2026-10-19 (pre-PR #146); **re-snapshot 2026-10-19 00:41 UTC** after PR #146's two migrations were applied live (L-38). All DB counts in this file are the 00:41 UTC values. |
 | `origin/main` vs pin | `origin/main` is at `87e5e40` (2026-10-19 03:42 +0300), 11 commits / 433 files ahead of the pinned `6bde0f4` (incl. PR #145 live migration history, PR #146 tenancy hardening, PR #147). The pinned snapshot is behind `main`; re-pinning is a Phase 1 decision. |
@@ -354,6 +355,13 @@ The inventory subagents flagged the items below. They are **leads for Phase 1/2*
 | `ORDERS_PAGE_SOTA_AUDIT_2026-08-20.md` + `ORDERS_PAGE_APPROVAL_LEDGER.md` (83 lines) | present |
 | `DASHBOARD_PAGE_SOTA_AUDIT_2026-09-02.md` + `DASHBOARD_PAGE_APPROVAL_LEDGER.md` (81 lines) | present |
 | `STORE_BUILDER_*` (6 files), `SCHENIDERS_SIGNATURE_SOTA_AUDIT_2026-09-06.md`, `QC_TEST_MATRIX.md` (356 lines), `OUT_OF_SCOPE_FINDINGS_2026-09-02.md` | present |
+
+Added for Phase 1 (found via `docs/audits/WEB_HANDOFF.md` on main):
+
+| Source | Status in repo |
+|---|---|
+| `docs/audits/orders-reliability-2026-10-11/REGISTER.md` (623 lines) + evidence/ | on main since #144 |
+| `MASTER_FINDINGS_LEDGER_2026-09-17.md` (266), `SOTA_PLATFORM_AUDIT_2026-09-17.md` (2,097), `FINAL_AUDIT_REGISTER.md` (1,023), `LAUNCH_READINESS_VERDICT.md` (165), `FINAL_REMEDIATION_PLAN.md` (645) | only on branch `feat/notifications-overhaul` @ 9579c36; copied read-only for Phase 1 |
 
 ## 8. Skills used in Phase 0
 
