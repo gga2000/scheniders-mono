@@ -79,7 +79,7 @@ function BundleCard({
   }
 
   return (
-    <div className="rounded-bk-card border-2 border-bk-ink/10 bg-white p-bk-md">
+    <div className="rounded-bk-card border-2 border-bk-ink/10 bg-bk-surface-alt p-bk-md">
       <div className="flex flex-wrap items-center gap-bk-sm">
         {products.map((p, i) => (
           <React.Fragment key={p.id}>

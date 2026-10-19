@@ -145,7 +145,7 @@ function DeliveryPromise({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div
             className={
-              "relative bg-white p-5 shadow-bk-button " +
+              "relative bg-bk-surface-alt text-bk-ink p-5 shadow-bk-button " +
               (visitorIsBaghdad ? "ring-4 ring-bk-primary/40" : "")
             }
             style={statCardStyle}
@@ -169,7 +169,7 @@ function DeliveryPromise({
           </div>
           <div
             className={
-              "relative bg-white p-5 shadow-bk-button " +
+              "relative bg-bk-surface-alt text-bk-ink p-5 shadow-bk-button " +
               (visitorGov && !visitorIsBaghdad ? "ring-4 ring-bk-primary/40" : "")
             }
             style={statCardStyle}
@@ -201,7 +201,7 @@ function DeliveryPromise({
               {covered.map((g) => (
                 <span
                   key={g}
-                  className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-white border-bk border-bk-ink rounded-full px-3 py-1"
+                  className="inline-flex items-center font-label font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] bg-bk-surface-alt text-bk-ink border-bk border-bk-ink rounded-full px-3 py-1"
                 >
                   {governorateLabel(g, locale)}
                 </span>
