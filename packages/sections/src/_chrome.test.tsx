@@ -328,7 +328,8 @@ describe("WhatsApp CTAs use the brand's success green, not Candy mint", () => {
       ),
     );
     expect(html).toContain("--bk-success");
-    // --bk-mint is a fixed pastel a tenant cannot recolour; it must not
+    // --bk-mint was a fixed pastel a tenant could not recolour. It is gone
+    // (see --bk-decor-*), and must not
     // carry a brand CTA.
     expect(html).not.toContain("--bk-mint");
   });

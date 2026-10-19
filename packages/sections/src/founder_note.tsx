@@ -57,7 +57,7 @@ function FounderNote({
       <BentoCard bg="cream" size="lg" className="p-0 overflow-hidden">
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] items-stretch">
           <div
-            className="relative min-h-[240px] sm:min-h-[320px] border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-candy-ink"
+            className="relative min-h-[240px] sm:min-h-[320px] border-b-[3px] sm:border-b-0 sm:border-r-[3px] border-bk-ink"
             style={{ backgroundColor: "var(--bk-surface,#fff7ed)" }}
           >
             {props.photo_url ? (
@@ -70,7 +70,7 @@ function FounderNote({
                 className="absolute inset-0 w-full h-full object-cover"
               />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-candy-pink/40 via-candy-butter/40 to-candy-mint/40" />
+              <div className="absolute inset-0 bg-gradient-to-br from-bk-primary/40 via-bk-accent/40 to-bk-secondary/40" />
             )}
             <div className="absolute top-3 left-3">
               <Sticker bg="pink" rotate={-5} size="sm">
@@ -80,7 +80,7 @@ function FounderNote({
           </div>
           <div className="p-6 sm:p-10 flex flex-col justify-center">
             <span
-              className="font-display font-black text-7xl leading-none text-candy-pink/40 select-none"
+              className="font-display font-black text-7xl leading-none text-bk-primary/40 select-none"
               aria-hidden="true"
             >
               &ldquo;

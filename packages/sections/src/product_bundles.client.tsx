@@ -79,7 +79,7 @@ function BundleCard({
   }
 
   return (
-    <div className="rounded-2xl border-2 border-bk-ink/10 bg-white p-bk-md">
+    <div className="rounded-bk-card border-2 border-bk-ink/10 bg-white p-bk-md">
       <div className="flex flex-wrap items-center gap-bk-sm">
         {products.map((p, i) => (
           <React.Fragment key={p.id}>
@@ -95,10 +95,10 @@ function BundleCard({
                   src={p.image_url}
                   alt=""
                   loading="lazy"
-                  className="h-20 w-20 rounded-lg object-cover"
+                  className="h-20 w-20 rounded-bk-input object-cover"
                 />
               ) : (
-                <span className="flex h-20 w-20 items-center justify-center rounded-lg bg-bk-ink/5">
+                <span className="flex h-20 w-20 items-center justify-center rounded-bk-input bg-bk-ink/5">
                   <MaterialIcon name="image" className="text-2xl text-bk-ink-soft" />
                 </span>
               )}

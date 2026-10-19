@@ -51,6 +51,7 @@ import {
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import {
   BentoCard,
   ChunkyButton,
@@ -61,7 +62,6 @@ import {
 } from "./helpers/primitives";
 import { PRESSABLE } from "./helpers/utils";
 import { useStoreBase } from "./helpers/store-context";
-import { VariantSelect } from "./helpers/variant-select";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
 import {
   formatCount,
@@ -118,6 +118,9 @@ const STRINGS = {
   deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}" },
   deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}" },
   totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل" },
+  chooseVariant: { en: "Choose an option", ar: "اختار الخيار" },
+  chooseVariantFirst: { en: "Choose an option first.", ar: "اختار الخيار أول." },
+  variantOut: { en: "out of stock", ar: "نفد" },
   quantity: { en: "Quantity", ar: "الكمية" },
   decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
   increase: { en: "Increase quantity", ar: "زيادة الكمية" },
@@ -289,12 +292,11 @@ export function PdpDirectOrderRender({
 
   const [qty, setQty] = useState(1);
   const [bumpAccepted, setBumpAccepted] = useState(false);
-  // The variant, for a product sold by variant. Nothing is pre-selected.
-  const [variantId, setVariantId] = useState<string | null>(null);
-  const [variantError, setVariantError] = useState(false);
-  // Server-corrected unit price (422 `price_changed` self-heal); null until
-  // the server reports a drift.
-  const [livePrice, setLivePrice] = useState<number | null>(null);
+  // Server-corrected unit price (422 `price_changed` self-heal), for the
+  // variant it was reported against; null until the server reports a drift.
+  // Keyed by variant so choosing another option — here or in any picker on
+  // the page — never carries one variant's correction onto another.
+  const [livePrice, setLivePrice] = useState<{ variantId: string | null; price: number } | null>(null);
   // Timestamp of the last price drift — drives the scroll-to + 1.2 s
   // highlight on the price row; null once the highlight has faded.
   const [priceFlashAt, setPriceFlashAt] = useState<number | null>(null);
@@ -332,6 +334,12 @@ export function PdpDirectOrderRender({
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
+  // Which variant is being bought: chosen in a pdp_variants section, the
+  // buy box, or the inline pills below (only when no picker is on the page).
+  // Nothing is pre-selected — see helpers/variant-store.
+  const chosen = useSelectedVariant(product);
+  const [variantError, setVariantError] = useState(false);
+  const variantPillsRef = useRef<HTMLDivElement | null>(null);
 
   // Price drift: bring the price row on screen and flash it for 1.2 s so the
   // shopper sees WHAT changed before re-confirming.
@@ -373,20 +381,23 @@ export function PdpDirectOrderRender({
   // cart-store `updatePrice` self-heal).
   // A product sold by variant is bought as one of them, priced from the
   // variant row — the checkout refuses a variant-less line for it.
-  const variants = product.variants ?? [];
-  const soldByVariant = variants.length > 0 || product.sold_by_variant === true;
-  const chosenVariant = variants.find((v) => v.id === variantId) ?? null;
-  const price = livePrice ?? chosenVariant?.price ?? product.price;
+  const chosenVariantId = chosen.variant?.id ?? null;
+  const price =
+    livePrice && livePrice.variantId === chosenVariantId
+      ? livePrice.price
+      : (chosen.variant?.price ?? product.price);
 
-  const compareAt = product.compare_at_price;
+  const compareAt = chosen.variant ? chosen.variant.compare_at_price : product.compare_at_price;
   const onSale = compareAt != null && compareAt > price;
   // The shared helper, not a second implementation of the same sum. This
   // computed the percentage inline and so could disagree with the cards and
   // the hero badge, and it lacked their guard against a zero price — which
   // would have read as 100% off rather than no discount at all.
   const discountPct = discountPercent(price, compareAt);
-  const stockLeft =
-    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+  // Sold by variant and none chosen: there is nothing to count yet; the form
+  // asks for the choice at submit instead of calling the product sold out.
+  const awaitingVariant = chosen.needsVariant;
+  const stockLeft = awaitingVariant ? 1 : stockLeftFor(product, chosen.variant);
   const oos = stockLeft <= 0;
   const maxQty = Math.min(
     props.max_qty,
@@ -594,13 +605,14 @@ export function PdpDirectOrderRender({
       errors.alt_phone = s("phoneInvalid");
     }
     setFieldErrors(errors);
-    const missingVariant = soldByVariant && chosenVariant === null;
-    setVariantError(missingVariant);
-    if (missingVariant) {
-      document.getElementById(`${uid}-variant`)?.focus();
+    // The option sits above the form, so it is the first thing to fix.
+    setVariantError(awaitingVariant);
+    const firstInvalid = FIELD_ORDER.find((k) => errors[k]);
+    if (awaitingVariant) {
+      variantPillsRef.current?.scrollIntoView?.({ block: "center" });
+      variantPillsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
       return;
     }
-    const firstInvalid = FIELD_ORDER.find((k) => errors[k]);
     if (firstInvalid || !phone) {
       fieldRefs.current[firstInvalid ?? "phone"]?.focus();
       return;
@@ -617,9 +629,9 @@ export function PdpDirectOrderRender({
     const items = [
       {
         product_id: product.id,
-        variant_id: chosenVariant?.id ?? null,
+        variant_id: chosen.variant?.id ?? null,
         name: product.name,
-        variant_name: chosenVariant?.name ?? null,
+        variant_name: chosen.variant?.name ?? null,
         // `unitPrice`, not `price`: with a quantity break selected the two
         // differ, and the server re-derives the break and rejects the base.
         price: unitPrice,
@@ -695,7 +707,7 @@ export function PdpDirectOrderRender({
               customer_name: form.customer_name.trim(),
               items: items.map((i) => ({
                 name: i.name,
-                variant: null,
+                variant: i.variant_name,
                 qty: i.quantity,
                 price: i.price,
               })),
@@ -743,7 +755,7 @@ export function PdpDirectOrderRender({
           (i) => i.reason === "price_changed" && i.product_id === product.id,
         )?.new_price;
         if (typeof newPrice === "number") {
-          setLivePrice(newPrice);
+          setLivePrice({ variantId: chosenVariantId, price: newPrice });
           setPriceFlashAt(Date.now());
           setErrorMsg(
             s("priceChanged").replace("{price}", formatPrice(newPrice, locale)),
@@ -778,7 +790,7 @@ export function PdpDirectOrderRender({
   const hintCls = "text-bk-ink-faint normal-case tracking-normal";
   const errorCls = "mt-bk-2xs font-label font-bold text-xs text-bk-danger";
   const stepperBtnCls =
-    "flex h-11 w-11 items-center justify-center transition-opacity duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
+    "flex h-11 w-11 items-center justify-center transition-opacity duration-bk-fast motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
 
   /** Shared a11y wiring for one field. */
   function fieldA11y(k: FieldKey) {
@@ -892,7 +904,7 @@ export function PdpDirectOrderRender({
             {/* Thumbnail strip — only when the product actually has extra
                 gallery photos; tapping a thumb swaps the main image. */}
             {galleryImages.length > 1 && (
-              <div className="mt-bk-xs flex w-full min-w-0 gap-bk-xs overflow-x-auto pb-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="mt-bk-xs flex w-full min-w-0 gap-bk-xs overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {galleryImages.map((src, i) => (
                   <button
                     key={`${i}-${src}`}
@@ -972,7 +984,7 @@ export function PdpDirectOrderRender({
               <div
                 ref={priceRowRef}
                 data-price-row
-                className="-mx-2 flex flex-wrap items-baseline justify-center gap-bk-xs scroll-mt-24 px-2 py-1 transition-[background-color] duration-300 motion-reduce:transition-none"
+                className="-mx-2 flex flex-wrap items-baseline justify-center gap-bk-xs scroll-mt-24 px-2 py-1 transition-[background-color] duration-bk-base motion-reduce:transition-none"
                 style={{
                   borderRadius: "var(--bk-radius-input, 0.75rem)",
                   backgroundColor:
@@ -998,7 +1010,7 @@ export function PdpDirectOrderRender({
                 >
                   <bdi>{formatPrice(price, locale)}</bdi>
                 </span>
-                {onSale && product.compare_at_price != null && (
+                {onSale && compareAt != null && (
                   <span
                     className="font-body text-lg line-through tabular-nums"
                     style={{
@@ -1006,7 +1018,7 @@ export function PdpDirectOrderRender({
                         "color-mix(in srgb, var(--bk-danger, #e2574c) 65%, var(--bk-ink, #1a1a1a))",
                     }}
                   >
-                    <bdi>{formatPrice(product.compare_at_price, locale)}</bdi>
+                    <bdi>{formatPrice(compareAt, locale)}</bdi>
                   </span>
                 )}
                 {onSale && (
@@ -1194,6 +1206,59 @@ export function PdpDirectOrderRender({
             </div>
 
             {/* ── Step 02 — quantity ── */}
+            {chosen.soldByVariant && !chosen.pickerMounted && (
+              <div
+                ref={variantPillsRef}
+                data-layer="variants"
+                data-layer-label="Options"
+                role="group"
+                aria-label={s("chooseVariant")}
+                className="space-y-bk-xs"
+              >
+                <p className="font-label text-xs font-bold uppercase tracking-[0.2em] text-bk-ink-soft">
+                  {s("chooseVariant")}
+                </p>
+                <div className="flex flex-wrap gap-bk-xs">
+                  {chosen.variants.map((v) => {
+                    const left = stockLeftFor(product, v);
+                    const active = chosen.variant?.id === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        aria-pressed={active}
+                        disabled={left <= 0}
+                        onClick={() => {
+                          chosen.select(v.id);
+                          setVariantError(false);
+                        }}
+                        className={cn(
+                          "min-h-11 rounded-bk-pill border-2 px-4 font-display text-sm font-black transition-colors",
+                          active ? "border-bk-ink bg-bk-ink text-bk-surface" : "border-bk-ink bg-bk-surface text-bk-ink",
+                          left <= 0 && "opacity-50 line-through",
+                        )}
+                      >
+                        {v.name}
+                        {v.price !== product.price && (
+                          <span className="ms-1.5 font-body text-xs font-bold tabular-nums">
+                            <bdi>{formatPrice(v.price, locale)}</bdi>
+                          </span>
+                        )}
+                        {left <= 0 && (
+                          <span className="ms-1 font-body text-xs">{s("variantOut")}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {variantError && (
+                  <p role="alert" className={errorCls}>
+                    {s("chooseVariantFirst")}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div
               className="space-y-bk-xs"
               data-layer="qty"
@@ -1205,21 +1270,6 @@ export function PdpDirectOrderRender({
                   {qtyTitle}
                 </h2>
               </div>
-              {soldByVariant && (
-                <VariantSelect
-                  id={`${uid}-variant`}
-                  variants={variants}
-                  value={variantId}
-                  onChange={(id) => {
-                    setVariantId(id);
-                    setLivePrice(null);
-                    setVariantError(false);
-                  }}
-                  locale={locale}
-                  basePrice={product.price}
-                  invalid={variantError}
-                />
-              )}
               {/* Tappable rungs when the merchant set price breaks. This
                   reframes the choice from "one?" to "how many?", and each
                   tile states the real saving rather than implying one.
@@ -1660,7 +1710,7 @@ export function PdpDirectOrderRender({
                       <img
                         src={c.image_url}
                         alt=""
-                        className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                        className="h-14 w-14 shrink-0 rounded-bk-input object-cover"
                         loading="lazy"
                       />
                     )}

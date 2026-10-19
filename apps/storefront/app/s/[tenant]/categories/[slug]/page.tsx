@@ -54,8 +54,8 @@ export default async function CategoryPage({ params }: Props) {
   // and the legacy products.category_id primary-category filter. Stores that never
   // populated the junction table still get their full legacy list.
   const [junctionProducts, legacyProducts, categories] = await Promise.all([
-    listProductsInCategory(tenant.id, category.id),
-    listProducts(tenant.id, { categoryId: category.id }),
+    listProductsInCategory(tenant.id, category.id, { withAttributes: true }),
+    listProducts(tenant.id, { categoryId: category.id, withAttributes: true }),
     listCategories(tenant.id),
   ]);
   const seen = new Set(junctionProducts.map((p) => p.id));

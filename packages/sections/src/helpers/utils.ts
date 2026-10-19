@@ -8,4 +8,4 @@ export { cn } from "@scheniders/shared";
  *  a plain string exported from a client module turns into an opaque client
  *  reference when a server-rendered section imports it. */
 export const PRESSABLE =
-  "transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]";
+  "transition-[transform,box-shadow,opacity] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]";

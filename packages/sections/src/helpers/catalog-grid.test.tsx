@@ -11,6 +11,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { parseProductAttributeDefs, resolveProductAttributes } from "@scheniders/shared";
 import { CatalogGrid } from "./catalog-grid";
 import type { Category, Product } from "../types";
 
@@ -342,5 +343,81 @@ describe("CatalogGrid — search", () => {
     expect(cards(container)).toEqual([]);
     expect(container.textContent).toContain("ما لكينا عطر بهذا الاسم");
     expect(container.textContent).not.toContain("ما لكينا عطور بهذا الفلتر");
+  });
+});
+
+describe("CatalogGrid — attribute facets", () => {
+  const defs = parseProductAttributeDefs([
+    {
+      id: "d1",
+      key: "scent_family",
+      kind: "enum",
+      display_order: 0,
+      is_filterable: true,
+      name_i18n: { ar: "العائلة العطرية" },
+      options: [
+        { value: "oriental", label_i18n: { ar: "شرقي" } },
+        { value: "woody", label_i18n: { ar: "خشبي" } },
+      ],
+    },
+  ]);
+  const withFamily = (p: Product, family: string): Product => ({
+    ...p,
+    attributes: resolveProductAttributes(
+      defs,
+      defs.map((d) => ({ product_id: p.id, attribute_def_id: d.id, value: family })),
+    ),
+  });
+  const pool = products.map((p, i) =>
+    i < 2 ? withFamily(p, "oriental") : i === 2 ? withFamily(p, "woody") : p,
+  );
+
+  function mountFacets(showFacets: boolean) {
+    return render(
+      <CatalogGrid
+        showFacets={showFacets}
+        items={pool.map((p) => ({
+          product: p,
+          card: <div data-card={p.id}>{p.name}</div>,
+        }))}
+        categories={categories}
+        categoryProductIds={categoryProductIds}
+        locale={"ar" as never}
+      />,
+    );
+  }
+
+  it("is absent unless asked for", () => {
+    const { container } = mountFacets(false);
+    expect(container.querySelector("[data-attribute-facet]")).toBeNull();
+  });
+
+  it("narrows the grid and every chip count to the picked option", () => {
+    const { container } = mountFacets(true);
+    expect(
+      container.querySelector('[data-attribute-facet="scent_family"]'),
+    ).not.toBeNull();
+    press(chip("شرقي"));
+    expect(cards(container).sort()).toEqual(["p1", "p2"]);
+    // Category chips count inside the facet selection, so "night" now
+    // advertises the two oriental products it actually yields.
+    expect(chip("ليلي").textContent).toContain("2");
+    expect(window.location.search).toContain("attr=scent_family%3Aoriental");
+  });
+
+  it("clears the facet together with the other filters", () => {
+    const { container } = mountFacets(true);
+    press(chip("خشبي"));
+    expect(cards(container)).toEqual(["p3"]);
+    press(container.querySelector<HTMLButtonElement>("[data-clear-filters]"));
+    expect(cards(container)).toHaveLength(5);
+    expect(window.location.search).not.toContain("attr=");
+  });
+
+  it("restores the facet from the URL on mount", () => {
+    window.history.replaceState(null, "", "/?attr=scent_family%3Awoody");
+    const { container } = mountFacets(true);
+    expect(cards(container)).toEqual(["p3"]);
+    expect(chip("خشبي").getAttribute("aria-pressed")).toBe("true");
   });
 });

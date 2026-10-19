@@ -131,7 +131,7 @@ export default async function CheckoutSuccessPage({
           {t ? "تم الطلب!" : "Order Placed!"}
         </ScribbleHeading>
         {order && (
-          <p className="mt-3 inline-block bg-white border-[3px] border-candy-ink rounded-full px-4 py-1 font-display font-black uppercase text-sm">
+          <p className="mt-3 inline-block bg-white border-[3px] border-bk-ink rounded-full px-4 py-1 font-display font-black uppercase text-sm">
             # {order}
           </p>
         )}
@@ -212,7 +212,7 @@ export default async function CheckoutSuccessPage({
             className="p-4"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white border-[3px] border-candy-ink flex items-center justify-center font-display font-black text-lg shadow-bento-sm shrink-0">
+              <div className="w-10 h-10 rounded-full bg-white border-[3px] border-bk-ink flex items-center justify-center font-display font-black text-lg shadow-bento-sm shrink-0">
                 {step.num}
               </div>
               <div>
@@ -239,7 +239,7 @@ export default async function CheckoutSuccessPage({
             href={`https://wa.me/${wa.replace(/\D/g, "")}?text=${encodeURIComponent(`Hi! I'd like updates on order #${order}`)}`}
             target="_blank"
             rel="noreferrer"
-            className="bento-card bg-candy-mint text-candy-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all rounded-xl uppercase tracking-tight"
+            className="bento-card bg-bk-success text-bk-ink font-display font-black text-base px-5 py-3 inline-flex items-center gap-2 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all rounded-xl uppercase tracking-tight"
           >
             <WhatsAppIcon className="w-5 h-5" />
             {t ? "افتح واتساب" : "Open WhatsApp"}

@@ -42,7 +42,7 @@ export function RevealMore({
             onClick={() => setVisible((v) => v + (step ?? initial))}
             className={cn(
               "inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2 text-sm font-bold tabular-nums",
-              "transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
+              "transition-[transform,box-shadow,opacity] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
               "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
             )}
             style={{

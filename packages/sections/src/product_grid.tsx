@@ -59,6 +59,16 @@ const schema = z.object({
   manual_product_ids: z.array(z.string()).optional(),
   pinned_product_ids: z.array(z.string()).optional(),
   heading_i18n: i18nStringOptional,
+  /**
+   * Offer attribute facets above the grid. Optional: a stored instance
+   * from before this existed must still parse, or the section is
+   * silently dropped at render.
+   *
+   * A real category page turns them on regardless — a merchant browsing
+   * a category expects to narrow it. Off elsewhere so the home grid
+   * stays server-rendered and ships no filtering JavaScript.
+   */
+  enable_filters: z.boolean().optional(),
   scribble_color: scribbleColor.optional(),
   // ---- price_pill card style (all additions defaulted/optional so every
   // pre-existing stored config keeps parsing — and keeps rendering — exactly
@@ -121,6 +131,7 @@ const defaultProps: Props = {
   manual_product_ids: [],
   pinned_product_ids: [],
   heading_i18n: { en: "Just dropped", ar: "وصل حديثاً" },
+  enable_filters: false,
   scribble_color: "butter",
   card_style: "standard",
 };
@@ -369,7 +380,7 @@ export function PricePillCard({
               priority={priority}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className={cn(
-                "object-cover transition-transform duration-300 ease-out motion-reduce:transition-none group-hover:scale-[1.04]",
+                "object-cover transition-transform duration-bk-base ease-out motion-reduce:transition-none group-hover:scale-[1.04]",
                 !inStock && "opacity-60 grayscale",
               )}
             />
@@ -789,6 +800,21 @@ function ProductGridRender({
               locale={locale}
               pageSize={props.catalog_page_size ?? 12}
               showSearch={props.catalog_search === true}
+              showFacets={props.enable_filters === true}
+            />
+          </div>
+        ) : props.enable_filters ? (
+          // Attribute facets without the full catalogue controls: the same
+          // client grid the standard layout uses, drawing price_pill cards.
+          <div data-layer="cards" data-layer-label="Product cards">
+            <FilterableProductGrid
+              products={pillItems}
+              locale={locale}
+              whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
+              cardStyle="price_pill"
+              showStars={props.show_stars === true}
+              showDiscountBadge={props.show_discount_badge === true}
+              lowStockThreshold={props.low_stock_threshold}
             />
           </div>
         ) : category && pageSize && pillItems.length > pageSize ? (
@@ -842,8 +868,11 @@ function ProductGridRender({
 
   return (
     <Section>
-      {category ? (
+      {category || props.enable_filters ? (
         <>
+          {/* Hero is category-only: the catalog page turns filters on
+              without one, and this block reads category.name. */}
+          {category ? (
           <div className="mb-bk-lg">
             <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-sm">
               <StoreLink
@@ -888,8 +917,16 @@ function ProductGridRender({
               </div>
             </BentoCard>
           </div>
+          ) : (
+            heading && (
+              <SectionHeader
+                title={heading}
+                color={props.scribble_color ?? "butter"}
+              />
+            )
+          )}
           <FilterableProductGrid
-            products={ctx.products}
+            products={category ? ctx.products : items}
             locale={locale}
             whatsappPhone={resolveTenantWhatsapp(ctx.tenant)}
           />

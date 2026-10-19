@@ -180,7 +180,7 @@ function CollectionTrio({
                 className={cn("group block", CARD_CLS, PRESSABLE)}
               >
                 <div
-                  className="flex h-full flex-col overflow-hidden p-3 text-center transition-transform duration-150 motion-reduce:transition-none group-hover:-translate-y-1"
+                  className="flex h-full flex-col overflow-hidden p-3 text-center transition-transform duration-bk-fast motion-reduce:transition-none group-hover:-translate-y-1"
                   style={{
                     backgroundColor: "var(--bk-surface, #ffffff)",
                     borderRadius: "var(--bk-radius-card, 1.25rem)",
@@ -202,7 +202,7 @@ function CollectionTrio({
                         fill
                         unoptimized={!isOptimizableImageHost(item.image_url)}
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-bk-base motion-reduce:transition-none group-hover:scale-105"
                       />
                     ) : (
                       /* No image yet: tinted placeholder keeps the card a
@@ -242,7 +242,7 @@ function CollectionTrio({
                     )}
                     {ctaLabel && (
                       <span
-                        className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 font-semibold text-sm transition-transform duration-150 motion-reduce:transition-none group-hover:scale-105"
+                        className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 font-semibold text-sm transition-transform duration-bk-fast motion-reduce:transition-none group-hover:scale-105"
                         style={{
                           backgroundColor: "var(--bk-primary, #ff5a8a)",
                           color: "var(--bk-on-primary, #ffffff)",

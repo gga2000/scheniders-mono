@@ -109,7 +109,9 @@ export default async function ProductPage({ params }: Props) {
       listProducts(tenant.id, { limit: 24 }),
       listApprovedReviews(tenant.id, product.id),
     ]);
-    const hydratedProduct = { ...product, images: allImages, variants, reviews };
+    // A variant row without its own price sells at the product's price.
+    const pricedVariants = variants.map((v) => ({ ...v, price: v.price ?? product.price }));
+    const hydratedProduct = { ...product, images: allImages, variants: pricedVariants, reviews };
 
     const { baseUrl } = await getStorefrontBase(tenantParam);
     const ar = locale === "ar";
