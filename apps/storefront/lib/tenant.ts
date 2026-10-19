@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
+import { cookies } from "next/headers";
 import {
   createSupabaseServerClient,
   createSupabasePublicClient,
@@ -8,6 +9,10 @@ import {
 import { redactServerOnlyConfig } from "@scheniders/shared";
 import type { Tables } from "@scheniders/supabase";
 import type { Tenant } from "./types";
+import { canPreviewDraft } from "./preview-access";
+
+/** httpOnly cookie holding a preview token; set by /api/draft-view. */
+export const DRAFT_VIEW_COOKIE = "sb_draft_view";
 
 /**
  * EC29: how long a PUBLIC storefront read is served from Next's data cache
@@ -103,7 +108,7 @@ function redactTenant(tenant: Tenant | null): Tenant | null {
  * Cached per-request via React `cache` so multiple components in the same
  * request share the same DB call.
  */
-export const getTenantBySlug = cache((slug: string): Promise<Tenant | null> =>
+const getPublishedTenantBySlug = (slug: string): Promise<Tenant | null> =>
   // React `cache` dedupes within a request; `unstable_cache` persists ACROSS
   // requests (the EC29 win). The callback uses the cookie-free public client so
   // it's safe inside unstable_cache. Tagged for future on-demand revalidation
@@ -120,15 +125,45 @@ export const getTenantBySlug = cache((slug: string): Promise<Tenant | null> =>
       revalidate: STOREFRONT_CACHE_SECONDS,
       tags: ["storefront-tenant", `storefront-tenant-${slug}`],
     },
-  )(),
+  )();
+
+/**
+ * Draft view: a visitor holding a valid preview token for THIS tenant (in
+ * the httpOnly `sb_draft_view` cookie, set by the token-gated
+ * /api/draft-view route) sees the real storefront rendered from the
+ * unpublished draft, published config as the fallback. The token is
+ * re-verified on every request against the resolved tenant, so it expires
+ * with the token and never opens another tenant's draft. Everyone else
+ * gets the cached published tenant, unchanged.
+ */
+async function withDraftView(
+  published: Tenant | null,
+  loadWithDraft: () => Promise<Tenant | null>,
+): Promise<Tenant | null> {
+  if (!published) return published;
+  const token = (await cookies()).get(DRAFT_VIEW_COOKIE)?.value;
+  if (!canPreviewDraft(token, published.id)) return published;
+  const withDraft = await loadWithDraft();
+  if (!withDraft) return published;
+  return {
+    ...withDraft,
+    store_config_v2: withDraft.store_config_v2_draft ?? withDraft.store_config_v2,
+    store_config_v2_draft: null,
+  };
+}
+
+export const getTenantBySlug = cache(
+  async (slug: string): Promise<Tenant | null> =>
+    withDraftView(await getPublishedTenantBySlug(slug), () =>
+      getTenantForPreview(slug),
+    ),
 );
 
 /**
  * Resolve tenant by custom domain (Tier 3+ feature).
  * Stub for now — will query a `tenant_domains` table later.
  */
-export const getTenantByCustomDomain = cache(
-  (domain: string): Promise<Tenant | null> =>
+const getPublishedTenantByCustomDomain = (domain: string): Promise<Tenant | null> =>
     unstable_cache(
       async (): Promise<Tenant | null> => {
         if (!domain) return null;
@@ -154,7 +189,13 @@ export const getTenantByCustomDomain = cache(
         revalidate: STOREFRONT_CACHE_SECONDS,
         tags: ["storefront-tenant", `storefront-tenant-domain-${domain}`],
       },
-    )(),
+    )();
+
+export const getTenantByCustomDomain = cache(
+  async (domain: string): Promise<Tenant | null> =>
+    withDraftView(await getPublishedTenantByCustomDomain(domain), () =>
+      getTenantByCustomDomainForPreview(domain),
+    ),
 );
 
 /**

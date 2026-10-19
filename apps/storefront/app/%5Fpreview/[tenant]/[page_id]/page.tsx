@@ -39,7 +39,6 @@ import {
   buildBrandKitFontsUrl,
   buildBrandKitVars,
 } from "@scheniders/shared";
-import { verifyPreviewToken } from "@scheniders/shared/preview-token";
 import type {
   BrandKit,
   Breakpoint,
@@ -51,6 +50,7 @@ import type {
   StoreConfigV2,
 } from "@scheniders/shared";
 import { getTenantForPreview, getTenantByCustomDomainForPreview } from "@/lib/tenant";
+import { canPreviewDraft } from "@/lib/preview-access";
 import {
   listProducts,
   listCategories,
@@ -75,13 +75,6 @@ import type { Tenant, Product, Category } from "@/lib/types";
 /* ─────────────────────────────────────────────────────────────────── */
 /* Constants                                                            */
 /* ─────────────────────────────────────────────────────────────────── */
-
-// Dev-only fallback token. In production the route requires a real
-// HMAC-signed token minted by the platform editor using the same
-// `PREVIEW_TOKEN_SECRET`. We keep this constant so a local-dev flow
-// (running the storefront without the platform) continues to work
-// when `PREVIEW_TOKEN_SECRET` is unset.
-const DEV_PREVIEW_TOKEN = "dev-preview-token";
 
 const VALID_PAGE_IDS = new Set<PageId>([
   "home",
@@ -303,26 +296,8 @@ export default async function PreviewPage({
   // Dev fallback: if `PREVIEW_TOKEN_SECRET` is unset AND we're not in
   // production, accept the literal `dev-preview-token` so the local-dev
   // storefront keeps working without the platform running.
-  const token = firstParam(sp.token);
-  const secret = process.env.PREVIEW_TOKEN_SECRET;
-  const isProd = process.env.NODE_ENV === "production";
-  if (!token) {
+  if (!canPreviewDraft(firstParam(sp.token), tenant.id)) {
     return <UnauthorizedPage />;
-  }
-  if (secret) {
-    const result = verifyPreviewToken(token, secret);
-    if (!result.ok || result.payload.tenant_id !== tenant.id) {
-      return <UnauthorizedPage />;
-    }
-  } else {
-    // No secret configured.
-    if (isProd) {
-      // Fail closed.
-      return <UnauthorizedPage />;
-    }
-    if (token !== DEV_PREVIEW_TOKEN) {
-      return <UnauthorizedPage />;
-    }
   }
 
   /* ───── Param parsing ───── */
