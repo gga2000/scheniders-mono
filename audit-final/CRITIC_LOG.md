@@ -30,4 +30,15 @@ The 8 remaining gaps and how each was closed:
 7. **Gap 7 numbers** → storefront cache keys 14 (2 + 12, lines listed); admin Zod 14/57 (13 import zod + `leads-table-layout` via `layoutSchema`; no grep finds 16), CONTEXT and inventory agree; admin auth 44 + 12 middleware-only + 1 public callback = 57 (the callback was double-counted); L-12 corrected from 13 to 12 with the list.
 8. **Wording** → L-02: invalid credentials rejected in every mode (`webhook-auth.ts:197-198`); L-37: single caller `use-order-realtime.ts:40` (`orders`, published); integrations.md cron rows: `x-vercel-cron` spoofability unverified; database.md missing list adds `exec_sql`, `search_orders_v2` (L-35 too); PROGRESS lockfile sentence states the +3-line zod change; §5.1 status changes 78,824 / 23,291 = 3.38 (MEASURED 00:44 UTC); §5.3 Lightfunnels ≈ 860/day on top of the 1,500; §5.4 total modelled writes ≈ 3.5/s base.
 
-Still open after round 2: Vercel env names (CONTEXT §3) were not re-verified in this pass (Vercel MCP unreachable); Supabase advisors not re-run after L-38; the pre-PR-#146 function bodies were never hashed, so body changes rest on the migration file plus live guard presence.
+Still open after round 2: Vercel env names (CONTEXT §3) were not re-verified in this pass (Vercel MCP unreachable); Supabase advisors were re-run after L-38 at 00:54 UTC (CONTEXT §3), closing that item; the pre-PR-#146 function bodies were never hashed, so body changes rest on the migration file plus live guard presence.
+
+## Phase 0 — round 3 (final)
+Report: critic/phase0-round3.md. Verdict: **Ready for Phase 1**, no blocking errors. All 8 round-2 gaps closed; 24 fresh spot-checks correct; live counts match; no source changes outside audit-final/.
+
+Minor items and how each was handled:
+1. Live edge function `migrate-scheniders-iraq-product-images` missing → COVERAGE row 644 and lead L-41.
+2. `packages/supabase/config.toml:5` names the old project id → lead L-42.
+3. Stale "advisors not re-run" lines in database.md and this log → corrected.
+4. §4.1 experiment event write placed in submitCheckout → moved to path A only.
+5. Stray backtick in COVERAGE row 607 → fixed.
+6. Vercel env names not re-verified (Vercel MCP unreachable) → still open; re-check at Phase 1 start if the connector is back.

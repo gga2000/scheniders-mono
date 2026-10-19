@@ -559,7 +559,7 @@ Seed-order generators exist in production (inactive) — `generate_seed_orders` 
 
 ## Advisors (2026-10-19)
 
-**Security (first snapshot; advisors not re-run after the 00:41 UTC re-snapshot):** ERROR 1 (security-definer view `customer_aggregates`); WARN 26 mutable search_path functions (catalog at 00:41 UTC: 19 public functions have no `search_path` setting, 0 of them DEFINER); WARN 1 `pg_net` in public; WARN 1 anon-callable definer (`lookup_order`); WARN 64 authenticated-callable definers (catalog at 00:41 UTC: 60); WARN leaked-password protection disabled; INFO 4 RLS-enabled-no-policy.
+**Security (first snapshot; superseded by the 00:54 UTC re-run recorded in CONTEXT §3: 1 ERROR, 82 WARN findings, 4 INFO; 19 mutable search_path, 60 authenticated-callable definers):** ERROR 1 (security-definer view `customer_aggregates`); WARN 26 mutable search_path functions (catalog at 00:41 UTC: 19 public functions have no `search_path` setting, 0 of them DEFINER); WARN 1 `pg_net` in public; WARN 1 anon-callable definer (`lookup_order`); WARN 64 authenticated-callable definers (catalog at 00:41 UTC: 60); WARN leaked-password protection disabled; INFO 4 RLS-enabled-no-policy.
 
 **Performance:** 112 unindexed foreign keys; 43 `auth_rls_initplan` (per-row `auth.*()` re-evaluation); 190 unused indexes; 57 multiple-permissive-policy overlaps; 1 duplicate index (`iraq_district_areas`). Full JSON: `advisors-performance.json`.
 
