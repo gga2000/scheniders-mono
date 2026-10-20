@@ -95,7 +95,12 @@ import post_purchase_offer from "./post_purchase_offer";
 import product_attributes from "./product_attributes";
 import product_finder from "./product_finder";
 
-export { getSection, listSections, registerSection } from "./_registry";
+export {
+  getSection,
+  listSections,
+  pageNeedsProductAttributes,
+  registerSection,
+} from "./_registry";
 export type {
   SectionDefinition,
   SectionRenderContext,

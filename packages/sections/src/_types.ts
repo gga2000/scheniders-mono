@@ -107,6 +107,13 @@ export interface SectionDefinition<Props> {
    * only an instance that actually asked for it should get the treatment.
    */
   stickyWrapper?: (props: Props) => boolean;
+  /**
+   * The section reads `ctx.products[].attributes`. Routes load attributes
+   * on demand (one extra query), so a route consults
+   * `pageNeedsProductAttributes` before it fetches products — without
+   * this, a section that depends on them silently renders nothing.
+   */
+  needsProductAttributes?: boolean;
 }
 
 /** Convenience alias for the registry — props are erased to `unknown`. */

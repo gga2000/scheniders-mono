@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { parseProductAttributeDefs, resolveProductAttributes } from "@scheniders/shared";
 import { StoreBaseProvider } from "./helpers/store-context";
 import product_finder from "./product_finder";
+import { pageNeedsProductAttributes } from "./index";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 
@@ -111,5 +112,17 @@ describe("product_finder", () => {
       expect(q.attribute_key).toMatch(/^[a-z][a-z0-9_]*$/);
       expect(q.answers.length).toBeGreaterThan(0);
     }
+  });
+
+  it("tells the route it needs product attributes", () => {
+    // Routes load attributes on demand. A page that hosts the finder must
+    // ask for them, or the finder has nothing to ask about and vanishes.
+    const finder = { id: "f1", type: "product_finder", enabled: true, base: defaults };
+    const grid = { id: "g1", type: "product_grid", enabled: true, base: {} };
+    expect(pageNeedsProductAttributes([grid, finder])).toBe(true);
+    expect(pageNeedsProductAttributes([grid])).toBe(false);
+    expect(pageNeedsProductAttributes([{ ...finder, enabled: false }])).toBe(false);
+    expect(pageNeedsProductAttributes([{ ...finder, type: "not_a_section" }])).toBe(false);
+    expect(pageNeedsProductAttributes(undefined)).toBe(false);
   });
 });

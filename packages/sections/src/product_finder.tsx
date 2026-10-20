@@ -108,6 +108,8 @@ const definition: SectionDefinition<Props> = {
   schema,
   defaultProps,
   render: ProductFinderRender,
+  // Every question is answered from `ctx.products[].attributes`.
+  needsProductAttributes: true,
 };
 
 registerSection(definition);
