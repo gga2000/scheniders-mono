@@ -42,6 +42,12 @@ import {
 } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
+import {
+  clearCustomerMemory,
+  prefillFromMemory,
+  readCustomerMemory,
+  writeCustomerMemory,
+} from "./helpers/customer-memory";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, MaterialIcon, WhatsAppButton } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
@@ -63,6 +69,8 @@ const STRINGS = {
     en: "Enter a valid Iraqi mobile number, e.g. 0770 123 4567.",
     ar: "أدخل رقم هاتف عراقي صحيح، مثال: 0770 123 4567.",
   },
+  welcomeBack: { en: "Welcome back — we filled in your details from your last order.", ar: "رجعتلنا؟ عبّينا معلوماتك من آخر طلب." },
+  notYou: { en: "Not you? Clear", ar: "مو انت؟ امسح" },
   email: { en: "Email", ar: "البريد الإلكتروني" },
   governorate: { en: "Governorate", ar: "المحافظة" },
   governoratePlaceholder: { en: "Choose a governorate", ar: "اختر المحافظة" },
@@ -290,6 +298,30 @@ export function CheckoutFormRender({
       clearTimeout(handle);
     };
   }, [referralProgram?.enabled, referralCode, form.phone]);
+
+  // A returning shopper's details, from THIS browser only — see
+  // helpers/customer-memory for why nothing is looked up by phone. Applied
+  // after mount so server HTML and first client render agree; only blank
+  // fields are filled.
+  const [recognised, setRecognised] = useState(false);
+  useEffect(() => {
+    const memory = readCustomerMemory(tenantId);
+    if (!memory) return;
+    setForm((prev) => prefillFromMemory(prev, memory).next);
+    setRecognised(true);
+  }, [tenantId]);
+  function forgetMe(): void {
+    clearCustomerMemory(tenantId);
+    setRecognised(false);
+    setForm((prev) => ({
+      ...prev,
+      customer_name: "",
+      phone: "",
+      governorate_code: "",
+      city: "",
+      address_details: "",
+    }));
+  }
   const reassurance = resolveI18n(props.reassurance_text_i18n, locale);
   const callPromise = resolveI18n(props.call_promise_i18n, locale);
   const callPromiseNote = resolveI18n(props.call_promise_note_i18n, locale);
@@ -519,6 +551,14 @@ export function CheckoutFormRender({
         } | null;
         const orderNumber = data?.orderNumber ?? "";
         if (referralState.kind === "valid") clearCapturedReferral(tenantId);
+        // Remember the shopper for next time — in their browser only.
+        writeCustomerMemory(tenantId, {
+          customer_name: form.customer_name.trim(),
+          phone: form.phone.trim(),
+          governorate_code: form.governorate_code,
+          city: form.city.trim() || undefined,
+          address_details: form.address_details.trim(),
+        });
         // Stash the just-placed order for the thank-you recap. This is the
         // privacy-safe path (only the buyer's browser holds it) — never fetch
         // an order by number on the public success page (enumeration risk).
@@ -722,6 +762,21 @@ export function CheckoutFormRender({
             className="mb-bk-md"
           />
           <form onSubmit={onSubmit} className="space-y-bk-sm">
+            {recognised && (
+              <p data-testid="welcome-back" className="flex items-center justify-between gap-bk-xs rounded-bk-input bg-bk-decor-a/40 px-3 py-2 text-xs sm:text-sm text-bk-ink">
+                <span className="inline-flex items-center gap-1.5">
+                  <MaterialIcon name="waving_hand" className="text-sm" />
+                  {s("welcomeBack")}
+                </span>
+                <button
+                  type="button"
+                  onClick={forgetMe}
+                  className="shrink-0 font-semibold underline underline-offset-2"
+                >
+                  {s("notYou")}
+                </button>
+              </p>
+            )}
             <label className="block">
               <span className={labelCls}>{s("fullName")}</span>
               <input
