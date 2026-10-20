@@ -23,6 +23,7 @@ import {
     orderKeys,
     setOrderBatcher,
 } from "@/hooks/use-orders-query";
+import { useLoadedOrdersWindowKey } from "@/hooks/orders-list-coverage";
 
 import { useEffect } from "react";
 import { useOrderFilterState } from "@/hooks/use-order-filter-state";
@@ -110,6 +111,10 @@ export function useOrders() {
     // exact view the merchant left.
     const orderSearch = useServerOrderSearch(filters.searchQuery, { liveOrders: orders });
 
+    // The window the cached rows were loaded for (null: nothing committed yet).
+    // Counts are only shown while it covers the filter's window.
+    const loadedWindowKey = useLoadedOrdersWindowKey();
+
     // 1. Filters — filter state, presets, persistence, derived lists
     const filterHook = useOrderFilters({
         orders,
@@ -117,6 +122,7 @@ export function useOrders() {
         filters,
         setFilters,
         clearFilters,
+        loadedWindowKey: cachedOrders === undefined ? null : loadedWindowKey,
     });
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
@@ -140,11 +146,17 @@ export function useOrders() {
         return () => setOrderBatcher(null);
     }, [batcherRef, tenantId]);
 
-    // Server-computed aggregates. These describe the whole filter, not the rows
-    // that happen to be loaded, which is what lets the fetch narrow to a window
-    // without the status chips and stat cards quietly reporting the window's
-    // numbers as if they were the filter's.
-    const { data: serverAggregates } = useOrdersAggregates(filters);
+    // Server-computed aggregates — on this page ONLY for what the loaded rows
+    // cannot answer: the city / product option lists of the whole filter and
+    // the headline `stats` cards that are not a count of a list the page opens
+    // (revenue, conversion, velocity). Never for a clickable count: those are
+    // derived from the rows the list shows (see `statusCounts`), and while the
+    // cache does not cover the active window they are hidden, not substituted
+    // from the RPC, whose predicates differ.
+    //
+    // Held until the saved filter has replaced the seed (`filtersSettled`), so
+    // the seed's numbers are never fetched.
+    const { data: serverAggregates } = useOrdersAggregates(filters, { enabled: filtersSettled });
 
 
     // 3. Auxiliary — reference data, customer helpers, stats
@@ -170,11 +182,15 @@ export function useOrders() {
     // the same false alarm ten times a page load. A guard that cries wolf on a
     // healthy page is worse than no guard: it trains you to scroll past the line
     // that will one day be real.
+    //
+    // Status counts are no longer compared: the page takes them from the
+    // client, with the list's own predicates, which deliberately differ from
+    // the RPC's (completed excludes refunds and replacements; refunds is
+    // `is_return`), so the two are not expected to agree.
     useEffect(() => {
         if (!serverAggregates || !ordersAreComplete) return;
-        assertAggregateParity("status counts", filterHook.statusCounts, serverAggregates.status_counts);
         assertAggregateParity("stats", auxiliaryHook.stats as unknown as Record<string, number>, serverAggregates.stats);
-    }, [serverAggregates, ordersAreComplete, filterHook.statusCounts, auxiliaryHook.stats]);
+    }, [serverAggregates, ordersAreComplete, auxiliaryHook.stats]);
 
 
     // 4. CRUD — all order mutations, undo, notes, timeline, etc.
@@ -193,7 +209,20 @@ export function useOrders() {
         orders,
         isRefreshing,
         ordersPending,
-        statusCounts: serverAggregates?.status_counts ?? filterHook.statusCounts,
+        // Taken over the same rows as `filteredOrders`, with the same predicate
+        // table (lib/orders/order-chips.ts), so a chip's number is the length
+        // of the list it opens. Never the RPC's: its rules differ and it is not
+        // invalidated by list writes (the 219-vs-119 incident, 2026-10-17).
+        statusCounts: filterHook.statusCounts,
+        /** Needs Attention counts, each the length of the list its click opens. */
+        attentionCounts: filterHook.attentionCounts,
+        /**
+         * Whether the counts describe the list on screen (not searching, rows
+         * loaded for the filter's window), from the list's own deferred render.
+         * Pages combine it with their refinements via lib/orders/count-visibility.
+         */
+        countViewFacts: filterHook.countViewFacts,
+        statusCountsReady: filterHook.countViewFacts.ready,
         // Archive
         archivedOrders,
         fetchArchivedOrders: crudHook.fetchArchivedOrders,
