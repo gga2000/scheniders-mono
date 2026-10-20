@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 
-type CallerResult =
-    | { ok: true; userId: string; tenantId: string; role: string; memberRole: string | null }
-    | { ok: false; response: NextResponse };
+import type { RequestCaller } from "@/lib/auth/require-request-caller";
+
+type CallerResult = RequestCaller;
 
 const state = vi.hoisted(() => ({
     caller: null as CallerResult | null,
@@ -37,8 +37,8 @@ const admin: CallerResult = {
     ok: true,
     userId: "u1",
     tenantId: "tenant-a",
-    role: "user",
-    memberRole: "admin",
+    role: "admin",
+    platformAdmin: false,
 };
 
 const patch = (body: unknown) =>
