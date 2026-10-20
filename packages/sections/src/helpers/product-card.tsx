@@ -104,6 +104,10 @@ export function SchneidersProductCard({
       price: product.price,
       quantity: 1,
       image_url: product.image_url ?? null,
+      // Carried so the cart can apply the ladder if the shopper raises the
+      // quantity there; at one unit the price is the base price.
+      base_price: product.price,
+      ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
     });
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1500);
@@ -206,6 +210,10 @@ export function SchneidersProductCard({
         >
           {t ? "اشترِ الآن" : "Buy Now"}
         </StoreLink>
+        {/* Quick-add sends one variant-less unit, which a product sold by
+            variant cannot be bought as (the checkout refuses it). Such a
+            product is chosen on its page — the Buy Now link above. */}
+        {!product.sold_by_variant && (
         <button
           type="button"
           onClick={quickAdd}
@@ -230,6 +238,7 @@ export function SchneidersProductCard({
         >
           <MaterialIcon name={justAdded ? "check" : "add_shopping_cart"} className="text-lg" />
         </button>
+        )}
       </div>
       {showWhatsapp && (() => {
         const productPath = `/products/${product.slug ?? product.id}`;

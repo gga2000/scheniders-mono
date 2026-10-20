@@ -8,6 +8,7 @@ import type {
     Product as SectionProduct,
     Category as SectionCategory,
 } from "@scheniders/sections";
+import { resolveTrackerContact } from "@scheniders/sections/helpers/whatsapp";
 import { env } from "@/lib/env";
 import { EditorShell } from "@/components/store-builder-v2/editor-shell";
 import type { InspectorTab } from "@/components/store-builder-v2/inspector-rail";
@@ -58,6 +59,11 @@ interface TenantMemberRow {
         store_config_v2_draft: StoreConfigV2 | null;
         updated_at: string | null;
         store_config_rev: number | null;
+        /** Only `contact` is read, to resolve the order tracker's `{contact}`. */
+        store_config: {
+            contact?: { whatsapp_number?: string | null; phone_number?: string | null } | null;
+        } | null;
+        contact_phone: string | null;
     } | null;
 }
 
@@ -114,7 +120,7 @@ export default async function StoreV2Page({
     const { data: member } = await supabase
         .from("tenant_members")
         .select(
-            "tenant_id, tenants(id, slug, business_name, store_config_v2, store_config_v2_draft, updated_at, store_config_rev)",
+            "tenant_id, tenants(id, slug, business_name, store_config_v2, store_config_v2_draft, updated_at, store_config_rev, store_config, contact_phone)",
         )
         .eq("user_id", user.id)
         .single<TenantMemberRow>();
@@ -176,6 +182,14 @@ export default async function StoreV2Page({
                 id: t.id,
                 slug: t.slug,
                 business_name: t.business_name,
+                // Resolved here, from the same fields and helper the storefront
+                // tracker uses, so the "Order tracking messages" preview drops
+                // exactly the lines the shopper would not see. Only the number
+                // crosses to the client, not the store_config row.
+                tracking_contact: resolveTrackerContact({
+                    store_config: t.store_config,
+                    contact_phone: t.contact_phone,
+                }),
             }}
             initialConfig={initialConfig}
             publishedConfig={published ?? null}

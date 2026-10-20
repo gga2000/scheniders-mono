@@ -42,4 +42,21 @@ describe("LoyaltyScreen", () => {
         });
         expect(applyLast(setConfig, config).commerce?.loyalty?.redeem_value_iqd).toBe(10);
     });
+
+    it("edits the referral program beside loyalty and warns when points cannot be paid", () => {
+        const { builder, setConfig, config } = makeBuilder();
+        render(<LoyaltyScreen builder={builder} onClose={() => {}} />);
+        fireEvent.click(screen.getByTestId("referral-enabled"));
+        expect(applyLast(setConfig, config).commerce?.referral).toEqual({ enabled: true });
+        fireEvent.change(screen.getByTestId("referral-friend_discount_pct"), { target: { value: "10" } });
+        expect(applyLast(setConfig, config).commerce?.referral?.friend_discount_pct).toBe(10);
+
+        cleanup();
+        const cfg2 = {
+            schema_version: 2,
+            commerce: { referral: { enabled: true, referrer_points: 50 } },
+        } as unknown as StoreConfigV2;
+        render(<LoyaltyScreen builder={{ config: cfg2, setConfig: vi.fn() } as unknown as UseStoreBuilderV2Return} onClose={() => {}} />);
+        expect(screen.getByTestId("referral-needs-loyalty")).toBeTruthy();
+    });
 });

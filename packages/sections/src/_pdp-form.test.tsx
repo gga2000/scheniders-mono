@@ -119,8 +119,62 @@ describe("pdp_direct_order governorate (P1-2)", () => {
     expect(placeholder).toContain("اختر المحافظة");
     // Only the placeholder is selected.
     expect(html.match(/<option[^>]*\bselected\b/g)).toHaveLength(1);
-    // Delivery fee is unknown until a governorate is chosen.
-    expect(html).toMatch(/data-delivery-fee[^>]*>—</);
+    // "Never a silent Baghdad" means never ASSUME a governorate's rate. With
+    // no shipping config the fee is the legacy flat one — the same
+    // everywhere — so stating it upfront assumes nothing, and a shopper
+    // learns the delivery cost before filling in a form. It is labelled as
+    // applying to every governorate and counted in the total.
+    expect(html).toMatch(/data-delivery-fee[^>]*>[\s\S]*?5,000[\s\S]*?لكل المحافظات/);
+    expect(html).not.toMatch(/data-delivery-fee[^>]*>—</);
+    expect(html).not.toContain("بدون التوصيل");
+  });
+
+  it("shows a range, not a number, when the fee genuinely varies by governorate", () => {
+    // Here assuming a rate WOULD be a silent Baghdad — so the row shows the
+    // spread and the total is marked as excluding delivery until they pick.
+    const html = render({}, {
+      tenant: {
+        ...tenant,
+        store_config_v2: {
+          commerce: {
+            shipping: {
+              default_rate: { fee_iqd: 6000 },
+              rates: { BG: { fee_iqd: 4000 } },
+            },
+          },
+        },
+      } as never,
+    });
+    expect(html).toMatch(/data-delivery-fee[^>]*>[\s\S]*?4,000[\s\S]*?6,000[\s\S]*?حسب المحافظة/);
+    expect(html).toContain("بدون التوصيل");
+    // (The "choose your governorate so we can price delivery" hint is a
+    // validation message, rendered only after a failed submit — not in the
+    // static markup — so it is not asserted here.)
+  });
+
+  it("says delivery is free up front for a store that made it free", () => {
+    // The delivery-fee screen's "free" answer stores fee_iqd: 0.
+    const html = render({}, {
+      tenant: {
+        ...tenant,
+        store_config_v2: { commerce: { shipping: { default_rate: { fee_iqd: 0 } } } },
+      } as never,
+    });
+    expect(html).toMatch(/data-delivery-fee[^>]*>مجاني</);
+    expect(html).not.toContain("بدون التوصيل");
+  });
+
+  it("shows a range when only some governorates have a rate of their own", () => {
+    // Overrides-only: every other governorate pays the platform's flat 5,000,
+    // so 10,000 is NOT the fee everywhere.
+    const html = render({}, {
+      tenant: {
+        ...tenant,
+        store_config_v2: { commerce: { shipping: { rates: { BG: { fee_iqd: 10000 } } } } },
+      } as never,
+    });
+    expect(html).toMatch(/data-delivery-fee[^>]*>[\s\S]*?5,000[\s\S]*?10,000[\s\S]*?حسب المحافظة/);
+    expect(html).toContain("بدون التوصيل");
   });
 
   it("prefills from the runtime governorate (sb_gov cookie) when present", () => {
@@ -238,5 +292,16 @@ describe("pdp_direct_order neutral copy + optional lines (P2-11)", () => {
       },
     );
     expect(html).toContain("إرجاع خلال 7 أيام");
+  });
+});
+
+describe("pdp_direct_order — open before you pay (C3)", () => {
+  const withReturns = (returns_policy: Record<string, unknown>) =>
+    render({}, { tenant: { ...tenant, store_config_v2: { commerce: { returns_policy } } } as never });
+
+  it("renders the commitment only when the merchant switched it on", () => {
+    expect(withReturns({ inspect_before_paying: true })).toContain("افتح الطلب وتأكد قبل ما تدفع");
+    expect(withReturns({ window_days: 14 })).not.toContain("افتح الطلب وتأكد قبل ما تدفع");
+    expect(render()).not.toContain("data-inspect-before-paying");
   });
 });
