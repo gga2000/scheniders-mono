@@ -1024,7 +1024,7 @@ export function PdpDirectOrderRender({
   }
 
   const inputCls =
-    "w-full bg-white py-3 pr-11 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
+    "w-full bg-bk-surface-alt py-3 pr-11 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
   const inputStyle: React.CSSProperties = {
     border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.14))",
     borderRadius: "var(--bk-radius-input, 0.75rem)",
@@ -1587,7 +1587,7 @@ export function PdpDirectOrderRender({
                 </div>
               )}
               <div
-                className="flex items-center justify-between bg-white px-2 py-1.5"
+                className="flex items-center justify-between bg-bk-surface-alt px-2 py-1.5"
                 style={{
                   border: "1px solid var(--bk-divider, rgb(26 26 26 / 0.14))",
                   borderRadius: "var(--bk-radius-input, 0.75rem)",

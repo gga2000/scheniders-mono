@@ -292,7 +292,7 @@ function HeroCardFloatRender({
     <Section bleed className="px-0 sm:px-4 py-0 sm:py-6">
       <div
         className={cn(
-          "relative overflow-hidden sm:flex sm:min-h-[520px] sm:items-center sm:bg-bk-ink",
+          "relative overflow-hidden text-bk-surface sm:flex sm:min-h-[520px] sm:items-center sm:bg-bk-ink",
           !bgImage && "flex min-h-[420px] items-center bg-bk-ink",
         )}
         style={{ borderRadius: "var(--bk-radius-card, 1.5rem)" }}
