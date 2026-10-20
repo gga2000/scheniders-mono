@@ -7,6 +7,7 @@ import { buildRuntimeContext } from "@/lib/storefront-runtime";
 import { findCustomPage, resolveI18n } from "@scheniders/shared";
 import type { PageConfig, PageId } from "@scheniders/shared";
 import { V2Page } from "@/components/v2-page";
+import { pageNeedsProductAttributes } from "@scheniders/sections";
 
 // =====================================================================
 // /s/[tenant]/p/[slug] — merchant-authored custom pages (E4)
@@ -64,9 +65,12 @@ export default async function CustomPage({ params }: Props) {
 
   // EC18: a custom page can contain a product_grid — fetch real products (like
   // the home page) so it isn't a silently-blank grid (the renderCtx used to
-  // hardcode `products: []`).
+  // hardcode `products: []`). Attributes only when a section reads them.
   const [products, categories] = await Promise.all([
-    listProducts(tenant.id, { limit: 48 }),
+    listProducts(tenant.id, {
+      limit: 48,
+      withAttributes: pageNeedsProductAttributes(customPage.sections),
+    }),
     listCategories(tenant.id),
   ]);
   const runtime = buildRuntimeContext({

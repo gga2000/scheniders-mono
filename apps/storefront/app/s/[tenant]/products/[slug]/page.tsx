@@ -106,7 +106,7 @@ export default async function ProductPage({ params }: Props) {
     // P1-13: approved reviews ride in on the product so product_reviews
     // renders its list in the SSR HTML (the client fetch is revalidation only).
     const [related, reviews] = await Promise.all([
-      listProducts(tenant.id, { limit: 24 }),
+      listProducts(tenant.id, { limit: 24, withAttributes: true }),
       listApprovedReviews(tenant.id, product.id),
     ]);
     // A variant row without its own price sells at the product's price.
@@ -154,7 +154,7 @@ export default async function ProductPage({ params }: Props) {
   const template = tenant.store_config?.template ?? "schneiders";
 
   if (template === "schneiders") {
-    const related = (await listProducts(tenant.id, { limit: 6 })).filter((p) => p.id !== product.id).slice(0, 4);
+    const related = (await listProducts(tenant.id, { limit: 6, withAttributes: true })).filter((p) => p.id !== product.id).slice(0, 4);
     return (
       <SchneidersPageShell tenant={tenant} categories={categories} showBack hideBottomBar>
         <SchneidersProductDetailClient

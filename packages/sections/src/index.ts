@@ -93,8 +93,14 @@ import countdown_announcement from "./countdown_announcement";
 import pdp_direct_order from "./pdp_direct_order";
 import post_purchase_offer from "./post_purchase_offer";
 import product_attributes from "./product_attributes";
+import product_finder from "./product_finder";
 
-export { getSection, listSections, registerSection } from "./_registry";
+export {
+  getSection,
+  listSections,
+  pageNeedsProductAttributes,
+  registerSection,
+} from "./_registry";
 export type {
   SectionDefinition,
   SectionRenderContext,
@@ -177,6 +183,8 @@ export const BUILTIN_SECTIONS = [
   pdp_direct_order,
   post_purchase_offer,
   product_attributes,
+  product_finder,
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";
+export { setFunnelSink, type FunnelEvent, type FunnelEventType } from "./helpers/pixels";

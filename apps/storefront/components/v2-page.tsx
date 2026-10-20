@@ -10,6 +10,7 @@ import {
 import { StorefrontGlobals } from "./storefront-globals";
 import { ExperimentBeacon } from "./experiment-beacon";
 import { CartSignal } from "./cart-signal";
+import { FunnelBeacon } from "./funnel-beacon";
 import { SectionReveal } from "./section-reveal";
 import type {
   StoreConfigV2,
@@ -148,6 +149,11 @@ export async function V2Page({
   return (
     <>
       <CartSignal />
+      <FunnelBeacon
+        tenantId={renderCtx.tenant.id}
+        pageId={String(runtime.page_id)}
+        productId={runtime.product_id}
+      />
       <SectionReveal />
       {Object.keys(abArms).length > 0 && (
         <ExperimentBeacon tenantId={renderCtx.tenant.id} arms={abArms} />

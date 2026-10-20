@@ -26,4 +26,9 @@ describe("formatHours", () => {
     expect(formatHours(5.6, "en")).toBe("6h");
     expect(formatHours(-3, "en")).toBe("0h");
   });
+
+  it("Kurdish counts with the singular noun after the number", () => {
+    expect(formatHours(6, "ku")).toBe("6 کاتژمێر");
+    expect(formatHours(48, "ku")).toBe("2 ڕۆژ");
+  });
 });

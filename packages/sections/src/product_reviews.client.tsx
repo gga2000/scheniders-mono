@@ -43,6 +43,7 @@ const EMPTY_SUMMARY: RatingSummary = {
 type Locale = "ar" | "en" | "ku";
 
 function reviewCountLabel(count: number, locale: Locale): string {
+  if (locale === "ku") return count === 1 ? "1 هەڵسەنگاندن" : `${count} هەڵسەنگاندن`;
   return formatCount(count, locale, {
     one: locale === "en" ? "1 review" : "تقييم واحد",
     two: "تقييمان",
@@ -53,6 +54,7 @@ function reviewCountLabel(count: number, locale: Locale): string {
 }
 
 function photosAttachedLabel(count: number, locale: Locale): string {
+  if (locale === "ku") return count === 1 ? "1 وێنە هاوپێچ کراوە" : `${count} وێنە هاوپێچ کراوە`;
   return formatCount(count, locale, {
     one: locale === "en" ? "1 photo attached" : "صورة واحدة مرفقة",
     two: "صورتان مرفقتان",
@@ -159,6 +161,8 @@ export function ProductReviewsRender({
   const product = ctx.product;
   const locale = ctx.runtime.locale;
   const t = React.useCallback(
+    // Kurdish UI chrome reads the Arabic line here; the review counts below
+    // do carry a Kurdish shape because a number is read closely.
     (en: string, ar: string): string => (locale === "en" ? en : ar),
     [locale],
   );
