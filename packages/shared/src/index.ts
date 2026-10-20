@@ -28,6 +28,7 @@ export * from "./price-tiers";
 export * from "./product-attribute";
 // MOVED TO SUBPATH EXPORT: export * from "./preview-token";
 export * from "./order-status";
+export * from "./product-finder";
 export * from "./redirects";
 export * from "./review";
 export * from "./schedule-time";
