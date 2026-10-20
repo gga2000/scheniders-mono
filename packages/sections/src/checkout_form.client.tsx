@@ -34,8 +34,20 @@ import {
   pixelContentsFromItems,
   isValidIraqiMobile,
   normalizeIraqiMobile,
+  computePointsEarned,
+  formatPoints,
+  computeReferralDiscount,
+  normalizeReferralCode,
+  stackDiscounts,
 } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
+import {
+  clearCustomerMemory,
+  prefillFromMemory,
+  readCustomerMemory,
+  writeCustomerMemory,
+} from "./helpers/customer-memory";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, MaterialIcon, WhatsAppButton } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
@@ -45,56 +57,71 @@ import { formatCount, formatPrice } from "./helpers/format";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./checkout_form";
 
-/** Chrome strings (Kurdish resolves through the ar fallback chain). */
+/** Chrome strings. Every entry carries Sorani — _kurdish-coverage.test.ts fails the build otherwise. */
 const STRINGS = {
-  stepCart: { en: "Cart", ar: "السلة" },
-  stepDetails: { en: "Details", ar: "التفاصيل" },
-  stepConfirm: { en: "Confirm", ar: "التأكيد" },
-  deliveryDetails: { en: "Delivery details", ar: "تفاصيل التوصيل" },
-  fullName: { en: "Full name", ar: "الاسم الكامل" },
-  phone: { en: "Phone number", ar: "رقم الهاتف" },
+  stepCart: { en: "Cart", ar: "السلة", ku: "سەبەتە" },
+  stepDetails: { en: "Details", ar: "التفاصيل", ku: "زانیارییەکان" },
+  stepConfirm: { en: "Confirm", ar: "التأكيد", ku: "پشتڕاستکردنەوە" },
+  deliveryDetails: { en: "Delivery details", ar: "تفاصيل التوصيل", ku: "زانیاری گەیاندن" },
+  fullName: { en: "Full name", ar: "الاسم الكامل", ku: "ناوی تەواو" },
+  phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل" },
   phoneInvalid: {
     en: "Enter a valid Iraqi mobile number, e.g. 0770 123 4567.",
     ar: "أدخل رقم هاتف عراقي صحيح، مثال: 0770 123 4567.",
+    ku: "ژمارەیەکی مۆبایلی عێراقی دروست بنووسە، نموونە: 0770 123 4567.",
   },
-  email: { en: "Email", ar: "البريد الإلكتروني" },
-  governorate: { en: "Governorate", ar: "المحافظة" },
-  governoratePlaceholder: { en: "Choose a governorate", ar: "اختر المحافظة" },
-  area: { en: "Area / District", ar: "المنطقة" },
-  address: { en: "Full address", ar: "العنوان بالتفصيل" },
+  welcomeBack: { en: "Welcome back — we filled in your details from your last order.", ar: "رجعتلنا؟ عبّينا معلوماتك من آخر طلب.", ku: "بەخێربێیتەوە — زانیارییەکانت لە داواکاری پێشووت پڕکردەوە." },
+  notYou: { en: "Not you? Clear", ar: "مو انت؟ امسح", ku: "تۆ نیت؟ بیسڕەوە" },
+  email: { en: "Email", ar: "البريد الإلكتروني", ku: "ئیمەیڵ" },
+  governorate: { en: "Governorate", ar: "المحافظة", ku: "پارێزگا" },
+  governoratePlaceholder: { en: "Choose a governorate", ar: "اختر المحافظة", ku: "پارێزگا هەڵبژێرە" },
+  area: { en: "Area / District", ar: "المنطقة", ku: "ناوچە / گەڕەک" },
+  address: { en: "Full address", ar: "العنوان بالتفصيل", ku: "ناونیشانی تەواو" },
   addressPlaceholder: {
     en: "Street, sector, house number…",
     ar: "الشارع، المحلة، رقم الدار…",
+    ku: "شەقام، گەڕەک، ژمارەی خانوو…",
   },
-  notes: { en: "Delivery notes", ar: "ملاحظات" },
-  optional: { en: "(optional)", ar: "(اختياري)" },
-  paymentMethod: { en: "Payment method", ar: "طريقة الدفع" },
-  cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
-  useAll: { en: "Use all", ar: "استخدم الكل" },
-  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
-  placeOrder: { en: "Place order", ar: "أكّد الطلب" },
-  placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…" },
+  notes: { en: "Delivery notes", ar: "ملاحظات", ku: "تێبینی گەیاندن" },
+  optional: { en: "(optional)", ar: "(اختياري)", ku: "(ئارەزوومەندانە)" },
+  paymentMethod: { en: "Payment method", ar: "طريقة الدفع", ku: "شێوازی پارەدان" },
+  cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام", ku: "پارەدان لە کاتی وەرگرتن" },
+  useAll: { en: "Use all", ar: "استخدم الكل", ku: "هەمووی بەکاربهێنە" },
+  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب", ku: "{points} بەدەست دەهێنیت کاتێک داواکارییەکەت دەگاتە دەستت" },
+  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)", ku: "کۆدی هاوڕێ (ئارەزوومەندانە)" },
+  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M", ku: "نموونە: AB3K7M" },
+  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك", ku: "{amount} داشکاندن بە کۆدی هاوڕێکەت" },
+  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز.", ku: "ئەم کۆدە ناناسین." },
+  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم.", ku: "ئەم کۆدە لەگەڵ ئەم ژمارەیەدا کار ناکات." },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط", ku: "ژمارەی خاڵەکان بنووسە" },
+  placeOrder: { en: "Place order", ar: "أكّد الطلب", ku: "داواکاری پشتڕاست بکەرەوە" },
+  placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…", ku: "داواکارییەکەت پشتڕاست دەکرێتەوە…" },
   finePrint: {
     en: "By placing this order, you agree to pay cash on delivery. No hidden fees.",
     ar: "بتأكيدك الطلب، توافق على الدفع نقداً عند الاستلام. لا رسوم خفية.",
+    ku: "بە پشتڕاستکردنەوەی ئەم داواکارییە، ڕازی دەبیت لە کاتی وەرگرتن بە نەقد پارە بدەیت. هیچ کرێیەکی شاراوە نییە.",
   },
-  or: { en: "Or", ar: "أو" },
+  or: { en: "Or", ar: "أو", ku: "یان" },
   whatsappInstead: {
     en: "Place order via WhatsApp instead",
     ar: "أكمل الطلب عبر واتساب",
+    ku: "لە جیاتی ئەوە داواکاری لە ڕێگەی واتسئاپ بکە",
   },
-  orderReceived: { en: "Order received!", ar: "تم استلام طلبك!" },
+  orderReceived: { en: "Order received!", ar: "تم استلام طلبك!", ku: "داواکارییەکەت گەیشت!" },
   errGeneric: {
     en: "Something went wrong. Please try again.",
     ar: "حدث خطأ. حاول مرة أخرى.",
+    ku: "هەڵەیەک ڕوویدا. تکایە دووبارە هەوڵ بدەرەوە.",
   },
   errNetwork: {
     en: "We couldn't reach the server — check your connection and try again.",
     ar: "تعذّر الاتصال بالخادم — تحقّق من الإنترنت وحاول مرة أخرى.",
+    ku: "نەتوانرا پەیوەندی بە ڕاژەکار بکرێت — ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵ بدەرەوە.",
   },
   errReview: {
     en: "Your cart was updated. Please review it and confirm again.",
     ar: "تم تحديث سلتك. راجعها ثم أكّد الطلب مرة أخرى.",
+    ku: "سەبەتەکەت نوێکرایەوە. تکایە پێداچوونەوەی بۆ بکە و دووبارە پشتڕاستی بکەرەوە.",
   },
 } as const;
 
@@ -208,6 +235,21 @@ export function CheckoutFormRender({
   // Loyalty: the customer's balance (fetched by phone) + how many they redeem.
   const [pointsBalance, setPointsBalance] = useState<number | null>(null);
   const [redeemPoints, setRedeemPoints] = useState(0);
+  // Referral: the friend's code (from a shared ?ref= link or typed) and the
+  // server's verdict on it. The amount is previewed from the published
+  // program; the server re-checks eligibility and prices it again at submit.
+  const [referralCode, setReferralCode] = useState("");
+  const [referralState, setReferralState] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "valid"; pct: number; max: number | null }
+    | { kind: "invalid"; reason: "unknown" | "ineligible" | "off" }
+  >({ kind: "idle" });
+  const tenantId = ctx.tenant.id;
+  const commerceRef = {
+    current: (ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined)?.store_config_v2?.commerce,
+  };
+  const referralFieldId = useId();
   const [form, setForm] = useState({
     customer_name: "",
     phone: "",
@@ -221,6 +263,72 @@ export function CheckoutFormRender({
     notes: "",
     payment_method: "cod" as const,
   });
+  const referralProgram = commerceRef.current?.referral;
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const captured = captureReferral(tenantId);
+    if (captured) setReferralCode(captured);
+  }, [referralProgram?.enabled]);
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const code = normalizeReferralCode(referralCode);
+    if (!code) {
+      setReferralState({ kind: "idle" });
+      return;
+    }
+    let active = true;
+    setReferralState({ kind: "checking" });
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ tenant_id: tenantId, code });
+      const buyer = normalizeIraqiMobile(form.phone);
+      if (buyer) params.set("phone", buyer);
+      fetch(`/api/referral/validate?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { valid?: boolean; reason?: string; friend_discount_pct?: number; friend_max_discount_iqd?: number | null } | null) => {
+          if (!active) return;
+          if (d?.valid === true) {
+            setReferralState({ kind: "valid", pct: d.friend_discount_pct ?? 0, max: d.friend_max_discount_iqd ?? null });
+          } else {
+            const reason = d?.reason;
+            setReferralState({
+              kind: "invalid",
+              reason: reason === "ineligible" || reason === "off" ? reason : "unknown",
+            });
+          }
+        })
+        .catch(() => {
+          if (active) setReferralState({ kind: "idle" });
+        });
+    }, 500);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [referralProgram?.enabled, referralCode, form.phone]);
+
+  // A returning shopper's details, from THIS browser only — see
+  // helpers/customer-memory for why nothing is looked up by phone. Applied
+  // after mount so server HTML and first client render agree; only blank
+  // fields are filled.
+  const [recognised, setRecognised] = useState(false);
+  useEffect(() => {
+    const memory = readCustomerMemory(tenantId);
+    if (!memory) return;
+    setForm((prev) => prefillFromMemory(prev, memory).next);
+    setRecognised(true);
+  }, [tenantId]);
+  function forgetMe(): void {
+    clearCustomerMemory(tenantId);
+    setRecognised(false);
+    setForm((prev) => ({
+      ...prev,
+      customer_name: "",
+      phone: "",
+      governorate_code: "",
+      city: "",
+      address_details: "",
+    }));
+  }
   const reassurance = resolveI18n(props.reassurance_text_i18n, locale);
   const callPromise = resolveI18n(props.call_promise_i18n, locale);
   const callPromiseNote = resolveI18n(props.call_promise_note_i18n, locale);
@@ -235,7 +343,6 @@ export function CheckoutFormRender({
   // phone, beacon the cart so a WhatsApp recovery nudge can go out if they
   // don't complete. Debounced; best-effort (keepalive) — failures are ignored,
   // and placing the order marks the cart recovered server-side.
-  const tenantId = ctx.tenant.id;
   useEffect(() => {
     if (items.length === 0) return;
     const recoveryPhone = normalizeIraqiMobile(form.phone);
@@ -292,17 +399,38 @@ export function CheckoutFormRender({
     items,
     commerce?.bundles,
   ).total_amount_iqd;
+  // A friend's code does not stack on a coupon (the server applies the same rule).
+  const referralWanted =
+    referralState.kind === "valid" && couponAmount === 0
+      ? computeReferralDiscount(subtotal, { enabled: true, friend_discount_pct: referralState.pct, friend_max_discount_iqd: referralState.max ?? undefined })
+      : 0;
+  // Stacked exactly as the server stacks them — coupon → bundle → referral,
+  // each against what the previous left — so the preview total is the one
+  // that gets recorded and the sum never exceeds the subtotal.
+  const [couponApplied, bundleApplied, referralAmount] = stackDiscounts(subtotal, [
+    couponAmount,
+    bundleAmount,
+    referralWanted,
+  ]).applied;
   // Loyalty: preview the points redemption (server re-validates vs the
-  // authoritative balance + config and records the real discount).
+  // authoritative balance + config and records the real discount). Priced
+  // against what the other discounts left, as the server prices it.
   const loyaltyCfg = commerce?.loyalty;
   const pointsRedemption = computePointsRedemption({
     balance: pointsBalance ?? 0,
     requestedPoints: redeemPoints,
-    subtotalIqd: subtotal,
+    subtotalIqd: subtotal - couponApplied - bundleApplied - referralAmount,
     cfg: loyaltyCfg,
   });
   const pointsDiscount = pointsRedemption.discount_iqd;
-  const discountAmount = couponAmount + bundleAmount + pointsDiscount;
+  // Credited by the database on delivery, never at placement.
+  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
+  const discountAmount = stackDiscounts(subtotal, [
+    couponApplied,
+    bundleApplied,
+    referralAmount,
+    pointsDiscount,
+  ]).total;
   const total = subtotal - discountAmount + delivery;
   const returnsDays = commerce?.returns_policy?.window_days;
 
@@ -413,15 +541,31 @@ export function CheckoutFormRender({
             ? { event_id: purchaseEventIdRef.current }
             : {}),
           ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+          ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
+            ? { referral_code: normalizeReferralCode(referralCode) }
+            : {}),
           ab_test_arms: ctx.runtime.ab_test_arms,
         }),
       });
       if (res.ok) {
         const data = (await res.json().catch(() => null)) as {
           orderNumber?: string;
+          /** The order's id — which order the post-purchase offer grows. */
+          orderId?: string;
+          /** Proof this browser placed it (server-minted, short-lived). */
+          upsellToken?: string;
           total?: number;
         } | null;
         const orderNumber = data?.orderNumber ?? "";
+        if (referralState.kind === "valid") clearCapturedReferral(tenantId);
+        // Remember the shopper for next time — in their browser only.
+        writeCustomerMemory(tenantId, {
+          customer_name: form.customer_name.trim(),
+          phone: form.phone.trim(),
+          governorate_code: form.governorate_code,
+          city: form.city.trim() || undefined,
+          address_details: form.address_details.trim(),
+        });
         // Stash the just-placed order for the thank-you recap. This is the
         // privacy-safe path (only the buyer's browser holds it) — never fetch
         // an order by number on the public success page (enumeration risk).
@@ -430,6 +574,12 @@ export function CheckoutFormRender({
             "schn:last-order",
             JSON.stringify({
               number: orderNumber,
+              // The order id and the server's proof let the thank-you page's
+              // post-purchase offer act on THIS order and no other. Session
+              // storage only, like the rest of the stash; additive, so older
+              // readers ignore them.
+              order_id: data?.orderId ?? null,
+              upsell_token: data?.upsellToken ?? null,
               // Lets the thank-you page greet the buyer by name; optional so
               // older readers of the stash keep working unchanged.
               customer_name: form.customer_name.trim(),
@@ -619,6 +769,21 @@ export function CheckoutFormRender({
             className="mb-bk-md"
           />
           <form onSubmit={onSubmit} className="space-y-bk-sm">
+            {recognised && (
+              <p data-testid="welcome-back" className="flex items-center justify-between gap-bk-xs rounded-bk-input bg-bk-decor-a/40 px-3 py-2 text-xs sm:text-sm text-bk-ink">
+                <span className="inline-flex items-center gap-1.5">
+                  <MaterialIcon name="waving_hand" className="text-sm" />
+                  {s("welcomeBack")}
+                </span>
+                <button
+                  type="button"
+                  onClick={forgetMe}
+                  className="shrink-0 font-semibold underline underline-offset-2"
+                >
+                  {s("notYou")}
+                </button>
+              </p>
+            )}
             <label className="block">
               <span className={labelCls}>{s("fullName")}</span>
               <input
@@ -843,6 +1008,57 @@ export function CheckoutFormRender({
                   className="text-xl text-bk-primary"
                 />
                 {reassurance}
+              </p>
+            )}
+
+            {referralProgram?.enabled === true && (
+              <div data-testid="referral-field" className="space-y-1">
+                <label className={labelCls} htmlFor={referralFieldId}>
+                  {s("referralLabel")}
+                </label>
+                <input
+                  id={referralFieldId}
+                  type="text"
+                  name="referral_code"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  dir="ltr"
+                  maxLength={12}
+                  placeholder={s("referralPlaceholder")}
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  aria-invalid={referralState.kind === "invalid" || undefined}
+                  aria-describedby={referralState.kind === "idle" ? undefined : `${referralFieldId}-status`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+                {referralState.kind !== "idle" && (
+                  <p
+                    id={`${referralFieldId}-status`}
+                    role="status"
+                    data-referral-state={referralState.kind}
+                    className={`font-body text-xs ${referralState.kind === "invalid" ? "text-bk-danger" : "text-bk-ink-soft"}`}
+                  >
+                    {referralState.kind === "checking"
+                      ? "…"
+                      : referralState.kind === "valid"
+                        ? s("referralOff").replace("{amount}", `−${formatPrice(referralAmount, locale)}`)
+                        : referralState.reason === "ineligible"
+                          ? s("referralIneligible")
+                          : s("referralUnknown")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {pointsToEarn > 0 && (
+              <p
+                data-points-to-earn={pointsToEarn}
+                className="inline-flex items-center gap-1.5 font-body text-sm text-bk-ink-soft"
+              >
+                <MaterialIcon name="loyalty" className="text-base" />
+                {s("earnOnDelivery").replace("{points}", formatPoints(pointsToEarn, locale))}
               </p>
             )}
 

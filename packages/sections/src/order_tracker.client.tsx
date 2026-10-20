@@ -1,9 +1,9 @@
 // =====================================================================
 // Section — order_tracker
 // =====================================================================
-// Order lookup + status timeline. Lookups go to
-// `/api/orders/lookup?phone=…&order_number=…` and the response feeds a
-// 5-step timeline.
+// Order lookup + status timeline. Lookups POST `{ tenant_id, phone,
+// order_number }` to `/api/orders/lookup`; the response's customer stage
+// picks the merchant's narrative and lights the 5-step timeline.
 //
 // Honest contract (P1-24): the lookup API requires BOTH the phone and the
 // order number — a phone alone is not a safe key (one number can hold
@@ -20,252 +20,112 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { isValidIraqiMobile, resolveI18n } from "@scheniders/shared";
+import {
+  TIMELINE_STAGES,
+  isValidIraqiMobile,
+  resolveI18n,
+  coerceStage,
+  resolveNarrative,
+  type CustomerOrderStage,
+  type ResolvedNarrative,
+  type TimelineStage,
+  type StoreConfigV2,
+} from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
-import { CenteredSectionHeader, ChunkyButton, MaterialIcon } from "./helpers/primitives";
-import { StoreLink } from "./helpers/store-context";
+import { CenteredSectionHeader, ChunkyButton, ChunkyLink, MaterialIcon } from "./helpers/primitives";
+import { resolveTenantWhatsapp, resolveTrackerContact, whatsappDigits } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./order_tracker";
 
-const STATUS_STEPS = [
-  "placed",
-  "confirmed",
-  "shipped",
-  "out_for_delivery",
-  "delivered",
-] as const;
-
-type StatusStep = (typeof STATUS_STEPS)[number];
-
-const STATUS_LABEL: Record<
-  StatusStep,
-  { en: string; ar: string; icon: string }
-> = {
-  placed: { en: "Placed", ar: "تم الطلب", icon: "receipt_long" },
-  confirmed: { en: "Confirmed", ar: "تأكيد", icon: "check_circle" },
-  shipped: { en: "Shipped", ar: "تم الشحن", icon: "inventory_2" },
-  out_for_delivery: {
-    en: "Out for delivery",
-    ar: "في الطريق إليك",
-    icon: "local_shipping",
-  },
+/** Timeline labels + icons per happy-path stage. Copy for the CURRENT
+ *  stage comes from the merchant's narratives; these are the short rung
+ *  labels the timeline itself needs. */
+const STAGE_LABEL: Record<TimelineStage, { en: string; ar: string; icon: string }> = {
+  placed: { en: "Placed", ar: "وصل الطلب", icon: "receipt_long" },
+  awaiting_confirmation: { en: "Your confirmation", ar: "تأكيدك", icon: "chat" },
+  confirmed: { en: "Confirmed", ar: "مؤكد", icon: "check_circle" },
+  shipped: { en: "On the way", ar: "بالطريق", icon: "local_shipping" },
   delivered: { en: "Delivered", ar: "تم التسليم", icon: "task_alt" },
 };
 
-/**
- * The `stage` values `lookup_order` returns, which are the REAL state of the
- * order. `status` is only the coarse 5-step timeline key: the RPC collapses
- * cancelled, rejected, no_response and suspended into "placed", and
- * refund_delivered into "delivered". Rendering `status` alone told every one
- * of those customers "Order received" under a timeline implying it was on its
- * way — 1,888 of this store's 5,239 orders at the time of writing.
- *
- * So the banner is driven by `stage`, and the timeline is only drawn for an
- * order that is actually moving. A halted order has no next step, and drawing
- * one is the lie.
- */
-const TRACK_STAGES = [
-  "placed",
-  "awaiting_confirmation",
-  "confirmed",
-  "shipped",
-  "out_for_delivery",
-  "delivered",
-  "no_response",
-  "on_hold",
-  "cancelled",
-  "returning",
-  "refunded",
-] as const;
-
-export type TrackStage = (typeof TRACK_STAGES)[number];
-
-type StageTone = "progress" | "positive" | "attention" | "stopped";
-
-interface StageView {
-  /** Timeline step to highlight, or null to draw no timeline at all. */
-  step: StatusStep | null;
-  tone: StageTone;
-  en: string;
-  ar: string;
-  /** Second line: what happens next, or what the shopper can do about it. */
-  note?: { en: string; ar: string };
-  /** Offer the contact route — only where the shopper has to act. */
-  contact?: boolean;
+/** Tone of the status banner: moving, arrived, or needs the shopper. */
+function toneFor(stage: CustomerOrderStage): "progress" | "positive" | "attention" {
+  if (stage === "delivered" || stage === "refunded") return "positive";
+  if (stage === "awaiting_confirmation" || stage === "no_response" || stage === "on_hold" || stage === "returning")
+    return "attention";
+  return "progress";
 }
 
-const STAGE_VIEW: Record<TrackStage, StageView> = {
-  placed: {
-    step: "placed",
-    tone: "progress",
-    en: "Order received",
-    ar: "تم استلام طلبك",
-  },
-  awaiting_confirmation: {
-    step: "placed",
-    tone: "attention",
-    en: "We called — waiting for your confirmation",
-    ar: "تواصلنا وياك — بانتظار تأكيدك",
-    note: {
-      en: "Confirm the order and we'll send it out.",
-      ar: "ثبّت الطلب ونرسله.",
-    },
-    contact: true,
-  },
-  confirmed: {
-    step: "confirmed",
-    tone: "progress",
-    en: "Confirmed — getting it ready",
-    ar: "تم التأكيد — نجهّز طلبك",
-  },
-  shipped: { step: "shipped", tone: "progress", en: "Shipped", ar: "تم الشحن" },
-  out_for_delivery: {
-    step: "out_for_delivery",
-    tone: "positive",
-    en: "On the way",
-    ar: "في الطريق إليك",
-  },
-  delivered: {
-    step: "delivered",
-    tone: "positive",
-    en: "Delivered",
-    ar: "تم التسليم",
-  },
-  no_response: {
-    step: null,
-    tone: "attention",
-    en: "We tried to reach you and couldn't",
-    ar: "حاولنا نتصل بيك وما كدرنا نوصلك",
-    note: {
-      en: "Message us to confirm and we'll send it the same day.",
-      ar: "راسلنا وثبّت طلبك ونرسله بنفس اليوم.",
-    },
-    contact: true,
-  },
-  on_hold: {
-    step: null,
-    tone: "attention",
-    en: "Your order is on hold",
-    ar: "طلبك معلّق مؤقتاً",
-    note: {
-      en: "Message us and we'll pick it back up.",
-      ar: "راسلنا ونكمّل الطلب.",
-    },
-    contact: true,
-  },
-  cancelled: {
-    step: null,
-    tone: "stopped",
-    en: "This order was cancelled",
-    ar: "هذا الطلب ملغي",
-    note: {
-      en: "If you didn't cancel it, message us.",
-      ar: "إذا ما إنت اللي لغيته، راسلنا.",
-    },
-    contact: true,
-  },
-  returning: {
-    step: null,
-    tone: "attention",
-    en: "Your return is being processed",
-    ar: "طلب الإرجاع قيد المعالجة",
-    note: {
-      en: "The courier collects it and we refund you.",
-      ar: "المندوب راح يستلم العطر ونرجّع المبلغ.",
-    },
-  },
-  refunded: {
-    step: null,
-    tone: "positive",
-    en: "Refunded",
-    ar: "تم إرجاع المبلغ",
-    note: {
-      en: "We've refunded the full amount.",
-      ar: "رجّعنا المبلغ كامل.",
-    },
-  },
-};
-
-const HERO_BG: Record<StageTone, string> = {
+const HERO_BG: Record<"progress" | "positive" | "attention", string> = {
   progress: "color-mix(in srgb, var(--bk-accent, #ffd84a) 16%, transparent)",
   positive: "color-mix(in srgb, var(--bk-success, #7cf0bd) 18%, transparent)",
-  attention: "color-mix(in srgb, var(--bk-accent, #ffd84a) 30%, transparent)",
-  stopped: "color-mix(in srgb, var(--bk-danger, #e5484d) 14%, transparent)",
+  attention: "color-mix(in srgb, var(--bk-primary, #ff5a8a) 14%, transparent)",
 };
 
-/**
- * Which stage to render. `stage` is authoritative; `status` is the fallback
- * for a response that predates the API forwarding `stage` (and for the four
- * values both fields share). An unrecognised value lands on "placed", which
- * is what the RPC itself does with a status it does not know.
- */
-export function resolveTrackStage(data: {
-  stage?: string | null;
-  status?: string | null;
-}): TrackStage {
-  const known = (v: string | null | undefined): TrackStage | null =>
-    v && (TRACK_STAGES as readonly string[]).includes(v)
-      ? (v as TrackStage)
-      : null;
-  return known(data.stage) ?? known(data.status) ?? "placed";
-}
-
-/** The banner + timeline decision for a stage. */
-export function trackStageView(stage: TrackStage): StageView {
-  return STAGE_VIEW[stage];
-}
-
-/** Chrome strings (ku resolves through the ar fallback chain). */
+/** Chrome strings. Every entry carries Sorani — _kurdish-coverage.test.ts fails the build otherwise. */
 const STRINGS = {
   intro: {
     en: "Enter the phone number you ordered with and your order number.",
     ar: "أدخل رقم الهاتف الذي طلبت به ورقم الطلب.",
+    ku: "ئەو ژمارە مۆبایلەی پێی داواکاریت کردووە و ژمارەی داواکارییەکەت بنووسە.",
   },
-  phone: { en: "Phone number", ar: "رقم الهاتف" },
-  orderNumber: { en: "Order number", ar: "رقم الطلب" },
-  find: { en: "Find order", ar: "ابحث عن الطلب" },
-  searching: { en: "Searching…", ar: "جارٍ البحث…" },
-  order: { en: "Order", ar: "رقم الطلب" },
-  contact: { en: "Contact us", ar: "تواصل معنا" },
+  phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل" },
+  orderNumber: { en: "Order number", ar: "رقم الطلب", ku: "ژمارەی داواکاری" },
+  find: { en: "Find order", ar: "ابحث عن الطلب", ku: "داواکاری بدۆزەرەوە" },
+  searching: { en: "Searching…", ar: "جارٍ البحث…", ku: "گەڕان…" },
+  order: { en: "Order", ar: "رقم الطلب", ku: "داواکاری" },
   // One message per failure class so the shopper knows what to change.
   errInvalid: {
     en: "Check the phone number and order number, then try again.",
     ar: "تحقّق من رقم الهاتف ورقم الطلب ثم حاول مرة أخرى.",
+    ku: "ژمارەی مۆبایل و ژمارەی داواکاری بپشکنە، پاشان دووبارە هەوڵ بدەرەوە.",
   },
   errNotFound: {
     en: "No order matches those details.",
     ar: "لم نجد طلباً بهذه البيانات.",
+    ku: "هیچ داواکارییەک بەم زانیارییانە نەدۆزرایەوە.",
+  },
+  errRate: {
+    en: "Too many tries. Wait a few minutes, then try again.",
+    ar: "محاولات كثيرة. انتظر كم دقيقة وحاول مرة ثانية.",
+    ku: "هەوڵدانی زۆر. چەند خولەکێک چاوەڕێ بکە، پاشان دووبارە هەوڵ بدەرەوە.",
   },
   errServer: {
     en: "We couldn't reach the server. Try again in a moment.",
     ar: "تعذّر الاتصال بالخادم. حاول مرة أخرى بعد قليل.",
+    ku: "نەتوانرا پەیوەندی بە ڕاژەکار بکرێت. دوای کەمێک دووبارە هەوڵ بدەرەوە.",
   },
 } as const;
 
-type LookupError = "invalid" | "not_found" | "server";
+type LookupError = "invalid" | "not_found" | "rate" | "server";
 
-const ERROR_STRING: Record<LookupError, { en: string; ar: string }> = {
+const ERROR_STRING: Record<LookupError, { en: string; ar: string; ku: string }> = {
   invalid: STRINGS.errInvalid,
   not_found: STRINGS.errNotFound,
+  rate: STRINGS.errRate,
   server: STRINGS.errServer,
 };
 
-interface OrderResult {
+export interface OrderResult {
   order_number: string;
+  /** Coarse bucket from older lookups; `stage` wins when present. */
   status: string;
-  /** Absent on a response from an older deploy — see `resolveTrackStage`. */
   stage?: string;
   customer_name?: string;
   governorate?: string;
+  review_product_slug?: string;
 }
 
-function stepIndex(step: StatusStep): number {
-  return STATUS_STEPS.indexOf(step);
+/** The customer stage for a result: the RPC's `stage` when it sends one,
+ *  otherwise derived from the coarse bucket (which is itself a stage name). */
+export function stageOf(order: OrderResult): CustomerOrderStage {
+  return coerceStage(order.stage ?? order.status);
 }
 
 function classify(status: number): LookupError {
   if (status === 400) return "invalid";
   if (status === 404) return "not_found";
+  if (status === 429) return "rate";
   return "server";
 }
 
@@ -287,6 +147,15 @@ export function OrderTrackerRender({
   const locale: LocaleCode = ctx.runtime.locale;
   const heading = resolveI18n(props.heading_i18n, locale);
   const t = locale !== "en";
+
+  // Contact numbers and the merchant's per-stage copy both come from the
+  // tenant — nothing here is hardcoded to any store.
+  const tenant = ctx.tenant as { store_config_v2?: Pick<StoreConfigV2, "commerce"> | null };
+  const whatsapp = resolveTenantWhatsapp(ctx.tenant);
+  const phone_number = resolveTrackerContact(ctx.tenant);
+  const narratives = tenant.store_config_v2?.commerce?.order_status_narratives ?? null;
+  const narrative = (o: OrderResult): ResolvedNarrative =>
+    resolveNarrative(stageOf(o), locale, narratives, phone_number);
   const errorId = useId();
   const [phone, setPhone] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
@@ -390,11 +259,6 @@ export function OrderTrackerRender({
     "block font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
   const loading = status === "loading";
 
-  const stage = order ? resolveTrackStage(order) : "placed";
-  const view = trackStageView(stage);
-  // Hoisted out of the JSX so the null check narrows inside the map callback.
-  const timelineStep = view.step;
-
   return (
     <section className="px-4 py-bk-section-dense">
       <div
@@ -488,123 +352,215 @@ export function OrderTrackerRender({
         </form>
 
         {order && status === "ok" && (
-          <div
-            className="mt-bk-lg pt-bk-lg"
-            style={{ borderTop: DASHED_DIVIDER }}
-          >
-            {/* Real-stage banner: token tint keyed by the stage's tone. A
-                halted order says so here, and gets no timeline below. */}
-            <div
-              className="mb-bk-md p-bk-md text-center"
-              style={{
-                backgroundColor: HERO_BG[view.tone],
-                border: INK_BORDER,
-                borderRadius: "var(--bk-radius-card, 1rem)",
-              }}
-            >
-              <p
-                className="font-display font-black text-lg text-balance"
-                data-track-stage={stage}
-              >
-                {t ? view.ar : view.en}
-              </p>
-              {view.note && (
-                <p className="mt-bk-2xs font-body text-sm text-balance">
-                  {t ? view.note.ar : view.note.en}
-                </p>
-              )}
-              {view.contact && (
-                <StoreLink
-                  href="/contact"
-                  className="mt-bk-xs inline-flex min-h-11 items-center font-label font-bold text-sm underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
-                >
-                  {resolveI18n(STRINGS.contact, locale)}
-                </StoreLink>
-              )}
-            </div>
-            <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft">
-              {resolveI18n(STRINGS.order, locale)}
-            </p>
-            <p className="font-display font-black text-xl tabular-nums text-bk-ink">
-              <bdi>{order.order_number}</bdi>
-            </p>
-            {order.customer_name && (
-              <p className="font-body text-sm text-bk-ink-soft mt-bk-2xs">
-                {order.customer_name}
-                {order.governorate ? ` — ${order.governorate}` : ""}
-              </p>
-            )}
-            {props.show_timeline && timelineStep && (
-              <ol className="mt-bk-md" data-track-timeline>
-                {STATUS_STEPS.map((step, i) => {
-                  const current = stepIndex(timelineStep);
-                  const reached = i <= current;
-                  const isCurrent = i === current;
-                  const isLast = i === STATUS_STEPS.length - 1;
-                  return (
-                    <li
-                      key={step}
-                      className="relative flex items-center gap-bk-sm pb-bk-md last:pb-0"
-                      aria-current={isCurrent ? "step" : undefined}
-                    >
-                      {/* Connector to the next step — success once passed. */}
-                      {!isLast && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute top-10"
-                          style={{
-                            left: "18px",
-                            bottom: "0",
-                            width: "var(--bk-border-thickness, 3px)",
-                            backgroundColor:
-                              i < stepIndex(timelineStep)
-                                ? "var(--bk-success, #7cf0bd)"
-                                : "var(--bk-divider, rgb(26 26 26 / 0.15))",
-                          }}
-                        />
-                      )}
-                      <span
-                        className="relative z-10 flex items-center justify-center shrink-0 transition-[width,height,background-color] duration-bk-fast motion-reduce:transition-none"
-                        style={{
-                          width: isCurrent ? "44px" : "36px",
-                          height: isCurrent ? "44px" : "36px",
-                          backgroundColor: isCurrent
-                            ? "var(--bk-primary, #ff5a8a)"
-                            : reached
-                              ? "var(--bk-success, #7cf0bd)"
-                              : "var(--bk-surface, #ffffff)",
-                          color: isCurrent
-                            ? "var(--bk-on-primary, #ffffff)"
-                            : "var(--bk-ink, #1a1a1a)",
-                          border: INK_BORDER,
-                          borderRadius: "var(--bk-radius-pill, 9999px)",
-                          boxShadow: isCurrent
-                            ? "0 0 0 5px color-mix(in srgb, var(--bk-primary, #ff5a8a) 28%, transparent)"
-                            : "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
-                        }}
-                      >
-                        <MaterialIcon
-                          name={reached ? STATUS_LABEL[step].icon : "circle"}
-                          className={isCurrent ? "text-xl" : "text-base"}
-                        />
-                      </span>
-                      <span
-                        className={
-                          "font-display font-black " +
-                          (isCurrent ? "text-base " : "text-sm ") +
-                          (reached ? "text-bk-ink" : "text-bk-ink-faint")
-                        }
-                      >
-                        {t ? STATUS_LABEL[step].ar : STATUS_LABEL[step].en}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </div>
+          <OrderStatusPanel
+            order={order}
+            narrative={narrative(order)}
+            showTimeline={props.show_timeline}
+            locale={locale}
+            whatsapp={whatsapp}
+            phone={phone_number}
+          />
         )}
       </div>
     </section>
   );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Status panel — pure, so it can be rendered statically in tests       */
+/* ─────────────────────────────────────────────────────────────────── */
+
+function ctaHref(
+  cta: NonNullable<ResolvedNarrative["cta"]>,
+  order: OrderResult,
+  whatsapp: string | null,
+  phone: string | null,
+): string | null {
+  switch (cta.kind) {
+    case "whatsapp": {
+      if (!whatsapp) return null;
+      const msg = encodeURIComponent(`${order.order_number}`);
+      return `https://wa.me/${whatsappDigits(whatsapp)}?text=${msg}`;
+    }
+    case "phone":
+      return phone ? `tel:${phone.replace(/\s+/g, "")}` : null;
+    case "review":
+      // A review needs a product to review. Without one there is no honest
+      // target, and a button that leads nowhere is dropped.
+      return order.review_product_slug
+        ? `/products/${encodeURIComponent(order.review_product_slug)}#reviews`
+        : null;
+    case "reorder":
+      return order.review_product_slug
+        ? `/products/${encodeURIComponent(order.review_product_slug)}`
+        : "/products";
+    case "link":
+      return safeLinkTarget(cta.value);
+  }
+}
+
+/** A merchant `link` CTA may only point at a same-site path or an http(s)
+ *  URL. Anything else (`javascript:`, `data:`, a protocol-relative `//host`)
+ *  is dropped rather than rendered as a live href on the storefront. */
+export function safeLinkTarget(value: string | null | undefined): string | null {
+  const v = value?.trim();
+  if (!v) return null;
+  if (v.startsWith("/")) return v.startsWith("//") || v.startsWith("/\\") ? null : v;
+  return /^https?:\/\//i.test(v) ? v : null;
+}
+
+export function OrderStatusPanel({
+  order,
+  narrative,
+  showTimeline,
+  locale,
+  whatsapp,
+  phone,
+}: {
+  order: OrderResult;
+  narrative: ResolvedNarrative;
+  showTimeline: boolean;
+  locale: LocaleCode;
+  whatsapp: string | null;
+  phone: string | null;
+}) {
+  const t = locale !== "en";
+  const stage = narrative.stage;
+  const tone = toneFor(stage);
+  const onPath = narrative.timeline_index >= 0;
+  const href = narrative.cta ? ctaHref(narrative.cta, order, whatsapp, phone) : null;
+  const external = href?.startsWith("http") || href?.startsWith("tel:");
+
+  return (
+    <div className="mt-bk-lg pt-bk-lg" style={{ borderTop: DASHED_DIVIDER }} data-stage={stage}>
+      {/* The merchant's own words for where this order is and what happens
+          next. Nothing invented: no ETA, no driver, no minutes. */}
+      <div
+        className="mb-bk-md p-bk-md"
+        style={{
+          backgroundColor: HERO_BG[tone],
+          border: INK_BORDER,
+          borderRadius: "var(--bk-radius-card, 1rem)",
+        }}
+      >
+        <p className="font-display font-black text-lg text-balance text-bk-ink">{narrative.title}</p>
+        <p className="mt-bk-2xs font-body text-sm text-bk-ink">{narrative.body}</p>
+        {narrative.next && (
+          <p className="mt-bk-xs font-body text-sm text-bk-ink-soft">{narrative.next}</p>
+        )}
+        {narrative.cta && href && (
+          <div className="mt-bk-sm">
+            <ChunkyLink
+              href={href}
+              bg={tone === "attention" ? "pink" : "butter"}
+              size="md"
+              {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            >
+              {narrative.cta.label}
+            </ChunkyLink>
+          </div>
+        )}
+      </div>
+
+      <p className="font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft">
+        {resolveI18n(STRINGS.order, locale)}
+      </p>
+      <p className="font-display font-black text-xl tabular-nums text-bk-ink">
+        <bdi>{order.order_number}</bdi>
+      </p>
+      {order.customer_name && (
+        <p className="font-body text-sm text-bk-ink-soft mt-bk-2xs">
+          {order.customer_name}
+          {order.governorate ? ` — ${order.governorate}` : ""}
+        </p>
+      )}
+
+      {/* The timeline is the happy path. An order that has left it
+          (cancelled, returning, on hold…) keeps the rungs it reached and
+          nothing lights up beyond them — the banner above already says what
+          happened. */}
+      {showTimeline && (
+        <ol className="mt-bk-md" aria-label={t ? "مراحل الطلب" : "Order progress"}>
+          {TIMELINE_STAGES.map((step, i) => {
+            const reachedIndex = onPath ? narrative.timeline_index : reachedBeforeLeaving(stage);
+            const reached = i <= reachedIndex;
+            const isCurrent = onPath && i === reachedIndex;
+            const isLast = i === TIMELINE_STAGES.length - 1;
+            return (
+              <li
+                key={step}
+                className="relative flex items-center gap-bk-sm pb-bk-md last:pb-0"
+                aria-current={isCurrent ? "step" : undefined}
+              >
+                {!isLast && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-10"
+                    style={{
+                      left: "18px",
+                      bottom: "0",
+                      width: "var(--bk-border-thickness, 3px)",
+                      backgroundColor:
+                        i < reachedIndex
+                          ? "var(--bk-success, #7cf0bd)"
+                          : "var(--bk-divider, rgb(26 26 26 / 0.15))",
+                    }}
+                  />
+                )}
+                <span
+                  className="relative z-10 flex items-center justify-center shrink-0 transition-[width,height,background-color] duration-bk-fast motion-reduce:transition-none"
+                  style={{
+                    width: isCurrent ? "44px" : "36px",
+                    height: isCurrent ? "44px" : "36px",
+                    backgroundColor: isCurrent
+                      ? "var(--bk-primary, #ff5a8a)"
+                      : reached
+                        ? "var(--bk-success, #7cf0bd)"
+                        : "var(--bk-surface, #ffffff)",
+                    color: isCurrent ? "var(--bk-on-primary, #ffffff)" : "var(--bk-ink, #1a1a1a)",
+                    border: INK_BORDER,
+                    borderRadius: "var(--bk-radius-pill, 9999px)",
+                    boxShadow: isCurrent
+                      ? "0 0 0 5px color-mix(in srgb, var(--bk-primary, #ff5a8a) 28%, transparent)"
+                      : "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                  }}
+                >
+                  <MaterialIcon
+                    name={reached ? STAGE_LABEL[step].icon : "circle"}
+                    className={isCurrent ? "text-xl" : "text-base"}
+                  />
+                </span>
+                <span
+                  className={
+                    "font-display font-black " +
+                    (isCurrent ? "text-base " : "text-sm ") +
+                    (reached ? "text-bk-ink" : "text-bk-ink-faint")
+                  }
+                >
+                  {t ? STAGE_LABEL[step].ar : STAGE_LABEL[step].en}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/** How far along the happy path an order got before leaving it. A COD
+ *  refusal (returning) was shipped; a no-response was placed; a refund was
+ *  delivered first. Nothing beyond that rung lights up. */
+function reachedBeforeLeaving(stage: CustomerOrderStage): number {
+  switch (stage) {
+    case "returning":
+      return TIMELINE_STAGES.indexOf("shipped");
+    case "refunded":
+      return TIMELINE_STAGES.indexOf("delivered");
+    case "no_response":
+    case "on_hold":
+    case "cancelled":
+    default:
+      return TIMELINE_STAGES.indexOf("placed");
+  }
 }

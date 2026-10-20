@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar, Clock, Plus, Sparkles, Zap, Repeat, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
+import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 
 interface SubscriptionCardProps {
@@ -281,7 +282,7 @@ export function SubscriptionCard({
                   <input
                     type="number"
                     min={1}
-                    max={365}
+                    max={MAX_TRIAL_EXTENSION_DAYS}
                     autoFocus
                     value={customDays}
                     onChange={(e) => setCustomDays(e.target.value)}

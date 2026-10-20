@@ -2,6 +2,7 @@
 
 import { Order } from "@/lib/supabase";
 import { cleanPhoneForExport } from "@/lib/export-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 /**
  * Order Export Utilities
@@ -41,7 +42,7 @@ export function formatOrderRow(order: Order): (string | number)[] {
         cleanPhoneForExport(order.phone),
         order.city || "",
         order.address_details || "",
-        order.items?.map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
+        mergeOrderItems(order.items).map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
         order.price,
         order.status,
         order.payment_status,
@@ -187,7 +188,7 @@ export function formatDeliveryRow(
         cleanPhoneForExport(order.phone),
         order.city || "",
         order.address_details || "",
-        order.items?.map((i) => i.name).join("، ") || "",
+        mergeOrderItems(order.items).map((i) => i.name).join("، ") || "",
         order.price,
     ];
 }

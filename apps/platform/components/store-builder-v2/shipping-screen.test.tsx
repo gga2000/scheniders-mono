@@ -145,6 +145,35 @@ describe("ShippingScreen — editing rates", () => {
         });
         expect(applyLast(setConfig, config).commerce?.shipping?.rates?.BA).toBeUndefined();
     });
+
+    it("toggles the open-before-paying promise without touching the rest of returns_policy", () => {
+        const setConfig = vi.fn();
+        const config = {
+            schema_version: 2,
+            commerce: { returns_policy: { window_days: 7 } },
+        } as unknown as StoreConfigV2;
+        const builder = { config, setConfig } as unknown as UseStoreBuilderV2Return;
+        render(<ShippingScreen builder={builder} onClose={() => {}} />);
+        const box = screen.getByTestId("shipping-inspect-before-paying") as HTMLInputElement;
+        expect(box.checked).toBe(false);
+        fireEvent.click(box);
+        const on = applyLast(setConfig, config);
+        expect(on.commerce?.returns_policy).toEqual({ window_days: 7, inspect_before_paying: true });
+
+        // The mock builder never re-renders, so mount again on the "on" config to turn it off.
+        cleanup();
+        const setConfig2 = vi.fn();
+        render(
+            <ShippingScreen
+                builder={{ config: on, setConfig: setConfig2 } as unknown as UseStoreBuilderV2Return}
+                onClose={() => {}}
+            />,
+        );
+        const box2 = screen.getByTestId("shipping-inspect-before-paying") as HTMLInputElement;
+        expect(box2.checked).toBe(true);
+        fireEvent.click(box2);
+        expect(applyLast(setConfig2, on).commerce?.returns_policy).toEqual({ window_days: 7 });
+    });
 });
 
 describe("ShippingScreen — the preview", () => {

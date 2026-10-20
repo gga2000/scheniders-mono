@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
+import { createAdminClient } from "@/lib/admin-supabase";
+import { requireBearerAdmin } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const admin = await requireAdmin(token);
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const admin = await requireBearerAdmin(request);
+    if (admin instanceof NextResponse) return admin;
 
     const supabase = createAdminClient();
 
@@ -26,10 +25,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const admin = await requireAdmin(token);
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const admin = await requireBearerAdmin(request);
+    if (admin instanceof NextResponse) return admin;
 
     const body = await request.json();
     const supabase = createAdminClient();

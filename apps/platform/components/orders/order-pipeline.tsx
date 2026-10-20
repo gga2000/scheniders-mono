@@ -27,6 +27,11 @@ interface OrderPipelineProps {
     /** Set the status filter. `undefined` clears it (back to "all"). */
     onSelectStatus: (status: string | undefined) => void;
     className?: string;
+    /**
+     * Stage numbers render "—" and the bar is drawn with equal segments: the
+     * list on screen is not the one they would count. lib/orders/count-visibility.ts.
+     */
+    countsHidden?: boolean;
 }
 
 export const OrderPipeline = memo(function OrderPipeline({
@@ -34,6 +39,7 @@ export const OrderPipeline = memo(function OrderPipeline({
     activeStatus,
     onSelectStatus,
     className,
+    countsHidden = false,
 }: OrderPipelineProps) {
     const { t } = useLanguage();
     const reduceMotion = useReducedMotion();
@@ -64,15 +70,15 @@ export const OrderPipeline = memo(function OrderPipeline({
                 </h3>
                 <div className="flex items-center gap-3">
                     <span className="text-[13px] text-(--foreground-muted)">
-                        <span className="font-semibold text-foreground tabular-nums">{total.toLocaleString()}</span>{" "}
+                        <span className="font-semibold text-foreground tabular-nums">{countsHidden ? "—" : total.toLocaleString()}</span>{" "}
                         {allActive ? t("orders.pipeline.totalActive", "total active") : t("orders.pipeline.total", "total")}
                     </span>
-                    <PipelineCustomizer layout={layout} statusCounts={statusCounts} />
+                    <PipelineCustomizer layout={layout} statusCounts={statusCounts} countsHidden={countsHidden} />
                 </div>
             </div>
 
             {/* Proportional segmented bar — each segment's width ∝ its share of shown orders */}
-            {total === 0 ? (
+            {!countsHidden && total === 0 ? (
                 <div className="flex h-[66px] items-center justify-center rounded-[20px] border border-dashed border-(--card-border) text-sm text-(--foreground-subtle)">
                     {t("orders.pipeline.empty", "No orders in these stages")}
                 </div>
@@ -91,9 +97,9 @@ export const OrderPipeline = memo(function OrderPipeline({
                                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1], delay: reduceMotion ? 0 : Math.min(i * 0.05, 0.3) }}
                                 onClick={() => onSelectStatus(isActive ? undefined : s.id)}
                                 aria-pressed={isActive}
-                                title={`${t(s.labelKey, s.fallback)} · ${s.count.toLocaleString()}`}
+                                title={countsHidden ? t(s.labelKey, s.fallback) : `${t(s.labelKey, s.fallback)} · ${s.count.toLocaleString()}`}
                                 // flexGrow ∝ count, floored so small/empty stages stay legible.
-                                style={{ flexGrow: Math.max(s.count, total * 0.07), flexBasis: 0, backgroundColor: s.fill }}
+                                style={{ flexGrow: countsHidden ? 1 : Math.max(s.count, total * 0.07), flexBasis: 0, backgroundColor: s.fill }}
                                 className={cn(
                                     "group relative flex min-w-[92px] flex-col items-center justify-center px-3 text-center",
                                     "text-slate-800 outline-none transition-[filter,opacity] duration-300",
@@ -103,7 +109,7 @@ export const OrderPipeline = memo(function OrderPipeline({
                                     dim && "opacity-50 hover:opacity-100"
                                 )}
                             >
-                                <span className="text-[20px] font-extrabold leading-none tabular-nums">{s.count.toLocaleString()}</span>
+                                <span className="text-[20px] font-extrabold leading-none tabular-nums">{countsHidden ? "—" : s.count.toLocaleString()}</span>
                                 <span className="mt-1 max-w-full truncate text-[11px] font-medium text-slate-700">
                                     {t(s.labelKey, s.fallback)}
                                 </span>
@@ -143,9 +149,11 @@ export const OrderPipeline = memo(function OrderPipeline({
 function PipelineCustomizer({
     layout,
     statusCounts,
+    countsHidden,
 }: {
     layout: ReturnType<typeof useOrderPipelineLayout>;
     statusCounts: Record<string, number>;
+    countsHidden: boolean;
 }) {
     const { t } = useLanguage();
     const { toast } = useToast();
@@ -205,7 +213,7 @@ function PipelineCustomizer({
                         </span>
                     )}
                 </span>
-                <span className="text-xs tabular-nums text-(--foreground-subtle)">{(statusCounts[id] || 0).toLocaleString()}</span>
+                <span className="text-xs tabular-nums text-(--foreground-subtle)">{countsHidden ? "—" : (statusCounts[id] || 0).toLocaleString()}</span>
                 {isIncluded && (
                     <span className="flex items-center">
                         <button

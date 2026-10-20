@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { DualPhoneDisplay } from "@/components/ui/phone-display";
 import type { Order } from "@/lib/supabase";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -161,6 +162,7 @@ export function DeliveryTab({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {orders.map((order, index) => {
                         const isLoading = loadingId === order.id;
+                        const itemLines = mergeOrderItems(order.items);
 
                         return (
                             <motion.div
@@ -208,20 +210,20 @@ export function DeliveryTab({
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-foreground">{formatIQD(Number(order.price))}</p>
-                                        <p className="text-xs text-muted">{order.items?.length || 0} items</p>
+                                        <p className="text-xs text-muted">{itemLines.length} items</p>
                                     </div>
                                 </div>
 
                                 {/* Items */}
                                 <div className="bg-[var(--background)] rounded-xl p-3 mb-4 border border-[var(--card-border)]">
-                                    {order.items?.slice(0, 3).map((item, idx) => (
+                                    {itemLines.slice(0, 3).map((item, idx) => (
                                         <div key={idx} className="flex justify-between text-sm py-1 border-b border-dashed border-[var(--card-border)] last:border-0">
                                             <span className="text-foreground">{item.name}</span>
                                             <span className="font-mono font-bold text-muted">×{item.quantity}</span>
                                         </div>
                                     ))}
-                                    {(order.items?.length || 0) > 3 && (
-                                        <p className="text-xs text-muted mt-2">+{order.items!.length - 3} more</p>
+                                    {itemLines.length > 3 && (
+                                        <p className="text-xs text-muted mt-2">+{itemLines.length - 3} more</p>
                                     )}
                                 </div>
 

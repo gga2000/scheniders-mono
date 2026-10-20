@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { supabase, Order, OrderFilters, PrintBatch } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX, cleanPhoneForExport } from "@/lib/export-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 // =============================================
 // TYPES
@@ -535,7 +536,7 @@ export function usePrinting(orders: Order[]) {
             order.phone,
             order.city || "",
             order.address_details || "",
-            order.items?.map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
+            mergeOrderItems(order.items).map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
             order.price,
             order.payment_status,
             new Date(order.created_at).toLocaleDateString(),
@@ -585,7 +586,7 @@ export function usePrinting(orders: Order[]) {
             cleanPhoneForExport(order.phone),
             order.city || "",
             order.address_details || "",
-            order.items?.map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
+            mergeOrderItems(order.items).map((i) => `${i.name} x${i.quantity}`).join("; ") || "",
             order.price,
             order.payment_status,
             new Date(order.created_at).toLocaleDateString(),

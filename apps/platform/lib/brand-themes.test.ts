@@ -2,7 +2,8 @@
 
 import { describe, it, expect } from "vitest";
 import { BRAND_THEMES } from "./brand-themes";
-import { GOOGLE_FONTS } from "@/components/store-builder-v2/brand-kit-editor";
+import { ARABIC_GOOGLE_FONTS, GOOGLE_FONTS } from "@/components/store-builder-v2/brand-kit-editor";
+import { WEIGHT_COMPLETE_FONTS } from "@/lib/weight-complete-fonts";
 
 // Mirror the emitter's on-color choice (brand-kit-vars onColor): white
 // text when luminance < 0.5, else the kit ink. A theme must never ship
@@ -69,6 +70,29 @@ describe("BRAND_THEMES", () => {
             expect(
                 GOOGLE_FONTS.includes(theme.typography.body),
                 `${theme.id}: body font "${theme.typography.body}"`,
+            ).toBe(true);
+        }
+    });
+
+    it("every Arabic theme font exists in the editor's Arabic catalogue", () => {
+        for (const theme of BRAND_THEMES) {
+            const { display_ar, body_ar } = theme.typography;
+            for (const family of [display_ar, body_ar]) {
+                expect(family, `${theme.id}: Arabic font missing`).toBeTruthy();
+                expect(
+                    ARABIC_GOOGLE_FONTS.includes(family ?? ""),
+                    `${theme.id}: Arabic font "${family}"`,
+                ).toBe(true);
+            }
+        }
+    });
+
+    it("every Arabic body font ships 400/500/600/700", () => {
+        for (const theme of BRAND_THEMES) {
+            const family = theme.typography.body_ar ?? "";
+            expect(
+                WEIGHT_COMPLETE_FONTS.has(family),
+                `${theme.id}: body_ar "${family}" is not a verified weight-complete family`,
             ).toBe(true);
         }
     });

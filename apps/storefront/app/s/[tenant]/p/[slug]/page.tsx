@@ -5,8 +5,11 @@ import { listProducts, listCategories } from "@/lib/queries";
 import { enforceRedirect } from "@/lib/redirects";
 import { buildRuntimeContext } from "@/lib/storefront-runtime";
 import { findCustomPage, resolveI18n } from "@scheniders/shared";
+import { JsonLd } from "@/components/json-ld";
+import { articleJsonLd, getStorefrontBase } from "@/lib/seo";
 import type { PageConfig, PageId } from "@scheniders/shared";
 import { V2Page } from "@/components/v2-page";
+import { pageNeedsProductAttributes } from "@scheniders/sections";
 
 // =====================================================================
 // /s/[tenant]/p/[slug] — merchant-authored custom pages (E4)
@@ -64,9 +67,12 @@ export default async function CustomPage({ params }: Props) {
 
   // EC18: a custom page can contain a product_grid — fetch real products (like
   // the home page) so it isn't a silently-blank grid (the renderCtx used to
-  // hardcode `products: []`).
+  // hardcode `products: []`). Attributes only when a section reads them.
   const [products, categories] = await Promise.all([
-    listProducts(tenant.id, { limit: 48 }),
+    listProducts(tenant.id, {
+      limit: 48,
+      withAttributes: pageNeedsProductAttributes(customPage.sections),
+    }),
     listCategories(tenant.id),
   ]);
   const runtime = buildRuntimeContext({
@@ -84,13 +90,39 @@ export default async function CustomPage({ params }: Props) {
     meta: customPage.meta,
   };
 
+  // A page the merchant marked as an article describes itself to search as
+  // one. An ordinary custom page emits nothing extra — calling every page an
+  // Article would be a claim about content nobody made.
+  let article: ReturnType<typeof articleJsonLd>;
+  if (customPage.article) {
+    const locale = v2.default_locale ?? "ar";
+    const { baseUrl } = await getStorefrontBase(tenantParam);
+    article = articleJsonLd({
+      headline:
+        resolveI18n(customPage.meta?.title, locale).trim() ||
+        resolveI18n(customPage.title, locale).trim(),
+      url: `${baseUrl}/p/${encodeURIComponent(customPage.slug)}`,
+      description:
+        resolveI18n(customPage.article.excerpt, locale).trim() ||
+        resolveI18n(customPage.meta?.description, locale).trim() ||
+        undefined,
+      imageUrl: customPage.article.cover_url ?? customPage.meta?.og_image_url,
+      datePublished: customPage.article.published_at,
+      author: customPage.article.author,
+      publisherName: tenant.business_name ?? undefined,
+    });
+  }
+
   return (
-    <V2Page
-      v2={v2}
-      page={page}
-      runtime={runtime}
-      renderCtx={{ tenant, products, categories }}
-    />
+    <>
+      {article && <JsonLd data={article} />}
+      <V2Page
+        v2={v2}
+        page={page}
+        runtime={runtime}
+        renderCtx={{ tenant, products, categories }}
+      />
+    </>
   );
 }
 

@@ -127,6 +127,11 @@ export function orderInDateWindow(
  * non-archived order belongs, which is exactly today's behaviour — so wiring
  * this in ahead of stage C changes nothing until the window becomes real.
  */
+/** A stable string for a window, so a snapshot or a fetch is only ever matched to the window it holds. */
+export function windowCacheKey(window: OrderWindow): string {
+    return window ? `${window.fromInstant}-${window.toInstant}` : "all";
+}
+
 export function belongsInWindow(
     order: { created_at: string; scheduled_date?: string | null; is_archived?: boolean | null },
     window: OrderWindow,

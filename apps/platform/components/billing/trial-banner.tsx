@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Clock, AlertTriangle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { isBillingExempt } from "@/lib/billing-exempt";
 
 function computeDaysLeft(trialEndsAt: string | null): number | null {
     if (!trialEndsAt) return null;
@@ -19,6 +20,10 @@ export function TrialBanner() {
     const { data: tenant } = useTenant();
 
     if (!tenant) return null;
+
+    // The house tier is never billed, so no billing nag or lockout applies to it.
+    // This is the overlay that locked the operator out of their own dashboard.
+    if (isBillingExempt(tenant.plan)) return null;
 
     // Don't show on settings/billing page (they're already there)
     if (pathname?.includes("/settings")) return null;

@@ -2,6 +2,7 @@ import { Product, Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { extractGovernorate } from "@/lib/address-validator";
 import { computeCodAmount } from "@/lib/order-money";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 /** Courier-facing note (Arabic) flagging an order as already paid → collect 0 COD. */
 const PREPAID_NOTE = 'طلب مدفوع مسبقا';
@@ -79,7 +80,7 @@ export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Ord
         }
 
         // Get product type: Join all item names with ' + ' as requested
-        const productType = order.items?.map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
+        const productType = mergeOrderItems(order.items).map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
 
         // Prepaid orders: courier must not collect COD, so the amount is 0 and a
         // note flags it as already paid for the courier.
@@ -193,7 +194,7 @@ export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: O
             govName = governorate?.nameAr || '';
         }
 
-        const productType = order.items?.map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
+        const productType = mergeOrderItems(order.items).map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
 
         // Same prepaid handling as the Prime CSV: computeCodAmount already
         // returns 0, and the courier gets an explicit note saying why.

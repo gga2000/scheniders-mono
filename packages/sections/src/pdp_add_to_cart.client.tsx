@@ -12,12 +12,13 @@
 
 "use client";
 
-import { useState } from "react";
-import { resolveI18n, pixelContentsFromItems } from "@scheniders/shared";
+import { useId, useState } from "react";
+import { resolveI18n, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import { trackPixel } from "./helpers/pixels";
 import { ChunkyButton, MaterialIcon, WhatsAppIcon } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
+import { VariantSelect } from "./helpers/variant-select";
 import { formatPrice } from "./helpers/format";
 import { whatsappOrderLink, resolveTenantWhatsapp } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
@@ -34,7 +35,10 @@ export function PdpAddToCartRender({
   const locale = ctx.runtime.locale;
   const addItem = useCart((s) => s.addItem);
   const [qty, setQty] = useState(1);
-
+  const variantSelectId = useId();
+  // The variant comes from the shared store: a pdp_variants section or the
+  // buy box on this page may have chosen it, and the inline select below
+  // (shown only when no picker is on the page) writes to the same place.
   const chosen = useSelectedVariant(product);
   if (!product) return null;
 
@@ -50,33 +54,61 @@ export function PdpAddToCartRender({
     locale,
   );
 
-  const oos = stockLeftFor(product, chosen.variant) <= 0;
-  const unitPrice = chosen.variant?.price ?? product.price;
+  // Before a variant is chosen there is no stock to count — the product row's
+  // own stock is not what a variant product sells — so the button reads as
+  // waiting for the choice, not as sold out.
+  // A product sold by variant with none in stock is sold out outright.
+  const oos =
+    chosen.soldOut || (!chosen.needsVariant && stockLeftFor(product, chosen.variant) <= 0);
+
+  // The merchant's quantity ladder, which this section never applied: it sent
+  // the base price for any quantity while the checkout resolved the ladder,
+  // so a shopper buying into a price break was told their prices had changed
+  // on submit. The line carries its base and ladder so the cart can re-apply
+  // the ladder when the quantity changes there.
+  //
+  // A product sold by variant is bought as one of them, priced from the
+  // variant row — the checkout refuses a variant-less line for it, so the
+  // button stays disabled until the shopper has chosen.
+  const chosenVariant = chosen.variant;
+  const needsVariant = chosen.needsVariant;
+  const basePrice = chosenVariant?.price ?? product.price;
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, basePrice);
+  const cartLine = {
+    product_id: product.id,
+    variant_id: chosenVariant?.id ?? null,
+    name: product.name,
+    variant_name: chosenVariant?.name ?? null,
+    price: unitPrice,
+    quantity: qty,
+    image_url: chosenVariant?.image_url ?? product.image_url ?? null,
+    base_price: basePrice,
+    ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
+  };
 
   function handleAdd() {
-    if (oos) return;
-    // A product with several variants and none chosen cannot be added: the
-    // picker section (or the direct-order form) is where the choice is made.
-    if (chosen.variants.length > 1 && !chosen.variant) return;
-    addItem({
-      product_id: product!.id,
-      variant_id: chosen.variant?.id ?? null,
-      name: product!.name,
-      variant_name: chosen.variant?.name ?? null,
-      price: unitPrice,
-      quantity: qty,
-      image_url: chosen.variant?.image_url ?? product!.image_url ?? null,
-    });
+    if (oos || needsVariant) return;
+    addItem(cartLine);
     trackPixel(
       "AddToCart",
       pixelContentsFromItems([
-        { product_id: product!.id, price: unitPrice, quantity: qty },
+        { product_id: cartLine.product_id, price: cartLine.price, quantity: cartLine.quantity },
       ]),
     );
   }
 
   const ctaCluster = (
     <div className="flex flex-col gap-bk-sm">
+      {chosen.soldByVariant && !chosen.pickerMounted && (
+        <VariantSelect
+          id={variantSelectId}
+          variants={chosen.variants}
+          value={chosen.variant?.id ?? null}
+          onChange={chosen.select}
+          locale={locale}
+          basePrice={product.price}
+        />
+      )}
       {props.show_quantity_picker && (
         <div className="flex items-center gap-bk-sm">
           <span className="font-label font-bold text-xs uppercase tracking-[0.2em] text-bk-ink-soft">
@@ -124,7 +156,7 @@ export function PdpAddToCartRender({
         size="lg"
         fullWidth
         onClick={handleAdd}
-        disabled={oos}
+        disabled={oos || needsVariant}
       >
         <MaterialIcon name="shopping_bag" />
         {oos
@@ -165,7 +197,7 @@ export function PdpAddToCartRender({
               size="md"
               fullWidth
               onClick={handleAdd}
-              disabled={oos}
+              disabled={oos || needsVariant}
             >
               <MaterialIcon name="shopping_bag" />
               {oos ? (
@@ -176,7 +208,7 @@ export function PdpAddToCartRender({
                 )
               ) : (
                 <>
-                  {primaryLabel} — <bdi>{formatPrice(product.price * qty, locale)}</bdi>
+                  {primaryLabel} — <bdi>{formatPrice(unitPrice * qty, locale)}</bdi>
                 </>
               )}
             </ChunkyButton>

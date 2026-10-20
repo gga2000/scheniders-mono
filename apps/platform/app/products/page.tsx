@@ -16,6 +16,7 @@ import {
     Grid3X3,
     List,
     ChevronDown,
+    ChevronLeft,
     Plus,
     RefreshCw,
     AlertTriangle,
@@ -63,6 +64,7 @@ import { VirtualizedProductList } from "@/components/products/virtualized-produc
 
 // New view modes
 import { CategoryGroupedView } from "@/components/products/views/category-grouped-view";
+import { applyFillerVisibility, countFiller } from "@/lib/product-filler";
 import { KanbanStockBoard } from "@/components/products/views/kanban-stock-board";
 import { MarginHeatmapView } from "@/components/products/views/margin-heatmap-view";
 
@@ -239,6 +241,13 @@ function ProductsContent() {
     const [priceHistory, setPriceHistory] = useState<any[]>([]);
 
     // Filter and sort products — memoized with stable deps
+    // Filler products are catalogue depth, not shelf stock. They stay out of the
+    // main list the way supplies do — but behind a toggle rather than for good,
+    // and a search always reaches them so looking one up by name still works.
+    const [showFiller, setShowFiller] = useState(false);
+
+    const fillerCount = useMemo(() => countFiller(products), [products]);
+
     const filteredProducts = useMemo(() => {
         let result = products;
 
@@ -298,6 +307,10 @@ function ProductsContent() {
         // Hide supplies from the main products view
         result = result.filter((p) => !p.is_supply);
 
+        // Collapse filler unless asked for — or unless a search is running, in
+        // which case hiding a name the user just typed would be a lie.
+        result = applyFillerVisibility(result, { showFiller, searching: !!searchQuery });
+
         // Sort
         result = [...result].sort((a, b) => {
             switch (sortBy) {
@@ -317,7 +330,7 @@ function ProductsContent() {
         });
 
         return result;
-    }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds]);
+    }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds, showFiller]);
 
     // Calculate stats — separate memo from filtering
     const stats = useMemo(() => {
@@ -1030,6 +1043,39 @@ function ProductsContent() {
                                 <div className="-mt-3">
                                     <ActiveFilterPills filters={advancedFilters} onChange={setAdvancedFilters} />
                                 </div>
+                            )}
+
+                            {/* Filler group — one control for every view mode */}
+                            {fillerCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFiller(!showFiller)}
+                                    disabled={!!searchQuery}
+                                    aria-expanded={showFiller || !!searchQuery}
+                                    className={cn(
+                                        "w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-colors text-right",
+                                        "bg-[var(--background)] border-[var(--card-border)]",
+                                        searchQuery ? "opacity-60 cursor-default" : "hover:bg-[var(--card-bg)]"
+                                    )}
+                                >
+                                    {showFiller || searchQuery
+                                        ? <ChevronDown className="w-4 h-4 text-muted shrink-0" />
+                                        : <ChevronLeft className="w-4 h-4 text-muted shrink-0" />}
+                                    <Layers className="w-4 h-4 text-muted shrink-0" />
+                                    <span className="flex-1 min-w-0">
+                                        <span className="block text-sm font-semibold text-foreground truncate">
+                                            {t("products.filler.group")} ({fillerCount})
+                                        </span>
+                                        <span className="block text-[11px] text-muted truncate">
+                                            {searchQuery ? t("products.filler.shownBySearch") : t("products.filler.hint")}
+                                        </span>
+                                    </span>
+                                    {!searchQuery && (
+                                        <span className="text-xs font-semibold text-muted shrink-0">
+                                            {showFiller ? t("products.filler.hide") : t("products.filler.show")}
+                                        </span>
+                                    )}
+                                </button>
                             )}
 
                             {/* Products Grid/List — Virtualized */}

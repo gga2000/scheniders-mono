@@ -2,6 +2,7 @@
 import { formatIQD } from "@scheniders/shared";
 import type { Locale } from "@/lib/i18n";
 import { getOrderStatusLabel } from "@/lib/order-status-labels";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
 
 /**
@@ -108,8 +109,7 @@ export async function copyOrderToClipboard(order: {
     price: number;
     notes?: string;
 }): Promise<boolean> {
-    const items = order.items || [];
-    const itemsList = items
+    const itemsList = mergeOrderItems(order.items)
         .map(item => `• ${item.name} × ${item.quantity}`)
         .join('\n');
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
+import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { cn, formatIQD } from '@/lib/utils';
@@ -21,6 +22,7 @@ import { useOrderStore } from '@/store/use-order-store';
 import type { TableDensity } from '@/components/orders/table/density-toggle';
 import { useLanguage } from '@/components/providers/language-provider';
 import type { DuplicateWindowAlert } from '@/lib/duplicate-window';
+import { mergeOrderItems } from '@/lib/merge-order-items';
 
 // Column definitions for resizable columns
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -316,6 +318,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
 }: any) {
     const { t, language } = useLanguage();
     const isReturn = order.is_return;
+    const itemLines = mergeOrderItems<Order["items"][number]>(order.items);
     const isPriority = order.priority === "urgent" || order.priority === "high";
     const rowColor = order.tag_color;
     const isCancelled = order.status === "cancelled";
@@ -404,6 +407,11 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     })()}
                 </span>
                 <OrderPlacementBadge order={order} />
+                <CodRiskChip
+                    variant="row"
+                    needsAttention={order.needs_attention}
+                    attentionReasons={order.attention_reasons}
+                />
                 {order.needs_attention && order.attention_reasons?.some((r: string) => r.startsWith('whatsapp_')) && (
                     <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || 'فشل واتساب'}>
                         <AlertTriangle className="w-3 h-3" />
@@ -530,7 +538,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
             {/* Products */}
             <div role="cell" className={`px-3 ${cellPy} h-full flex items-center overflow-hidden border-r border-gray-100/60`}>
                 <div className="flex flex-wrap gap-1">
-                    {order.items?.map((item: any, i: number) => {
+                    {itemLines.length > 0 ? itemLines.map((item, i) => {
                         const bgColor = item.tag_color ? `${item.tag_color}20` : '#f3f4f6';
                         const textColor = item.tag_color || '#374151';
                         return (
@@ -538,7 +546,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                                 {item.name} <span style={{ opacity: 0.7 }}>×{item.quantity}</span>
                             </span>
                         );
-                    }) || <span className="text-xs text-muted">—</span>}
+                    }) : <span className="text-xs text-muted">—</span>}
                 </div>
             </div>
 

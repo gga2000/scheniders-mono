@@ -385,7 +385,16 @@ export interface StoreCommerceConfig {
   /** prefilled WhatsApp message templates (from legacy schneiders.whatsapp_templates) */
   whatsapp_templates?: { order_confirm?: I18nString; product_inquiry?: I18nString };
   socials?: { instagram?: string; facebook?: string; tiktok?: string; email?: string };
-  returns_policy?: { window_days?: number };
+  returns_policy?: {
+    window_days?: number;
+    /**
+     * The shopper may open the parcel and check it before paying the
+     * courier. Rendered wherever merchant commitments appear (PDP order
+     * form, delivery promise). Off unless the merchant says so — this is a
+     * promise made at the door, never assumed.
+     */
+    inspect_before_paying?: boolean;
+  };
   delivery_promise?: { baghdad_hours?: number; provinces_hours?: number; governorates_covered?: number };
   /** Per-governorate shipping rates (EC2/EC16 engine). */
   shipping?: GovernorateShippingConfig;
@@ -397,7 +406,83 @@ export interface StoreCommerceConfig {
   bundles?: Bundle[];
   /** Points-based loyalty program (opt-in per tenant). */
   loyalty?: LoyaltyConfig;
+  /** Free gift above a spending threshold (opt-in per tenant). */
+  free_gift?: FreeGiftRewardConfig;
+  /** Referral program: a friend's discount + the referrer's points (opt-in). */
+  referral?: ReferralConfig;
+  /** Per-stage copy for the order tracker. Missing stages use the shipped defaults. */
+  order_status_narratives?: Partial<Record<CustomerOrderStage, OrderStatusNarrative>>;
 }
+
+/**
+ * Free gift above a spending threshold. Off unless the merchant has both
+ * enabled it AND chosen a product: a threshold with no gift behind it is a
+ * promise the checkout cannot keep.
+ *
+ * Named apart from the legacy V1 `FreeGiftConfig` in store-config.ts, which
+ * carries a threshold and a label but no product — which is why it never
+ * delivered a gift either.
+ */
+export interface FreeGiftRewardConfig {
+  enabled?: boolean;
+  /** The product added to the order, at no charge. */
+  product_id?: string;
+  /** Item subtotal (IQD) at or above which the gift is added. */
+  threshold_iqd?: number;
+}
+
+/**
+ * Referral program. A shopper who ordered gets a code; a friend using it on
+ * their FIRST order gets `friend_discount_pct` off, and the referrer is
+ * credited `referrer_points` when that order is delivered (via the loyalty
+ * ledger, so loyalty must be on for the referrer side to mean anything).
+ */
+export interface ReferralConfig {
+  /** Off by default — merchant must opt in. */
+  enabled?: boolean;
+  /** Friend's discount on their first order, 0–100 %. */
+  friend_discount_pct?: number;
+  /** Cap (IQD) on that discount. */
+  friend_max_discount_iqd?: number;
+  /** Points credited to the referrer when the friend's order is delivered. */
+  referrer_points?: number;
+}
+
+/**
+ * What a shopper sees when they look up an order in a given customer-facing
+ * stage. Every string is merchant-editable; the shipped defaults are Iraqi
+ * dialect and assume the WhatsApp-confirmation flow. `{contact}` in any
+ * string is replaced with the tenant's contact number — never hardcoded.
+ */
+export interface OrderStatusNarrative {
+  title_i18n?: I18nString;
+  body_i18n?: I18nString;
+  /** What happens next, or what the shopper should do. */
+  next_i18n?: I18nString;
+  cta?: {
+    kind: "whatsapp" | "phone" | "link" | "review" | "reorder";
+    label_i18n?: I18nString;
+    /** Path for `link`; ignored for the other kinds, which resolve their own target. */
+    value?: string;
+  };
+}
+
+/**
+ * Customer-facing stages. Deliberately NOT the internal order status: the
+ * public lookup maps the 13 internal statuses down to these so anon never
+ * learns operational state, and the merchant edits copy per stage.
+ */
+export type CustomerOrderStage =
+  | "placed"
+  | "awaiting_confirmation"
+  | "confirmed"
+  | "shipped"
+  | "delivered"
+  | "no_response"
+  | "on_hold"
+  | "cancelled"
+  | "returning"
+  | "refunded";
 
 export interface LoyaltyConfig {
   /** Off by default — merchant must opt in. */
@@ -460,6 +545,22 @@ export interface StoreConfigV2 {
   redirects?: RedirectRule[];       // NEW
   /** Merchant-authored custom pages, served at /s/<tenant>/p/<slug>. */
   custom_pages?: CustomPage[];      // NEW
+  /**
+   * What the store was seeded from: a visual direction × a content pack,
+   * at a template version. Lets the platform offer upgrades later and tell
+   * a merchant which look and niche their store started as. Absent on
+   * stores seeded before this existed.
+   */
+  template?: StoreTemplateStamp;
+}
+
+export interface StoreTemplateStamp {
+  direction_id: string;
+  pack_id?: string;
+  /** Version of the direction the stacks were seeded from. */
+  version: number;
+  /** ISO timestamp of the seed. */
+  applied_at?: string;
 }
 
 /**
@@ -475,6 +576,31 @@ export interface RedirectRule {
   to: string;
   /** 308 permanent (default) vs 307 temporary. */
   permanent?: boolean;
+}
+
+/**
+ * Marks a custom page as a dated article — a guide, a how-to, a story.
+ *
+ * A custom page is already a full authored page: sections, SEO meta, its own
+ * URL. What an article needs on top is the handful of facts a *list* of them
+ * needs — when it was published, what it looks like, and what it is about —
+ * so guides can be shown newest-first somewhere else on the store. Everything
+ * here is optional, and the block itself is optional, so a page that is not
+ * an article carries nothing and behaves exactly as it did.
+ */
+export interface ArticleMeta {
+  /**
+   * ISO date. A date in the future means "not yet published": the article
+   * keeps its URL but stays out of every list until then, which makes
+   * scheduling a guide free rather than a feature to build later.
+   */
+  published_at?: string;
+  /** Short summary for the listing card. Falls back to the page's SEO description. */
+  excerpt?: I18nString;
+  /** Listing card image. Falls back to the page's OG image. */
+  cover_url?: string;
+  /** Byline. Rendered only when set — never invented from the store name. */
+  author?: string;
 }
 
 /**
@@ -495,6 +621,8 @@ export interface CustomPage {
   meta?: PageMeta;
   /** Hidden = not served (404) without deleting. */
   hidden?: boolean;
+  /** Present when this page is a dated article. Absent for an ordinary page. */
+  article?: ArticleMeta;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { EXEMPT_PLANS_SQL_LIST, isBillingExempt } from "@/lib/billing-exempt";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -41,7 +42,10 @@ export async function GET(request: Request) {
         .from("subscriptions")
         .select("id, tenant_id, plan, status, pending_plan, plan_change_at")
         .in("status", ["active", "trialing"])
-        .lte("current_period_end", now);
+        .lte("current_period_end", now)
+        // Never charge the house tier: a failed charge sets the tenant suspended,
+        // which is exactly the lockout this tier exists to prevent.
+        .not("plan", "in", EXEMPT_PLANS_SQL_LIST);
 
     if (fetchError) {
         console.error("[subscription-renew] Fetch error:", fetchError);
@@ -68,15 +72,28 @@ export async function GET(request: Request) {
     const tenantIds = expiredSubs.map(s => s.tenant_id);
     const { data: tenants } = await supabaseAdmin()
         .from("tenants")
-        .select("id, business_name")
+        .select("id, business_name, plan")
         .in("id", tenantIds);
 
     const nameMap: Record<string, string> = {};
-    for (const t of tenants ?? []) nameMap[t.id] = t.business_name;
+    const planMap: Record<string, string> = {};
+    for (const t of tenants ?? []) {
+        nameMap[t.id] = t.business_name;
+        planMap[t.id] = t.plan;
+    }
 
     // 4. Process each subscription
     for (const sub of expiredSubs) {
         const name = nameMap[sub.tenant_id] || "Unknown";
+
+        // The tenant's own plan is the authority: a house tenant may still carry a
+        // stale subscription row naming a paid plan, and charging it would suspend
+        // the account this tier exists to keep running.
+        if (isBillingExempt(planMap[sub.tenant_id])) {
+            console.log(`[subscription-renew] Skipping billing-exempt tenant ${name}`);
+            continue;
+        }
+
         let plan = sub.plan;
         let planChanged = false;
 

@@ -6,6 +6,7 @@
 import { Order } from "@/lib/supabase";
 import { formatIQD, formatDate } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 export interface LabelOptions {
     showPrice?: boolean;
@@ -35,11 +36,12 @@ export function printOrderLabel(order: Order, options: LabelOptions = {}): void 
     const total = subtotal - (order.discount_amount || 0);
 
     // Build products list HTML
-    const productsHtml = showProducts && order.items?.length
+    const lines = mergeOrderItems(order.items);
+    const productsHtml = showProducts && lines.length
         ? `
             <div class="products">
                 <div class="section-title">المنتجات</div>
-                ${order.items.map(item => `
+                ${lines.map(item => `
                     <div class="product-row">
                         <span class="product-name">${item.name}</span>
                         <span class="product-qty">×${item.quantity}</span>

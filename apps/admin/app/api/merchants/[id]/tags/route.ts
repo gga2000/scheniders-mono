@@ -1,15 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 
 const UpdateTagsSchema = z.object({
   tags: z.array(z.string().min(1).max(50)).max(20),
 });
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdminPermission(request, "manage_tags");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
@@ -50,9 +54,12 @@ export async function PUT(
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdminFromRequest(request);
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
