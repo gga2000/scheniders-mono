@@ -20,7 +20,7 @@ import { calculateTotal } from "@/lib/order-utils";
 import type { CreateOrderInput, CreateOrderResult } from "@/types/order";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
-import { splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
+import { renameOrderNumberAction, splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
 import { MAX_ORDER_IDS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "@/hooks/use-toast";
@@ -378,7 +378,31 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             // --- Audit Trail Tracking (prepare changes list) ---
             const currentCache = queryClient.getQueryData<Order[]>(orderKeys.lists());
-            const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
+            let previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
+
+            // F-040: the browser cannot write orders.order_id (the database
+            // refuses it); a changed number goes through the server action,
+            // and the rest of the update follows on the renamed row.
+            const newOrderNumber = cleanUpdates.order_id;
+            delete cleanUpdates.order_id;
+            if (newOrderNumber !== undefined && newOrderNumber !== previousOrder?.order_id) {
+                const renamed = await renameOrderNumberAction(orderId, newOrderNumber, authRef.current.session?.access_token ?? "");
+                if (!renamed.success || !renamed.data) {
+                    const error = renamed.error || "Failed to change the order number";
+                    toast.error(error);
+                    return { success: false, error };
+                }
+                const renamedRow = renamed.data;
+                queryClient.setQueryData<Order[]>(orderKeys.lists(), (prev) =>
+                    prev?.map(o => o.id === orderId ? { ...o, ...renamedRow } : o)
+                );
+                previousOrder = previousOrder ? { ...previousOrder, ...renamedRow } : renamedRow;
+                // The rename bumped `version`; a caller-held one is now stale.
+                expectedVersion = renamedRow.version;
+                if (Object.keys(cleanUpdates).length === 0) {
+                    return { success: true, data: renamedRow };
+                }
+            }
 
             let auditChanges: string[] = [];
             if (previousOrder) {

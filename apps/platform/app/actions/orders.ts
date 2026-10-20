@@ -7,6 +7,8 @@ import { canCreateOrder } from "@/lib/tenant";
 import { createOrderForTenant } from "@/lib/order-service";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { isSystemOrderNumber, merchantOrderNumberSchema } from "@/lib/order-number";
+import { z } from "zod";
 
 // =============================================
 // CALLER RESOLUTION
@@ -70,7 +72,67 @@ export async function createOrderAction(
         return { success: false, error: "You do not have permission to create orders" };
     }
 
+    // Returns, replacements and clones carry their own derived numbers
+    // (RTN-/RPL-/CLN-); a number in the generator's format is the server's to
+    // assign (F-040).
+    if (orderData.order_id && isSystemOrderNumber(orderData.order_id)) {
+        return { success: false, error: "Order numbers in the automatic format are assigned by the system" };
+    }
+
     return createOrderForTenant(orderData, tenantId);
+}
+
+// =============================================
+// RENAME ORDER NUMBER
+// =============================================
+
+const renameOrderNumberInput = z.object({
+    orderUuid: z.string().uuid(),
+    orderNumber: merchantOrderNumberSchema,
+});
+
+/**
+ * Change an order's visible number (the order-details "edit ID" control).
+ *
+ * Browsers cannot write orders.order_id (trg_orders_order_id_server_only):
+ * the number space is shared by every tenant, so the server checks the caller
+ * and the value before writing it with the service role, scoped to the
+ * caller's own tenant.
+ */
+export async function renameOrderNumberAction(
+    orderUuid: string,
+    orderNumber: string,
+    accessToken: string,
+): Promise<{ success: boolean; data?: Order; error?: string }> {
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+
+    const { tenantId, role } = resolved.caller;
+    if (!ORDER_WRITE_ROLES.includes(role)) {
+        return { success: false, error: "You do not have permission to edit orders" };
+    }
+
+    const parsed = renameOrderNumberInput.safeParse({ orderUuid, orderNumber });
+    if (!parsed.success) {
+        return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid order number" };
+    }
+
+    const supabase = createSupabaseServiceClient();
+    const { data, error } = await supabase
+        .from("orders")
+        .update({ order_id: parsed.data.orderNumber })
+        .eq("id", parsed.data.orderUuid)
+        .eq("tenant_id", tenantId)
+        .select()
+        .maybeSingle();
+
+    if (error) {
+        // orders_order_id_key is global: the number may belong to any tenant.
+        if (error.code === "23505") return { success: false, error: "This order number is already in use" };
+        return { success: false, error: error.message };
+    }
+    if (!data) return { success: false, error: "Order not found" };
+    return { success: true, data: data as Order };
 }
 
 // =============================================

@@ -43,6 +43,9 @@ export default defineConfig({
             "lib/**/*.test.ts",
             "lib/**/*.test.tsx",
             "app/api/**/*.test.ts",
+            // Server actions are public POST endpoints; their guard tests
+            // must be collected like the API routes'.
+            "app/actions/**/*.test.ts",
             // ARCH-6: store/ had no include pattern, so a test placed beside the
             // Zustand slices was silently never collected.
             "store/**/*.test.ts",
@@ -54,6 +57,7 @@ export default defineConfig({
             "apps/platform/lib/**/*.test.ts",
             "apps/platform/lib/**/*.test.tsx",
             "apps/platform/app/api/**/*.test.ts",
+            "apps/platform/app/actions/**/*.test.ts",
         ],
     },
 });

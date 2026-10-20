@@ -25,6 +25,8 @@ import { sendPurchaseCapi } from "@/lib/capi";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
+import { checkoutRateLimited } from "@/lib/checkout-rate-limit";
+import { headers } from "next/headers";
 
 interface CheckoutItem {
   product_id: string;
@@ -89,6 +91,8 @@ interface SubmitCheckoutResult {
    *  page's post-purchase offer (see lib/order-upsell-proof). Only the
    *  response that created the order carries it. */
   upsellToken?: string;
+  /** Set when the checkout rate limit refused the order (seconds to wait). */
+  retryAfterSeconds?: number;
 }
 
 /** The answer for an order this idempotency key already placed: what was
@@ -183,6 +187,18 @@ export async function submitCheckout(
       return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
     }
     if (existing) return replayResult(existing);
+  }
+
+  // F-041: a public endpoint where every call is a real COD order, so it is
+  // capped per IP and per phone (lib/checkout-rate-limit). Placed after the
+  // replay answer, so a shopper's retry of a placed order is never refused.
+  const retryAfterSeconds = await checkoutRateLimited(await headers(), payload.tenantId, phone);
+  if (retryAfterSeconds !== null) {
+    return {
+      success: false,
+      error: "طلبات كثيرة خلال وقت قصير. حاول مرة أخرى بعد قليل.",
+      retryAfterSeconds,
+    };
   }
 
   // Re-fetch canonical prices from the DB — never trust client-supplied amounts.
