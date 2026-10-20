@@ -5,6 +5,10 @@ import { TrendingUp, DollarSign, ShoppingCart, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface ProductPerformanceCardProps {
+    /**
+     * Sales figures. Undefined means not known on this route (not zero): they
+     * are shown as "--", never as 0 sold.
+     */
     timesSold?: number;
     totalRevenue?: number;
     profitMargin?: number | null;
@@ -46,23 +50,23 @@ const stats = [
 ] as const;
 
 export function ProductPerformanceCard({
-    timesSold = 0,
-    totalRevenue = 0,
+    timesSold,
+    totalRevenue,
     profitMargin,
-    averageOrderValue = 0,
+    averageOrderValue,
 }: ProductPerformanceCardProps) {
     const [activePeriod, setActivePeriod] = useState<Period>("30d");
 
     function getValue(key: (typeof stats)[number]["key"]): string {
         switch (key) {
             case "totalSales":
-                return new Intl.NumberFormat("en-IQ").format(timesSold);
+                return timesSold != null ? new Intl.NumberFormat("en-IQ").format(timesSold) : "--";
             case "revenue":
-                return formatIQD(totalRevenue);
+                return totalRevenue != null ? formatIQD(totalRevenue) : "--";
             case "profitMargin":
                 return profitMargin != null ? `${profitMargin.toFixed(1)}%` : "--";
             case "avgOrderValue":
-                return formatIQD(averageOrderValue);
+                return averageOrderValue != null ? formatIQD(averageOrderValue) : "--";
         }
     }
 

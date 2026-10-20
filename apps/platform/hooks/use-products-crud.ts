@@ -60,8 +60,8 @@ export function useProductsCrud() {
     const { data: rawProducts, isLoading: loading, error: queryError } = useProductsQuery();
     // Sales are summed from the loaded order window, which exists only on routes
     // that mount the order book (the products list does). Elsewhere — the order
-    // form's product picker, the product editor — nothing reads them, and they
-    // are left unset rather than reported as zero sales.
+    // form's product picker, the product editor — they are left unset rather
+    // than reported as zero sales; the editor's performance card shows "--".
     const orders = useLoadedOrders();
 
     // Mutations

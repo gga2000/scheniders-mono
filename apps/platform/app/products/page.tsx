@@ -76,7 +76,7 @@ import { OrdersProvider } from "@/components/providers/orders-provider";
 export default function ProductsPage() {
     // The per-product sales columns are summed from the order book's window
     // (useProductsCrud), so the list mounts the book. Only the list: the editor
-    // routes under /products read no sales and do not.
+    // routes under /products do not, and show their sales as unknown ("--").
     return (
         <OrdersProvider>
             <Suspense fallback={
