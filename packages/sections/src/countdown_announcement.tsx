@@ -34,6 +34,10 @@ const schema = z.object({
   duration_minutes: z.number().int().min(1).max(1440).optional(),
   bg: barBg,
   show_flame: z.boolean(),
+  /** "evergreen_minutes" draws no clock by default (a deadline that
+   *  restarts for every visitor). A merchant who has reviewed that trade-off
+   *  and wants the ticking loop anyway opts in here; absent = no clock. */
+  evergreen_clock: z.boolean().optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

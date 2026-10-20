@@ -77,8 +77,9 @@ export function CountdownAnnouncement({
   // deadline nobody set, which the audit called fake scarcity. The enum
   // value stays (a stored config must keep parsing, or the whole bar is
   // silently dropped), but it no longer draws a clock: the announcement
-  // renders as a plain bar. A real deadline is "fixed_end" with a date.
-  const honest = props.mode !== "evergreen_minutes";
+  // renders as a plain bar. A real deadline is "fixed_end" with a date —
+  // unless the merchant explicitly opts back in with `evergreen_clock`.
+  const honest = props.mode !== "evergreen_minutes" || props.evergreen_clock === true;
 
   const [tick, setTick] = useState<CountdownTick | null>(null);
   useEffect(() => {
