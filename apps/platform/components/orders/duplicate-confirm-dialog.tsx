@@ -6,6 +6,7 @@ import type { Order } from "@/types/order";
 import type { DuplicateDispatchPair, DuplicateGuardAction } from "@/lib/duplicate-window";
 import { cn, formatIQD } from "@/lib/utils";
 import { formatPhoneGrouped } from "@/lib/order-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -55,8 +56,8 @@ function OrderSummary({ order, label, tone }: { order: Order; label: string; ton
 
             <p className="font-mono text-sm font-bold text-slate-800" dir="ltr">#{order.order_id}</p>
             <p className="font-mono text-xs text-slate-600" dir="ltr">{formatPhoneGrouped(order.phone)}</p>
-            <p className="truncate text-xs text-slate-600" title={order.items?.map(i => i.name).join(separator)}>
-                {order.items?.map(i => `${i.name} ×${i.quantity}`).join(separator) || "—"}
+            <p className="truncate text-xs text-slate-600" title={mergeOrderItems(order.items).map(i => i.name).join(separator)}>
+                {mergeOrderItems(order.items).map(i => `${i.name} ×${i.quantity}`).join(separator) || "—"}
             </p>
             <div className="flex items-center justify-between gap-2 pt-1">
                 <span className="font-bold text-slate-800 tabular-nums" dir="ltr">{formatIQD(order.price)}</span>

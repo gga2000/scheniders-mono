@@ -1,5 +1,6 @@
 import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import type { Locale } from "@/lib/i18n";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
@@ -22,10 +23,17 @@ const baghdadDayMonth = new Intl.DateTimeFormat("en-GB", {
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
+// `hourCycle`, not `hour12`. Asking for `hour12: true` on `en-GB` lets ICU
+// pick the cycle, and it picks h11 — where midnight is hour 0 — so 00:30 UTC+3
+// renders as the nonsense "00:30 am" instead of "12:30 am". Which cycle a
+// runtime picks varies by ICU version, so the same order read differently on a
+// developer's machine, the CI runner and the server. `h12` pins 1-12 with
+// midnight and noon as 12 everywhere. Note the two options cannot be combined:
+// per spec `hour12` overrides `hourCycle`, so it has to be gone, not adjusted.
 const baghdadTime = new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hourCycle: "h12" as const,
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
@@ -96,7 +104,7 @@ const baghdadDateTime = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hourCycle: "h12" as const,
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
@@ -105,7 +113,7 @@ const baghdadDayMonthTime = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hourCycle: "h12" as const,
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
@@ -264,9 +272,14 @@ export const getAgeUrgency = (
     return "stale";                         // Red - very old
 };
 
+/**
+ * Card-ready item lines. Lines stored once per unit (historical LightFunnels
+ * orders) are collapsed into one line with the summed quantity — see
+ * merge-order-items.ts.
+ */
 export const getItemsDisplay = (items: Array<{ name: string; quantity: number; image_url?: string; tag_color?: string | null; is_open_box?: boolean; is_ai_extracted?: boolean }>) => {
     if (!items || items.length === 0) return [];
-    return items.map(item => ({
+    return mergeOrderItems(items).map(item => ({
         name: item.name,
         quantity: item.quantity,
         image_url: item.image_url,

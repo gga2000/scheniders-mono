@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-supabase";
+import { requireBearerAdmin } from "@/lib/api-auth";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -155,12 +155,12 @@ async function scrapeInstagram(username: string): Promise<ProfileResult> {
 // ── Route Handler ───────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const admin = await requireAdmin(token);
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Outside the try: its catch maps every error to an upstream-lookup status
+  // (429/502/422), so an auth-server outage must not flow through it.
+  const admin = await requireBearerAdmin(request);
+  if (admin instanceof NextResponse) return admin;
 
+  try {
     if (!RAPIDAPI_KEY) {
       return NextResponse.json(
         { error: "RAPIDAPI_KEY is not configured. Add it to your environment variables." },

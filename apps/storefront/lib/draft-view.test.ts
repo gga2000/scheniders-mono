@@ -119,7 +119,7 @@ describe("draft-view flag", () => {
 });
 
 describe("checkout order from draft view", () => {
-  const mockInsert = vi.fn();
+  const mockInsert = vi.fn<(table: string, rows: unknown) => Promise<{ error: null }>>();
   const mockFrom = vi.fn();
   const body = {
     tenant_id: TENANT_ID,
@@ -187,7 +187,7 @@ describe("checkout order from draft view", () => {
               }),
             }),
           }
-        : { insert: mockInsert },
+        : { insert: (rows: unknown) => mockInsert(table, rows) },
     );
     vi.mocked(createSupabaseServiceClient).mockReturnValue({ from: mockFrom } as never);
   });
@@ -198,7 +198,10 @@ describe("checkout order from draft view", () => {
   it("records the experiment conversion for a shopper", async () => {
     jar(undefined);
     expect((await post()).status).toBe(200);
-    expect(mockInsert).toHaveBeenCalledTimes(1);
+    const writtenTables = mockInsert.mock.calls.map(([table]) => table);
+    expect(writtenTables.filter((t) => t === "store_config_experiment_events")).toHaveLength(1);
+    // The first-party purchase funnel counts the same shopper's order.
+    expect(writtenTables.filter((t) => t === "storefront_events")).toHaveLength(1);
   });
 
   it("keeps a draft-view test order out of the experiment's revenue", async () => {

@@ -6,10 +6,12 @@ import {
   evaluateSegments,
   resolveVisitorLocale,
   LOCALE_COOKIE,
+  listArticleSummaries,
 } from "@scheniders/shared";
 import { StorefrontGlobals } from "./storefront-globals";
 import { ExperimentBeacon } from "./experiment-beacon";
 import { CartSignal } from "./cart-signal";
+import { FunnelBeacon } from "./funnel-beacon";
 import { SectionReveal } from "./section-reveal";
 import { isDraftViewRequest } from "@/lib/draft-view";
 import type {
@@ -128,6 +130,11 @@ export async function V2Page({
   const sectionCtx: Omit<SectionRenderContext, "runtime"> = {
     ...renderCtx,
     tenant: toSectionTenant(renderCtx.tenant),
+    // Published guides, resolved once here rather than at each of the ~19
+    // routes. Summaries only, for the same reason the tenant is pruned: a
+    // guides list must not serialise the section tree of every guide it
+    // links to into the payload of the page doing the listing.
+    articles: listArticleSummaries(v2.custom_pages, { now: new Date() }),
   };
 
   // EC13: resolve the locale to actually render for THIS visitor — explicit
@@ -155,6 +162,11 @@ export async function V2Page({
   return (
     <>
       <CartSignal />
+      <FunnelBeacon
+        tenantId={renderCtx.tenant.id}
+        pageId={String(runtime.page_id)}
+        productId={runtime.product_id}
+      />
       <SectionReveal />
       {Object.keys(abArms).length > 0 && !draftView && (
         <ExperimentBeacon tenantId={renderCtx.tenant.id} arms={abArms} />

@@ -1,5 +1,4 @@
 import type { Viewport } from "next";
-import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import {
   resolveSchneidersConfig,
@@ -11,8 +10,8 @@ import {
   LOCALE_COOKIE,
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { getRequestOrigin, htmlLangFor, ogLocaleFor } from "@/lib/seo";
+import { resolveStoreTenant, requireStoreTenant } from "@/lib/route-guards";
+import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { CartHydrator } from "@/components/cart-hydrator";
 import { HtmlLang } from "@/components/html-lang";
@@ -25,27 +24,16 @@ interface Props {
   children: React.ReactNode;
 }
 
-async function resolveTenant(tenantParam: string): Promise<Tenant | null> {
-  if (tenantParam.startsWith("__domain__")) {
-    return getTenantByCustomDomain(tenantParam.replace("__domain__", ""));
-  }
-  return getTenantBySlug(tenantParam);
-}
-
 export default async function TenantLayout({ params, children }: Props) {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
-
-  if (!tenant) notFound();
+  // Unknown and cancelled stores 404 here, above every loading boundary, so
+  // the status is set before anything streams.
+  const tenant = await requireStoreTenant(tenantParam);
 
   // Determine store base path from proxy header
   // "" = subdomain mode (links are root-relative), "/s/slug" = path-based mode
   const headerList = await headers();
   const storeBase = headerList.get("x-store-base") ?? `/s/${tenantParam}`;
-
-  if (tenant.status === "cancelled") {
-    notFound();
-  }
 
   if (tenant.status === "suspended") {
     return (
@@ -294,7 +282,7 @@ export async function generateViewport({
   params: Promise<{ tenant: string }>;
 }): Promise<Viewport> {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
   // Same precedence as the layout's brand-kit fallback chain: V2 kit surface,
   // then the legacy design_tokens background, then the neutral kit default.
   const v2Surface = (
@@ -312,9 +300,15 @@ export async function generateViewport({
   };
 }
 
+/** Home-screen labels are clipped by the OS; keep the store's name, drop the rest. */
+function shortTitle(title: string): string {
+  const t = title.trim();
+  return t.length <= 15 ? t : t.slice(0, 15).trim();
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
 
   if (!tenant) return { title: "Store not found" };
 
@@ -337,13 +331,30 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
     `${tenant.business_name} — اطلب الآن من أفضل المنتجات`;
   const origin = await getRequestOrigin();
   const ogImage = v2Identity?.og_image_url || seo?.og_image_url;
+  // Home-screen install: the manifest is per tenant and lives under the
+  // store's own root, so it resolves in both routing modes (path and
+  // subdomain/custom domain).
+  const { storeBase } = await getStorefrontBase(tenantParam);
 
   return {
     // metadataBase lets Next resolve relative OG/canonical URLs to absolutes.
     ...(origin ? { metadataBase: new URL(origin) } : {}),
     title,
     description,
-    icons: logoUrl ? [{ url: logoUrl }] : undefined,
+    icons: logoUrl
+      ? {
+          icon: [{ url: logoUrl }],
+          // iOS Safari's "Add to Home Screen" reads this one, and needs no
+          // manifest or service worker to do it.
+          apple: [{ url: logoUrl }],
+        }
+      : undefined,
+    manifest: `${storeBase}/manifest.webmanifest`,
+    appleWebApp: {
+      capable: true,
+      title: shortTitle(title),
+      statusBarStyle: "default",
+    },
     openGraph: {
       type: "website",
       locale: ogLocaleFor(

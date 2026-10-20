@@ -8,6 +8,7 @@
 
 import type {
     CustomPage,
+    I18nString,
     PageId,
     PageMeta,
     SectionInstance,
@@ -184,4 +185,90 @@ export function withActivePageMeta(
         nextPages.push({ page_id: target.page_id, sections: [], meta });
     }
     return { ...config, pages: nextPages };
+}
+
+/* ───────────────────────────── Articles ───────────────────────────── */
+
+/**
+ * One article, reduced to what a listing needs.
+ *
+ * Deliberately not the `CustomPage` itself. Sections receive a pruned tenant
+ * so a page's section tree is never serialised into the RSC payload of some
+ * other page that merely links to it — an index of twenty guides would
+ * otherwise ship twenty whole pages to the browser to render twenty cards.
+ */
+export interface ArticleSummary {
+    /** Custom page id — stable across slug edits. */
+    id: string;
+    /** URL slug; the article lives at `/p/<slug>`. */
+    slug: string;
+    title?: I18nString;
+    excerpt?: I18nString;
+    cover_url?: string;
+    author?: string;
+    /** ISO date, or undefined when the merchant set none. */
+    published_at?: string;
+}
+
+/** A custom page the merchant marked as an article. */
+export function isArticle(page: CustomPage): boolean {
+    return page.article !== undefined && page.article !== null;
+}
+
+/**
+ * Published articles, newest first.
+ *
+ * Three rules, each of them a thing that would otherwise leak:
+ *   * A hidden page is not served, so it must not be listed either — a card
+ *     linking to a 404 is worse than no card.
+ *   * A `published_at` in the future is a scheduled article: it keeps its URL
+ *     (so the merchant can preview and share it) but stays out of lists.
+ *   * An article with no date sorts last rather than being dropped. A merchant
+ *     who wrote a guide and forgot the date should still see it on their store.
+ */
+export function listArticleSummaries(
+    pages: readonly CustomPage[] | undefined | null,
+    opts?: { now?: Date; limit?: number },
+): ArticleSummary[] {
+    const now = (opts?.now ?? new Date()).getTime();
+
+    const out = (pages ?? [])
+        .filter((p) => isArticle(p) && p.hidden !== true)
+        .filter((p) => {
+            const at = p.article?.published_at;
+            if (!at) return true;
+            const t = Date.parse(at);
+            return Number.isNaN(t) ? true : t <= now;
+        })
+        .map<ArticleSummary>((p) => ({
+            id: p.id,
+            slug: p.slug,
+            ...(p.title ? { title: p.title } : {}),
+            // The page's SEO description is the merchant's own summary of it,
+            // so a guide without an excerpt still gets a line on its card.
+            ...(p.article?.excerpt
+                ? { excerpt: p.article.excerpt }
+                : p.meta?.description
+                  ? { excerpt: p.meta.description }
+                  : {}),
+            ...(p.article?.cover_url
+                ? { cover_url: p.article.cover_url }
+                : p.meta?.og_image_url
+                  ? { cover_url: p.meta.og_image_url }
+                  : {}),
+            ...(p.article?.author ? { author: p.article.author } : {}),
+            ...(p.article?.published_at
+                ? { published_at: p.article.published_at }
+                : {}),
+        }));
+
+    out.sort((a, b) => {
+        const ta = a.published_at ? Date.parse(a.published_at) : Number.NaN;
+        const tb = b.published_at ? Date.parse(b.published_at) : Number.NaN;
+        const va = Number.isNaN(ta) ? -Infinity : ta;
+        const vb = Number.isNaN(tb) ? -Infinity : tb;
+        return vb - va;
+    });
+
+    return typeof opts?.limit === "number" ? out.slice(0, opts.limit) : out;
 }

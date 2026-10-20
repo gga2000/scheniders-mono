@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { PickListView } from "./pick-list-view";
 import { printBatchesWithSeparators, printSingleBatch, downloadBatchesAsPDF } from "@/lib/batch-printer";
 import { LabelSettings } from "@/hooks/use-printing";
@@ -614,7 +615,7 @@ export function SmartBatchPanel({ orders, labelSettings, onBatchSelect, onBatchG
                             </span>
                           </div>
                           <div className="ml-8 space-y-1">
-                            {order.items.map((item, itemIdx) => (
+                            {mergeOrderItems(order.items).map((item, itemIdx) => (
                               <div key={itemIdx} className="text-sm text-gray-700 dark:text-gray-300">
                                 • {item.name} × {item.quantity}
                                 {item.sku && <span className="text-xs text-gray-500 ml-2">({item.sku})</span>}

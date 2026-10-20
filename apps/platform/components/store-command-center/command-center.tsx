@@ -3,10 +3,12 @@
 import { isStorePubliclyLive } from "@scheniders/shared";
 import type { LocaleCode, StoreConfigV2 } from "@scheniders/shared";
 import { useStoreAnalytics } from "@/hooks/use-store-analytics";
+import { useStorefrontFunnel } from "@/hooks/use-storefront-funnel";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { HeaderBar } from "./header-bar";
 import { PreviewCard } from "./preview-card";
 import { KpiStrip } from "./kpi-strip";
+import { FunnelCard } from "./funnel-card";
 import { HealthCard } from "./health-card";
 import { PagesCard } from "./pages-card";
 import { SettingsTiles } from "./settings-tiles";
@@ -28,6 +30,7 @@ interface CommandCenterProps {
 
 export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
     const analyticsQuery = useStoreAnalytics(tenantId);
+    const funnelQuery = useStorefrontFunnel(tenantId);
     const storefrontUrl = useStorefrontUrl(tenant.slug, tenantId);
 
     const storeStatus = {
@@ -85,6 +88,12 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                     <KpiStrip
                         analytics={analyticsQuery.data}
                         isLoading={analyticsQuery.isLoading}
+                        locale={locale}
+                    />
+                    <FunnelCard
+                        funnel={funnelQuery.data}
+                        isLoading={funnelQuery.isLoading}
+                        isError={funnelQuery.isError}
                         locale={locale}
                     />
                 </div>

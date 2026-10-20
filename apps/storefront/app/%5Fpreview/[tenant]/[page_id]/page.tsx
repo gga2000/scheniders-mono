@@ -320,6 +320,11 @@ export default async function PreviewPage({
     tenant.store_config_v2_draft ?? tenant.store_config_v2 ?? null;
 
   /* ───── Page-specific data loading ───── */
+  //
+  // Every page that can host the product finder loads attributes here,
+  // whatever sections it was saved with: the editor pushes section edits
+  // over postMessage without a reload, so a finder added after load must
+  // still find attributes on the products it was handed.
 
   let product: Product | undefined;
   let category: Category | undefined;
@@ -353,12 +358,17 @@ export default async function PreviewPage({
       products = await listProducts(tenant.id, {
         limit: 24,
         categoryId: category?.id,
+        withAttributes: true,
       });
       break;
     }
     case "home":
     case "search":
-      products = await listProducts(tenant.id, { limit: 24 });
+      products = await listProducts(tenant.id, { limit: 24, withAttributes: true });
+      break;
+    case "about":
+      // Mirrors the live about route, which loads products only for the finder.
+      products = await listProducts(tenant.id, { limit: 48, withAttributes: true });
       break;
     default:
       products = [];

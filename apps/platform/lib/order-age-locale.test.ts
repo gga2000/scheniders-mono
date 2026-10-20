@@ -48,6 +48,16 @@ describe("order timestamps", () => {
         expect(formatOrderDateTime("2026-09-03T09:00:00Z")).toBe("03/09/2026, 12:00 pm");
     });
 
+    it("renders midnight and noon as 12, on every runtime", () => {
+        // `hour12: true` lets ICU choose the cycle and it chooses h11 on some
+        // versions, where midnight is hour 0 — so this read "00:30 am" on the
+        // CI runner (Node 20 / ICU 78) while passing on the machine it was
+        // written on. Pinning `hourCycle: "h12"` makes it the same everywhere.
+        expect(formatOrderDateTime("2026-09-03T21:00:00Z")).toContain("12:00 am");
+        expect(formatOrderDateTime("2026-09-03T09:00:00Z")).toContain("12:00 pm");
+        expect(formatOrderDateTime("2026-09-03T21:00:00Z")).not.toContain("00:");
+    });
+
     it("returns empty rather than 'Invalid Date'", () => {
         expect(formatOrderDateTime(null)).toBe("");
         expect(formatOrderNamedDate("nonsense")).toBe("");

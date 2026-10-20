@@ -2,7 +2,21 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, cleanup } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+/**
+ * Reference fields (product_id, *_href, …) now render resource pickers,
+ * which read the catalogue through react-query. Wrap every render so those
+ * fields mount; retry is off so a hook with no session settles immediately
+ * instead of holding the test open.
+ */
+function render(ui: React.ReactElement) {
+    const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 import { z } from "zod";
 
 vi.mock("@/lib/supabase", () => ({
@@ -454,10 +468,11 @@ describe("AutoForm", () => {
         expect(screen.getByTestId("auto-form-group-logic")).toBeTruthy();
         // Essentials is open by default → title_i18n (essential) renders.
         expect(screen.getByTestId("auto-form-essential.title_i18n-root")).toBeTruthy();
-        // cta_href is logic, group is collapsed by default, so its input
-        // should NOT be in the DOM right now.
+        // cta_href is logic, group is collapsed by default, so its control
+        // should NOT be in the DOM right now. (It is a link picker rather
+        // than a text input — see lib/section-field-widgets.ts.)
         expect(
-            screen.queryByTestId("auto-form-logic.cta_href-input"),
+            screen.queryByTestId("auto-form-logic.cta_href-picker"),
         ).toBeNull();
     });
 
@@ -485,7 +500,7 @@ describe("AutoForm", () => {
         expect(logicToggle.getAttribute("aria-expanded")).toBe("true");
         expect(screen.getByTestId("auto-form-group-logic-body")).toBeTruthy();
         // Now the cta_href input mounts inside the logic group.
-        expect(screen.getByTestId("auto-form-logic.cta_href-input")).toBeTruthy();
+        expect(screen.getByTestId("auto-form-logic.cta_href-picker")).toBeTruthy();
         // Toggle back closed.
         fireEvent.click(logicToggle);
         expect(logicToggle.getAttribute("aria-expanded")).toBe("false");

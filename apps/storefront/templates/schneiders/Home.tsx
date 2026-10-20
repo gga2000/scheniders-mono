@@ -224,7 +224,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
                 <div className="w-12 h-12 rounded-full border-2 border-bk-ink shrink-0 bg-white overflow-hidden flex items-center justify-center font-display font-black text-lg">
                   {testimonial.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={testimonial.avatar_url} alt={reviewerName} className="w-full h-full object-cover" />
+                    <img src={testimonial.avatar_url} alt={reviewerName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : (
                     reviewerInitial
                   )}

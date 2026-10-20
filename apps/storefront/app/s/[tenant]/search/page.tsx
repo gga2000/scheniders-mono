@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { resolveStoreTenant, requireStoreTenant } from "@/lib/route-guards";
 import { listProducts, listCategories } from "@/lib/queries";
 import {
   pickV2Page,
@@ -18,12 +17,6 @@ interface Props {
   searchParams: Promise<{ q?: string | string[] }>;
 }
 
-function resolveTenant(tenantParam: string) {
-  return tenantParam.startsWith("__domain__")
-    ? getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : getTenantBySlug(tenantParam);
-}
-
 export async function generateMetadata({
   params,
   searchParams,
@@ -32,7 +25,7 @@ export async function generateMetadata({
     params,
     searchParams,
   ]);
-  const tenant = await resolveTenant(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
   const locale = v2?.default_locale ?? "ar";
   const query = resolveSearchQuery(rawQuery);
@@ -56,8 +49,8 @@ export default async function SearchPage({ params, searchParams }: Props) {
     params,
     searchParams,
   ]);
-  const tenant = await resolveTenant(tenantParam);
-  if (!tenant) notFound();
+  // The tenant layout already 404'd an unknown store, above the skeleton.
+  const tenant = await requireStoreTenant(tenantParam);
 
   const query = resolveSearchQuery(rawQuery);
 

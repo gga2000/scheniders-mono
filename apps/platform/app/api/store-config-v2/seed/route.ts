@@ -10,7 +10,8 @@ import { env } from "@/lib/env";
 /*
  * POST /api/store-config-v2/seed
  *
- * Body: { tenant_id: string, config: StoreConfigV2 }
+ * Body: { tenant_id: string, config: StoreConfigV2,
+ *         categories?: StarterCategory[], attribute_defs?: PackAttribute[] }
  *
  * Writes a full v2 config to `store_config_v2_draft` via the
  * `seed_store_config_v2_draft` SECURITY DEFINER RPC. The RPC verifies
@@ -28,11 +29,37 @@ import { env } from "@/lib/env";
 // few KB; this only guards against an abusive authenticated client.
 const MAX_CONFIG_BYTES = 524_288;
 
+const i18n = z.record(z.string(), z.string());
+const categorySchema = z.object({
+    slug: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+    name: z.string().min(1).max(120),
+    name_ar: z.string().max(120).nullable().optional(),
+    name_en: z.string().max(120).nullable().optional(),
+    display_order: z.number().int().min(0).max(999),
+});
+const attributeSchema = z.object({
+    // The table's own CHECK, so a bad key is refused here rather than
+    // failing the whole insert.
+    key: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/),
+    name_i18n: i18n,
+    kind: z.enum(["enum", "range", "group_list", "text", "boolean"]),
+    options: z.array(z.object({ value: z.string().min(1), label_i18n: i18n })).optional(),
+    group_keys: z.array(z.object({ key: z.string().min(1), label_i18n: i18n })).optional(),
+    range_min: z.number().optional(),
+    range_max: z.number().optional(),
+    unit_i18n: i18n.optional(),
+    is_filterable: z.boolean().optional(),
+    is_comparable: z.boolean().optional(),
+    display_order: z.number().int().optional(),
+});
 const bodySchema = z.object({
     tenant_id: z.string().uuid(),
     config: z
         .object({ schema_version: z.literal(2) })
         .passthrough(),
+    /** Starter taxonomy from the content pack — only written on a fresh seed. */
+    categories: z.array(categorySchema).max(40).optional(),
+    attribute_defs: z.array(attributeSchema).max(40).optional(),
 });
 
 async function getServerSupabase() {
@@ -66,7 +93,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: "Bad payload" }, { status: 400 });
     }
 
-    const { tenant_id, config } = parsed.data;
+    const { tenant_id, config, categories, attribute_defs } = parsed.data;
 
     let configBytes: number;
     try {
@@ -105,5 +132,53 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     // `data` is the RPC's boolean: true = seeded, false = store already existed.
-    return NextResponse.json({ ok: true, seeded: data === true });
+    const seeded = data === true;
+
+    // Starter taxonomy rides along only with a genuine first seed, under the
+    // member's own RLS (categories / product_attribute_defs are tenant-
+    // isolated). A failure here leaves a valid store without starter rows,
+    // which the merchant can add, so it does not fail the onboarding. It is
+    // logged and returned in `taxonomy.errors` so the caller can see it.
+    //
+    // ON CONFLICT DO NOTHING on the tables' unique keys: a tenant whose
+    // store config is fresh can still own categories (made on the products
+    // screen first), and one taken slug must not drop the whole batch.
+    const taxonomy: { categories: number; attribute_defs: number; errors: string[] } = {
+        categories: 0,
+        attribute_defs: 0,
+        errors: [],
+    };
+    if (seeded) {
+        if (categories?.length) {
+            const { error: catErr, data: rows } = await supabase
+                .from("categories")
+                .upsert(
+                    categories.map((c) => ({ ...c, tenant_id, is_visible: true })),
+                    { onConflict: "tenant_id,slug", ignoreDuplicates: true },
+                )
+                .select("id");
+            if (catErr) {
+                console.error("[seed] categories failed:", catErr);
+                taxonomy.errors.push("categories");
+            } else {
+                taxonomy.categories = rows?.length ?? 0;
+            }
+        }
+        if (attribute_defs?.length) {
+            const { error: attrErr, data: rows } = await supabase
+                .from("product_attribute_defs")
+                .upsert(
+                    attribute_defs.map((a) => ({ ...a, tenant_id })),
+                    { onConflict: "tenant_id,key", ignoreDuplicates: true },
+                )
+                .select("id");
+            if (attrErr) {
+                console.error("[seed] attribute defs failed:", attrErr);
+                taxonomy.errors.push("attribute_defs");
+            } else {
+                taxonomy.attribute_defs = rows?.length ?? 0;
+            }
+        }
+    }
+    return NextResponse.json({ ok: true, seeded, taxonomy });
 }

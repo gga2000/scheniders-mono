@@ -23,8 +23,9 @@ import * as Sentry from "@sentry/nextjs";
  * had no styled page and reported nothing to Sentry.
  *
  * This replaces the whole document, so it has to supply its own <html> and
- * <body>. `lang="ar"` and `dir="ltr"` match the root layout: the app is LTR in
- * every locale, including Arabic.
+ * <body>. `lang="ar"` matches the root layout. Like the root layout it sets no
+ * `dir`: the app is LTR in every locale, including Arabic, and LTR is the
+ * HTML default, so `dir` is never set on <html>.
  *
  * Styling is deliberately inline rather than Tailwind — a root-layout failure
  * may well be the stylesheet itself not loading, and an error page that depends
@@ -42,7 +43,7 @@ export default function GlobalError({
     }, [error]);
 
     return (
-        <html lang="ar" dir="ltr">
+        <html lang="ar">
             <body
                 style={{
                     margin: 0,

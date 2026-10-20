@@ -13,6 +13,7 @@ const s = makeSectionFactory("chrome_night");
 
 export const chromeNightTemplate: StoreTemplate = {
     id: "chrome_night",
+    version: 1,
     name_i18n: { en: "Chrome Night", ar: "ليل معدني" },
     description_i18n: {
         en: "Graphite and brushed silver. Quiet, slow and expensive-looking, for premium and gifting stores.",
@@ -33,7 +34,10 @@ export const chromeNightTemplate: StoreTemplate = {
             display: "Jost",
             body: "Manrope",
             display_ar: "Reem Kufi",
-            body_ar: "Tajawal",
+            // Not Tajawal: it skips 600, which this direction uses for labels.
+            // Noto Kufi Arabic ships 400-900 and sits closer to Reem Kufi's
+            // geometry anyway.
+            body_ar: "Noto Kufi Arabic",
             scale: "comfortable",
         },
         shape: {

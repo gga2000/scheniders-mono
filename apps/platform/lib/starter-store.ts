@@ -21,7 +21,9 @@ import type {
     StoreConfigV2,
 } from "@scheniders/shared";
 import { STORE_TEMPLATES, applyStoreTemplate, getStoreTemplate } from "./store-templates";
-import { applyIndustrySeedCopy } from "./industry-seed-copy";
+import { applyContentPack, packCategoryRows, resolveContentPack } from "./store-templates/content-packs";
+import type { ContentPack, PackAttribute } from "./store-templates/content-packs";
+import { applyStoreCopy, type StoreCopy } from "./store-copy";
 
 /** Templates offered in the wizard's "pick a starter" step. */
 export const STARTER_TEMPLATES = STORE_TEMPLATES;
@@ -62,6 +64,17 @@ export { FALLBACK_INDUSTRIES } from "./wizard-industry-types";
 export interface StarterStoreInput {
     /** Chosen `PageTemplate.id` (home starter pack). */
     templateId: string;
+    /**
+     * Content pack id chosen (or derived from the industry). Wins over
+     * `industryId` when both are present.
+     */
+    packId?: string;
+    /**
+     * AI-written copy for THIS merchant, laid over the pack's generic words.
+     * Absent → the pack's own copy, which is what a merchant who skipped
+     * the "what do you sell?" box gets.
+     */
+    copy?: StoreCopy;
     /**
      * Wizard vertical (e.g. "beauty", "electronics"). Drives the
      * industry copy pack so the seeded story/reviews/about read like
@@ -198,10 +211,23 @@ export function buildStarterStoreConfigV2(
         };
     }
 
-    // ── Industry copy pack (UX-11) ──────────────────────────────────
-    // After the template so it overlays every seeded section; before
+    // ── Content pack (UX-11 / W6.1) ─────────────────────────────────
+    // After the direction so it overlays every seeded section; before
     // name-personalization so the brand-label stamp always wins.
-    applyIndustrySeedCopy(cfg, input.industryId);
+    const basePack = resolveContentPack(input.packId ?? input.industryId);
+    const pack = input.copy ? applyStoreCopy(basePack, input.copy) : basePack;
+    applyContentPack(cfg, pack);
+    // Stamped with the direction's OWN version, so a store seeded today is
+    // never told it is behind. No stamp for an unknown direction: there is
+    // nothing to upgrade it from.
+    if (template) {
+        cfg.template = {
+            direction_id: template.id,
+            pack_id: pack.id,
+            version: template.version,
+            applied_at: new Date().toISOString(),
+        };
+    }
 
     // ── Personalize: stamp the business name onto brand-label fields ─
     if (name) {
@@ -211,4 +237,18 @@ export function buildStarterStoreConfigV2(
     }
 
     return cfg;
+}
+
+/**
+ * The taxonomy a pack seeds beside the config: starter categories (which
+ * the direction's tiles already link to) and the product attributes
+ * shoppers filter by. Written by the seed endpoint under the member's RLS.
+ */
+export function starterTaxonomy(packId: string | undefined): {
+    pack: ContentPack;
+    categories: ReturnType<typeof packCategoryRows>;
+    attribute_defs: PackAttribute[];
+} {
+    const pack = resolveContentPack(packId);
+    return { pack, categories: packCategoryRows(pack), attribute_defs: pack.attributes };
 }

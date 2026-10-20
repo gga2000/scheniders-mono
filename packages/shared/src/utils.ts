@@ -52,3 +52,13 @@ export function slugify(text: string): string {
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** A slug is valid exactly when it is already canonical — when `slugify`
+ *  would leave it untouched. Defining it against the generator rather than a
+ *  hand-written pattern means validation can never reject a slug the system
+ *  itself produced, which is how Arabic slugs (رفقات, ويفر) ended up saved in
+ *  the database and then refused by the product editor on every subsequent
+ *  save. Empty is never valid; callers fall back to the row id. */
+export function isCanonicalSlug(slug: string): boolean {
+  return slug.length > 0 && slugify(slug) === slug;
+}

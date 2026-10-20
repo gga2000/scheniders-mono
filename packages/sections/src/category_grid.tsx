@@ -142,8 +142,10 @@ function CategoryGridRender({
                       className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-bk-ink/65 via-bk-ink/10 to-transparent" />
+                    {/* The scrim is ink, so the name takes ink's partner, the
+                        surface; on a dark kit ink is light and white vanishes. */}
                     <div className="absolute inset-x-0 bottom-0 p-3">
-                      <p className="font-display font-black text-base sm:text-lg uppercase leading-tight text-white drop-shadow">
+                      <p className="font-display font-black text-base sm:text-lg uppercase leading-tight text-bk-surface drop-shadow">
                         {name}
                       </p>
                     </div>
