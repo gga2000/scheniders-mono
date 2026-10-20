@@ -31,3 +31,6 @@ packages/supabase/ci/supabase/config.toml                                   # PK
 packages/provider-mock/src/server.ts                                        # PKG-00 (provider mock server)
 packages/supabase/tests/secdef_role_expectations.sql                        # PKG-03 / PKG-13 (role pass expectations)
 packages/supabase/tests/storefront_reservation.sql                          # PKG-14 (reservation tests)
+# Added in revision 4:
+packages/supabase/migrations/20261020154100_create_order_atomic_require_tenant.sql  # PR #175 (NULL-tenant commit f7f011da)
+packages/supabase/tests/is_tenant_admin_active.sql                          # PKG-06 (F-087 test)

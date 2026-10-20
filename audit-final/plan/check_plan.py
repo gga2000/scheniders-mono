@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase 3 plan checks.
 
-1. F-id coverage: every F-001..F-086 appears exactly once in the PLAN.md §10
+1. F-id coverage: every F-001..F-087 appears exactly once in the PLAN.md §10
    index, exactly once across all package "Closes:" lines plus the §9
    Deferred table, and both places agree on the package.
 2. File existence: every backticked repo path in §5 exists in the given
@@ -20,7 +20,7 @@ def section(title_prefix):
     m = re.search(r"^## " + re.escape(title_prefix) + r".*?$(.*?)(?=^## |\Z)", text, re.M | re.S)
     return m.group(1) if m else ""
 
-ALL = [f"F-{i:03d}" for i in range(1, 87)]
+ALL = [f"F-{i:03d}" for i in range(1, 88)]  # F-001..F-087 (F-087 added in plan revision 4)
 
 # --- index (§10)
 index = {}
@@ -76,7 +76,8 @@ print("FILE EXISTENCE CHECK (worktree", worktree + ")")
 paths = set()
 for tok in re.findall(r"`([^`\s]+)`", section("5.")):
     if re.match(r"^(apps|packages|supabase|\.github)/", tok):
-        paths.add(tok.rstrip(",.;:"))
+        # strip a trailing ":line" or ":l1,l2-l3" citation (revision 4 cites readers as path:line)
+        paths.add(re.sub(r":[0-9][0-9,\-]*$", "", tok.rstrip(",.;:")))
 expected_new = set()
 exp_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expected_new_paths.txt")
 for line in open(exp_file, encoding="utf-8"):
