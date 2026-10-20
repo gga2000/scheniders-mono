@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { enforceRedirect } from "@/lib/redirects";
+import { resolveStoreTenant, requireCategory } from "@/lib/route-guards";
 import {
   getCategoryBySlug,
   listCategories,
@@ -24,13 +22,11 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tenant: tenantParam, slug } = await params;
-  const tenant = tenantParam.startsWith("__domain__")
-    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : await getTenantBySlug(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
   if (!tenant) return { title: "Store not found" };
 
   const category = await getCategoryBySlug(tenant.id, slug);
-  if (!category) return {}; // let the layout title apply; the page renders notFound()
+  if (!category) return {}; // the route's layout has already answered 404 or redirected
 
   // Same lockup as the PDP: "<name> — <business name>", localized by the
   // category's own (merchant-authored) name.
@@ -39,18 +35,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CategoryPage({ params }: Props) {
   const { tenant: tenantParam, slug } = await params;
-  const tenant = tenantParam.startsWith("__domain__")
-    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : await getTenantBySlug(tenantParam);
-
-  if (!tenant) notFound();
-
-  const category = await getCategoryBySlug(tenant.id, slug);
-  if (!category) {
-    // N3: honor a configured redirect before 404ing (e.g. the slug changed).
-    enforceRedirect(tenant.store_config_v2, tenantParam, `/categories/${slug}`);
-    notFound();
-  }
+  // The layout already ran this guard above the skeleton — it set the 404 or
+  // the merchant's redirect (N3) — so here it is a cached, narrowed read.
+  const { tenant, category } = await requireCategory(tenantParam, slug);
 
   // Fetch both membership sources: the product_categories junction (multi-category)
   // and the legacy products.category_id primary-category filter. Stores that never

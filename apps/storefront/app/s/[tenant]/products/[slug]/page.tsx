@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { summarizeDelivery } from "@scheniders/shared";
-import { notFound } from "next/navigation";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { enforceRedirect } from "@/lib/redirects";
+import { resolveStoreTenant, requireProduct } from "@/lib/route-guards";
 import {
   getProductBySlug,
   getProductImages,
@@ -39,13 +37,11 @@ interface Props {
 // so this shares the same fetches as the page body (no extra DB round-trips).
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tenant: tenantParam, slug } = await params;
-  const tenant = tenantParam.startsWith("__domain__")
-    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : await getTenantBySlug(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
   if (!tenant) return { title: "Store not found" };
 
   const product = await getProductBySlug(tenant.id, slug);
-  if (!product) return {}; // let the layout title apply; the page renders notFound()
+  if (!product) return {}; // the route's layout has already answered 404 or redirected
 
   const title = `${product.name} — ${tenant.business_name}`;
   const description = product.description ?? undefined;
@@ -75,18 +71,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { tenant: tenantParam, slug } = await params;
-  const tenant = tenantParam.startsWith("__domain__")
-    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : await getTenantBySlug(tenantParam);
-
-  if (!tenant) notFound();
-
-  const product = await getProductBySlug(tenant.id, slug);
-  if (!product) {
-    // N3: honor a configured redirect before 404ing (e.g. the slug changed).
-    enforceRedirect(tenant.store_config_v2, tenantParam, `/products/${slug}`);
-    notFound();
-  }
+  // The layout already ran this guard above the skeleton — it set the 404 or
+  // the merchant's redirect (N3) — so here it is a cached, narrowed read.
+  const { tenant, product } = await requireProduct(tenantParam, slug);
 
   const [images, variants, categories] = await Promise.all([
     getProductImages(product.id),

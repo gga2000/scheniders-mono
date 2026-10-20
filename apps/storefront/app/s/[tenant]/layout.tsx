@@ -1,5 +1,4 @@
 import type { Viewport } from "next";
-import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import {
   resolveSchneidersConfig,
@@ -11,7 +10,7 @@ import {
   LOCALE_COOKIE,
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { resolveStoreTenant, requireStoreTenant } from "@/lib/route-guards";
 import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { CartHydrator } from "@/components/cart-hydrator";
@@ -25,27 +24,16 @@ interface Props {
   children: React.ReactNode;
 }
 
-async function resolveTenant(tenantParam: string): Promise<Tenant | null> {
-  if (tenantParam.startsWith("__domain__")) {
-    return getTenantByCustomDomain(tenantParam.replace("__domain__", ""));
-  }
-  return getTenantBySlug(tenantParam);
-}
-
 export default async function TenantLayout({ params, children }: Props) {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
-
-  if (!tenant) notFound();
+  // Unknown and cancelled stores 404 here, above every loading boundary, so
+  // the status is set before anything streams.
+  const tenant = await requireStoreTenant(tenantParam);
 
   // Determine store base path from proxy header
   // "" = subdomain mode (links are root-relative), "/s/slug" = path-based mode
   const headerList = await headers();
   const storeBase = headerList.get("x-store-base") ?? `/s/${tenantParam}`;
-
-  if (tenant.status === "cancelled") {
-    notFound();
-  }
 
   if (tenant.status === "suspended") {
     return (
@@ -289,7 +277,7 @@ export async function generateViewport({
   params: Promise<{ tenant: string }>;
 }): Promise<Viewport> {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
   // Same precedence as the layout's brand-kit fallback chain: V2 kit surface,
   // then the legacy design_tokens background, then the neutral kit default.
   const v2Surface = (
@@ -315,7 +303,7 @@ function shortTitle(title: string): string {
 
 export async function generateMetadata({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
 
   if (!tenant) return { title: "Store not found" };
 
