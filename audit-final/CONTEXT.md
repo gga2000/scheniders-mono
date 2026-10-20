@@ -6,7 +6,7 @@ Phase 0 (reconnaissance) output. Read this first at the start of every step and 
 
 | Item | Value |
 |---|---|
-| Current phase | **Phase 1 complete (critic round 2: 8.5/10). Awaiting Ali's approval to start Phase 2** |
+| Current phase | **Phase 2 in progress** (Ali, 2026-10-20: "fix all of those and while doing that go for another round"). Tier A A1–A3 hunted + critic round 1 (4/10, capped by open P0s). Fix PRs #167, #168 open; A4–A10 next. |
 | Phase 1+ verification SHA | **87e5e40** — the commit all three Vercel production projects run (Vercel `list_deployments`, 2026-10-19). Phase 0 inventory was taken at 6bde0f4; main is at 577805c (#150, Iraq locations data only, not yet deployed). Findings from Phase 1 on cite 87e5e40. |
 | Audit pinned to | `main` @ `6bde0f4` (2026-10-18, "Merge #137 port-flagship-attributes"). Inventories by subagents were taken at `bf432f7` (two PRs earlier: #136 brand-kit chrome, #137 product attributes); line numbers in `inventory/*.md` may drift slightly for files those PRs touched. |
 | Live DB snapshot | First snapshot 2026-10-19 (pre-PR #146); **re-snapshot 2026-10-19 00:41 UTC** after PR #146's two migrations were applied live (L-38). All DB counts in this file are the 00:41 UTC values. |

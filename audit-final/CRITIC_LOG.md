@@ -103,3 +103,12 @@ Changes applied (every row of the critic's "Rows that must still change" table):
 DB access for 8–11 and 16 was SELECT-only on `sduvpgqwhxragxtxztur`, counts and catalog data only, with no PII.
 
 Totals after round 2 (script): 749 rows: 283 Fixed, 129 Partially fixed, 290 Still open, 0 Regressed, 23 No longer applicable, 24 Unverifiable. There are 94 non-fixed P0-class rows (unchanged). There are 38 leads: 32 new and 6 re-confirmed.
+
+## Phase 2 Tier A (A1–A3), round 1 — 2026-10-20
+Report: `critic/phase2-tierA-round1.md` (code @ 0032320, SELECT-only DB).
+- P1s: none disproved. F-001 raised to **P0**; F-003 lowered to **P2 (latent)**; F-004 kept P1, marked latent (0/28 tenants enabled); F-002 and F-005 confirmed, with additions.
+- P2 sample (F-006, F-007, F-008): confirmed. F-008 repro corrected (the 2 rows belong to the deactivated user).
+- New: N-1 is the already-tracked NEW-P1-09 (fixed in PR #168), now listed under "tracked elsewhere"; N-2 filed as F-020; admin callback open redirect filed as F-019; Interakt `[tenantId]` NULL tenant log filed as F-021; NEW-P1-06/07 added to the tracked list.
+- CLEAN sample: 9/10 correct; row 360 AuthZ corrected to NEW-P1-09.
+- Coverage: +75 Tier A cells checked by the critic (rows 73, 113, 117, 120, 135, 210, 373–381, 597–606) → 1,569 checked.
+- Scores: Isolation 4, AuthZ 4, Money/Order 4. All three are capped at 5 by open P0s (F-001, NEW-P1-01/02/06/07). These caps lift only when the fixes ship, so another critic round now cannot reach ≥8; the next round runs after the fixes merge and A4–A10 are hunted.
