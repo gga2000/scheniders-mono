@@ -1,89 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminActivity } from "@/lib/activity-logger";
+import { topUpWallet, topupAmountSchema } from "@/lib/wallet-topup";
 
 const topupSchema = z.object({
-  tenant_id: z.string().min(1),
-  amount: z.number().positive(),
-  description: z.string().optional(),
+  tenant_id: z.string().uuid(),
+  amount: topupAmountSchema,
+  description: z.string().trim().max(500).optional(),
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "top_up_wallet");
+  if (auth instanceof NextResponse) return auth;
+
+  let body: unknown;
   try {
-    const body = await request.json();
-    const parsed = topupSchema.safeParse(body);
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid input", details: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const { tenant_id, amount, description } = parsed.data;
-    const supabase = createAdminClient();
-
-    // Fetch current wallet
-    const { data: wallet, error: walletError } = await supabase
-      .from("wallet")
-      .select("balance_iqd, total_topped_up_iqd")
-      .eq("tenant_id", tenant_id)
-      .single();
-
-    if (walletError || !wallet) {
-      return NextResponse.json(
-        { error: "Wallet not found for this tenant" },
-        { status: 400 }
-      );
-    }
-
-    const currentBalance = Number(wallet.balance_iqd) || 0;
-    const currentToppedUp = Number(wallet.total_topped_up_iqd) || 0;
-    const newBalance = currentBalance + amount;
-    const newToppedUp = currentToppedUp + amount;
-
-    // Update wallet balance and total topped up
-    const { error: updateError } = await supabase
-      .from("wallet")
-      .update({
-        balance_iqd: newBalance,
-        total_topped_up_iqd: newToppedUp,
-      })
-      .eq("tenant_id", tenant_id);
-
-    if (updateError) {
-      console.error("Wallet update error:", updateError);
-      return NextResponse.json(
-        { error: "Failed to update wallet" },
-        { status: 500 }
-      );
-    }
-
-    // Insert transaction record
-    const { error: txError } = await supabase
-      .from("wallet_transactions")
-      .insert({
-        tenant_id,
-        type: "topup",
-        amount_iqd: amount,
-        balance_after_iqd: newBalance,
-        description: description || "Admin top-up",
-      });
-
-    if (txError) {
-      console.error("Transaction insert error:", txError);
-      return NextResponse.json(
-        { error: "Wallet updated but failed to record transaction" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true, newBalance });
-  } catch (error) {
-    console.error("Top-up API error:", error);
+  const parsed = topupSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Failed to process top-up" },
-      { status: 500 }
+      { error: "Invalid input", details: parsed.error.flatten() },
+      { status: 400 }
     );
   }
+
+  const { tenant_id, amount } = parsed.data;
+  const description = parsed.data.description || "Admin top-up";
+
+  const result = await topUpWallet({
+    tenantId: tenant_id,
+    amount,
+    description,
+    adminUserId: auth.user.id,
+  });
+
+  if (!result.ok) {
+    console.error("[billing/topup] Top-up failed:", tenant_id, result.error);
+    const status = result.error === "No wallet found" ? 404 : 500;
+    return NextResponse.json({ error: `Top-up failed: ${result.error}` }, { status });
+  }
+
+  await logAdminActivity({
+    adminUserId: auth.user.id,
+    actorEmail: auth.user.email ?? null,
+    tenantId: tenant_id,
+    action: "top_up_wallet",
+    details: { amount_iqd: amount, description, new_balance_iqd: result.newBalance },
+  });
+
+  return NextResponse.json({ success: true, newBalance: result.newBalance });
 }

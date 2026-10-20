@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 
-// Node-env Vitest for the admin app — pure logic/unit tests only.
+// Node-env Vitest for the admin app — logic and API-route unit tests.
 // Mirrors the Next.js `@/*` alias so tests import modules like the app does.
 export default defineConfig({
   resolve: {
@@ -17,6 +17,7 @@ export default defineConfig({
       "components/**/*.test.ts",
       "hooks/**/*.test.ts",
       "lib/**/*.test.ts",
+      "app/**/*.test.ts",
     ],
   },
 });
