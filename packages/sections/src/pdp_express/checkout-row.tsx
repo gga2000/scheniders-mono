@@ -16,6 +16,7 @@ import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
 import { readsRtl, xs } from "./text";
+import { ExpressTrustStrip } from "./trust-strip";
 
 /** True when every governorate's computed fee is 0 for this basket. */
 export function isDeliveryFreeEverywhere(
@@ -205,6 +206,10 @@ export function CheckoutRow({ m, locale }: { m: ExpressModel; locale: LocaleCode
         <p role="status" className="text-center font-bk-body text-sm font-bold text-bk-success">
           {m.s("orderReceived")}
         </p>
+      )}
+
+      {m.props.trust_chips_placement === "under_cta" && m.trustChips.length > 0 && (
+        <ExpressTrustStrip chips={m.trustChips} locale={locale} />
       )}
     </div>
   );

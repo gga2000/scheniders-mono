@@ -146,6 +146,11 @@ const schema = z.object({
   greeting_i18n: i18nStringOptional.catch(undefined),
   /** Express address prompt; `{name}` = first name once known. */
   address_prompt_i18n: i18nStringOptional.catch(undefined),
+  /** Express: where the trust chips render. "under_cta" = one compact strip
+   *  directly under the submit button / reassurance line, and the
+   *  bottom-of-section chips block is dropped. Absent = the bottom block,
+   *  byte-identical for every existing config. Classic ignores it. */
+  trust_chips_placement: z.enum(["bottom", "under_cta"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

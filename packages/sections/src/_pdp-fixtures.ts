@@ -224,3 +224,71 @@ export const SIGNATURE_STICKY_PROPS: StickyCtaBarProps = {
   show_product_price: true,
   primary_kind: "scroll_to_form",
 };
+
+/** scheniders-iraq's draft PDP pdp_direct_order (`pages[2].sections[0].base`
+ *  of store_config_v2_draft, express layout) as it stood on 2026-10-20,
+ *  merged with the section defaults. Frozen like the signature props: it
+ *  pins the express default render (no `trust_chips_placement`), so a
+ *  config edit can never re-baseline it. */
+export const EXPRESS_IRAQ_PDP_PROPS: PdpDirectOrderProps = {
+  layout: "express",
+  show_price_row: true,
+  form_title_i18n: {
+    ar: "لتثبيت الحجز سجّل المعلومات أدناه:",
+    en: "Fill in your details below to reserve your order:",
+  },
+  qty_title_i18n: { ar: "اختر الكمية", en: "Choose the quantity" },
+  payment_title_i18n: { ar: "طريقة الدفع", en: "Payment method" },
+  submit_label_i18n: { ar: "ثبّت طلبي", en: "Place my order" },
+  whatsapp_label_i18n: {
+    ar: "اضغط هنا للحجز عبر واتساب",
+    en: "Click here to order via WhatsApp",
+  },
+  show_whatsapp: true,
+  stock_urgency_i18n: {
+    ar: "هذا العطر عليه طلب كبير ✨ سارع بالطلب — باقي {count} قطع فقط",
+    en: "This perfume is in high demand ✨ order fast — only {count} left",
+  },
+  show_description: true,
+  max_qty: 10,
+  urgency_max_stock: 10,
+  show_gallery: true,
+  feature_cards_title_i18n: {
+    ar: "شنو يميز هاي العطر عن غيره؟",
+    en: "What makes this scent special?",
+  },
+  reassurance_i18n: {
+    ar: "تفتح وتجرب قبل ما تدفع، والتيستر هدية وياه",
+    en: "Open it and try it before you pay. Tester included.",
+  },
+  delivery_sla_i18n: {
+    ar: "أغلب الطلبات توصل خلال ٢٤ ساعة من تثبيت الطلب",
+    en: "Most orders arrive within 24 hours of confirmation",
+  },
+  trust_chips: [
+    {
+      icon: "payments",
+      label_i18n: { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
+    },
+    {
+      icon: "verified",
+      label_i18n: { ar: "منتجات أصلية", en: "Original products" },
+    },
+    {
+      icon: "workspace_premium",
+      label_i18n: { ar: "ضمان الجودة", en: "Quality guarantee" },
+    },
+    {
+      icon: "support_agent",
+      label_i18n: { ar: "خدمة عملاء", en: "Customer service" },
+    },
+  ],
+  offer_clock: {
+    mode: "evergreen_minutes",
+    duration_minutes: 150,
+    label_i18n: { ar: "ينتهي عرض الخصم خلال:", en: "Discount offer ends in:" },
+  },
+  payment_soon: ["qi_card", "zain_cash"],
+  compare_label_i18n: { ar: "السعر قبل الخصم", en: "Before discount" },
+  price_label_i18n: { ar: "السعر بعد الخصم", en: "After discount" },
+};
