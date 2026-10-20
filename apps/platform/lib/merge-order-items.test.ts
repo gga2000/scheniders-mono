@@ -72,6 +72,15 @@ describe("mergeOrderItems", () => {
             });
         }
 
+        it("two unlinked lines (no product, SKU or variant) at the same price but different names", () => {
+            // Live shape: 49 LightFunnels orders carry lines like this, e.g.
+            // "بقلاوة" and "دولمة عراقية" with no product_id. Keying on
+            // product/variant/SKU/price alone would fold them into one.
+            const unlinked = { sku: undefined, product_id: undefined, variant_id: undefined, image_url: undefined };
+            const merged = mergeOrderItems([line({ ...unlinked, name: "بقلاوة" }), line({ ...unlinked, name: "دولمة عراقية" })]);
+            expect(merged.map((i) => [i.name, i.quantity])).toEqual([["بقلاوة", 1], ["دولمة عراقية", 1]]);
+        });
+
         it("two variants of one product", () => {
             const merged = mergeOrderItems([line({ variant_id: "v1" }), line({ variant_id: "v2" })]);
             expect(merged).toHaveLength(2);
