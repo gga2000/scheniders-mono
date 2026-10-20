@@ -23,6 +23,7 @@ import type {
 import { STORE_TEMPLATES, applyStoreTemplate, getStoreTemplate } from "./store-templates";
 import { applyContentPack, packCategoryRows, resolveContentPack } from "./store-templates/content-packs";
 import type { ContentPack, PackAttribute } from "./store-templates/content-packs";
+import { applyStoreCopy, type StoreCopy } from "./store-copy";
 
 /** Templates offered in the wizard's "pick a starter" step. */
 export const STARTER_TEMPLATES = STORE_TEMPLATES;
@@ -68,6 +69,12 @@ export interface StarterStoreInput {
      * `industryId` when both are present.
      */
     packId?: string;
+    /**
+     * AI-written copy for THIS merchant, laid over the pack's generic words.
+     * Absent → the pack's own copy, which is what a merchant who skipped
+     * the "what do you sell?" box gets.
+     */
+    copy?: StoreCopy;
     /**
      * Wizard vertical (e.g. "beauty", "electronics"). Drives the
      * industry copy pack so the seeded story/reviews/about read like
@@ -207,7 +214,8 @@ export function buildStarterStoreConfigV2(
     // ── Content pack (UX-11 / W6.1) ─────────────────────────────────
     // After the direction so it overlays every seeded section; before
     // name-personalization so the brand-label stamp always wins.
-    const pack = resolveContentPack(input.packId ?? input.industryId);
+    const basePack = resolveContentPack(input.packId ?? input.industryId);
+    const pack = input.copy ? applyStoreCopy(basePack, input.copy) : basePack;
     applyContentPack(cfg, pack);
     // Stamped with the direction's OWN version, so a store seeded today is
     // never told it is behind. No stamp for an unknown direction: there is
