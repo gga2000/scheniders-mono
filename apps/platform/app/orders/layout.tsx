@@ -1,9 +1,11 @@
 "use client";
 
 import React, { Suspense } from "react";
+import { usePathname } from "next/navigation";
 import { useViewport } from "@/hooks/use-viewport";
 import { MobileOrdersPage } from "@/components/mobile/orders/MobileOrdersPage";
 import { OrderSearchParamSync } from "@/components/orders/order-search-param-sync";
+import { OrdersProvider } from "@/components/providers/orders-provider";
 
 export default function OrdersLayout({
     children,
@@ -11,6 +13,7 @@ export default function OrdersLayout({
     children: React.ReactNode;
 }) {
     const { isMobile } = useViewport();
+    const pathname = usePathname();
 
     // Feature flag - keep false by default to ensure no disruption to desktop users
     const ENABLE_MOBILE = true;
@@ -23,10 +26,16 @@ export default function OrdersLayout({
         </Suspense>
     );
 
+    // The order book is mounted per route (see OrdersProvider), and here only
+    // for what reads it: the orders list, the mobile orders page and the
+    // `?search=` sync. /orders/trash lists deleted orders from the server and
+    // does not pay for the window.
     if (isMobile && ENABLE_MOBILE) {
-        return <>{searchParamSync}<MobileOrdersPage /></>;
+        return <OrdersProvider>{searchParamSync}<MobileOrdersPage /></OrdersProvider>;
     }
 
+    if (pathname !== "/orders") return <>{children}</>;
+
     // Fallback to exactly what existed before (desktop view)
-    return <>{searchParamSync}{children}</>;
+    return <OrdersProvider>{searchParamSync}{children}</OrdersProvider>;
 }
