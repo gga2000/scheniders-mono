@@ -60,15 +60,17 @@ const RULES: Record<Rule, { pattern: RegExp; fix: string }> = {
  *
  * These four PDP files are being rewritten on another branch
  * (feat/pdp-entry-atelier) and are deliberately left untouched here so the
- * two changes do not collide. The test asserts each one STILL breaks the
- * listed rule: once that branch removes the white, this test fails and the
- * entry must be deleted, so the list can only shrink. Nothing may be added.
+ * two changes do not collide. Each listed rule is pinned to the EXACT number
+ * of hits the file has today: adding a white fails (the count is a ceiling,
+ * not an exemption), and removing one fails too, so the number must be
+ * lowered in the same change. At 0 the rule's entry is deleted, and with
+ * no rules left the file's entry is deleted. Nothing may be added.
  */
-const PENDING_PDP_FILES: Record<string, readonly Rule[]> = {
-  "pdp_add_to_cart.client.tsx": ["bg-white"],
-  "pdp_buy_box.client.tsx": ["bg-white", "white-literal"],
-  "pdp_direct_order.client.tsx": ["bg-white"],
-  "pdp_variants.client.tsx": ["bg-white", "white-literal"],
+const PENDING_PDP_FILES: Record<string, Partial<Record<Rule, number>>> = {
+  "pdp_add_to_cart.client.tsx": { "bg-white": 2 },
+  "pdp_buy_box.client.tsx": { "bg-white": 1, "white-literal": 1 },
+  "pdp_direct_order.client.tsx": { "bg-white": 2 },
+  "pdp_variants.client.tsx": { "bg-white": 1, "white-literal": 1 },
 };
 
 /**
@@ -131,22 +133,24 @@ describe("sections carry no hardcoded white", () => {
     it(`no ${rule} outside the pending PDP files (${fix})`, () => {
       const offenders = FILES.filter(
         ({ rel }) =>
-          !PENDING_PDP_FILES[rel]?.includes(rule) &&
+          PENDING_PDP_FILES[rel]?.[rule] === undefined &&
           SCRIM_FOREGROUNDS[rel]?.rule !== rule,
       ).flatMap(({ rel, src }) => hits(rel, src, pattern));
       expect(offenders).toEqual([]);
     });
   }
 
-  for (const [file, rules] of Object.entries(PENDING_PDP_FILES)) {
-    for (const rule of rules) {
-      it(`ratchet: ${file} still has ${rule} — delete it from PENDING_PDP_FILES once fixed`, () => {
+  for (const [file, counts] of Object.entries(PENDING_PDP_FILES)) {
+    for (const [rule, count] of Object.entries(counts) as [Rule, number][]) {
+      it(`ratchet: ${file} has exactly ${count} ${rule} — lower the count as they are fixed`, () => {
         const entry = FILES.find((f) => f.rel === file);
         const found = entry ? hits(file, entry.src, RULES[rule].pattern) : [];
         expect(
-          found.length,
-          `${file} no longer contains ${rule}: remove it from PENDING_PDP_FILES so it is guarded`,
-        ).toBeGreaterThan(0);
+          found,
+          found.length > count
+            ? `${file} gained a ${rule}: use the brand-kit token instead — the ratchet only goes down`
+            : `${file} lost a ${rule}: lower its PENDING_PDP_FILES count to ${found.length} (delete the entry at 0)`,
+        ).toHaveLength(count);
       });
     }
   }
