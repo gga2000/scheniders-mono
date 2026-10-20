@@ -99,8 +99,12 @@ const nextConfig: NextConfig = {
   },
 
   // Reviews and cart recovery moved inside the Store section; keep old links alive.
+  // The app opens on Orders: staff spend their day there, and landing on the
+  // dashboard first cost every launch its metrics RPCs and widgets for nothing.
+  // The dashboard lives at /dashboard. Not permanent, so the choice can change.
   async redirects() {
     return [
+      { source: '/', destination: '/orders', permanent: false },
       { source: '/reviews', destination: '/store/reviews', permanent: false },
       { source: '/recovery', destination: '/store/recovery', permanent: false },
     ];
