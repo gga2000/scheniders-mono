@@ -112,6 +112,30 @@ export const ORDER_READ_COLUMNS = `
   ad_channel
 `;
 
+/** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */
+export const ORDER_READ_COLUMN_NAMES: readonly string[] = ORDER_READ_COLUMNS.split(",").map((c) => c.trim());
+
+/**
+ * Keep only the ORDER_READ_COLUMNS keys of an `orders` row: what a restore may
+ * upsert.
+ *
+ * Backups taken before migration 20261021090000 were read with `select("*")`,
+ * so their rows carry the margin keys (null for a non-admin, but present).
+ * PostgREST sends an upsert as `INSERT ... ON CONFLICT (id) DO UPDATE SET
+ * col = EXCLUDED.col` over every key in the payload, and Postgres needs SELECT
+ * on each column whose EXCLUDED value it reads. Once `authenticated` loses
+ * SELECT on the margin columns, one margin key fails the whole upsert with
+ * 42501, admins included. Keys that are not `orders` columns at all (old
+ * client-side fields) would fail it with PGRST204, so they go too.
+ */
+export function pickOrderWriteColumns(row: Record<string, unknown>): Record<string, unknown> {
+    const picked: Record<string, unknown> = {};
+    for (const name of ORDER_READ_COLUMN_NAMES) {
+        if (name in row) picked[name] = row[name];
+    }
+    return picked;
+}
+
 /**
  * Minimal column set for list/table/card views, read from `public.orders`.
  * Excludes detail-only fields to reduce payload size by ~25%.

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { ORDER_READ_COLUMNS, pickOrderWriteColumns } from "@/lib/repositories/order-columns";
 
 // Define the shape of our snapshot
 export interface DatabaseSnapshot {
@@ -79,8 +79,11 @@ export async function restoreFromSnapshot(snapshot: DatabaseSnapshot): Promise<{
 
         // 2. Orders (Independent-ish)
         if (snapshot.data.orders?.length) {
-            // Chunked insert if necessary, but Supabase handles reasonably large payloads
-            const { error } = await supabase.from('orders').upsert(snapshot.data.orders, { onConflict: 'id' });
+            // Only ORDER_READ_COLUMNS keys: a snapshot taken before migration
+            // 20261021090000 carries the margin columns, and upserting them is
+            // refused with 42501 once the caller holds no SELECT on them.
+            const orders = snapshot.data.orders.map(pickOrderWriteColumns);
+            const { error } = await supabase.from('orders').upsert(orders, { onConflict: 'id' });
             if (error) throw error;
         }
 
