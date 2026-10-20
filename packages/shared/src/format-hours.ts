@@ -31,8 +31,8 @@ export function formatHours(hours: number, locale: LocaleCode): string {
     if (asDays) return `${n} ${n === 1 ? "day" : "days"}`;
     return `${n}h`;
   }
-  // Arabic and Kurdish storefronts both read the Arabic form here; a
-  // Kurdish-specific form is a follow-up, not a fallback to English.
+  // Sorani counts with the singular noun after the number.
+  if (locale === "ku") return `${n} ${asDays ? "ڕۆژ" : "کاتژمێر"}`;
   return asDays
     ? arabicCount(n, "يوم واحد", "يومين", "أيام", "يوم")
     : arabicCount(n, "ساعة واحدة", "ساعتين", "ساعات", "ساعة");

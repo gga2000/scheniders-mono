@@ -1,10 +1,12 @@
 import { createSupabaseServiceClient, createSupabaseServerClientWithToken } from '@/lib/supabase-server';
+import { isBillingExempt } from "@/lib/billing-exempt";
 
 // =============================================
 // TYPES
 // =============================================
 
-export type PlanTier = 'starter' | 'growth' | 'professional' | 'enterprise';
+/** `internal` is the operator's own house tier — never billed, never suspended. */
+export type PlanTier = 'starter' | 'growth' | 'professional' | 'enterprise' | 'internal';
 export type TenantStatus = 'trial' | 'active' | 'suspended' | 'cancelled';
 export type MemberStatus = 'pending' | 'active' | 'suspended';
 
@@ -281,6 +283,9 @@ export async function canCreateOrder(tenantId: string): Promise<{
     // Check tenant status
     const tenant = await getTenantById(tenantId);
     if (!tenant) return { allowed: false, reason: 'Tenant not found' };
+
+    // The house tier is never billed, so no billing state may block its orders.
+    if (isBillingExempt(tenant.plan)) return { allowed: true };
 
     if (tenant.status === 'suspended') {
         return { allowed: false, reason: 'Account is suspended. Please contact support.' };

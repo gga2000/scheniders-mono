@@ -21,6 +21,13 @@
 --     * a second ledger row for the same subscription period is rejected by
 --       uq_wallet_tx_subscription_period;
 --     * anon / authenticated cannot execute renew_subscription_atomic.
+--   Billing exemption (internal house tier):
+--     * a due tenant on tenants.plan = 'internal' whose subscription row still
+--       names a paid plan, with an overdrawn wallet, is reported 'exempt' and
+--       is neither charged nor suspended nor advanced;
+--     * a subscription row on plan 'internal' is likewise 'exempt'.
+--
+-- Local run: see wallet_topup_subscription_renew_local_fixture.sql.
 --
 -- DO NOT RUN AGAINST PRODUCTION: it inserts fixture tenants/wallets (rolled
 -- back at the end, but it still takes row locks and fires triggers). Run it on
@@ -50,12 +57,16 @@ $$;
 
 -- Fixtures --------------------------------------------------------------------
 INSERT INTO tt_ids VALUES ('admin', gen_random_uuid()), ('t1', gen_random_uuid()), ('t2', gen_random_uuid()),
-                          ('t3', gen_random_uuid()), ('t_nowallet', gen_random_uuid());
+                          ('t3', gen_random_uuid()), ('t_nowallet', gen_random_uuid()),
+                          ('t_int', gen_random_uuid()), ('t_int2', gen_random_uuid());
 INSERT INTO auth.users (id) SELECT pg_temp.id('admin');
-INSERT INTO public.tenants (id, business_name, plan, status)
-SELECT pg_temp.id(k), 'tt-' || k, 'starter', 'active' FROM unnest(ARRAY['t1','t2','t3','t_nowallet']) k;
+INSERT INTO public.tenants (id, business_name, slug, plan, status)
+SELECT pg_temp.id(k), 'tt-' || k, 'tt-' || k || '-' || pg_temp.id(k), 'starter', 'active' FROM unnest(ARRAY['t1','t2','t3','t_nowallet']) k;
+INSERT INTO public.tenants (id, business_name, slug, plan, status)
+SELECT pg_temp.id(k), 'tt-' || k, 'tt-' || k || '-' || pg_temp.id(k), 'internal', 'active' FROM unnest(ARRAY['t_int','t_int2']) k;
 INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
-    (pg_temp.id('t1'), 0), (pg_temp.id('t2'), 100000), (pg_temp.id('t3'), -5000);
+    (pg_temp.id('t1'), 0), (pg_temp.id('t2'), 100000), (pg_temp.id('t3'), -5000),
+    (pg_temp.id('t_int'), -5000), (pg_temp.id('t_int2'), -5000);
 
 -- Prices used below are read from plan_limits so the test follows live data.
 SELECT set_config('tt.price_starter', coalesce((SELECT base_price_iqd FROM public.plan_limits WHERE plan = 'starter'), 0)::text, true);
@@ -126,11 +137,39 @@ END $$;
 
 -- Renewal ----------------------------------------------------------------------
 -- t2: due, has money. t3: due, overdrawn wallet. t1: due with a pending plan change.
-INSERT INTO tt_ids VALUES ('s1', gen_random_uuid()), ('s2', gen_random_uuid()), ('s3', gen_random_uuid());
+-- t_int: internal tenant, stale 'starter' subscription row with a pending paid
+-- plan, overdrawn wallet. t_int2: internal tenant on an 'internal' subscription.
+INSERT INTO tt_ids VALUES ('s1', gen_random_uuid()), ('s2', gen_random_uuid()), ('s3', gen_random_uuid()),
+                          ('s_int', gen_random_uuid()), ('s_int2', gen_random_uuid());
 INSERT INTO public.subscriptions (id, tenant_id, plan, status, current_period_start, current_period_end, pending_plan) VALUES
     (pg_temp.id('s2'), pg_temp.id('t2'), 'starter', 'active', now() - interval '31 days', date_trunc('second', now()) - interval '1 day', NULL),
     (pg_temp.id('s3'), pg_temp.id('t3'), 'starter', 'active', now() - interval '31 days', date_trunc('second', now()) - interval '1 day', NULL),
-    (pg_temp.id('s1'), pg_temp.id('t1'), 'starter', 'trialing', now() - interval '31 days', date_trunc('second', now()) - interval '1 day', 'growth');
+    (pg_temp.id('s1'), pg_temp.id('t1'), 'starter', 'trialing', now() - interval '31 days', date_trunc('second', now()) - interval '1 day', 'growth'),
+    (pg_temp.id('s_int'), pg_temp.id('t_int'), 'starter', 'active', now() - interval '31 days', date_trunc('second', now()) - interval '1 day', 'enterprise'),
+    (pg_temp.id('s_int2'), pg_temp.id('t_int2'), 'internal', 'active', now() - interval '31 days', date_trunc('second', now()) - interval '1 day', NULL);
+
+-- Billing exemption: internal tenants are never charged, suspended or advanced.
+DO $$
+DECLARE _end timestamptz; _end2 timestamptz; _r jsonb; _r2 jsonb;
+BEGIN
+    PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+    SELECT current_period_end INTO _end FROM public.subscriptions WHERE id = pg_temp.id('s_int');
+    SELECT current_period_end INTO _end2 FROM public.subscriptions WHERE id = pg_temp.id('s_int2');
+    _r := public.renew_subscription_atomic(pg_temp.id('s_int'), _end);
+    _r2 := public.renew_subscription_atomic(pg_temp.id('s_int2'), _end2);
+    PERFORM pg_temp.check('internal tenant (stale paid sub) not exempt', _r->>'outcome' = 'exempt');
+    PERFORM pg_temp.check('internal subscription not exempt', _r2->>'outcome' = 'exempt');
+    PERFORM pg_temp.check('internal tenant charged',
+        NOT EXISTS (SELECT 1 FROM public.wallet_transactions WHERE tenant_id IN (pg_temp.id('t_int'), pg_temp.id('t_int2'))));
+    PERFORM pg_temp.check('internal wallet moved',
+        (SELECT bool_and(balance_iqd = -5000) FROM public.wallet WHERE tenant_id IN (pg_temp.id('t_int'), pg_temp.id('t_int2'))));
+    PERFORM pg_temp.check('internal tenant suspended or re-planned',
+        (SELECT bool_and(status = 'active' AND plan = 'internal') FROM public.tenants WHERE id IN (pg_temp.id('t_int'), pg_temp.id('t_int2'))));
+    PERFORM pg_temp.check('internal subscription touched',
+        (SELECT status = 'active' AND plan = 'starter' AND pending_plan = 'enterprise' AND current_period_end = _end
+           FROM public.subscriptions WHERE id = pg_temp.id('s_int'))
+        AND (SELECT status = 'active' AND current_period_end = _end2 FROM public.subscriptions WHERE id = pg_temp.id('s_int2')));
+END $$;
 
 DO $$
 DECLARE

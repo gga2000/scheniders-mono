@@ -123,7 +123,7 @@ export function SchneidersCartView({ tenant }: Props) {
               <div className="flex gap-3">
                 <div className={cn("w-20 h-20 rounded-xl border-[3px] border-bk-ink relative overflow-hidden shrink-0", tint)}>
                   {item.image_url ? (
-                    <Image src={item.image_url} alt={item.name} fill className="object-cover mix-blend-multiply" />
+                    <Image src={item.image_url} alt={item.name} fill sizes="80px" className="object-cover mix-blend-multiply" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-bk-ink/40 font-display font-bold text-xs">
                       No image

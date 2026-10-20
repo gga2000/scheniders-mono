@@ -19,6 +19,10 @@
 --        current_period_end), and charges + advances in ONE transaction.
 --     -> uq_wallet_tx_subscription_period: a second charge for the same
 --        subscription period cannot be recorded even by a future code path.
+--     -> internal (house) tier: renew_subscription_atomic returns outcome
+--        'exempt' and never charges, suspends or touches a tenant whose
+--        tenants.plan or subscriptions.plan is 'internal' (live: one tenant,
+--        tenants.plan = subscriptions.plan = 'internal', base_price_iqd 0).
 --
 -- LIVE BASIS (sduvpgqwhxragxtxztur, read 2026-10-20)
 --   wallet(id, tenant_id UNIQUE, balance_iqd, threshold_iqd, total_charged_iqd,
@@ -117,6 +121,7 @@ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
     _sub public.subscriptions%ROWTYPE;
+    _tenant_plan text;
     _plan public.plan_tier;
     _plan_changed boolean;
     _price numeric;
@@ -145,6 +150,15 @@ BEGIN
        OR _sub.current_period_end IS DISTINCT FROM _expected_period_end
        OR _sub.current_period_end > _now THEN
         RETURN jsonb_build_object('success', true, 'outcome', 'already_processed', 'plan', _sub.plan);
+    END IF;
+
+    -- Billing exemption (the `internal` house tier, plan_limits base 0): never
+    -- charged, never suspended, row left untouched. tenants.plan is the
+    -- authority, so a house tenant with a stale paid subscription row is still
+    -- exempt; this mirrors apps/platform/lib/billing-exempt.ts.
+    SELECT t.plan::text INTO _tenant_plan FROM public.tenants t WHERE t.id = _sub.tenant_id;
+    IF _tenant_plan = 'internal' OR _sub.plan::text = 'internal' THEN
+        RETURN jsonb_build_object('success', true, 'outcome', 'exempt', 'plan', coalesce(_tenant_plan, _sub.plan::text));
     END IF;
 
     _plan_changed := _sub.pending_plan IS NOT NULL;

@@ -63,6 +63,7 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
               src={images[activeImage]}
               alt={product.name}
               fill
+              sizes="(max-width: 768px) 100vw, 50vw"
               priority
               className="object-cover"
             />
@@ -86,7 +87,7 @@ export function ProductDetailClient({ product, images, variants, whatsappNumber 
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary",
                 )}
               >
-                <Image src={img} alt={`${product.name} - صورة ${i + 1}`} fill className="object-cover" />
+                <Image src={img} alt={`${product.name} - صورة ${i + 1}`} fill sizes="(max-width: 768px) 20vw, 10vw" className="object-cover" />
               </button>
             ))}
           </div>

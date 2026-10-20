@@ -6,6 +6,7 @@ import {
   stackDiscounts,
   computeBundleDiscounts,
   computeReferralDiscount,
+  stampCodRisk,
   normalizeReferralCode,
   normalizeIraqiMobile,
   priceOrderLines,
@@ -53,6 +54,9 @@ interface SubmitCheckoutResult {
    *  page's post-purchase offer (see lib/order-upsell-proof). Only the
    *  response that created the order carries it. */
   upsellToken?: string;
+  /** EC17: this answers an order the same idempotency key already placed, so
+   *  callers must not record its side effects (funnel purchase) again. */
+  replayed?: boolean;
 }
 
 /** The answer for an order this idempotency key already placed: what was
@@ -71,6 +75,7 @@ function replayResult(row: {
     orderId: row.id,
     orderNumber: row.order_id ?? undefined,
     total: (Number(row.price) || 0) + (Number(row.delivery_fee) || 0),
+    replayed: true,
   };
 }
 
@@ -534,6 +539,19 @@ export async function submitCheckout(
   const netPrice = subtotal - discountAmount;
   const grandTotal = netPrice + deliveryFee;
 
+  // COD risk signals: the same two-axis verdict the customers console
+  // computes, plus what only checkout can see (a duplicate open order, three
+  // orders in an hour, a two-word address). Stamped onto the order so ops see
+  // it the moment the order lands. Best-effort — a failed lookup is "no
+  // signal", never a blocked checkout.
+  const { data: riskVerdict, error: riskErr } = await supabase.rpc("cod_risk_signals", {
+    _tenant_id: payload.tenantId,
+    _phone: phone,
+    _address: payload.customer.address_details,
+  });
+  if (riskErr) console.error("[checkout] cod_risk_signals failed:", riskErr);
+  const risk = riskErr ? null : stampCodRisk(riskVerdict);
+
   // Build the order payload in the shape create_order_atomic expects.
   const orderData = {
     customer_name: payload.customer.customer_name.trim(),
@@ -567,6 +585,13 @@ export async function submitCheckout(
     status: "new",
     payment_status: "pending",
     source: "storefront",
+    ...(risk
+      ? {
+          risk_metadata: risk.risk_metadata,
+          needs_attention: risk.needs_attention,
+          attention_reasons: risk.attention_reasons,
+        }
+      : {}),
     is_shop_order: true,
     notes: payload.customer.notes?.trim() || null,
     // EC17: create_order_atomic returns the existing order for a repeated key

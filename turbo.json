@@ -46,6 +46,15 @@
         "^build"
       ]
     },
+    "test": {
+      "cache": false
+    },
+    "bundle-budget": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false
+    },
     "test:e2e": {
       "dependsOn": [
         "build"

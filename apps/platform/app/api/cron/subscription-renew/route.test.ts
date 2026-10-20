@@ -100,4 +100,39 @@ describe("subscription-renew cron", () => {
         expect(res.status).toBe(500);
         expect(body).toMatchObject({ success: false, errors: 1 });
     });
+
+    it("excludes internal-plan subscriptions from the due query", async () => {
+        await GET(cronRequest());
+        const due = queriesOn("subscriptions")[0];
+        expect(due.ops).toContainEqual({ op: "not", args: ["plan", "in", "(internal)"] });
+    });
+
+    it("never renews, charges or suspends an internal tenant whose subscription row names a paid plan", async () => {
+        respond((q) => {
+            if (q.target === "subscriptions") {
+                return { data: [{ id: SUB, tenant_id: TENANT, plan: "starter", current_period_end: PERIOD_END }], error: null };
+            }
+            if (q.target === "tenants") return { data: [{ id: TENANT, business_name: "House", plan: "internal" }], error: null };
+            return { data: null, error: null };
+        });
+        const res = await GET(cronRequest());
+        const body = await res.json();
+        expect(res.status).toBe(200);
+        expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0 });
+        expect(queriesOn("renew_subscription_atomic")).toEqual([]);
+        expect(queriesOn("charge_wallet_atomic")).toEqual([]);
+        const writes = recorded.filter(
+            (q) => q.kind === "from" && q.ops.some((o) => ["update", "upsert", "insert"].includes(o.op)),
+        );
+        expect(writes).toEqual([]);
+    });
+
+    it("treats an RPC exempt outcome as neither a renewal nor a suspension", async () => {
+        renewResult = { success: true, outcome: "exempt", plan: "internal" };
+        const res = await GET(cronRequest());
+        const body = await res.json();
+        expect(res.status).toBe(200);
+        expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0, errors: 0 });
+        expect(body.results[0].outcome).toBe("exempt");
+    });
 });

@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneGrouped, normalizePhoneForSearch } from "@/lib/order-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import type { Order } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 import {
@@ -131,8 +132,10 @@ function calculateMatchScore(order1: Order, order2: Order): number {
     if (order1.address_details && order2.address_details &&
         order1.address_details === order2.address_details) score += 5;
 
-    const items1 = order1.items?.map(i => i.name.toLowerCase()) || [];
-    const items2 = order2.items?.map(i => i.name.toLowerCase()) || [];
+    // Merged first: a historical split-line order (3 × "x" ×1) must not count
+    // as three shared products against a clean "x" ×3.
+    const items1 = mergeOrderItems(order1.items).map(i => i.name.toLowerCase());
+    const items2 = mergeOrderItems(order2.items).map(i => i.name.toLowerCase());
     const overlap = items1.filter(i => items2.includes(i)).length;
     if (overlap > 0) score += Math.min(10, overlap * 5);
 
@@ -616,7 +619,7 @@ export function DuplicateComparisonModal({
                                             (o) => o.city || "—")}
 
                                     {/* Products */}
-                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => (o.items ?? []).map((i) => i.name + "x" + i.quantity).sort().join("|"))) && (
+                                    {(!diffOnly || !rowAllMatch(currentOrder, displayedOrders, (o) => mergeOrderItems(o.items).map((i) => i.name + "x" + i.quantity).sort().join("|"))) && (
                                     <div
                                         className="grid gap-3 py-1.5 border-b border-gray-200 dark:border-[#2A2A2A]"
                                         style={{ gridTemplateColumns: `120px repeat(${allDisplayOrders.length}, minmax(190px, 1fr))` }}
@@ -626,11 +629,12 @@ export function DuplicateComparisonModal({
                                             {t("orders.duplicate.products")}
                                         </div>
                                         {allDisplayOrders.map((order) => {
-                                            const currentOrderItems = currentOrder.items || [];
+                                            const currentOrderItems = mergeOrderItems(currentOrder.items);
+                                            const orderItems = mergeOrderItems(order.items);
 
                                             return (
                                                 <div key={order.id} className="space-y-1 border-l border-gray-100 dark:border-[#262626] pl-1">
-                                                    {order.items?.map((item, idx) => {
+                                                    {orderItems.length > 0 ? orderItems.map((item, idx) => {
                                                         const matchingItemInCurrent = currentOrderItems.find(c => c.name === item.name);
                                                         const nameMatches = !!matchingItemInCurrent;
                                                         const qtyMatches = nameMatches && matchingItemInCurrent.quantity === item.quantity;
@@ -677,7 +681,7 @@ export function DuplicateComparisonModal({
                                                                 </div>
                                                             </div>
                                                         );
-                                                    }) || <span className="text-xs text-[var(--foreground-muted)]">—</span>}
+                                                    }) : <span className="text-xs text-[var(--foreground-muted)]">—</span>}
                                                 </div>
                                             );
                                         })}

@@ -120,16 +120,31 @@ function extractSlug(host: string): { slug: string | null; isCustom: boolean } {
   return { slug: hostNoPort, isCustom: true };
 }
 
+/**
+ * Per-tenant documents served from a store's own root, which happen to carry
+ * a file extension. Everything else with a dot in it is a static asset.
+ */
+const TENANT_ROOT_FILES: ReadonlySet<string> = new Set([
+  "/manifest.webmanifest",
+  "/sitemap.xml",
+]);
+
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const { slug, isCustom } = extractSlug(host);
   const url = request.nextUrl.clone();
 
   // Pass through Next internals and static files
+  //
+  // The dot test is how a static asset is recognised, but two real tenant
+  // routes also carry an extension. Passing those through sent them to the
+  // platform root, which has no such route — so a store on its own domain
+  // got a 404 for its own manifest and its own sitemap, verified live. They
+  // have to be rewritten onto /s/[tenant]/ like every other store page.
   if (
     url.pathname.startsWith("/_next") ||
     url.pathname.startsWith("/api") ||
-    url.pathname.includes(".")
+    (url.pathname.includes(".") && !TENANT_ROOT_FILES.has(url.pathname))
   ) {
     return NextResponse.next();
   }

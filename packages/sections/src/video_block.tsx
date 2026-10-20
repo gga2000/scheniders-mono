@@ -1,12 +1,28 @@
 // =====================================================================
 // Section — video_block
 // =====================================================================
-// Inline embedded video. Detects YouTube / Vimeo URLs and renders an
-// iframe; otherwise renders a native <video> for MP4 / direct files.
+// An embedded video with an optional heading and caption. YouTube and Vimeo
+// links render through a click-to-play facade (see `./video_block.client`);
+// a direct MP4/WebM file renders as a native player.
+//
+// Two rules the merchant does not have to think about:
+//   * A link that is not recognisably a video renders nothing at all. The
+//     previous parser treated every unrecognised string as a playable file,
+//     so pasting a TikTok link, an Instagram reel, or a half-copied URL put a
+//     black box on the storefront. A section that disappears is recoverable;
+//     a broken player on a live store is not.
+//   * Autoplay implies mute. Every current browser blocks an autoplaying
+//     player with sound, so honouring "autoplay + unmuted" literally would
+//     produce a frozen first frame.
 // =====================================================================
 
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import {
+  resolveI18n,
+  parseVideoUrl,
+  videoEmbedSrc,
+  videoPosterUrl,
+} from "@scheniders/shared";
 import {
   BentoCard,
   Section,
@@ -15,6 +31,19 @@ import {
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
+import { VideoFacade } from "./video_block.client";
+
+/**
+ * Shape of the frame. Merchant footage in this market is usually shot on a
+ * phone and is portrait; forcing it into 16:9 pillarboxes it with black bars.
+ * Optional, so an existing section keeps the 16:9 it was rendering.
+ */
+const ASPECTS = {
+  "16:9": "aspect-video",
+  "9:16": "aspect-[9/16]",
+  "1:1": "aspect-square",
+  "4:5": "aspect-[4/5]",
+} as const;
 
 const schema = z.object({
   heading_i18n: i18nStringOptional,
@@ -23,6 +52,7 @@ const schema = z.object({
   autoplay: z.boolean(),
   muted: z.boolean(),
   body_i18n: i18nStringOptional,
+  aspect: z.enum(["16:9", "9:16", "1:1", "4:5"]).optional(),
 });
 
 type Props = z.infer<typeof schema>;
@@ -34,38 +64,15 @@ const defaultProps: Props = {
   autoplay: false,
   muted: true,
   body_i18n: {
-    en: "A 45-second walkthrough of the new collection.",
-    ar: "جولة قصيرة بـ 45 ثانية على التشكيلة الجديدة.",
+    en: "A short walkthrough of the new collection.",
+    ar: "جولة قصيرة على التشكيلة الجديدة.",
   },
+  aspect: undefined,
 };
 
-interface ParsedEmbed {
-  kind: "youtube" | "vimeo" | "file" | "none";
-  src: string;
-}
-
-function parseVideoUrl(url: string): ParsedEmbed {
-  if (!url) return { kind: "none", src: "" };
-  // YouTube — watch?v=, youtu.be/, /embed/, /shorts/
-  const yt =
-    url.match(/youtu\.be\/([\w-]{6,})/) ||
-    url.match(/[?&]v=([\w-]{6,})/) ||
-    url.match(/youtube\.com\/embed\/([\w-]{6,})/) ||
-    url.match(/youtube\.com\/shorts\/([\w-]{6,})/);
-  if (yt) return { kind: "youtube", src: `https://www.youtube.com/embed/${yt[1]}` };
-
-  // Vimeo
-  const vm =
-    url.match(/vimeo\.com\/(\d+)/) ||
-    url.match(/player\.vimeo\.com\/video\/(\d+)/);
-  if (vm) return { kind: "vimeo", src: `https://player.vimeo.com/video/${vm[1]}` };
-
-  // Direct file
-  if (/\.(mp4|webm|ogv|mov)(\?|$)/i.test(url)) {
-    return { kind: "file", src: url };
-  }
-  return { kind: "file", src: url };
-}
+/** Fallback name for the player when the merchant set no heading. */
+const PLAYER_LABEL = { en: "Video", ar: "فيديو" };
+const PLAY_LABEL = { en: "Play video", ar: "شغّل الفيديو" };
 
 function VideoBlock({
   props,
@@ -77,46 +84,49 @@ function VideoBlock({
   const locale = ctx.runtime.locale;
   const heading = resolveI18n(props.heading_i18n, locale);
   const body = resolveI18n(props.body_i18n, locale);
-  const parsed = parseVideoUrl(props.video_url);
 
-  if (parsed.kind === "none") return null;
+  const video = parseVideoUrl(props.video_url);
+  // No video, or a link this cannot play: render nothing rather than a frame
+  // the shopper cannot use.
+  if (!video) return null;
 
-  const params = new URLSearchParams();
-  if (props.autoplay) params.set("autoplay", "1");
-  if (props.muted) params.set("muted", "1");
-  if (parsed.kind === "youtube") {
-    params.set("playsinline", "1");
-    params.set("rel", "0");
-  }
-  const iframeSrc =
-    parsed.kind === "youtube" || parsed.kind === "vimeo"
-      ? `${parsed.src}?${params.toString()}`
-      : "";
+  const label = heading || resolveI18n(PLAYER_LABEL, locale);
+  const frame = ASPECTS[props.aspect ?? "16:9"];
 
   return (
     <Section>
       {heading && <SectionHeader title={heading} color="pink" />}
       <BentoCard bg="ink" size="md" className="p-0 overflow-hidden">
-        <div className="relative w-full aspect-video bg-black">
-          {parsed.kind === "youtube" || parsed.kind === "vimeo" ? (
-            <iframe
-              src={iframeSrc}
-              title={heading || "Video"}
-              loading="lazy"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              className="absolute inset-0 w-full h-full"
-            />
-          ) : (
+        <div className={`relative w-full ${frame} bg-bk-ink`}>
+          {video.provider === "file" ? (
             <video
-              className="absolute inset-0 w-full h-full"
-              src={parsed.src}
-              poster={props.poster_url}
+              className="absolute inset-0 h-full w-full"
+              src={video.src}
+              poster={props.poster_url || undefined}
               controls
-              muted={props.muted}
+              // Autoplay only ever happens muted — see the header note.
+              muted={props.muted || props.autoplay}
               autoPlay={props.autoplay}
               playsInline
               preload="metadata"
+            />
+          ) : props.autoplay ? (
+            <iframe
+              src={videoEmbedSrc(video, { autoplay: true, muted: props.muted })}
+              title={label}
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full"
+            />
+          ) : (
+            <VideoFacade
+              video={video}
+              // `||`, not `??`: a cleared poster field saves "", which
+              // must fall back to the provider thumbnail, not hide it.
+              poster={props.poster_url || videoPosterUrl(video)}
+              label={label}
+              playLabel={resolveI18n(PLAY_LABEL, locale)}
             />
           )}
         </div>

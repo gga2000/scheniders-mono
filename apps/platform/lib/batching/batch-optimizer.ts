@@ -16,6 +16,18 @@ import {
 import { optimizeSequence, countContextSwitches } from "./label-sequencer";
 import { generatePickList } from "./pick-list-generator";
 import { calculateEfficiencyScore } from "./batch-analytics";
+import { mergeOrderItems } from "@/lib/merge-order-items";
+
+/**
+ * How many distinct lines an order has once split LightFunnels lines (one line
+ * per unit, stored before the October 2026 ingest fix) are collapsed. A split
+ * order of 3 identical lines is a single-product order, exactly like the same
+ * order stored as one line of quantity 3, so single/multi-item classification
+ * must not read the raw line count.
+ */
+function distinctLineCount(order: Order): number {
+  return mergeOrderItems(order.items).length;
+}
 
 /**
  * Main entry point: Create optimal batches from a list of orders
@@ -91,8 +103,8 @@ function partitionOrders(orders: Order[], config: BatchConfig): BatchPartition {
   let multiItemOrders: Order[] = [];
 
   if (config.separateSingleItem) {
-    singleItemOrders = orders.filter(o => o.items.length === 1);
-    multiItemOrders = orders.filter(o => o.items.length > 1);
+    singleItemOrders = orders.filter(o => distinctLineCount(o) === 1);
+    multiItemOrders = orders.filter(o => distinctLineCount(o) > 1);
   } else {
     multiItemOrders = orders;
   }
@@ -411,7 +423,7 @@ function createProductGroupedBatches(orders: Order[], config: BatchConfig): Opti
   }
 
   // Category 2: Single-product orders grouped by SKU/product
-  const singleProductOrders = orders.filter(o => !o.is_return && o.items.length === 1);
+  const singleProductOrders = orders.filter(o => !o.is_return && distinctLineCount(o) === 1);
 
   // Group by SKU/product
   const productGroups = new Map<string, Order[]>();
@@ -444,7 +456,7 @@ function createProductGroupedBatches(orders: Order[], config: BatchConfig): Opti
   });
 
   // Category 3: Multi-item orders together
-  const multiItemOrders = orders.filter(o => !o.is_return && o.items.length > 1);
+  const multiItemOrders = orders.filter(o => !o.is_return && distinctLineCount(o) > 1);
   if (multiItemOrders.length > 0) {
     // Split into batches if too large
     const maxSize = config.maxBatchSize;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { EXEMPT_PLANS_SQL_LIST, isBillingExempt } from "@/lib/billing-exempt";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -12,14 +13,14 @@ interface RenewalResult {
     tenant_id: string;
     business_name: string;
     plan: string;
-    outcome: "renewed" | "plan_changed" | "suspended" | "already_processed" | "error";
+    outcome: "renewed" | "plan_changed" | "suspended" | "already_processed" | "exempt" | "error";
     details?: string;
 }
 
 /** What renew_subscription_atomic returns (packages/supabase/migrations/20261020143700_*). */
 const renewResultSchema = z.object({
     success: z.boolean(),
-    outcome: z.enum(["renewed", "plan_changed", "suspended", "already_processed", "error"]),
+    outcome: z.enum(["renewed", "plan_changed", "suspended", "already_processed", "exempt", "error"]),
     plan: z.string().optional(),
     charged: z.coerce.number().optional(),
     error: z.string().optional(),
@@ -35,7 +36,9 @@ const renewResultSchema = z.object({
  * current_period_end), applies a pending plan change, charges base_price_iqd
  * via charge_wallet_atomic with a per-period reference, then advances the
  * period +30 days and resets usage — or marks it past_due + suspends the
- * tenant when the charge fails.
+ * tenant when the charge fails. A billing-exempt (`internal`) tenant is
+ * skipped here (lib/billing-exempt.ts) and refused again inside the RPC, which
+ * returns outcome "exempt" without charging, suspending or touching the row.
  *
  * That makes the cron idempotent: a retry, an overlapping run, or a crash
  * after the charge can never charge the same period twice (the period either
@@ -56,7 +59,10 @@ export async function GET(request: Request) {
         .from("subscriptions")
         .select("id, tenant_id, plan, current_period_end")
         .in("status", ["active", "trialing"])
-        .lte("current_period_end", now);
+        .lte("current_period_end", now)
+        // Never charge the house tier: a failed charge sets the tenant suspended,
+        // which is exactly the lockout this tier exists to prevent.
+        .not("plan", "in", EXEMPT_PLANS_SQL_LIST);
 
     if (fetchError) {
         console.error("[subscription-renew] Fetch error:", fetchError);
@@ -73,15 +79,27 @@ export async function GET(request: Request) {
     const tenantIds = expiredSubs.map(s => s.tenant_id);
     const { data: tenants } = await supabaseAdmin()
         .from("tenants")
-        .select("id, business_name")
+        .select("id, business_name, plan")
         .in("id", tenantIds);
 
     const nameMap: Record<string, string> = {};
-    for (const t of tenants ?? []) nameMap[t.id] = t.business_name;
+    const planMap: Record<string, string> = {};
+    for (const t of tenants ?? []) {
+        nameMap[t.id] = t.business_name;
+        planMap[t.id] = t.plan;
+    }
 
     // 3. Renew each subscription atomically
     for (const sub of expiredSubs) {
         const name = nameMap[sub.tenant_id] || "Unknown";
+
+        // The tenant's own plan is the authority: a house tenant may still carry a
+        // stale subscription row naming a paid plan, and charging it would suspend
+        // the account this tier exists to keep running.
+        if (isBillingExempt(planMap[sub.tenant_id])) {
+            console.log(`[subscription-renew] Skipping billing-exempt tenant ${name}`);
+            continue;
+        }
 
         const { data, error: rpcError } = await supabaseAdmin().rpc("renew_subscription_atomic", {
             _subscription_id: sub.id,
@@ -108,6 +126,8 @@ export async function GET(request: Request) {
                 ? r.error
                 : r.outcome === "already_processed"
                   ? "Period already renewed by another run"
+                  : r.outcome === "exempt"
+                    ? "Billing-exempt plan: not charged"
                   : r.charged && r.charged > 0
                     ? `Charged ${r.charged} IQD`
                     : "Free plan";

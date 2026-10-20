@@ -5,6 +5,7 @@ import { cn, formatIQD } from "@/lib/utils";
 import { formatPhoneGrouped } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { Phone, MapPin, FileText, Package, Clock } from "lucide-react";
 import { useStatusLabel } from "@/hooks/use-status-label";
 
@@ -15,7 +16,7 @@ interface HoverPreviewProps {
 
 export const RowHoverPreview = memo(function RowHoverPreview({ order, position }: HoverPreviewProps) {
     const orderStatusLabel = useStatusLabel();
-    const items = order.items || [];
+    const items = mergeOrderItems(order.items);
     const notes = order.notes?.trim();
 
     return (
@@ -50,7 +51,7 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
                 <div className="flex items-start gap-1.5 text-xs text-muted mb-1.5">
                     <Package className="w-3 h-3 mt-0.5 shrink-0" />
                     <div className="flex flex-wrap gap-1">
-                        {items.map((item: any, i: number) => (
+                        {items.map((item, i) => (
                             <span key={i} className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-medium">
                                 {item.name} ×{item.quantity}
                             </span>
