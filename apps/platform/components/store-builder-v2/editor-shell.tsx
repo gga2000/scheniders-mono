@@ -1429,7 +1429,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 {system_screen && DESKTOP_ONLY_SETTINGS.includes(system_screen) ? (
                     <div
                         data-testid="editor-shell-v2"
-                        className="flex h-[calc(100vh-4rem)] flex-col bg-background"
+                        className="flex h-full flex-col bg-background"
                     >
                         <MobileDesktopOnlyStub
                             settingId={system_screen}
@@ -1585,7 +1585,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         >
         <div
             data-testid="editor-shell-v2"
-            className="flex h-[calc(100vh-4rem)] flex-col bg-background"
+            className="flex h-full flex-col bg-background"
         >
             {builder.recoverable_backup && (
                 <DraftRecoveryBanner

@@ -222,7 +222,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
     return (
         <div
             data-testid="mobile-editor-shell"
-            className="flex h-[calc(100vh-4rem)] flex-col bg-background"
+            className="flex h-full flex-col bg-background"
         >
             {/* ── Top bar ────────────────────────────────────────── */}
             <header
