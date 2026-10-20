@@ -8,6 +8,7 @@ import { createOrderForTenant } from "@/lib/order-service";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { isSystemOrderNumber, merchantOrderNumberSchema } from "@/lib/order-number";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { z } from "zod";
 
 // =============================================
@@ -123,7 +124,7 @@ export async function renameOrderNumberAction(
         .update({ order_id: parsed.data.orderNumber })
         .eq("id", parsed.data.orderUuid)
         .eq("tenant_id", tenantId)
-        .select()
+        .select(ORDER_READ_COLUMNS)
         .maybeSingle();
 
     if (error) {

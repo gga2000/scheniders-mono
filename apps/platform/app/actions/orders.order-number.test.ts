@@ -21,6 +21,7 @@ import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-s
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { createOrderForTenant } from "@/lib/order-service";
 import type { CreateOrderInput } from "@/types/order";
+import type { UserRole } from "@/lib/permissions";
 
 const TENANT = "22222222-2222-4222-8222-222222222222";
 const ORDER = "33333333-3333-4333-8333-333333333333";
@@ -41,9 +42,9 @@ function serviceClient(result: { data: unknown; error: unknown }) {
     return { recorded, from };
 }
 
-function signedInAs(role: string) {
+function signedInAs(role: UserRole) {
     vi.mocked(verifyAccessToken).mockResolvedValue({ user: { id: "u1" }, error: null } as unknown as Awaited<ReturnType<typeof verifyAccessToken>>);
-    vi.mocked(resolveActiveTenant).mockResolvedValue({ ok: true, tenantId: TENANT, role, memberRole: role });
+    vi.mocked(resolveActiveTenant).mockResolvedValue({ ok: true, tenantId: TENANT, role, platformAdmin: false });
 }
 
 beforeEach(() => {
