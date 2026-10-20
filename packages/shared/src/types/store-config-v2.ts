@@ -545,6 +545,22 @@ export interface StoreConfigV2 {
   redirects?: RedirectRule[];       // NEW
   /** Merchant-authored custom pages, served at /s/<tenant>/p/<slug>. */
   custom_pages?: CustomPage[];      // NEW
+  /**
+   * What the store was seeded from: a visual direction × a content pack,
+   * at a template version. Lets the platform offer upgrades later and tell
+   * a merchant which look and niche their store started as. Absent on
+   * stores seeded before this existed.
+   */
+  template?: StoreTemplateStamp;
+}
+
+export interface StoreTemplateStamp {
+  direction_id: string;
+  pack_id?: string;
+  /** Version of the direction the stacks were seeded from. */
+  version: number;
+  /** ISO timestamp of the seed. */
+  applied_at?: string;
 }
 
 /**

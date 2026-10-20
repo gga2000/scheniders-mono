@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-    buildStarterStoreConfigV2,
-    recommendedTemplateForVertical,
-    STARTER_TEMPLATES,
-    STARTER_VERTICALS,
-} from "./starter-store";
+import { buildStarterStoreConfigV2, recommendedTemplateForVertical, STARTER_TEMPLATES, STARTER_VERTICALS, starterTaxonomy } from "./starter-store";
 
 const FIRST = STARTER_TEMPLATES[0];
 
@@ -257,26 +252,18 @@ describe("industry seed copy", () => {
         expect(paragraphs).not.toContain("سنرتديها");
     });
 
-    it("testimonial reviewer names are Arabic-script for every pack", () => {
-        for (const industryId of ["beauty", "fashion", "electronics", "food", undefined]) {
+    it("seeds no invented customer reviews — the section stays empty until the merchant has real ones", () => {
+        for (const industryId of ["beauty", "fashion", "electronics", "food", "coffee", undefined]) {
             const cfg = buildStarterStoreConfigV2({
                 templateId: "kinetic_ink",
                 industryId,
                 businessName: "X",
             });
             const home = cfg.pages.find((p) => p.page_id === "home");
-            const t = home?.sections.find(
-                (s) => s.type === "testimonials_carousel",
-            );
+            const t = home?.sections.find((s) => s.type === "testimonials_carousel");
             if (!t) continue; // template variant without reviews
-            const items = (t.base as { items: Array<{ author_name: string }> }).items;
-            expect(items.length).toBeGreaterThan(0);
-            for (const item of items) {
-                expect(
-                    /[؀-ۿ]/.test(item.author_name),
-                    `latin reviewer name "${item.author_name}" for pack ${industryId}`,
-                ).toBe(true);
-            }
+            const items = (t.base as { items: unknown[] }).items;
+            expect(items, `pack ${industryId} shipped fabricated reviews`).toEqual([]);
         }
     });
 
@@ -310,3 +297,23 @@ describe("industry seed copy", () => {
         ).ar ?? "";
         expect(paragraphs).toContain("أصلي");
     });
+
+describe("buildStarterStoreConfigV2 — content packs (W6.1)", () => {
+    it("stamps the direction × pack the store was seeded from", () => {
+        const cfg = buildStarterStoreConfigV2({ templateId: "kinetic_ink", industryId: "Coffee roastery", businessName: "بن" });
+        expect(cfg.template).toMatchObject({ direction_id: "kinetic_ink", pack_id: "coffee", version: 1 });
+        expect(typeof cfg.template?.applied_at).toBe("string");
+    });
+
+    it("an explicit packId wins over the industry name", () => {
+        const cfg = buildStarterStoreConfigV2({ templateId: "sunbleach", packId: "services", industryId: "Beauty & Cosmetics", businessName: "x" });
+        expect(cfg.template?.pack_id).toBe("services");
+    });
+
+    it("starterTaxonomy returns the pack's categories and attributes", () => {
+        const t = starterTaxonomy("perfume");
+        expect(t.categories.map((c) => c.slug)).toContain("work");
+        expect(t.attribute_defs.map((a) => a.key)).toContain("scent_family");
+        expect(starterTaxonomy(undefined).pack.id).toBe("general");
+    });
+});
