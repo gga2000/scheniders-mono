@@ -23,7 +23,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 
 const PRIMARY_NAV_ITEMS = [
-    { key: "nav.dashboard", icon: LayoutDashboard, href: "/" },
+    { key: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { key: "nav.orders", icon: Package, href: "/orders" },
     { key: "nav.customers", icon: Users, href: "/customers" },
     { key: "nav.products", icon: ShoppingBag, href: "/products" },

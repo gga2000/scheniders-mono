@@ -53,7 +53,7 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
     {
         titleKey: "nav.general",
         items: [
-            { key: "nav.dashboard", icon: AnimatedDashboardIcon, href: "/" },
+            { key: "nav.dashboard", icon: AnimatedDashboardIcon, href: "/dashboard" },
             { key: "nav.orders", icon: AnimatedOrdersIcon, href: "/orders" },
             { key: "nav.customers", icon: AnimatedCustomersIcon, href: "/customers" },
             {
