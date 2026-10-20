@@ -59,7 +59,9 @@ CREATE TABLE public.user_profiles (id uuid PRIMARY KEY, is_active boolean DEFAUL
 CREATE TABLE public.tenant_members (
     tenant_id uuid REFERENCES public.tenants(id),
     user_id uuid REFERENCES public.user_profiles(id),
-    role text NOT NULL,
+    -- Live since 20261020215422_tenant_role_source_of_truth.
+    role text NOT NULL DEFAULT 'employee'
+        CONSTRAINT tenant_members_role_check CHECK (role IN ('admin', 'employee', 'viewer')),
     status text NOT NULL DEFAULT 'active',
     PRIMARY KEY (tenant_id, user_id)
 );
@@ -252,8 +254,8 @@ INSERT INTO public.user_profiles (id) VALUES
     ('aaaaaaaa-1111-4000-8000-000000000001'),
     ('bbbbbbbb-1111-4000-8000-000000000002');
 INSERT INTO public.tenant_members (tenant_id, user_id, role) VALUES
-    ('aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-1111-4000-8000-000000000001', 'member'),
-    ('bbbbbbbb-0000-4000-8000-000000000002', 'bbbbbbbb-1111-4000-8000-000000000002', 'member');
+    ('aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-1111-4000-8000-000000000001', 'employee'),
+    ('bbbbbbbb-0000-4000-8000-000000000002', 'bbbbbbbb-1111-4000-8000-000000000002', 'employee');
 
 -- Today: storefront prefix 4 at 001..005 across both tenants, whatsapp
 -- prefix 1 at 007, plus an unrelated LightFunnels-style number and a row that

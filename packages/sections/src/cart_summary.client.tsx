@@ -32,9 +32,9 @@ import { whatsappCartLink } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./cart_summary";
 
-/** The summary panel is the raised surface on the cart page — the one place
- *  this section pins pure white; every other fill reads a `--bk-*` token. */
-const RAISED_CARD_BG = "#ffffff";
+/** The summary panel is the raised surface on the cart page: the kit's card
+ *  surface. Never literal white — its text is ink, which is light on a dark kit. */
+const RAISED_CARD_BG = "var(--bk-surface-alt, #ffffff)";
 
 const INK_BORDER =
   "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";

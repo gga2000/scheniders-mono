@@ -2,7 +2,20 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, cleanup } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+/**
+ * Reference fields (product_id, *_href, …) render resource pickers, which
+ * read the catalogue through react-query. Wrap every render so those fields
+ * mount; retry is off so a hook with no session settles immediately.
+ */
+function render(ui: React.ReactElement) {
+    const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 import type { SectionInstance } from "@scheniders/shared";
 
 vi.mock("@/lib/supabase", () => ({
@@ -70,12 +83,16 @@ describe("SectionEditPanel", () => {
         expect(
             screen.getByTestId("auto-form-essential.title_i18n-root"),
         ).toBeTruthy();
-        // Open the Logic group so its inputs mount, then assert cta_href.
+        // Open the Logic group so its controls mount, then assert cta_href.
+        // It renders as a link picker (see lib/section-field-widgets.ts):
+        // "/products" is a store page, so the page <select> is preselected
+        // with the stored value.
         fireEvent.click(screen.getByTestId("auto-form-group-logic-toggle"));
-        const ctaInput = screen.getByTestId(
-            "auto-form-logic.cta_href-input",
-        ) as HTMLInputElement;
-        expect(ctaInput.value).toBe("/products");
+        const ctaPicker = screen.getByTestId(
+            "auto-form-logic.cta_href-picker",
+        ) as HTMLSelectElement;
+        expect(ctaPicker.tagName).toBe("SELECT");
+        expect(ctaPicker.value).toBe("/products");
     });
 
     it("changing the section label calls onChange with the updated label", () => {

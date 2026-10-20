@@ -162,7 +162,7 @@ export function SchneidersProductDetailClient({ product, images, variants, whats
                   TILE_TINTS[i % TILE_TINTS.length],
                 )}
               >
-                <Image src={img} alt={`Thumbnail ${i + 1}`} fill className="object-cover" />
+                <Image src={img} alt={`Thumbnail ${i + 1}`} fill sizes="80px" className="object-cover" />
               </button>
             ))}
           </div>

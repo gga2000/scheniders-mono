@@ -18,6 +18,7 @@ const s = makeSectionFactory("sunbleach");
 
 export const sunbleachTemplate: StoreTemplate = {
     id: "sunbleach",
+    version: 1,
     name_i18n: { en: "Sunbleach", ar: "شمس" },
     description_i18n: {
         en: "Bright, price-first and built to convert: bold hero, countdown, offers above the fold.",

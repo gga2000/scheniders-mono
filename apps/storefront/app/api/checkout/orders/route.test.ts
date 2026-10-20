@@ -325,12 +325,41 @@ describe("POST /api/checkout/orders", () => {
         arm_id: "arm_real",
       }),
     ]);
-    const inserted = JSON.stringify(mockInsert.mock.calls[0]?.[0]);
+    const inserted = JSON.stringify(mockInsert.mock.calls);
     expect(inserted).not.toContain("forged_arm");
     expect(inserted).not.toContain("ghost_exp");
   });
 
-  it("(l2) records no events when the store has no running experiments", async () => {
+  it("(l2) records only the first-party purchase when the store has no running experiments", async () => {
+    vi.mocked(cookies).mockResolvedValue({
+      get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
+    } as never);
+    mockSingle.mockResolvedValue({
+      data: { store_config_v2: { experiments: [] } },
+      error: null,
+    });
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+    // One insert: the funnel's purchase rows (one per line, server total on
+    // the first) — and no experiment attribution rows at all.
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    const rows = mockInsert.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+    expect(rows.every((r) => r.event_type === "purchase" && r.visitor_key === "visitor-abc")).toBe(true);
+    expect(rows.some((r) => "experiment_id" in r)).toBe(false);
+    expect(rows[0]?.value_iqd).toBeTypeOf("number");
+  });
+
+  it("(l3) does not count a replayed submit's purchase twice", async () => {
+    // EC17: a retry with the same idempotency key answers the order already
+    // placed, whose purchase rows the first response wrote.
+    vi.mocked(submitCheckout).mockResolvedValue({
+      success: true,
+      orderId: "order-123",
+      orderNumber: "ORD-001",
+      total: 5000,
+      replayed: true,
+    });
     vi.mocked(cookies).mockResolvedValue({
       get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
     } as never);

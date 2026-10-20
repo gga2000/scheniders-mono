@@ -15,7 +15,7 @@ import { selectProducts } from "@scheniders/sections";
 import type { SectionRenderContext } from "@scheniders/sections";
 import type { PageConfig, RuntimeContext } from "@scheniders/shared";
 import { resolveI18n } from "@scheniders/shared";
-import { itemListJsonLd, faqJsonLd } from "./seo";
+import { itemListJsonLd, faqJsonLd, faqItemsFromPage } from "./seo";
 
 type JsonLdObject = Record<string, unknown>;
 
@@ -73,30 +73,14 @@ export function buildGridItemList(
   return itemListJsonLd({ name: heading || "", items });
 }
 
-/** `FAQPage` from the questions the page actually shows. */
+/**
+ * `FAQPage` from the questions the page actually shows — every enabled
+ * `faq_accordion` / `faq_contact_split` on it, read the same way the FAQ
+ * page reads them.
+ */
 export function buildFaqSchema(
   page: PageConfig,
   runtime: RuntimeContext,
 ): JsonLdObject | null {
-  const base = findSection(page, "faq_contact_split");
-  if (!base) return null;
-
-  const raw = base.items;
-  if (!Array.isArray(raw)) return null;
-
-  const pairs = raw.map((item) => {
-    const it = item as Record<string, unknown>;
-    return {
-      question: resolveI18n(
-        (it.q_i18n as Parameters<typeof resolveI18n>[0]) ?? {},
-        runtime.locale,
-      ),
-      answer: resolveI18n(
-        (it.a_i18n as Parameters<typeof resolveI18n>[0]) ?? {},
-        runtime.locale,
-      ),
-    };
-  });
-
-  return faqJsonLd(pairs);
+  return faqJsonLd(faqItemsFromPage(page, runtime.locale));
 }

@@ -44,7 +44,7 @@ export function VariantSelect({
         value={value ?? ""}
         aria-invalid={invalid || undefined}
         onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
-        className="min-h-11 w-full bg-white px-3 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+        className="min-h-11 w-full bg-bk-surface px-3 font-body text-bk-ink text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
         style={{
           border: invalid
             ? "1px solid var(--bk-danger, #dc2626)"

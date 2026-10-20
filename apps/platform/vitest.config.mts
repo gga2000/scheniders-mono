@@ -46,6 +46,9 @@ export default defineConfig({
             // Server actions are public POST endpoints; their guard tests
             // must be collected like the API routes'.
             "app/actions/**/*.test.ts",
+            // Root-document tests (layout / global-error) sit beside the files
+            // they render, at the top of app/.
+            "app/*.test.tsx",
             // ARCH-6: store/ had no include pattern, so a test placed beside the
             // Zustand slices was silently never collected.
             "store/**/*.test.ts",
@@ -58,6 +61,7 @@ export default defineConfig({
             "apps/platform/lib/**/*.test.tsx",
             "apps/platform/app/api/**/*.test.ts",
             "apps/platform/app/actions/**/*.test.ts",
+            "apps/platform/app/*.test.tsx",
         ],
     },
 });

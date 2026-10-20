@@ -125,7 +125,7 @@ export function NewsletterInlineRender({
               }}
               onBlur={() => setTouched(true)}
               aria-invalid={inputErrored || undefined}
-              className="flex-1 bg-white px-4 py-3 font-body text-base placeholder:text-bk-ink-faint focus:outline-none focus:ring-0"
+              className="flex-1 bg-bk-surface-alt px-4 py-3 font-body text-base placeholder:text-bk-ink-faint focus:outline-none focus:ring-0"
               style={{
                 border: `var(--bk-border-thickness, 3px) solid ${
                   inputErrored
