@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useIsMutating, type QueryClient, type QueryState } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useIsMutating, type Query, type QueryClient, type QueryState } from "@tanstack/react-query";
 import {
     ORDERS_LIST_MUTATION_KEY,
     advanceSyncWatermark,
@@ -81,7 +81,9 @@ function isOrderWindow(value: unknown): value is NonNullable<OrderWindow> {
 /**
  * Merge a tenant-wide delta into rows fetched for `window`, by the batcher's
  * rules: version-checked, trashed / archived / out-of-window rows dropped,
- * newly-in-window rows added. Returns `rows` unchanged when nothing differs.
+ * newly-in-window rows added — unless the batcher has since seen the row
+ * trashed, deleted or archived (`removedSince`: the delta read it first).
+ * Returns `rows` unchanged when nothing differs.
  */
 function mergeDeltaIntoWindowRows(
     rows: Order[] | undefined,
@@ -89,8 +91,13 @@ function mergeDeltaIntoWindowRows(
     window: OrderWindow,
 ): Order[] | undefined {
     if (!Array.isArray(rows)) return rows;
+    const batcher = getOrderBatcher();
+    // Several deltas can be merged at once (a margin fetch's buffer): newest per id.
     const incoming = new Map<string, Order>();
-    for (const row of changed) incoming.set(row.id, row);
+    for (const row of changed) {
+        const seen = incoming.get(row.id);
+        if (!seen || shouldApplyRealtimeUpdate(seen, row)) incoming.set(row.id, row);
+    }
     let changedAny = false;
     const next: Order[] = [];
     for (const cached of rows) {
@@ -105,11 +112,18 @@ function mergeDeltaIntoWindowRows(
     const added: Order[] = [];
     for (const row of incoming.values()) {
         if (row.deleted_at != null || !belongsInWindow(row, window)) continue;
+        if (batcher?.removedSince(row, { tenantWide: true })) continue;
         added.push(toListRow(row));
     }
     if (added.length === 0 && !changedAny) return rows;
     return [...added, ...next];
 }
+
+/**
+ * Delta rows that landed while a margin fetch was in flight, per margin query.
+ * `promise` is that fetch: rows buffered for one fetch never reach another.
+ */
+const pendingMarginMerges = new WeakMap<Query, { promise: Promise<unknown>; rows: Order[] }>();
 
 /**
  * Bring every cached duplicate margin up to date with a delta. The delta is
@@ -131,11 +145,32 @@ function mergeDeltaIntoMargins(queryClient: QueryClient, changed: readonly Order
         if (inFlight) {
             // Its read can predate these rows and lands after this merge,
             // overwriting it, while the watermark has already moved past them.
-            // Refetch once it settles (a first load cannot be restarted: React
-            // Query dedupes it). Either outcome refreshes: a failure is already
-            // the query's own error state. Rare: a margin mid-fetch.
-            const refresh = () => queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
-            void inFlight.then(refresh, refresh);
+            // Buffer them and merge once, on top of what it commits — the
+            // merge is version-checked, so a read newer than a buffered row
+            // keeps its own copy. Refetching instead read the margin again per
+            // delta, and every refetch was in flight for the next one.
+            const pending = pendingMarginMerges.get(query);
+            if (pending?.promise === inFlight) {
+                pending.rows.push(...changed);
+                continue;
+            }
+            const entry = { promise: inFlight, rows: [...changed] };
+            pendingMarginMerges.set(query, entry);
+            const queryKey = query.queryKey;
+            // Settled either way, the query holds the rows to merge into: what
+            // it committed, or — after an error or a reverting cancel — what it
+            // held before, which these rows are newer than. A first load that
+            // failed holds nothing and is left to its error and retry state; a
+            // cancel by a list mutation is refetched by its flush
+            // (orders-list-coverage).
+            const merge = () => {
+                if (pendingMarginMerges.get(query) === entry) pendingMarginMerges.delete(query);
+                queryClient.setQueryData<Order[]>(queryKey, (old) => mergeDeltaIntoWindowRows(old, entry.rows, window));
+            };
+            inFlight.then(merge, (err: unknown) => {
+                diag.log(`[Diag:RQ:Delta] margin ${JSON.stringify(queryKey)} fetch did not commit (${err instanceof Error ? err.name : "unknown"}) — merging ${entry.rows.length} buffered rows into its previous data`);
+                merge();
+            });
             continue;
         }
         queryClient.setQueryData<Order[]>(query.queryKey, (old) => mergeDeltaIntoWindowRows(old, changed, window));

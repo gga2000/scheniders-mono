@@ -88,7 +88,7 @@ function setup() {
     const batcher = new RealtimeBatcher({ queryClient: qc, queryKey: orderKeys.lists(), getWindow: () => OLD_WINDOW });
     setOrderBatcher(batcher);
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-    return { qc, wrapper };
+    return { qc, wrapper, batcher };
 }
 
 async function coldLoad() {
@@ -148,6 +148,27 @@ describe("catch-up delta watermark", () => {
         expect(sinceOf(H.findChangedSince.mock.calls[0])).toBe("2026-10-19T07:00:00.000Z");
         await requestOrdersCatchUp(qc, TENANT, { source: "s", since: "2026-10-19T09:00:00.000Z" });
         expect(ms(sinceOf(H.findChangedSince.mock.calls[1]))).toBe(ms(FETCH_MARK) - DELTA_SKEW_MS);
+    });
+
+    it("a list fetch that commits after a delta finished during it re-arms the overlap, so the next delta re-reads the row", async () => {
+        const { qc } = await coldLoad();
+        // Focus: the list refetch reads its mark (08:00) and then a@v1 ...
+        let release: (rows: Order[]) => void = () => {};
+        H.findWindow.mockImplementationOnce(() => new Promise<Order[]>((r) => { release = r; }));
+        const refetch = qc.refetchQueries({ queryKey: orderKeys.lists(), exact: true });
+        await waitFor(() => expect(H.findWindow).toHaveBeenCalledTimes(2));
+        // ... while the appReopen delta, started by the same focus, lands a@v2 first.
+        H.findChangedSince.mockResolvedValueOnce([row("a", "2026-10-19T08:00:30.000Z", 2)]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "appReopen" });
+        release([row("a", "2026-09-12T10:00:00.000Z", 1), row("b", "2026-09-01T10:00:00.000Z")]);
+        await refetch;
+        // The commit replaced a@v2 with its older read: the cache is complete
+        // up to the fetch's mark only, and owes the overlap again.
+        expect(getSyncWatermark(qc)).toEqual({ at: FETCH_MARK, fromFetch: true });
+        H.findChangedSince.mockResolvedValueOnce([row("a", "2026-10-19T08:00:30.000Z", 2)]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "heartbeatDrift" });
+        expect(ms(sinceOf(H.findChangedSince.mock.calls[1]))).toBe(ms(FETCH_MARK) - DELTA_OVERLAP_MS);
+        expect(qc.getQueryData<Order[]>(orderKeys.lists())?.find((o) => o.id === "a")?.version).toBe(2);
     });
 });
 
@@ -218,23 +239,87 @@ describe("catch-up delta and the duplicate margin", () => {
         expect(qc.getQueryData<Order[]>(MARGIN_KEY)?.[0]).toMatchObject({ status: "in_transit", version: 5 });
     });
 
-    it("a margin fetch in flight when the delta lands is restarted, so its older read cannot overwrite the merge", async () => {
+    /** Mount the margin with a first fetch that waits for `release`; later fetches return `later`. */
+    async function withSlowMargin(later: Order[] = []) {
         const ctx = await coldLoad();
-        let releaseFirst: (rows: Order[]) => void = () => {};
+        let release: (rows: Order[]) => void = () => {};
+        let fail: (err: Error) => void = () => {};
         const margin = vi.fn()
-            .mockImplementationOnce(() => new Promise<Order[]>((resolve) => { releaseFirst = resolve; }))
-            .mockImplementation(async () => [marginRow("m1", "2026-10-19T08:01:00.000Z", 2, { status: "confirmed" })]);
+            .mockImplementationOnce(() => new Promise<Order[]>((resolve, reject) => { release = resolve; fail = reject; }))
+            .mockImplementation(async () => later);
         renderHook(
             () => useQuery({ queryKey: MARGIN_KEY, queryFn: margin, staleTime: 60_000, meta: duplicateCandidateMeta(MARGIN) }),
             { wrapper: ctx.wrapper },
         );
         await waitFor(() => expect(margin).toHaveBeenCalledTimes(1));
+        return { ...ctx, margin, release: (rows: Order[]) => release(rows), fail: (err: Error) => fail(err) };
+    }
+    const settle = () => new Promise((r) => setTimeout(r, 20));
+
+    it("a margin fetch in flight when deltas land is read once: the deltas are merged into its result when it settles", async () => {
+        const { qc, margin, release } = await withSlowMargin();
         H.findChangedSince.mockResolvedValueOnce([marginRow("m1", "2026-10-19T08:01:00.000Z", 2, { status: "confirmed" })]);
-        await requestOrdersCatchUp(ctx.qc, TENANT, { source: "s" });
-        // The first read started before the peer write and resolves after the delta.
-        releaseFirst([marginRow("m1", "2026-10-01T00:00:00.000Z", 1)]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "first" });
+        H.findChangedSince.mockResolvedValueOnce([
+            marginRow("m3", "2026-10-19T08:02:00.000Z", 1),
+            { ...marginRow("m2", "2026-10-19T08:03:00.000Z", 2), deleted_at: "2026-10-19T08:03:00.000Z" },
+        ]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "second" });
+        // The read started before both deltas and resolves after them.
+        release([marginRow("m1", "2026-10-01T00:00:00.000Z", 1), marginRow("m2", "2026-10-01T00:00:00.000Z", 1)]);
+        await waitFor(() => expect(marginIds(qc)).toEqual(["m1", "m3"]));
+        await settle();
+        expect(margin).toHaveBeenCalledTimes(1);
+        expect(qc.getQueryData<Order[]>(MARGIN_KEY)?.find((o) => o.id === "m1")).toMatchObject({ status: "confirmed", version: 2 });
+    });
+
+    it("a margin read newer than the buffered delta row keeps its own copy", async () => {
+        const { qc, margin, release } = await withSlowMargin();
+        H.findChangedSince.mockResolvedValueOnce([marginRow("m1", "2026-10-19T08:01:00.000Z", 2, { status: "confirmed" })]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        release([marginRow("m1", "2026-10-19T08:05:00.000Z", 3, { status: "in_transit" })]);
+        await waitFor(() => expect(qc.getQueryData<Order[]>(MARGIN_KEY)?.[0]).toMatchObject({ status: "in_transit", version: 3 }));
+        await settle();
+        expect(qc.getQueryData<Order[]>(MARGIN_KEY)?.[0]).toMatchObject({ status: "in_transit", version: 3 });
+        expect(margin).toHaveBeenCalledTimes(1);
+    });
+
+    it("a buffered row a peer trashed before the margin read is not added back", async () => {
+        const { qc, batcher, release } = await withSlowMargin();
+        H.findChangedSince.mockResolvedValueOnce([marginRow("m3", "2026-10-19T08:02:00.000Z", 1)]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        // Realtime: the trash, after the delta read m3 and before the margin read.
+        batcher.push({ eventType: "UPDATE", new: { ...marginRow("m3", "2026-10-19T08:03:00.000Z", 2), deleted_at: "2026-10-19T08:03:00.000Z" } as unknown as Record<string, unknown> });
+        batcher.flush();
+        release([marginRow("m1", "2026-10-01T00:00:00.000Z", 1)]);
+        await waitFor(() => expect(marginIds(qc)).toEqual(["m1"]));
+        await settle();
+        expect(marginIds(qc)).toEqual(["m1"]);
+    });
+
+    it("a first margin load that fails is left to its own error state, not refetched by the merge", async () => {
+        const { qc, margin, fail } = await withSlowMargin();
+        H.findChangedSince.mockResolvedValueOnce([marginRow("m1", "2026-10-19T08:01:00.000Z", 2)]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        fail(new Error("network"));
+        await waitFor(() => expect(qc.getQueryState(MARGIN_KEY)?.status).toBe("error"));
+        await settle();
+        expect(margin).toHaveBeenCalledTimes(1);
+        expect(qc.getQueryData(MARGIN_KEY)).toBeUndefined();
+    });
+
+    it("a margin refetch that fails keeps its earlier rows, with the buffered delta merged in", async () => {
+        const { qc, margin } = await withMargin([marginRow("m1", "2026-10-01T00:00:00.000Z", 1)]);
+        let fail: (err: Error) => void = () => {};
+        margin.mockImplementationOnce(() => new Promise<Order[]>((_resolve, reject) => { fail = reject; }));
+        void qc.refetchQueries({ queryKey: MARGIN_KEY, exact: true });
         await waitFor(() => expect(margin).toHaveBeenCalledTimes(2));
-        await waitFor(() => expect(ctx.qc.getQueryData<Order[]>(MARGIN_KEY)?.[0]).toMatchObject({ status: "confirmed", version: 2 }));
+        H.findChangedSince.mockResolvedValueOnce([marginRow("m1", "2026-10-19T08:01:00.000Z", 2, { status: "confirmed" })]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        fail(new Error("network"));
+        await waitFor(() => expect(qc.getQueryData<Order[]>(MARGIN_KEY)?.[0]).toMatchObject({ status: "confirmed", version: 2 }));
+        await settle();
+        expect(margin).toHaveBeenCalledTimes(2);
     });
 
     it("an overflowing delta marks the margin stale too", async () => {
