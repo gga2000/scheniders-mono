@@ -12,6 +12,7 @@
     "build:storefront": "turbo build --filter=@scheniders/storefront",
     "lint": "turbo lint",
     "type-check": "turbo type-check",
+    "test": "vitest run",
     "test:e2e": "turbo test:e2e --filter=@scheniders/platform",
     "storybook": "turbo storybook --filter=@scheniders/platform",
     "generate-types": "turbo generate-types --filter=@scheniders/supabase",

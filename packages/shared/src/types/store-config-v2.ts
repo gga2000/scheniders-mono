@@ -579,6 +579,31 @@ export interface RedirectRule {
 }
 
 /**
+ * Marks a custom page as a dated article — a guide, a how-to, a story.
+ *
+ * A custom page is already a full authored page: sections, SEO meta, its own
+ * URL. What an article needs on top is the handful of facts a *list* of them
+ * needs — when it was published, what it looks like, and what it is about —
+ * so guides can be shown newest-first somewhere else on the store. Everything
+ * here is optional, and the block itself is optional, so a page that is not
+ * an article carries nothing and behaves exactly as it did.
+ */
+export interface ArticleMeta {
+  /**
+   * ISO date. A date in the future means "not yet published": the article
+   * keeps its URL but stays out of every list until then, which makes
+   * scheduling a guide free rather than a feature to build later.
+   */
+  published_at?: string;
+  /** Short summary for the listing card. Falls back to the page's SEO description. */
+  excerpt?: I18nString;
+  /** Listing card image. Falls back to the page's OG image. */
+  cover_url?: string;
+  /** Byline. Rendered only when set — never invented from the store name. */
+  author?: string;
+}
+
+/**
  * A merchant-authored custom page (campaign / landing / lookbook). Served at
  * `/s/<tenant>/p/<slug>`. Unlike the fixed system pages, custom pages have a
  * stable id + a URL slug; otherwise they reuse the same section + meta model.
@@ -596,6 +621,8 @@ export interface CustomPage {
   meta?: PageMeta;
   /** Hidden = not served (404) without deleting. */
   hidden?: boolean;
+  /** Present when this page is a dated article. Absent for an ordinary page. */
+  article?: ArticleMeta;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */

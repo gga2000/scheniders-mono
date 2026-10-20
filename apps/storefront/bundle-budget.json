@@ -1,0 +1,4 @@
+{
+  "_comment": "JS every shopper downloads on every page, gzipped. Measured at 158 KB on the flagship branch when this budget was set (2026-09-11) and 165.5 KB on main when it was ported (2026-10-20); the headroom is for normal work, not for a new framework. Raising this number is a decision, not a formality — say why in the commit.",
+  "shared_runtime_gzip_kb": 180
+}

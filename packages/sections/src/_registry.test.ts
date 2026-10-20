@@ -30,6 +30,7 @@ const EXPECTED_TYPES = [
   "testimonials_carousel",
   "image_gallery",
   "video_block",
+  "article_index",
   "marquee_strip",
   "announcement_bar",
   // Conversion family
