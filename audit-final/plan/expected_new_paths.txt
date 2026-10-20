@@ -26,3 +26,8 @@ packages/supabase/tests/secdef_cross_tenant_harness.sql                     # PK
 apps/platform/app/api/healthz/route.ts                                      # PKG-05
 apps/storefront/app/api/healthz/route.ts                                    # PKG-05
 apps/storefront/app/s/[tenant]/loading.tsx                                  # PKG-26 (home route; four sub-routes already have one)
+# Added in revision 3:
+packages/supabase/ci/supabase/config.toml                                   # PKG-00 (CLI workdir with migrations and seed disabled)
+packages/provider-mock/src/server.ts                                        # PKG-00 (provider mock server)
+packages/supabase/tests/secdef_role_expectations.sql                        # PKG-03 / PKG-13 (role pass expectations)
+packages/supabase/tests/storefront_reservation.sql                          # PKG-14 (reservation tests)
