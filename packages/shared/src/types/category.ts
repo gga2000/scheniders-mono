@@ -46,6 +46,11 @@ export interface CategoryPageConfig {
   blocks?: CategoryPageBlock[];
 }
 
+/** Who a category is for — see `Category.scope`. */
+export type CategoryScope = "internal" | "website" | "both";
+
+export const CATEGORY_SCOPES: readonly CategoryScope[] = ["internal", "website", "both"] as const;
+
 export interface Category {
   id: string;
   tenant_id: string;
@@ -64,6 +69,11 @@ export interface Category {
   display_order: number;
   is_visible: boolean;
   status: CategoryStatus;
+  /** Who the category is for. `internal` groups stock for staff and never
+   *  reaches the storefront; `website` is a customer-facing browse category;
+   *  `both` does each job. Separate from status/is_visible, which say whether
+   *  it is currently shown at all. */
+  scope: CategoryScope;
   published_at: string | null;
   unpublish_at: string | null;
   archived_at: string | null;

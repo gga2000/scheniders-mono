@@ -14,10 +14,13 @@ import {
   Sparkles,
   AlertCircle,
   GripVertical,
+  Store,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CategoryScopeControl } from "@/components/products/category-scope-control";
 import { useLanguage } from "@/hooks/use-language";
-import type { Category } from "@scheniders/shared";
+import type { Category, CategoryScope } from "@scheniders/shared";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 
 export interface CategoryRowProps {
@@ -36,6 +39,7 @@ export interface CategoryRowProps {
   onArchive?: (c: Category) => void;
   onDelete?: (c: Category) => void;
   onToggleVisibility?: (c: Category) => void;
+  onScopeChange?: (c: Category, scope: CategoryScope) => void;
   dragHandleProps?: Record<string, unknown>;
   isDragging?: boolean;
   onOpenDetail?: (c: Category) => void;
@@ -65,6 +69,7 @@ export function CategoryRow({
   onArchive,
   onDelete,
   onToggleVisibility,
+  onScopeChange,
   dragHandleProps,
   isDragging,
   onOpenDetail,
@@ -179,6 +184,24 @@ export function CategoryRow({
               {t("categories.scheduled") || "Scheduled"}
             </span>
           )}
+          {category.scope === "internal" && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700"
+              title={t("categories.scope.internalHint") || undefined}
+            >
+              <Store className="w-2.5 h-2.5" />
+              {t("categories.scope.internal") || "Store only"}
+            </span>
+          )}
+          {category.scope === "website" && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-100 text-sky-700"
+              title={t("categories.scope.websiteHint") || undefined}
+            >
+              <Globe className="w-2.5 h-2.5" />
+              {t("categories.scope.website") || "Website"}
+            </span>
+          )}
           {missingSeo && category.status === "published" && (
             <AlertCircle
               className="w-3.5 h-3.5 text-amber-600 shrink-0"
@@ -220,6 +243,13 @@ export function CategoryRow({
 
       {/* Actions */}
       <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        {onScopeChange && (
+          <CategoryScopeControl
+            value={category.scope ?? "both"}
+            onChange={(next) => onScopeChange(category, next)}
+            className="hidden lg:flex"
+          />
+        )}
         {onToggleVisibility && (
           <button
             type="button"

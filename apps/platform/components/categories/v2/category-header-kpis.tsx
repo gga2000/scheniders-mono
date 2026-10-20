@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Sparkles,
   CalendarClock,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -41,6 +42,8 @@ export function CategoryHeaderKpis({
     let scheduled = 0;
     let topLevel = 0;
     let emptyCats = 0;
+    let websiteCats = 0;
+    let storeCats = 0;
 
     for (const c of categories) {
       if (c.status === "published") published++;
@@ -52,6 +55,13 @@ export function CategoryHeaderKpis({
       const pubAt = c.published_at ? new Date(c.published_at).getTime() : null;
       const unpubAt = c.unpublish_at ? new Date(c.unpublish_at).getTime() : null;
       if ((pubAt && pubAt > now) || (unpubAt && unpubAt > now)) scheduled++;
+
+      if (c.status !== "archived") {
+        // "both" counts on each side: it genuinely serves both audiences, so
+        // reporting it as neither would understate both numbers.
+        if (c.scope !== "internal") websiteCats++;
+        if (c.scope !== "website") storeCats++;
+      }
 
       if (!c.parent_id) topLevel++;
       if ((productCategoryCounts[c.id] ?? 0) === 0 && c.status !== "archived")
@@ -71,6 +81,8 @@ export function CategoryHeaderKpis({
       scheduled,
       topLevel,
       emptyCats,
+      websiteCats,
+      storeCats,
       coverage,
     };
   }, [categories, productCategoryCounts, uncategorizedCount, totalProducts]);
@@ -95,6 +107,15 @@ export function CategoryHeaderKpis({
       value: categories.filter((c) => c.status !== "archived").length,
       label: t("categories.kpi.total") || "Categories",
       sub: `${stats.topLevel} ${t("categories.kpi.topLevel") || "top-level"} · ${stats.published} ${t("categories.kpi.published") || "published"}`,
+    },
+    {
+      key: "scope",
+      tone: "pastel-card pastel-card-blue",
+      icon: Globe,
+      iconTone: "text-sky-600",
+      value: stats.websiteCats,
+      label: t("categories.kpi.onWebsite") || "On the website",
+      sub: `${stats.storeCats} ${t("categories.kpi.inStore") || "for the store"}`,
     },
     {
       key: "coverage",
