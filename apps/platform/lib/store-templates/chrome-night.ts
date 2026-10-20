@@ -33,7 +33,10 @@ export const chromeNightTemplate: StoreTemplate = {
             display: "Jost",
             body: "Manrope",
             display_ar: "Reem Kufi",
-            body_ar: "Tajawal",
+            // Not Tajawal: it skips 600, which this direction uses for labels.
+            // Noto Kufi Arabic ships 400-900 and sits closer to Reem Kufi's
+            // geometry anyway.
+            body_ar: "Noto Kufi Arabic",
             scale: "comfortable",
         },
         shape: {

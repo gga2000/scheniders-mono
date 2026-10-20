@@ -34,7 +34,10 @@ export const auroraGlassTemplate: StoreTemplate = {
             display: "Outfit",
             body: "Manrope",
             display_ar: "Readex Pro",
-            body_ar: "Almarai",
+            // Not Almarai: it ships only 400/700/800, so the 500 and 600 that
+            // body copy and labels use would be synthesised, and faux-bold
+            // Arabic looks broken. Noto Sans Arabic ships 400-900.
+            body_ar: "Noto Sans Arabic",
             scale: "spacious",
         },
         shape: {
