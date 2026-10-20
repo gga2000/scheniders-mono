@@ -1903,6 +1903,28 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                         ),
                                     );
                                 }}
+                                onSetDeliveryFee={(feeIqd) => {
+                                    builder.setConfig(
+                                        (prev) => ({
+                                            ...prev,
+                                            commerce: {
+                                                ...(prev.commerce ?? {}),
+                                                shipping: {
+                                                    ...(prev.commerce?.shipping ?? {}),
+                                                    default_rate: {
+                                                        ...(prev.commerce?.shipping
+                                                            ?.default_rate ?? {}),
+                                                        fee_iqd: feeIqd,
+                                                    },
+                                                },
+                                            },
+                                        }),
+                                        t(
+                                            STRINGS.health.launch_delivery_history,
+                                            builder.active_locale,
+                                        ),
+                                    );
+                                }}
                             />
                         </>
                     )}

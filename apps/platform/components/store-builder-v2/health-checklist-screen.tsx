@@ -56,6 +56,12 @@ export interface HealthChecklistScreenProps {
      * inline instead of navigating anywhere (S3-01).
      */
     onSetWhatsappNumber?: (value: string) => void;
+    /**
+     * Persist the default delivery fee (`commerce.shipping.default_rate`).
+     * When provided AND the fee is unset, a launch step captures it inline
+     * (S3-09 — the question moved here from the onboarding wizard).
+     */
+    onSetDeliveryFee?: (feeIqd: number) => void;
 }
 
 type Filter = "all" | "failing" | "warn" | "passing";
@@ -169,7 +175,7 @@ function ScoreDonut({ score }: { score: number }): ReactElement {
 export function HealthChecklistScreen(
     props: HealthChecklistScreenProps,
 ): ReactElement {
-    const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished, onSetWhatsappNumber } = props;
+    const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished, onSetWhatsappNumber, onSetDeliveryFee } = props;
     const locale = useResolvedEditorLocale();
     // S3-03: Simple mode shows the launch checklist (+ any publish blockers)
     // only — the score donut, dimension cards, filters and the 36-check list
@@ -197,6 +203,31 @@ export function HealthChecklistScreen(
         setWaError(false);
         setWaOpen(false);
         onSetWhatsappNumber?.(cleaned);
+    };
+
+    /* ── Inline delivery-fee capture (S3-09) ────────────────────────
+     * The wizard no longer asks; the step exists only while unset (plus
+     * the session it was just completed in, so the strikethrough lands). */
+    // Presence, not a positive number: `{ fee_iqd: 0 }` is a merchant who
+    // chose free delivery (live scheniders-iraq stores exactly that), so
+    // only a missing default_rate means the question is still open.
+    const deliveryFeeSet = config.commerce?.shipping?.default_rate != null;
+    const [feeOpen, setFeeOpen] = useState(false);
+    const [feeValue, setFeeValue] = useState("");
+    const [feeError, setFeeError] = useState(false);
+    const [feeJustSet, setFeeJustSet] = useState(false);
+    const saveDeliveryFee = (): void => {
+        const raw = feeValue.replace(/[,\s]/g, "");
+        const n = Number(raw);
+        // 0 is valid (free delivery); empty, negative or fractional is not.
+        if (raw === "" || !Number.isInteger(n) || n < 0) {
+            setFeeError(true);
+            return;
+        }
+        setFeeError(false);
+        setFeeOpen(false);
+        setFeeJustSet(true);
+        onSetDeliveryFee?.(n);
     };
 
     /* ── First-launch ordered checklist (2.3) ───────────────────────
@@ -233,6 +264,18 @@ export function HealthChecklistScreen(
                 fix: fixOf("whatsapp_number_set"),
                 checkId: "whatsapp_number_set",
             },
+            // S3-09: delivery fee moved out of the wizard — the step shows
+            // only while unset (or right after inline completion).
+            ...(onSetDeliveryFee && (!deliveryFeeSet || feeJustSet)
+                ? [
+                      {
+                          key: "delivery",
+                          label: t(STRINGS.health.launch_step_delivery, locale),
+                          done: deliveryFeeSet,
+                          fix: null,
+                      },
+                  ]
+                : []),
             {
                 key: "home",
                 label: t(STRINGS.health.launch_step_home, locale),
@@ -258,7 +301,7 @@ export function HealthChecklistScreen(
             });
         }
         return steps;
-    }, [report.checks, hasPublished, locale]);
+    }, [report.checks, hasPublished, locale, onSetDeliveryFee, deliveryFeeSet, feeJustSet]);
     const launchDone = launchSteps.filter((s) => s.done).length;
     // Simple keeps the card visible even when complete (it IS the Simple
     // health surface); Advanced hides it once everything is done.
@@ -411,13 +454,18 @@ export function HealthChecklistScreen(
                                     </span>
                                     {!step.done &&
                                         (step.fix ||
-                                            (step.key === "whatsapp" && onSetWhatsappNumber)) && (
+                                            (step.key === "whatsapp" && onSetWhatsappNumber) ||
+                                            (step.key === "delivery" && onSetDeliveryFee)) && (
                                         <button
                                             type="button"
                                             data-testid={`health-launch-fix-${step.key}`}
                                             onClick={() => {
                                                 if (step.key === "whatsapp" && onSetWhatsappNumber) {
                                                     setWaOpen((v) => !v);
+                                                    return;
+                                                }
+                                                if (step.key === "delivery" && onSetDeliveryFee) {
+                                                    setFeeOpen((v) => !v);
                                                     return;
                                                 }
                                                 if (step.fix) handleFix(step.fix, step.checkId);
@@ -471,6 +519,50 @@ export function HealthChecklistScreen(
                                             {waError && (
                                                 <p className="mt-1 text-[11px] text-red-600" role="alert">
                                                     {t(STRINGS.health.launch_whatsapp_invalid, locale)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                    {step.key === "delivery" &&
+                                        !step.done &&
+                                        feeOpen &&
+                                        onSetDeliveryFee && (
+                                        <div className="w-full" data-testid="health-launch-delivery-inline">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    inputMode="numeric"
+                                                    min={0}
+                                                    value={feeValue}
+                                                    onChange={(e) => {
+                                                        setFeeValue(e.target.value);
+                                                        setFeeError(false);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") saveDeliveryFee();
+                                                    }}
+                                                    placeholder={t(
+                                                        STRINGS.health.launch_delivery_placeholder,
+                                                        locale,
+                                                    )}
+                                                    aria-label={t(
+                                                        STRINGS.health.launch_step_delivery,
+                                                        locale,
+                                                    )}
+                                                    className="h-8 min-w-0 flex-1 rounded-lg border border-(--card-border) bg-background px-2.5 text-sm outline-none focus:border-primary"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    data-testid="health-launch-delivery-save"
+                                                    onClick={saveDeliveryFee}
+                                                    className="inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                                >
+                                                    {t(STRINGS.health.launch_whatsapp_save, locale)}
+                                                </button>
+                                            </div>
+                                            {feeError && (
+                                                <p className="mt-1 text-[11px] text-red-600" role="alert">
+                                                    {t(STRINGS.health.launch_delivery_invalid, locale)}
                                                 </p>
                                             )}
                                         </div>

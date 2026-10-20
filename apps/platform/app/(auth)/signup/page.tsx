@@ -20,12 +20,8 @@ import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 
-const PLANS = [
-    { value: "starter", labelKey: "signup.plan.starter", orders: "500", price: "10K" },
-    { value: "growth", labelKey: "signup.plan.growth", orders: "2,000", price: "30K" },
-    { value: "professional", labelKey: "signup.plan.professional", orders: "10,000", price: "70K" },
-    { value: "enterprise", labelKey: "signup.plan.enterprise", orders: null, price: "100K" },
-];
+/** Every signup starts on the trial with this plan — chosen later in-app (S3-02a). */
+const DEFAULT_PLAN = "growth";
 
 function SignupForm() {
     const { t } = useLanguage();
@@ -36,7 +32,6 @@ function SignupForm() {
     const [businessName, setBusinessName] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [city, setCity] = useState("");
-    const [plan, setPlan] = useState("growth");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -63,7 +58,7 @@ function SignupForm() {
                     business_name: businessName.trim(),
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
-                    plan,
+                    plan: DEFAULT_PLAN,
                 }),
             });
 
@@ -268,35 +263,6 @@ function SignupForm() {
                                     className="w-full h-12 pl-10 pr-3 rounded-xl bg-white/80 border-2 border-transparent text-[#1E1E1E] placeholder:text-[#9A9A9A] focus:border-[#FBE38E] focus:bg-white focus:outline-none transition-all duration-200 text-sm"
                                 />
                             </div>
-                        </div>
-                    </motion.div>
-
-                    {/* Plan Selection */}
-                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 }}>
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">{t("signup.selectPlan")}</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {PLANS.map((p) => (
-                                <button
-                                    key={p.value}
-                                    type="button"
-                                    onClick={() => setPlan(p.value)}
-                                    className={`p-3 rounded-xl border-2 text-left transition-all ${
-                                        plan === p.value
-                                            ? "border-[#1E1E1E] bg-[#1E1E1E]/5"
-                                            : "border-transparent bg-white/80 hover:bg-white"
-                                    }`}
-                                >
-                                    <p className="text-sm font-semibold text-[#1E1E1E]">{t(p.labelKey)}</p>
-                                    <p className="text-xs text-[#6B6B6B]">
-                                        {p.orders
-                                            ? t("signup.plan.ordersPerMo").replace("{n}", p.orders)
-                                            : t("signup.plan.unlimited")}
-                                    </p>
-                                    <p className="text-xs font-medium text-[#1E1E1E] mt-0.5">
-                                        {t("signup.plan.pricePerMo").replace("{price}", p.price)}
-                                    </p>
-                                </button>
-                            ))}
                         </div>
                     </motion.div>
 
