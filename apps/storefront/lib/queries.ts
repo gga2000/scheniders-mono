@@ -2,7 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "./supabase/server";
 import type { Tables } from "@scheniders/supabase";
-import type { ProductReview, ProductAttributeDef } from "@scheniders/shared";
+import type { PriceTier, ProductReview, ProductAttributeDef } from "@scheniders/shared";
 import { parseProductAttributeDefs, resolveProductAttributes } from "@scheniders/shared";
 import type { Product, Category, ProductVariant } from "./types";
 
@@ -78,6 +78,155 @@ async function withReviewStats(
       avg_rating: acc.total / acc.count,
     };
   });
+}
+
+/**
+ * Quantity price breaks for a batch of products, in ONE extra query. Read on
+ * the PDP only — it is the one page that can offer a ladder — and purely for
+ * DISPLAY: the checkout server re-reads the tiers itself and never trusts a
+ * price sent from the browser. On a read error the products pass through
+ * without a ladder (logged, like `withReviewStats`); the shopper then sees the
+ * base price and the server's `price_changed` reply corrects it at submit.
+ */
+async function withPriceTiers(
+  supabase: PublicClient,
+  tenantId: string,
+  products: Product[],
+): Promise<Product[]> {
+  if (products.length === 0) return products;
+  const { data, error } = await supabase
+    .from("product_tiered_pricing")
+    .select("product_id, min_quantity, max_quantity, price")
+    .eq("tenant_id", tenantId)
+    .in(
+      "product_id",
+      products.map((p) => p.id),
+    )
+    .order("min_quantity", { ascending: true });
+
+  if (error) {
+    console.error("[queries.withPriceTiers]", error);
+    return products;
+  }
+  if (!data || data.length === 0) return products;
+
+  const byProduct = new Map<string, PriceTier[]>();
+  for (const t of data) {
+    const list = byProduct.get(t.product_id) ?? [];
+    list.push({
+      min_quantity: t.min_quantity,
+      max_quantity: t.max_quantity,
+      price: Number(t.price),
+    });
+    byProduct.set(t.product_id, list);
+  }
+  return products.map((p) => {
+    const tiers = byProduct.get(p.id);
+    return tiers ? { ...p, price_tiers: tiers } : p;
+  });
+}
+
+/**
+ * Mark the products that are sold by variant (at least one enabled
+ * `product_variants` row), in ONE extra query per batch. Surfaces that add a
+ * product to the cart WITHOUT a variant picker — grid quick-add, bundles, the
+ * order bump — read this to send the shopper to the product page instead,
+ * because the checkout refuses a variant-less line for such a product
+ * (apps/storefront/lib/variant-products). Display-only: on a read error the
+ * products pass through unmarked (logged), and the checkout still refuses.
+ */
+async function withVariantFlags(
+  supabase: PublicClient,
+  products: Product[],
+): Promise<Product[]> {
+  if (products.length === 0) return products;
+  const { data, error } = await supabase
+    .from("product_variants")
+    .select("product_id")
+    .in(
+      "product_id",
+      products.map((p) => p.id),
+    )
+    .not("is_enabled", "is", false);
+  if (error) {
+    console.error("[queries.withVariantFlags]", error);
+    return products;
+  }
+  const flagged = new Set((data ?? []).map((v) => v.product_id));
+  return products.map((p) => (flagged.has(p.id) ? { ...p, sold_by_variant: true } : p));
+}
+
+/** Columns the PDP renders a product from — the PDP product itself and the
+ *  add-on products its order bumps point at. */
+const PDP_PRODUCT_COLUMNS =
+  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank";
+
+/**
+ * Add-on offers attached to one product. PDP only, like tiers — and like
+ * tiers, for DISPLAY: the checkout server re-reads the offers and derives the
+ * discount itself. The offered products are resolved here rather than looked
+ * up in a page-level product list, which is capped and would silently drop an
+ * offer pointing below the cut. Only orderable products are offered — the
+ * same visible / active / not archived / not supply bar as the PDP itself —
+ * and they carry their own quantity tiers so the discount is applied to the
+ * same unit price the checkout derives.
+ */
+async function withOrderBumps(
+  supabase: PublicClient,
+  tenantId: string,
+  product: Product,
+): Promise<Product> {
+  const { data, error } = await supabase
+    .from("product_order_bumps")
+    .select("product_id, bump_product_id, discount_percentage, headline, description, is_active, display_order")
+    .eq("tenant_id", tenantId)
+    .eq("product_id", product.id)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    console.error("[queries.withOrderBumps]", error);
+    return product;
+  }
+  if (!data || data.length === 0) return product;
+
+  const bumpIds = [...new Set(data.map((b) => b.bump_product_id))];
+  const { data: bumpRows, error: bumpProductsErr } = await supabase
+    .from("products")
+    .select(PDP_PRODUCT_COLUMNS)
+    .in("id", bumpIds)
+    .eq("tenant_id", tenantId)
+    .eq("is_visible", true)
+    .eq("status", "active")
+    .eq("is_archived", false)
+    .not("is_supply", "is", true);
+  if (bumpProductsErr) {
+    console.error("[queries.withOrderBumps] products", bumpProductsErr);
+    return product;
+  }
+  // A bump adds one variant-less unit, so an add-on sold by variant is not
+  // offered as one.
+  const bumpProducts = await withPriceTiers(
+    supabase,
+    tenantId,
+    (await withVariantFlags(supabase, (bumpRows ?? []).map((r) => normalizeProduct(r)))).filter(
+      (p) => !p.sold_by_variant,
+    ),
+  );
+
+  return {
+    ...product,
+    order_bumps: data.map((b) => ({
+      product_id: b.product_id,
+      bump_product_id: b.bump_product_id,
+      discount_percentage: Number(b.discount_percentage),
+      headline: b.headline,
+      description: b.description,
+      is_active: b.is_active,
+      display_order: b.display_order,
+    })),
+    order_bump_products: bumpProducts,
+  };
 }
 
 /**
@@ -210,9 +359,9 @@ export const listProducts = cache(
         console.error("[queries.listProducts]", error);
         return [];
       }
-      const products = await withReviewStats(
+      const products = await withVariantFlags(
         supabase,
-        (data ?? []).map(normalizeProduct),
+        await withReviewStats(supabase, (data ?? []).map(normalizeProduct)),
       );
       return opts.withAttributes
         ? withAttributes(supabase, tenantId, products)
@@ -237,8 +386,7 @@ function decodeSlugParam(value: string): string {
 export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
     publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
-      const columns =
-        "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank";
+      const columns = PDP_PRODUCT_COLUMNS;
 
       // The dynamic route param can arrive still percent-encoded, so a non-ASCII
       // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
@@ -257,12 +405,17 @@ export const getProductBySlug = cache(
           .eq("is_archived", false)
           .not("is_supply", "is", true); // exclude supplies (packaging, etc.)
 
-      // The PDP is the one page that renders attributes today, so it is the
-      // only place that pays for the extra query. Grids stay lean until
-      // facet filtering needs them.
+      // The PDP is the one page that renders attributes, offers a quantity
+      // ladder or an add-on, so it is the only read that pays for those
+      // queries. Grids stay lean until facet filtering needs them.
       const withStats = async (row: Record<string, unknown>) => {
-        const withReviews = await withReviewStats(supabase, [normalizeProduct(row)]);
-        return (await withAttributes(supabase, tenantId, withReviews))[0] ?? null;
+        const withReviews = await withVariantFlags(
+          supabase,
+          await withReviewStats(supabase, [normalizeProduct(row)]),
+        );
+        const withAttrs = await withAttributes(supabase, tenantId, withReviews);
+        const withTiers = (await withPriceTiers(supabase, tenantId, withAttrs))[0] ?? null;
+        return withTiers ? withOrderBumps(supabase, tenantId, withTiers) : null;
       };
 
       const { data: bySlug } = await baseQuery().eq("slug", key).maybeSingle();
@@ -535,12 +688,15 @@ export const listProductsInCategory = cache(
 
         type Row = { products: Record<string, unknown> | null };
         const rows = (data ?? []) as Row[];
-        const products = await withReviewStats(
+        const products = await withVariantFlags(
           supabase,
-          rows
-            .map((r) => r.products)
-            .filter((p): p is Record<string, unknown> => p !== null)
-            .map(normalizeProduct),
+          await withReviewStats(
+            supabase,
+            rows
+              .map((r) => r.products)
+              .filter((p): p is Record<string, unknown> => p !== null)
+              .map(normalizeProduct),
+          ),
         );
         return opts.withAttributes
           ? withAttributes(supabase, tenantId, products)

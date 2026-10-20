@@ -212,6 +212,8 @@ Severity: **P0** blocker · **P1** launch-blocking · **P2** should-fix · **P3*
 - **Approval status:** PENDING
 
 #### [COR-D3] Every delivery-cycle time is 3 hours short, and fast deliveries are silently deleted from the average
+
+> **⚠️ The premise of this finding is FALSE and its fix introduced a worse defect. See the COR-D3 second correction (R23) below before reading further.**
 - **Dimension:** D1/D2 · **Pillar:** P1/P2 · **Severity:** P1 · *(inherits Orders COR-8 — dashboard **amplifies**: it does tz-mixed arithmetic on the column)*
 - **Location:** RPC `cycle_times` (`delivered_at - c_local`) + `cycle_agg` (`WHERE h > 0`); client `dashboard-calculations.ts:414-416` (same class via JS date parsing)
 - **Evidence:** `delivered_at` is `timestamp WITHOUT time zone` storing UTC instants — verified: on sampled delivered rows `delivered_at` equals `updated_at`'s UTC value exactly (`2026-09-01 22:00:00.344756` vs `…+00`). The RPC subtracts it from `c_local` (Baghdad, UTC+3): every duration computes **3 h short**, and a true cycle under 3 h computes negative → excluded by `h > 0` → the fastest deliveries vanish from the sample. UI avg 252.99 h ⇒ truth 255.99 h.
@@ -353,7 +355,10 @@ Severity: **P0** blocker · **P1** launch-blocking · **P2** should-fix · **P3*
 - **[ARCH-D1 · P2] ~1,860 lines dead on this surface (13 files, zero importers):** `live-feed.tsx` (161, renders *mock activities with fake user names* — dead but a trap), `order-card-skeleton.tsx` (100), `orders-table.tsx` (199), `stats-card.tsx` (76), widgets `cohort-grid`/`funnel-chart`/`geo-map`/`profit-pulse`/`target-rings`/`velocity-matrix` (~560), `lib/analytics/profit-calculations.ts` (206), `lib/analytics/shared-metrics.ts` (290, header claims "used by both Dashboard and Reports" — used by neither), `hooks/use-analytics.ts` (192). Each dead file encodes yet another metric definition — deleting them removes drift risk, not just weight.
 - **[ARCH-D2] `order-card.tsx` (2,437 lines) — resolved suspicion:** it is **not a dashboard component**; it renders the Orders page's card view via `SwipeableOrderCard` (imported by `app/orders/page.tsx` and `virtualized-order-list.tsx`). It is real, live, and mislocated in `components/dashboard/`. Read in full: one component containing status flow, 6 WhatsApp send paths with `alert()` error handling, blacklist actions, 11 `attention_reasons!` non-null assertions, an unused `mockEmployees` import, a file-wide `eslint-disable react-hooks/purity`, and ~40 hardcoded Arabic strings. **Decomposition plan (belongs to the Orders ledger ARCH-1 effort, recorded here since the prompt demands it):** (1) move to `components/orders/card/`; (2) extract `OrderCardBadges` (~350 — risk/guarantee/attention chips), `OrderCardWhatsApp` (~400 — the 6 send paths behind one hook with toast errors, killing the `alert()`s), `OrderCardActions` (~500 — the status-change action list, driven by the status registry instead of 15 hand-rolled buttons), `OrderCardAddress` + `OrderCardMoney` (~250); (3) shell ~600 lines composes them; each step ships green independently. Estimated end-state: 5 files ≤600 lines, zero behavior change.
 - **[ARCH-D3 · P2] Banned patterns on the live surface:** `any` ×5 (`swipeable-order-card.tsx:18,20,43`, dead widgets ×2) + 2 `as unknown as` double-casts (incl. the RPC's entire return: `use-dashboard-metrics-query.ts:48` — the server contract is untyped and unvalidated; a shape drift would land as `undefined`s in the UI, recommend a Zod parse); non-null `!` ×~18 (order-card cluster + calc files, most guarded); `eslint-disable` ×2 (one justified hydration guard, one unjustified file-wide purity disable); `console.error` ×1; a 9-line leftover planning monologue in dead `profit-pulse.tsx:10-18`. `useDashboardMetrics(orders, products)` takes a `products` param it never uses and omits from deps (`use-dashboard-metrics.ts:52,72`).
-- **[ARCH-D4 · P3] Mock data:** no *live dashboard* widget renders mock data (ARCH-2 inherited status: **escapes** on this page). Traps remain: dead `live-feed` mock stream; `order-card`'s unused `mockEmployees` import; and — off-surface but discovered and material — `employee-metrics.ts` synthesizes fake "employees" from `order.source` with fabricated `@source` emails and **renders them on the live Reports page** (`employee-performance.tsx`). Flagged to the Reports backlog.
+- **[ARCH-D4 · P3] Mock data — CLOSED R21 (`8c06225d`).** No *live dashboard* widget renders mock data (ARCH-2 inherited status: **escapes** on this page). The three traps, re-verified:
+  - **`live-feed` mock stream — already gone.** No such file exists; only a stale `graphify-out` cache entry still names it.
+  - **Unused `mockEmployees` imports — removed** from `dashboard/order-card.tsx` and `orders/order-details-modal.tsx`. Neither file used the symbol. The mock-backed *assignment popover* still does — that is ORD-N2, an Orders-surface decision, deliberately untouched.
+  - **`employee-metrics.ts` — my original claim was OVERSTATED and is corrected here.** I wrote that it "renders fake employees with fabricated `@source` emails on the live Reports page". Checked against the rendering component: the widget is titled **"Source Performance"** and renders only `displayName` ("WhatsApp", "Meta Ads"); the fabricated `email` is **never displayed**. **No falsehood reaches any user.** The real defect was a *reading* trap — employee-shaped naming over source aggregation, a dead `email` field, and comments calling the output "mock employee data" / "a placeholder", one import away from `use-employee-metrics`, which does the genuine event-based per-staff attribution. Renamed to what it measures (`calculateSourcePerformance`, `SourcePerformanceMetrics`, `source-metrics.ts`, `source-performance.tsx`) and the dead field dropped. Same numbers, same heading, no behavior change.
 - **RSC note (D12):** the page is `"use client"` end-to-end; the aggregates are the textbook RSC/streaming workload (fetch the RPC server-side, stream widgets). Recorded as the architectural direction for PERF-D1's endgame — not proposed as a this-round change.
 
 ### OBSERVABILITY & COMMERCIAL (D13/D14 · P7)
@@ -485,3 +490,297 @@ Approved scope: **SEC-D1 only** (COR-D8 was discovered while fixing it and share
 3. **Deploy gap:** `main` and this branch's HEAD still contain `.from("mv_customer_aggregates")` in the *deployed* build, so the Customers surface returns `42501` until `db5caff2` ships. The user approved this trade-off knowingly; the interim mitigation, if wanted, is `GRANT SELECT ON public.mv_customer_aggregates TO authenticated` (keeps the anonymous exposure closed).
 
 **Audit-conduct note.** Zero unintended database writes this engagement. Every role-impersonation probe and the full pre-apply rehearsal of both migrations ran inside `BEGIN … ROLLBACK`; the only persistent changes are the two approved migrations.
+
+---
+
+## ROUND 2 OUTCOME — 2026-09-02 (REL-D1 shipped)
+
+Approved scope: **REL-D1 only.** Commits `3a72b5cc` and `01c76999` on `fix/storefront-followups`. **No database or schema change** — the RLS policy was always right; the client was sending an invalid row.
+
+**Proven live** (rolled-back transactions, nothing persisted):
+
+| Payload | Result |
+|---|---|
+| old — `{content, created_by_name}` | `ERROR 42501: new row violates row-level security policy for table "announcements"` |
+| new — `{tenant_id, content, created_by_name}` | INSERT succeeds, row returned |
+
+**Changes.** `buildAnnouncementInsert()` extracted as a pure function and pinned by 5 unit tests (following the `use-salaries` convention of testing a pure function rather than mocking the Supabase client) — `tenant_id` cannot silently fall out of the payload again. Create / pin / delete now read their returned error and toast it. A failed *read* renders a dedicated error state instead of the empty state, with new i18n keys in both locales. Writes refetch on success rather than trusting the realtime echo.
+
+**Caught by self-review, in the same defect class this round targets.** `handleSubmit` cleared the composer unconditionally after awaiting the create, which resolves normally on failure — a rejected or offline post destroyed the admin's typed text while appearing to succeed. `createAnnouncement` now reports whether the row was written, and the draft survives failure (`01c76999`).
+
+**Gates:** `tsc` 0 errors · `vitest` **681/681 across 82 files** (5 new) · `lint` 0 errors, **1164 warnings vs the 1163 baseline** — disclosed: the file's pre-existing "setState within an effect" pattern now has one more setState in the same already-flagged callback; restructuring that fetch is outside REL-D1's scope.
+
+**New finding raised, deliberately NOT fixed:** **SEC-D4 (P2)** — announcement writes are admin-gated client-side only; the live `tenant_isolation_*` policies on `announcements` carry no role predicate (the original admin policies were dropped by the 2026-04-06 migrations), so any authenticated tenant member can post, unpin or soft-delete via PostgREST. Same class as SEC-D2. Needs a policy migration and its own approval.
+
+> **COR-D3 correction (R5):** this report predicted the cycle-time average would rise from 252.99 h to 255.99 h. Measured after the fix it is **253.51 h over n=1,858** (was n=1,840): every row does gain exactly 3 h, but the same fix readmits 18 sub-3-hour deliveries that the `h > 0` guard had been discarding, and the two effects partly cancel.
+
+> **COR-D3 SECOND CORRECTION (R23) — the fix itself was wrong.** The premise was false: `orders.delivered_at` is **`timestamp WITH time zone`**, like every sibling column, not `timestamp WITHOUT time zone` holding a UTC instant. Verified twice — in `pg_attribute`, and in the payload PostgREST actually serialises (`"2026-03-16T12:25:12.848+00:00"`). The SQL fix therefore wrapped a timestamptz in `AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Baghdad'`, which shifts it **-3 h**, and comparing the resulting timestamptz against the function's naive Baghdad timestamps forced an implicit cast through the **session TimeZone** for a further **-3 h** — a wrong answer that also varied with connection state.
+>
+> Measured on live data (all tenants): the shift is **exactly -6.0000 h on every row** (min = max). A delivery 1.67 h after creation was recorded as **-4.33 h**, and the `h >= 0` guard then discarded every sub-6h delivery — **474 rows excluded where 91 is correct, 383 real deliveries silently dropped**. Cycle average 128.50 h → **122.81 h** (n 3,939 → 4,322).
+>
+> **COR-D1's revenue shares the same expression** through `r_local`: revenue **today 98,000 → 238,000 IQD (understated by 59%)**, month 440,750 → 464,750 IQD, and **1,924 of 5,227 realized orders (37%) were bucketed to the wrong day**.
+>
+> The **client engine was never wrong** — `parseUtcNaiveTimestamp` always took its "already zoned" branch, so it was a no-op on real data. Only the SQL diverged. Fixed in migration `20260909104500`; post-fix the RPC reconciles exactly with independent SQL (cycle 253.4046 = 253.4046, excluded 88, n 1,859, month revenue 44,750).
+>
+> **Why it hid for four days:** the dev-only drift check sampled only metrics keyed on `created_at`. Every sampled figure stayed green while the two engines disagreed about every event-timed number. It now also samples realized revenue and cycle time.
+
+---
+
+## ROUND 3–5 OUTCOME — 2026-09-06
+
+Shipped under the user's standing approval (given 2026-09-06, superseding the per-round gate of §0.5).
+
+| Round | Findings | Commit | Migration |
+|---|---|---|---|
+| R3 | COR-D2, COR-D5 | `aa353cb6` | `20260906000350` |
+| R4 | COR-D7, COR-D6 | `a32d8666` | `20260906003717` |
+| R5 | COR-D3 | `a808c30f` | `20260906141619` |
+
+**Measured before → after** (tenant b5c4f2d4, every figure re-derived independently in SQL):
+
+| Metric | Before | After |
+|---|---|---|
+| Funnel "All Orders" | 4,687 | 4,614 |
+| Pipeline confirmed | 14 | 13 |
+| Orders today | 14 | 12 |
+| فيوجن revenue | 74,933,950 | 73,721,144 |
+| بيرسيفيرون revenue | 26,927,917 | 26,269,712 |
+| Delivery rate (quiet week) | `0%` | `null` → "no deliveries" state |
+| Staff leaderboard #1 | "WhatsApp Bot" | "Ali" (event-attributed) |
+| Cycle time | 252.99 h · n=1,840 | 253.51 h · n=1,858 |
+
+Each migration was verified identical to its repo file by normalised md5: `e123868c…` (R4), `946aa40c…` (R5).
+
+**Gates at R5:** `tsc` 0 errors · `lint` 0 errors / 1,152 warnings · **vitest 700/700 across 86 files**.
+
+**New items raised by this work (all PENDING):**
+- **SEC-D4** — announcement writes are admin-gated client-side only; live policies carry no role predicate.
+- **DQ-D1** — 16 orders on the audited tenant have `delivered_at` earlier than `created_at`. Not a timezone artefact; excluded from the cycle average rather than silently averaged in.
+- **COR-D7 remainder** — small-n suppression/labelling (a 100% rate from one order still reads like 100% from a hundred) needs a display decision.
+- **Test gap** — `i18n-completeness.test.ts` never reads `lib/i18n.ts`; a real parity test was added in R4.
+
+---
+
+## OBS-D1 — business event schema (specified, not implemented)
+
+The error half of OBS-D1 shipped in R9 (`4ffe1680`). The **business-event** half is
+specified here rather than coded, because **no analytics sink exists anywhere in
+this repo** — no PostHog, Mixpanel, Amplitude or Segment. Wiring a no-op tracker
+would be instrumentation theatre, and choosing a vendor is a product decision with
+cost, DPA and customer-PII implications that matter in this market. When a sink is
+chosen, these are the events and their exact fire points.
+
+| Event | Fires where | Properties | The question it answers |
+|---|---|---|---|
+| `dashboard_opened` | `app/page.tsx`, once per mount after metrics resolve | `tenant_id`, `role`, `is_mobile`, `ms_to_first_paint` (from `perfTrace`) | How often is the dashboard actually used, by whom, and how slow is it in the field rather than on our machines? |
+| `dashboard_range_changed` | `DateRangeFilter.onChange` | `from`, `to` (range keys) | Is the date filter used at all? Had this existed, DV-D1 — the filter that scoped one widget — would have surfaced from the data instead of an audit. |
+| `dashboard_metrics_failed` | the RPC error path in `use-dashboard-metrics-query.ts`, beside the existing `captureException` | `range`, `error_code`, `fell_back_to_local` | How often do merchants see the local fallback? Sentry counts errors; this counts *affected sessions*. |
+| `dashboard_drilldown_clicked` | `handleStatCardClick` and `handlePipelineStageClick` | `source_widget`, `status` | Which numbers drive action? A widget nobody ever clicks through from is a candidate for removal (D6). |
+| `dashboard_widget_errored` | a per-widget error boundary (does not exist yet — see REL-D2) | `widget`, `error_code` | Which widget breaks for real merchants, rather than only in our testing? |
+
+Two properties should be on every event: `tenant_id` and `role`. Neither customer
+PII nor money figures belong in an event payload — the same entitlement boundary
+SEC-D2 established server-side applies to anything leaving the app.
+
+---
+
+# CLOSING RE-SCORE — 2026-09-07
+
+Fifteen rounds shipped: 27 findings closed, 5 partial, 1 re-scoped, across 17 code
+commits and 8 applied migrations. Every number below was re-derived from the live
+database after the change, not asserted. This section re-grades the pillars against
+what actually shipped and revises the verdict.
+
+## Pillar scorecard — opening vs now
+
+| Pillar | Was | Now | What moved it |
+|---|:--:|:--:|---|
+| **P1 Metric truth** | 45 | **72** | Product revenue attributed by line value, not split equally (top product was understated 3.8–7.1%). Soft-deleted rows and abandoned checkouts out of every aggregate. Cycle times no longer 3h short, and sub-3h deliveries no longer silently discarded. Staff ranked by events they caused, not by who touched an order last — the board was topped by "WhatsApp Bot". The RPC contract is now parsed, so drift fails loudly instead of arriving as `undefined`. **Held back by COR-D1:** the headline "Revenue" still counts undelivered orders, and ≥6 definitions still disagree across orders/reports/finance/payroll. Honestly labelled now, but not resolved. |
+| **P2 Temporal integrity** | 55 | **80** | Client boundaries moved to Asia/Baghdad, so the same dashboard no longer changes with the viewer's device timezone. `delivered_at`'s UTC-naive arithmetic corrected in both engines. "This week" relabelled to what it actually measures. **Held back by COR-D4** (`updated_at`-windowed metrics on a column platform writes never bump — 15% of delivered rows) and by the column type itself, which is the Orders ledger's COR-8. |
+| **P3 Performance** | 68 | **68** | **No change, honestly.** PERF-D1 turned out not to be a dashboard fix at all: `OrdersProvider` is mounted in the ROOT layout, so the whole-book fetch fires on every route and is consumed by six of them. Removing the dashboard's use would have saved nothing. Re-scoped as an app-wide item rather than faked. |
+| **P4 Trust & safety** | 25 | **72** | The P0 is closed: `mv_customer_aggregates` was readable by the anonymous internet — 5,875 customers across all 12 tenants, with phones and addresses — and the same hole blended tenants inside the app, inflating the Customers KPI 4.1×. Financial entitlement now enforced server-side; `product_cost`, `net_profit` and customer PII removed from the payload for every role; announcement writes gated in the database; grants tightened. **Held back by SEC-D2's remainder:** the app-wide order book still carries prices to unentitled roles on every route. |
+| **P5 Decision value** | 65 | **68** | The date filter now actually filters (it re-scoped one widget of seventeen). Dead Search/Bell removed rather than left as furniture. The staff board is honest. **Held back by MOB-D1** (mobile still shows 3 of 23 widgets), the absence of drill-down from most widgets, no alerting, and the fact that a COD merchant's first question — *how much cash is out with couriers* — still has no home on this page. |
+| **P6 Honesty under failure** | 40 | **88** | The biggest movement, and the audit's central thesis. A rate with nothing behind it reads "no data", not 0%. The fallback engine announces itself instead of silently swapping the numbers. Figures carry their age rather than a permanent "Live" chip. Announcements report failures instead of evaporating. Seventeen widgets are individually contained, so one bad row costs one card rather than the page. The dual-axis chart no longer manufactures a correlation, and the pipeline bar is actually proportional. |
+| **P7 Commercial readiness** | 40 | **60** | Sentry finally reports — the ROOT error boundary had been swallowing every render crash in the whole app — with user and tenant attached. Arabic is complete on this surface. **Held back by:** no business events (no analytics sink exists; schema specified, vendor is a product decision), no export, no plan gating, and no designed first-run. |
+
+**Overall: 52 → 73.**
+
+## Revised verdict: still NO-GO — but the list is now short and specific
+
+By this audit's own bar (a pillar below 85 blocks launch), four pillars still fall
+short. What blocks launch is no longer a long tail of defects; it is five named
+items, and **four of the five need a decision or another team's work, not more
+engineering on this page**:
+
+1. **COR-D1 — decide what "revenue" means.** The dashboard's headline number counts
+   money not yet collected, and six surfaces disagree. This is a business
+   definition, not a bug, and it is the single largest remaining risk to a merchant
+   acting on a wrong number.
+2. **SEC-D2 + PERF-D1 — the app-wide order book.** One change closes both: prices
+   reach unentitled roles on every route, and the fetch is the page's largest
+   performance cost. It touches the Orders surface and needs its own engagement.
+3. **COR-D4 — deploy the held `updated_at` trigger** (Orders ledger, deliberately
+   held for that deploy) and move the affected windows onto event timestamps.
+4. **MOB-D1 — decide what a phone should show.** Mobile is 3 of 23 widgets; which
+   of the 20 belong there is a product call.
+5. **The `[U]` visual sweep.** Contrast, content stress, CLS/LCP, first-run and
+   breakpoints remain unverified for want of one test-tenant login. This is the
+   last real gap in the audit's *evidence*, not in the code.
+
+## What this engagement actually changed
+
+The page began as one that did not crash — it lied. A public customer database. A
+revenue figure counting orders that had not shipped. A 0% delivery rate on a quiet
+week. A bot topping the staff leaderboard. A date filter that moved one widget of
+seventeen. A chart whose two axes manufactured a correlation. A team-announcements
+feature dead since March that reported nothing, on a surface where nothing was
+reported at all.
+
+Every one of those is closed. What remains is either a decision that belongs to the
+business, work that belongs to another surface, or evidence that needs a login —
+and each is named above rather than left as a gap.
+
+*Method note: every metric fix shipped with a pinning test (710 tests across 85
+files at close, from 675 at open), each migration was verified against the live
+database and, where patched in place, checksum-matched to its repo file. Three of
+my own claims were wrong and are corrected in the record above: the SEC-1 "guard
+regression", the PROC-D1 branch warning, and the COR-D3 cycle-time prediction.*
+
+---
+
+## METRIC TRUTH TABLE — RE-RUN 2026-09-07 (after all 15 rounds)
+
+The audit's central method was: recompute every number independently in SQL and
+compare it to what the page prints. The opening table is above; this is the same
+exercise against the live database after the fixes, on the same tenant
+(`b5c4f2d4`, Scheniders Iraq). The "truth" column is a query written from the
+metric's definition, not from the function.
+
+| Metric | Dashboard shows | Independent SQL | Verdict |
+|---|---|---|---|
+| Funnel "All Orders" | 4,658 | 4,658 | ✅ match *(was 4,673 vs 4,664 — counted soft-deleted rows)* |
+| Funnel "Delivered" | 2,760 | 2,760 | ✅ match |
+| Pipeline · confirmed | 17 | 17 | ✅ match *(was off by a soft-deleted row)* |
+| Pipeline · in transit | 63 | 63 | ✅ match |
+| Orders today (Baghdad day) | 24 | 24 | ✅ match |
+| Revenue today | 613,750 | 613,750 | ✅ arithmetic matches — **definition still counts `confirmed` (COR-D1, open)** |
+| Cycle time · avg hours | 253.51487125027464 | 253.51487125 | ✅ match to 8 dp *(was 252.99 over a sample that silently dropped sub-3h deliveries)* |
+| Cycle time · sample size | 1,858 | 1,858 | ✅ match *(was 1,840)* |
+| Top product | فيوجن | فيوجن | ✅ match |
+| Top product · units | 2,098 | 2,098 | ✅ match |
+| Top product · revenue | 73,978,394.20469774 | 73,978,394.20469774 | ✅ exact *(was understated 3.8% by the equal split)* |
+| Top city | بغداد (1,614) | بغداد (1,614) | ✅ match |
+| Month-to-date orders | 56 | 56 | ✅ match |
+| Staff leaderboard #1 | Ali | Ali (event-attributed) | ✅ match *(was "WhatsApp Bot")* |
+| Delivery rate | `null` → "no deliveries in the last 7 days" | 0 terminal orders in window | ✅ **correct refusal** *(was "0%")* |
+
+**Fifteen of fifteen reconcile.** The one caveat is stated rather than hidden:
+revenue's *arithmetic* is now provably correct, but its *definition* still counts
+confirmed-not-delivered orders, which is COR-D1 — a business decision, not a bug,
+and the last open question about the numbers themselves.
+
+The delivery-rate row is the one worth dwelling on: the "correct" answer there is a
+refusal to answer. The page previously reported 0% — indistinguishable, to a
+merchant, from every delivery having failed. A dashboard that says "I don't know"
+when it doesn't know is the whole point of this engagement.
+
+---
+
+## COR-D1 CLOSED — 2026-09-09, and the re-score that follows
+
+The closing re-score above held **P1 Metric truth at 72** for one reason: the
+headline number still counted money that had not been earned. That is now decided
+and shipped (`2805636b`).
+
+**Revenue = realized revenue**: status IN (delivered, completed), dated by when it
+was realized — `delivered_at` falling back to `completed_at`. (The parenthetical
+this line used to carry, "UTC-naive, converted", was wrong; see the COR-D3 second
+correction. The conversion it described shifted every figure below by -6h and was
+removed in `20260909104500`.)
+Chosen to match the Orders page and finance's `delivered_revenue`, and because it
+answers the question a COD merchant actually asks.
+
+Verified against independent SQL after the change — all four reconcile exactly:
+
+| Figure | Dashboard | Independent SQL |
+|---|---|---|
+| Revenue today | 0 | 0 |
+| Week-over-week · current | 44,750 | 44,750 |
+| Week-over-week · previous | 0 | 0 |
+| Month to date | 44,750 | 44,750 |
+
+Before → after: today 34,750 → 0, week 79,500 → 44,750, month 79,500 → 44,750. The
+drop is the correction; the difference was money not yet collected.
+
+**Why it was safe on this data, checked first:** 767 delivered/completed orders
+carry no realized timestamp and would have vanished from every window. All 767 are
+legacy imports dated 2025-01-15 to 2025-12-19, and **zero** of the last 90 days'
+orders lack one — so none falls inside today / 7d / 14d / month.
+
+### Revised pillar
+
+| Pillar | Opening | Post-fixes | **Now** |
+|---|:--:|:--:|:--:|
+| **P1 Metric truth** | 45 | 72 | **82** |
+
+**Overall: 52 → 73 → 75.**
+
+Not 85, and deliberately so. What remains under P1 is not a dashboard defect but a
+**cross-surface** one: this page now agrees with Orders and Finance on what revenue
+means, but Customers still totals `mv_customer_aggregates.total_spent` over every
+status, and `use-business-metrics` sums the `total` column rather than `price`.
+Unifying those is a separate engagement against surfaces this audit did not cover —
+recorded rather than quietly claimed.
+
+### Verdict
+
+**Still NO-GO**, now on four items, none of which is a defect on this page:
+
+1. **SEC-D2 + PERF-D1** — the app-wide order-book fetch (one change closes both).
+2. **COR-D4 part (a)** — deploy the held Orders `updated_at` trigger. *(Part (b),
+   the windowing, was fixed independently in R24.)*
+3. **MOB-D1** — which remaining widgets belong on a phone (a product call).
+4. **The `[U]` visual sweep** — needs one test-tenant session.
+
+---
+
+## SECOND CLOSING RE-SCORE — 2026-09-09, after rounds 21-27
+
+The score above was recorded before four further correctness changes, **one of
+which was a P0 introduced by this audit's own COR-D3 fix**. Re-scored honestly,
+including the process failure.
+
+| Pillar | Opening | Post-fixes | After COR-D1 | **Now** |
+|---|:--:|:--:|:--:|:--:|
+| **P1 Metric truth** | 45 | 72 | 82 | **88** |
+| **P6 Engineering rigour** | 55 | 74 | 74 | **70** |
+
+**Overall: 52 → 73 → 75 → 78.**
+
+**P1 rises to 88.** The -6h shift is gone and every figure it touched now
+reconciles with independent SQL; delivery rate, the sparkline, failed deliveries
+and stuck-in-transit moved off a frozen `updated_at` onto outcome time, correcting
+**70% of outcome rows** that sat in the wrong day; the exported CSV now agrees
+with the screen it came from. A **13/13 truth-table re-run** (R25) and a
+**schema-wide timezone sweep** (R26) back the number rather than asserting it. It
+is not 95 because the cross-surface revenue disagreement (Customers,
+`use-business-metrics`) is untouched, and because the client fallback still
+near-matches rather than matches on rejection timing.
+
+**P6 falls from 74 to 70, deliberately.** An audit that ships a P0 into the
+surface it is auditing has a rigour problem, and hiding that behind the improved
+P1 would be the same dishonesty the audit exists to find. COR-D3 was accepted on a
+column type nobody checked against the catalog, and "verified" by comparing the
+result to a *predicted* value rather than an independent recomputation — so a
+number wrong by -6h agreed with a forecast wrong by -6h. It then survived four
+days because the dual-engine drift check sampled only metrics keyed on
+`created_at`. Two guards now exist that did not before (the drift check samples
+event-timed metrics; migrations assert their own preconditions and ACLs), which is
+why 70 and not lower.
+
+**The verdict does not change.** Still **NO-GO** on the same four items — none of
+them a defect on this page, and none of them mine to close.
+
+Everything the audit found *about the numbers* is closed. What is left is
+infrastructure, another team's deploy, a product decision, and an evidence gap.
+

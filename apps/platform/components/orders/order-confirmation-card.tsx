@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { formatPhoneGrouped } from "@/lib/order-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { captureAndDownload, captureAsBlob, shareImage, copyImageToClipboard } from "@/lib/screenshot";
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
@@ -189,7 +190,7 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
                         <div className="bg-white/70 rounded-2xl p-4 mb-4 shadow-sm">
                             <p className="text-sm font-bold text-foreground mb-3">{t("orders.confirm.products")}</p>
                             <div className="space-y-2">
-                                {order.items.map((item: any, idx) => (
+                                {mergeOrderItems(order.items).map((item, idx) => (
                                     <div key={idx} className="flex items-center justify-between text-sm">
                                         <span className="text-foreground">{item.name}</span>
                                         <div className="flex items-center gap-3">

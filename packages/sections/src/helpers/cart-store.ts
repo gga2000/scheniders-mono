@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { CartItem } from "@scheniders/shared";
+import { priceOrderLines } from "@scheniders/shared";
 
 interface CartState {
   items: CartItem[];
@@ -22,6 +23,37 @@ interface CartState {
   clearCart: () => void;
   getTotal: () => number;
   getItemCount: () => number;
+}
+
+/**
+ * Re-apply the line's own quantity ladder for a new quantity, through the
+ * same `priceOrderLines` the checkout server prices with. The cart
+ * presents no order bumps, so it passes none: an add-on put in the cart on
+ * its own is shown, and charged, its full price.
+ *
+ * Always computed from `base_price`, so calling it repeatedly is safe. A line
+ * with no `base_price` — one persisted before that field existed — keeps the
+ * price it has: there is nothing to recompute from, and guessing would be
+ * worse than leaving a stale line for the server to correct.
+ */
+function repriced(item: CartItem, quantity: number): CartItem {
+  if (typeof item.base_price !== "number") return { ...item, quantity };
+  return {
+    ...item,
+    quantity,
+    price: priceOrderLines(
+      [
+        {
+          productId: item.product_id,
+          basePrice: item.base_price,
+          quantity,
+          shownPrice: item.base_price,
+          tiers: item.price_tiers,
+        },
+      ],
+      null,
+    )[0],
+  };
 }
 
 /**
@@ -86,9 +118,12 @@ export const useCart = create<CartState>()(
             (i) => i.product_id === item.product_id && i.variant_id === item.variant_id,
           );
           if (existing) {
+            // Adding more of something already in the cart can cross a
+            // quantity break, so the line is repriced at its new total rather
+            // than keeping the price the first unit was added at.
             return {
               items: state.items.map((i) =>
-                i === existing ? { ...i, quantity: i.quantity + item.quantity } : i,
+                i === existing ? repriced(i, i.quantity + item.quantity) : i,
               ),
             };
           }
@@ -105,7 +140,7 @@ export const useCart = create<CartState>()(
           items: state.items
             .map((i) =>
               i.product_id === productId && i.variant_id === variantId
-                ? { ...i, quantity: Math.max(0, qty) }
+                ? repriced(i, Math.max(0, qty))
                 : i,
             )
             .filter((i) => i.quantity > 0),

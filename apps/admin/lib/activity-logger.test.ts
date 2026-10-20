@@ -75,6 +75,25 @@ describe("logAdminActivity", () => {
     expect(row.admin_label).toBe("system");
   });
 
+  it("does not label a real admin actor as 'system'", async () => {
+    // The Activity page shows admin_label before actor_email, so a "system"
+    // fallback here would hide the admin who paused/unpaused/impersonated.
+    await logAdminActivity({
+      adminUserId: UUID,
+      actorEmail: "admin@example.com",
+      action: "pause_tenant",
+    });
+    const row = inserted[0] as Record<string, unknown>;
+
+    expect(row.admin_label).toBeNull();
+    expect(row.actor_email).toBe("admin@example.com");
+  });
+
+  it("keeps an explicit adminLabel", async () => {
+    await logAdminActivity({ adminUserId: UUID, adminLabel: "Ali", action: "pause_tenant" });
+    expect((inserted[0] as Record<string, unknown>).admin_label).toBe("Ali");
+  });
+
   it("defaults details to an object and the nullable columns to null", async () => {
     await logAdminActivity({ adminUserId: null, action: "noop" });
     const row = inserted[0] as Record<string, unknown>;

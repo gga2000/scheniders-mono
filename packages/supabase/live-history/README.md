@@ -23,6 +23,11 @@ nothing to disk. As of 2026-10-19:
   `20260907141602`, `20260907141759`.
 - `20261011090000_stage0_security_lockdown` has an empty body in the history
   table. Its SQL lives only in `../migrations/`.
+- `20260912223458_backfill_automation_followup_attribution` was run through
+  `execute_sql` on 2026-09-12 and recorded here on 2026-10-20 with
+  `supabase migration repair --status applied`, without being executed again.
+  Its version is the time it ran. It was authored as `20260913110000`, but main
+  had already given that version to `notification_settings_locale`.
 
 When the two disagree, the file here is what production ran.
 

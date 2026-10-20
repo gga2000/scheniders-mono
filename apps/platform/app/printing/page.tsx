@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 export default function PrintingPage() {
     const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
@@ -979,10 +980,10 @@ export default function PrintingPage() {
                                                     {/* Items as Text */}
                                                     <div className="flex-1 min-w-0 hidden md:flex items-center gap-2">
                                                         <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-purple-500 text-white font-bold text-[10px]">
-                                                            {order.items?.length || 0}
+                                                            {mergeOrderItems(order.items).length}
                                                         </span>
                                                         <span className="text-sm text-foreground/70 truncate">
-                                                            {order.items?.map(item => `${item.name} ×${item.quantity}`).join(', ')}
+                                                            {mergeOrderItems(order.items).map(item => `${item.name} ×${item.quantity}`).join(', ')}
                                                         </span>
                                                     </div>
 

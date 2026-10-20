@@ -137,9 +137,11 @@ function CtaBannerRender({
             "relative z-10 p-bk-xl sm:p-bk-2xl flex flex-col gap-bk-sm " + alignClass
           }
           style={{
-            color: props.background_image_url
-              ? "white"
-              : props.tone === "invert"
+            // Over a photo the text sits on the bg-bk-ink/40 scrim above, so
+            // it takes ink's partner, the page surface — literal white turns
+            // into white-on-light on a dark kit, where ink is the light colour.
+            color:
+              props.background_image_url || props.tone === "invert"
                 ? "var(--bk-surface, #ffffff)"
                 : undefined,
           }}

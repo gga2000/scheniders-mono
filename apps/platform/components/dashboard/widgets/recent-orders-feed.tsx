@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { RecentOrderDisplayRow } from "@/lib/analytics/dashboard-metrics-schema";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { Activity } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
@@ -83,7 +84,7 @@ export function RecentOrdersFeed({ orders, updatedAt, onOrderClick }: RecentOrde
             <div className="flex-1 overflow-y-auto space-y-1 -mx-1 px-1">
                 {orders.map((order) => {
                     const style = STATUS_STYLES[order.status] ?? { label: order.status, bg: 'bg-gray-100', text: 'text-gray-600' };
-                    const items = order.items ?? [];
+                    const items = mergeOrderItems(order.items);
                     const firstItem = items[0];
                     const productName = firstItem
                         ? firstItem.name + (items.length > 1 ? ` +${items.length - 1}` : '')

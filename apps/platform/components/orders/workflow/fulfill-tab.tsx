@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 interface FulfillTabProps {
     orders: Order[];
@@ -33,11 +34,11 @@ export function FulfillTab({
         if (packedState[order.id]) {
             return packedState[order.id];
         }
-        return order.items?.map(item => ({
+        return mergeOrderItems(order.items).map(item => ({
             name: item.name,
             quantity: item.quantity,
             packed: false,
-        })) || [];
+        }));
     };
 
     const toggleItemPacked = (orderId: string, itemIndex: number) => {
@@ -117,7 +118,7 @@ export function FulfillTab({
                     ${order.secondary_phone ? `<div class="info"><strong>Phone 2:</strong> ${formatPhoneForDisplay(order.secondary_phone)}</div>` : ''}
                     <div class="info"><strong>City:</strong> ${order.city || 'N/A'}</div>
                     <div class="info" style="margin-top:12px;"><strong>Items:</strong></div>
-                    ${order.items?.map(i => `<div class="info">• ${i.name} ×${i.quantity}</div>`).join('') || 'N/A'}
+                    ${mergeOrderItems(order.items).map(i => `<div class="info">• ${i.name} ×${i.quantity}</div>`).join('') || 'N/A'}
                     <div class="barcode">${getBaseOrderId(order.order_id)}</div>
                 </div>
             </body>

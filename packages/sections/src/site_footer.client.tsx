@@ -503,7 +503,7 @@ export function SiteFooterRender({
               className="[--bm-ink:var(--bk-surface,#ffffff)] [--bm-mark-border:var(--bk-surface,#ffffff)]"
             />
             {tagline && (
-              <p className="font-body text-sm text-white/70 max-w-xs">{tagline}</p>
+              <p className="font-body text-sm text-bk-surface/70 max-w-xs">{tagline}</p>
             )}
             {props.show_cod_badge && (
               <TrustPill icon={<MaterialIcon name="payments" className="text-lg" />} bg="mint">
@@ -535,7 +535,7 @@ export function SiteFooterRender({
                   <li key={`${l.href}-ci${ci}`}>
                     <StoreLink
                       href={l.href}
-                      className="inline-flex min-h-11 items-center font-body text-sm text-white/75 transition-colors duration-bk-fast motion-reduce:transition-none hover:text-white hover:underline underline-offset-4 active:opacity-60"
+                      className="inline-flex min-h-11 items-center font-body text-sm text-bk-surface/75 transition-colors duration-bk-fast motion-reduce:transition-none hover:text-bk-surface hover:underline underline-offset-4 active:opacity-60"
                     >
                       {resolveI18n(l.label_i18n, locale)}
                     </StoreLink>
@@ -546,11 +546,11 @@ export function SiteFooterRender({
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col gap-2 border-t border-white/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-body text-xs text-white/60">
+        <div className="mt-10 flex flex-col gap-2 border-t border-bk-surface/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-body text-xs text-bk-surface/60">
             © {year} {name}
           </p>
-          <p className="font-label font-bold text-[11px] bk-caps tracking-[0.2em] text-white/60">
+          <p className="font-label font-bold text-[11px] bk-caps tracking-[0.2em] text-bk-surface/60">
             {chromeString("made_in_iraq", locale)}
           </p>
         </div>

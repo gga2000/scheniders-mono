@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 // =============================================
 // TYPES
@@ -138,7 +139,7 @@ class CustomerDataExportService {
             orderId: o.order_id,
             createdAt: o.created_at,
             status: o.status,
-            items: (o.items || []).map((item: { name: string; quantity: number; price: number }) => ({
+            items: mergeOrderItems<{ name: string; quantity: number; price: number }>(o.items || []).map((item) => ({
                 name: item.name,
                 quantity: item.quantity,
                 price: item.price,

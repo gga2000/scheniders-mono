@@ -25,9 +25,90 @@ vi.stubGlobal("sessionStorage", {
     clear: () => store.clear(),
 });
 
-import { readSwrCache, writeSwrCache } from "./use-orders-query";
+const H = vi.hoisted(() => ({ report: vi.fn() }));
+vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: H.report }));
 
-beforeEach(() => store.clear());
+import { perfTrace } from "@/lib/perf-trace";
+import { SWR_MAX_CHARS, SWR_MAX_ROWS, readSwrCache, writeSwrCache } from "./use-orders-query";
+
+beforeEach(() => {
+    store.clear();
+    H.report.mockReset();
+    vi.restoreAllMocks();
+});
+
+const MARK_KEY = "schneiders_orders_swr_mark";
+const rowsOf = (n: number, pad = 0) =>
+    Array.from({ length: n }, (_, i) => ({ id: `o${i}`, notes: "x".repeat(pad) })) as unknown as Rows;
+
+describe("orders SWR cache size bound", () => {
+    it(`skips a result over ${SWR_MAX_ROWS} rows before serializing it, and keeps the existing snapshot`, () => {
+        writeSwrCache(rowsOf(3), "today-key", "2026-10-19T08:00:00.000Z");
+        const before = new Map(store);
+        const time = vi.spyOn(perfTrace, "time");
+        const setItem = vi.spyOn(sessionStorage, "setItem");
+
+        writeSwrCache(rowsOf(SWR_MAX_ROWS + 1), "all");
+        expect(time).not.toHaveBeenCalled();
+        expect(setItem).not.toHaveBeenCalled();
+        expect(new Map(store)).toEqual(before);
+        expect(readSwrCache("today-key")?.orders).toHaveLength(3);
+        expect(H.report).not.toHaveBeenCalled();
+    });
+
+    it(`skips a result over ${SWR_MAX_CHARS.toLocaleString()} chars, and keeps the existing snapshot`, () => {
+        writeSwrCache(rowsOf(3), "today-key");
+        const before = new Map(store);
+        // 600 rows (under the row cap) of ~2.6K chars each.
+        writeSwrCache(rowsOf(600, 2_600), "all");
+        expect(new Map(store)).toEqual(before);
+    });
+
+    it("stores up to the row cap", () => {
+        writeSwrCache(rowsOf(SWR_MAX_ROWS), "all");
+        expect(readSwrCache("all")?.orders).toHaveLength(SWR_MAX_ROWS);
+    });
+});
+
+describe("orders SWR cache errors are reported, not swallowed", () => {
+    it("a quota error clears every key and is reported once per page load", () => {
+        writeSwrCache(rowsOf(2), "all", "2026-10-19T08:00:00.000Z");
+        const quota = new DOMException("full", "QuotaExceededError");
+        vi.spyOn(sessionStorage, "setItem").mockImplementation(() => { throw quota; });
+
+        writeSwrCache(rowsOf(2), "all");
+        writeSwrCache(rowsOf(2), "all");
+        expect([...store.keys()]).toEqual([]);
+        expect(H.report).toHaveBeenCalledTimes(1);
+        expect(H.report).toHaveBeenCalledWith(quota, expect.objectContaining({ operation: "orders-swr-write", extra: { rows: 2, chars: expect.any(Number) } }));
+    });
+
+    it("any other write error is reported every time", () => {
+        vi.spyOn(sessionStorage, "setItem").mockImplementation(() => { throw new Error("weird"); });
+        writeSwrCache(rowsOf(2), "all");
+        writeSwrCache(rowsOf(2), "all");
+        expect(H.report).toHaveBeenCalledTimes(2);
+    });
+
+    it("corrupt JSON is reported, cleared and read as nothing", () => {
+        sessionStorage.setItem(CACHE_KEY, "{not json");
+        sessionStorage.setItem(TS_KEY, String(Date.now()));
+        sessionStorage.setItem(WINDOW_KEY, "all");
+        expect(readSwrCache("all")).toBeNull();
+        expect(H.report).toHaveBeenCalledWith(expect.any(SyntaxError), expect.objectContaining({ operation: "orders-swr-read" }));
+        expect(sessionStorage.getItem(CACHE_KEY)).toBeNull();
+    });
+});
+
+describe("orders SWR cache watermark", () => {
+    it("stores the fetch-start mark with the snapshot and reads it back", () => {
+        writeSwrCache(rowsOf(2), "all", "2026-10-19T08:00:00.000Z");
+        expect(readSwrCache("all")?.mark).toBe("2026-10-19T08:00:00.000Z");
+        writeSwrCache(rowsOf(2), "all");
+        expect(sessionStorage.getItem(MARK_KEY)).toBeNull();
+        expect(readSwrCache("all")?.mark).toBeNull();
+    });
+});
 
 describe("orders SWR cache", () => {
     it("does not persist an empty result", () => {

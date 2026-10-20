@@ -3,10 +3,17 @@
 import {
   computeDeliveryFee,
   computeDiscount,
+  stackDiscounts,
   computeBundleDiscounts,
-  computePointsEarned,
   computePointsRedemption,
+  computeReferralDiscount,
+  normalizeReferralCode,
   normalizeIraqiMobile,
+  priceOrderLines,
+  resolveFreeGift,
+  qualifiesForFreeGift,
+  type PriceTier,
+  type OrderBumpOffer,
 } from "@scheniders/shared";
 import type {
   StoreConfigV2,
@@ -15,6 +22,9 @@ import type {
 } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
+import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
+import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
+import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
 
 interface CheckoutItem {
   product_id: string;
@@ -35,6 +45,8 @@ interface SubmitCheckoutPayload {
   purchaseEventId?: string;
   /** Loyalty: points the customer chose to redeem (server re-validates). */
   redeemPoints?: number;
+  /** Referral: a friend's code; eligibility + amount are re-resolved here. */
+  referralCode?: string;
   customer: {
     customer_name: string;
     phone: string;
@@ -73,6 +85,36 @@ interface SubmitCheckoutResult {
   discount?: { code: string; amount: number };
   /** EC24: populated on a validation failure so the client can self-heal. */
   issues?: CheckoutIssue[];
+  /** Proof that the receiving browser placed this order, for the thank-you
+   *  page's post-purchase offer (see lib/order-upsell-proof). Only the
+   *  response that created the order carries it. */
+  upsellToken?: string;
+}
+
+/** The answer for an order this idempotency key already placed: what was
+ *  recorded, with none of a new order's side effects. */
+function replayResult(row: {
+  id: string;
+  order_id: string | null;
+  price: number | null;
+  discount_amount: number | null;
+  delivery_fee: number | null;
+}): SubmitCheckoutResult {
+  const price = Number(row.price) || 0;
+  const discount = stackDiscounts(price, [Number(row.discount_amount) || 0]).total;
+  return {
+    success: true,
+    orderId: row.id,
+    orderNumber: row.order_id ?? undefined,
+    total: price - discount + (Number(row.delivery_fee) || 0),
+  };
+}
+
+/** create_order_atomic flags a replay once migration
+ *  20261017120000_create_order_atomic_reports_idempotent_replay is applied;
+ *  before that the key is simply absent. */
+function isReplayRow(row: Record<string, unknown> | null): boolean {
+  return row?.idempotent_replay === true;
 }
 
 /**
@@ -113,45 +155,34 @@ export async function submitCheckout(
     return { success: false, error: "المتجر غير متاح" };
   }
 
-  const tenant = tenantRaw as unknown as {
+  const tenant = tenantRaw as unknown as TenantOrderGateRow & {
     id: string;
-    status: string;
-    restrictions: {
-      paused_until?: string | null;
-      reason?: string | null;
-      blocks?: { new_orders?: boolean };
-    } | null;
     store_config_v2: StoreConfigV2 | null;
   };
 
-  if (
-    tenant.status !== "active" &&
-    tenant.status !== "trial" &&
-    tenant.status !== "limited"
-  ) {
-    return { success: false, error: "المتجر غير نشط حالياً" };
+  // Inactive, or paused by an admin with new orders blocked.
+  const blocked = tenantOrderBlock(tenant);
+  if (blocked) {
+    return { success: false, error: blocked };
   }
 
-  // Tenant pause guard — when admin paused the merchant with new_orders blocked,
-  // refuse the checkout. An expired pause window is treated as inactive.
-  if (tenant.status === "limited") {
-    const restrictions = tenant.restrictions ?? null;
-    const pausedUntil = restrictions?.paused_until
-      ? Date.parse(restrictions.paused_until)
-      : null;
-    // Lift the pause ONLY for a valid timestamp that is in the past. A missing
-    // OR unparseable (NaN) end date fails CLOSED — the store stays paused —
-    // rather than letting a malformed `paused_until` silently accept orders.
-    const stillPaused =
-      pausedUntil === null ||
-      Number.isNaN(pausedUntil) ||
-      pausedUntil > Date.now();
-    if (stillPaused && restrictions?.blocks?.new_orders) {
-      return {
-        success: false,
-        error: restrictions.reason || "المتجر متوقف مؤقتاً عن استقبال الطلبات",
-      };
+  // EC17 replay: this key already placed an order (the response was lost and
+  // the shopper tapped again). Answer with THAT order and do nothing else — no
+  // points redeemed or earned a second time, no new post-purchase proof, no
+  // second CAPI purchase. create_order_atomic would return the existing row
+  // too, but only after the redemption below had already run.
+  if (payload.idempotencyKey) {
+    const { data: existing, error: existingErr } = await supabase
+      .from("orders")
+      .select("id, order_id, price, discount_amount, delivery_fee")
+      .eq("tenant_id", payload.tenantId)
+      .eq("idempotency_key", payload.idempotencyKey)
+      .maybeSingle();
+    if (existingErr) {
+      console.error("[checkout] idempotency lookup failed:", existingErr);
+      return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
     }
+    if (existing) return replayResult(existing);
   }
 
   // Re-fetch canonical prices from the DB — never trust client-supplied amounts.
@@ -171,12 +202,28 @@ export async function submitCheckout(
   const variantIds = payload.items
     .map((i) => i.variant_id)
     .filter((v): v is string => !!v);
-  type VariantRow = { id: string; product_id: string; price: number | null; tenant_id: string };
+  type VariantRow = {
+    id: string;
+    product_id: string;
+    price: number | null;
+    tenant_id: string;
+    is_enabled: boolean | null;
+  };
   const variantMap = new Map<string, VariantRow>();
+  // Products sold by variant: a line for one of them must name an enabled
+  // variant (see lib/variant-products).
+  let soldByVariant: Set<string>;
+  try {
+    soldByVariant = await productsSoldByVariant(supabase, payload.tenantId, productIds);
+  } catch (e) {
+    if (!(e instanceof VariantReadError)) throw e;
+    console.error("[checkout]", e.message);
+    return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+  }
   if (variantIds.length > 0) {
     const { data: variants, error: variantsErr } = await supabase
       .from("product_variants")
-      .select("id, product_id, price, tenant_id")
+      .select("id, product_id, price, tenant_id, is_enabled")
       .in("id", variantIds)
       .eq("tenant_id", payload.tenantId);
     if (variantsErr || !variants) {
@@ -186,12 +233,76 @@ export async function submitCheckout(
     for (const v of variants as VariantRow[]) variantMap.set(v.id, v);
   }
 
+  // Quantity price breaks. Fetched here so the server derives the SAME unit
+  // price the product page showed — the price check below rejects any
+  // mismatch, so a client-only ladder would bounce every tiered order.
+  // Tenant-scoped like everything else; a merchant with no tiers pays for an
+  // empty read and nothing changes.
+  const tiersByProduct = new Map<string, PriceTier[]>();
+  {
+    const { data: tierRows, error: tiersErr } = await supabase
+      .from("product_tiered_pricing")
+      .select("product_id, min_quantity, max_quantity, price")
+      .in("product_id", productIds)
+      .eq("tenant_id", payload.tenantId);
+    if (tiersErr || !tierRows) {
+      // Fail closed, like the product lookup above. Pricing at the base
+      // instead would tell a shopper who was shown a tier price that their
+      // prices "changed" upward when nothing had.
+      console.error("[checkout] tier lookup failed:", tiersErr);
+      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+    }
+    for (const row of tierRows) {
+      const list = tiersByProduct.get(row.product_id) ?? [];
+      list.push({
+        min_quantity: row.min_quantity,
+        max_quantity: row.max_quantity,
+        price: Number(row.price),
+      });
+      tiersByProduct.set(row.product_id, list);
+    }
+  }
+
+  // Order bumps. Like tiers, the server derives the discounted price itself:
+  // the price check below rejects anything it did not compute. The discount
+  // only applies when the bump's PARENT product is in this same order —
+  // otherwise the bump price would be a coupon claimable by ordering the
+  // add-on on its own.
+  const bumpOffers: OrderBumpOffer[] = [];
+  {
+    const { data: bumpRows, error: bumpsErr } = await supabase
+      .from("product_order_bumps")
+      .select("product_id, bump_product_id, discount_percentage, is_active")
+      .in("product_id", productIds)
+      .eq("tenant_id", payload.tenantId);
+    if (bumpsErr || !bumpRows) {
+      // Fail closed, for the same reason as the tier read above.
+      console.error("[checkout] bump lookup failed:", bumpsErr);
+      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+    }
+    for (const row of bumpRows) {
+      bumpOffers.push({
+        product_id: row.product_id,
+        bump_product_id: row.bump_product_id,
+        discount_percentage: Number(row.discount_percentage),
+        is_active: row.is_active,
+      });
+    }
+  }
+
   // EC24: validate every line and COLLECT per-item issues (unavailable /
   // repriced / bad quantity) instead of dead-ending on the first one with a
   // generic message — so the client can remove or re-price the offending lines
   // and the shopper isn't stuck in a retry loop.
   const issues: CheckoutIssue[] = [];
-  const verifiedItems: typeof payload.items = [];
+  // Lines that passed the per-line checks, with their catalogue base price.
+  // Pricing itself is order-level (a bump's discount depends on the other
+  // lines), so it runs once over all of them below.
+  const candidates: Array<{ item: CheckoutItem; basePrice: number }> = [];
+  // A product + variant appears once per order. The cart merges repeats, so
+  // a duplicate only comes from a hand-built request — the shape of the
+  // "N copies of a one-unit bump line" trick — and is refused, not merged.
+  const seenLines = new Set<string>();
   for (const i of payload.items) {
     const issue = (reason: CheckoutIssueReason, new_price?: number): void => {
       issues.push({ product_id: i.product_id, variant_id: i.variant_id, reason, new_price });
@@ -213,12 +324,19 @@ export async function submitCheckout(
     let unitPrice: number;
     if (i.variant_id) {
       const variant = variantMap.get(i.variant_id);
-      if (!variant || variant.product_id !== i.product_id) {
+      if (!variant || variant.product_id !== i.product_id || variant.is_enabled === false) {
         issue("unavailable");
         continue;
       }
       unitPrice = Number(variant.price ?? product.website_price ?? product.price) || 0;
     } else {
+      // No variant named for a product sold by variant: no size for the
+      // courier and no price the merchant set — and a variant priced above
+      // the parent would otherwise be bought at the parent's price.
+      if (soldByVariant.has(i.product_id)) {
+        issue("unavailable");
+        continue;
+      }
       unitPrice = Number(product.website_price ?? product.price) || 0;
     }
     if (unitPrice <= 0 || !Number.isFinite(unitPrice)) {
@@ -229,14 +347,47 @@ export async function submitCheckout(
       issue("invalid_quantity");
       continue;
     }
-    // Price moved since add-to-cart — surface it (don't silently charge a
-    // different amount than the shopper saw); they re-confirm at the new price.
-    if (Math.round(i.price) !== Math.round(unitPrice)) {
-      issue("price_changed", unitPrice);
+    const lineKey = `${i.product_id}:${i.variant_id ?? ""}`;
+    if (seenLines.has(lineKey)) {
+      issue("invalid_quantity");
       continue;
     }
-    verifiedItems.push({ ...i, price: unitPrice });
+    seenLines.add(lineKey);
+    candidates.push({ item: i, basePrice: unitPrice });
   }
+
+  // The quantity break, then an order-bump discount — the one shared rule the
+  // cart and the product page also price with (@scheniders/shared
+  // line-pricing). A bump discounts one unit of its add-on per order, only
+  // beside a full-price parent, and only for a line priced at the bump (an
+  // offer the shopper accepted, not a rule: the cart has no bump UI).
+  const serverPrices = priceOrderLines(
+    candidates.map(({ item, basePrice }) => ({
+      productId: item.product_id,
+      basePrice,
+      quantity: item.quantity,
+      shownPrice: item.price,
+      tiers: tiersByProduct.get(item.product_id),
+    })),
+    bumpOffers,
+  );
+  const verifiedItems: CheckoutItem[] = [];
+  candidates.forEach(({ item }, idx) => {
+    const unitPrice = serverPrices[idx];
+    // Price moved since add-to-cart (or was tampered with) — surface it, don't
+    // silently charge a different amount than the shopper saw; they
+    // re-confirm at the server's price.
+    if (Math.round(item.price) !== Math.round(unitPrice)) {
+      issues.push({
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        reason: "price_changed",
+        new_price: unitPrice,
+      });
+      return;
+    }
+    verifiedItems.push({ ...item, price: unitPrice });
+  });
 
   if (issues.length > 0) {
     const hasPriceChange = issues.some((x) => x.reason === "price_changed");
@@ -251,11 +402,64 @@ export async function submitCheckout(
 
   // Subtotal of line items (server-verified prices — never the client's).
   const subtotal = verifiedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  // What the shopper is PAYING for, frozen before the server adds anything of
+  // its own. The engines that decide what was earned (bundles, delivery) read
+  // this, never the final line list: a free gift naming a bundle's product
+  // must not complete that bundle and pay out a discount nobody chose.
+  const paidItems: readonly CheckoutItem[] = [...verifiedItems];
+
+  // Free gift. Added HERE, by the server, from the verified subtotal — a
+  // zero-price line accepted from the client would be a free item anyone
+  // could post. The subtotal above excludes the gift by construction (it is
+  // appended after), so a free line can never count toward the threshold
+  // that earns it.
+  const freeGift = resolveFreeGift(tenant.store_config_v2?.commerce?.free_gift);
+  if (freeGift.productId && qualifiesForFreeGift(tenant.store_config_v2?.commerce?.free_gift, subtotal)) {
+    const giftId = freeGift.productId;
+    // Never gift something already being paid for: the shopper would lose a
+    // line they chose, or be handed a duplicate.
+    const alreadyInOrder = paidItems.some((i) => i.product_id === giftId);
+    if (!alreadyInOrder) {
+      const { data: gift, error: giftErr } = await supabase
+        .from("products")
+        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
+        .eq("id", giftId)
+        .eq("tenant_id", payload.tenantId)
+        .maybeSingle();
+      if (giftErr) {
+        // Fail closed like every other catalogue read here: the storefront
+        // promised this shopper a gift, so placing the order without it on a
+        // transient error would break that promise silently.
+        console.error("[checkout] free gift lookup failed:", giftErr);
+        return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+      }
+      const giftOrderable =
+        gift !== null &&
+        gift.status === "active" &&
+        !gift.is_archived &&
+        gift.is_visible &&
+        !gift.is_supply &&
+        (gift.stock_quantity ?? 0) - (gift.reserved_quantity ?? 0) > 0;
+      if (gift && giftOrderable) {
+        verifiedItems.push({
+          product_id: gift.id,
+          variant_id: null,
+          name: gift.short_name || gift.name,
+          variant_name: null,
+          price: 0,
+          quantity: 1,
+        });
+      }
+      // Withdrawn, Draft or out of stock: the order proceeds without it. The
+      // shopper loses nothing they paid for.
+    }
+  }
+
   // EC2: record the SAME delivery fee the storefront displays + the courier
   // collects (shared source of truth), so the order's recorded total
   // (price + delivery_fee) matches what the customer agreed to pay. Recomputed
   // server-side from the verified subtotal — the client value is never trusted.
-  const itemCount = verifiedItems.reduce((n, i) => n + i.quantity, 0);
+  const itemCount = paidItems.reduce((n, i) => n + i.quantity, 0);
   // Per-governorate shipping engine (falls back to the legacy flat fee when the
   // merchant hasn't configured rates). Same inputs the storefront displays.
   const deliveryFee = computeDeliveryFee(subtotal, itemCount, {
@@ -278,9 +482,52 @@ export async function submitCheckout(
   // order's total discount_amount alongside any coupon, so the recorded total
   // and the courier-collected amount both reflect them.
   const bundleSummary = computeBundleDiscounts(
-    verifiedItems,
+    paidItems,
     tenant.store_config_v2?.commerce?.bundles,
   );
+  // Referral: a friend's code on a FIRST order. Eligibility is one SQL rule
+  // (referral_check) that the preview endpoint also runs: the code exists in
+  // THIS tenant, it is not the buyer's own, and the buyer — by normalised
+  // phone — has no earlier live order with this store. The amount comes from
+  // the PUBLISHED config, never the client. It does not stack on a coupon.
+  let referral: { code: string; referrer_phone: string } | null = null;
+  let referralWanted = 0;
+  const referralCode = normalizeReferralCode(payload.referralCode);
+  if (referralCode && !discount) {
+    const commerce = tenant.store_config_v2?.commerce;
+    const amount = computeReferralDiscount(subtotal, commerce?.referral, commerce?.loyalty);
+    if (amount > 0) {
+      const { data: check, error: checkErr } = await supabase.rpc("referral_check", {
+        _tenant_id: payload.tenantId,
+        _code: referralCode,
+        _phone: phone,
+      });
+      if (checkErr) {
+        // Fail closed: the form previewed this discount, so placing the order
+        // without it on a transient error would charge more than was shown.
+        console.error("[checkout] referral check failed:", checkErr);
+        return { success: false, error: "تعذّر التحقق من رمز الصديق. حاول مرة أخرى." };
+      }
+      const row = Array.isArray(check) ? check[0] : null;
+      // The SQL already refuses a buyer's own code; the phone comparison here
+      // is the same rule, kept so no SQL change can quietly reopen it.
+      if (row?.ok && row.referrer_phone && row.referrer_phone !== phone) {
+        referral = { code: referralCode, referrer_phone: row.referrer_phone };
+        referralWanted = amount;
+      }
+    }
+  }
+
+  // Each engine caps itself at the subtotal; their SUM must be capped too, or a
+  // coupon plus a bundle records a negative total. Applied in sequence, each
+  // against what the previous left — and points are then priced against the
+  // remainder, so no points are spent on a discount the order cannot take.
+  const [couponApplied, bundleApplied, referralApplied] = stackDiscounts(subtotal, [
+    couponAmount,
+    bundleSummary.total_amount_iqd,
+    referralWanted,
+  ]).applied;
+  const remainingForPoints = subtotal - couponApplied - bundleApplied - referralApplied;
   // Loyalty: redeem the points the customer chose to spend. Re-resolve against
   // the PUBLISHED config + the AUTHORITATIVE balance, then deduct atomically
   // (the RPC blocks an overdraw) BEFORE the order so the discount is baked into
@@ -298,7 +545,7 @@ export async function submitCheckout(
     const redemption = computePointsRedemption({
       balance: bal?.balance ?? 0,
       requestedPoints: payload.redeemPoints,
-      subtotalIqd: subtotal,
+      subtotalIqd: remainingForPoints,
       cfg: loyaltyCfg,
     });
     if (redemption.discount_iqd > 0) {
@@ -316,8 +563,12 @@ export async function submitCheckout(
     }
   }
 
-  const discountAmount =
-    couponAmount + bundleSummary.total_amount_iqd + pointsDiscount;
+  const discountAmount = stackDiscounts(subtotal, [
+    couponApplied,
+    bundleApplied,
+    referralApplied,
+    pointsDiscount,
+  ]).total;
   const grandTotal = subtotal - discountAmount + deliveryFee;
 
   // Build the order payload in the shape create_order_atomic expects.
@@ -367,18 +618,23 @@ export async function submitCheckout(
     _tenant_id: payload.tenantId,
   });
 
+  // Give back points deducted for a redemption this call did not end up using.
+  const refundRedemption = async (): Promise<void> => {
+    if (pointsUsed <= 0) return;
+    const { error: refundErr } = await supabase.rpc("adjust_customer_points", {
+      _tenant_id: payload.tenantId,
+      _phone: phone,
+      _delta: pointsUsed,
+      _reason: "redeem_refund",
+      _order_id: undefined,
+    });
+    if (refundErr) console.error("[checkout] points refund failed:", refundErr);
+  };
+
   if (error) {
     console.error("[checkout] create_order_atomic failed:", error);
-    // Refund any points deducted for a redemption — the order didn't go through.
-    if (pointsUsed > 0) {
-      await supabase.rpc("adjust_customer_points", {
-        _tenant_id: payload.tenantId,
-        _phone: phone,
-        _delta: pointsUsed,
-        _reason: "redeem_refund",
-        _order_id: undefined,
-      });
-    }
+    // The order didn't go through.
+    await refundRedemption();
     return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
   }
 
@@ -387,19 +643,42 @@ export async function submitCheckout(
   const orderRow = raw as Record<string, unknown> | null;
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
 
-  // Loyalty: award points earned on this order. Best-effort — never fail it.
-  if (loyaltyCfg?.enabled) {
-    const earned = computePointsEarned(subtotal, loyaltyCfg);
-    if (earned > 0) {
-      await supabase.rpc("adjust_customer_points", {
-        _tenant_id: payload.tenantId,
-        _phone: phone,
-        _delta: earned,
-        _reason: "earn",
-        _order_id: orderId ?? undefined,
-      });
-    }
+  // A concurrent submit with the same key placed the order first: this call
+  // got that order back. Its redemption was never used — refund it — and
+  // none of a new order's side effects below apply.
+  if (orderRow && orderId && isReplayRow(orderRow)) {
+    await refundRedemption();
+    return replayResult({
+      id: orderId,
+      order_id: typeof orderRow.order_id === "string" ? orderRow.order_id : null,
+      price: Number(orderRow.price),
+      discount_amount: Number(orderRow.discount_amount),
+      delivery_fee: Number(orderRow.delivery_fee),
+    });
   }
+
+  // Referral attribution: the row trg_referral_order_changed pays the
+  // referrer from when THIS order is delivered (and takes back if it leaves
+  // that state). Written only for a new order — a replay returned above. The
+  // order is already placed and priced; a failed write loses the referrer's
+  // points, so it is logged, not hidden.
+  if (referral && orderId) {
+    const { error: referralErr } = await supabase.from("referrals").insert({
+      tenant_id: payload.tenantId,
+      order_id: orderId,
+      code: referral.code,
+      referrer_phone: referral.referrer_phone,
+      referee_phone: phone,
+      discount_iqd: referralApplied,
+    });
+    if (referralErr) console.error("[checkout] referral attribution failed:", referralErr);
+  }
+
+  // Loyalty earn is NOT credited here. A COD order placed is not an order
+  // paid: points are credited by trg_loyalty_order_changed when the order
+  // reaches delivered/completed, and taken back if it leaves that state
+  // (live migrations 20260909225706 + 20260909225854). Redemption above
+  // stays at placement because the discount is baked into the order total.
 
   // Abandoned-cart recovery: this phone just ordered — mark any pending cart
   // recovered so the WhatsApp reminder sweep skips it. Best-effort: a failure
@@ -434,13 +713,24 @@ export async function submitCheckout(
     }
   }
 
+  // Post-purchase offer: hand THIS browser — and only this one — the proof
+  // that it placed the order. The upsell route re-derives everything else.
+  const proofSecret = upsellProofSecret();
+  const upsellToken =
+    orderId && proofSecret
+      ? signUpsellProof({ tenantId: payload.tenantId, orderId }, proofSecret)
+      : undefined;
+
   return {
     success: true,
     orderId: orderId ?? undefined,
     orderNumber: (orderRow?.order_id as string) ?? undefined,
     total: grandTotal,
     ...(discount
-      ? { discount: { code: discount.code, amount: discount.amount_iqd } }
-      : {}),
+      ? { discount: { code: discount.code, amount: couponApplied } }
+      : referral
+        ? { discount: { code: referral.code, amount: referralApplied } }
+        : {}),
+    ...(upsellToken ? { upsellToken } : {}),
   };
 }

@@ -19,7 +19,7 @@ import type { OrderWindow } from "@/lib/order-window";
 const H = vi.hoisted(() => ({ findWindow: vi.fn(), tenantId: "tenant-1" as string | null }));
 
 vi.mock("@/lib/repositories/order-repository", () => ({
-    orderRepository: { findWindow: H.findWindow },
+    orderRepository: { findWindow: H.findWindow, findLatestUpdatedAt: async () => "2026-10-12T09:00:00.000Z" },
 }));
 vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId }),
@@ -73,6 +73,21 @@ describe("useOrdersQuery window gating", () => {
 
         await waitFor(() => expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null));
         await waitFor(() => expect(result.current.data).toEqual([]));
+    });
+
+    it("hydrates a same-window snapshot as a first paint, then refetches it once even within the stale time", async () => {
+        // Without the 2s refetch after a status change, a snapshot can be
+        // behind our own writes: it must never stand in for a fetch.
+        sessionStorage.setItem("schneiders_orders_swr", JSON.stringify([{ id: "snap", status: "new" }]));
+        sessionStorage.setItem("schneiders_orders_swr_ts", String(Date.now()));
+        sessionStorage.setItem("schneiders_orders_swr_window", "all");
+        H.findWindow.mockResolvedValue([{ id: "fresh", status: "confirmed" }]);
+
+        const { result } = renderHook(() => useOrdersQuery(null, true), { wrapper: wrapper() });
+        await waitFor(() => expect(result.current.data?.map((o) => o.id)).toEqual(["fresh"]));
+        expect(H.findWindow).toHaveBeenCalledTimes(1);
+        await new Promise((r) => setTimeout(r, 20));
+        expect(H.findWindow).toHaveBeenCalledTimes(1);
     });
 
     it("does not fetch until the active tenant is known", async () => {

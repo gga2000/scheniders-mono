@@ -33,9 +33,13 @@ function buildRow(
   tenantId: string | null
 ) {
   const { uuid, label } = normalizeAdminId(adminUserId);
+  // "system" names an actor-less write only. A real admin (uuid and/or email)
+  // must not be labelled "system": the Activity page shows admin_label before
+  // actor_email, so the fallback would hide who did it.
+  const hasActor = uuid !== null || Boolean(actorEmail);
   return {
     admin_user_id: uuid,
-    admin_label: adminLabel ?? label ?? "system",
+    admin_label: adminLabel ?? label ?? (hasActor ? null : "system"),
     actor_email: actorEmail ?? null,
     tenant_id: tenantId,
     action,

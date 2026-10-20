@@ -51,12 +51,14 @@ const defaultProps: Props = {
 };
 
 const BG_CLASS: Record<z.infer<typeof stripBg>, string> = {
-  white: "bg-white",
+  // Enum keys are schema values; "white" means the kit's card surface,
+  // which is dark on a dark kit — so it pins ink, never literal white.
+  white: "bg-bk-surface-alt text-bk-ink",
   mint: "bg-bk-secondary",
   butter: "bg-bk-accent",
   lilac: "bg-bk-decor-b",
   sky: "bg-bk-decor-c",
-  pink: "bg-bk-primary text-white",
+  pink: "bg-bk-primary text-bk-on-primary",
   cream: "bg-bk-surface",
 };
 
