@@ -42,6 +42,12 @@ import {
 } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
+import {
+  clearCustomerMemory,
+  prefillFromMemory,
+  readCustomerMemory,
+  writeCustomerMemory,
+} from "./helpers/customer-memory";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, MaterialIcon, WhatsAppButton } from "./helpers/primitives";
 import { useCart } from "./helpers/cart-store";
@@ -51,62 +57,71 @@ import { formatCount, formatPrice } from "./helpers/format";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./checkout_form";
 
-/** Chrome strings (Kurdish resolves through the ar fallback chain). */
+/** Chrome strings. Every entry carries Sorani — _kurdish-coverage.test.ts fails the build otherwise. */
 const STRINGS = {
-  stepCart: { en: "Cart", ar: "السلة" },
-  stepDetails: { en: "Details", ar: "التفاصيل" },
-  stepConfirm: { en: "Confirm", ar: "التأكيد" },
-  deliveryDetails: { en: "Delivery details", ar: "تفاصيل التوصيل" },
-  fullName: { en: "Full name", ar: "الاسم الكامل" },
-  phone: { en: "Phone number", ar: "رقم الهاتف" },
+  stepCart: { en: "Cart", ar: "السلة", ku: "سەبەتە" },
+  stepDetails: { en: "Details", ar: "التفاصيل", ku: "زانیارییەکان" },
+  stepConfirm: { en: "Confirm", ar: "التأكيد", ku: "پشتڕاستکردنەوە" },
+  deliveryDetails: { en: "Delivery details", ar: "تفاصيل التوصيل", ku: "زانیاری گەیاندن" },
+  fullName: { en: "Full name", ar: "الاسم الكامل", ku: "ناوی تەواو" },
+  phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل" },
   phoneInvalid: {
     en: "Enter a valid Iraqi mobile number, e.g. 0770 123 4567.",
     ar: "أدخل رقم هاتف عراقي صحيح، مثال: 0770 123 4567.",
+    ku: "ژمارەیەکی مۆبایلی عێراقی دروست بنووسە، نموونە: 0770 123 4567.",
   },
-  email: { en: "Email", ar: "البريد الإلكتروني" },
-  governorate: { en: "Governorate", ar: "المحافظة" },
-  governoratePlaceholder: { en: "Choose a governorate", ar: "اختر المحافظة" },
-  area: { en: "Area / District", ar: "المنطقة" },
-  address: { en: "Full address", ar: "العنوان بالتفصيل" },
+  welcomeBack: { en: "Welcome back — we filled in your details from your last order.", ar: "رجعتلنا؟ عبّينا معلوماتك من آخر طلب.", ku: "بەخێربێیتەوە — زانیارییەکانت لە داواکاری پێشووت پڕکردەوە." },
+  notYou: { en: "Not you? Clear", ar: "مو انت؟ امسح", ku: "تۆ نیت؟ بیسڕەوە" },
+  email: { en: "Email", ar: "البريد الإلكتروني", ku: "ئیمەیڵ" },
+  governorate: { en: "Governorate", ar: "المحافظة", ku: "پارێزگا" },
+  governoratePlaceholder: { en: "Choose a governorate", ar: "اختر المحافظة", ku: "پارێزگا هەڵبژێرە" },
+  area: { en: "Area / District", ar: "المنطقة", ku: "ناوچە / گەڕەک" },
+  address: { en: "Full address", ar: "العنوان بالتفصيل", ku: "ناونیشانی تەواو" },
   addressPlaceholder: {
     en: "Street, sector, house number…",
     ar: "الشارع، المحلة، رقم الدار…",
+    ku: "شەقام، گەڕەک، ژمارەی خانوو…",
   },
-  notes: { en: "Delivery notes", ar: "ملاحظات" },
-  optional: { en: "(optional)", ar: "(اختياري)" },
-  paymentMethod: { en: "Payment method", ar: "طريقة الدفع" },
-  cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
-  useAll: { en: "Use all", ar: "استخدم الكل" },
-  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
-  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)" },
-  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M" },
-  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
-  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز." },
-  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم." },
-  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
-  placeOrder: { en: "Place order", ar: "أكّد الطلب" },
-  placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…" },
+  notes: { en: "Delivery notes", ar: "ملاحظات", ku: "تێبینی گەیاندن" },
+  optional: { en: "(optional)", ar: "(اختياري)", ku: "(ئارەزوومەندانە)" },
+  paymentMethod: { en: "Payment method", ar: "طريقة الدفع", ku: "شێوازی پارەدان" },
+  cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام", ku: "پارەدان لە کاتی وەرگرتن" },
+  useAll: { en: "Use all", ar: "استخدم الكل", ku: "هەمووی بەکاربهێنە" },
+  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب", ku: "{points} بەدەست دەهێنیت کاتێک داواکارییەکەت دەگاتە دەستت" },
+  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)", ku: "کۆدی هاوڕێ (ئارەزوومەندانە)" },
+  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M", ku: "نموونە: AB3K7M" },
+  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك", ku: "{amount} داشکاندن بە کۆدی هاوڕێکەت" },
+  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز.", ku: "ئەم کۆدە ناناسین." },
+  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم.", ku: "ئەم کۆدە لەگەڵ ئەم ژمارەیەدا کار ناکات." },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط", ku: "ژمارەی خاڵەکان بنووسە" },
+  placeOrder: { en: "Place order", ar: "أكّد الطلب", ku: "داواکاری پشتڕاست بکەرەوە" },
+  placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…", ku: "داواکارییەکەت پشتڕاست دەکرێتەوە…" },
   finePrint: {
     en: "By placing this order, you agree to pay cash on delivery. No hidden fees.",
     ar: "بتأكيدك الطلب، توافق على الدفع نقداً عند الاستلام. لا رسوم خفية.",
+    ku: "بە پشتڕاستکردنەوەی ئەم داواکارییە، ڕازی دەبیت لە کاتی وەرگرتن بە نەقد پارە بدەیت. هیچ کرێیەکی شاراوە نییە.",
   },
-  or: { en: "Or", ar: "أو" },
+  or: { en: "Or", ar: "أو", ku: "یان" },
   whatsappInstead: {
     en: "Place order via WhatsApp instead",
     ar: "أكمل الطلب عبر واتساب",
+    ku: "لە جیاتی ئەوە داواکاری لە ڕێگەی واتسئاپ بکە",
   },
-  orderReceived: { en: "Order received!", ar: "تم استلام طلبك!" },
+  orderReceived: { en: "Order received!", ar: "تم استلام طلبك!", ku: "داواکارییەکەت گەیشت!" },
   errGeneric: {
     en: "Something went wrong. Please try again.",
     ar: "حدث خطأ. حاول مرة أخرى.",
+    ku: "هەڵەیەک ڕوویدا. تکایە دووبارە هەوڵ بدەرەوە.",
   },
   errNetwork: {
     en: "We couldn't reach the server — check your connection and try again.",
     ar: "تعذّر الاتصال بالخادم — تحقّق من الإنترنت وحاول مرة أخرى.",
+    ku: "نەتوانرا پەیوەندی بە ڕاژەکار بکرێت — ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵ بدەرەوە.",
   },
   errReview: {
     en: "Your cart was updated. Please review it and confirm again.",
     ar: "تم تحديث سلتك. راجعها ثم أكّد الطلب مرة أخرى.",
+    ku: "سەبەتەکەت نوێکرایەوە. تکایە پێداچوونەوەی بۆ بکە و دووبارە پشتڕاستی بکەرەوە.",
   },
 } as const;
 
@@ -290,6 +305,30 @@ export function CheckoutFormRender({
       clearTimeout(handle);
     };
   }, [referralProgram?.enabled, referralCode, form.phone]);
+
+  // A returning shopper's details, from THIS browser only — see
+  // helpers/customer-memory for why nothing is looked up by phone. Applied
+  // after mount so server HTML and first client render agree; only blank
+  // fields are filled.
+  const [recognised, setRecognised] = useState(false);
+  useEffect(() => {
+    const memory = readCustomerMemory(tenantId);
+    if (!memory) return;
+    setForm((prev) => prefillFromMemory(prev, memory).next);
+    setRecognised(true);
+  }, [tenantId]);
+  function forgetMe(): void {
+    clearCustomerMemory(tenantId);
+    setRecognised(false);
+    setForm((prev) => ({
+      ...prev,
+      customer_name: "",
+      phone: "",
+      governorate_code: "",
+      city: "",
+      address_details: "",
+    }));
+  }
   const reassurance = resolveI18n(props.reassurance_text_i18n, locale);
   const callPromise = resolveI18n(props.call_promise_i18n, locale);
   const callPromiseNote = resolveI18n(props.call_promise_note_i18n, locale);
@@ -519,6 +558,14 @@ export function CheckoutFormRender({
         } | null;
         const orderNumber = data?.orderNumber ?? "";
         if (referralState.kind === "valid") clearCapturedReferral(tenantId);
+        // Remember the shopper for next time — in their browser only.
+        writeCustomerMemory(tenantId, {
+          customer_name: form.customer_name.trim(),
+          phone: form.phone.trim(),
+          governorate_code: form.governorate_code,
+          city: form.city.trim() || undefined,
+          address_details: form.address_details.trim(),
+        });
         // Stash the just-placed order for the thank-you recap. This is the
         // privacy-safe path (only the buyer's browser holds it) — never fetch
         // an order by number on the public success page (enumeration risk).
@@ -722,6 +769,21 @@ export function CheckoutFormRender({
             className="mb-bk-md"
           />
           <form onSubmit={onSubmit} className="space-y-bk-sm">
+            {recognised && (
+              <p data-testid="welcome-back" className="flex items-center justify-between gap-bk-xs rounded-bk-input bg-bk-decor-a/40 px-3 py-2 text-xs sm:text-sm text-bk-ink">
+                <span className="inline-flex items-center gap-1.5">
+                  <MaterialIcon name="waving_hand" className="text-sm" />
+                  {s("welcomeBack")}
+                </span>
+                <button
+                  type="button"
+                  onClick={forgetMe}
+                  className="shrink-0 font-semibold underline underline-offset-2"
+                >
+                  {s("notYou")}
+                </button>
+              </p>
+            )}
             <label className="block">
               <span className={labelCls}>{s("fullName")}</span>
               <input

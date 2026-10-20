@@ -13,6 +13,7 @@ const s = makeSectionFactory("cobalt_broadsheet");
 
 export const cobaltBroadsheetTemplate: StoreTemplate = {
     id: "cobalt_broadsheet",
+    version: 1,
     name_i18n: { en: "Cobalt Broadsheet", ar: "صحيفة كوبالت" },
     description_i18n: {
         en: "Editorial paper layout: serif headlines, hairline rules, no shadows, one cobalt accent.",

@@ -91,5 +91,6 @@ describe("formatPoints", () => {
     expect(formatPoints(25, "ar")).toBe("25 نقطة");
     expect(formatPoints(1, "en")).toBe("1 point");
     expect(formatPoints(25, "en")).toBe("25 points");
+    expect(formatPoints(25, "ku")).toBe("25 خاڵ");
   });
 });

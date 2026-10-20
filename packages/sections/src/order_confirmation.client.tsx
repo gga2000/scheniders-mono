@@ -587,7 +587,7 @@ function ReferralShare({
             backgroundColor: "var(--bk-surface, #ffffff)",
           }}
           aria-live="polite"
-          aria-label={copied ? `${code} — ${locale === "en" ? "copied" : "انحفظ"}` : code}
+          aria-label={copied ? `${code} — ${locale === "en" ? "copied" : locale === "ku" ? "کۆپی کرا" : "انحفظ"}` : code}
         >
           <MaterialIcon name={copied ? "check" : "content_copy"} className="text-xl" />
           <span dir="ltr">{code}</span>
