@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
@@ -27,10 +28,10 @@ interface RenewalResult {
  * 5. Reset usage_tracking for the new period
  */
 export async function GET(request: Request) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // With CRON_SECRET unset the old inline check compared against the
+    // literal "Bearer undefined"; the shared helper fails closed instead.
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
 
     const now = new Date().toISOString();
     const results: RenewalResult[] = [];

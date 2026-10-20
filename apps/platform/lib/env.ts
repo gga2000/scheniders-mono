@@ -45,9 +45,10 @@ const serverSchema = z.object({
     // HMAC key for the `lightfunnels-hmac` header (the LightFunnels app's client
     // secret). Only API-registered webhooks are signed; see lib/webhook-auth.ts.
     LIGHTFUNNELS_APP_SECRET: z.string().min(1).optional(),
-    // Staged webhook auth: "monitor" (default) processes unauthenticated
-    // requests and logs them; "enforce" refuses them. Per-provider overrides
-    // win over the global flag.
+    // Webhook auth: "enforce" (default) refuses unauthenticated requests, and
+    // every request when no secret is configured; "monitor" is an explicit
+    // opt-out that processes them and logs an error. Per-provider overrides
+    // win over the global flag. See lib/webhook-auth.ts.
     WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
     LIGHTFUNNELS_WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
     INTERAKT_WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),

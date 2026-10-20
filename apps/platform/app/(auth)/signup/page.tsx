@@ -2,7 +2,6 @@
 
 import { useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
 import {
     Eye,
     EyeOff,
@@ -20,23 +19,14 @@ import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 
-const PLANS = [
-    { value: "starter", labelKey: "signup.plan.starter", orders: "500", price: "10K" },
-    { value: "growth", labelKey: "signup.plan.growth", orders: "2,000", price: "30K" },
-    { value: "professional", labelKey: "signup.plan.professional", orders: "10,000", price: "70K" },
-    { value: "enterprise", labelKey: "signup.plan.enterprise", orders: null, price: "100K" },
-];
-
 function SignupForm() {
     const { t } = useLanguage();
-    const router = useRouter();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [businessName, setBusinessName] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [city, setCity] = useState("");
-    const [plan, setPlan] = useState("growth");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -63,7 +53,6 @@ function SignupForm() {
                     business_name: businessName.trim(),
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
-                    plan,
                 }),
             });
 
@@ -75,20 +64,20 @@ function SignupForm() {
                 return;
             }
 
-            setSuccess(data.message || "Account created! Redirecting to login...");
-            // UX2-18: the API creates the account server-side and we send the
-            // merchant to /login. If this browser still holds a session for a
-            // DIFFERENT account, /login bounces straight back into that old
-            // tenant and the new store silently disappears. Clear it first so
-            // the login screen is actually reachable.
+            // The account cannot sign in until the email is confirmed, so the
+            // merchant stays here with the "check your email" message; the
+            // confirmation link lands on /login.
+            setSuccess(data.message || "Check your email to confirm your account, then sign in.");
+            setIsLoading(false);
+            // UX2-18: if this browser still holds a session for a DIFFERENT
+            // account, /login bounces straight back into that old tenant and
+            // the new store silently disappears. Clear it so the confirmation
+            // link's /login is actually reachable.
             try {
                 await supabase.auth.signOut();
             } catch {
-                /* no session to clear — proceed to login */
+                /* no session to clear */
             }
-            setTimeout(() => {
-                router.push("/login");
-            }, 2000);
         } catch {
             setError("Network error. Please check your connection and try again.");
             setIsLoading(false);
@@ -258,40 +247,11 @@ function SignupForm() {
                         </div>
                     </motion.div>
 
-                    {/* Plan Selection */}
-                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 }}>
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">{t("signup.selectPlan")}</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {PLANS.map((p) => (
-                                <button
-                                    key={p.value}
-                                    type="button"
-                                    onClick={() => setPlan(p.value)}
-                                    className={`p-3 rounded-xl border-2 text-left transition-all ${
-                                        plan === p.value
-                                            ? "border-[#1E1E1E] bg-[#1E1E1E]/5"
-                                            : "border-transparent bg-white/80 hover:bg-white"
-                                    }`}
-                                >
-                                    <p className="text-sm font-semibold text-[#1E1E1E]">{t(p.labelKey)}</p>
-                                    <p className="text-xs text-[#6B6B6B]">
-                                        {p.orders
-                                            ? t("signup.plan.ordersPerMo").replace("{n}", p.orders)
-                                            : t("signup.plan.unlimited")}
-                                    </p>
-                                    <p className="text-xs font-medium text-[#1E1E1E] mt-0.5">
-                                        {t("signup.plan.pricePerMo").replace("{price}", p.price)}
-                                    </p>
-                                </button>
-                            ))}
-                        </div>
-                    </motion.div>
-
                     {/* Submit */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
                         <button
                             type="submit"
-                            disabled={isLoading || !isFormValid}
+                            disabled={isLoading || !isFormValid || success !== null}
                             className="w-full h-12 rounded-xl font-semibold text-white bg-gradient-to-r from-[#1E1E1E] to-[#3D3D3D] hover:from-[#2D2D2D] hover:to-[#4D4D4D] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                         >
                             {isLoading ? (

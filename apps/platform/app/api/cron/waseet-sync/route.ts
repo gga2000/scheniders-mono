@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { fetchOrdersByIdsBulk } from "@/lib/waseet-api";
 import type { WaseetMerchantOrder } from "@/types/waseet";
@@ -17,16 +18,11 @@ export const maxDuration = 60;
  */
 export async function GET(request: NextRequest) {
     try {
-        // Auth: CRON_SECRET or Vercel's internal cron header
-        const authHeader = request.headers.get("authorization");
-        const cronSecret = process.env.CRON_SECRET;
-
-        if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-            const isVercelCron = request.headers.get("x-vercel-cron") === "1";
-            if (!isVercelCron) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
-        }
+        // NEW-P1-14: this also accepted any request carrying `x-vercel-cron: 1`,
+        // a header anyone can send. Vercel Cron authenticates with
+        // `Authorization: Bearer $CRON_SECRET`, which is all the helper accepts.
+        const denied = requireCronAuth(request);
+        if (denied) return denied;
 
         const supabaseAdmin = createSupabaseServiceClient();
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { syncLocationCatalog } from "@/lib/waseet-api";
 
 export const dynamic = "force-dynamic";
@@ -13,17 +14,10 @@ export const maxDuration = 300;
  * being a few days stale is a missing new neighbourhood, never a failed order.
  */
 export async function GET(request: NextRequest) {
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-        console.error("[Waseet] CRON_SECRET is not configured — refusing to run the location sync");
-        return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 500 });
-    }
-
-    const authHeader = request.headers.get("authorization");
-    const isVercelCron = request.headers.get("x-vercel-cron") === "1";
-    if (authHeader !== `Bearer ${cronSecret}` && !isVercelCron) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // `x-vercel-cron: 1` is a header anyone can send, so it no longer
+    // authorises the sync on its own (NEW-P1-14).
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
 
     const result = await syncLocationCatalog("cron");
 
