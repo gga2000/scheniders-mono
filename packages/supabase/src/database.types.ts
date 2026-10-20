@@ -8206,6 +8206,16 @@ export type Database = {
         }
         Returns: number
       }
+      admin_topup_wallet: {
+        Args: {
+          _amount: number
+          _created_by?: string
+          _description?: string
+          _payment_method?: string
+          _tenant_id: string
+        }
+        Returns: Json
+      }
       aggregate_experiment_stats: {
         Args: { p_experiment_id: string; p_tenant_id: string }
         Returns: {
@@ -8780,6 +8790,10 @@ export type Database = {
       }
       refresh_customer_aggregates: { Args: never; Returns: undefined }
       refresh_tenant_public_stats: { Args: never; Returns: undefined }
+      renew_subscription_atomic: {
+        Args: { _expected_period_end: string; _subscription_id: string }
+        Returns: Json
+      }
       resolve_order_creation_actor: {
         Args: { p_order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: Record<string, unknown>
