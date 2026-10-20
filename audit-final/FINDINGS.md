@@ -18,6 +18,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 - **Impact:** any self-signup tenant can zero or inflate any other tenant's stock and reservations (negative `quantity` via `inv_apply` adds stock): victim storefront shows sold out, or oversells.
 - **Repro (read-only):** `select pg_get_functiondef('public.process_return'::regproc)`; `select grantee from information_schema.routine_privileges where routine_schema='public' and routine_name in ('process_return','undo_return')` → includes `authenticated`; `pg_get_functiondef('public.inv_apply'::regproc)` → `WHERE id = v_pid`. Attack shape (not executed): `rpc('process_return', {_tenant_id: own, _order_id: own_order, _destinations: [{product_id: '<victim>', qty: 9999}]})`, or insert an `orders` row whose `items` reference victim product ids.
 - **Fix sketch:** add `AND tenant_id = _tenant_id` to every products/variants UPDATE in `process_return`, `undo_return`; `inv_apply` uses the order's `tenant_id`; reject `qty <= 0`; validate every `items[].product_id` / `variant_id` belongs to the tenant in `create_order_atomic` and `createOrderForTenant`. Longer term composite FKs `(tenant_id, product_id)`.
+- **Fix:** PR #173 (draft), migrations 20261020150000 + 150100; live violations 0 of 41,462 order items.
 - **Related:** NEW-P1-24, L-13.
 
 ## F-002 — Another tenant can plant child rows on a victim's product; they render on the victim's storefront
@@ -27,7 +28,8 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 - **Impact:** attacker inserts `product_images` with own `tenant_id` and a victim `product_id` → images render on victim's product page (defacement/phishing). Same for variants, bundles, related, order bumps, tiered prices. Checkout rejects foreign variants (`apps/storefront/app/actions/checkout.ts` ~178–182 `.eq("tenant_id", payload.tenantId)`), so display integrity, not price bypass.
 - **Repro (read-only):** `select policyname, with_check from pg_policies where tablename='product_images' and cmd='INSERT'`; `select pg_get_constraintdef(oid) from pg_constraint where conrelid='public.product_images'::regclass and contype='f'` → `FOREIGN KEY (product_id) REFERENCES products(id)`; repeat for the other five tables.
 - **Fix sketch:** BEFORE INSERT/UPDATE tenant guard trigger on all six (modelled on `tg_product_attribute_values_tenant_guard`) or composite FKs; add `.eq("tenant_id", tenantId)` to storefront child queries.
-- **Critic addition:** `public_storefront_read_product_images/_variants` (`EXISTS(products p WHERE p.id=product_id)`) have no visibility or tenant-status filter, so anon can also read images and variants (incl. `cost`, F-009) of hidden, archived and supply products.
+- **Critic addition:** `public_storefront_read_product_images/_variants` (`EXISTS(products p WHERE p.id=product_id)`) have no visibility or tenant-status filter, so anon can also read images and variants (incl. `cost`, F-009) of hidden, archived and supply products. **Refuted by the fix worker (PR #173):** the EXISTS sub-select is itself filtered by the `products` read policy, and the local before-run confirmed anon could not see hidden products' children.
+- **Fix:** PR #173 (draft).
 - **Related:** L-15.
 
 ## F-003 — A tenant admin can mint a login link for a platform super_admin through link-google
