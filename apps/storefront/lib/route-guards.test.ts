@@ -43,24 +43,118 @@ beforeEach(() => {
 });
 
 describe("renamedStoreTarget", () => {
+  const OLD = "tenant-1783087997714";
+
   it("keeps path mode on /s/<new>", () => {
-    expect(renamedStoreTarget("zahraa-beauty", "/s/old", "scheniders.com", "https")).toBe(
-      "/s/zahraa-beauty",
-    );
+    expect(
+      renamedStoreTarget({
+        oldSlug: OLD,
+        renamed: "zahraa-beauty",
+        storeBase: `/s/${OLD}`,
+        storePath: `/s/${OLD}`,
+        host: "scheniders.com",
+        proto: "https",
+      }),
+    ).toBe("/s/zahraa-beauty");
+  });
+
+  it("keeps a shared product link's path and query in path mode", () => {
+    expect(
+      renamedStoreTarget({
+        oldSlug: OLD,
+        renamed: "zahraa-beauty",
+        storeBase: `/s/${OLD}`,
+        storePath: `/s/${OLD}/products/lipstick?utm_source=whatsapp&v=2`,
+        host: "scheniders.com",
+        proto: "https",
+      }),
+    ).toBe("/s/zahraa-beauty/products/lipstick?utm_source=whatsapp&v=2");
+  });
+
+  it("keeps the query on a path-mode home link", () => {
+    expect(
+      renamedStoreTarget({
+        oldSlug: OLD,
+        renamed: "new",
+        storeBase: `/s/${OLD}`,
+        storePath: `/s/${OLD}?utm_source=whatsapp`,
+        host: "scheniders.com",
+        proto: "https",
+      }),
+    ).toBe("/s/new?utm_source=whatsapp");
+  });
+
+  it("falls back to the store home when the path is not this old slug's", () => {
+    // A prefix match is not enough: /s/<old>x/... names a different store.
+    for (const storePath of [`/s/${OLD}x/products/a`, "/s/other/products/a", null]) {
+      expect(
+        renamedStoreTarget({
+          oldSlug: OLD,
+          renamed: "new",
+          storeBase: `/s/${OLD}`,
+          storePath,
+          host: "scheniders.com",
+          proto: "https",
+        }),
+      ).toBe("/s/new");
+    }
   });
 
   it("moves subdomain mode to the new subdomain on the same root host", () => {
-    expect(renamedStoreTarget("new", "", "old.scheniders.com", "https")).toBe(
-      "https://new.scheniders.com",
-    );
-    expect(renamedStoreTarget("new", "", "old.localhost:3001", "http")).toBe(
-      "http://new.localhost:3001",
-    );
+    expect(
+      renamedStoreTarget({
+        oldSlug: "old",
+        renamed: "new",
+        storeBase: "",
+        storePath: "/",
+        host: "old.scheniders.com",
+        proto: "https",
+      }),
+    ).toBe("https://new.scheniders.com/");
+    expect(
+      renamedStoreTarget({
+        oldSlug: "old",
+        renamed: "new",
+        storeBase: "",
+        storePath: null,
+        host: "old.localhost:3001",
+        proto: "http",
+      }),
+    ).toBe("http://new.localhost:3001/");
+  });
+
+  it("keeps a shared product link's path and query in subdomain mode", () => {
+    expect(
+      renamedStoreTarget({
+        oldSlug: "old",
+        renamed: "new",
+        storeBase: "",
+        storePath: "/products/lipstick?utm_source=whatsapp",
+        host: "old.scheniders.com",
+        proto: "https",
+      }),
+    ).toBe("https://new.scheniders.com/products/lipstick?utm_source=whatsapp");
+  });
+
+  it("never lets the forwarded path change the redirect's host", () => {
+    for (const storePath of ["@evil.example/x", "//evil.example/x", "https://evil.example/x"]) {
+      const target = renamedStoreTarget({
+        oldSlug: "old",
+        renamed: "new",
+        storeBase: "",
+        storePath,
+        host: "old.scheniders.com",
+        proto: "https",
+      });
+      expect(target).not.toBeNull();
+      expect(new URL(target ?? "").host).toBe("new.scheniders.com");
+    }
   });
 
   it("refuses a subdomain-mode host it cannot rebuild", () => {
-    expect(renamedStoreTarget("new", "", null, null)).toBeNull();
-    expect(renamedStoreTarget("new", "", "localhost", null)).toBeNull();
+    const base = { oldSlug: "old", renamed: "new", storeBase: "", storePath: "/" };
+    expect(renamedStoreTarget({ ...base, host: null, proto: null })).toBeNull();
+    expect(renamedStoreTarget({ ...base, host: "localhost", proto: null })).toBeNull();
   });
 });
 
@@ -76,6 +170,26 @@ describe("requireStoreTenant", () => {
     state.headers.set("x-store-base", "/s/tenant-1783087997714");
     await expect(requireStoreTenant("tenant-1783087997714")).rejects.toEqual(
       new Redirected("/s/zahraa-beauty"),
+    );
+  });
+
+  it("lands an old shared product link on the same product under the new slug", async () => {
+    state.renamed = "zahraa-beauty";
+    state.headers.set("x-store-base", "/s/tenant-1783087997714");
+    state.headers.set("x-store-path", "/s/tenant-1783087997714/products/lipstick?utm_source=wa");
+    await expect(requireStoreTenant("tenant-1783087997714")).rejects.toEqual(
+      new Redirected("/s/zahraa-beauty/products/lipstick?utm_source=wa"),
+    );
+  });
+
+  it("lands an old subdomain product link on the new subdomain's product", async () => {
+    state.renamed = "new";
+    state.headers.set("x-store-base", "");
+    state.headers.set("x-store-path", "/products/lipstick?utm_source=wa");
+    state.headers.set("host", "old.scheniders.com");
+    state.headers.set("x-forwarded-proto", "https");
+    await expect(requireStoreTenant("old")).rejects.toEqual(
+      new Redirected("https://new.scheniders.com/products/lipstick?utm_source=wa"),
     );
   });
 
