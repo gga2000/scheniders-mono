@@ -194,3 +194,83 @@ describe("applyChangedOrders and the window", () => {
         expect(byId(queryClient, "o1")?.version).toBe(6);
     });
 });
+
+describe("a delta read before a realtime removal", () => {
+    // The catch-up delta reads the row, realtime then removes it, and only then
+    // does the delta apply. The row is no longer cached, so no version check
+    // can run against it: the removal itself must be remembered.
+    const asOrder = (r: Row) => r as unknown as Order;
+
+    it("does not bring back a row a peer trashed after the delta read it", async () => {
+        const { queryClient, batcher } = setup([order("x", 5), order("y", 1)], { stripping: true });
+        batcher.push({ eventType: "UPDATE", new: { ...order("x", 6), deleted_at: "2026-10-20T08:00:06.000Z" } });
+        await vi.advanceTimersByTimeAsync(10);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["y"]);
+        expect(batcher.applyChangedOrders([asOrder(order("x", 5))])).toBe(0);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["y"]);
+    });
+
+    it("does not bring back a row a peer archived after the delta read it", async () => {
+        const { queryClient, batcher } = setup([order("x", 5), order("y", 1)]);
+        batcher.push({ eventType: "UPDATE", new: order("x", 6, { is_archived: true }) });
+        await vi.advanceTimersByTimeAsync(10);
+        batcher.applyChangedOrders([asOrder(order("x", 5))]);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["y"]);
+    });
+
+    it("does not bring back a hard-deleted row (DELETE carries no version)", async () => {
+        const { queryClient, batcher } = setup([order("x", 5), order("y", 1)]);
+        batcher.push({ eventType: "DELETE", old: { id: "x" } });
+        await vi.advanceTimersByTimeAsync(10);
+        batcher.applyChangedOrders([asOrder(order("x", 5))]);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["y"]);
+    });
+
+    it("does not bring back a row realtime moved out of the window", async () => {
+        const { queryClient, batcher } = setup([order("x", 5), order("y", 1)], { windowed: true });
+        batcher.push({ eventType: "UPDATE", new: order("x", 6, { created_at: OTHER_DAY }) });
+        await vi.advanceTimersByTimeAsync(10);
+        batcher.applyChangedOrders([asOrder(order("x", 5))]);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["y"]);
+    });
+
+    it("a removal also counts when the row was never cached", async () => {
+        const { queryClient, batcher } = setup([order("y", 1)]);
+        batcher.push({ eventType: "UPDATE", new: { ...order("x", 6), deleted_at: "2026-10-20T08:00:06.000Z" } });
+        await vi.advanceTimersByTimeAsync(10);
+        batcher.applyChangedOrders([asOrder(order("x", 5))]);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["y"]);
+    });
+
+    it("a version newer than the removal (restored since) is added", async () => {
+        const { queryClient, batcher } = setup([order("x", 5), order("y", 1)]);
+        batcher.push({ eventType: "UPDATE", new: { ...order("x", 6), deleted_at: "2026-10-20T08:00:06.000Z" } });
+        await vi.advanceTimersByTimeAsync(10);
+        batcher.applyChangedOrders([asOrder(order("x", 7))]);
+        expect(rows(queryClient).map((r) => r.id).sort()).toEqual(["x", "y"]);
+    });
+
+    it("the removal is forgotten once no delta in flight can predate it", async () => {
+        const { batcher } = setup([order("x", 5), order("y", 1)]);
+        batcher.push({ eventType: "UPDATE", new: { ...order("x", 6), deleted_at: "2026-10-20T08:00:06.000Z" } });
+        await vi.advanceTimersByTimeAsync(10);
+        expect(batcher.removedSince(asOrder(order("x", 5)))).toBe(true);
+        await vi.advanceTimersByTimeAsync(RealtimeBatcher.REMOVAL_MEMORY_MS + 1);
+        expect(batcher.removedSince(asOrder(order("x", 5)))).toBe(false);
+    });
+
+    it("only a trash, delete or archive is tenant-wide; a window drop is not", async () => {
+        const { batcher } = setup([order("x", 5), order("z", 5)], { windowed: true });
+        batcher.push({ eventType: "UPDATE", new: order("x", 6, { created_at: OTHER_DAY }) });
+        batcher.push({ eventType: "UPDATE", new: { ...order("z", 6), deleted_at: "2026-10-20T08:00:06.000Z" } });
+        await vi.advanceTimersByTimeAsync(10);
+        expect(batcher.removedSince(asOrder(order("x", 5)), { tenantWide: true })).toBe(false);
+        expect(batcher.removedSince(asOrder(order("z", 5)), { tenantWide: true })).toBe(true);
+    });
+
+    it("an archived delta row older than the cached copy (unarchived since) does not remove it", () => {
+        const { queryClient, batcher } = setup([order("x", 6)]);
+        batcher.applyChangedOrders([asOrder(order("x", 5, { is_archived: true }))]);
+        expect(byId(queryClient, "x")?.version).toBe(6);
+    });
+});

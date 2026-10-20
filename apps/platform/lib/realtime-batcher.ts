@@ -83,6 +83,19 @@ export class RealtimeBatcher {
     private heldEvents = new Map<string, { event: RealtimeEvent } | { row: Order }>();
     private static readonly MUTATION_GUARD_MS = 3_000; // 3 seconds
 
+    // Rows realtime (or a delta) REMOVED from the cache, by the version that
+    // removed them. A catch-up delta in flight can have read such a row before
+    // its removal, and applies after it; the row is no longer cached, so no
+    // version check can run against it, and it came back as a ghost in the
+    // list and every chip. See `removedSince`.
+    private removals = new Map<string, Removal>();
+    /**
+     * How long a removal is remembered: longer than any delta stays in flight
+     * (one select, bounded by the request timeout). A delta that starts after
+     * the removal reads the removed state itself.
+     */
+    static readonly REMOVAL_MEMORY_MS = 5 * 60_000;
+
     constructor(options: RealtimeBatcherOptions) {
         this.queryClient = options.queryClient;
         this.queryKey = options.queryKey;
@@ -201,6 +214,7 @@ export class RealtimeBatcher {
                 // and stayed on screen as a ghost.
                 if (event.new.deleted_at != null) {
                     const id = String(event.new.id);
+                    this.recordRemoval(id, versionOf(event.new), true);
                     deletes.add(id);
                     inserts.delete(id);
                     updates.delete(id);
@@ -214,6 +228,7 @@ export class RealtimeBatcher {
                     this.heldEvents.set(order.id, { event });
                     continue;
                 }
+                if (order.is_archived) this.recordRemoval(order.id, order, true);
 
                 updates.set(order.id, order);
                 // If the same order was inserted in this batch, update the insert instead
@@ -222,6 +237,8 @@ export class RealtimeBatcher {
                 }
             } else if (event.eventType === "DELETE" && event.old) {
                 const id = (event.old as { id: string }).id;
+                // A hard delete carries no version, and nothing can follow it.
+                this.recordRemoval(id, null, true);
                 deletes.add(id);
                 // Remove from inserts/updates if in same batch
                 inserts.delete(id);
@@ -251,7 +268,10 @@ export class RealtimeBatcher {
                         if (updated.is_archived) return null; // Remove archived from active list
                         // Edited out of the loaded window (e.g. its date moved):
                         // drop it rather than leave a row that no longer matches.
-                        if (!belongsInWindow(updated, win)) return null;
+                        if (!belongsInWindow(updated, win)) {
+                            this.recordRemoval(updated.id, updated, false);
+                            return null;
+                        }
 
                         // Version-first dedup (see shouldApplyRealtimeUpdate).
                         if (!shouldApplyRealtimeUpdate(o, updated)) {
@@ -275,7 +295,10 @@ export class RealtimeBatcher {
             }
             // Updates for orders that weren't in the list (e.g., un-archived)
             for (const [, order] of updates) {
-                if (!belongsInWindow(order, win)) continue;
+                if (!belongsInWindow(order, win)) {
+                    this.recordRemoval(order.id, order, false);
+                    continue;
+                }
                 if (!order.is_archived && !result.some((o) => o.id === order.id)) {
                     newOrders.push(order);
                 }
@@ -301,13 +324,13 @@ export class RealtimeBatcher {
         this.pruneGuards();
 
         const updates = new Map<string, Order>();
-        const archived = new Set<string>();
-        const trashed = new Map<string, Order>();
+        // Trashed or archived: removed, if newer than the cached copy.
+        const removed = new Map<string, Order>();
         for (const o of changed) {
             // A soft delete (delta rows carry deleted_at) is never the echo of
             // a status write: it removes the row, guarded or not, as flush()
             // does for the live event.
-            if (o.deleted_at != null) { trashed.set(o.id, o); continue; }
+            if (o.deleted_at != null) { removed.set(o.id, o); this.recordRemoval(o.id, o, true); continue; }
             // Don't clobber an order we just mutated optimistically with what
             // can be its own echo (a newer version, e.g. the history trigger's
             // base+2 write, applies).
@@ -315,7 +338,7 @@ export class RealtimeBatcher {
                 this.heldEvents.set(o.id, { row: toListRow(o) });
                 continue;
             }
-            if (o.is_archived) { archived.add(o.id); continue; }
+            if (o.is_archived) { removed.set(o.id, o); this.recordRemoval(o.id, o, true); continue; }
             updates.set(o.id, toListRow(o));
         }
 
@@ -325,12 +348,12 @@ export class RealtimeBatcher {
             if (!old) return old;
 
             const result = old
-                .filter((o) => !archived.has(o.id))
                 // Unlike a live event, a delta row can be older than the cache
-                // (a restore can reach us by realtime while the delta that read
-                // the trashed row is in flight): the version check decides.
+                // (a restore or unarchive can reach us by realtime while the
+                // delta that read the removed row is in flight): the version
+                // check decides.
                 .filter((o) => {
-                    const gone = trashed.get(o.id);
+                    const gone = removed.get(o.id);
                     if (!gone || !shouldApplyRealtimeUpdate(o, gone)) return true;
                     applied++;
                     return false;
@@ -346,24 +369,71 @@ export class RealtimeBatcher {
                     applied++;
                     // Moved out of the loaded window (e.g. its date changed while
                     // we were offline): drop it, as flush() does for live events.
-                    if (!belongsInWindow(updated, win)) return null;
+                    if (!belongsInWindow(updated, win)) {
+                        this.recordRemoval(updated.id, updated, false);
+                        return null;
+                    }
                     return carryRiskData(o, updated);
                 })
                 .filter((o): o is Order => o !== null);
 
             // Genuinely-new rows (not already in the list) → prepend (newest-first),
-            // but only those belonging to the loaded window.
+            // but only those belonging to the loaded window, and never a read
+            // older than the removal that took the row out.
             const newOnes: Order[] = [];
             for (const [, order] of updates) {
                 if (!belongsInWindow(order, win)) continue;
-                if (!result.some((o) => o.id === order.id)) { newOnes.push(order); applied++; }
+                if (result.some((o) => o.id === order.id)) continue;
+                if (this.removedSince(order)) {
+                    diag.log(`[Diag:Batcher] DELTA_SKIP id=${order.id} reason=removedSince`);
+                    continue;
+                }
+                newOnes.push(order);
+                applied++;
             }
 
             return newOnes.length ? [...newOnes, ...result] : result;
         });
 
-        diag.log(`[Diag:Batcher] DELTA_APPLY changed=${changed.length} archived=${archived.size} trashed=${trashed.size} applied=${applied}`);
+        diag.log(`[Diag:Batcher] DELTA_APPLY changed=${changed.length} removed=${removed.size} applied=${applied}`);
         return applied;
+    }
+
+    /**
+     * Whether `row` is a read from before a removal this batcher saw: its
+     * version is not newer than the one that trashed, deleted or archived the
+     * row — or, unless `tenantWide`, moved it out of the loaded window. With
+     * `tenantWide`, only removals that hold for every cache (the duplicate
+     * margin has its own window).
+     */
+    removedSince(row: Pick<Order, "id" | "version" | "updated_at">, { tenantWide = false }: { tenantWide?: boolean } = {}): boolean {
+        const removal = this.removals.get(row.id);
+        if (!removal) return false;
+        if (Date.now() - removal.at > RealtimeBatcher.REMOVAL_MEMORY_MS) {
+            this.removals.delete(row.id);
+            return false;
+        }
+        if (tenantWide && !removal.tenantWide) return false;
+        if (removal.final) return true;
+        return !shouldApplyRealtimeUpdate(removal, row);
+    }
+
+    /** Remember a removal, keeping the newest one per row (`version` null: a hard delete). */
+    private recordRemoval(id: string, version: { version?: unknown; updated_at?: unknown } | null, tenantWide: boolean): void {
+        const next: Removal = version === null
+            ? { at: Date.now(), tenantWide, final: true }
+            : {
+                at: Date.now(),
+                tenantWide,
+                final: false,
+                version: typeof version.version === "number" ? version.version : undefined,
+                updated_at: typeof version.updated_at === "string" ? version.updated_at : undefined,
+            };
+        const prev = this.removals.get(id);
+        // Nothing follows a hard delete, and an older removal arriving late
+        // (a delta's read) must not replace a newer one.
+        if (prev && (prev.final || (!next.final && !shouldApplyRealtimeUpdate(prev, next)))) return;
+        this.removals.set(id, next);
     }
 
     private pruneGuards(): void {
@@ -373,6 +443,9 @@ export class RealtimeBatcher {
                 this.recentMutations.delete(id);
                 this.heldEvents.delete(id);
             }
+        }
+        for (const [id, removal] of this.removals) {
+            if (now - removal.at > RealtimeBatcher.REMOVAL_MEMORY_MS) this.removals.delete(id);
         }
     }
 
@@ -387,7 +460,23 @@ export class RealtimeBatcher {
         this.buffer = [];
         this.recentMutations.clear();
         this.heldEvents.clear();
+        this.removals.clear();
     }
+}
+
+interface Removal {
+    /** When it was recorded (client clock), for REMOVAL_MEMORY_MS. */
+    at: number;
+    /** A trash, hard delete or archive (every cache); false: only out of the loaded window. */
+    tenantWide: boolean;
+    /** A hard delete: no later version of the row can exist. */
+    final: boolean;
+    version?: number;
+    updated_at?: string;
+}
+
+function versionOf(raw: Record<string, unknown>): { version?: unknown; updated_at?: unknown } {
+    return { version: raw.version, updated_at: raw.updated_at };
 }
 
 /**
