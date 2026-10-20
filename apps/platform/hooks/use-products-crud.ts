@@ -3,7 +3,8 @@
 import { useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, type Product, type ProductVariant, type ProductPriceHistory, getStockStatus } from "@/lib/supabase";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useLoadedOrders } from "@/components/providers/orders-provider";
+import type { Order } from "@/types/order";
 import {
     useProductsQuery,
     useAddProductMutation,
@@ -57,7 +58,11 @@ interface VariantFormData {
 export function useProductsCrud() {
     const queryClient = useQueryClient();
     const { data: rawProducts, isLoading: loading, error: queryError } = useProductsQuery();
-    const { orders } = useOrdersContext();
+    // Sales are summed from the loaded order window, which exists only on routes
+    // that mount the order book (the products list does). Elsewhere — the order
+    // form's product picker, the product editor — nothing reads them, and they
+    // are left unset rather than reported as zero sales.
+    const orders = useLoadedOrders();
 
     // Mutations
     const addProductMutation = useAddProductMutation();
@@ -76,7 +81,7 @@ export function useProductsCrud() {
     const deleteVariantMutation = useDeleteVariantMutation();
 
     // Calculate sales data from orders - matches by SKU first, then name
-    const calculateProductSales = useCallback((product: { name: string; sku?: string }, ordersList: typeof orders) => {
+    const calculateProductSales = useCallback((product: { name: string; sku?: string }, ordersList: Order[]) => {
         let timesSold = 0;
         let totalRevenue = 0;
         let orderCount = 0;
@@ -109,16 +114,16 @@ export function useProductsCrud() {
     // Enrich products with sales data
     const products = useMemo(() => {
         return (rawProducts || []).map((product) => {
-            const salesData = calculateProductSales({ name: product.name, sku: product.sku }, orders);
+            const salesData = orders ? calculateProductSales({ name: product.name, sku: product.sku }, orders) : null;
             const profitMargin = product.cost
                 ? ((product.price - product.cost) / product.price) * 100
                 : undefined;
 
             return {
                 ...product,
-                times_sold: salesData.timesSold,
-                total_revenue: salesData.totalRevenue,
-                average_order_value: salesData.averageOrderValue,
+                times_sold: salesData?.timesSold,
+                total_revenue: salesData?.totalRevenue,
+                average_order_value: salesData?.averageOrderValue,
                 profit_margin: profitMargin,
             };
         });

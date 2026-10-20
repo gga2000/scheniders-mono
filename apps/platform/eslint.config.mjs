@@ -33,6 +33,30 @@ const eslintConfig = defineConfig([
       "react/no-children-prop": "warn",
     },
   },
+  // PERF-D1. The order book (<OrdersProvider>) is mounted per route, by the
+  // routes that show orders. Everything the root layout renders on every route
+  // — the shell, top bar, chat, the dashboard — sits above those layouts: a
+  // book read there throws on every route, and mounting the book there puts the
+  // window fetch back on every route. Read what is needed from the server.
+  {
+    files: [
+      "app/layout.tsx",
+      "app/page.tsx",
+      "components/layout/**",
+      "components/chat/**",
+      "hooks/chat/**",
+      "components/mobile/dashboard/**",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "@/components/providers/orders-provider",
+          importNames: ["OrdersProvider", "useOrdersContext", "useLoadedOrders"],
+          message: "The order book is mounted per route, not under the root layout. Fetch the orders this needs from the server (see useServerOrderSearch, useLinkedOrders).",
+        }],
+      }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

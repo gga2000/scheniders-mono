@@ -71,19 +71,25 @@ import { ForecastingCards } from "@/components/products/forecasting-cards";
 
 // Store
 import { useProductStore } from "@/store/use-product-store";
+import { OrdersProvider } from "@/components/providers/orders-provider";
 
 export default function ProductsPage() {
+    // The per-product sales columns are summed from the order book's window
+    // (useProductsCrud), so the list mounts the book. Only the list: the editor
+    // routes under /products read no sales and do not.
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">Loading modules...</p>
+        <OrdersProvider>
+            <Suspense fallback={
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
+                        <p className="text-muted font-medium">Loading modules...</p>
+                    </div>
                 </div>
-            </div>
-        }>
-            <ProductsContent />
-        </Suspense>
+            }>
+                <ProductsContent />
+            </Suspense>
+        </OrdersProvider>
     );
 }
 

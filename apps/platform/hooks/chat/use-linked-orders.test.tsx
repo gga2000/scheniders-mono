@@ -5,15 +5,14 @@ import type { ReactNode } from "react";
 import type { Order } from "@/types/order";
 
 /**
- * Chat threads link to orders by uuid. The orders context is the /orders date
- * window (default: today), so an order from another day was "not loaded" and
- * its thread lost status, price and the action bar. Orders in the window come
- * from the window (the live copy); only the rest are fetched.
+ * Chat threads link to orders by uuid. Chat is mounted by the root layout,
+ * above every route that mounts the order book, so the linked orders are
+ * fetched by id on every route — including ones placed on another day, which
+ * the book's date window (default: today) never held.
  */
 
 const H = vi.hoisted(() => ({
     findByIds: vi.fn(),
-    contextOrders: [] as Order[],
     tenantId: "tenant-1" as string | null,
 }));
 
@@ -22,9 +21,6 @@ vi.mock("@/lib/repositories/order-repository", () => ({
 }));
 vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId }),
-}));
-vi.mock("@/components/providers/orders-provider", () => ({
-    useOrdersContext: () => ({ orders: H.contextOrders }),
 }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -42,32 +38,29 @@ function wrapper() {
 
 beforeEach(() => {
     H.findByIds.mockReset();
-    H.contextOrders = [];
     H.tenantId = "tenant-1";
 });
 
 describe("useLinkedOrders", () => {
-    it("takes window orders from context and fetches only the rest", async () => {
-        H.contextOrders = [order("a", "confirmed")];
-        H.findByIds.mockResolvedValue([order("b", "delivered")]);
+    it("fetches every linked order by id, once per distinct id, without an order book mounted", async () => {
+        H.findByIds.mockResolvedValue([order("a", "confirmed"), order("b", "delivered")]);
 
-        const ids = ["a", "b"];
+        const ids = ["b", "a", "b"];
         const { result } = renderHook(() => useLinkedOrders(ids), { wrapper: wrapper() });
 
         await waitFor(() => expect(result.current.get("b")?.status).toBe("delivered"));
+        expect(result.current.get("a")?.status).toBe("confirmed");
         expect(H.findByIds).toHaveBeenCalledTimes(1);
-        expect(H.findByIds).toHaveBeenCalledWith("tenant-1", ["b"]);
-        expect(result.current.get("a")).toBe(H.contextOrders[0]);
+        expect(H.findByIds).toHaveBeenCalledWith("tenant-1", ["a", "b"]);
     });
 
-    it("makes no request when every linked order is in the window", async () => {
-        H.contextOrders = [order("a", "new")];
-        const ids = ["a"];
+    it("makes no request when no thread links to an order", async () => {
+        const ids: string[] = [];
         const { result } = renderHook(() => useLinkedOrders(ids), { wrapper: wrapper() });
 
         await new Promise((r) => setTimeout(r, 20));
         expect(H.findByIds).not.toHaveBeenCalled();
-        expect(result.current.get("a")?.status).toBe("new");
+        expect(result.current.size).toBe(0);
     });
 
     it("does not fetch before a tenant is active", async () => {
