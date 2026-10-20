@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { rpc, consumeRateLimit } = vi.hoisted(() => ({ rpc: vi.fn(), consumeRateLimit: vi.fn() }));
+// lookup_order is EXECUTE-granted to service_role only (migration
+// 20261021090300): called with the anon key it is a limiter-free oracle. The
+// route must go through the service client; any other client is a failure.
+vi.mock("@/lib/supabase/server", () => ({
+  createSupabaseServiceClient: vi.fn(() => ({ rpc })),
+}));
 vi.mock("@supabase/supabase-js", () => ({
-  createClient: vi.fn(() => ({ rpc })),
+  createClient: vi.fn(() => {
+    throw new Error("lookup_order must be called with the service client");
+  }),
 }));
 
 vi.mock("@/lib/rate-limit", async (importOriginal) => {

@@ -3,8 +3,9 @@
 -- =============================================================================
 --
 -- WHAT THIS PROVES (after 20261021090000_orders_margin_column_privileges.sql,
--- 20261021090100_tenants_read_member_only.sql and
--- 20261021090200_tenant_members_role_check.sql are applied)
+-- 20261021090100_tenants_read_member_only.sql,
+-- 20261021090200_tenant_members_role_check.sql and
+-- 20261021090300_lookup_order_service_role_only.sql are applied)
 --   Catalog:
 --     * `authenticated` holds no SELECT on the four margin columns of orders,
 --       and SELECT on every other column (a column added later without a GRANT
@@ -13,7 +14,9 @@
 --     * search_orders_v2 is SECURITY DEFINER; v_orders_with_risk stays
 --       security_invoker and no longer reads o.product_cost directly;
 --     * public_storefront_read on tenants applies to anon only;
---     * tenant_members.role is CHECKed to admin/member.
+--     * tenant_members.role is CHECKed to admin/member;
+--     * lookup_order is executable by service_role only, so the rate-limited
+--       storefront routes are the only way to test a (phone, order number).
 --   Behaviour as a real single-tenant 'member' (JWT simulated, RLS enforced):
 --     * reading orders.product_cost is refused (42501), and so is select *;
 --     * an explicit non-margin column list on orders still works;
@@ -156,6 +159,14 @@ BEGIN
                     WHERE conrelid = 'public.tenant_members'::regclass AND contype = 'c'
                       AND pg_get_constraintdef(oid) LIKE '%admin%member%') THEN
         fails := fails || 'tenant_members.role has no admin/member CHECK; ';
+    END IF;
+
+    IF has_function_privilege('anon', 'public.lookup_order(uuid,text,text)', 'execute')
+       OR has_function_privilege('authenticated', 'public.lookup_order(uuid,text,text)', 'execute') THEN
+        fails := fails || 'lookup_order executable by anon/authenticated (rate limits bypassable via PostgREST); ';
+    END IF;
+    IF NOT has_function_privilege('service_role', 'public.lookup_order(uuid,text,text)', 'execute') THEN
+        fails := fails || 'lookup_order not executable by service_role (tracking and loyalty routes break); ';
     END IF;
 
     PERFORM set_config('tt.failures', current_setting('tt.failures') || fails, true);

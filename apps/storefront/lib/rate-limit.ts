@@ -17,7 +17,8 @@
 //   - "fail-open": serve, and log. For routes where the protected check is
 //     already enforced in SQL and an outage of the limiter alone must not
 //     take a shopper-facing feature down (order tracking: ownership is
-//     proven by order number + phone inside `lookup_order`).
+//     proven by order number + phone inside `lookup_order`, which only
+//     service_role may execute, so these routes are its only callers).
 // =====================================================================
 
 import { createHash } from "node:crypto";

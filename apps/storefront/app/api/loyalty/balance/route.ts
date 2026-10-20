@@ -19,7 +19,10 @@ export const runtime = "nodejs";
 // cannot: an order number of THIS store placed with THIS phone, checked by
 // lookup_order (the same match order tracking uses). Order numbers are
 // sequential, so the pair is guessable only by brute force, which the
-// limiter stops: per IP, per (tenant, order number) and per hashed phone,
+// limiter stops. That holds only because lookup_order is executable by
+// service_role alone (migration 20261021090300): with anon EXECUTE, guessing
+// went straight to PostgREST and never reached a bucket. Buckets are
+// per IP, per (tenant, order number) and per hashed phone,
 // fail-closed — this route is an oracle, and when the limiter cannot answer
 // the database behind it cannot either.
 //
