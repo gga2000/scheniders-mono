@@ -302,16 +302,21 @@ export class RealtimeBatcher {
 
         const updates = new Map<string, Order>();
         const archived = new Set<string>();
+        const trashed = new Map<string, Order>();
         for (const o of changed) {
+            // A soft delete (delta rows carry deleted_at) is never the echo of
+            // a status write: it removes the row, guarded or not, as flush()
+            // does for the live event.
+            if (o.deleted_at != null) { trashed.set(o.id, o); continue; }
             // Don't clobber an order we just mutated optimistically with what
             // can be its own echo (a newer version, e.g. the history trigger's
             // base+2 write, applies).
             if (this.isGuardedEcho(o.id, o.version)) {
-                this.heldEvents.set(o.id, { row: o });
+                this.heldEvents.set(o.id, { row: toListRow(o) });
                 continue;
             }
             if (o.is_archived) { archived.add(o.id); continue; }
-            updates.set(o.id, o);
+            updates.set(o.id, toListRow(o));
         }
 
         let applied = 0;
@@ -321,6 +326,15 @@ export class RealtimeBatcher {
 
             const result = old
                 .filter((o) => !archived.has(o.id))
+                // Unlike a live event, a delta row can be older than the cache
+                // (a restore can reach us by realtime while the delta that read
+                // the trashed row is in flight): the version check decides.
+                .filter((o) => {
+                    const gone = trashed.get(o.id);
+                    if (!gone || !shouldApplyRealtimeUpdate(o, gone)) return true;
+                    applied++;
+                    return false;
+                })
                 .map((o) => {
                     const updated = updates.get(o.id);
                     if (!updated) return o;
@@ -348,7 +362,7 @@ export class RealtimeBatcher {
             return newOnes.length ? [...newOnes, ...result] : result;
         });
 
-        diag.log(`[Diag:Batcher] DELTA_APPLY changed=${changed.length} archived=${archived.size} applied=${applied}`);
+        diag.log(`[Diag:Batcher] DELTA_APPLY changed=${changed.length} archived=${archived.size} trashed=${trashed.size} applied=${applied}`);
         return applied;
     }
 
@@ -374,6 +388,18 @@ export class RealtimeBatcher {
         this.recentMutations.clear();
         this.heldEvents.clear();
     }
+}
+
+/**
+ * A delta row (`findChangedSince`) as a list-cache row: LIST_COLUMNS plus
+ * `risk_data`, without the `deleted_at` the delta selects to see soft deletes.
+ * List rows never carry it, so the list cache keeps one shape.
+ */
+export function toListRow(row: Order): Order {
+    if (!("deleted_at" in row)) return row;
+    const copy: Order = { ...row };
+    delete copy.deleted_at;
+    return copy;
 }
 
 /**

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
-import { orderKeys } from "@/hooks/use-orders-query";
+import { orderSearchKeys } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { MAX_SEARCH_RESULTS, parseOrderSearchTerm } from "@/lib/order-server-search";
 import type { Order } from "@/types/order";
@@ -11,14 +11,12 @@ import type { Order } from "@/types/order";
 const EMPTY: Order[] = [];
 
 /**
- * Keyed under `orderKeys.lists()` on purpose: that prefix is what every order
- * mutation and realtime resync invalidates, so a status changed from a search
- * result refreshes the result too (same reasoning as duplicateCandidateKeys).
+ * Keyed under `orderKeys.lists()` on purpose: list mutations cancel that
+ * prefix, a failed delta invalidates it, and the catch-up after a status
+ * change marks the search stale — so a status changed from a search result
+ * refreshes the result too. Defined in use-orders-query (see there).
  */
-export const orderSearchKeys = {
-    all: [...orderKeys.lists(), "search"] as const,
-    term: (text: string, limit: number) => [...orderSearchKeys.all, text, limit] as const,
-};
+export { orderSearchKeys };
 
 export interface ServerOrderSearch {
     /** True when the term is long enough to search; the list should show `orders`. */

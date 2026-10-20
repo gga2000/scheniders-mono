@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { Order } from "@/types/order";
 
 /**
  * A status change used to re-download the whole window 2s later. It now
- * catches up with one delta from the sync watermark, then refreshes the active
- * list sub-queries. These drive the real useOrderCrud.updateOrderStatus,
+ * catches up with one delta from the sync watermark, merged into the main list
+ * and the duplicate margin, then marks the search stale. These drive the real useOrderCrud.updateOrderStatus,
  * useUpdateStatusMutation, useOrdersQuery and RealtimeBatcher over a fake DB
  * that reproduces the two writes a status change makes: the PATCH
  * (version base+1) and the order_status_history insert, whose trigger
@@ -36,6 +36,8 @@ function tick(): string {
     return new Date(Date.parse("2026-10-19T08:00:00.000Z") + H.clock).toISOString();
 }
 const dbRow = (id: string) => H.db.find((r) => r.id === id) as Record<string, unknown>;
+/** What findChangedSince returns: the list columns plus deleted_at, trashed rows included. */
+const deltaShape = (r: Record<string, unknown>) => ({ ...listShape(r), deleted_at: r.deleted_at ?? null }) as unknown as Order;
 const listShape = (r: Record<string, unknown>) => {
     const copy = { ...r };
     delete copy.net_profit;
@@ -79,11 +81,19 @@ vi.mock("@/hooks/use-toast", () => ({ toast: Object.assign(vi.fn(), { error: vi.
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { RealtimeBatcher } from "@/lib/realtime-batcher";
+import { belongsInWindow, type OrderWindow } from "@/lib/order-window";
 import { useOrderCrud } from "./use-order-crud";
+import { useDuplicateWindowAlerts } from "./use-duplicate-window-alerts";
 import { orderKeys, requestOrdersCatchUp, setOrderBatcher, useOrdersQuery, useUpdateStatusMutation } from "./use-orders-query";
 
 const SEARCH_KEY = [...orderKeys.lists(), "search", "0770", 20] as const;
-const MARGIN_KEY = [...orderKeys.lists(), "duplicate-candidates", "all"] as const;
+/** The Baghdad day 2026-10-19, which the seeded orders were placed on. */
+const TODAY = {
+    fromInstant: Date.parse("2026-10-18T21:00:00.000Z"),
+    toInstant: Date.parse("2026-10-19T20:59:59.999Z"),
+    fromDay: "2026-10-19",
+    toDay: "2026-10-19",
+} satisfies NonNullable<OrderWindow>;
 
 function seed(id: string, version: number, extra: Partial<DbRow> = {}): Record<string, unknown> {
     return {
@@ -111,8 +121,6 @@ function seed(id: string, version: number, extra: Partial<DbRow> = {}): Record<s
     };
 }
 
-let marginFetches = 0;
-
 async function mount() {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const batcher = new RealtimeBatcher({ queryClient: qc, queryKey: orderKeys.lists(), flushDelayMs: 1, getWindow: () => null });
@@ -122,13 +130,10 @@ async function mount() {
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
     const { result } = renderHook(() => {
         const list = useOrdersQuery(null, true);
-        // An active duplicate-margin observer (windowed views have one).
-        useQuery({ queryKey: MARGIN_KEY, queryFn: async () => { marginFetches++; return [] as Order[]; }, staleTime: 60_000 });
         const crud = useOrderCrud({ orders: list.data ?? [] });
         return { list, crud };
     }, { wrapper });
     await waitFor(() => expect(result.current.list.data?.length).toBe(H.db.length));
-    await waitFor(() => expect(marginFetches).toBe(1));
     return { qc, batcher, result };
 }
 
@@ -138,13 +143,14 @@ beforeEach(() => {
     H.clock = 0;
     H.tenantId = TENANT;
     H.holdDelta = null;
-    marginFetches = 0;
     H.db = [seed("o1", 4), seed("o2", 1, { phone: "07703334444" })];
-    H.findWindow.mockReset().mockImplementation(async () => H.db.filter((r) => !r.deleted_at).map(listShape));
+    H.findWindow.mockReset().mockImplementation(async (_tenant: string, w: OrderWindow) =>
+        H.db.filter((r) => !r.deleted_at && belongsInWindow(r as unknown as Order, w)).map(listShape));
     H.findLatestUpdatedAt.mockReset().mockImplementation(async () => H.db.map((r) => r.updated_at as string).sort().at(-1) ?? null);
     H.findChangedSince.mockReset().mockImplementation(async (_tenant: string, since: string) => {
         if (H.holdDelta) await H.holdDelta;
-        return H.db.filter((r) => !r.deleted_at && (r.updated_at as string) >= since).map(listShape);
+        // Like the real select: every changed row, trashed ones included, with deleted_at.
+        return H.db.filter((r) => (r.updated_at as string) >= since).map(deltaShape);
     });
     H.updateStatus.mockReset().mockImplementation(async (id: string, status: string, _reason: unknown, by: string, _avatar: unknown, expectedVersion?: number) => {
         const row = dbRow(id);
@@ -185,8 +191,6 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
         for (const rows of qc.getQueriesData<Record<string, unknown>[]>({ queryKey: orderKeys.lists() }).map(([, d]) => d ?? [])) {
             for (const r of rows) expect(r).not.toHaveProperty("net_profit");
         }
-        // The active duplicate margin was refreshed once; the main list was not.
-        expect(marginFetches).toBe(2);
     }, 10_000);
 
     it("with realtime silent, a second change on the same order is based on base+2 and does not conflict", async () => {
@@ -275,11 +279,9 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
         // order-action-bar.tsx / composer.tsx: the mutation alone, plain mutate().
         const { result } = renderHook(() => {
             const list = useOrdersQuery(null, true);
-            useQuery({ queryKey: MARGIN_KEY, queryFn: async () => { marginFetches++; return [] as Order[]; }, staleTime: 60_000 });
             return { list, status: useUpdateStatusMutation() };
         }, { wrapper });
         await waitFor(() => expect(result.current.list.data?.length).toBe(H.db.length));
-        await waitFor(() => expect(marginFetches).toBe(1));
         // A colleague edits o2 and realtime missed it: only a catch-up brings it in.
         Object.assign(dbRow("o2"), { status: "rejected", version: 2, updated_at: tick() });
 
@@ -287,7 +289,6 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
 
         await waitFor(() => expect(cached(qc, "o2")).toMatchObject({ status: "rejected", version: 2 }));
         expect(cached(qc, "o1")).toMatchObject({ status: "confirmed", version: 5 });
-        await waitFor(() => expect(marginFetches).toBe(2));
         await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
         expect(H.findChangedSince).toHaveBeenCalledTimes(1);
         // The delta started at or below our own write.
@@ -309,6 +310,46 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
         await act(async () => { await result.current.crud.updateOrderStatus("o1", "confirmed"); });
         expect(cached(qc, "o1")).toMatchObject({ version: 6, status: "cancelled" });
     });
+
+    it("a peer soft delete that realtime missed is removed by the catch-up", async () => {
+        const { qc, result } = await mount();
+        // A colleague moves o2 to the trash; realtime is silent.
+        const at = tick();
+        Object.assign(dbRow("o2"), { deleted_at: at, version: 2, updated_at: at });
+        await act(async () => { await result.current.crud.updateOrderStatus("o1", "confirmed"); });
+        await waitFor(() => expect(cached(qc, "o1")?.version).toBe(6));
+        expect(cached(qc, "o2")).toBeUndefined();
+        for (const o of qc.getQueryData<Order[]>(orderKeys.lists()) ?? []) expect(o).not.toHaveProperty("deleted_at");
+    });
+
+    it("on Today with the duplicate margin mounted, a status change downloads no window: the delta updates the margin", async () => {
+        // o3: the same customer as o1, placed yesterday at 23:00 Baghdad — in
+        // the ±48h margin, not in Today.
+        H.db.push(seed("o3", 1, { created_at: "2026-10-18T20:00:00.000Z" }));
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        setOrderBatcher(new RealtimeBatcher({ queryClient: qc, queryKey: orderKeys.lists(), flushDelayMs: 1, getWindow: () => TODAY }));
+        const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+        const { result } = renderHook(() => {
+            const list = useOrdersQuery(TODAY, true);
+            const dup = useDuplicateWindowAlerts(list.data ?? [], TODAY);
+            return { list, dup, crud: useOrderCrud({ orders: list.data ?? [] }) };
+        }, { wrapper });
+        await waitFor(() => expect(result.current.list.data?.map((o) => o.id).sort()).toEqual(["o1", "o2"]));
+        await waitFor(() => expect(result.current.dup.duplicateCandidates.map((o) => o.id).sort()).toEqual(["o1", "o2", "o3"]));
+        const windowFetches = H.findWindow.mock.calls.length;
+        expect(windowFetches).toBe(2); // the list and the margin
+
+        // A colleague confirms the yesterday twin; realtime is silent.
+        Object.assign(dbRow("o3"), { status: "confirmed", version: 2, updated_at: tick() });
+        await act(async () => { await result.current.crud.updateOrderStatus("o2", "rejected"); });
+        await act(async () => { await new Promise((r) => setTimeout(r, 2_300)); });
+
+        expect(H.findWindow.mock.calls.length).toBe(windowFetches);
+        expect(H.findChangedSince).toHaveBeenCalledTimes(1);
+        // The double-dispatch guard sees the twin's new status at once.
+        expect(result.current.dup.duplicateCandidates.find((o) => o.id === "o3")).toMatchObject({ status: "confirmed", version: 2 });
+        expect(result.current.dup.getConfirmBlockingTwin("o1")?.id).toBe("o3");
+    }, 10_000);
 
     it("a peer write between the watermark and ours is applied by the catch-up", async () => {
         const { qc, result } = await mount();

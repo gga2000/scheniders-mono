@@ -126,6 +126,35 @@ describe("live soft deletes", () => {
         expect(rows(queryClient)).toEqual([]);
     });
 
+    it("a delta row carrying deleted_at removes the cached row, even while it is guarded", () => {
+        const { queryClient, batcher } = setup([order("o1", 4), order("o2", 1)]);
+        batcher.markMutated("o1", 4);
+        batcher.applyChangedOrders([{ ...order("o1", 5), deleted_at: "2026-10-19T08:00:00.000Z" } as unknown as Order]);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["o2"]);
+    });
+
+    it("a trashed delta row is never added", () => {
+        const { queryClient, batcher } = setup([order("o2", 1)]);
+        batcher.applyChangedOrders([{ ...order("o1", 5), deleted_at: "2026-10-19T08:00:00.000Z" } as unknown as Order]);
+        expect(rows(queryClient).map((r) => r.id)).toEqual(["o2"]);
+    });
+
+    it("a trashed delta row older than the cached copy (restored since) does not remove it", () => {
+        const { queryClient, batcher } = setup([order("o1", 8)]);
+        batcher.applyChangedOrders([{ ...order("o1", 7), deleted_at: "2026-10-19T08:00:00.000Z" } as unknown as Order]);
+        expect(byId(queryClient, "o1")?.version).toBe(8);
+    });
+
+    it("live delta rows enter the list without the deleted_at column", () => {
+        const { queryClient, batcher } = setup([order("o1", 4)]);
+        batcher.applyChangedOrders([
+            { ...order("o1", 5), deleted_at: null } as unknown as Order,
+            { ...order("o3", 1), deleted_at: null } as unknown as Order,
+        ]);
+        expect(rows(queryClient).map((r) => r.id).sort()).toEqual(["o1", "o3"]);
+        for (const r of rows(queryClient)) expect(r).not.toHaveProperty("deleted_at");
+    });
+
     it("keeps admitting a restore from the trash (deleted_at null)", async () => {
         const { queryClient, batcher } = setup([], { stripping: true });
         batcher.push({ eventType: "UPDATE", new: { ...order("o1", 7), deleted_at: null, tenant_id: "t" } });

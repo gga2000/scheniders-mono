@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { Order } from "@/types/order";
 import type { OrderWindow } from "@/lib/order-window";
 import { RealtimeBatcher } from "@/lib/realtime-batcher";
+import { duplicateCandidateWindow } from "@/lib/duplicate-window";
 
 /**
  * The catch-up delta that replaces the 2s full refetch. Its start point is the
@@ -39,6 +40,8 @@ import {
     DELTA_OVERLAP_MS,
     DELTA_ROW_CAP,
     DELTA_SKEW_MS,
+    duplicateCandidateKeys,
+    duplicateCandidateMeta,
     orderKeys,
     requestOrdersCatchUp,
     setOrderBatcher,
@@ -148,6 +151,100 @@ describe("catch-up delta watermark", () => {
     });
 });
 
+describe("catch-up delta and soft deletes", () => {
+    it("a trashed row in the delta removes the cached copy and moves the watermark", async () => {
+        const { qc } = await coldLoad();
+        H.findChangedSince.mockResolvedValueOnce([{ ...row("a", "2026-10-19T08:05:00.000Z", 3), deleted_at: "2026-10-19T08:05:00.000Z" }]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        expect(qc.getQueryData<Order[]>(orderKeys.lists())?.map((o) => o.id)).toEqual(["b"]);
+        expect(getSyncWatermark(qc)?.at).toBe("2026-10-19T08:05:00.000Z");
+    });
+});
+
+describe("catch-up delta on an empty window", () => {
+    it("an empty (loaded) window is caught up by delta, not by invalidating every list query", async () => {
+        H.findWindow.mockResolvedValue([]);
+        const ctx = setup();
+        const { result } = renderHook(() => useOrdersQuery(OLD_WINDOW, true), { wrapper: ctx.wrapper });
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        const invalidate = vi.spyOn(ctx.qc, "invalidateQueries");
+        H.findChangedSince.mockResolvedValueOnce([row("n", "2026-10-19T08:05:00.000Z")]);
+        await requestOrdersCatchUp(ctx.qc, TENANT, { source: "s" });
+        expect(H.findChangedSince).toHaveBeenCalledTimes(1);
+        expect(invalidate).not.toHaveBeenCalled();
+        expect(ctx.qc.getQueryData<Order[]>(orderKeys.lists())?.map((o) => o.id)).toEqual(["n"]);
+    });
+});
+
+describe("catch-up delta and the duplicate margin", () => {
+    const MARGIN = duplicateCandidateWindow(OLD_WINDOW);
+    const MARGIN_KEY = duplicateCandidateKeys.window(MARGIN);
+    // In the margin only: 30h before the visible window starts.
+    const marginRow = (id: string, updatedAt: string, version = 1, extra: Partial<Order> = {}) =>
+        ({ ...row(id, updatedAt, version), created_at: "2026-08-19T15:00:00.000Z", ...extra }) as Order;
+
+    async function withMargin(rows: Order[]) {
+        const ctx = await coldLoad();
+        const margin = vi.fn(async () => rows);
+        const { result } = renderHook(
+            () => useQuery({ queryKey: MARGIN_KEY, queryFn: margin, staleTime: 60_000, meta: duplicateCandidateMeta(MARGIN) }),
+            { wrapper: ctx.wrapper },
+        );
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        return { ...ctx, margin };
+    }
+    const marginIds = (qc: QueryClient) => qc.getQueryData<Order[]>(MARGIN_KEY)?.map((o) => o.id).sort();
+
+    it("merges the delta into the margin without refetching it", async () => {
+        const { qc, margin } = await withMargin([marginRow("m1", "2026-10-01T00:00:00.000Z", 1), marginRow("m2", "2026-10-01T00:00:00.000Z", 1)]);
+        H.findChangedSince.mockResolvedValueOnce([
+            marginRow("m1", "2026-10-19T08:01:00.000Z", 2, { status: "confirmed" }),
+            { ...marginRow("m2", "2026-10-19T08:02:00.000Z", 2), deleted_at: "2026-10-19T08:02:00.000Z" },
+            marginRow("m3", "2026-10-19T08:03:00.000Z", 1),
+            marginRow("far", "2026-10-19T08:04:00.000Z", 1, { created_at: "2026-10-10T08:00:00.000Z" }),
+            marginRow("arch", "2026-10-19T08:04:00.000Z", 1, { is_archived: true }),
+        ]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        expect(margin).toHaveBeenCalledTimes(1);
+        expect(marginIds(qc)).toEqual(["m1", "m3"]);
+        expect(qc.getQueryData<Order[]>(MARGIN_KEY)?.find((o) => o.id === "m1")).toMatchObject({ status: "confirmed", version: 2 });
+        for (const r of qc.getQueryData<Order[]>(MARGIN_KEY) ?? []) expect(r).not.toHaveProperty("deleted_at");
+    });
+
+    it("a delta row older than the margin copy leaves it alone", async () => {
+        const { qc } = await withMargin([marginRow("m1", "2026-10-19T08:09:00.000Z", 5, { status: "in_transit" })]);
+        H.findChangedSince.mockResolvedValueOnce([marginRow("m1", "2026-10-19T08:01:00.000Z", 4, { status: "confirmed" })]);
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        expect(qc.getQueryData<Order[]>(MARGIN_KEY)?.[0]).toMatchObject({ status: "in_transit", version: 5 });
+    });
+
+    it("a margin fetch in flight when the delta lands is restarted, so its older read cannot overwrite the merge", async () => {
+        const ctx = await coldLoad();
+        let releaseFirst: (rows: Order[]) => void = () => {};
+        const margin = vi.fn()
+            .mockImplementationOnce(() => new Promise<Order[]>((resolve) => { releaseFirst = resolve; }))
+            .mockImplementation(async () => [marginRow("m1", "2026-10-19T08:01:00.000Z", 2, { status: "confirmed" })]);
+        renderHook(
+            () => useQuery({ queryKey: MARGIN_KEY, queryFn: margin, staleTime: 60_000, meta: duplicateCandidateMeta(MARGIN) }),
+            { wrapper: ctx.wrapper },
+        );
+        await waitFor(() => expect(margin).toHaveBeenCalledTimes(1));
+        H.findChangedSince.mockResolvedValueOnce([marginRow("m1", "2026-10-19T08:01:00.000Z", 2, { status: "confirmed" })]);
+        await requestOrdersCatchUp(ctx.qc, TENANT, { source: "s" });
+        // The first read started before the peer write and resolves after the delta.
+        releaseFirst([marginRow("m1", "2026-10-01T00:00:00.000Z", 1)]);
+        await waitFor(() => expect(margin).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(ctx.qc.getQueryData<Order[]>(MARGIN_KEY)?.[0]).toMatchObject({ status: "confirmed", version: 2 }));
+    });
+
+    it("an overflowing delta marks the margin stale too", async () => {
+        const { qc, margin } = await withMargin([]);
+        H.findChangedSince.mockResolvedValueOnce(Array.from({ length: DELTA_ROW_CAP }, (_, i) => row(`d${i}`, "2026-10-19T09:00:00.000Z", 5)));
+        await requestOrdersCatchUp(qc, TENANT, { source: "s" });
+        await waitFor(() => expect(margin).toHaveBeenCalledTimes(2));
+    });
+});
+
 describe("catch-up delta overflow", () => {
     it(`a delta of ${DELTA_ROW_CAP} rows keeps the watermark and refetches the list exactly once`, async () => {
         const { qc } = await coldLoad();
@@ -159,8 +256,9 @@ describe("catch-up delta overflow", () => {
 
         await syncOrdersDelta(qc, TENANT, "heartbeatDrift");
         expect(getSyncWatermark(qc)).toEqual(before);
-        expect(refetch).toHaveBeenCalledTimes(1);
-        expect(refetch).toHaveBeenCalledWith({ queryKey: orderKeys.lists(), exact: true }, { cancelRefetch: false });
+        // One exact refetch of the main list (the margin invalidate refetches through the same method).
+        const mainRefetches = refetch.mock.calls.filter(([f]) => f?.exact === true && JSON.stringify(f.queryKey) === JSON.stringify(orderKeys.lists()));
+        expect(mainRefetches).toEqual([[{ queryKey: orderKeys.lists(), exact: true }, { cancelRefetch: false }]]);
         await waitFor(() => expect(H.findWindow.mock.calls.length).toBe(fetchesBefore + 1));
         // The partial batch was not applied as if it were complete.
         expect(qc.getQueryData<Order[]>(orderKeys.lists())?.some((o) => o.id.startsWith("d"))).toBe(false);

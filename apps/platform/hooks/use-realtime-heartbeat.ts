@@ -2,27 +2,20 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase, Order } from "@/lib/supabase";
+import type { Order } from "@/lib/supabase";
 import { orderKeys, syncOrdersDelta } from "@/hooks/use-orders-query";
+import { getSyncWatermark } from "@/hooks/orders-list-coverage";
+import { orderRepository } from "@/lib/repositories/order-repository";
 import { diag } from "@/lib/diag";
 import { useAuth } from "@/components/auth/auth-provider";
 
 // =============================================
 // REALTIME HEARTBEAT
 // Lightweight check every 30s to detect silent
-// Supabase Realtime disconnections. Compares
-// the server's latest updated_at against the
-// client's cache. If out of sync, triggers a
-// soft refetch.
-//
-// This is much cheaper than polling all orders:
-// it's a single SELECT MAX(updated_at).
-//
-// To the user's question: "could this slow the app?"
-// No — it's one tiny query every 30 seconds,
-// and only triggers a refetch when divergence
-// is detected. The query is so small it takes
-// <10ms on any Supabase instance.
+// Supabase Realtime disconnections: one
+// single-row read of the tenant's newest
+// updated_at, and a catch-up delta only when
+// the cache is behind it.
 // =============================================
 
 interface UseRealtimeHeartbeatOptions {
@@ -30,6 +23,12 @@ interface UseRealtimeHeartbeatOptions {
     intervalMs?: number;
     /** Whether heartbeat is enabled (default: true) */
     enabled?: boolean;
+}
+
+/** Parse an ISO stamp; NaN (an unusable value) counts as nothing known. */
+function stampMs(iso: string | null | undefined): number {
+    const ms = iso ? Date.parse(iso) : Number.NaN;
+    return Number.isNaN(ms) ? Number.NEGATIVE_INFINITY : ms;
 }
 
 export function useRealtimeHeartbeat({
@@ -49,44 +48,33 @@ export function useRealtimeHeartbeat({
         isCheckingRef.current = true;
 
         try {
-            // 1. Get the latest updated_at from the server (single row, lightweight)
-            const { data, error } = await supabase
-                .from("orders")
-                .select("updated_at")
-                .eq("tenant_id", tenantId)
-                .eq("is_archived", false)
-                .order("updated_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
+            // 1. The tenant's newest change — archived and trashed rows
+            //    included, the same rows a delta reads and the watermark covers.
+            const serverLatest = await orderRepository.findLatestUpdatedAt(tenantId);
+            if (!serverLatest) return;
 
-            if (error || !data) {
-                isCheckingRef.current = false;
-                return;
-            }
-
-            const serverLatest = new Date(data.updated_at).getTime();
-
-            // 2. Get the latest updated_at from the client cache
+            // 2. Nothing loaded yet: the first fetch is the sync.
             const cachedOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
-            if (!cachedOrders || cachedOrders.length === 0) {
-                isCheckingRef.current = false;
-                return;
-            }
+            if (!cachedOrders) return;
 
-            const clientLatest = Math.max(
-                ...cachedOrders.map((o) => new Date(o.updated_at || 0).getTime())
-            );
+            // 3. What the cache is known to hold: the sync watermark (a complete
+            //    delta raises it past trashed and out-of-window rows, which the
+            //    cache never keeps) or its newest row (realtime raises that).
+            //    The cached rows alone saw permanent drift whenever the newest
+            //    change was a row the cache does not keep.
+            let clientLatest = stampMs(getSyncWatermark(queryClient)?.at);
+            for (const o of cachedOrders) clientLatest = Math.max(clientLatest, stampMs(o.updated_at));
 
-            // 3. If server is ahead by more than 5 seconds, we missed updates
-            const drift = serverLatest - clientLatest;
-            diag.log(`[Diag:Heartbeat] CHECK drift=${Math.round(drift / 1000)}s serverLatest=${new Date(serverLatest).toISOString()} clientLatest=${new Date(clientLatest).toISOString()}`);
+            // 4. If the server is ahead by more than 5 seconds, we missed updates.
+            const drift = stampMs(serverLatest) - clientLatest;
+            diag.log(`[Diag:Heartbeat] CHECK drift=${Math.round(drift / 1000)}s serverLatest=${serverLatest} clientLatest=${Number.isFinite(clientLatest) ? new Date(clientLatest).toISOString() : "none"}`);
             if (drift > 5_000) {
                 diag.log(`[Diag:Heartbeat] DRIFT reason=cacheDrift drift=${Math.round(drift / 1000)}s — incremental delta sync`);
                 await syncOrdersDelta(queryClient, tenantId, "heartbeatDrift");
             }
         } catch (err) {
-            // Heartbeat failures are non-critical — just log
-            console.debug("[Heartbeat] Check failed:", err);
+            // Non-critical: the next beat retries, and focus/reconnect sync too.
+            diag.warn("[Diag:Heartbeat] check failed", err);
         } finally {
             isCheckingRef.current = false;
         }

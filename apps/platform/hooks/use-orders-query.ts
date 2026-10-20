@@ -24,9 +24,9 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
 import type { CreateOrderInput } from "@/types/order";
-import type { RealtimeBatcher } from "@/lib/realtime-batcher";
+import { shouldApplyRealtimeUpdate, toListRow, type RealtimeBatcher } from "@/lib/realtime-batcher";
 import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
-import { windowCacheKey, type OrderWindow } from "@/lib/order-window";
+import { belongsInWindow, windowCacheKey, type OrderWindow } from "@/lib/order-window";
 import { FutureOrderDateError } from "@/lib/order-date-guard";
 import { reportOrderError } from "@/lib/order-telemetry";
 // Refetch trigger constants
@@ -44,6 +44,103 @@ export const orderKeys = {
     detail: (id: string) => [...orderKeys.details(), id] as const,
     archived: () => [...orderKeys.all, "archived"] as const,
 };
+
+/**
+ * Keys of the server order search (hooks/use-server-order-search.ts), under the
+ * list prefix so a list mutation's cancel and a failed delta's invalidate reach
+ * it. Defined here so the catch-up can name it without an import cycle.
+ */
+export const orderSearchKeys = {
+    all: [...orderKeys.lists(), "search"] as const,
+    term: (text: string, limit: number) => [...orderSearchKeys.all, text, limit] as const,
+};
+
+/**
+ * Keys of the duplicate-alert margin (hooks/use-duplicate-window-alerts.ts):
+ * `findWindow` over the visible window ±48h, under the list prefix. Defined
+ * here, not in that hook, so the catch-up can merge into it without an import
+ * cycle (the hook imports this module).
+ */
+export const duplicateCandidateKeys = {
+    all: [...orderKeys.lists(), "duplicate-candidates"] as const,
+    window: (window: OrderWindow) => [...duplicateCandidateKeys.all, windowCacheKey(window)] as const,
+};
+
+/** A margin query's `meta`: the window its rows were fetched for, which decides what a delta row adds or drops. */
+export function duplicateCandidateMeta(window: OrderWindow): { candidateWindow: OrderWindow } {
+    return { candidateWindow: window };
+}
+
+function isOrderWindow(value: unknown): value is NonNullable<OrderWindow> {
+    if (typeof value !== "object" || value === null) return false;
+    const w = value as Record<string, unknown>;
+    return typeof w.fromInstant === "number" && typeof w.toInstant === "number"
+        && typeof w.fromDay === "string" && typeof w.toDay === "string";
+}
+
+/**
+ * Merge a tenant-wide delta into rows fetched for `window`, by the batcher's
+ * rules: version-checked, trashed / archived / out-of-window rows dropped,
+ * newly-in-window rows added. Returns `rows` unchanged when nothing differs.
+ */
+function mergeDeltaIntoWindowRows(
+    rows: Order[] | undefined,
+    changed: readonly Order[],
+    window: OrderWindow,
+): Order[] | undefined {
+    if (!Array.isArray(rows)) return rows;
+    const incoming = new Map<string, Order>();
+    for (const row of changed) incoming.set(row.id, row);
+    let changedAny = false;
+    const next: Order[] = [];
+    for (const cached of rows) {
+        const row = incoming.get(cached.id);
+        if (!row) { next.push(cached); continue; }
+        incoming.delete(cached.id);
+        if (!shouldApplyRealtimeUpdate(cached, row)) { next.push(cached); continue; }
+        changedAny = true;
+        if (row.deleted_at != null || !belongsInWindow(row, window)) continue;
+        next.push(toListRow(row));
+    }
+    const added: Order[] = [];
+    for (const row of incoming.values()) {
+        if (row.deleted_at != null || !belongsInWindow(row, window)) continue;
+        added.push(toListRow(row));
+    }
+    if (added.length === 0 && !changedAny) return rows;
+    return [...added, ...next];
+}
+
+/**
+ * Bring every cached duplicate margin up to date with a delta. The delta is
+ * tenant-wide, so it holds every change to the margin's rows too: refetching
+ * the margin (a `findWindow` over ~5 days for "Today") after each status
+ * change cost more than the main list it replaced. A margin query without its
+ * window in `meta` cannot be merged safely and is marked stale instead.
+ */
+function mergeDeltaIntoMargins(queryClient: QueryClient, changed: readonly Order[]): void {
+    if (changed.length === 0) return;
+    for (const query of queryClient.getQueryCache().findAll({ queryKey: duplicateCandidateKeys.all })) {
+        const window = query.meta?.candidateWindow;
+        if (!isOrderWindow(window)) {
+            diag.warn(`[Diag:RQ:Delta] margin ${JSON.stringify(query.queryKey)} has no window — marking it stale`);
+            void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
+            continue;
+        }
+        const inFlight = query.state.fetchStatus === "fetching" ? query.promise : undefined;
+        if (inFlight) {
+            // Its read can predate these rows and lands after this merge,
+            // overwriting it, while the watermark has already moved past them.
+            // Refetch once it settles (a first load cannot be restarted: React
+            // Query dedupes it). Either outcome refreshes: a failure is already
+            // the query's own error state. Rare: a margin mid-fetch.
+            const refresh = () => queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
+            void inFlight.then(refresh, refresh);
+            continue;
+        }
+        queryClient.setQueryData<Order[]>(query.queryKey, (old) => mergeDeltaIntoWindowRows(old, changed, window));
+    }
+}
 
 // =============================================
 // BATCHER REGISTRY
@@ -119,9 +216,11 @@ export async function syncOrdersDelta(
     opts: { since?: string } = {},
 ): Promise<void> {
     coverage(queryClient);
+    // An empty array is a loaded, empty window (Today before the first order):
+    // a delta applies to it like any other. Only "never loaded" refetches.
     const cached = queryClient.getQueryData<Order[]>(orderKeys.lists());
     const batcher = getOrderBatcher();
-    if (!cached || cached.length === 0 || !batcher || !tenantId) {
+    if (!cached || !batcher || !tenantId) {
         diag.log(`[Diag:RQ:Delta] source=${source} — no cache/batcher, full refetch`);
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
         return;
@@ -146,9 +245,12 @@ export async function syncOrdersDelta(
         if (changed.length >= DELTA_ROW_CAP) {
             diag.warn(`[Diag:RQ:Delta] overflow source=${source} since=${since} fetched=${changed.length} — watermark kept, refetching the list`);
             void queryClient.refetchQueries({ queryKey: orderKeys.lists(), exact: true }, { cancelRefetch: false });
+            // The margin cannot take a partial delta either.
+            void queryClient.invalidateQueries({ queryKey: duplicateCandidateKeys.all });
             return;
         }
         const applied = batcher.applyChangedOrders(changed);
+        mergeDeltaIntoMargins(queryClient, changed);
         propagateRiskData(queryClient, changed);
         advanceSyncWatermark(queryClient, changed, commitGen);
         diag.log(`[Diag:RQ:Delta] source=${source} since=${since} fetched=${changed.length} applied=${applied} took=${(performance.now() - _t).toFixed(1)}ms`);
@@ -900,11 +1002,16 @@ export function propagateRiskData(queryClient: QueryClient, changed: readonly Or
 /**
  * After our own write has fully landed (for a status change: the PATCH and the
  * history row whose trigger writes the row again), bring every list cache up
- * to date: one catch-up delta for the main list — it carries our row at its
- * final version, any peer writes since the watermark, and fresh risk — then a
- * refetch of the ACTIVE list sub-keys (search, the duplicate margin), which
- * realtime never patches. This is what the 2s full refetch used to do, at the
- * cost of one delta and the small sub-queries. Never rejects.
+ * to date with one catch-up delta. It carries our row at its final version,
+ * any peer writes since the watermark and fresh risk, and is merged into the
+ * main list and every cached duplicate margin (`syncOrdersDelta`). Search
+ * results span every date, status and the trash, so no window decides what a
+ * delta row adds there: the search is marked stale, which refetches it only
+ * while a search is on screen.
+ *
+ * Resolves when the delta has been applied — the next change to the same
+ * order waits on this (use-order-crud.ts `catchUpRef`) for its base version,
+ * and must not also wait on the search refetch. Never rejects.
  */
 export async function catchUpAfterOwnWrite(
     queryClient: QueryClient,
@@ -913,10 +1020,9 @@ export async function catchUpAfterOwnWrite(
 ): Promise<void> {
     if (!tenantId) return;
     await requestOrdersCatchUp(queryClient, tenantId, { source, since });
-    const mainKeyLength = orderKeys.lists().length;
-    await queryClient
-        .invalidateQueries({ queryKey: orderKeys.lists(), predicate: (q) => q.queryKey.length > mainKeyLength })
-        .catch((err: unknown) => { diag.error("[Diag:RQ:CatchUp] sub-key refresh failed", err); });
+    void queryClient
+        .invalidateQueries({ queryKey: orderSearchKeys.all })
+        .catch((err: unknown) => { diag.error("[Diag:RQ:CatchUp] search refresh failed", err); });
 }
 
 /**
