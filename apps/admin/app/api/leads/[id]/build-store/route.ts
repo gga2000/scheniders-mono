@@ -29,6 +29,12 @@ export async function POST(
       return NextResponse.json({ error: "Store already built for this lead" }, { status: 400 });
     }
 
+    // A converted lead already has its merchant tenant (convert_lead_atomic);
+    // a prospect store on top of it would be a second tenant for one lead.
+    if (lead.converted_tenant_id || lead.status === "converted") {
+      return NextResponse.json({ error: "Lead already converted" }, { status: 409 });
+    }
+
     // Generate slug from merchant name
     const baseSlug = (lead.merchant_name || "store")
       .toLowerCase()
@@ -60,7 +66,15 @@ export async function POST(
       .select()
       .single();
 
-    if (tenantError) throw tenantError;
+    if (tenantError) {
+      // tenants_prospect_lead_id_key (one tenant per lead): a concurrent
+      // convert or build-store created this lead's tenant after the checks
+      // above. Nothing was written.
+      if (tenantError.code === "23505" && tenantError.message.includes("tenants_prospect_lead_id_key")) {
+        return NextResponse.json({ error: "A store already exists for this lead" }, { status: 409 });
+      }
+      throw tenantError;
+    }
 
     // Create products if provided
     if (body.products && Array.isArray(body.products) && body.products.length > 0) {
@@ -73,34 +87,39 @@ export async function POST(
         status: "active",
       }));
 
-      await supabase.from("products").insert(products);
+      const { error: productsError } = await supabase.from("products").insert(products);
+      if (productsError) throw productsError;
     }
 
     // Create wallet for the tenant
-    await supabase.from("wallet").insert({
+    const { error: walletError } = await supabase.from("wallet").insert({
       tenant_id: tenant.id,
       balance_iqd: 0,
       threshold_iqd: 5000,
     });
+    if (walletError) throw walletError;
 
     // Update the lead
-    await supabase
+    const { error: leadUpdateError } = await supabase
       .from("leads")
       .update({
         prospect_tenant_id: tenant.id,
         store_built_at: new Date().toISOString(),
         status: "store_built",
       })
-      .eq("id", id);
+      .eq("id", id)
+      .is("converted_tenant_id", null);
+    if (leadUpdateError) throw leadUpdateError;
 
     // Log activity
-    await supabase.from("lead_activities").insert({
+    const { error: activityError } = await supabase.from("lead_activities").insert({
       lead_id: id,
       activity_type: "store_created",
       title: `Prospect store created: ${tenant.slug}`,
       metadata: { tenant_id: tenant.id, slug: tenant.slug, template: body.template || "general" },
       created_by: body.created_by || null,
     });
+    if (activityError) throw activityError;
 
     return NextResponse.json({
       tenant,

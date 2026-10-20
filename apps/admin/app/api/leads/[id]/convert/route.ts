@@ -3,13 +3,25 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 
-/** A converted merchant always starts on this plan; changing it afterwards is
- *  `change_plan` (super_admin), so the caller does not get to pick it here. */
-const CONVERSION_PLAN = "starter";
-
 const bodySchema = z.object({
   notes: z.string().trim().max(2000).optional(),
 });
+
+const paramsSchema = z.object({ id: z.uuid() });
+
+/**
+ * `public.convert_lead_atomic` (migration 20261020163000) does the whole
+ * conversion — tenant, wallet, subscription, lead update, activity, commission
+ * — in one transaction under a row lock on the lead, so two concurrent
+ * converts cannot both create a tenant. The plan is fixed (starter) inside the
+ * function; changing it afterwards is `change_plan` (super_admin).
+ */
+const rpcResultSchema = z.discriminatedUnion("outcome", [
+  z.object({ outcome: z.literal("converted"), tenant_id: z.uuid() }),
+  z.object({ outcome: z.literal("already_converted"), tenant_id: z.uuid().nullable() }),
+  z.object({ outcome: z.literal("not_found") }),
+  z.object({ outcome: z.literal("prospect_not_open") }),
+]);
 
 export async function POST(
   request: NextRequest,
@@ -19,176 +31,67 @@ export async function POST(
   const auth = await requireAdminPermission(request, "convert_lead");
   if (auth instanceof NextResponse) return auth;
 
+  const parsedParams = paramsSchema.safeParse(await params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  }
+
+  let body: unknown;
   try {
-    const { id } = await params;
-    const parsed = bodySchema.safeParse(await request.json());
-    if (!parsed.success) {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid body" },
+      { status: 400 }
+    );
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("convert_lead_atomic", {
+    _lead_id: parsedParams.data.id,
+    // Attributed to the authenticated caller, never to a client-supplied id.
+    _actor_id: auth.user.id,
+    _notes: parsed.data.notes || null,
+  });
+
+  if (error) {
+    // tenants_prospect_lead_id_key (one tenant per lead): a prospect store was
+    // built for this lead while the conversion ran. The function rolled back;
+    // a retry takes the prospect-store path.
+    if (error.code === "23505" && error.message.includes("tenants_prospect_lead_id_key")) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Invalid body" },
-        { status: 400 }
+        { error: "A store was just built for this lead. Reload and convert again." },
+        { status: 409 }
       );
     }
-    const notes = parsed.data.notes || null;
-    const supabase = createAdminClient();
-
-    // Fetch the lead
-    const { data: lead, error: leadError } = await supabase
-      .from("leads")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (leadError || !lead) {
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-    }
-
-    // `status` is a free-form field any admin can edit (PATCH /api/leads/[id]),
-    // so it cannot be what stops a second conversion. `converted_tenant_id` is
-    // only ever written here.
-    if (lead.converted_tenant_id || lead.status === "converted") {
-      return NextResponse.json({ error: "Lead already converted" }, { status: 400 });
-    }
-
-    let tenantId: string;
-
-    if (lead.prospect_tenant_id) {
-      // Convert the prospect store into a real merchant. The write only matches
-      // a tenant that is still an untouched prospect trial: converting a store
-      // that was already converted, paused (`limited`), suspended or cancelled
-      // would set it `active` again, which is `reactivate_tenant` (super_admin),
-      // not `convert_lead`.
-      const { data: converted, error: updateError } = await supabase
-        .from("tenants")
-        .update({
-          is_prospect: false,
-          status: "active",
-          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-        .eq("id", lead.prospect_tenant_id)
-        .eq("is_prospect", true)
-        .eq("status", "trial")
-        .select("id")
-        .maybeSingle();
-
-      if (updateError) throw updateError;
-      if (!converted) {
-        return NextResponse.json(
-          { error: "The prospect store is no longer an open trial and cannot be converted" },
-          { status: 400 }
-        );
-      }
-      tenantId = converted.id;
-    } else {
-      // Create new tenant from lead data
-      const slug = (lead.merchant_name || "store")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "")
-        + "-" + Date.now().toString(36);
-
-      const { data: tenant, error: createError } = await supabase
-        .from("tenants")
-        .insert({
-          business_name: lead.merchant_name,
-          slug,
-          plan: CONVERSION_PLAN,
-          status: "active",
-          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-          is_prospect: false,
-          prospect_lead_id: id,
-          contact_phone: lead.page_phone,
-          address: lead.address,
-          city: lead.city,
-          settings: { timezone: "Asia/Baghdad", language: "ar", currency: "IQD" },
-          branding: { logo_url: null, primary_color: "#3b82f6", secondary_color: "#8b5cf6" },
-        })
-        .select()
-        .single();
-
-      if (createError || !tenant) throw createError;
-      tenantId = tenant.id;
-
-      // Create wallet
-      const { error: walletError } = await supabase.from("wallet").insert({
-        tenant_id: tenantId,
-        balance_iqd: 0,
-        threshold_iqd: 5000,
-      });
-      if (walletError) throw walletError;
-    }
-
-    // Create subscription
-    const now = new Date();
-    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const { error: subscriptionError } = await supabase.from("subscriptions").insert({
-      tenant_id: tenantId,
-      plan: CONVERSION_PLAN,
-      status: "active",
-      current_period_start: now.toISOString(),
-      current_period_end: periodEnd.toISOString(),
-    });
-    if (subscriptionError) throw subscriptionError;
-
-    // Update lead
-    const { error: leadUpdateError } = await supabase
-      .from("leads")
-      .update({
-        converted_tenant_id: tenantId,
-        converted_at: now.toISOString(),
-        status: "converted",
-      })
-      .eq("id", id);
-    if (leadUpdateError) throw leadUpdateError;
-
-    // Log activity — attributed to the authenticated caller, never to a
-    // client-supplied id.
-    const { error: activityError } = await supabase.from("lead_activities").insert({
-      lead_id: id,
-      activity_type: "conversion",
-      title: "Lead converted to merchant",
-      description: notes,
-      metadata: { tenant_id: tenantId, plan: CONVERSION_PLAN },
-      created_by: auth.user.id,
-    });
-    if (activityError) throw activityError;
-
-    // Create commission record if lead has an assigned employee
-    if (lead.assigned_to || lead.created_by) {
-      const employeeId = lead.assigned_to || lead.created_by;
-      const { data: activeConfig, error: configError } = await supabase
-        .from("admin_commission_config")
-        .select("*")
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-      if (configError) throw configError;
-
-      if (activeConfig) {
-        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const periodEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-        const { error: commissionError } = await supabase.from("admin_employee_commissions").insert({
-          admin_user_id: employeeId,
-          lead_id: id,
-          tenant_id: tenantId,
-          commission_config_id: activeConfig.id,
-          period_start: periodStart.toISOString().split("T")[0],
-          period_end: periodEndDate.toISOString().split("T")[0],
-          orders_count: 0,
-          order_revenue: 0,
-          amount_earned: 0,
-          status: "pending",
-        });
-        if (commissionError) throw commissionError;
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      tenant_id: tenantId,
-    });
-  } catch (error) {
     console.error("Convert error:", error);
     return NextResponse.json({ error: "Failed to convert lead" }, { status: 500 });
+  }
+
+  const result = rpcResultSchema.safeParse(data);
+  if (!result.success) {
+    console.error("Convert error: unexpected convert_lead_atomic result", data);
+    return NextResponse.json({ error: "Failed to convert lead" }, { status: 500 });
+  }
+
+  switch (result.data.outcome) {
+    case "converted":
+      return NextResponse.json({ success: true, tenant_id: result.data.tenant_id });
+    case "already_converted":
+      return NextResponse.json(
+        { error: "Lead already converted", tenant_id: result.data.tenant_id },
+        { status: 409 }
+      );
+    case "not_found":
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    case "prospect_not_open":
+      return NextResponse.json(
+        { error: "The prospect store is no longer an open trial and cannot be converted" },
+        { status: 400 }
+      );
   }
 }
