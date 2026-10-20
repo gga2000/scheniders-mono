@@ -52,6 +52,7 @@ vi.mock("@scheniders/sections", () => ({
   toSectionTenant: <T,>(t: T): T => t,
 }));
 vi.mock("@/components/experiment-beacon", () => ({ ExperimentBeacon: () => null }));
+vi.mock("@/components/funnel-beacon", () => ({ FunnelBeacon: () => null }));
 vi.mock("@/components/storefront-globals", () => ({ StorefrontGlobals: () => null }));
 vi.mock("@/components/cart-signal", () => ({ CartSignal: () => null }));
 vi.mock("@/components/section-reveal", () => ({ SectionReveal: () => null }));
@@ -62,6 +63,7 @@ import { sendPurchaseCapi } from "@/lib/capi";
 import { getTenantBySlug } from "@/lib/tenant";
 import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pixels";
 import { ExperimentBeacon } from "@/components/experiment-beacon";
+import { FunnelBeacon } from "@/components/funnel-beacon";
 import { submitCheckout } from "@/app/actions/checkout";
 import TenantLayout from "@/app/s/[tenant]/layout";
 import { V2Page } from "@/components/v2-page";
@@ -305,5 +307,15 @@ describe("V2Page experiment exposure", () => {
   it("still assigns the arm but records no exposure in draft view", async () => {
     jar(draftToken());
     expect(findElement(await render(), ExperimentBeacon)).toBeNull();
+  });
+
+  it("counts a shopper's page view in the purchase funnel", async () => {
+    jar(undefined);
+    expect(findElement(await render(), FunnelBeacon)).not.toBeNull();
+  });
+
+  it("keeps a draft-view page view out of the purchase funnel", async () => {
+    jar(draftToken());
+    expect(findElement(await render(), FunnelBeacon)).toBeNull();
   });
 });

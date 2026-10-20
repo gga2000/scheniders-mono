@@ -162,11 +162,15 @@ export async function V2Page({
   return (
     <>
       <CartSignal />
-      <FunnelBeacon
-        tenantId={renderCtx.tenant.id}
-        pageId={String(runtime.page_id)}
-        productId={runtime.product_id}
-      />
+      {/* Draft view is the merchant, not a shopper: its page views stay out
+          of the funnel exactly as its purchases do (checkout route). */}
+      {!draftView && (
+        <FunnelBeacon
+          tenantId={renderCtx.tenant.id}
+          pageId={String(runtime.page_id)}
+          productId={runtime.product_id}
+        />
+      )}
       <SectionReveal />
       {Object.keys(abArms).length > 0 && !draftView && (
         <ExperimentBeacon tenantId={renderCtx.tenant.id} arms={abArms} />
