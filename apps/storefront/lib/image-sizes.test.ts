@@ -27,7 +27,9 @@ function tsxFiles(dir: string): string[] {
 
 /** `<Image ... />` blocks, with their 1-based line number. */
 function imageTags(src: string): { body: string; line: number }[] {
-    return [...src.matchAll(/<Image\b(.*?)\/>/gs)].map((m) => ({
+    // `[\s\S]` rather than `.` with the `s` flag: the workspace targets
+    // ES2017, where tsc rejects dotAll (TS1501).
+    return [...src.matchAll(/<Image\b([\s\S]*?)\/>/g)].map((m) => ({
         body: m[1],
         line: src.slice(0, m.index).split("\n").length,
     }));
