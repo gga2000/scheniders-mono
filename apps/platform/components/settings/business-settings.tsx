@@ -382,7 +382,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                     <input
                                         ref={fileInputRef}
                                         type="file"
-                                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                        accept="image/png,image/jpeg,image/webp"
                                         className="hidden"
                                         onChange={(e) => {
                                             const file = e.target.files?.[0];
@@ -398,7 +398,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                         {isUploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                                         {logoUrl ? "Change" : "Upload"}
                                     </button>
-                                    <p className="text-[10px] text-muted-foreground mt-1">PNG, JPG, WebP, SVG. Max 512KB.</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">PNG, JPG, WebP. Max 512KB.</p>
                                 </div>
                             </div>
                         </div>

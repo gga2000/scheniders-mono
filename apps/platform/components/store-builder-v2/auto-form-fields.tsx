@@ -520,7 +520,7 @@ export function ImageControl(p: ImageControlProps): ReactElement {
                     </span>
                     <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp"
                         className="sr-only"
                         data-testid={`${p.testIdBase}-upload`}
                         onChange={handleUpload}
