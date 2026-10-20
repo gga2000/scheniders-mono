@@ -266,7 +266,7 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
         // The cancelled All fetch never claimed the window; the reconciler
         // fetches All exactly once more.
         await waitFor(() => expect(H.findWindow).toHaveBeenCalledTimes(3));
-        expect(H.findWindow.mock.calls[2]).toEqual([TENANT, null]);
+        expect(H.findWindow.mock.calls[2]).toEqual([TENANT, null, { onPreview: expect.any(Function) }]);
         await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
         expect(H.findWindow).toHaveBeenCalledTimes(3);
     });

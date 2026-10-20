@@ -2,8 +2,12 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
-import { countVisibility } from "@/lib/orders/count-visibility";
-import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
+import { countVisibility, listCountVisible } from "@/lib/orders/count-visibility";
+import { isScheduleDue } from "@/lib/order-format-utils";
+import { sortMobileList } from "@/lib/orders/list-sort";
+import { mobilePreviewRows } from "@/lib/orders/list-preview";
+import { perfTrace } from "@/lib/perf-trace";
+import { OrderListPreviewStrip } from "@/components/orders/order-list-preview-strip";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useShallow } from "zustand/react/shallow";
@@ -41,6 +45,12 @@ export function MobileOrdersPage() {
         statusCounts,
         adChannelSummary,
         countViewFacts,
+        listCovered,
+        listPreview,
+        loading,
+        ordersPending,
+        isRefreshing,
+        orderSearch,
         getCustomerArchivedCount,
         getCustomerOrderCount,
         hasDuplicates,
@@ -118,22 +128,8 @@ export function MobileOrdersPage() {
         }
 
         // Default sorting: Newest first, with orders parked for a later day
-        // below the live queue, matching the desktop list. Timestamps resolved
-        // once rather than parsed twice per comparison.
-        const createdAtMs = new Map<string, number>();
-        for (const order of result) {
-            const parsed = Date.parse(order.created_at);
-            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
-        }
-        const parked = new Set(result.filter((o) => getScheduledState(o.scheduled_date) === "future").map((o) => o.id));
-        result.sort((a, b) => {
-            const aParked = parked.has(a.id);
-            const bParked = parked.has(b.id);
-            if (aParked !== bParked) return aParked ? 1 : -1;
-            return (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0);
-        });
-
-        return result;
+        // below the live queue, matching the desktop list (lib/orders/list-sort.ts).
+        return sortMobileList(result);
     }, [hookFilteredOrders, filters.riskLevel, filterDueToday]);
 
     // Postponed orders whose day has arrived, over the list the toggle narrows —
@@ -185,6 +181,27 @@ export function MobileOrdersPage() {
         const start = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
         return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
     }, [filteredOrders, safeCurrentPage]);
+
+    // The head of a wide list fetch while the window loads: the newest rows,
+    // read-only and never counted (lib/orders/list-preview.ts). Not with the
+    // risk or due-today filter, which over a partial list show the wrong rows.
+    const previewOrders = useMemo(() => {
+        if (!listPreview || filters.riskLevel || filterDueToday) return null;
+        return mobilePreviewRows(listPreview.rows, listPreview.newestCutoff);
+    }, [listPreview, filters.riskLevel, filterDueToday]);
+    const previewing = previewOrders !== null;
+    const shownOrders = previewOrders ?? paginatedOrders;
+    // The number badge is the list's length only once the list is the whole
+    // window (or the server's search hits).
+    const listCountShown = listCountVisible({ listCovered, searching: orderSearch.active });
+    // An empty list while rows are still arriving is not "no orders".
+    const listLoading = shownOrders.length === 0 && (previewing || loading || ordersPending || isRefreshing);
+
+    useEffect(() => {
+        if (!previewing) return;
+        const frame = requestAnimationFrame(() => perfTrace.mark("orders:preview-paint"));
+        return () => cancelAnimationFrame(frame);
+    }, [previewing]);
 
     const handleStatusUpdate = async (id: string, status: Order["status"]) => {
         if (duplicateGuard.holdStatusChange(id, status, () => { void updateOrderStatus(id, status); })) return;
@@ -277,7 +294,7 @@ export function MobileOrdersPage() {
                         className="h-full px-4 flex items-center justify-center bg-gradient-to-l from-amber-500/10 to-transparent border-r border-[var(--card-border)] text-amber-600 hover:bg-amber-500/20 transition-colors"
                         title="Clear search and filters"
                     >
-                        <span className="text-sm font-bold font-mono">{filteredOrders.length}</span>
+                        <span className="text-sm font-bold font-mono">{listCountShown ? filteredOrders.length : "—"}</span>
                     </button>
                 </div>
 
@@ -320,20 +337,42 @@ export function MobileOrdersPage() {
                 <div className="px-3">
                     <OrderSearchBanner count={filteredOrders.length} />
                 </div>
-                <MobileOrdersList
-                    orders={paginatedOrders}
-                    onRefresh={async () => { await fetchOrders(); }}
-                    onViewDetails={handleViewDetails}
-                    onStatusUpdate={handleStatusUpdate}
-                    getCustomerArchivedCount={getCustomerArchivedCount}
-                    getCustomerOrderCount={getCustomerOrderCount}
-                    hasDuplicates={hasDuplicates}
-                    getDuplicateWindowAlert={getDuplicateWindowAlert}
-                    onOpenTemplatePanel={(o) => {
-                        setOrderForTemplate(o);
-                        setTemplatePanelOpen(true);
-                    }}
-                />
+                {previewing && (
+                    <div className="px-3">
+                        <OrderListPreviewStrip />
+                    </div>
+                )}
+                {listLoading ? (
+                    <div className="space-y-3 px-4" aria-busy="true" aria-live="polite">
+                        {[0, 1, 2, 3].map((i) => (
+                            <div key={i} className="w-full h-36 animate-pulse bg-muted/20 rounded-2xl" />
+                        ))}
+                    </div>
+                ) : (
+                    // While previewing, every row is inert: no swipe, status
+                    // action or details until the window has loaded.
+                    <div
+                        inert={previewing}
+                        aria-busy={previewing || undefined}
+                        className={previewing ? "pointer-events-none select-none" : undefined}
+                        data-orders-list-preview={previewing ? "" : undefined}
+                    >
+                        <MobileOrdersList
+                            orders={shownOrders}
+                            onRefresh={async () => { await fetchOrders(); }}
+                            onViewDetails={handleViewDetails}
+                            onStatusUpdate={handleStatusUpdate}
+                            getCustomerArchivedCount={getCustomerArchivedCount}
+                            getCustomerOrderCount={getCustomerOrderCount}
+                            hasDuplicates={hasDuplicates}
+                            getDuplicateWindowAlert={getDuplicateWindowAlert}
+                            onOpenTemplatePanel={(o) => {
+                                setOrderForTemplate(o);
+                                setTemplatePanelOpen(true);
+                            }}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Modals */}

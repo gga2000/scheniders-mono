@@ -14,8 +14,12 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Order, OrderItem } from "@/lib/supabase";
 import type { OrderFilters } from "@/types/order";
 import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
-import { countVisibility } from "@/lib/orders/count-visibility";
-import { getScheduledState, isScheduleDue } from "@/lib/order-format-utils";
+import { countVisibility, listCountVisible } from "@/lib/orders/count-visibility";
+import { isScheduleDue } from "@/lib/order-format-utils";
+import { sortDesktopList } from "@/lib/orders/list-sort";
+import { desktopPreviewRows } from "@/lib/orders/list-preview";
+import { perfTrace } from "@/lib/perf-trace";
+import { OrderListPreviewStrip } from "@/components/orders/order-list-preview-strip";
 import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { OrderDialogs } from "@/components/orders/order-dialogs";
@@ -207,6 +211,8 @@ export default function OrdersPage() {
         attentionCounts,
         countViewFacts,
         ordersAreComplete,
+        listCovered,
+        listPreview,
         filtersSettled,
         // Message templates
         messageTemplates,
@@ -607,50 +613,11 @@ export default function OrdersPage() {
             result = result.filter(o => isScheduleDue(o.status, o.scheduled_date));
         }
 
-        // 2. Sort
+        // 2. Sort: pinned first, parked last, then the column sorts, else
+        // newest first (lib/orders/list-sort.ts — shared with the preview's
+        // prefix proof).
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
-
-        // Same reason as in use-order-filters: the comparator ran `new Date()`
-        // twice per comparison. Resolve each order's timestamp once up front.
-        const createdAtMs = new Map<string, number>();
-        for (const order of result) {
-            const parsed = Date.parse(order.created_at);
-            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
-        }
-        const createdAt = (order: Order) => createdAtMs.get(order.id) ?? 0;
-        // Orders parked for a later day are not today's work: they stay in the
-        // list of the day they arrived (where the status chips count them) but
-        // sink below the live queue instead of mixing into it.
-        const parked = new Set(result.filter(o => getScheduledState(o.scheduled_date) === "future").map(o => o.id));
-
-        result.sort((a, b) => {
-            // Priority: Pinned first
-            if (a.is_pinned && !b.is_pinned) return -1;
-            if (!a.is_pinned && b.is_pinned) return 1;
-
-            const aParked = parked.has(a.id);
-            const bParked = parked.has(b.id);
-            if (aParked !== bParked) return aParked ? 1 : -1;
-
-            // Multi-column sort
-            for (const sc of activeSorts) {
-                let aVal: unknown = a[sc.key as keyof Order];
-                let bVal: unknown = b[sc.key as keyof Order];
-
-                if (sc.key === 'amount') { aVal = Number(a.price); bVal = Number(b.price); }
-                if (sc.key === 'order_id') { aVal = a.sequence_number || a.order_id; bVal = b.sequence_number || b.order_id; }
-                if (sc.key === 'created_at') { aVal = createdAt(a); bVal = createdAt(b); }
-
-                if (aVal != null && bVal != null && aVal < bVal) return sc.direction === 'asc' ? -1 : 1;
-                if (aVal != null && bVal != null && aVal > bVal) return sc.direction === 'asc' ? 1 : -1;
-            }
-
-            if (activeSorts.length > 0) return 0;
-
-            // Default sort: Newest first
-            return createdAt(b) - createdAt(a);
-        });
-        return result;
+        return sortDesktopList(result, activeSorts);
     }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
@@ -689,6 +656,31 @@ export default function OrdersPage() {
         duplicatesOnly: defFilterDuplicatesOnly,
         dueToday: defFilterDueToday,
     }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday]);
+
+    // The head of a wide list fetch, while the window loads — rows in under a
+    // second instead of a skeleton for the whole book. Only for the plain list:
+    // a column filter, a sort, the risk / duplicates / due-today toggles, a
+    // grouping or the workflow board each wait for the full window, because
+    // over a partial list they would show the wrong rows. Read-only and never
+    // counted (lib/orders/list-preview.ts); rows that could still move when the
+    // book lands are dropped.
+    const previewOrders = useMemo(() => {
+        if (!listPreview || defShowArchived || workflowMode || groupBy !== "none") return null;
+        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday) return null;
+        if (defSortConfigs.length > 0 || defSortConfig) return null;
+        return desktopPreviewRows(listPreview.rows);
+    }, [listPreview, defShowArchived, workflowMode, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defSortConfigs, defSortConfig]);
+    const previewing = previewOrders !== null;
+    // A count of the list is its length only once the list is the whole
+    // window (or the server's search hits): never over a preview or the
+    // previous window's rows.
+    const listCountShown = listCountVisible({ listCovered, searching: orderSearch.active });
+
+    useEffect(() => {
+        if (!previewing) return;
+        const frame = requestAnimationFrame(() => perfTrace.mark("orders:preview-paint"));
+        return () => cancelAnimationFrame(frame);
+    }, [previewing]);
 
     // Scroll to top when filters change to prevent empty list illusion
     useEffect(() => {
@@ -735,6 +727,8 @@ export default function OrdersPage() {
     const PAGE_SELECT_LIMIT = 50;
 
     const selectAll = useCallback(() => {
+        // Nothing to select from a preview: its rows are read-only.
+        if (previewing) return;
         const store = useOrderStore.getState();
         if (store.selectedOrders.size > 0) {
             store.clearSelection();
@@ -745,7 +739,7 @@ export default function OrdersPage() {
                 : filteredOrders.map(o => o.id);
             store.selectAll(idsToSelect);
         }
-    }, [filteredOrders]);
+    }, [filteredOrders, previewing]);
 
     // ARCH-1: every bulk operation — the status handlers, archive, the soft
     // delete and its undo, the courier export and the post-export prompt — used
@@ -800,7 +794,9 @@ export default function OrdersPage() {
 
     // Switch between regular and archived orders
     const displayedOrders = showArchived ? archivedOrders : filteredOrders;
-    const deferredDisplayedOrders = React.useDeferredValue(displayedOrders);
+    // What the list renders: the preview while the window loads.
+    const listOrders = previewOrders ?? displayedOrders;
+    const deferredDisplayedOrders = React.useDeferredValue(listOrders);
 
     // Risk data by phone, built once. These lookups are called once per rendered
     // row, and each used to be a `.find()` over the whole list — O(rows x visible)
@@ -918,7 +914,8 @@ export default function OrdersPage() {
     // `loading` misses a pending-but-disabled query — which this one is until the
     // Supabase client finishes initialising — so without ordersPending the page
     // fell through to content with zero orders and rendered the empty state.
-    const isInitialLoading = !isMounted || loading || ordersPending;
+    // A preview is content: the page renders it instead of the skeleton.
+    const isInitialLoading = !isMounted || ((loading || ordersPending) && !previewing);
 
     return (
         <AnimatePresence mode="wait">
@@ -989,6 +986,7 @@ export default function OrdersPage() {
                                                     {/* Select All Checkbox */}
                                                     <button
                                                         onClick={selectAll}
+                                                        disabled={previewing}
                                                         className={cn(
                                                             "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
                                                             selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
@@ -1003,7 +1001,7 @@ export default function OrdersPage() {
                                                     </button>
                                                     <div className="flex items-center gap-2">
                                                         <Package className="w-5 h-5 text-foreground" />
-                                                        <span className="font-bold text-lg text-foreground" data-orders-header-count>{filteredOrders.length}</span>
+                                                        <span className="font-bold text-lg text-foreground" data-orders-header-count>{listCountShown ? filteredOrders.length : "—"}</span>
                                                         <span className="text-muted text-sm">orders</span>
                                                     </div>
                                                     {selectedOrders.size > 0 && (
@@ -1086,6 +1084,7 @@ export default function OrdersPage() {
                                                         {/* Select All - Custom Glass Checkbox */}
                                                         <button
                                                             onClick={selectAll}
+                                                            disabled={previewing}
                                                             className={cn(
                                                                 "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300 flex-shrink-0 group relative overflow-hidden",
                                                                 selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
@@ -1108,7 +1107,7 @@ export default function OrdersPage() {
                                                             <div className="flex flex-col leading-none">
                                                                 <div className="flex items-baseline gap-1.5">
                                                                     <span className="text-2xl font-black text-foreground dark:text-white" data-orders-header-count>
-                                                                        {filteredOrders.length}
+                                                                        {listCountShown ? filteredOrders.length : "—"}
                                                                     </span>
                                                                     <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">{t("orders.title")}</span>
                                                                 </div>
@@ -1621,7 +1620,9 @@ export default function OrdersPage() {
 
                                             {/* Collapsible Analytics Panel */}
                                             <OrdersAnalyticsPanel
-                                                analyticsLevel={analyticsLevel}
+                                                // Its velocity and peak-hour figures are taken over the
+                                                // loaded rows: none until the window has loaded.
+                                                analyticsLevel={previewing ? 0 : analyticsLevel}
                                                 stats={stats}
                                                 statusCounts={statusCounts}
                                                 filters={filters}
@@ -1785,10 +1786,20 @@ export default function OrdersPage() {
                                                 )}
                                             </AnimatePresence>
 
+                                            {previewing && <OrderListPreviewStrip />}
+
+                                            {/* While previewing, every row is inert: no swipe, status
+                                                action, selection or details until the window has loaded. */}
+                                            <div
+                                                inert={previewing}
+                                                aria-busy={previewing || undefined}
+                                                className={previewing ? "pointer-events-none select-none" : undefined}
+                                                data-orders-list-preview={previewing ? "" : undefined}
+                                            >
                                             {/* Cards View */}
                                             {(viewMode === "cards" || viewMode === "list") && (
                                                 <>
-                                                    {displayedOrders.length === 0 && (isRefreshing || ordersPending || (!showArchived && orderSearch.pending)) ? (
+                                                    {listOrders.length === 0 && (isRefreshing || ordersPending || previewing || (!showArchived && orderSearch.pending)) ? (
                                                         /* An empty list while rows are still arriving is not an empty
                                                            list. `loading` covers only the first fetch, so a refetch —
                                                            after a window change, a reconnect, or a stale SWR
@@ -1800,7 +1811,7 @@ export default function OrdersPage() {
                                                                 <div key={i} className="w-full h-24 animate-pulse bg-muted/20 rounded-2xl" />
                                                             ))}
                                                         </div>
-                                                    ) : displayedOrders.length === 0 ? (
+                                                    ) : listOrders.length === 0 ? (
                                                         <EmptyState
                                                             type={isFirstRun ? "no-orders" : (filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
                                                             searchQuery={filters.searchQuery}
@@ -1813,7 +1824,7 @@ export default function OrdersPage() {
                                                            applied any more, because it would make the virtualizer
                                                            measure the placeholder height instead of the card. */
                                                         <VirtualizedOrderList
-                                                            orders={displayedOrders}
+                                                            orders={listOrders}
                                                             gridMode
                                                             gridClassName={cn(
                                                                 "grid gap-2",
@@ -1868,10 +1879,10 @@ export default function OrdersPage() {
                                                             onContactRecorded={recordContact}
                                                             onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
                                                         />
-                                                    ) : displayedOrders.length >= 10 ? (
+                                                    ) : listOrders.length >= 10 ? (
                                                         /* Use virtualized list for 50+ orders */
                                                         <VirtualizedOrderList
-                                                            orders={displayedOrders}
+                                                            orders={listOrders}
                                                             loadingId={loadingId}
                                                             selectedOrders={selectedOrders}
                                                             messageTemplates={workflowTemplates}
@@ -1922,7 +1933,7 @@ export default function OrdersPage() {
                                                     ) : (
                                                         /* Use animated list for <50 orders */
                                                         <StaggerContainer key="orders-list" className="space-y-3">
-                                                            {displayedOrders.map((order) => {
+                                                            {listOrders.map((order) => {
                                                                 const customerOrders = getCustomerHistory(order.phone);
                                                                 const orderCount = getCustomerOrderCount(order.phone, order.order_id);
                                                                 const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
@@ -1987,11 +1998,17 @@ export default function OrdersPage() {
                                             )}
 
                                             {/* Table View - State of the Art */}
-                                            {viewMode === "table" && (
+                                            {viewMode === "table" && (previewing && listOrders.length === 0 ? (
+                                                <div className="space-y-3" aria-busy="true" aria-live="polite">
+                                                    {[0, 1, 2, 3].map(i => (
+                                                        <div key={i} className="w-full h-12 animate-pulse bg-muted/20 rounded-xl" />
+                                                    ))}
+                                                </div>
+                                            ) : (
                                                 <VirtualizedOrderTable
                                                     groupedOrders={groupedOrders}
                                                     groupBy={groupBy}
-                                                    displayedOrders={displayedOrders}
+                                                    displayedOrders={listOrders}
                                                     sortConfig={sortConfig}
                                                     toggleSort={toggleSort}
                                                     selectedOrders={selectedOrders}
@@ -2004,7 +2021,8 @@ export default function OrdersPage() {
                                                     onContactRecorded={recordContact}
                                                     setDuplicateOrder={setDuplicateOrder}
                                                     setShowDuplicateModal={setShowDuplicateModal}
-                                                    modePrice={modePrice}
+                                                    // The mode is a fact about the whole list: none over a preview.
+                                                    modePrice={previewing ? 0 : modePrice}
                                                     updateOrderStatus={guardedStatusUpdate}
                                                     getRiskLevel={getRiskLevelByPhone}
                                                     columnFilters={columnFilters}
@@ -2016,7 +2034,8 @@ export default function OrdersPage() {
                                                     filters={filters}
                                                     setFilters={setFilters}
                                                 />
-                                            )}
+                                            ))}
+                                            </div>
 
 
                                         </>

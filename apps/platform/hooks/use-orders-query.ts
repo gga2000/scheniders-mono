@@ -1,10 +1,11 @@
-import { useQuery, useMutation, useQueryClient, useIsMutating, type Query, type QueryClient, type QueryState } from "@tanstack/react-query";
+import { skipToken, useQuery, useMutation, useQueryClient, useIsMutating, type Query, type QueryClient, type QueryState } from "@tanstack/react-query";
 import {
     ORDERS_LIST_MUTATION_KEY,
     advanceSyncWatermark,
     cancelListFetches,
     ensureCoverage,
     getCommitGeneration,
+    getLoadedWindowKey,
     getSyncWatermark,
     markListLoaded,
     setActiveWindowKey,
@@ -29,6 +30,7 @@ import { resolveStaleContacted } from "@/hooks/use-auto-no-response";
 import { belongsInWindow, windowCacheKey, type OrderWindow } from "@/lib/order-window";
 import { FutureOrderDateError } from "@/lib/order-date-guard";
 import { reportOrderError } from "@/lib/order-telemetry";
+import type { OrderListPreview } from "@/lib/orders/list-preview";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -65,6 +67,48 @@ export const duplicateCandidateKeys = {
     all: [...orderKeys.lists(), "duplicate-candidates"] as const,
     window: (window: OrderWindow) => [...duplicateCandidateKeys.all, windowCacheKey(window)] as const,
 };
+
+/**
+ * Keys of the list preview: the head of a wide list fetch (lib/orders/list-preview.ts),
+ * written by the list queryFn while the rest of the window loads. Deliberately
+ * OUTSIDE `orderKeys.lists()`: mutations, realtime, deltas, the watermark and
+ * the chip derivation never see it. It is read-only and short-lived — shown
+ * only while the list does not cover its window, and removed once it does.
+ */
+export const orderPreviewKeys = {
+    all: [...orderKeys.all, "preview"] as const,
+    window: (tenantId: string, windowKey: string) => [...orderPreviewKeys.all, tenantId, windowKey] as const,
+};
+/** How long an unwatched preview is kept. Long enough to survive a re-render, short enough not to resurface stale. */
+export const PREVIEW_GC_MS = 60_000;
+
+/**
+ * Store the head a list fetch for `windowKey` read. Skipped when the list
+ * already covers that window (a refetch of a loaded window): the preview would
+ * never be shown, and would linger to resurface stale.
+ */
+export function publishListPreview(queryClient: QueryClient, tenantId: string, windowKey: string, preview: OrderListPreview): void {
+    if (listCovers(getLoadedWindowKey(queryClient), windowKey)) return;
+    perfTrace.mark(preview.withRisk ? "orders:preview-risk" : "orders:preview-data", { rows: preview.rows.length, total: preview.total });
+    // Same status resolution as the full rows get in fetchOrders, so a row
+    // does not change status when the full list replaces the preview.
+    queryClient.setQueryData<OrderListPreview>(orderPreviewKeys.window(tenantId, windowKey), {
+        ...preview,
+        rows: resolveStaleContacted(preview.rows),
+    });
+}
+
+/** The preview stored for `windowKey`, if any. Never fetches: only the list queryFn writes it. */
+export function useOrderListPreview(windowKey: string): OrderListPreview | undefined {
+    const { tenantId } = useAuth();
+    const { data } = useQuery<OrderListPreview>({
+        queryKey: orderPreviewKeys.window(tenantId ?? "", windowKey),
+        queryFn: skipToken,
+        staleTime: Infinity,
+        gcTime: PREVIEW_GC_MS,
+    });
+    return data;
+}
 
 /** A margin query's `meta`: the window its rows were fetched for, which decides what a delta row adds or drops. */
 export function duplicateCandidateMeta(window: OrderWindow): { candidateWindow: OrderWindow } {
@@ -537,13 +581,18 @@ export function shouldCancelBeforeWindowRefetch(state: Pick<QueryState<unknown>,
 }
 
 // Fetch the active tenant's orders — auth gating is handled by the `enabled` flag in useOrdersQuery.
-async function fetchOrders(tenantId: string, window: OrderWindow = null, mark: string | null = null): Promise<Order[]> {
+async function fetchOrders(
+    tenantId: string,
+    window: OrderWindow = null,
+    mark: string | null = null,
+    onPreview?: (preview: OrderListPreview) => void,
+): Promise<Order[]> {
     const _tFetch = performance.now();
     perfTrace.markRepeat('orders:fetch-start');
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
     // Pages are read in parallel, so an order inserted mid-fetch can shift a
     // row across a page boundary and arrive twice; it must count once.
-    const result = dedupeById(await orderRepository.findWindow(tenantId, window));
+    const result = dedupeById(await orderRepository.findWindow(tenantId, window, { onPreview }));
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
@@ -677,7 +726,11 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
         queryKey: orderKeys.lists(),
         queryFn: () => {
             const t = requireTenant(tenantId);
-            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => readListMark(t), (mark) => fetchOrders(t, windowRef.current, mark));
+            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => readListMark(t), (mark) => {
+                const fetchWindow = windowRef.current;
+                const fetchKey = windowCacheKey(fetchWindow);
+                return fetchOrders(t, fetchWindow, mark, (preview) => publishListPreview(queryClient, t, fetchKey, preview));
+            });
         },
         enabled,
         // Short staleTime — realtime patches keep cache fresh between refetches
