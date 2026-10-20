@@ -22,6 +22,15 @@
 --     * concurrent calls get distinct order numbers, and distinct
 --       sequence_numbers within a tenant;
 --     * an idempotent replay returns the same order and uses no number.
+--   PKG-02 (after 20261020154100_create_order_atomic_require_tenant.sql) —
+--   every order has a tenant:
+--     * create_order_atomic with a NULL tenant is refused for the server too,
+--       writes nothing and cannot replay another tenant's idempotency key;
+--     * create_order_atomic(jsonb) is gone and (jsonb, uuid) has no default;
+--     * a direct INSERT with tenant_id NULL fails (orders.tenant_id NOT NULL);
+--     * server calls with a tenant (incl. a passthrough order_id), a member's
+--       own-tenant call, and split_order_atomic (with a tenant, and as the
+--       server without one) still work and land in the right tenant.
 --
 -- LOCAL FIXTURE ONLY. It creates and commits orders in the fixture's two
 -- tenants and opens extra connections with dblink. Run it on the throwaway
@@ -31,11 +40,13 @@
 --   createdb f040
 --   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/tests/fixtures/order_number_counter_fixture.sql
 --   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261020154000_order_number_counter.sql
+--   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261020154100_create_order_atomic_require_tenant.sql
 --   psql -d f040 -v ON_ERROR_STOP=1 -v connstr="host=... port=... dbname=f040 user=postgres" \
 --        -f packages/supabase/tests/order_number_counter.sql
 --
 -- Result: one row, 'ALL ASSERTIONS PASSED' or 'FAILED: ' plus each failing
--- check. Against the pre-migration function every F-040/F-041 check fails.
+-- check. Against the pre-migration function every F-040/F-041 check fails;
+-- with only 20261020154000 applied, the PKG-02 checks (C1-C3, C5b) fail.
 -- =============================================================================
 
 \set ON_ERROR_STOP 1
@@ -311,6 +322,126 @@ BEGIN
     IF _seq_dupes > 0 THEN PERFORM pg_temp.fail('B3 concurrent calls shared a sequence_number within a tenant'); END IF;
 END;
 $b3$;
+
+-- =============================================================================
+-- Part C — a tenant is required (PKG-02), single session, rolled back
+-- =============================================================================
+BEGIN;
+SET LOCAL ROLE service_role;
+
+DO $tenant$
+DECLARE
+    _a uuid := 'aaaaaaaa-0000-4000-8000-000000000001';
+    _b uuid := 'bbbbbbbb-0000-4000-8000-000000000002';
+    _r jsonb; _orig uuid; _n_before bigint; _n_after bigint;
+BEGIN
+    -- C1. The server calls without a tenant: refused, and nothing is written.
+    SELECT count(*) INTO _n_before FROM public.orders;
+    BEGIN
+        _r := public.create_order_atomic(pg_temp.order_json('storefront'), NULL);
+        PERFORM pg_temp.fail('C1 service-role call with a NULL tenant was accepted (tenant_id '
+                             || coalesce(_r->>'tenant_id', 'null') || ')');
+    EXCEPTION WHEN invalid_parameter_value OR not_null_violation THEN NULL;
+    END;
+    -- C1b. Nor can a NULL-tenant call replay another tenant's idempotency key.
+    PERFORM public.create_order_atomic(pg_temp.order_json('storefront', 'idem-C1b'), _b);
+    BEGIN
+        _r := public.create_order_atomic(pg_temp.order_json('storefront', 'idem-C1b'), NULL);
+        PERFORM pg_temp.fail('C1b NULL-tenant call replayed tenant B''s order (tenant_id '
+                             || coalesce(_r->>'tenant_id', 'null') || ')');
+    EXCEPTION WHEN invalid_parameter_value OR not_null_violation THEN NULL;
+    END;
+    SELECT count(*) INTO _n_after FROM public.orders;
+    IF _n_after <> _n_before + 1 THEN
+        PERFORM pg_temp.fail('C1 a NULL-tenant call wrote ' || (_n_after - _n_before - 1) || ' order(s)');
+    END IF;
+
+    -- C2. The deprecated 1-arg overload (delegated with a NULL tenant) is gone.
+    IF to_regprocedure('public.create_order_atomic(jsonb)') IS NOT NULL THEN
+        PERFORM pg_temp.fail('C2 create_order_atomic(jsonb) still exists');
+    END IF;
+    -- C2b. The 2-arg form has no default: the tenant cannot be left out.
+    IF pg_get_function_arguments('public.create_order_atomic(jsonb,uuid)'::regprocedure) ILIKE '%default%' THEN
+        PERFORM pg_temp.fail('C2b create_order_atomic(jsonb,uuid) still defaults _tenant_id');
+    END IF;
+
+    -- C3. A NULL-tenant row cannot be inserted directly, even by the server.
+    BEGIN
+        INSERT INTO public.orders (order_id, customer_name, phone, price, tenant_id)
+        VALUES ('C3-NULL-TENANT', 'x', '07700000000', 1, NULL);
+        PERFORM pg_temp.fail('C3 service-role INSERT with tenant_id NULL was accepted');
+    EXCEPTION WHEN not_null_violation THEN NULL;
+    END;
+
+    -- C4. Legitimate server calls still work and land in their tenant
+    -- (storefront checkout / order-service / LightFunnels shape, incl. a
+    -- passthrough order_id).
+    BEGIN
+        _r := public.create_order_atomic(pg_temp.order_json('storefront'), _a);
+        IF (_r->>'tenant_id')::uuid IS DISTINCT FROM _a THEN
+            PERFORM pg_temp.fail('C4 order landed in tenant ' || coalesce(_r->>'tenant_id', 'null'));
+        END IF;
+        _r := public.create_order_atomic(pg_temp.order_json('lightfunnels', NULL, 'LF-C4-0001'), _b);
+        IF _r->>'order_id' IS DISTINCT FROM 'LF-C4-0001' OR (_r->>'tenant_id')::uuid IS DISTINCT FROM _b THEN
+            PERFORM pg_temp.fail('C4 passthrough order wrong: ' || _r::text);
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        PERFORM pg_temp.fail('C4 legitimate server call raised ' || SQLSTATE || ' ' || SQLERRM);
+    END;
+
+    -- C5. split_order_atomic (the database caller): with a tenant, and as the
+    -- server with a NULL tenant, the return order lands in the original
+    -- order's tenant. (The 3-arg overload cannot be called by position at all:
+    -- it is ambiguous with the 4-arg one's default, live too.)
+    BEGIN
+        _orig := (public.create_order_atomic(
+            pg_temp.order_json('manual') || '{"items":[{"name":"a","price":1000,"quantity":1},{"name":"b","price":2000,"quantity":1}]}', _b)->>'id')::uuid;
+        _r := public.split_order_atomic(_orig, '[{"name":"a","price":1000,"quantity":1}]', '[{"name":"b","price":2000,"quantity":1}]', _b);
+        IF (_r->>'tenant_id')::uuid IS DISTINCT FROM _b THEN
+            PERFORM pg_temp.fail('C5 split (with tenant) return order in tenant ' || coalesce(_r->>'tenant_id', 'null'));
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        PERFORM pg_temp.fail('C5 split with tenant raised ' || SQLSTATE || ' ' || SQLERRM);
+    END;
+    BEGIN
+        _orig := (public.create_order_atomic(
+            pg_temp.order_json('manual') || '{"items":[{"name":"a","price":1000,"quantity":1},{"name":"b","price":2000,"quantity":1}]}', _a)->>'id')::uuid;
+        _r := public.split_order_atomic(_orig, '[{"name":"a","price":1000,"quantity":1}]', '[{"name":"b","price":2000,"quantity":1}]', NULL);
+        IF (_r->>'tenant_id')::uuid IS DISTINCT FROM _a THEN
+            PERFORM pg_temp.fail('C5b NULL-tenant server split: return order in tenant ' || coalesce(_r->>'tenant_id', 'null'));
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        PERFORM pg_temp.fail('C5b NULL-tenant server split raised ' || SQLSTATE || ' ' || SQLERRM);
+    END;
+END;
+$tenant$;
+
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims',
+    '{"sub":"aaaaaaaa-1111-4000-8000-000000000001","role":"authenticated"}', true);
+
+DO $member_tenant$
+DECLARE _r jsonb;
+BEGIN
+    -- C6. A member without a tenant is refused; with their own tenant it works.
+    BEGIN
+        PERFORM public.create_order_atomic(pg_temp.order_json('storefront'), NULL);
+        PERFORM pg_temp.fail('C6 member call with a NULL tenant was accepted');
+    EXCEPTION WHEN invalid_parameter_value OR insufficient_privilege THEN NULL;
+    END;
+    BEGIN
+        _r := public.create_order_atomic(pg_temp.order_json('storefront'), 'aaaaaaaa-0000-4000-8000-000000000001');
+        IF _r->>'id' IS NULL THEN PERFORM pg_temp.fail('C6 member call returned nothing'); END IF;
+    EXCEPTION WHEN OTHERS THEN
+        PERFORM pg_temp.fail('C6 member call with own tenant raised ' || SQLSTATE || ' ' || SQLERRM);
+    END;
+END;
+$member_tenant$;
+
+SELECT current_setting('tt.failures') AS part_c_failures \gset
+ROLLBACK;
+SELECT set_config('tt.failures', :'part_c_failures', false);
 
 SELECT CASE WHEN current_setting('tt.failures') = '' THEN 'ALL ASSERTIONS PASSED'
             ELSE 'FAILED: ' || current_setting('tt.failures') END AS result;

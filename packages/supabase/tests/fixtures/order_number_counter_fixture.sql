@@ -12,7 +12,8 @@
 --   * public.orders with the columns create_order_atomic writes, the global
 --     orders_order_id_key, uq_orders_tenant_idempotency, the four live
 --     tenant_isolation_* policies and authenticated's table-level grants;
---   * BOTH live overloads of create_order_atomic, verbatim.
+--   * BOTH live overloads of create_order_atomic, verbatim;
+--   * order_split_log and both live split_order_atomic overloads, verbatim.
 -- Then it seeds today's orders so the migration's counter seed can be checked.
 --
 -- NEVER run this against a real project: it creates roles, schemas and tables.
@@ -116,7 +117,10 @@ CREATE TABLE public.orders (
     tenant_id uuid REFERENCES public.tenants(id) ON DELETE CASCADE,
     idempotency_key text,
     attribution jsonb,
-    ad_channel text
+    ad_channel text,
+    delivered_at timestamptz,
+    original_order_id uuid,
+    rejection_reason text
 );
 CREATE UNIQUE INDEX orders_order_id_key ON public.orders USING btree (order_id);
 CREATE UNIQUE INDEX uq_orders_tenant_idempotency ON public.orders USING btree (tenant_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
@@ -243,6 +247,149 @@ REVOKE ALL ON FUNCTION public.create_order_atomic(jsonb, uuid) FROM PUBLIC, anon
 REVOKE ALL ON FUNCTION public.create_order_atomic(jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_order_atomic(jsonb, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.create_order_atomic(jsonb) TO authenticated, service_role;
+
+-- ---------------------------------------------------------------------------
+-- split_order_atomic: the one database caller of create_order_atomic(jsonb,
+-- uuid). Live order_split_log columns and both live overloads, verbatim.
+-- ---------------------------------------------------------------------------
+CREATE TABLE public.order_split_log (
+    id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    tenant_id uuid NOT NULL,
+    original_order_id uuid NOT NULL,
+    return_order_id uuid NOT NULL,
+    original_before jsonb NOT NULL,
+    split_at timestamptz DEFAULT now() NOT NULL,
+    undone_at timestamptz
+);
+ALTER TABLE public.order_split_log ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.split_order_atomic(_original_order_id uuid, _kept_items jsonb, _returned_items jsonb, _tenant_id uuid DEFAULT NULL::uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+    _original_order record;
+    _kept_total numeric := 0;
+    _returned_total numeric := 0;
+    _total_original numeric;
+    _kept_ratio numeric;
+    _new_discount numeric;
+    _return_discount numeric;
+    _new_price numeric;
+    _return_price numeric;
+    _return_order_data jsonb;
+    _item jsonb;
+    _created_return_order jsonb;
+    _split_log_id uuid;
+BEGIN
+    IF coalesce(auth.role(), 'service_role') <> 'service_role' THEN
+        IF _tenant_id IS NULL THEN
+            RAISE EXCEPTION 'tenant_id required' USING ERRCODE = '22023';
+        END IF;
+        IF _tenant_id NOT IN (SELECT public.get_user_tenant_ids()) THEN
+            RAISE EXCEPTION 'Unauthorized: not a member of tenant %', _tenant_id USING ERRCODE = '42501';
+        END IF;
+    END IF;
+
+    SELECT * INTO _original_order
+    FROM public.orders
+    WHERE id = _original_order_id
+      AND (_tenant_id IS NULL OR tenant_id = _tenant_id)
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Original order not found';
+    END IF;
+
+    FOR _item IN SELECT * FROM jsonb_array_elements(_kept_items)
+    LOOP
+        _kept_total := _kept_total + ((_item->>'price')::numeric * (_item->>'quantity')::numeric);
+    END LOOP;
+    FOR _item IN SELECT * FROM jsonb_array_elements(_returned_items)
+    LOOP
+        _returned_total := _returned_total + ((_item->>'price')::numeric * (_item->>'quantity')::numeric);
+    END LOOP;
+
+    _total_original := _kept_total + _returned_total;
+    IF _total_original > 0 THEN
+        _kept_ratio := _kept_total / _total_original;
+    ELSE
+        _kept_ratio := 1;
+    END IF;
+
+    _new_discount := ROUND(COALESCE(_original_order.discount_amount, 0) * _kept_ratio);
+    _return_discount := COALESCE(_original_order.discount_amount, 0) - _new_discount;
+    -- COR-9: delivery is NOT part of `price` (it stays in delivery_fee).
+    _new_price := _kept_total - _new_discount;
+    _return_price := _returned_total - _return_discount;
+
+    UPDATE public.orders
+    SET items = _kept_items,
+        price = _new_price,
+        discount_amount = _new_discount,
+        status = 'delivered',
+        delivered_at = NOW()
+    WHERE id = _original_order_id;
+
+    _return_order_data := (to_jsonb(_original_order)
+        || jsonb_build_object(
+            'items', _returned_items,
+            'price', _return_price,
+            'discount_amount', _return_discount,
+            'status', 'rejected',
+            'is_return', true,
+            'original_order_id', _original_order.id,
+            'rejection_reason', 'Partial Return'
+        ))
+        - 'id' - 'created_at' - 'updated_at' - 'order_id'
+        - 'last_batch_id' - 'delivery_order_id' - 'sequence_number'
+        - 'delivered_at' - 'cancelled_at' - 'printed_at' - 'print_count'
+        - 'tenant_id';
+
+    _created_return_order := create_order_atomic(_return_order_data, _tenant_id);
+
+    -- WF-2: record exactly what this rewrote on the original, plus which return
+    -- order it created, so the split can be reversed while that return is
+    -- still untouched.
+    INSERT INTO public.order_split_log
+        (tenant_id, original_order_id, return_order_id, original_before)
+    VALUES (
+        coalesce(_tenant_id, _original_order.tenant_id),
+        _original_order_id,
+        (_created_return_order->>'id')::uuid,
+        jsonb_build_object(
+            'items', _original_order.items,
+            'price', _original_order.price,
+            'discount_amount', _original_order.discount_amount,
+            'status', _original_order.status,
+            'delivered_at', _original_order.delivered_at
+        )
+    )
+    RETURNING id INTO _split_log_id;
+
+    RETURN _created_return_order || jsonb_build_object('split_log_id', _split_log_id);
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.split_order_atomic(_original_order_id uuid, _kept_items jsonb, _returned_items jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+    IF coalesce(auth.role(), 'service_role') <> 'service_role' THEN
+        RAISE EXCEPTION 'split_order_atomic/3 is deprecated - call the 4-arg version with an explicit tenant_id' USING ERRCODE = '42501';
+    END IF;
+    RETURN public.split_order_atomic(_original_order_id, _kept_items, _returned_items, NULL::uuid);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.split_order_atomic(uuid, jsonb, jsonb, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.split_order_atomic(uuid, jsonb, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.split_order_atomic(uuid, jsonb, jsonb, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.split_order_atomic(uuid, jsonb, jsonb) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- Data: two tenants, one active member each, and today's existing orders
