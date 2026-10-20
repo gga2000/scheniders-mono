@@ -32,27 +32,33 @@ function TagButton({
   controls: string;
   rtl: boolean;
 }) {
+  // The button is the full 44px touch target; the slim pill is drawn inside
+  // it, so the row keeps its quiet look without a small hit area.
   return (
     <button
       type="button"
       onClick={onClick}
       aria-expanded={open}
       aria-controls={controls}
-      className={cn(
-        "inline-flex h-9 items-center gap-1.5 rounded-bk-pill border-bk px-3 font-bk-body text-[13px] transition-colors duration-bk-fast motion-reduce:transition-none",
-        open ? "border-bk-ink bg-bk-surface-alt" : "border-bk-divider bg-bk-surface",
-        rtl && "flex-row-reverse",
-      )}
+      className="group inline-flex h-11 items-center focus-visible:outline-none"
     >
-      <span className="text-bk-ink-soft">{label}</span>
-      <span className="font-bold text-bk-ink">{value}</span>
-      <MaterialIcon
-        name="expand_more"
+      <span
         className={cn(
-          "text-base text-bk-ink-faint transition-transform duration-bk-fast motion-reduce:transition-none",
-          open && "rotate-180",
+          "inline-flex h-9 items-center gap-1.5 rounded-bk-pill border-bk px-3 font-bk-body text-[13px] transition-colors duration-bk-fast group-focus-visible:ring-2 group-focus-visible:ring-bk-focus group-active:bg-bk-surface-alt motion-reduce:transition-none",
+          open ? "border-bk-ink bg-bk-surface-alt" : "border-bk-divider bg-bk-surface",
+          rtl && "flex-row-reverse",
         )}
-      />
+      >
+        <span className="text-bk-ink-soft">{label}</span>
+        <span className="font-bold text-bk-ink">{value}</span>
+        <MaterialIcon
+          name="expand_more"
+          className={cn(
+            "text-base text-bk-ink-faint transition-transform duration-bk-fast motion-reduce:transition-none",
+            open && "rotate-180",
+          )}
+        />
+      </span>
     </button>
   );
 }

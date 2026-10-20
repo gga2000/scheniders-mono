@@ -23,6 +23,7 @@ export const EXPRESS_STRINGS = {
     en: "Check the number: it should start 075, 077, 078 or 079",
     ar: "تأكد من الرقم: لازم يبدي بـ 075 أو 077 أو 078 أو 079",
   },
+  brandLabel: { en: "Brand:", ar: "الشركة:" },
   men: { en: "Men", ar: "رجالي" },
   women: { en: "Women", ar: "نسائي" },
   unisex: { en: "Unisex", ar: "للجنسين" },
@@ -31,6 +32,10 @@ export const EXPRESS_STRINGS = {
   addressPromptNamed: {
     en: "Where should we deliver, {name}?",
     ar: "وين نوصّلها إلك يا {name}؟",
+  },
+  phoneNextHint: {
+    en: "Once the number is complete, we'll ask your name and address",
+    ar: "بعد ما تكمل الرقم نسألك عن اسمك وعنوانك",
   },
   nameLabel: { en: "Your name", ar: "اسمك" },
   phoneLabel: { en: "Phone number", ar: "رقم الموبايل" },
@@ -71,11 +76,12 @@ export const EXPRESS_STRINGS = {
   deliveryPending: { en: "Choose governorate", ar: "اختر المحافظة" },
   savingsRow: { en: "Your saving", ar: "توفيرك" },
   totalPlain: { en: "Total", ar: "المجموع" },
-  submitSubline: {
-    en: "{total} · cash on delivery",
-    ar: "{total} · كاش عند الاستلام",
-  },
   whatsapp: { en: "Order on WhatsApp", ar: "اطلب عبر واتساب" },
+  whatsappShort: { en: "WhatsApp", ar: "واتساب" },
+  scrollHint: {
+    en: "Scroll down to finish your order",
+    ar: "انزل لتحت حتى تكمل طلبك",
+  },
   morePhotos: { en: "See {count} photos", ar: "شوف {count} صور" },
   photoOf: { en: "Photo {n} of {total}", ar: "صورة {n} من {total}" },
   reviews: { en: "{count} reviews", ar: "{count} تقييم" },

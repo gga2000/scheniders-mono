@@ -151,6 +151,13 @@ const schema = z.object({
    *  bottom-of-section chips block is dropped. Absent = the bottom block,
    *  byte-identical for every existing config. Classic ignores it. */
   trust_chips_placement: z.enum(["bottom", "under_cta"]).optional().catch(undefined),
+  /** Express: the floating "scroll down to order" pill shown over the
+   *  bottom of the first screen until the shopper first scrolls. On by
+   *  default in express (express itself is the opt-in); `false` turns it
+   *  off. Classic never renders it. */
+  show_scroll_hint: z.boolean().optional().catch(undefined),
+  /** Express: the scroll hint's text. Empty = the generic chrome line. */
+  scroll_hint_i18n: i18nStringOptional.catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

@@ -1,8 +1,9 @@
 // Express checkout: a quiet receipt (item, delivery, total) and the CTA
-// row — a compact WhatsApp tile on the left of the big submit. The price
-// subline under the submit only renders when the delivery fee is actually
-// known (chosen governorate, or free everywhere), so a fee-charging store
-// is never told a total that leaves delivery out.
+// row — a soft WhatsApp tile on the left of the big submit. The receipt
+// above carries the money; the submit carries only the action (bold label,
+// an arrow that nudges and a light sweep every few seconds, a spinner while
+// placing), so the one price on the button can never disagree with the
+// receipt or leave delivery out.
 
 import {
   cn,
@@ -74,23 +75,20 @@ function Row({
   );
 }
 
-/** A chrome template with an amount in it, the amount isolated in <bdi>
- *  so the bidi algorithm cannot move it across the Arabic words. */
-function WithAmount({ template, amount }: { template: string; amount: string }) {
-  const [before, after] = template.split("{total}");
-  return (
-    <>
-      {before}
-      <bdi>{amount}</bdi>
-      {after}
-    </>
-  );
-}
-
-export function CheckoutRow({ m, locale }: { m: ExpressModel; locale: LocaleCode }) {
+export function CheckoutRow({
+  m,
+  locale,
+  waHref,
+}: {
+  m: ExpressModel;
+  locale: LocaleCode;
+  /** The WhatsApp order link — built by the express view, which owns the
+   *  landmark the message must carry. Null = no WhatsApp tile. */
+  waHref: string | null;
+}) {
   const rtl = readsRtl(locale);
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
-  const deliveryKnown = freeEverywhere || m.delivery !== null;
+  const idle = !m.oos && !m.submitting;
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
       ? (m.compareAt - m.price) * m.qty
@@ -145,15 +143,18 @@ export function CheckoutRow({ m, locale }: { m: ExpressModel; locale: LocaleCode
       </div>
 
       <div className="flex items-stretch gap-2" data-layer="submit" data-layer-label="Order buttons">
-        {m.waHref && (
+        {waHref && (
           <a
-            href={m.waHref}
+            href={waHref}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={xs("whatsapp", locale)}
-            className="flex w-14 shrink-0 items-center justify-center rounded-bk-input border-bk border-bk-divider bg-bk-surface text-bk-success shadow-bk-card transition-transform duration-bk-fast active:scale-95 motion-reduce:transition-none"
+            className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-bk-input border-bk border-bk-success/25 bg-bk-success/10 text-bk-success transition-[transform,background-color] duration-bk-fast hover:bg-bk-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus active:scale-95 active:bg-bk-success/25 motion-reduce:transition-none"
           >
-            <WhatsAppIcon className="h-7 w-7" />
+            <WhatsAppIcon shadow={false} className="h-7 w-7" />
+            <span className="font-bk-body text-[11px] font-bold leading-none text-bk-ink-soft">
+              {xs("whatsappShort", locale)}
+            </span>
           </a>
         )}
         <button
@@ -162,20 +163,42 @@ export function CheckoutRow({ m, locale }: { m: ExpressModel; locale: LocaleCode
           aria-busy={m.submitting || undefined}
           aria-disabled={m.submitting || undefined}
           aria-describedby={m.status === "error" ? m.submitErrorId : undefined}
-          className="flex min-h-[60px] flex-1 flex-col items-center justify-center rounded-bk-input bg-bk-primary px-4 text-bk-on-primary shadow-bk-button transition-transform duration-bk-fast active:scale-[0.98] disabled:bg-bk-primary-disabled motion-reduce:transition-none"
+          className={cn(
+            "relative isolate flex min-h-[60px] flex-1 items-center justify-center gap-3 overflow-hidden rounded-bk-input bg-bk-primary px-5 text-bk-on-primary shadow-bk-button",
+            "transition-[transform,background-color,box-shadow] duration-bk-fast motion-reduce:transition-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bk-surface",
+            "disabled:cursor-not-allowed disabled:bg-bk-primary-disabled disabled:shadow-none",
+            idle && "hover:bg-bk-primary-hover active:scale-[0.97] active:bg-bk-primary-active active:shadow-none",
+            m.submitting && "cursor-progress",
+            rtl && "flex-row-reverse",
+          )}
         >
-          <span className="flex items-center gap-2 font-bk-display text-[18px] font-black leading-tight">
-            {m.submitting && (
-              <MaterialIcon name="progress_activity" className="animate-spin motion-reduce:animate-none" />
-            )}
-            {submitLabel}
-          </span>
-          {!m.oos && !m.submitting && deliveryKnown && (
-            <span className="font-bk-body text-xs font-bold opacity-80">
-              <WithAmount
-                template={xs("submitSubline", locale)}
-                amount={formatPrice(m.total, locale)}
-              />
+          {idle && (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "bk-xp-sheen pointer-events-none absolute inset-y-0 left-0 -z-10 w-2/5",
+                rtl && "bk-xp-sheen-rtl",
+              )}
+            />
+          )}
+          <span className="font-bk-display text-[19px] font-black leading-tight">{submitLabel}</span>
+          {!m.oos && (
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-bk-pill bg-bk-on-primary/15"
+            >
+              {m.submitting ? (
+                <MaterialIcon
+                  name="progress_activity"
+                  className="animate-spin text-xl motion-reduce:animate-none"
+                />
+              ) : (
+                <MaterialIcon
+                  name={rtl ? "arrow_back" : "arrow_forward"}
+                  className={cn("text-xl", rtl ? "bk-xp-nudge-rtl" : "bk-xp-nudge")}
+                />
+              )}
             </span>
           )}
         </button>
@@ -185,6 +208,7 @@ export function CheckoutRow({ m, locale }: { m: ExpressModel; locale: LocaleCode
         <p
           className={cn(
             "flex items-center justify-center gap-1.5 text-center font-bk-body text-[13px] text-bk-ink-soft",
+            rtl && "flex-row-reverse",
           )}
           data-i18n-field="reassurance_i18n"
         >

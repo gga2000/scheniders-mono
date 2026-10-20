@@ -20,6 +20,7 @@ import { DIRECT_ORDER_FORM_ID } from "../pdp_direct_order.client";
 import { CheckoutRow } from "./checkout-row";
 import { DescriptionBlock } from "./description-block";
 import { ExpressForm } from "./express-form";
+import { ExpressMotion } from "./express-motion";
 import { HeroStage } from "./hero-stage";
 import { IdentityLabel, displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
@@ -27,15 +28,25 @@ import { OfferClock } from "./offer-clock";
 import { OrderLine } from "./order-line";
 import { phoneDigits, phoneIssue } from "./phone";
 import { PricePlate } from "./price-plate";
+import { ScrollHint } from "./scroll-hint";
+import { readsRtl, xs } from "./text";
+import { expressWhatsappHref } from "./whatsapp-href";
 
 export function PdpExpress({ model: m }: { model: ExpressModel }) {
   const { props, product, locale } = m;
   const [landmark, setLandmark] = useState("");
   const showGallery = props.show_gallery !== false;
   const clock = props.offer_clock;
+  // Express owns the landmark, so it builds the WhatsApp link: the message
+  // carries the same "<address> - <landmark>" the order posts.
+  const waHref = expressWhatsappHref(m, landmark);
+  // On in express unless the merchant turns it off; pointless without a
+  // form to scroll to (sold out).
+  const showScrollHint = props.show_scroll_hint !== false && !m.oos;
 
   return (
     <section className="pb-bk-md" data-pdp-layout="express">
+      <ExpressMotion />
       {showGallery && (
         <HeroStage
           images={m.galleryImages}
@@ -158,7 +169,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
             />
           )}
 
-          <CheckoutRow m={m} locale={locale} />
+          <CheckoutRow m={m} locale={locale} waHref={waHref} />
         </form>
 
         {props.show_description && product.description && (
@@ -220,6 +231,14 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           </div>
         )}
       </div>
+
+      {showScrollHint && (
+        <ScrollHint
+          label={resolveI18n(props.scroll_hint_i18n, locale) || xs("scrollHint", locale)}
+          targetId={DIRECT_ORDER_FORM_ID}
+          rtl={readsRtl(locale)}
+        />
+      )}
     </section>
   );
 }
