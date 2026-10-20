@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { AdminRole } from "@/types/admin";
+import { AdminAuthError } from "@/lib/admin-auth-error";
 
 /**
  * The admin middleware only checks "is an active admin" — both roles pass it.
@@ -50,7 +51,7 @@ vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient,
   requireAdmin: vi.fn(async (token: string) => {
     const identity = IDENTITIES[token];
-    if (!identity) throw new Error("Invalid access token");
+    if (!identity) throw new AdminAuthError(401, "Invalid access token");
     return identity;
   }),
   resolveAdminRole: vi.fn(),
@@ -509,7 +510,9 @@ describe("pause attribution", () => {
  */
 describe("every admin API handler is guarded", () => {
   const API_DIR = path.resolve(__dirname);
-  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireAdmin)\(/;
+  // Routes never call `requireAdmin` directly: its typed AdminAuthError would
+  // land in the handler's generic catch and come back as a 500.
+  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin)\(/;
   // The OAuth callback runs before a session exists; middleware also exempts it.
   const PUBLIC = new Set(["auth/callback/route.ts GET"]);
 
@@ -536,6 +539,7 @@ describe("every admin API handler is guarded", () => {
     "%s calls a guard",
     (_key, body) => {
       expect(body).toMatch(GUARD);
+      expect(body).not.toMatch(/\brequireAdmin\(/);
     },
   );
 });
