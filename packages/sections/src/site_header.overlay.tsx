@@ -20,6 +20,7 @@ import { MaterialIcon } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { isOptimizableImageHost } from "./helpers/image";
 import { MobileMenuSheet, useMenuSheet, type NavLink } from "./site_header.menu";
+import { readsRtl } from "./pdp_express/text";
 
 const HERO_END_SELECTOR = "[data-pdp-hero-end]";
 
@@ -77,6 +78,9 @@ export function OverlayHeader({
   const overHero = useOverHero(barRef);
   const glass = overHero && !open;
   const hasSheet = navLinks.length > 0 || enabledLocales.length > 1;
+  // Arabic-script rows sit against the right edge — under the toggle that
+  // opened them — by visual-order classes; the document stays LTR.
+  const sheetRowAlign = readsRtl(locale) ? "justify-end text-right" : null;
 
   const chip = cn(
     "flex h-11 items-center rounded-bk-pill border-bk text-bk-ink transition-[background-color,box-shadow,border-color] duration-bk-base motion-reduce:transition-none",
@@ -92,6 +96,11 @@ export function OverlayHeader({
         className={cn(
           "px-3 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] transition-[background-color,box-shadow] duration-bk-base motion-reduce:transition-none",
           glass ? "bg-transparent" : "bg-bk-surface shadow-bk-card",
+          // The sheet's backdrop is a positioned `fixed inset-0` layer in
+          // this header's stacking context; an unpositioned bar would paint
+          // under its scrim (dimmed wordmark, and a tap on the X landing on
+          // the backdrop). Lift the bar above it while the sheet is open.
+          open && "relative z-20",
         )}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
@@ -99,7 +108,14 @@ export function OverlayHeader({
             href="/"
             onClick={close}
             aria-label={wordmark}
-            className={cn(chip, "min-w-0 gap-2 px-4")}
+            className={cn(
+              chip,
+              "min-w-0 gap-2",
+              // The 28px logo circle sits 8px inside the 44px chip top and
+              // bottom; matching that inset on its side keeps it concentric
+              // with the pill's rounded end instead of floating off it.
+              logo ? "pl-4 pr-2" : "px-4",
+            )}
           >
             <span
               translate="no"
@@ -137,17 +153,28 @@ export function OverlayHeader({
         </div>
       </div>
       {hasSheet && (
-        <MobileMenuSheet
-          id={sheetId}
-          open={open}
-          onClose={close}
-          sheetRef={sheetRef}
-          links={navLinks}
-          linkClassName="flex min-h-11 items-center font-bk-body text-sm font-bold transition-opacity duration-bk-fast motion-reduce:transition-none active:opacity-60"
-          locale={locale}
-          enabledLocales={enabledLocales}
-          className="mx-3 mt-1 rounded-bk-card bg-bk-surface px-5 py-1 text-bk-ink shadow-bk-card"
-        />
+        // Same gutter + column as the bar, so from `sm` up the sheet drops
+        // under the menu chip instead of stretching across the page; on a
+        // phone it spans the column exactly as before.
+        <div className="px-3">
+          <div className="mx-auto flex max-w-6xl justify-end">
+            <MobileMenuSheet
+              id={sheetId}
+              open={open}
+              onClose={close}
+              sheetRef={sheetRef}
+              links={navLinks}
+              linkClassName={cn(
+                "flex min-h-11 items-center font-bk-body text-sm font-bold transition-opacity duration-bk-fast motion-reduce:transition-none active:opacity-60",
+                sheetRowAlign,
+              )}
+              locale={locale}
+              enabledLocales={enabledLocales}
+              allWidths
+              className="mt-1 w-full rounded-bk-card bg-bk-surface px-5 py-1 text-bk-ink shadow-bk-card sm:w-80"
+            />
+          </div>
+        </div>
       )}
     </header>
   );

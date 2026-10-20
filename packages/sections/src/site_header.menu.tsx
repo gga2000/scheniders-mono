@@ -60,6 +60,12 @@ export function useMenuSheet({
  * click-to-close backdrop, the nav links, and the language row beneath
  * them. The caller supplies the surface styling (`className` / `style`)
  * so each lockup keeps its own look.
+ *
+ * Bento and floating_pill show inline nav from `sm` up, so their sheet is
+ * phone-only (`sm:hidden`). The overlay surface has no inline nav at any
+ * width — its toggle is the only way in — so it passes `allWidths` to keep
+ * the sheet and backdrop visible past `sm` (otherwise the toggle locks
+ * scroll behind an invisible dialog).
  */
 export function MobileMenuSheet({
   id,
@@ -72,6 +78,7 @@ export function MobileMenuSheet({
   enabledLocales,
   className,
   style,
+  allWidths = false,
 }: {
   id: string;
   open: boolean;
@@ -83,6 +90,7 @@ export function MobileMenuSheet({
   enabledLocales: LocaleCode[];
   className?: string;
   style?: React.CSSProperties;
+  allWidths?: boolean;
 }) {
   if (!open) return null;
   return (
@@ -92,7 +100,7 @@ export function MobileMenuSheet({
       <div
         aria-hidden="true"
         onClick={onClose}
-        className="fixed inset-0 z-0 sm:hidden"
+        className={allWidths ? "fixed inset-0 z-0" : "fixed inset-0 z-0 sm:hidden"}
         style={{
           backgroundColor:
             "color-mix(in srgb, var(--bk-ink, #1a1a1a) 20%, transparent)",
@@ -104,7 +112,7 @@ export function MobileMenuSheet({
         role="dialog"
         aria-modal="true"
         aria-label={chromeString("menu", locale)}
-        className={cn("relative z-10 sm:hidden", className)}
+        className={cn(allWidths ? "relative z-10" : "relative z-10 sm:hidden", className)}
         style={style}
       >
         <ul>
