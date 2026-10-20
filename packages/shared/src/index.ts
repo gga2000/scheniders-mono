@@ -32,3 +32,4 @@ export * from "./redirects";
 export * from "./review";
 export * from "./schedule-time";
 export * from "./util/sanitize-css";
+export * from "./video-embed";
