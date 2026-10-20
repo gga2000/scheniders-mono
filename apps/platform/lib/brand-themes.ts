@@ -11,7 +11,11 @@
 //     text the emitter will actually pick (white when luminance < 0.5,
 //     else ink) — asserted by brand-themes.test.ts. A merchant applying
 //     a theme can never ship unreadable buttons.
-//   - Fonts must exist in the brand-kit editor's Google Fonts catalogue.
+//   - Fonts must exist in the brand-kit editor's Google Fonts catalogue
+//     (Arabic faces in its Arabic list).
+//   - The Arabic body face must ship 400/500/600/700 (WEIGHT_COMPLETE_FONTS):
+//     body copy and labels sit at 500/600, and a family without them
+//     (Almarai, Tajawal) renders those as 400/700, flattening hierarchy.
 //   - Names are trilingual; Arabic is what most merchants read.
 // =====================================================================
 
@@ -43,7 +47,7 @@ export const BRAND_THEMES: BrandTheme[] = [
             success: "#10b981",
             danger: "#dc2626",
         },
-        typography: { display: "Playfair Display", body: "Manrope", display_ar: "El Messiri", body_ar: "Tajawal", scale: "comfortable" },
+        typography: { display: "Playfair Display", body: "Manrope", display_ar: "El Messiri", body_ar: "Noto Sans Arabic", scale: "comfortable" },
         shape: { radius: "round", border_thickness: "thin", shadow_style: "soft", rotation_intensity: "subtle" },
     },
     {
@@ -60,7 +64,7 @@ export const BRAND_THEMES: BrandTheme[] = [
             success: "#15803d",
             danger: "#b91c1c",
         },
-        typography: { display: "Cormorant", body: "Karla", display_ar: "Amiri", body_ar: "Almarai", scale: "spacious" },
+        typography: { display: "Cormorant", body: "Karla", display_ar: "Amiri", body_ar: "Noto Sans Arabic", scale: "spacious" },
         shape: { radius: "soft", border_thickness: "thin", shadow_style: "flat", rotation_intensity: "none" },
     },
     {
@@ -94,7 +98,7 @@ export const BRAND_THEMES: BrandTheme[] = [
             success: "#059669",
             danger: "#dc2626",
         },
-        typography: { display: "Bricolage Grotesque", body: "Nunito", display_ar: "Changa", body_ar: "Tajawal", scale: "comfortable" },
+        typography: { display: "Bricolage Grotesque", body: "Nunito", display_ar: "Changa", body_ar: "Rubik", scale: "comfortable" },
         shape: { radius: "round", border_thickness: "thin", shadow_style: "soft", rotation_intensity: "subtle" },
     },
     {
@@ -111,7 +115,7 @@ export const BRAND_THEMES: BrandTheme[] = [
             success: "#15803d",
             danger: "#b91c1c",
         },
-        typography: { display: "Fraunces", body: "Work Sans", display_ar: "Noto Kufi Arabic", body_ar: "Almarai", scale: "comfortable" },
+        typography: { display: "Fraunces", body: "Work Sans", display_ar: "Noto Kufi Arabic", body_ar: "IBM Plex Sans Arabic", scale: "comfortable" },
         shape: { radius: "soft", border_thickness: "thin", shadow_style: "soft", rotation_intensity: "none" },
     },
     {

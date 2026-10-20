@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 import type { PageId } from "@scheniders/shared";
 import { getManifestEntry } from "@/lib/sections-manifest";
+import { WEIGHT_COMPLETE_FONTS } from "@/lib/weight-complete-fonts";
 import {
     LEGACY_TEMPLATE_ALIAS,
     STORE_TEMPLATES,
@@ -17,40 +18,6 @@ const ROTATION = ["none", "subtle", "playful", "wild"];
 const SPEED = ["slow", "normal", "snappy"];
 const FORMALITY = ["formal", "casual", "playful", "luxe"];
 const HEX = /^#[0-9a-f]{6}$/;
-
-/**
- * Google Fonts families confirmed to serve 400, 500, 600 and 700, the
- * weights body copy, labels and headings use. Checked 2026-10-19 against the
- * live css2 endpoint with a browser user-agent; the Arabic entries were also
- * confirmed to ship an `arabic` subset.
- *
- * A family that lacks a weight still answers HTTP 200 (the endpoint just
- * leaves that face out), so nothing fails loudly: the browser synthesises
- * the missing weight, and faux-bold Arabic looks broken. Almarai (400/700/800)
- * and Tajawal (no 600) were caught this way. Verify a family the same way
- * before adding it here.
- */
-const WEIGHT_COMPLETE_FONTS = new Set([
-    // Latin
-    "Bricolage Grotesque",
-    "DM Sans",
-    "Inter Tight",
-    "Jost",
-    "Manrope",
-    "Outfit",
-    "Playfair Display",
-    "Space Grotesk",
-    // Arabic
-    "Alexandria",
-    "Baloo Bhaijaan 2",
-    "Cairo",
-    "El Messiri",
-    "IBM Plex Sans Arabic",
-    "Noto Kufi Arabic",
-    "Noto Sans Arabic",
-    "Readex Pro",
-    "Reem Kufi",
-]);
 
 describe("store templates", () => {
     it("ships exactly six directions with unique ids", () => {
