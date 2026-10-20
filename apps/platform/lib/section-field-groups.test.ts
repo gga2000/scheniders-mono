@@ -339,5 +339,8 @@ describe("isFieldVisible", () => {
                 `section '${entry.type}' has NO Simple-visible fields`,
             ).toBeGreaterThan(0);
         }
-    });
+        // The dynamic import loads every section's module and schema — about
+        // a second alone, and well past vitest's 5s default when the suite
+        // shares the machine with lint, type-check and build in one CI run.
+    }, 30_000);
 });

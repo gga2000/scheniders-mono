@@ -381,3 +381,34 @@ dd,
   .bk-stage-enter { animation: none; }
   [data-stage-progress] { animation: none !important; width: 100% !important; }
 }
+
+/* ===========================
+   Loading skeletons
+   A sweep across the placeholder rather than a pulse: it reads as
+   "arriving" instead of "broken", and it uses the kit's own surfaces so it
+   never looks like a foreign grey. Reduced motion (user preference or the
+   brand kit's own setting) flattens it to a plain block via the rules
+   above — no separate guard needed here.
+   =========================== */
+.bk-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+.bk-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--bk-surface, #fff) 65%, transparent),
+    transparent
+  );
+  animation: bk-skeleton-sweep 1.4s ease-in-out infinite;
+}
+@keyframes bk-skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}

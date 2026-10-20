@@ -57,6 +57,7 @@ import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { cn } from "@/lib/utils";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 import { EditorModeProvider, type EditorMode } from "@/lib/editor-mode-context";
+import { EditorLinkTargetsProvider } from "@/lib/editor-link-targets-context";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { PublishConfirmSheet } from "./publish-confirm-sheet";
@@ -660,6 +661,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 id === "pixels" ||
                 id === "loyalty" ||
                 id === "order_status" ||
+                id === "free_gift" ||
+                id === "template_updates" ||
                 id === "custom_pages" ||
                 id === "nav" ||
                 id === "redirects"
@@ -1398,6 +1401,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         "pixels",
         "loyalty",
         "order_status",
+        "free_gift",
+        "template_updates",
         "custom_pages",
         "nav",
         "redirects",
@@ -1407,6 +1412,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         return (
             <EditorLocaleProvider value={builder.active_locale}>
             <EditorModeProvider value={editorModeCtx}>
+            <EditorLinkTargetsProvider customPages={builder.config.custom_pages}>
             <DndContext
                 sensors={dnd_sensors}
                 onDragStart={handleDndDragStart}
@@ -1561,6 +1567,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     {tenant.business_name}
                 </span>
             </DndContext>
+            </EditorLinkTargetsProvider>
             </EditorModeProvider>
             </EditorLocaleProvider>
         );
@@ -1569,6 +1576,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     return (
         <EditorLocaleProvider value={builder.active_locale}>
         <EditorModeProvider value={editorModeCtx}>
+        <EditorLinkTargetsProvider customPages={builder.config.custom_pages}>
         <DndContext
             sensors={dnd_sensors}
             onDragStart={handleDndDragStart}
@@ -1944,6 +1952,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             </span>
         </div>
         </DndContext>
+        </EditorLinkTargetsProvider>
         </EditorModeProvider>
         </EditorLocaleProvider>
     );

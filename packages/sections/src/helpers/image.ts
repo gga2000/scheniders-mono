@@ -10,9 +10,16 @@
 // Keep this list in sync with apps/storefront/next.config.ts remotePatterns.
 // =====================================================================
 
-const OPTIMIZABLE_HOST_PATTERNS: RegExp[] = [
-  /\.supabase\.co$/i,
-  /^images\.unsplash\.com$/i,
+/**
+ * Host + path pairs mirroring each remotePatterns entry. A pattern with a
+ * `pathname` in next.config.ts must carry the same `path` here: Next
+ * refuses a URL on an allowed host whose path falls outside it.
+ */
+const OPTIMIZABLE_HOST_PATTERNS: { host: RegExp; path?: RegExp }[] = [
+  { host: /\.supabase\.co$/i, path: /^\/storage\/v1\/object\/public\// },
+  { host: /^images\.unsplash\.com$/i },
+  // YouTube thumbnails (video_block's click-to-play facade).
+  { host: /^i\.ytimg\.com$/i, path: /^\/vi\// },
 ];
 
 /**
@@ -23,8 +30,10 @@ export function isOptimizableImageHost(url?: string | null): boolean {
   if (!url) return false;
   if (url.startsWith("/")) return true; // same-origin relative
   try {
-    const host = new URL(url).hostname;
-    return OPTIMIZABLE_HOST_PATTERNS.some((re) => re.test(host));
+    const { hostname, pathname } = new URL(url);
+    return OPTIMIZABLE_HOST_PATTERNS.some(
+      (p) => p.host.test(hostname) && (!p.path || p.path.test(pathname)),
+    );
   } catch {
     return false;
   }

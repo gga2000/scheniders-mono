@@ -41,9 +41,13 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { resolveContentPack } from "@/lib/store-templates/content-packs";
+import { storeCopySchema, containsFabricatedClaim, type StoreCopy } from "@/lib/store-copy";
+import { z } from "zod";
 import {
     buildStarterStoreConfigV2,
     STARTER_TEMPLATES,
+    starterTaxonomy,
     type WizardIndustry,
 } from "@/lib/starter-store";
 import type { StoreTemplate } from "@/lib/store-templates";
@@ -181,6 +185,11 @@ export function OnboardingWizard({
     const [freeThreshold, setFreeThreshold] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // What the merchant sells, in their own words, and the copy written from
+    // it. Both optional: skip the box and the store gets the niche pack's
+    // words, which is exactly what shipped before this existed.
+    const [sells, setSells] = useState("");
+    const [copy, setCopy] = useState<StoreCopy | null>(null);
 
     const basicsValid = businessName.trim().length > 0;
     const canCreate = basicsValid && templateId.length > 0;
@@ -189,6 +198,9 @@ export function OnboardingWizard({
         const rec =
             industry.recommended_template_id ?? STARTER_TEMPLATES[0]?.id ?? "";
         setVertical(industry.id);
+        // Copy was written for the previous trade's pack; a different trade
+        // must not seed it.
+        if (industry.id !== vertical) setCopy(null);
         setRecommendedId(rec);
         setTemplateId(rec);
         setStep(1);
@@ -204,8 +216,14 @@ export function OnboardingWizard({
         const industryName = vertical
             ? industries.find((i) => i.id === vertical)?.name ?? vertical
             : undefined;
+        // Niche → content pack: the words, the starter categories and the
+        // attributes; the template is only the look.
+        const pack = resolveContentPack(industryName);
+        const taxonomy = starterTaxonomy(pack.id);
         const config = buildStarterStoreConfigV2({
             templateId,
+            packId: pack.id,
+            ...(copy ? { copy } : {}),
             industryId: industryName,
             businessName: businessName.trim(),
             brandColor,
@@ -219,7 +237,12 @@ export function OnboardingWizard({
             const res = await fetch("/api/store-config-v2/seed", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tenant_id: tenantId, config }),
+                body: JSON.stringify({
+                    tenant_id: tenantId,
+                    config,
+                    categories: taxonomy.categories,
+                    attribute_defs: taxonomy.attribute_defs,
+                }),
             });
             if (!res.ok) {
                 const data = (await res.json().catch(() => ({}))) as {
@@ -285,6 +308,18 @@ export function OnboardingWizard({
                         onDeliveryFee={setDeliveryFee}
                         freeThreshold={freeThreshold}
                         onFreeThreshold={setFreeThreshold}
+                        sells={sells}
+                        onSells={(v) => {
+                            setSells(v);
+                            // Editing the description invalidates copy written
+                            // from the old one — never seed a stale answer.
+                            setCopy(null);
+                        }}
+                        copy={copy}
+                        onCopy={setCopy}
+                        packId={resolveContentPack(
+                            vertical ? (industries.find((i) => i.id === vertical)?.name ?? vertical) : undefined,
+                        ).id}
                         t={t}
                     />
                 )}
@@ -488,6 +523,11 @@ function BasicsStep({
     onDeliveryFee,
     freeThreshold,
     onFreeThreshold,
+    sells,
+    onSells,
+    copy,
+    onCopy,
+    packId,
     t,
 }: {
     tenantId: string;
@@ -503,6 +543,11 @@ function BasicsStep({
     onDeliveryFee: (v: string) => void;
     freeThreshold: string;
     onFreeThreshold: (v: string) => void;
+    sells: string;
+    onSells: (v: string) => void;
+    copy: StoreCopy | null;
+    onCopy: (c: StoreCopy | null) => void;
+    packId: string;
     t: TFn;
 }) {
     const inputCls =
@@ -519,6 +564,17 @@ function BasicsStep({
                     className={inputCls}
                 />
             </Field>
+
+            <StoreCopyField
+                businessName={businessName}
+                packId={packId}
+                sells={sells}
+                onSells={onSells}
+                copy={copy}
+                onCopy={onCopy}
+                inputCls={inputCls}
+                t={t}
+            />
 
             <Field label={t("wizard.basics.logo")} hint={t("wizard.basics.logoHint")}>
                 <LogoField
@@ -1008,5 +1064,131 @@ function TemplateThumbnail({
                 </span>
             </div>
         </div>
+    );
+}
+
+const storeCopyResponseSchema = z.object({
+    copy: storeCopySchema.refine((c) => !containsFabricatedClaim(c), "fabricated claim"),
+});
+
+/**
+ * "In a sentence, what do you sell?" — and the copy written from it.
+ *
+ * Optional by design: skipping it leaves the niche pack's words in place.
+ * The merchant sees the headline and story before creating the store, so
+ * nothing is seeded sight-unseen, and every line stays editable afterwards.
+ */
+function StoreCopyField({
+    businessName,
+    packId,
+    sells,
+    onSells,
+    copy,
+    onCopy,
+    inputCls,
+    t,
+}: {
+    businessName: string;
+    packId: string;
+    sells: string;
+    onSells: (v: string) => void;
+    copy: StoreCopy | null;
+    onCopy: (c: StoreCopy | null) => void;
+    inputCls: string;
+    t: TFn;
+}) {
+    const [writing, setWriting] = useState(false);
+    const [failed, setFailed] = useState(false);
+    const ready = businessName.trim().length > 0 && sells.trim().length >= 3;
+
+    const write = async () => {
+        if (!ready || writing) return;
+        setWriting(true);
+        setFailed(false);
+        try {
+            const { data } = await supabase.auth.getSession();
+            const res = await fetch("/api/ai/store-copy", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(data.session?.access_token
+                        ? { Authorization: `Bearer ${data.session.access_token}` }
+                        : {}),
+                },
+                body: JSON.stringify({
+                    business_name: businessName.trim(),
+                    sells: sells.trim(),
+                    pack_id: packId,
+                }),
+            });
+            // The reply is re-validated here, not cast: only copy that passes
+            // the same shape + no-invented-claims check may be seeded.
+            const body = res.ok ? storeCopyResponseSchema.safeParse(await res.json()) : null;
+            if (!body?.success) {
+                setFailed(true);
+                onCopy(null);
+            } else {
+                onCopy(body.data.copy);
+            }
+        } catch (err) {
+            // Network failure or a non-JSON reply: the merchant can still
+            // create the store with the pack's wording, so it is surfaced
+            // as the "couldn't write it" state rather than blocking them.
+            console.error("[wizard] store copy request failed", err);
+            setFailed(true);
+            onCopy(null);
+        } finally {
+            setWriting(false);
+        }
+    };
+
+    return (
+        <Field label={t("wizard.basics.sells")} hint={t("wizard.basics.sellsHint")}>
+            <textarea
+                rows={2}
+                value={sells}
+                onChange={(e) => onSells(e.target.value)}
+                placeholder={t("wizard.basics.sellsPlaceholder")}
+                data-testid="wizard-sells"
+                className={`${inputCls} resize-y`}
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    onClick={write}
+                    disabled={!ready || writing}
+                    data-testid="wizard-write-copy"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-opacity disabled:opacity-40"
+                >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    {writing ? t("wizard.basics.writing") : t("wizard.basics.writeCopy")}
+                </button>
+                {copy && (
+                    <span data-testid="wizard-copy-ready" className="text-xs text-emerald-700">
+                        {t("wizard.basics.copyReady")}
+                    </span>
+                )}
+                {failed && (
+                    <span role="status" data-testid="wizard-copy-failed" className="text-xs text-amber-700">
+                        {t("wizard.basics.copyFailed")}
+                    </span>
+                )}
+            </div>
+            {copy && (
+                <div className="mt-2 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
+                    <p className="text-sm font-semibold text-foreground">{copy.hero.headline.ar}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{copy.hero.sub.ar}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{copy.story.body.ar}</p>
+                    <button
+                        type="button"
+                        onClick={() => onCopy(null)}
+                        data-testid="wizard-copy-discard"
+                        className="mt-2 text-xs font-semibold text-muted-foreground underline"
+                    >
+                        {t("wizard.basics.copyDiscard")}
+                    </button>
+                </div>
+            )}
+        </Field>
     );
 }

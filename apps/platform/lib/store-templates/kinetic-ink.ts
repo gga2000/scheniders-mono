@@ -13,6 +13,7 @@ const s = makeSectionFactory("kinetic_ink");
 
 export const kineticInkTemplate: StoreTemplate = {
     id: "kinetic_ink",
+    version: 1,
     name_i18n: { en: "Kinetic Ink", ar: "حبر متحرك" },
     description_i18n: {
         en: "Dark indigo ground, one orange accent, oversized headlines and a running trust marquee.",
