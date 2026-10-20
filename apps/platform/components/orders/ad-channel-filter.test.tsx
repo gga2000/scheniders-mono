@@ -69,14 +69,37 @@ describe("AdChannelFilter", () => {
         expect(onSelect).toHaveBeenLastCalledWith(null);
     });
 
-    it("shows per-channel counts and an all-channels total of attributed orders", () => {
+    // Was "an all-channels total of attributed orders" (3): a number that is not
+    // the size of the list the chip opens. Every count on /orders is now the
+    // length of the list its click opens, so the chip shows the whole view (4)
+    // and the attributed share moves to its title.
+    it("shows per-channel counts and an all-channels total equal to the list it opens, with the attributed share in its title", () => {
         const { container } = render(<AdChannelFilter summary={summary} selected={null} onSelect={() => {}} />);
         expect(chip(container, "instagram").textContent).toContain("2");
         expect(chip(container, "facebook").textContent).toContain("1");
         const all = screen.getByText("كل القنوات").closest("button");
-        expect(all?.textContent).toContain("3");
+        expect(all?.textContent).toContain("4");
+        expect(all?.textContent).not.toContain("3");
         // The unattributed order is disclosed, not hidden.
         expect(all?.getAttribute("title")).toContain("3 من 4");
+    });
+
+    it("hides every number and revenue figure with countsHidden, and the chips stay clickable", () => {
+        const revenueSummary = summarizeAdChannels([
+            order({ ad_channel: "instagram", status: "delivered", price: 25000 }),
+            order({ ad_channel: "facebook" }),
+        ]);
+        const onSelect = vi.fn();
+        const { container } = render(
+            <AdChannelFilter summary={revenueSummary} selected={null} onSelect={onSelect} countsHidden />,
+        );
+        const root = container.querySelector<HTMLElement>('[data-testid="ad-channel-filter"]');
+        expect(root?.textContent ?? "").not.toMatch(/\d/);
+        for (const el of container.querySelectorAll("button")) {
+            expect(el.getAttribute("title") ?? "").not.toMatch(/\d/);
+        }
+        fireEvent.click(chip(container, "instagram"));
+        expect(onSelect).toHaveBeenCalledWith("instagram");
     });
 
     it("marks the selected channel", () => {

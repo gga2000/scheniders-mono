@@ -54,6 +54,10 @@ interface OrdersFilterBarProps {
     totalRiskCount: number;
     /** Size of the "due today" queue — postponed orders whose day has arrived. */
     dueTodayCount: number;
+    /** Hide status, product and channel numbers (lib/orders/count-visibility.ts). */
+    countsHidden?: boolean;
+    dueTodayCountHidden?: boolean;
+    riskCountHidden?: boolean;
     showSubFilters: boolean;
     toggleSubFilters: () => void;
     onOpenScanner: () => void;
@@ -74,6 +78,9 @@ export function OrdersFilterBar({
     hasActiveFilters,
     totalRiskCount,
     dueTodayCount,
+    countsHidden = false,
+    dueTodayCountHidden = false,
+    riskCountHidden = false,
     showSubFilters,
     toggleSubFilters,
     onOpenScanner,
@@ -174,6 +181,9 @@ export function OrdersFilterBar({
                                 filterDueToday={filterDueToday}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}
+                                countsHidden={countsHidden}
+                                dueTodayCountHidden={dueTodayCountHidden}
+                                riskCountHidden={riskCountHidden}
                                 showSubFilters={showSubFilters}
                                 isMobile={false}
                             />
@@ -184,6 +194,7 @@ export function OrdersFilterBar({
                             summary={adChannelSummary}
                             selected={filters.adChannel}
                             onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
+                            countsHidden={countsHidden}
                             className="px-1"
                         />
 
