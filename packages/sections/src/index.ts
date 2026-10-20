@@ -182,3 +182,4 @@ export const BUILTIN_SECTIONS = [
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";
+export { setFunnelSink, type FunnelEvent, type FunnelEventType } from "./helpers/pixels";

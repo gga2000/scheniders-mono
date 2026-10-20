@@ -90,6 +90,9 @@ interface SubmitCheckoutResult {
    *  page's post-purchase offer (see lib/order-upsell-proof). Only the
    *  response that created the order carries it. */
   upsellToken?: string;
+  /** EC17: this answers an order the same idempotency key already placed, so
+   *  callers must not record its side effects (funnel purchase) again. */
+  replayed?: boolean;
 }
 
 /** The answer for an order this idempotency key already placed: what was
@@ -108,6 +111,7 @@ function replayResult(row: {
     orderId: row.id,
     orderNumber: row.order_id ?? undefined,
     total: price - discount + (Number(row.delivery_fee) || 0),
+    replayed: true,
   };
 }
 
