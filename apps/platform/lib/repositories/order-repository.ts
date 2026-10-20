@@ -3,6 +3,13 @@ import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
 import type { OrderWindow } from "@/lib/order-window";
+import {
+    PREVIEW_HEAD_ROWS,
+    PREVIEW_PINNED_MAX,
+    mergePreviewHead,
+    windowWantsPreview,
+    type OrderListPreview,
+} from "@/lib/orders/list-preview";
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS } from "@/lib/repositories/order-columns";
 import { runInSequentialBatches, type BatchOutcome, type BulkProgress } from "@/lib/order-bulk-batches";
@@ -133,8 +140,16 @@ async function fetchTrustRows(tenantId: string, phones: string[]): Promise<Trust
         return rows;
     }
 
-    // RLS (tenant_isolation_all) limits this to the caller's tenants; the
-    // tenant filter keeps it to the one the list belongs to.
+    return fetchTrustBook(tenantId);
+}
+
+/**
+ * The caller's whole `customer_trust` book for `tenantId`: a count, then every
+ * 1,000-row page at once (PK order). RLS (tenant_isolation_all) limits it to
+ * the caller's tenants; the tenant filter keeps it to the one the list
+ * belongs to.
+ */
+async function fetchTrustBook(tenantId: string): Promise<TrustRow[]> {
     const { count, error: countErr } = await supabase
         .from("customer_trust")
         .select("phone", { count: "exact", head: true })
@@ -160,26 +175,26 @@ async function fetchTrustRows(tenantId: string, phones: string[]): Promise<Trust
     return rows;
 }
 
-/**
- * Attach `risk_data` to list rows read from `orders`, reproducing
- * `v_orders_with_risk`'s LEFT JOIN on (tenant_id, normalize_phone(phone)).
- * `rows` all belong to `tenantId` (every list read below filters on it), so
- * only that tenant's `customer_trust` rows are fetched.
- */
-async function withRiskData(tenantId: string, rows: Order[]): Promise<Order[]> {
-    if (rows.length === 0) return rows;
-
+/** The distinct normalized phones of `rows` — the keys of their trust rows. */
+function trustPhones(rows: readonly Order[]): string[] {
     const phones = new Set<string>();
     for (const row of rows) {
         const p = normalizePhoneLikeDb(row.phone);
         if (p) phones.add(p);
     }
+    return [...phones];
+}
 
+/**
+ * Attach `risk_data` to list rows from their tenant's trust rows, reproducing
+ * `v_orders_with_risk`'s LEFT JOIN on (tenant_id, normalize_phone(phone)). A
+ * row without a trust row gets `buildRiskData(undefined)`, as the view does.
+ */
+export function attachRiskData(rows: readonly Order[], trustRows: readonly TrustRow[]): Order[] {
     const trust = new Map<string, TrustRow>();
-    for (const ct of await fetchTrustRows(tenantId, [...phones])) {
+    for (const ct of trustRows) {
         trust.set(trustKey(ct.tenant_id, normalizePhoneLikeDb(ct.phone)), ct);
     }
-
     return rows.map(row => {
         const p = normalizePhoneLikeDb(row.phone);
         const ct = row.tenant_id && p ? trust.get(trustKey(row.tenant_id, p)) : undefined;
@@ -187,72 +202,193 @@ async function withRiskData(tenantId: string, rows: Order[]): Promise<Order[]> {
     });
 }
 
-export const orderRepository = {
-    /** Fetch all active (non-archived) orders, newest first.
-     *  Uses a count query + parallel page fetches to cut latency in half. */
-    async findAll(tenantId: string): Promise<Order[]> {
-        const _t = performance.now();
-        diag.log(`[Diag:Repo] findAll START`);
+/**
+ * Attach `risk_data` to list rows read from `orders`. `rows` all belong to
+ * `tenantId` (every list read below filters on it), so only that tenant's
+ * `customer_trust` rows are fetched.
+ */
+async function withRiskData(tenantId: string, rows: Order[]): Promise<Order[]> {
+    if (rows.length === 0) return rows;
+    return attachRiskData(rows, await fetchTrustRows(tenantId, trustPhones(rows)));
+}
 
-        const step = 1000;
+/** Options of a list read. */
+export interface ListReadOptions {
+    /**
+     * Called with the window's head (lib/orders/list-preview.ts) — every pinned
+     * row and the newest rows — before the rest of a WIDE window has loaded,
+     * and once more when the head's `risk_data` is in. Never after the read has
+     * settled, and never for a window of a week or less (it loads in full fast).
+     */
+    onPreview?: (preview: OrderListPreview) => void;
+}
 
-        // 1. Get exact count so we know how many pages to fetch in parallel.
-        //    The count query uses the same table/filter but returns only the count header,
-        //    not actual rows — it's very fast (~50-100ms).
-        const { count, error: countErr } = await supabase
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenantId)
-            .is("deleted_at", null)
-            .eq("is_archived", false);
+/**
+ * PostgREST `or` filter for "inside the window": arrived inside it OR was
+ * scheduled for a day inside it — the same rule as `belongsInWindow`. Without
+ * the second half a postponed order never appears on the day it was postponed
+ * to. Values are quoted because ISO timestamps carry the PostgREST-reserved
+ * "." and ":". Rides idx_orders_tenant_active_created and
+ * idx_orders_scheduled_date (partial, scheduled rows only).
+ */
+function windowOrFilter(window: NonNullable<OrderWindow>): string {
+    const fromIso = new Date(window.fromInstant).toISOString();
+    const toIso = new Date(window.toInstant).toISOString();
+    return (
+        `and(created_at.gte."${fromIso}",created_at.lte."${toIso}"),` +
+        `and(scheduled_date.gte.${window.fromDay},scheduled_date.lte.${window.toDay})`
+    );
+}
 
-        if (countErr) {
-            diag.log(`[Diag:Repo] findAll COUNT ERR err=${countErr.message} took=${(performance.now() - _t).toFixed(1)}ms`);
-            throw countErr;
+/** The list's rows: the tenant's live (not trashed, not archived) orders, inside the window when there is one. */
+function listQuery(tenantId: string, window: OrderWindow, columns: string, options?: { count: "exact"; head?: boolean }) {
+    let q = supabase
+        .from("orders")
+        .select(columns, options)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null)
+        .eq("is_archived", false);
+    if (window) q = q.or(windowOrFilter(window));
+    return q;
+}
+
+/** Page `i` of the list, in the total order every list read uses. */
+function listPage(tenantId: string, window: OrderWindow, i: number) {
+    return listQuery(tenantId, window, LIST_COLUMNS)
+        .order("created_at", { ascending: false })
+        // Tie-break on id: parallel pages over a non-unique sort key can
+        // repeat or skip rows at page boundaries, and a skipped row is missing
+        // from every count.
+        .order("id", { ascending: false })
+        .range(i * PAGE, i * PAGE + PAGE - 1);
+}
+
+/** Every row of settled list reads, normalized, in order. Throws the first error. */
+function pageRows(pages: ReadonlyArray<{ data: unknown; error: unknown }>): Order[] {
+    const rows: Order[] = [];
+    for (const { data, error } of pages) {
+        if (error) throw error;
+        if (Array.isArray(data)) {
+            for (const row of data as Order[]) rows.push(normalizeOrder(row));
         }
+    }
+    return rows;
+}
 
-        const totalRows = count ?? 0;
-        if (totalRows === 0) {
-            diag.log(`[Diag:Repo] findAll OK rows=0 took=${(performance.now() - _t).toFixed(1)}ms`);
+/**
+ * The list's head: every pinned row and the newest `limit` rows, with the
+ * window's exact row count, in two parallel requests. The preview is null when
+ * the window is empty, or when the pinned read hit PREVIEW_PINNED_MAX (it may
+ * then be missing pinned rows, and the preview would not be a prefix of the
+ * list). `is_pinned` is a separate read, not a sort key: it is nullable, and
+ * `order=is_pinned.desc` puts nulls first.
+ */
+async function readListHead(
+    tenantId: string,
+    window: OrderWindow,
+    limit: number,
+): Promise<{ total: number; preview: OrderListPreview | null }> {
+    const [top, pinned] = await Promise.all([
+        listQuery(tenantId, window, LIST_COLUMNS, { count: "exact" })
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .limit(limit),
+        listQuery(tenantId, window, LIST_COLUMNS)
+            .eq("is_pinned", true)
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .limit(PREVIEW_PINNED_MAX),
+    ]);
+    if (top.error) throw top.error;
+    if (pinned.error) throw pinned.error;
+    const total = top.count ?? 0;
+    const topRows = pageRows([top]);
+    const pinnedRows = pageRows([pinned]);
+    if (total === 0 || topRows.length === 0 || pinnedRows.length >= PREVIEW_PINNED_MAX) return { total, preview: null };
+    return { total, preview: { ...mergePreviewHead(pinnedRows, topRows, total), total, withRisk: false } };
+}
+
+/**
+ * A wide window (All Orders, or one over a week) in two stages:
+ *
+ *   1. small requests only: the head with the exact count when a preview is
+ *      wanted (`onPreview`), else a count HEAD. Measured: run beside the
+ *      pages, the head took 0.5-1.15s instead of 0.36-0.45s.
+ *   2. every order page at once, the trust book (count, then its pages)
+ *      alongside them rather than after, and the head's own trust rows so the
+ *      preview gets its risk badges early.
+ *
+ * Page 0 re-reads the head: the result never depends on the preview. Returns
+ * the same rows and `risk_data` as the old count → pages → trust read.
+ */
+async function readWideList(tenantId: string, window: OrderWindow, onPreview?: ListReadOptions["onPreview"]): Promise<Order[]> {
+    const _t = performance.now();
+    let settled = false;
+    const publish = (preview: OrderListPreview) => {
+        if (!settled && onPreview) onPreview(preview);
+    };
+    try {
+        let total: number;
+        let head: OrderListPreview | null = null;
+        if (onPreview) {
+            ({ total, preview: head } = await readListHead(tenantId, window, PREVIEW_HEAD_ROWS));
+        } else {
+            const { count, error } = await listQuery(tenantId, window, "id", { count: "exact", head: true });
+            if (error) throw error;
+            total = count ?? 0;
+        }
+        if (total === 0) {
+            diag.log(`[Diag:Repo] wide list rows=0 took=${(performance.now() - _t).toFixed(1)}ms`);
             return [];
         }
-
-        // 2. Build page ranges and fetch all pages in parallel.
-        const pageCount = Math.ceil(totalRows / step);
-        const pagePromises = Array.from({ length: pageCount }, (_, i) => {
-            const from = i * step;
-            return supabase
-                .from("orders")
-                .select(LIST_COLUMNS)
-                .eq("tenant_id", tenantId)
-                .is("deleted_at", null)
-                .eq("is_archived", false)
-                .order("created_at", { ascending: false })
-                // Tie-break on id, as findWindow does: parallel pages over a
-                // non-unique sort key can repeat or skip rows at page
-                // boundaries, and a skipped row is missing from every count.
-                .order("id", { ascending: false })
-                .range(from, from + step - 1);
-        });
-
-        const pages = await Promise.all(pagePromises);
-
-        // 3. Merge results, preserving page order for correct sort.
-        let allData: any[] = [];
-        for (let i = 0; i < pages.length; i++) {
-            const { data, error } = pages[i];
-            if (error) {
-                diag.log(`[Diag:Repo] findAll page=${i} ERR err=${error.message} took=${(performance.now() - _t).toFixed(1)}ms`);
-                throw error;
-            }
-            if (data && data.length > 0) {
-                allData = [...allData, ...data];
-            }
+        if (head) {
+            diag.log(`[Diag:Repo] wide list head rows=${head.rows.length} total=${total} took=${(performance.now() - _t).toFixed(1)}ms`);
+            publish(head);
         }
 
-        const result = await withRiskData(tenantId, allData.map(row => normalizeOrder(row as unknown as Order)));
-        diag.log(`[Diag:Repo] findAll OK rows=${allData.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
+        const pageCount = Math.ceil(total / PAGE);
+        // Over TRUST_LOOKUP_MAX_PHONES rows there can be that many customers:
+        // read the whole trust book now, beside the pages. Below it, the rows'
+        // own phones are looked up once they are in (at most two requests).
+        const wholeTrustBook = total > TRUST_LOOKUP_MAX_PHONES;
+        const headPreview = head;
+        const [pages, trustBook] = await Promise.all([
+            Promise.all(Array.from({ length: pageCount }, (_, i) => listPage(tenantId, window, i))),
+            wholeTrustBook ? fetchTrustBook(tenantId) : Promise.resolve(null),
+            headPreview
+                ? fetchTrustRows(tenantId, trustPhones(headPreview.rows)).then((trust) => {
+                    publish({ ...headPreview, rows: attachRiskData(headPreview.rows, trust), withRisk: true });
+                })
+                : Promise.resolve(),
+        ]);
+        const rows = pageRows(pages);
+        const trust = trustBook ?? await fetchTrustRows(tenantId, trustPhones(rows));
+        const result = attachRiskData(rows, trust);
+        diag.log(`[Diag:Repo] wide list OK rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
         return result;
+    } catch (err) {
+        diag.log(`[Diag:Repo] wide list ERR err=${err instanceof Error ? err.message : JSON.stringify(err)} took=${(performance.now() - _t).toFixed(1)}ms`);
+        throw err;
+    } finally {
+        settled = true;
+    }
+}
+
+export const orderRepository = {
+    /**
+     * Every active (non-archived, not trashed) order, newest first — the
+     * All Orders list. See `readWideList`; `onPreview` gets the head first.
+     */
+    async findAll(tenantId: string, opts: ListReadOptions = {}): Promise<Order[]> {
+        return readWideList(tenantId, null, opts.onPreview);
+    },
+
+    /**
+     * The list's head (lib/orders/list-preview.ts) and the window's exact row
+     * count: two small parallel reads.
+     */
+    async findHead(tenantId: string, window: OrderWindow, limit = PREVIEW_HEAD_ROWS): Promise<{ total: number; preview: OrderListPreview | null }> {
+        return readListHead(tenantId, window, limit);
     },
 
     /**
@@ -314,77 +450,42 @@ export const orderRepository = {
     /**
      * Fetch only the orders inside the active window.
      *
-     * Replaces `findAll()`'s whole-book download for the common case. Takes the
-     * same `OrderWindow` the realtime predicate uses (lib/order-window.ts), so
-     * the rows fetched and the rows realtime is willing to add can never drift
-     * apart. A null window means "no date filter" and falls back to findAll().
+     * Takes the same `OrderWindow` the realtime predicate uses
+     * (lib/order-window.ts), so the rows fetched and the rows realtime is
+     * willing to add can never drift apart. A null window means "no date
+     * filter" (findAll). A window over a week is read like All Orders
+     * (`readWideList`, with `onPreview`); a narrower one — Today, the default —
+     * is a count and its pages, whose trust rows follow.
      *
      * Rides idx_orders_tenant_active_created — measured 0.388 ms / 47 buffers for
      * 50 rows, against 4,019 kB for the full book.
      */
-    async findWindow(tenantId: string, window: OrderWindow): Promise<Order[]> {
-        if (!window) return this.findAll(tenantId);
+    async findWindow(tenantId: string, window: OrderWindow, opts: ListReadOptions = {}): Promise<Order[]> {
+        if (!window) return this.findAll(tenantId, opts);
+        if (windowWantsPreview(window)) return readWideList(tenantId, window, opts.onPreview);
 
         const _t = performance.now();
-        const step = 1000;
-        const fromIso = new Date(window.fromInstant).toISOString();
-        const toIso = new Date(window.toInstant).toISOString();
 
         // Count first, then page through ALL of them.
         //
         // Deliberately NOT a bare `.limit(n)`: truncating would leave the list
-        // showing 1,000 rows while the server-computed status chips report the
-        // real total, i.e. the list silently disagreeing with its own counts.
-        // The payload win comes from the window being narrow (the default view
-        // is a single day), never from dropping rows the merchant filtered for.
-        // An order belongs to the window if it arrived inside it OR was
-        // scheduled for a day inside it — the same rule as `belongsInWindow`.
-        // Without the second half a postponed order never appears on the day it
-        // was postponed to. Values are quoted because ISO timestamps carry the
-        // PostgREST-reserved "." and ":". Rides idx_orders_tenant_active_created
-        // and idx_orders_scheduled_date (partial, scheduled rows only).
-        const inWindow =
-            `and(created_at.gte."${fromIso}",created_at.lte."${toIso}"),` +
-            `and(scheduled_date.gte.${window.fromDay},scheduled_date.lte.${window.toDay})`;
-
-        const { count, error: countErr } = await supabase
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenantId)
-            .is("deleted_at", null)
-            .eq("is_archived", false)
-            .or(inWindow);
+        // showing 1,000 rows while the status chips report the real total, i.e.
+        // the list silently disagreeing with its own counts. The payload win
+        // comes from the window being narrow (the default view is a single
+        // day), never from dropping rows the merchant filtered for.
+        const { count, error: countErr } = await listQuery(tenantId, window, "id", { count: "exact", head: true });
         if (countErr) throw countErr;
 
         const totalRows = count ?? 0;
         if (totalRows === 0) return [];
 
-        const pageCount = Math.ceil(totalRows / step);
-        const pages = await Promise.all(
-            Array.from({ length: pageCount }, (_, i) =>
-                supabase
-                    .from("orders")
-                    .select(LIST_COLUMNS)
-                    .eq("tenant_id", tenantId)
-                    .is("deleted_at", null)
-                    .eq("is_archived", false)
-                    .or(inWindow)
-                    .order("created_at", { ascending: false })
-                    // Tie-break on id: paging over a non-unique sort key can
-                    // repeat or skip rows at page boundaries.
-                    .order("id", { ascending: false })
-                    .range(i * step, i * step + step - 1),
-            ),
-        );
-
-        let rows: unknown[] = [];
-        for (const { data, error } of pages) {
-            if (error) throw error;
-            if (data) rows = rows.concat(data);
-        }
+        const pageCount = Math.ceil(totalRows / PAGE);
+        const rows = pageRows(await Promise.all(
+            Array.from({ length: pageCount }, (_, i) => listPage(tenantId, window, i)),
+        ));
 
         diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return withRiskData(tenantId, rows.map(row => normalizeOrder(row as Order)));
+        return withRiskData(tenantId, rows);
     },
 
     /**
@@ -451,12 +552,12 @@ export const orderRepository = {
 
     /** Fetch all archived orders, newest first. */
     async findArchived(tenantId: string): Promise<Order[]> {
-        let allData: any[] = [];
+        const rows: Order[] = [];
         let from = 0;
         const step = 1000;
 
         while (true) {
-            const { data, error } = await supabase
+            const page = await supabase
                 .from("orders")
                 .select(LIST_COLUMNS)
                 .eq("tenant_id", tenantId)
@@ -465,17 +566,13 @@ export const orderRepository = {
                 .order("created_at", { ascending: false })
                 .range(from, from + step - 1);
 
-            if (error) throw error;
-
-            if (data && data.length > 0) {
-                allData = [...allData, ...data];
-                from += step;
-            }
-
-            if (!data || data.length < step) break;
+            const pageOrders = pageRows([page]);
+            rows.push(...pageOrders);
+            from += step;
+            if (pageOrders.length < step) break;
         }
 
-        return withRiskData(tenantId, allData.map(row => normalizeOrder(row as unknown as Order)));
+        return withRiskData(tenantId, rows);
     },
 
     /**
