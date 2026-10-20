@@ -16,6 +16,7 @@ import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/in
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
 import type { Order } from "@/types/order";
 import { automationFollowUpStamp } from "@/lib/follow-up-state";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 let _admin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const admin = () => (_admin ??= createSupabaseServiceClient());
@@ -54,7 +55,7 @@ export async function dispatchWhatsAppEvent({
     // 1. Fetch the order details
     const { data: orderData, error: fetchError } = await supabaseAdmin
         .from("orders")
-        .select("*")
+        .select(ORDER_READ_COLUMNS)
         .eq("id", orderId)
         .single();
 

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { motion } from "framer-motion";
 import { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import { BentoMetrics, HealthScore, calculateLoyaltyScore } from "./bento-metrics";
@@ -46,7 +47,7 @@ export function CustomerProfilePanel({ customerSummary }: CustomerProfilePanelPr
             // 1. Fetch this tenant's orders for the phone
             const { data: orders, error: ordersError } = await supabase
                 .from("orders")
-                .select("*")
+                .select(ORDER_READ_COLUMNS)
                 .eq("tenant_id", tenantId)
                 .eq("phone", phone)
                 .order("created_at", { ascending: false });

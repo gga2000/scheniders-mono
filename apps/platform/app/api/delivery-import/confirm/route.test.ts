@@ -19,7 +19,7 @@ const TENANT = "99999999-9999-4999-8999-999999999999";
 
 vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
 vi.mock("@/lib/auth/require-request-caller", () => ({
-    requireRequestCaller: async () => ({ ok: true, userId: "user-1", tenantId: TENANT, role: "user", memberRole: "admin" }),
+    requireRequestCaller: async () => ({ ok: true, userId: "user-1", tenantId: TENANT, role: "admin", platformAdmin: false }),
 }));
 
 import { POST } from "./route";

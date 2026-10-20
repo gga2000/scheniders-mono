@@ -5,6 +5,7 @@ import {
     blockedResponseBody,
     TenantBlockedError,
 } from "@/lib/restrictions";
+import { tenantMemberRoleFor } from "@/lib/tenant-member-role";
 
 const ALLOWED_ROLES = new Set(["admin", "employee", "viewer"]);
 
@@ -89,11 +90,12 @@ export async function POST(request: Request) {
         }
 
         if (data.user) {
+            const profileRole: string = role || "employee";
             // Update the user profile with role and tenant
             const { error: profileError } = await supabaseAdmin
                 .from("user_profiles")
                 .update({
-                    role: role || "employee",
+                    role: profileRole,
                     display_name: displayName || email.split("@")[0],
                     is_active: true,
                     ...(resolvedTenantId ? { current_tenant_id: resolvedTenantId } : {}),
@@ -107,21 +109,32 @@ export async function POST(request: Request) {
                 );
             }
 
-            // Create tenant_members entry so RLS grants access
-            if (resolvedTenantId) {
-                await supabaseAdmin.from("tenant_members").insert({
-                    tenant_id: resolvedTenantId,
-                    user_id: data.user.id,
-                    role: role || "employee",
-                    invited_by: user.id,
-                    status: "active",
-                    joined_at: new Date().toISOString(),
-                });
+            // Create the tenant_members entry so RLS grants access. Its role is
+            // admin | employee | viewer (tenant_members_role_check); platform
+            // roles never go into this column.
+            const { error: memberError } = await supabaseAdmin.from("tenant_members").insert({
+                tenant_id: resolvedTenantId,
+                user_id: data.user.id,
+                role: tenantMemberRoleFor(profileRole),
+                invited_by: user.id,
+                status: "active",
+                joined_at: new Date().toISOString(),
+            });
+
+            // Without the membership the account can sign in but reaches no
+            // tenant data, so this is not a success.
+            if (memberError) {
+                console.error("[create-user] tenant_members insert failed:", memberError.message);
+                return NextResponse.json(
+                    { error: "تم إنشاء الحساب لكن تعذر ربطه بالمتجر", userId: data.user.id },
+                    { status: 207 }
+                );
             }
         }
 
         return NextResponse.json({ success: true, userId: data.user?.id });
-    } catch {
+    } catch (err) {
+        console.error("[create-user] unexpected error:", err);
         return NextResponse.json({ error: "حدث خطأ غير متوقع" }, { status: 500 });
     }
 }
