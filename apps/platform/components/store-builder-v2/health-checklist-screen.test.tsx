@@ -6,6 +6,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 import { runHealthChecks, HEALTH_CHECKS } from "@scheniders/shared/health-rules";
+import { EditorModeProvider } from "@/lib/editor-mode-context";
 import { HealthChecklistScreen } from "./health-checklist-screen";
 
 afterEach(() => {
@@ -243,6 +244,28 @@ describe("HealthChecklistScreen", () => {
         );
         const step = screen.getByTestId("health-launch-step-whatsapp");
         expect((step as HTMLElement).dataset.done).toBe("true");
+    });
+
+    it("Simple mode shows the launch checklist only — no donut/filters/check list (S3-03)", () => {
+        const cfg = freshEmpty();
+        render(
+            <EditorModeProvider value={{ mode: "simple", setMode: () => {} }}>
+                <HealthChecklistScreen
+                    config={cfg}
+                    tenantName="Test"
+                    onSelectSetting={() => {}}
+                    onSelectPage={() => {}}
+                    hasPublished={false}
+                />
+            </EditorModeProvider>,
+        );
+        expect(screen.getByTestId("health-launch-steps")).toBeTruthy();
+        expect(screen.queryByTestId("health-score-donut")).toBeNull();
+        expect(screen.queryByTestId("health-filter-all")).toBeNull();
+        expect(screen.queryByTestId("health-check-list")).toBeNull();
+        // Publish blockers stay actionable, and the Advanced hatch exists.
+        expect(screen.getByTestId("health-simple-blocking-list")).toBeTruthy();
+        expect(screen.getByTestId("health-simple-advanced-hatch")).toBeTruthy();
     });
 
     it("'Blocks publish' banner is absent when no blocking failures exist", () => {

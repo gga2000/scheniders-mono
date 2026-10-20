@@ -25,6 +25,7 @@ import { blockingChecks, runHealthChecks } from "@scheniders/shared/health-rules
 import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorMode } from "@/lib/editor-mode-context";
 import { CHECK_COPY, checkCopyFixLabel } from "@/lib/health-check-copy";
 import type { LocaleCode } from "@scheniders/shared";
 import type { SettingsSectionId } from "./page-tree";
@@ -170,6 +171,11 @@ export function HealthChecklistScreen(
 ): ReactElement {
     const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished, onSetWhatsappNumber } = props;
     const locale = useResolvedEditorLocale();
+    // S3-03: Simple mode shows the launch checklist (+ any publish blockers)
+    // only — the score donut, dimension cards, filters and the 36-check list
+    // are Advanced surfaces.
+    const { mode, setMode } = useEditorMode();
+    const isSimple = mode === "simple";
 
     const report = useMemo(() => runHealthChecks(config), [config]);
     const blocking = useMemo(() => blockingChecks(report), [report]);
@@ -254,7 +260,9 @@ export function HealthChecklistScreen(
         return steps;
     }, [report.checks, hasPublished, locale]);
     const launchDone = launchSteps.filter((s) => s.done).length;
-    const showLaunchCard = launchDone < launchSteps.length;
+    // Simple keeps the card visible even when complete (it IS the Simple
+    // health surface); Advanced hides it once everything is done.
+    const showLaunchCard = isSimple || launchDone < launchSteps.length;
 
     const visibleChecks = useMemo(() => {
         return report.checks.filter((c) => {
@@ -470,11 +478,20 @@ export function HealthChecklistScreen(
                                 </li>
                             ))}
                         </ol>
+                        {isSimple && launchDone === launchSteps.length && (
+                            <p
+                                data-testid="health-launch-all-done"
+                                className="mt-3 text-sm font-semibold text-emerald-700"
+                            >
+                                {t(STRINGS.health.launch_all_done, locale)}
+                            </p>
+                        )}
                     </div>
                 </section>
             )}
 
-            {/* Score card + categories */}
+            {/* Score card + categories — Advanced only (S3-03) */}
+            {!isSimple && (
             <section className="grid gap-6 px-6 py-6 lg:grid-cols-[auto_1fr]">
                 <div
                     className="flex flex-col items-center justify-center rounded-2xl border border-(--card-border) bg-background p-6 shadow-(--card-shadow)"
@@ -495,7 +512,9 @@ export function HealthChecklistScreen(
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {/* auto-fit, not viewport breakpoints: this screen lives in a
+                    380px rail where lg: classes produced unreadable slivers. */}
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
                     {CATEGORY_ORDER.map((cat) => {
                         const v = report.category_scores[cat];
                         return (
@@ -529,6 +548,7 @@ export function HealthChecklistScreen(
                     })}
                 </div>
             </section>
+            )}
 
             {/* Blocks publish banner */}
             {blocking.length > 0 ? (
@@ -546,7 +566,33 @@ export function HealthChecklistScreen(
                 </div>
             ) : null}
 
-            {/* Filter chips */}
+            {/* Simple: publish blockers stay actionable; everything else lives
+                behind the mode switch. */}
+            {isSimple && blocking.length > 0 && (
+                <ul
+                    data-testid="health-simple-blocking-list"
+                    className="flex flex-col divide-y divide-(--card-border) border-t border-(--card-border)"
+                >
+                    {blocking.map((c) => (
+                        <HealthCheckRow key={c.id} check={c} onFix={handleFix} locale={locale} />
+                    ))}
+                </ul>
+            )}
+            {isSimple && (
+                <div className="px-6 pb-6 pt-3">
+                    <button
+                        type="button"
+                        data-testid="health-simple-advanced-hatch"
+                        onClick={() => setMode("advanced")}
+                        className="text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                    >
+                        {t(STRINGS.mode.more_options, locale)}
+                    </button>
+                </div>
+            )}
+
+            {/* Filter chips — Advanced only */}
+            {!isSimple && (
             <div className="flex flex-wrap items-center gap-2 px-6 pb-3">
                 {(["all", "failing", "warn", "passing"] as const).map((f) => (
                     <button
@@ -577,8 +623,10 @@ export function HealthChecklistScreen(
                     })}
                 </span>
             </div>
+            )}
 
-            {/* Check list */}
+            {/* Check list — Advanced only */}
+            {!isSimple && (
             <ul
                 data-testid="health-check-list"
                 className="flex flex-col divide-y divide-(--card-border) border-t border-(--card-border)"
@@ -598,6 +646,7 @@ export function HealthChecklistScreen(
                     </li>
                 ) : null}
             </ul>
+            )}
         </div>
     );
 }

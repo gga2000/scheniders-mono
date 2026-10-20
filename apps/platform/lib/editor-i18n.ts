@@ -96,6 +96,8 @@ export const STRINGS = {
         group_pages: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
         group_policies: { en: "Policies", ar: "السياسات", ku: "ڕێسـاکان" },
         group_system: { en: "System", ar: "النظام", ku: "سیستەم" },
+        // Simple-mode collapsed page groups (S3-03): tFormat {n}
+        all_pages: { en: "All pages ({n})", ar: "كل الصفحات ({n})", ku: "هەموو پەڕەکان ({n})" },
         // Pages
         page_home: { en: "Home", ar: "الرئيسية", ku: "ماڵەوە" },
         page_category: { en: "Category", ar: "الفئة", ku: "پۆل" },
@@ -181,8 +183,6 @@ export const STRINGS = {
         // tFormat: {name} is the canonical section name
         label_placeholder: { en: "e.g. {name} — Summer Sale", ar: "مثال: {name} — تخفيضات الصيف", ku: "نموونە: {name} — فرۆشتنی هاوین" },
         label_hint: { en: "Shown only in the editor — doesn’t affect the storefront.", ar: "يظهر فقط في المحرر — لا يؤثر على المتجر.", ku: "تەنیا لە دەستکاریکەردا دەردەکەوێت — کاریگەری لەسەر فرۆشگا نییە." },
-        enabled_field: { en: "Enabled", ar: "مفعّل", ku: "چالاککراو" },
-        enabled_hint: { en: "Disabled sections are hidden from the storefront.", ar: "العناصر المعطلة مخفية عن المتجر.", ku: "بەشە ناچالاکەکان لە فرۆشگاکەدا شاراوەن." },
         tab_properties: { en: "Properties", ar: "الخصائص", ku: "تایبەتمەندی" },
         tab_visibility: { en: "Visibility", ar: "الظهور", ku: "دەرکەوتن" },
         tab_variants: { en: "Variants", ar: "الاختلافات", ku: "جیاوازی" },
@@ -443,6 +443,12 @@ export const STRINGS = {
         // tFormat: {n}
         diff_change_count_one: { en: "— 1 change", ar: "— تغيير واحد", ku: "— گۆڕانکارییەک" },
         diff_change_count_many: { en: "— {n} changes", ar: "— {n} تغييرات", ku: "— {n} گۆڕانکاری" },
+        diff_fields_one: { en: "1 field", ar: "حقل واحد", ku: "خانەیەک" },
+        // tFormat: {n}
+        diff_fields_many: { en: "{n} fields", ar: "{n} حقول", ku: "{n} خانە" },
+        diff_hide: { en: "Hide", ar: "إخفاء", ku: "شاردنەوە" },
+        // Simple-mode collapsed recommendations (S3-05): tFormat {n}
+        recommendations_toggle: { en: "Recommendations ({n})", ar: "توصيات ({n})", ku: "پێشنیارەکان ({n})" },
         disabled_no_changes: { en: "Nothing to publish — make a change first.", ar: "لا شيء للنشر — قم بإجراء تغيير أولاً.", ku: "هیچ شت بۆ بڵاوکردنەوە نییە — سەرەتا گۆڕانکارییەک بکە." },
         failed: { en: "Publish failed — please try again.", ar: "فشل النشر — يرجى المحاولة مرة أخرى.", ku: "بڵاوکردنەوە سەرنەکەوت — تکایە دووبارە هەوڵبدەرەوە." },
         retry: { en: "Retry publish", ar: "إعادة المحاولة", ku: "دووبارە هەوڵبدەرەوە" },
@@ -795,9 +801,6 @@ export const STRINGS = {
         tab_health: { en: "Health", ar: "الجاهزية", ku: "ئامادەیی" },
         // Style tab routes to the full-screen Brand Kit — the full editor
         // is a two-pane layout that cannot fit in the 380px rail.
-        style_card_title: { en: "Style & branding", ar: "هوية العلامة", ku: "کیتی برێند" },
-        style_card_desc: { en: "Colors, logo, fonts and the overall look of your store — edited in one place with a live preview.", ar: "الألوان والشعار والخطوط والمظهر العام لمتجرك — تُعدّل في مكان واحد مع معاينة حية.", ku: "ڕەنگەکان، لۆگۆ، فۆنتەکان و ڕووخساری گشتی فرۆشگاکەت — لە یەک شوێندا دەستکاری دەکرێن لەگەڵ پێشبینینی ڕاستەوخۆ." },
-        style_card_button: { en: "Open Style & branding", ar: "افتح هوية العلامة", ku: "کیتی برێند بکەرەوە" },
     },
 
     /* ── Top toolbar chrome ───────────────────────────────────── */

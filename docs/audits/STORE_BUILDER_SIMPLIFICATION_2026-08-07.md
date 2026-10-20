@@ -176,6 +176,21 @@ Implemented after owner approval, live-verified on tenants #100051/#100053/#1000
 
 Gates: workspace `type-check` 3/3 ✓, `lint` 0 errors ✓, vitest shared/sections/platform-builder all green.
 
+## Round 2 — fix status (2026-08-08, same branch)
+
+"Gate the surfaces" — implemented and live-verified on tenant #100051:
+
+| ID | Status | Fix |
+|---|---|---|
+| S3-03a | **FIXED** | Simple page tree shows المتجر + الصفحات + الإعدادات only; التسوق/الطلب/السياسات/النظام (12 pages) fold behind one «كل الصفحات (12) ▸» reveal that auto-opens on deep links into a folded page — page-tree.tsx. Live: 13+ rows → 5 + one reveal. |
+| S3-03b | **FIXED** | Simple health tab = launch checklist (+ publish blockers, still actionable) + a quiet «خيارات أكثر؟ الوضع المتقدّم» hatch; donut, dimension cards, filters and the 36-check list are Advanced-only. The sliver bug died with it: the dimension grid dropped viewport `lg:grid-cols-3` for container-driven `auto-fit minmax(140px,1fr)` — health-checklist-screen.tsx. |
+| S3-05 | **FIXED** | Publish-sheet change rows resolve through `sectionDisplayName` (custom label wins, dev type gone) with localized «حقل واحد / {n} حقول / إخفاء» counts; in Simple the advisory recommendations collapse behind «توصيات ({n})» (expanded by default in Advanced) — publish-confirm-sheet.tsx. Live: `hero_image (hero_image) — 1 field` → «غلاف مع صورة — حقل واحد». |
+| S3-11 | **FIXED** | الهوية tab opens the full-screen Brand Kit directly; the door-card panel deleted — inspector-rail.tsx. |
+| S3-12 | **FIXED** | Panel «مفعّل» switch (+ explainer) removed; the row eye owns visibility — section-edit-panel.tsx. |
+| S3-02c | **FIXED** | Store-less tenants (no V2 config, no draft) see a «متجرك ينتظرك — يلا نبنيه» card at the top of the OMS dashboard routing to /store — components/dashboard/build-store-banner.tsx (presence-only query: selects `schema_version` scalars, never the jsonb blobs). |
+
+Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 278 ✓ (new: Simple-health surface test; page-tree fold covered via editor-shell tests).
+
 ---
 
 *Test artifacts: tenant #100053 (`noor.simplify3@example.com` / `NoorSimplify3_2026!`) created and left unpublished with hero text «تشكيلة للعيد جديدة»; tenant #100051 gained one publish + a شبكة منتجات section during T3/T5 measurement, and `commerce.whatsapp_number = 07709998877` during the S3-01 verification; tenant #100054 (`reem.simplify3@example.com`) created during the S3-02 verification, wizard not completed.*

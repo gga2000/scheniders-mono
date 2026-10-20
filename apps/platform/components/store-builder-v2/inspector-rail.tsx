@@ -12,7 +12,7 @@
 // merchant never loses the rest of the page outline.
 // =====================================================================
 
-import { ArrowRight, Blocks as BlocksIcon, HeartPulse, Palette, Search } from "lucide-react";
+import { Blocks as BlocksIcon, HeartPulse, Palette, Search } from "lucide-react";
 import type {
     AudienceSegment,
     BrandKit,
@@ -131,8 +131,12 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
     const showSeoTab = mode === "advanced";
     // If the user lands in Simple while SEO was active (mode flip, stale
     // deep link), fall back to Blocks instead of rendering a hidden tab.
+    // "style" also falls back: the tab is a direct launcher for the
+    // full-screen Brand Kit (S3-11), not a panel of its own.
     const effectiveTab: InspectorTab =
-        !showSeoTab && activeTab === "seo" ? "blocks" : activeTab;
+        (!showSeoTab && activeTab === "seo") || activeTab === "style"
+            ? "blocks"
+            : activeTab;
 
     return (
         <aside
@@ -159,12 +163,14 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                         active={effectiveTab === "blocks"}
                         onClick={() => onChangeTab("blocks")}
                     />
+                    {/* S3-11: a tab that was only a door — clicking now opens
+                        the full-screen Brand Kit directly. */}
                     <InspectorTabBtn
                         icon={<Palette className="h-3.5 w-3.5" aria-hidden="true" />}
                         label={t(STRINGS.inspector.tab_style, locale)}
                         testId="inspector-tab-style"
-                        active={effectiveTab === "style"}
-                        onClick={() => onChangeTab("style")}
+                        active={false}
+                        onClick={() => onJumpToSetting?.("brand_kit")}
                     />
                     {showSeoTab && (
                         <InspectorTabBtn
@@ -207,32 +213,6 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                         segments={segments}
                         onEditLayer={onEditLayer}
                     />
-                ) : effectiveTab === "style" ? (
-                    <div
-                        data-testid="inspector-style-panel"
-                        className="flex flex-1 flex-col overflow-y-auto p-4"
-                    >
-                        <div className="rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-(--card-shadow)">
-                            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                                <Palette className="h-5 w-5 text-foreground" aria-hidden="true" />
-                            </div>
-                            <h3 className="text-sm font-semibold text-foreground">
-                                {t(STRINGS.inspector.style_card_title, locale)}
-                            </h3>
-                            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                                {t(STRINGS.inspector.style_card_desc, locale)}
-                            </p>
-                            <button
-                                type="button"
-                                data-testid="inspector-style-open-brand-kit"
-                                onClick={() => onJumpToSetting?.("brand_kit")}
-                                className="mt-4 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                            >
-                                {t(STRINGS.inspector.style_card_button, locale)}
-                                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                            </button>
-                        </div>
-                    </div>
                 ) : effectiveTab === "seo" ? (
                     <PageSeoPanel
                         pageId={pageId}

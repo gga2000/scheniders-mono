@@ -62,6 +62,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.greeting.afternoon": "Good afternoon",
         "dashboard.greeting.evening": "Good evening",
         "dashboard.subtitle": "Command Center & Real-time Intelligence",
+        "dashboard.buildStore.title": "Your store is waiting — let's build it",
+        "dashboard.buildStore.subtitle": "A few steps and your online store is live, ready for orders.",
         "dashboard.newOrder": "New Order",
         "dashboard.errorTitle": "Error Loading Dashboard",
 
@@ -3406,6 +3408,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.greeting.afternoon": "مساء الخير",
         "dashboard.greeting.evening": "مساء الخير",
         "dashboard.subtitle": "مركز القيادة والمعلومات الفورية",
+        "dashboard.buildStore.title": "متجرك ينتظرك — يلا نبنيه",
+        "dashboard.buildStore.subtitle": "خطوات قليلة ويصير متجرك الإلكتروني جاهزاً لاستقبال الطلبات.",
         "dashboard.newOrder": "طلب جديد",
         "dashboard.errorTitle": "خطأ في تحميل لوحة التحكم",
 
