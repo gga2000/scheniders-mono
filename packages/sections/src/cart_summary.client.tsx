@@ -20,6 +20,8 @@ import {
   computeDeliveryFee,
   computeDiscount,
   computeBundleDiscounts,
+  summarizeDelivery,
+  formatHours,
 } from "@scheniders/shared";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, ChunkyLink, WhatsAppButton } from "./helpers/primitives";
@@ -69,6 +71,12 @@ export function CartSummaryRender({
   // fee resolves at checkout.
   const delivery = computeDeliveryFee(subtotal, items.length, {
     shipping: commerce?.shipping,
+  });
+  // Whether that estimate is the whole truth. "varies" only when the config
+  // holds different numbers per governorate; ETA only when the merchant set one.
+  const deliverySummary = summarizeDelivery(commerce?.shipping, {
+    subtotalIqd: subtotal,
+    itemCount: items.length,
   });
   // Discount: a client-side PREVIEW of the applied coupon (the server
   // re-validates + records the authoritative amount at checkout).
@@ -160,6 +168,24 @@ export function CartSummaryRender({
               )}
             </dd>
           </div>
+          {(deliverySummary.kind === "varies" || deliverySummary.eta_hours) && (
+            <div className="-mt-1 text-xs text-bk-ink-soft" data-delivery-note>
+              {[
+                deliverySummary.kind === "varies"
+                  ? (t ? "يختلف حسب المحافظة: " : "Varies by governorate: ") +
+                    `${formatPrice(deliverySummary.fee.min, locale)} – ${formatPrice(deliverySummary.fee.max, locale)}`
+                  : null,
+                deliverySummary.eta_hours
+                  ? (t ? "التوصيل خلال " : "Delivery in ") +
+                    (deliverySummary.eta_hours.min === deliverySummary.eta_hours.max
+                      ? formatHours(deliverySummary.eta_hours.min, locale)
+                      : `${formatHours(deliverySummary.eta_hours.min, locale)} – ${formatHours(deliverySummary.eta_hours.max, locale)}`)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
           {discountAmount > 0 && (
             <div className="flex justify-between">
               <dt className="text-bk-ink-soft">

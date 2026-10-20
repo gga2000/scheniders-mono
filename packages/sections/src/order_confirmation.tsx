@@ -66,6 +66,13 @@ const schema = z.object({
   total_label_i18n: i18nStringSchema,
   /** Item recap from the buyer's own session stash. */
   show_order_recap: z.boolean(),
+  /** Referral share block (renders only when commerce.referral is on).
+   *  Optional so stored configs keep parsing. `{discount}` → the friend's
+   *  percentage, `{points}` → the referrer's points, `{code}` → the code. */
+  referral_heading_i18n: i18nStringOptional,
+  referral_body_i18n: i18nStringOptional,
+  referral_share_label_i18n: i18nStringOptional,
+  referral_share_message_i18n: i18nStringOptional,
 });
 
 export type Props = z.infer<typeof schema>;
@@ -119,6 +126,16 @@ const defaultProps: Props = {
   },
   track_label_i18n: { ar: "تتبّع طلبك", en: "Track your order" },
   continue_label_i18n: { ar: "متابعة التسوّق", en: "Continue shopping" },
+  referral_heading_i18n: { ar: "عندك رمز تشاركه", en: "You have a code to share" },
+  referral_body_i18n: {
+    ar: "دز الرمز لصديق: ياخذ {discount} خصم على أول طلب، وانت تاخذ {points} لما يوصله الطلب.",
+    en: "Send it to a friend: they get {discount} off their first order, and you get {points} when it is delivered.",
+  },
+  referral_share_label_i18n: { ar: "شارك على واتساب", en: "Share on WhatsApp" },
+  referral_share_message_i18n: {
+    ar: "اطلب من {store} واستخدم رمزي {code} حتى تاخذ {discount} خصم على أول طلب: {link}",
+    en: "Order from {store} with my code {code} for {discount} off your first order: {link}",
+  },
   recap_heading_i18n: { ar: "ملخّص طلبك", en: "Your order" },
   total_label_i18n: { ar: "المجموع", en: "Total" },
   show_order_recap: true,

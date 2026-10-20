@@ -27,6 +27,7 @@ import { CartRecoveryScreen } from "./cart-recovery-screen";
 import { BundlesScreen } from "./bundles-screen";
 import { PixelsScreen } from "./pixels-screen";
 import { LoyaltyScreen } from "./loyalty-screen";
+import { OrderStatusScreen } from "./order-status-screen";
 import { CustomPagesScreen } from "./custom-pages-screen";
 import { NavBuilderScreen } from "./nav-builder-screen";
 import { I18nScreen } from "./i18n-screen";
@@ -42,6 +43,8 @@ export interface SystemScreenRouterProps {
     /** I18n screen deep-jumps back into the canvas. */
     onI18nSelectPage: (page: PageId) => void;
     onI18nSelectSection: (page: PageId, sectionId: string) => void;
+    /** The number the storefront's order tracker fills `{contact}` with. */
+    trackingContact: string | null;
 }
 
 export function SystemScreenRouter({
@@ -53,6 +56,7 @@ export function SystemScreenRouter({
     onSelectCustomPage,
     onI18nSelectPage,
     onI18nSelectSection,
+    trackingContact,
 }: SystemScreenRouterProps): React.ReactElement {
     return (
         <>
@@ -111,6 +115,8 @@ export function SystemScreenRouter({
                 <PixelsScreen builder={builder} onClose={onClose} />
             ) : screen === "loyalty" ? (
                 <LoyaltyScreen builder={builder} onClose={onClose} />
+            ) : screen === "order_status" ? (
+                <OrderStatusScreen builder={builder} contact={trackingContact} onClose={onClose} />
             ) : screen === "custom_pages" ? (
                 <CustomPagesScreen
                     builder={builder}

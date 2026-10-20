@@ -3,7 +3,7 @@
  * Base types come from @scheniders/shared; storefront extends them.
  */
 
-import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig, StoreConfigV2, ResolvedProductAttribute } from "@scheniders/shared";
+import type { BaseTenant, BaseProduct, BaseProductVariant, StoreConfig, StoreConfigV2, PriceTier, OrderBumpOffer, ResolvedProductAttribute } from "@scheniders/shared";
 
 // Re-export shared types used directly
 export type { Category, CartItem, CheckoutFormData } from "@scheniders/shared";
@@ -18,6 +18,15 @@ export interface Tenant extends BaseTenant {
 }
 
 export interface Product extends BaseProduct {
+  /** Quantity price breaks (product_tiered_pricing). Populated on the PDP. */
+  price_tiers?: PriceTier[];
+  /** True when the product has enabled variants, so it must be bought as one
+   *  (see `withVariantFlags`). Absent means not sold by variant. */
+  sold_by_variant?: boolean;
+  /** Add-on offers (product_order_bumps). Populated on the PDP. */
+  order_bumps?: OrderBumpOffer[];
+  /** Products the offers point at, resolved with them. */
+  order_bump_products?: Product[];
   /** Merchant-defined attributes, resolved against the tenant's taxonomy.
    *  Populated on the PDP; see `withAttributes` in lib/queries.ts. */
   attributes?: ResolvedProductAttribute[];

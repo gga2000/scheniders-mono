@@ -10,16 +10,26 @@
 // The lists below are pinned to the RPC's own CASE arms (migration
 // 20260606194612). They are literals on purpose: if the RPC gains a stage,
 // these tests fail rather than the shopper quietly getting "Order received".
+// They drive the tracker's real entry points — `stageOf` and the status
+// panel — so the pin holds for whatever renders the banner.
 
 import { describe, expect, it } from "vitest";
-import { resolveTrackStage, trackStageView } from "./order_tracker.client";
-import type { TrackStage } from "./order_tracker.client";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import {
+  DEFAULT_NARRATIVES,
+  resolveNarrative,
+  type CustomerOrderStage,
+  type LocaleCode,
+} from "@scheniders/shared";
+import { StoreBaseProvider } from "./helpers/store-context";
+import { OrderStatusPanel, stageOf } from "./order_tracker.client";
 
 /** Every `stage` value `lookup_order` can return, with the `status` it pairs
  *  with — exactly as the RPC's two CASE expressions produce them. */
 const RPC_ROWS: ReadonlyArray<{
   db_status: string;
-  stage: TrackStage;
+  stage: CustomerOrderStage;
   status: string;
 }> = [
   { db_status: "new", stage: "placed", status: "placed" },
@@ -37,8 +47,8 @@ const RPC_ROWS: ReadonlyArray<{
   { db_status: "refund_delivered", stage: "refunded", status: "delivered" },
 ];
 
-/** The orders that are NOT on their way. None may draw a timeline. */
-const HALTED: readonly TrackStage[] = [
+/** The orders that are NOT on their way. None may sit "at" a timeline step. */
+const HALTED: readonly CustomerOrderStage[] = [
   "no_response",
   "on_hold",
   "cancelled",
@@ -46,12 +56,30 @@ const HALTED: readonly TrackStage[] = [
   "refunded",
 ];
 
-describe("resolveTrackStage", () => {
+function panel(stage: CustomerOrderStage, locale: LocaleCode = "ar"): string {
+  return renderToStaticMarkup(
+    React.createElement(
+      StoreBaseProvider,
+      { base: "", children: null },
+      React.createElement(OrderStatusPanel, {
+        order: { order_number: "4260910007", status: "placed", stage },
+        narrative: resolveNarrative(stage, locale, undefined, "0770 123 4567"),
+        showTimeline: true,
+        locale,
+        whatsapp: "07701234567",
+        phone: "0770 123 4567",
+      }),
+    ),
+  );
+}
+
+describe("stageOf", () => {
   it("reads every stage the RPC can return", () => {
     for (const row of RPC_ROWS) {
-      expect(resolveTrackStage({ stage: row.stage, status: row.status })).toBe(
-        row.stage,
-      );
+      expect(
+        stageOf({ order_number: "x", stage: row.stage, status: row.status }),
+        row.db_status,
+      ).toBe(row.stage);
     }
   });
 
@@ -69,70 +97,53 @@ describe("resolveTrackStage", () => {
       "refund_delivered",
     ]);
     for (const row of disagreeing) {
-      expect(resolveTrackStage(row)).not.toBe(row.status);
+      expect(stageOf({ order_number: "x", stage: row.stage, status: row.status })).not.toBe(row.status);
     }
   });
 
   it("falls back to status when stage is missing — an older deploy", () => {
-    expect(resolveTrackStage({ status: "shipped" })).toBe("shipped");
-    expect(resolveTrackStage({ status: "delivered", stage: null })).toBe(
-      "delivered",
-    );
+    expect(stageOf({ order_number: "x", status: "shipped" })).toBe("shipped");
+    expect(stageOf({ order_number: "x", status: "delivered" })).toBe("delivered");
   });
 
   it("lands on placed for an unknown value, never undefined", () => {
-    expect(resolveTrackStage({ stage: "teleported", status: "teleported" })).toBe(
-      "placed",
-    );
-    expect(resolveTrackStage({})).toBe("placed");
+    expect(stageOf({ order_number: "x", stage: "teleported", status: "teleported" })).toBe("placed");
   });
 });
 
-describe("trackStageView", () => {
-  it("draws no timeline for an order that is not on its way", () => {
+describe("the banner for a halted order", () => {
+  it("never calls it received or delivered", () => {
     for (const stage of HALTED) {
-      expect(trackStageView(stage).step).toBeNull();
+      for (const locale of ["ar", "en"] as const) {
+        const html = panel(stage, locale);
+        expect(html, `${stage}/${locale}`).not.toContain(
+          DEFAULT_NARRATIVES.placed.title_i18n[locale] ?? "",
+        );
+        expect(html, `${stage}/${locale}`).not.toContain(
+          DEFAULT_NARRATIVES.delivered.title_i18n[locale] ?? "",
+        );
+      }
     }
   });
 
-  it("draws a timeline for every order that IS moving", () => {
-    const moving = RPC_ROWS.map((r) => r.stage).filter(
+  it("puts it at no step of the happy path", () => {
+    for (const stage of HALTED) {
+      expect(panel(stage), stage).not.toContain('aria-current="step"');
+    }
+  });
+
+  it("says the order is cancelled, in both locales", () => {
+    expect(panel("cancelled", "ar")).toContain("إلغاء");
+    expect(panel("cancelled", "en").toLowerCase()).toContain("cancelled");
+  });
+
+  it("still marks the current step for every order that IS moving", () => {
+    const moving = [...new Set(RPC_ROWS.map((r) => r.stage))].filter(
       (s) => !HALTED.includes(s),
     );
     expect(moving.length).toBeGreaterThan(0);
     for (const stage of moving) {
-      expect(trackStageView(stage).step).not.toBeNull();
+      expect(panel(stage), stage).toContain('aria-current="step"');
     }
-  });
-
-  it("says the order is cancelled, in both locales, and offers a way to ask", () => {
-    const view = trackStageView("cancelled");
-    expect(view.ar).toContain("ملغي");
-    expect(view.en.toLowerCase()).toContain("cancelled");
-    expect(view.tone).toBe("stopped");
-    expect(view.contact).toBe(true);
-  });
-
-  it("never calls a halted order received or delivered", () => {
-    for (const stage of HALTED) {
-      const view = trackStageView(stage);
-      expect(view.ar).not.toContain("تم استلام طلبك");
-      // "Refunded" is allowed to mention the refund, but nothing halted may
-      // present itself as the plain delivered/received happy path.
-      expect(view.en).not.toBe("Order received");
-      expect(view.en).not.toBe("Delivered");
-    }
-  });
-
-  it("tells the shopper what to do wherever they have to act", () => {
-    for (const stage of ["no_response", "on_hold", "cancelled"] as const) {
-      const view = trackStageView(stage);
-      expect(view.contact).toBe(true);
-      expect(view.note?.ar).toBeTruthy();
-      expect(view.note?.en).toBeTruthy();
-    }
-    // And not where there is nothing for them to do.
-    expect(trackStageView("delivered").contact).toBeUndefined();
-    expect(trackStageView("refunded").contact).toBeUndefined();
   });
 });
