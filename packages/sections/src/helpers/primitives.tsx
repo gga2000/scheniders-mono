@@ -139,14 +139,14 @@ type CardBg =
  * brand kit wins at runtime.
  */
 const BG_MAP: Record<CardBg, string> = {
-  white: "bg-white",
+  white: "bg-bk-surface-alt",
   cream: "bg-bk-surface",
-  pink: "bg-bk-primary text-white",
+  pink: "bg-bk-primary text-bk-on-primary",
   mint: "bg-bk-secondary",
   butter: "bg-bk-accent",
   lilac: "bg-bk-decor-b",
   sky: "bg-bk-decor-c",
-  ink: "bg-bk-ink text-white",
+  ink: "bg-bk-ink text-bk-surface",
   success: "",
   "accent-primary":
     "bg-[var(--schn-accent-primary)] text-[var(--schn-accent-primary-on)]",
@@ -160,7 +160,11 @@ const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
   // `bg="white"` button/card inherits its parent's text colour — on a dark
   // hero overlay (text = #fff) that yields white-on-white (invisible). See
   // the hero secondary WhatsApp CTA.
-  white: { bg: "#ffffff", fg: "var(--bk-ink, #1a1a1a)" },
+  //
+  // "white" is the kit's card surface, not literal #ffffff: on a dark kit
+  // (Kinetic Ink, Chrome Night) ink is the light colour, so a literal white
+  // card put ink text at ~1.1:1 against it.
+  white: { bg: "var(--bk-surface-alt, #ffffff)", fg: "var(--bk-ink, #1a1a1a)" },
   pink: { bg: "var(--bk-primary, #ff5a8a)", fg: "var(--bk-on-primary, #fff)" },
   // Decorative surfaces — see SCRIBBLE_HEX. `on-decor` rather than `ink`
   // because all three share one lightness band, so the correct foreground is
@@ -171,7 +175,9 @@ const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
   lilac: { bg: "var(--bk-decor-b, #c5b6ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
   sky: { bg: "var(--bk-decor-c, #9ad8ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
   cream: { bg: "var(--bk-surface, #fff7ed)", fg: "var(--bk-ink, #1a1a1a)" },
-  ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "#fff" },
+  // Ink-filled surfaces take the page surface back as their foreground, not
+  // literal white — on a dark kit ink IS the light colour.
+  ink: { bg: "var(--bk-ink, #1a1a1a)", fg: "var(--bk-surface, #ffffff)" },
   success: {
     bg: "var(--bk-success, #25d366)",
     fg: "var(--bk-on-primary, #1a1a1a)",
