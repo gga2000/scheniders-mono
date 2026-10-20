@@ -10,9 +10,9 @@ interface HighlightedPhoneProps {
 }
 
 /**
- * Phone rendered in 4-3-4 groups ("0780 230 1677") with the search query still
+ * Phone rendered in 4-3-4 groups ("0780 123 4567") with the search query still
  * highlighted. The query is matched against the digits only, then mapped back onto
- * the spaced string, so a search for "07802301677" still lights up the grouped text.
+ * the spaced string, so a search for "07801234567" still lights up the grouped text.
  */
 export function HighlightedPhone({ phone, query, className }: HighlightedPhoneProps) {
     const formatted = formatPhoneGrouped(phone);

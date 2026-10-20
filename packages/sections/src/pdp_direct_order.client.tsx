@@ -41,10 +41,24 @@ import {
   isValidIraqiMobile,
   normalizeIraqiMobile,
   cn,
+  buildPriceLadder,
+  resolveTierPrice,
+  offersForProduct,
+  applyBumpDiscount,
+  summarizeDelivery,
+  etaForGovernorate,
+  formatHours,
+  computePointsEarned,
+  computePointsRedemption,
+  formatPoints,
+  computeReferralDiscount,
+  normalizeReferralCode,
+  stackDiscounts,
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
-import { stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
+import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
+import { focusVariantPicker, stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import {
   BentoCard,
   ChunkyButton,
@@ -53,6 +67,7 @@ import {
   WhatsAppIcon,
   Stars,
 } from "./helpers/primitives";
+import { PRESSABLE } from "./helpers/utils";
 import { useStoreBase } from "./helpers/store-context";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
 import {
@@ -100,6 +115,30 @@ export const STRINGS = {
     en: "Choose your governorate so we can price delivery.",
     ar: "اختر محافظتك حتى نحسب أجرة التوصيل.",
   },
+  /** When the fee is flat the price is already known — the governorate is
+   *  needed for the address, and the copy must not pretend otherwise. */
+  governorateRequiredFlat: {
+    en: "Choose your governorate for delivery.",
+    ar: "اختر محافظتك للتوصيل.",
+  },
+  deliveryAllGovernorates: { en: "all governorates", ar: "لكل المحافظات" },
+  deliveryRange: { en: "{min} – {max} by governorate", ar: "{min} – {max} حسب المحافظة" },
+  deliveryFreeAbove: { en: "free above {amount}", ar: "مجاني فوق {amount}" },
+  deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}" },
+  deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}" },
+  totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل" },
+  youHavePoints: { en: "You have {points}", ar: "عندك {points}" },
+  useAll: { en: "Use all", ar: "استخدم الكل" },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
+  pointsOff: { en: "{amount} off", ar: "خصم {amount}" },
+  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
+  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)" },
+  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M" },
+  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
+  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز." },
+  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم." },
+  /** Only rendered when commerce.returns_policy.inspect_before_paying is true. */
+  inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع" },
   chooseVariant: { en: "Choose an option", ar: "اختار الخيار" },
   chooseVariantFirst: { en: "Choose an option first.", ar: "اختار الخيار أول." },
   variantOut: { en: "out of stock", ar: "نفد" },
@@ -282,13 +321,18 @@ export function PdpDirectOrderRender({
   const base = useStoreBase();
   const uid = useId();
   const fieldId = (k: FieldKey) => `${uid}-${k}`;
+  const referralFieldId = `${uid}-referral_code`;
   const errorId = (k: FieldKey) => `${uid}-${k}-error`;
   const submitErrorId = `${uid}-submit-error`;
+  const variantErrorId = `${uid}-variant-error`;
 
   const [qty, setQty] = useState(1);
-  // Server-corrected unit price (422 `price_changed` self-heal); null until
-  // the server reports a drift.
-  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [bumpAccepted, setBumpAccepted] = useState(false);
+  // Server-corrected unit price (422 `price_changed` self-heal), for the
+  // variant it was reported against; null until the server reports a drift.
+  // Keyed by variant so choosing another option — here or in any picker on
+  // the page — never carries one variant's correction onto another.
+  const [livePrice, setLivePrice] = useState<{ variantId: string | null; price: number } | null>(null);
   // Timestamp of the last price drift — drives the scroll-to + 1.2 s
   // highlight on the price row; null once the highlight has faded.
   const [priceFlashAt, setPriceFlashAt] = useState<number | null>(null);
@@ -318,6 +362,11 @@ export function PdpDirectOrderRender({
   // One Purchase event_id per submission — shared by the browser pixel and
   // the server CAPI twin (dedup); cleared on success.
   const purchaseEventIdRef = useRef<string | null>(null);
+  // Published commerce config is static for the render; read once up here so
+  // effects declared before the pricing block can see it.
+  const commerceRef = {
+    current: (ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined)?.store_config_v2?.commerce,
+  };
   const [form, setForm] = useState<FormState>(() => {
     // Empty until chosen: a pre-selected Baghdad silently shipped orders to
     // the wrong governorate (and priced the wrong fee) when shoppers skipped
@@ -334,11 +383,70 @@ export function PdpDirectOrderRender({
     };
   });
 
+  // Referral: the friend's code (from a shared ?ref= link or typed) and the
+  // server's verdict on it. The amount is previewed from the published
+  // program; the server re-checks eligibility and prices it again at submit.
+  const [referralCode, setReferralCode] = useState("");
+  const [referralState, setReferralState] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "valid"; pct: number; max: number | null }
+    | { kind: "invalid"; reason: "unknown" | "ineligible" | "off" }
+  >({ kind: "idle" });
+
+  const referralProgram = commerceRef.current?.referral;
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const captured = captureReferral(ctx.tenant.id);
+    if (captured) setReferralCode(captured);
+  }, [referralProgram?.enabled]);
+  useEffect(() => {
+    if (referralProgram?.enabled !== true) return;
+    const code = normalizeReferralCode(referralCode);
+    if (!code) {
+      setReferralState({ kind: "idle" });
+      return;
+    }
+    let active = true;
+    setReferralState({ kind: "checking" });
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ tenant_id: ctx.tenant.id, code });
+      const buyer = normalizeIraqiMobile(form.phone);
+      if (buyer) params.set("phone", buyer);
+      fetch(`/api/referral/validate?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { valid?: boolean; reason?: string; friend_discount_pct?: number; friend_max_discount_iqd?: number | null } | null) => {
+          if (!active) return;
+          if (d?.valid === true) {
+            setReferralState({ kind: "valid", pct: d.friend_discount_pct ?? 0, max: d.friend_max_discount_iqd ?? null });
+          } else {
+            const reason = d?.reason;
+            setReferralState({
+              kind: "invalid",
+              reason: reason === "ineligible" || reason === "off" ? reason : "unknown",
+            });
+          }
+        })
+        .catch(() => {
+          if (active) setReferralState({ kind: "idle" });
+        });
+    }, 500);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [referralProgram?.enabled, referralCode, form.phone]);
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
+  // Loyalty: the shopper's balance (fetched by phone, debounced) and how
+  // many points they choose to spend. The server re-resolves both against
+  // the published config and the authoritative balance.
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
   // Which variant is being bought: chosen in a pdp_variants section, the
   // buy box, or the inline pills below (only when no picker is on the page).
+  // Nothing is pre-selected — see helpers/variant-store.
   const chosen = useSelectedVariant(product);
   const [variantError, setVariantError] = useState(false);
   const variantPillsRef = useRef<HTMLDivElement | null>(null);
@@ -381,7 +489,13 @@ export function PdpDirectOrderRender({
   // 422s with `new_price` when it drifted; `livePrice` adopts that correction
   // so the retry succeeds without a page reload (parity with checkout_form's
   // cart-store `updatePrice` self-heal).
-  const price = livePrice ?? chosen.variant?.price ?? product.price;
+  // A product sold by variant is bought as one of them, priced from the
+  // variant row — the checkout refuses a variant-less line for it.
+  const chosenVariantId = chosen.variant?.id ?? null;
+  const price =
+    livePrice && livePrice.variantId === chosenVariantId
+      ? livePrice.price
+      : (chosen.variant?.price ?? product.price);
 
   const compareAt = chosen.variant ? chosen.variant.compare_at_price : product.compare_at_price;
   const onSale = compareAt != null && compareAt > price;
@@ -390,37 +504,142 @@ export function PdpDirectOrderRender({
   // the hero badge, and it lacked their guard against a zero price — which
   // would have read as 100% off rather than no discount at all.
   const discountPct = discountPercent(price, compareAt);
-  // With several variants and none chosen there is nothing to count yet; the
-  // form asks for the choice at submit instead of calling the product sold out.
-  const awaitingVariant = chosen.variants.length > 1 && !chosen.variant;
-  const stockLeft = awaitingVariant ? 1 : stockLeftFor(product, chosen.variant);
-  const oos = stockLeft <= 0;
+  // Sold by variant and none chosen: there is no stock to count yet, so
+  // `stockLeft` is null — not a placeholder number that the quantity cap and
+  // the urgency line would read as real. The form asks for the choice at
+  // submit instead of calling the product sold out, unless no variant can be
+  // bought at all (`soldOut`), which is sold out.
+  const awaitingVariant = chosen.needsVariant;
+  const stockLeft: number | null = awaitingVariant
+    ? null
+    : stockLeftFor(product, chosen.variant);
+  const oos = chosen.soldOut || (stockLeft !== null && stockLeft <= 0);
   const maxQty = Math.min(
     props.max_qty,
-    stockLeft > 0 ? stockLeft : props.max_qty,
+    stockLeft !== null && stockLeft > 0 ? stockLeft : props.max_qty,
   );
+  // The "choose an option" message shows only while a choice is still owed.
+  const showVariantError = variantError && awaitingVariant;
   const atMinQty = qty <= 1;
   const atMaxQty = qty >= maxQty;
 
-  const subtotal = price * qty;
+  // Quantity price break, if the merchant set any. The checkout server
+  // re-derives this from the same helper, so what the shopper sees here and
+  // what they are charged cannot drift — see @scheniders/shared price-tiers.
+  const ladder = buildPriceLadder(product.price_tiers, price, maxQty);
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, price);
+
+  // Order bump: one add-on offer attached to this product. Only the first is
+  // shown — a checkout form is not the place for a list of upsells. The
+  // offered product is resolved with the offer (never from a capped
+  // page-level list), and its discount applies to the same unit price the
+  // checkout server derives for one unit of it.
+  const bumpOffer = offersForProduct(product.order_bumps, product.id)[0] ?? null;
+  const bumpProduct = bumpOffer
+    ? ((product.order_bump_products ?? []).find((p) => p.id === bumpOffer.bump_product_id) ?? null)
+    : null;
+  const bumpAvailable =
+    bumpProduct != null &&
+    (bumpProduct.stock_quantity ?? 0) - (bumpProduct.reserved_quantity ?? 0) > 0;
+  const bumpBasePrice = bumpProduct
+    ? resolveTierPrice(bumpProduct.price_tiers, 1, bumpProduct.price)
+    : 0;
+  const bumpPrice =
+    bumpOffer && bumpProduct
+      ? applyBumpDiscount(bumpBasePrice, bumpOffer.discount_percentage)
+      : 0;
+  const acceptedBump =
+    bumpAccepted && bumpProduct && bumpAvailable
+      ? { product: bumpProduct, price: bumpPrice }
+      : null;
+
+  const subtotal = unitPrice * qty + (acceptedBump ? acceptedBump.price : 0);
   // Same per-governorate shipping engine as checkout_form so the total this
-  // CTA shows matches what the server records for the order. Until the
-  // shopper picks a governorate the fee is unknown — shown as "—", never a
-  // silently-assumed Baghdad rate.
+  // CTA shows matches what the server records for the order. Never a
+  // silently-assumed Baghdad rate: before a governorate is picked the fee is
+  // stated only when EVERY governorate would pay it (below).
   const commerce = (
     ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
   )?.store_config_v2?.commerce;
   const chosenGovernorate = isGovernorateCode(form.governorate_code)
     ? form.governorate_code
     : null;
+  // The server counts the paid lines — the parent and an accepted bump.
+  const itemCount = qty + (acceptedBump ? 1 : 0);
   const delivery = chosenGovernorate
-    ? computeDeliveryFee(subtotal, qty, {
+    ? computeDeliveryFee(subtotal, itemCount, {
         shipping: commerce?.shipping,
         governorate: chosenGovernorate,
       })
     : null;
-  const total = subtotal + (delivery ?? 0);
+  // What can honestly be said BEFORE a governorate is picked. The summary
+  // asks the same engine for every governorate at this basket: one answer →
+  // state it and count it in the total; several → show the range and keep
+  // the total "before delivery". Nothing here is a guess.
+  const deliverySummary = summarizeDelivery(commerce?.shipping, {
+    subtotalIqd: subtotal,
+    itemCount,
+  });
+  const flatFeeKnown = delivery === null && deliverySummary.kind !== "varies";
+  const displayedDelivery: number | null = flatFeeKnown
+    ? deliverySummary.fee.min
+    : delivery;
+  const loyaltyCfg = commerce?.loyalty;
+  const referralWanted =
+    referralState.kind === "valid"
+      ? computeReferralDiscount(subtotal, { enabled: true, friend_discount_pct: referralState.pct, friend_max_discount_iqd: referralState.max ?? undefined })
+      : 0;
+  // Points are priced against what the friend's discount left, and the two
+  // are stacked the way the server stacks them, so the sum never exceeds the
+  // subtotal and the total shown is the total recorded.
+  const pointsRedemption = computePointsRedemption({
+    balance: pointsBalance ?? 0,
+    requestedPoints: redeemPoints,
+    subtotalIqd: subtotal - Math.min(referralWanted, subtotal),
+    cfg: loyaltyCfg,
+  });
+  const [referralAmount, pointsDiscount] = stackDiscounts(subtotal, [
+    referralWanted,
+    pointsRedemption.discount_iqd,
+  ]).applied;
+  // Credited by the database when the order is delivered — never at
+  // placement — so this is a promise about delivery, worded as one.
+  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
+  const total = subtotal - referralAmount - pointsDiscount + (displayedDelivery ?? 0);
+  const totalExcludesDelivery = displayedDelivery === null;
+
+  // Fetch the balance once a valid phone is in; reset the chosen redemption
+  // when the phone changes so a number cannot spend another's points.
+  useEffect(() => {
+    if (!loyaltyCfg?.enabled) return;
+    const balancePhone = normalizeIraqiMobile(form.phone);
+    setRedeemPoints(0);
+    if (!balancePhone) {
+      setPointsBalance(null);
+      return;
+    }
+    let active = true;
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ tenant_id: ctx.tenant.id, phone: balancePhone });
+      fetch(`/api/loyalty/balance?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { balance?: number } | null) => {
+          if (active) setPointsBalance(typeof d?.balance === "number" ? d.balance : 0);
+        })
+        .catch(() => {
+          /* balance just won't show */
+        });
+    }, 600);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [loyaltyCfg?.enabled, form.phone, ctx.tenant.id]);
+  const etaHours = chosenGovernorate
+    ? etaForGovernorate(commerce?.shipping, chosenGovernorate)
+    : null;
   const returnsDays = commerce?.returns_policy?.window_days;
+  const inspectBeforePaying = commerce?.returns_policy?.inspect_before_paying === true;
 
   // Honest social proof: the chip renders ONLY when the product actually has
   // approved reviews. `{count}` in the template becomes the real count, and
@@ -444,7 +663,7 @@ export function PdpDirectOrderRender({
   const urgencyMaxStock = props.urgency_max_stock ?? DEFAULT_URGENCY_MAX_STOCK;
   const urgency = urgencyRaw
     ? urgencyRaw.includes("{count}")
-      ? stockLeft > 0 && stockLeft <= urgencyMaxStock
+      ? stockLeft !== null && stockLeft > 0 && stockLeft <= urgencyMaxStock
         ? urgencyRaw.replace("{count}", String(stockLeft))
         : null
       : urgencyRaw
@@ -505,7 +724,7 @@ export function PdpDirectOrderRender({
       case "alt_phone":
         return !v || isValidIraqiMobile(v) ? null : s("phoneInvalid");
       case "governorate_code":
-        return isGovernorateCode(v) ? null : s("governorateRequired");
+        return isGovernorateCode(v) ? null : s(deliverySummary.kind === "varies" ? "governorateRequired" : "governorateRequiredFlat");
     }
   }
 
@@ -531,7 +750,7 @@ export function PdpDirectOrderRender({
     trackPixel(
       "InitiateCheckout",
       pixelContentsFromItems([
-        { product_id: product.id, price, quantity: qty },
+        { product_id: product.id, price: unitPrice, quantity: qty },
       ]),
     );
   }
@@ -556,12 +775,18 @@ export function PdpDirectOrderRender({
       errors.alt_phone = s("phoneInvalid");
     }
     setFieldErrors(errors);
-    // The option sits above the form, so it is the first thing to fix.
+    // The option is the first thing to fix. It is either this form's own
+    // pills or, when a picker section owns the choice, that section — the
+    // message then shows beside the submit button, where the shopper tapped.
     setVariantError(awaitingVariant);
     const firstInvalid = (opts?.focusOrder ?? FIELD_ORDER).find((k) => errors[k]);
     if (awaitingVariant) {
-      variantPillsRef.current?.scrollIntoView?.({ block: "center" });
-      variantPillsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+      if (chosen.pickerMounted) {
+        focusVariantPicker(product.id);
+      } else {
+        variantPillsRef.current?.scrollIntoView?.({ block: "center" });
+        variantPillsRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+      }
       return;
     }
     if (firstInvalid || !phone) {
@@ -588,10 +813,25 @@ export function PdpDirectOrderRender({
         variant_id: chosen.variant?.id ?? null,
         name: product.name,
         variant_name: chosen.variant?.name ?? null,
-        price,
+        // `unitPrice`, not `price`: with a quantity break selected the two
+        // differ, and the server re-derives the break and rejects the base.
+        price: unitPrice,
         quantity: qty,
       },
     ];
+    // An accepted bump is a second line at its discounted price. The server
+    // re-derives that discount too, and only honours it because this order
+    // also contains the parent product above.
+    if (acceptedBump) {
+      items.push({
+        product_id: acceptedBump.product.id,
+        variant_id: null,
+        name: acceptedBump.product.name,
+        variant_name: null,
+        price: acceptedBump.price,
+        quantity: 1,
+      });
+    }
     try {
       // Same endpoint + payload contract as the checkout_form section —
       // only `items` differs (a single line from ctx.product) plus the
@@ -613,6 +853,10 @@ export function PdpDirectOrderRender({
           subtotal,
           locale,
           idempotency_key: idempotencyKeyRef.current,
+          ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+          ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
+            ? { referral_code: normalizeReferralCode(referralCode) }
+            : {}),
           ...(purchaseEventIdRef.current
             ? { event_id: purchaseEventIdRef.current }
             : {}),
@@ -622,9 +866,14 @@ export function PdpDirectOrderRender({
       if (res.ok) {
         const data = (await res.json().catch(() => null)) as {
           orderNumber?: string;
+          /** The order's id — which order the post-purchase offer grows. */
+          orderId?: string;
+          /** Proof this browser placed it (server-minted, short-lived). */
+          upsellToken?: string;
           total?: number;
         } | null;
         const orderNumber = data?.orderNumber ?? "";
+        if (referralState.kind === "valid") clearCapturedReferral(ctx.tenant.id);
         // Stash the just-placed order for the thank-you recap — identical
         // privacy-safe path to checkout_form (only the buyer's browser
         // holds it; the success page never fetches by order number).
@@ -633,6 +882,12 @@ export function PdpDirectOrderRender({
             "schn:last-order",
             JSON.stringify({
               number: orderNumber,
+              // The order id and the server's proof let the thank-you page's
+              // post-purchase offer act on THIS order and no other. Session
+              // storage only, like the rest of the stash; additive, so older
+              // readers ignore them.
+              order_id: data?.orderId ?? null,
+              upsell_token: data?.upsellToken ?? null,
               // Lets the thank-you page greet the buyer by name; optional so
               // older readers of the stash keep working unchanged.
               customer_name: form.customer_name.trim(),
@@ -686,7 +941,7 @@ export function PdpDirectOrderRender({
           (i) => i.reason === "price_changed" && i.product_id === product.id,
         )?.new_price;
         if (typeof newPrice === "number") {
-          setLivePrice(newPrice);
+          setLivePrice({ variantId: chosenVariantId, price: newPrice });
           setPriceFlashAt(Date.now());
           setErrorMsg(
             s("priceChanged").replace("{price}", formatPrice(newPrice, locale)),
@@ -824,7 +1079,9 @@ export function PdpDirectOrderRender({
           atMinQty,
           atMaxQty,
           subtotal,
-          delivery,
+          // The delivery the total counts: the flat fee when every governorate
+          // costs the same, else the chosen governorate's fee (null = varies).
+          delivery: displayedDelivery,
           total,
           shipping: commerce?.shipping,
           returnsDays,
@@ -1206,7 +1463,7 @@ export function PdpDirectOrderRender({
             </div>
 
             {/* ── Step 02 — quantity ── */}
-            {chosen.variants.length > 1 && !chosen.pickerMounted && (
+            {chosen.soldByVariant && !chosen.pickerMounted && (
               <div
                 ref={variantPillsRef}
                 data-layer="variants"
@@ -1251,8 +1508,8 @@ export function PdpDirectOrderRender({
                     );
                   })}
                 </div>
-                {variantError && (
-                  <p role="alert" className={errorCls}>
+                {showVariantError && (
+                  <p id={variantErrorId} role="alert" className={errorCls}>
                     {s("chooseVariantFirst")}
                   </p>
                 )}
@@ -1270,6 +1527,57 @@ export function PdpDirectOrderRender({
                   {qtyTitle}
                 </h2>
               </div>
+              {/* Tappable rungs when the merchant set price breaks. This
+                  reframes the choice from "one?" to "how many?", and each
+                  tile states the real saving rather than implying one.
+                  The stepper stays below for any quantity in between. */}
+              {ladder.length > 0 && (
+                <div
+                  className="grid grid-cols-3 gap-bk-2xs"
+                  role="group"
+                  aria-label={qtyTitle || s("quantity")}
+                >
+                  {ladder.map((rung) => {
+                    const active = qty === rung.quantity;
+                    return (
+                      <button
+                        key={rung.quantity}
+                        type="button"
+                        onClick={() => setQty(rung.quantity)}
+                        aria-pressed={active}
+                        className={cn(
+                          "flex min-h-11 flex-col items-center justify-center gap-0.5 px-1 py-2 text-center",
+                          PRESSABLE,
+                        )}
+                        style={{
+                          border: active
+                            ? "2px solid var(--bk-ink, #1a1a1a)"
+                            : "1px solid var(--bk-divider, rgb(26 26 26 / 0.14))",
+                          borderRadius: "var(--bk-radius-input, 0.75rem)",
+                          backgroundColor: active
+                            ? "var(--bk-decor-a, #fff)"
+                            : "var(--bk-surface-alt, #fff)",
+                        }}
+                      >
+                        <span className="font-display text-sm font-black tabular-nums">
+                          {rung.quantity}
+                        </span>
+                        <span className="font-body text-[11px] tabular-nums text-bk-ink-soft">
+                          <bdi>{formatPrice(rung.unit_price, locale)}</bdi>
+                        </span>
+                        {rung.saves > 0 && (
+                          <span className="font-label text-[10px] font-bold tabular-nums text-bk-primary">
+                            <bdi>
+                              {locale === "en" ? "save " : "توفّر "}
+                              {formatPrice(rung.saves, locale)}
+                            </bdi>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div
                 className="flex items-center justify-between bg-white px-2 py-1.5"
                 style={{
@@ -1352,7 +1660,7 @@ export function PdpDirectOrderRender({
                   {/* Merchant commitments only — the delivery promise is a
                       prop and the returns window comes from the tenant's
                       commerce config; neither is invented here. */}
-                  {(deliverySla || (returnsDays && returnsDays > 0)) && (
+                  {(deliverySla || (returnsDays && returnsDays > 0) || pointsToEarn > 0 || inspectBeforePaying) && (
                     <ul className="mt-1 space-y-0.5 font-body text-xs text-bk-ink-soft">
                       {deliverySla && (
                         <li
@@ -1370,6 +1678,18 @@ export function PdpDirectOrderRender({
                         <li className="flex items-center gap-1">
                           <MaterialIcon name="cached" className="text-sm" />
                           {returnsLine(returnsDays, locale)}
+                        </li>
+                      )}
+                      {pointsToEarn > 0 && (
+                        <li className="flex items-center gap-1" data-points-to-earn={pointsToEarn}>
+                          <MaterialIcon name="loyalty" className="text-sm" />
+                          {s("earnOnDelivery").replace("{points}", formatPoints(pointsToEarn, locale))}
+                        </li>
+                      )}
+                      {inspectBeforePaying && (
+                        <li className="flex items-center gap-1" data-inspect-before-paying>
+                          <MaterialIcon name="visibility" className="text-sm" />
+                          {s("inspectBeforePaying")}
                         </li>
                       )}
                     </ul>
@@ -1398,18 +1718,57 @@ export function PdpDirectOrderRender({
               <div className="flex items-center justify-between font-body text-sm text-bk-ink-soft">
                 <span>{s("delivery")}</span>
                 <span className="tabular-nums" data-delivery-fee>
-                  {delivery === null ? (
-                    "—"
-                  ) : delivery === 0 ? (
+                  {displayedDelivery === null ? (
+                    <bdi>
+                      {s("deliveryRange")
+                        .replace("{min}", formatPrice(deliverySummary.fee.min, locale))
+                        .replace("{max}", formatPrice(deliverySummary.fee.max, locale))}
+                    </bdi>
+                  ) : displayedDelivery === 0 ? (
                     s("deliveryFree")
                   ) : (
-                    <bdi>{formatPrice(delivery, locale)}</bdi>
+                    <bdi>
+                      {formatPrice(displayedDelivery, locale)}
+                      {flatFeeKnown && <span className="ms-1 text-xs">{s("deliveryAllGovernorates")}</span>}
+                    </bdi>
                   )}
                 </span>
               </div>
+              {/* Only what the merchant configured: a free-delivery line when
+                  every rate agrees on a threshold, an ETA when one is set. */}
+              {(flatFeeKnown && deliverySummary.free_threshold_iqd && displayedDelivery !== 0) ||
+              etaHours ||
+              (delivery === null && deliverySummary.eta_hours) ? (
+                <p className="font-body text-xs text-bk-ink-soft" data-delivery-note>
+                  {[
+                    flatFeeKnown && deliverySummary.free_threshold_iqd && displayedDelivery !== 0
+                      ? s("deliveryFreeAbove").replace(
+                          "{amount}",
+                          formatPrice(deliverySummary.free_threshold_iqd, locale),
+                        )
+                      : null,
+                    etaHours
+                      ? s("deliveryEta").replace("{eta}", formatHours(etaHours, locale))
+                      : delivery === null && deliverySummary.eta_hours
+                        ? deliverySummary.eta_hours.min === deliverySummary.eta_hours.max
+                          ? s("deliveryEta").replace("{eta}", formatHours(deliverySummary.eta_hours.min, locale))
+                          : s("deliveryEtaRange")
+                              .replace("{min}", formatHours(deliverySummary.eta_hours.min, locale))
+                              .replace("{max}", formatHours(deliverySummary.eta_hours.max, locale))
+                        : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              ) : null}
               <div className="flex items-center justify-between">
                 <span className="font-display font-black text-base">
                   {s("total")}
+                  {totalExcludesDelivery && (
+                    <span className="ms-1 font-body text-xs font-normal text-bk-ink-soft">
+                      {s("totalExcludesDelivery")}
+                    </span>
+                  )}
                 </span>
                 <span
                   className="font-display font-black text-xl tabular-nums"
@@ -1419,6 +1778,155 @@ export function PdpDirectOrderRender({
                 </span>
               </div>
             </div>
+
+            {/* ── Order bump ──
+                Immediately before the submit button, where an add-on belongs:
+                the decision to buy is already made, so this is an addition
+                rather than a distraction from it. A checkbox, not a second
+                CTA — it must never compete with the order button. */}
+            {bumpProduct && bumpAvailable && (
+              <label
+                className={cn(
+                  "flex cursor-pointer items-center gap-bk-sm p-bk-sm",
+                  PRESSABLE,
+                )}
+                style={{
+                  border: bumpAccepted
+                    ? "2px solid var(--bk-ink, #1a1a1a)"
+                    : "1px dashed var(--bk-divider, rgb(26 26 26 / 0.3))",
+                  borderRadius: "var(--bk-radius-input, 0.75rem)",
+                  backgroundColor: bumpAccepted
+                    ? "var(--bk-decor-a, #fff)"
+                    : "var(--bk-surface-alt, #fff)",
+                }}
+                data-layer="bump"
+                data-layer-label="Order bump"
+              >
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 shrink-0 accent-[var(--bk-primary,#ff5a8a)]"
+                  checked={bumpAccepted}
+                  onChange={(e) => setBumpAccepted(e.target.checked)}
+                />
+                {bumpProduct.image_url && (
+                  <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-bk-input">
+                    <Image
+                      src={bumpProduct.image_url}
+                      alt=""
+                      fill
+                      sizes="44px"
+                      unoptimized={!isOptimizableImageHost(bumpProduct.image_url)}
+                      className="object-cover"
+                    />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-sm font-black text-bk-ink">
+                    {bumpOffer?.headline || bumpProduct.name}
+                  </span>
+                  {bumpOffer?.description && (
+                    <span className="block font-body text-xs text-bk-ink-soft">
+                      {bumpOffer.description}
+                    </span>
+                  )}
+                  <span className="mt-0.5 flex items-baseline gap-1.5">
+                    <span className="font-display text-sm font-black tabular-nums text-bk-primary">
+                      <bdi>{formatPrice(bumpPrice, locale)}</bdi>
+                    </span>
+                    {bumpPrice < bumpBasePrice && (
+                      <span className="font-body text-[11px] tabular-nums text-bk-ink-soft line-through">
+                        <bdi>{formatPrice(bumpBasePrice, locale)}</bdi>
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {referralProgram?.enabled === true && (
+              <div data-testid="referral-field" className="space-y-1">
+                <label className={labelCls} htmlFor={referralFieldId}>
+                  {s("referralLabel")}
+                </label>
+                <input
+                  id={referralFieldId}
+                  type="text"
+                  name="referral_code"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  dir="ltr"
+                  maxLength={12}
+                  placeholder={s("referralPlaceholder")}
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  aria-invalid={referralState.kind === "invalid" || undefined}
+                  aria-describedby={referralState.kind === "idle" ? undefined : `${referralFieldId}-status`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+                {referralState.kind !== "idle" && (
+                  <p
+                    id={`${referralFieldId}-status`}
+                    role="status"
+                    data-referral-state={referralState.kind}
+                    className={`font-body text-xs ${referralState.kind === "invalid" ? "text-bk-danger" : "text-bk-ink-soft"}`}
+                  >
+                    {referralState.kind === "checking"
+                      ? "…"
+                      : referralState.kind === "valid"
+                        ? s("referralOff").replace("{amount}", `−${formatPrice(referralAmount, locale)}`)
+                        : referralState.reason === "ineligible"
+                          ? s("referralIneligible")
+                          : s("referralUnknown")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ── Loyalty points redemption ── */}
+            {loyaltyCfg?.enabled && (pointsBalance ?? 0) > 0 && (
+              <div
+                data-testid="pdp-redeem-points"
+                className="space-y-bk-xs rounded-bk-input bg-bk-decor-a/40 p-bk-sm"
+              >
+                <div className="flex items-center justify-between gap-bk-sm">
+                  <span className="inline-flex items-center gap-2 font-display text-sm font-black tabular-nums text-bk-ink">
+                    <MaterialIcon name="loyalty" className="text-xl" />
+                    {s("youHavePoints").replace("{points}", formatPoints(pointsBalance ?? 0, locale))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRedeemPoints(pointsBalance ?? 0)}
+                    className="min-h-11 font-label text-xs font-bold underline"
+                  >
+                    {s("useAll")}
+                  </button>
+                </div>
+                <div className="flex items-center gap-bk-sm" dir="ltr">
+                  <input
+                    type="number"
+                    min={0}
+                    max={pointsBalance ?? 0}
+                    inputMode="numeric"
+                    aria-label={s("enterPoints")}
+                    value={redeemPoints || ""}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                      setRedeemPoints(Math.min(n, pointsBalance ?? 0));
+                    }}
+                    className="w-24 px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                    style={inputStyle}
+                  />
+                  <span className="font-label text-sm font-bold tabular-nums">
+                    {pointsDiscount > 0
+                      ? s("pointsOff").replace("{amount}", `−${formatPrice(pointsDiscount, locale)}`)
+                      : s("enterPoints")}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* ── Submit + WhatsApp ── */}
             <div
@@ -1437,7 +1945,12 @@ export function PdpDirectOrderRender({
                 aria-busy={submitting || undefined}
                 aria-disabled={submitting || undefined}
                 aria-describedby={
-                  status === "error" ? submitErrorId : undefined
+                  [
+                    showVariantError ? variantErrorId : null,
+                    status === "error" ? submitErrorId : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined
                 }
               >
                 {submitting ? (
@@ -1450,10 +1963,24 @@ export function PdpDirectOrderRender({
                   </>
                 ) : oos ? (
                   s("outOfStock")
+                ) : awaitingVariant ? (
+                  s("chooseVariant")
                 ) : (
                   submitLabel
                 )}
               </ChunkyButton>
+
+              {/* A picker section owns the choice, so the form has no pills to
+                  hang the message on — say it here, where the shopper tapped. */}
+              {showVariantError && chosen.pickerMounted && (
+                <p
+                  id={variantErrorId}
+                  role="alert"
+                  className="text-center font-label font-bold text-sm text-bk-danger"
+                >
+                  {s("chooseVariantFirst")}
+                </p>
+              )}
 
               {reassurance && (
                 <p

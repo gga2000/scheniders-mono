@@ -73,8 +73,16 @@ export function CountdownAnnouncement({
 
   // `null` until mounted: the server and the hydrating client both render
   // "--" so the digits never mismatch; the interval fills real values.
+  // "evergreen_minutes" is a clock that restarts for every visitor — a
+  // deadline nobody set, which the audit called fake scarcity. The enum
+  // value stays (a stored config must keep parsing, or the whole bar is
+  // silently dropped), but it no longer draws a clock: the announcement
+  // renders as a plain bar. A real deadline is "fixed_end" with a date.
+  const honest = props.mode !== "evergreen_minutes";
+
   const [tick, setTick] = useState<CountdownTick | null>(null);
   useEffect(() => {
+    if (!honest) return;
     const update = () =>
       setTick(
         computeCountdown(props.mode, props.ends_at, props.duration_minutes, new Date()),
@@ -82,7 +90,7 @@ export function CountdownAnnouncement({
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [props.mode, props.ends_at, props.duration_minutes]);
+  }, [honest, props.mode, props.ends_at, props.duration_minutes]);
 
   // The document is LTR in every locale (platform invariant), so the row
   // must read hours → minutes → seconds left to right.
@@ -111,6 +119,7 @@ export function CountdownAnnouncement({
           </span>
         )}
         {/* A ticking clock must not be announced every second. */}
+        {honest && (
         <span className="inline-flex items-start gap-1.5" aria-live="off">
           {units.map((u, i) => (
             <span key={u.label} className="inline-flex items-start gap-1.5">
@@ -141,6 +150,7 @@ export function CountdownAnnouncement({
             </span>
           ))}
         </span>
+        )}
       </div>
     </div>
   );

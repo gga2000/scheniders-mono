@@ -16,10 +16,45 @@ const two: Product = {
 beforeEach(() => useVariantStore.setState({ selected: {}, pickers: {} }));
 
 describe("useSelectedVariant", () => {
-  it("is empty for a plain product and implicit for a single variant", () => {
-    expect(renderHook(() => useSelectedVariant(base)).result.current.variant).toBeNull();
+  it("asks nothing of a plain product", () => {
+    const plain = renderHook(() => useSelectedVariant(base)).result.current;
+    expect(plain.variant).toBeNull();
+    expect(plain.soldByVariant).toBe(false);
+    expect(plain.needsVariant).toBe(false);
+  });
+
+  it("never chooses on the shopper's behalf — not even the only variant", () => {
     const one = { ...base, variants: [two.variants![0]] };
-    expect(renderHook(() => useSelectedVariant(one)).result.current.variant?.id).toBe("v50");
+    const h = renderHook(() => useSelectedVariant(one));
+    expect(h.result.current.variant).toBeNull();
+    expect(h.result.current.needsVariant).toBe(true);
+    act(() => h.result.current.select("v50"));
+    expect(h.result.current.variant?.id).toBe("v50");
+    expect(h.result.current.needsVariant).toBe(false);
+  });
+
+  it("treats a product flagged sold_by_variant as needing a choice even without its list", () => {
+    const flagged: Product = { ...base, sold_by_variant: true };
+    const h = renderHook(() => useSelectedVariant(flagged)).result.current;
+    expect(h.soldByVariant).toBe(true);
+    expect(h.needsVariant).toBe(true);
+  });
+
+  it("is sold out only when no variant can be bought", () => {
+    expect(renderHook(() => useSelectedVariant(two)).result.current.soldOut).toBe(false);
+    const allOut: Product = { ...two, variants: two.variants!.map((v) => ({ ...v, stock_quantity: 0 })) };
+    expect(renderHook(() => useSelectedVariant(allOut)).result.current.soldOut).toBe(true);
+    // Reserved units are not for sale either.
+    const reserved: Product = { ...two, variants: [{ ...two.variants![0], stock_quantity: 1, reserved_quantity: 1 }] };
+    expect(renderHook(() => useSelectedVariant(reserved)).result.current.soldOut).toBe(true);
+    // Flagged sold by variant with no variant to offer: nothing to choose, nothing to sell.
+    expect(renderHook(() => useSelectedVariant({ ...base, sold_by_variant: true })).result.current.soldOut).toBe(true);
+    expect(renderHook(() => useSelectedVariant(base)).result.current.soldOut).toBe(false);
+  });
+
+  it("ignores a stored id that is not one of the product's variants", () => {
+    useVariantStore.setState({ selected: { p1: "gone" }, pickers: {} });
+    expect(renderHook(() => useSelectedVariant(two)).result.current.variant).toBeNull();
   });
 
   it("requires an explicit choice with several variants, and shares it across sections", () => {

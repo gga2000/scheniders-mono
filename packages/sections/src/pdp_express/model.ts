@@ -80,7 +80,10 @@ export interface ExpressModel {
   submitting: boolean;
   submitErrorId: string;
   oos: boolean;
-  stockLeft: number;
+  /** Units left for the chosen variant (or the product), or null while a
+   *  product sold by variant still awaits a choice — there is no stock to
+   *  count yet, so callers must not treat a placeholder as real. */
+  stockLeft: number | null;
   urgency: string | null;
   waHref: string | null;
   galleryImages: string[];

@@ -66,11 +66,13 @@ import { submitCheckout } from "@/app/actions/checkout";
 import TenantLayout from "@/app/s/[tenant]/layout";
 import { V2Page } from "@/components/v2-page";
 import { DRAFT_VIEW_COOKIE } from "./draft-view";
+import { createFakeSupabase, type FakeSupabase } from "./testing/fake-supabase";
 import type { Tenant } from "./types";
 
 const TENANT_ID = "f1e2d3c4-b5a6-4789-8f12-cd34ef567890";
 const PRODUCT_ID = "a1b2c3d4-e5f6-4789-ab12-cd34ef567890";
 const ORDER_UUID = "0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9";
+const OTHER_TENANT_ID = "9e8d7c6b-5a49-4382-9716-05f4e3d2c1b0";
 const SECRET = "test-preview-secret";
 
 const ANALYTICS = { meta_pixel_id: "123", meta_capi_token: "tok" };
@@ -115,63 +117,62 @@ afterEach(() => {
 
 // ─── submitCheckout ──────────────────────────────────────────────────
 describe("submitCheckout in draft view", () => {
-  const rpc = vi.fn();
-  const orderUpdate = vi.fn();
-  const orderUpdateEq = vi.fn();
-
-  /** Chainable query stub that resolves to `result` at any terminal call. */
-  function query(result: unknown) {
-    const q: Record<string, unknown> = {};
-    for (const m of ["select", "eq", "in", "is", "update"]) q[m] = () => q;
-    q.maybeSingle = async () => result;
-    q.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
-    return q;
-  }
-
-  beforeEach(() => {
-    rpc.mockResolvedValue({ data: { id: ORDER_UUID, order_id: "4261020001" }, error: null });
-    orderUpdateEq.mockImplementation(() => ({
-      eq: orderUpdateEq,
-      then: (resolve: (v: unknown) => unknown) =>
-        Promise.resolve({ error: null }).then(resolve),
-    }));
-    orderUpdate.mockImplementation(() => ({ eq: orderUpdateEq }));
-    const from = vi.fn((table: string) => {
-      if (table === "tenants") {
-        return query({
-          data: {
+  // The in-memory PostgREST double the other checkout tests use: it applies
+  // the query filters, so the is_test write only lands on rows the code
+  // actually scoped to — another tenant's row under the same id stays put
+  // unless the tenant filter is missing.
+  function install() {
+    const fake = createFakeSupabase(
+      {
+        tenants: [
+          {
             id: TENANT_ID,
             status: "active",
             restrictions: null,
             store_config_v2: { globals: { analytics_pixels: { base: ANALYTICS } } },
           },
-          error: null,
-        });
-      }
-      if (table === "products") {
-        return query({
-          data: [
-            {
-              id: PRODUCT_ID,
-              tenant_id: TENANT_ID,
-              name: "P",
-              short_name: null,
-              price: 1000,
-              website_price: null,
-              status: "active",
-              is_visible: true,
-              is_archived: false,
-              is_supply: false,
-            },
-          ],
-          error: null,
-        });
-      }
-      if (table === "orders") return { update: orderUpdate };
-      return query({ error: null });
-    });
-    vi.mocked(createSupabaseServiceClient).mockReturnValue({ from, rpc } as never);
-  });
+        ],
+        products: [
+          {
+            id: PRODUCT_ID,
+            tenant_id: TENANT_ID,
+            name: "P",
+            short_name: null,
+            price: 1000,
+            website_price: null,
+            status: "active",
+            is_visible: true,
+            is_archived: false,
+            is_supply: false,
+          },
+        ],
+        product_variants: [],
+        product_tiered_pricing: [],
+        product_order_bumps: [],
+        abandoned_carts: [],
+        customer_points: [],
+        orders: [
+          { id: ORDER_UUID, tenant_id: TENANT_ID, is_test: false },
+          { id: ORDER_UUID, tenant_id: OTHER_TENANT_ID, is_test: false },
+        ],
+      },
+      {
+        rpc: {
+          create_order_atomic: () => ({
+            data: { id: ORDER_UUID, order_id: "4261020001" },
+            error: null,
+          }),
+        },
+      },
+    );
+    vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
+    return fake;
+  }
+
+  const orderWrites = (fake: FakeSupabase) =>
+    fake.writes.filter((w) => w.table === "orders");
+  const isTest = (fake: FakeSupabase, tenantId: string) =>
+    fake.tables.orders.find((r) => r.tenant_id === tenantId)?.is_test;
 
   const checkout = () =>
     submitCheckout({
@@ -198,33 +199,38 @@ describe("submitCheckout in draft view", () => {
 
   it("a shopper's order sends one CAPI Purchase and is not flagged as a test", async () => {
     jar(undefined);
+    const fake = install();
     const res = await checkout();
     expect(res.success).toBe(true);
     expect(sendPurchaseCapi).toHaveBeenCalledTimes(1);
-    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(orderWrites(fake)).toEqual([]);
+    expect(isTest(fake, TENANT_ID)).toBe(false);
   });
 
   it("a draft-view order sends no CAPI Purchase and is flagged is_test, tenant-scoped", async () => {
     jar(draftToken());
+    const fake = install();
     const res = await checkout();
     expect(res.success).toBe(true);
     expect(sendPurchaseCapi).not.toHaveBeenCalled();
-    expect(orderUpdate).toHaveBeenCalledTimes(1);
-    expect(orderUpdate).toHaveBeenCalledWith({ is_test: true });
-    expect(orderUpdateEq.mock.calls).toEqual([
-      ["id", ORDER_UUID],
-      ["tenant_id", TENANT_ID],
+    expect(orderWrites(fake)).toEqual([
+      { table: "orders", op: "update", payload: { is_test: true }, matched: 1 },
     ]);
+    expect(isTest(fake, TENANT_ID)).toBe(true);
+    expect(isTest(fake, OTHER_TENANT_ID)).toBe(false);
   });
 
   it("the create_order_atomic payload is identical for both", async () => {
+    const orderArgs = (fake: FakeSupabase) =>
+      fake.rpcCalls.filter((c) => c.fn === "create_order_atomic").map((c) => c.args);
     jar(undefined);
+    const shopper = install();
     await checkout();
     jar(draftToken());
+    const draft = install();
     await checkout();
-    const orderCalls = rpc.mock.calls.filter(([fn]) => fn === "create_order_atomic");
-    expect(orderCalls).toHaveLength(2);
-    expect(orderCalls[1]).toEqual(orderCalls[0]);
+    expect(orderArgs(shopper)).toHaveLength(1);
+    expect(orderArgs(draft)).toEqual(orderArgs(shopper));
   });
 });
 

@@ -20,9 +20,14 @@ interface AdChannelFilterProps {
     selected: string | null | undefined;
     onSelect: (channel: string | null) => void;
     className?: string;
+    /**
+     * Hide every number and revenue figure (the chips stay clickable): the view
+     * they would describe is not the list on screen. See lib/orders/count-visibility.ts.
+     */
+    countsHidden?: boolean;
 }
 
-export function AdChannelFilter({ summary, selected, onSelect, className }: AdChannelFilterProps) {
+export function AdChannelFilter({ summary, selected, onSelect, className, countsHidden = false }: AdChannelFilterProps) {
     const { stats, attributed, total } = summary;
 
     // Nothing attributed in this view, and no channel pinned that would need a
@@ -37,9 +42,10 @@ export function AdChannelFilter({ summary, selected, onSelect, className }: AdCh
                 type="button"
                 onClick={() => onSelect(null)}
                 data-selected={isAll ? "true" : "false"}
-                // The chip counts attributed orders only; say so rather than let
-                // "10" read as the size of the list it opens.
-                title={`${attributed} من ${total} طلب في هذا العرض تحمل قناة إعلانية`}
+                // The number is the size of the list this chip opens (the view
+                // with no channel pinned), like every other count on the page.
+                // How many of those carry a channel is disclosed in the title.
+                title={countsHidden ? undefined : `${attributed} من ${total} طلب في هذا العرض تحمل قناة إعلانية`}
                 className={cn(
                     "rounded-full border px-3 py-1 text-xs font-bold transition-colors",
                     isAll
@@ -48,7 +54,7 @@ export function AdChannelFilter({ summary, selected, onSelect, className }: AdCh
                 )}
             >
                 كل القنوات
-                <span className="ms-1.5 opacity-70 tabular-nums" dir="ltr">{attributed}</span>
+                {!countsHidden && <span className="ms-1.5 opacity-70 tabular-nums" dir="ltr">{total}</span>}
             </button>
 
             {stats.map(stat => {
@@ -60,7 +66,7 @@ export function AdChannelFilter({ summary, selected, onSelect, className }: AdCh
                         onClick={() => onSelect(isSelected ? null : stat.channel)}
                         data-channel={stat.channel}
                         data-selected={isSelected ? "true" : "false"}
-                        title={`${stat.label}: ${stat.orders} طلب · ${formatIQD(stat.revenue)} محقق`}
+                        title={countsHidden ? stat.label : `${stat.label}: ${stat.orders} طلب · ${formatIQD(stat.revenue)} محقق`}
                         className={cn(
                             "flex items-center gap-2 rounded-full border px-2 py-1 transition-all",
                             isSelected
@@ -72,8 +78,8 @@ export function AdChannelFilter({ summary, selected, onSelect, className }: AdCh
                             attribution={{ channel: stat.channel as AdChannel, source: stat.label }}
                             compact
                         />
-                        <span className="text-xs font-bold tabular-nums" dir="ltr">{stat.orders}</span>
-                        {stat.revenue > 0 && (
+                        {!countsHidden && <span className="text-xs font-bold tabular-nums" dir="ltr">{stat.orders}</span>}
+                        {!countsHidden && stat.revenue > 0 && (
                             <span className="text-[10px] text-muted tabular-nums" dir="ltr">
                                 {formatIQD(stat.revenue)}
                             </span>

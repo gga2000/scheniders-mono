@@ -114,6 +114,19 @@ export function resolveTenantWhatsapp(
 }
 
 /**
+ * The number the order tracker writes into `{contact}` and dials for its
+ * call button: the store's configured call number, else its WhatsApp number.
+ * The store builder's "Order tracking messages" preview resolves through this
+ * too, so the merchant sees exactly which lines survive on the storefront.
+ */
+export function resolveTrackerContact(tenant: unknown): string | null {
+  const t = (tenant ?? {}) as TenantContactShape;
+  const phone = t.store_config?.contact?.phone_number;
+  if (phone && isPlausiblePhone(phone)) return phone;
+  return resolveTenantWhatsapp(tenant);
+}
+
+/**
  * Resolve a tenant's voice-call number. Prefers an explicit `contact_phone`,
  * then the configured WhatsApp number, then a per-section override. Same
  * plausibility guard as {@link resolveTenantWhatsapp}.
@@ -135,8 +148,8 @@ export function resolveTenantPhone(
 /**
  * Normalise a phone number to the international digits `wa.me` expects.
  * The market is Iraq (country code 964), and merchants typically store local
- * numbers (leading 0, e.g. `0780 230 1677`). `wa.me` needs the international
- * form with no `+`/`0` (`9647802301677`), so:
+ * numbers (leading 0, e.g. `0780 123 4567`). `wa.me` needs the international
+ * form with no `+`/`0` (`9647801234567`), so:
  *   - `00964…`  → strip the `00` IDD prefix
  *   - `0XXXXXXXXXX` (local) → drop the leading 0, prepend `964`
  *   - already `964…` → unchanged

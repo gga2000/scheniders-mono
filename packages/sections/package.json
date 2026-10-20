@@ -12,7 +12,8 @@
     "./helpers/store-context": "./src/helpers/store-context.tsx",
     "./helpers/cart-store": "./src/helpers/cart-store.ts",
     "./helpers/pixels": "./src/helpers/pixels.ts",
-    "./helpers/utils": "./src/helpers/utils.ts"
+    "./helpers/utils": "./src/helpers/utils.ts",
+    "./helpers/whatsapp": "./src/helpers/whatsapp.ts"
   },
   "scripts": {
     "test": "vitest run"
@@ -20,7 +21,7 @@
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "^16.0.0"
+    "next": "^16.3.8"
   },
   "dependencies": {
     "@scheniders/shared": "workspace:*",

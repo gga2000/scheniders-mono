@@ -100,6 +100,8 @@ export interface EditorShellTenant {
     id: string;
     slug: string;
     business_name: string;
+    /** The number the storefront's order tracker fills `{contact}` with. */
+    tracking_contact?: string | null;
 }
 
 export interface EditorShellProps {
@@ -657,6 +659,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 id === "cart_recovery" ||
                 id === "pixels" ||
                 id === "loyalty" ||
+                id === "order_status" ||
                 id === "custom_pages" ||
                 id === "nav" ||
                 id === "redirects"
@@ -1394,6 +1397,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         "cart_recovery",
         "pixels",
         "loyalty",
+        "order_status",
         "custom_pages",
         "nav",
         "redirects",
@@ -1675,6 +1679,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             screen={system_screen}
                             builder={builder}
                             tenantId={tenant.id}
+                            trackingContact={tenant.tracking_contact ?? null}
                             onClose={handleCloseSystemScreen}
                             onBrandKitChange={handleBrandKitChange}
                             onSelectCustomPage={handleSelectCustomPage}

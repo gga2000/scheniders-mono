@@ -19,27 +19,27 @@ function Harness({ initial = "" }: { initial?: string }) {
 
 describe("useGroupedPhoneInput", () => {
     it("shows the stored value grouped", () => {
-        render(<Harness initial="07802301677" />);
-        expect((screen.getByLabelText("phone") as HTMLInputElement).value).toBe("0780 230 1677");
-        expect(screen.getByTestId("raw").textContent).toBe("07802301677");
+        render(<Harness initial="07801234567" />);
+        expect((screen.getByLabelText("phone") as HTMLInputElement).value).toBe("0780 123 4567");
+        expect(screen.getByTestId("raw").textContent).toBe("07801234567");
     });
 
     it("stores the un-spaced digits while displaying groups", () => {
         render(<Harness />);
         const input = screen.getByLabelText("phone") as HTMLInputElement;
-        fireEvent.change(input, { target: { value: "0780230" } });
-        expect(input.value).toBe("0780 230");
-        expect(screen.getByTestId("raw").textContent).toBe("0780230");
-        fireEvent.change(input, { target: { value: "0780 2301677" } });
-        expect(input.value).toBe("0780 230 1677");
-        expect(screen.getByTestId("raw").textContent).toBe("07802301677");
+        fireEvent.change(input, { target: { value: "0780123" } });
+        expect(input.value).toBe("0780 123");
+        expect(screen.getByTestId("raw").textContent).toBe("0780123");
+        fireEvent.change(input, { target: { value: "0780 1234567" } });
+        expect(input.value).toBe("0780 123 4567");
+        expect(screen.getByTestId("raw").textContent).toBe("07801234567");
     });
 
     it("keeps a pasted international number as typed (minus spaces)", () => {
         render(<Harness />);
         const input = screen.getByLabelText("phone") as HTMLInputElement;
-        fireEvent.change(input, { target: { value: "+964 780 230 1677" } });
-        expect(screen.getByTestId("raw").textContent).toBe("+9647802301677");
-        expect(input.value).toBe("+9647802301677");
+        fireEvent.change(input, { target: { value: "+964 780 123 4567" } });
+        expect(screen.getByTestId("raw").textContent).toBe("+9647801234567");
+        expect(input.value).toBe("+9647801234567");
     });
 });

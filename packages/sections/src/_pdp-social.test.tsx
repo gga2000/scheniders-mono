@@ -81,6 +81,15 @@ function productHrefs(html: string): string[] {
   );
 }
 
+describe("product_reviews — the tracker's review link lands on the form", () => {
+  it("renders the #reviews anchor the delivered-order CTA points at", () => {
+    const html = render(product_reviews, product_reviews.defaultProps, {
+      product: { ...baseProduct },
+    });
+    expect(html).toContain('id="reviews"');
+  });
+});
+
 describe("product_reviews — SSR list from product.reviews", () => {
   const reviews: ReviewSummaryItem[] = [
     {

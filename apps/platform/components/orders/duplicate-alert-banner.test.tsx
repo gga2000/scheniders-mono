@@ -22,7 +22,7 @@ function order(overrides: Partial<Order> & { id: string }): Order {
         created_at: BASE,
         order_id: overrides.id,
         customer_name: "علي-تيست",
-        phone: "07802301677",
+        phone: "07801234567",
         items: [{ name: "عطر فولاريس", quantity: 1, price: 43000 }],
         price: 43000,
         status: "new",
@@ -129,8 +129,8 @@ describe("DuplicateAlertBanner", () => {
 
 describe("DuplicateAlertBanner cross-number matches", () => {
     it("names the shared number when the match is not on the primary", () => {
-        const subject = order({ id: "a", order_id: "3260911003", phone: "07811262261", secondary_phone: "07802301677" });
-        const twin = order({ id: "b", order_id: "3260911004", phone: "07802301677", secondary_phone: "07811262261" });
+        const subject = order({ id: "a", order_id: "3260911003", phone: "07811262261", secondary_phone: "07801234567" });
+        const twin = order({ id: "b", order_id: "3260911004", phone: "07801234567", secondary_phone: "07811262261" });
 
         render(<DuplicateAlertBanner alert={alertFor(subject, [twin])} order={subject} />);
 

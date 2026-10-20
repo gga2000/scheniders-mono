@@ -12,6 +12,8 @@
 import type {
   BaseTenant,
   BaseProduct,
+  PriceTier,
+  OrderBumpOffer,
   ResolvedProductAttribute,
   BaseProductVariant,
   Category,
@@ -75,6 +77,22 @@ export interface Product extends BaseProduct {
    *  (`refresh_bestseller_ranks()`), never edited by hand — the storefront
    *  only reads the ordinal, never the underlying unit volumes. */
   bestseller_rank?: number | null;
+  /** Quantity price breaks, when the merchant set any. Populated on the PDP.
+   *  The SERVER re-derives the same price from these at checkout, so the
+   *  ladder shown here and the price charged cannot drift. */
+  price_tiers?: PriceTier[];
+  /** True when the product has enabled variants: it must be bought as one of
+   *  them, so a surface without a variant picker (grid quick-add, bundles)
+   *  sends the shopper to the product page instead of adding it. The
+   *  checkout refuses a variant-less line for such a product regardless. */
+  sold_by_variant?: boolean;
+  /** Add-on offers this product carries. Populated on the PDP; the checkout
+   *  server re-derives the discount and only honours it when this product is
+   *  in the same order. */
+  order_bumps?: OrderBumpOffer[];
+  /** The products those offers point at, resolved alongside them so a
+   *  section never has to hope they appear in a capped page-level list. */
+  order_bump_products?: Product[];
   /** Merchant-defined attributes, already paired with their definitions and
    *  ordered by the merchant's `display_order`. Populated where a section
    *  needs them (the PDP today); absent elsewhere, and sections must render
