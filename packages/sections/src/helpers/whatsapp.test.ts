@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveTenantWhatsapp,
+  resolveTrackerContact,
   whatsappOrderLink,
   whatsappCartLink,
 } from "./whatsapp";
@@ -67,6 +68,20 @@ describe("resolveTenantWhatsapp (S3-01 single source)", () => {
       store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
     };
     expect(resolveTenantWhatsapp(toSectionTenant(tenant))).toBe("07802301677");
+  });
+
+  it("the order tracker falls back to the commerce number when no call number is set", () => {
+    expect(
+      resolveTrackerContact({
+        store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
+      }),
+    ).toBe("07802301677");
+    expect(
+      resolveTrackerContact({
+        store_config: { contact: { phone_number: "07901112233" } },
+        store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
+      }),
+    ).toBe("07901112233");
   });
 
   it("per-section override wins", () => {
