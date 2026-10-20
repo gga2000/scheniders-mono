@@ -1,0 +1,268 @@
+-- =============================================================================
+-- LOCAL-ONLY fixture for order_number_counter.sql (F-040 / F-041)
+-- =============================================================================
+-- Recreates, on an EMPTY throwaway Postgres 16 database, the minimal live
+-- objects that create_order_atomic touches, copied from the live project
+-- (pg_get_functiondef / pg_policies / information_schema, 2026-10-20):
+--   * roles anon / authenticated / service_role and Supabase's default
+--     privileges (new tables, sequences and functions in public are granted
+--     to anon and authenticated, which the migration must revoke);
+--   * auth.uid() / auth.role() / auth.jwt() reading request.jwt.claims;
+--   * tenants, user_profiles, tenant_members, get_user_tenant_ids();
+--   * public.orders with the columns create_order_atomic writes, the global
+--     orders_order_id_key, uq_orders_tenant_idempotency, the four live
+--     tenant_isolation_* policies and authenticated's table-level grants;
+--   * BOTH live overloads of create_order_atomic, verbatim.
+-- Then it seeds today's orders so the migration's counter seed can be checked.
+--
+-- NEVER run this against a real project: it creates roles, schemas and tables.
+--
+--   createdb f040 && psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/tests/fixtures/order_number_counter_fixture.sql
+-- =============================================================================
+
+DO $roles$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
+END;
+$roles$;
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+
+CREATE EXTENSION IF NOT EXISTS dblink;
+
+CREATE SCHEMA auth;
+GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
+
+CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
+  SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+$$;
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+  SELECT nullif(auth.jwt() ->> 'sub', '')::uuid
+$$;
+-- Live definition.
+CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $function$
+  select
+  coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
+  )::text
+$function$;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon, authenticated, service_role;
+
+CREATE TABLE public.tenants (id uuid PRIMARY KEY, name text);
+CREATE TABLE public.user_profiles (id uuid PRIMARY KEY, is_active boolean DEFAULT true);
+CREATE TABLE public.tenant_members (
+    tenant_id uuid REFERENCES public.tenants(id),
+    user_id uuid REFERENCES public.user_profiles(id),
+    role text NOT NULL,
+    status text NOT NULL DEFAULT 'active',
+    PRIMARY KEY (tenant_id, user_id)
+);
+
+-- Live definition.
+CREATE OR REPLACE FUNCTION public.get_user_tenant_ids()
+ RETURNS SETOF uuid
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT tm.tenant_id
+  FROM tenant_members tm
+  JOIN user_profiles up ON up.id = tm.user_id
+  WHERE tm.user_id = auth.uid()
+    AND tm.status = 'active'
+    AND coalesce(up.is_active, true);
+$function$;
+
+-- The columns create_order_atomic reads or writes, with their live types,
+-- defaults and NOT NULLs.
+CREATE TABLE public.orders (
+    id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now(),
+    order_id text NOT NULL,
+    customer_name text NOT NULL,
+    phone text NOT NULL,
+    city text,
+    governorate_code text,
+    address_details text,
+    items jsonb DEFAULT '[]'::jsonb NOT NULL,
+    price numeric NOT NULL,
+    status text DEFAULT 'new'::text NOT NULL,
+    notes text,
+    priority text DEFAULT 'normal'::text,
+    payment_status text DEFAULT 'cod'::text,
+    delivery_fee numeric DEFAULT 0,
+    discount_amount numeric DEFAULT 0,
+    is_return boolean DEFAULT false,
+    secondary_phone text,
+    source text,
+    sequence_number integer,
+    validated_governorate_code text,
+    is_shop_order boolean DEFAULT false,
+    risk_metadata jsonb DEFAULT '{}'::jsonb,
+    needs_attention boolean DEFAULT false,
+    attention_reasons text[] DEFAULT '{}'::text[],
+    last_status_changed_by_name text DEFAULT 'System'::text,
+    last_status_changed_by_avatar text,
+    version integer DEFAULT 1 NOT NULL,
+    tenant_id uuid REFERENCES public.tenants(id) ON DELETE CASCADE,
+    idempotency_key text,
+    attribution jsonb,
+    ad_channel text
+);
+CREATE UNIQUE INDEX orders_order_id_key ON public.orders USING btree (order_id);
+CREATE UNIQUE INDEX uq_orders_tenant_idempotency ON public.orders USING btree (tenant_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
+
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_select ON public.orders FOR SELECT USING (tenant_id IN (SELECT get_user_tenant_ids()));
+CREATE POLICY tenant_isolation_insert ON public.orders FOR INSERT WITH CHECK (tenant_id IN (SELECT get_user_tenant_ids()));
+CREATE POLICY tenant_isolation_update ON public.orders FOR UPDATE USING (tenant_id IN (SELECT get_user_tenant_ids())) WITH CHECK (tenant_id IN (SELECT get_user_tenant_ids()));
+CREATE POLICY tenant_isolation_delete ON public.orders FOR DELETE USING (tenant_id IN (SELECT get_user_tenant_ids()));
+
+-- Live grants: authenticated holds table-level INSERT/SELECT/UPDATE/DELETE
+-- (so a column-level REVOKE on order_id alone would be a no-op).
+REVOKE ALL ON public.orders FROM anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.orders TO authenticated;
+GRANT ALL ON public.orders TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- Live create_order_atomic overloads, verbatim (pg_get_functiondef 2026-10-20)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.create_order_atomic(_order_data jsonb, _tenant_id uuid DEFAULT NULL::uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _source_code text; _date_str text; _prefix text; _count int4;
+  _next_sequence_number int4; _generated_order_id text; _result jsonb;
+  _advisory_lock_id bigint; _items_safe jsonb; _attention_safe jsonb; _idem text;
+BEGIN
+  IF coalesce(auth.role(), 'service_role') <> 'service_role' THEN
+    IF _tenant_id IS NULL OR _tenant_id NOT IN (SELECT public.get_user_tenant_ids()) THEN
+      RAISE EXCEPTION 'Unauthorized: tenant membership required' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  _source_code := CASE
+    WHEN (_order_data->>'source') = 'whatsapp' THEN '1'
+    WHEN (_order_data->>'source') = 'meta'     THEN '2'
+    WHEN (_order_data->>'source') = 'tiktok'   THEN '3'
+    ELSE '4'
+  END;
+  _date_str := to_char(current_date, 'YYMMDD');
+  _prefix := _source_code || _date_str;
+  _advisory_lock_id := hashtext('create_order_lock')::bigint;
+  PERFORM pg_advisory_xact_lock(_advisory_lock_id);
+
+  _idem := NULLIF(_order_data->>'idempotency_key', '');
+  IF _idem IS NOT NULL THEN
+    SELECT to_jsonb(orders.*) INTO _result FROM public.orders
+     WHERE idempotency_key = _idem AND (_tenant_id IS NULL OR tenant_id = _tenant_id)
+     LIMIT 1;
+    IF _result IS NOT NULL THEN
+      RETURN _result || jsonb_build_object('idempotent_replay', true);
+    END IF;
+  END IF;
+
+  _generated_order_id := _order_data->>'order_id';
+  IF _generated_order_id IS NULL OR _generated_order_id = '' THEN
+    -- INT-7: count across ALL tenants — orders_order_id_key is global.
+    -- By PREFIX ONLY: filtering on created_at hid rows whose timestamp had
+    -- been imported or edited, and produced duplicate order numbers.
+    SELECT COALESCE(MAX(NULLIF(regexp_replace(SUBSTRING(order_id FROM length(_prefix) + 1), '\D', '', 'g'), '')::int), 0)
+      INTO _count
+      FROM public.orders
+     WHERE order_id LIKE (_prefix || '%');
+    _generated_order_id := _prefix || lpad((_count + 1)::text, 3, '0');
+    _order_data := jsonb_set(_order_data, '{order_id}', to_jsonb(_generated_order_id));
+  END IF;
+
+  SELECT COALESCE(MAX(sequence_number), 0) + 1 INTO _next_sequence_number
+    FROM public.orders WHERE (_tenant_id IS NULL OR tenant_id = _tenant_id);
+  _order_data := jsonb_set(_order_data, '{sequence_number}', to_jsonb(_next_sequence_number));
+  _order_data := _order_data - 'id' - 'created_at' - 'updated_at';
+  _items_safe := CASE WHEN jsonb_typeof(_order_data->'items') = 'array' THEN _order_data->'items' ELSE '[]'::jsonb END;
+  _attention_safe := CASE WHEN jsonb_typeof(_order_data->'attention_reasons') = 'array' THEN _order_data->'attention_reasons' ELSE '[]'::jsonb END;
+
+  INSERT INTO public.orders (
+    order_id, sequence_number, customer_name, phone, secondary_phone, city, address_details,
+    items, price, delivery_fee, discount_amount, priority, status, payment_status, is_return,
+    is_shop_order, source, governorate_code, validated_governorate_code, notes, risk_metadata,
+    needs_attention, attention_reasons, last_status_changed_by_name, last_status_changed_by_avatar,
+    attribution, ad_channel,
+    idempotency_key, tenant_id
+  )
+  SELECT
+    _order_data->>'order_id', (_order_data->>'sequence_number')::int4,
+    _order_data->>'customer_name', _order_data->>'phone', _order_data->>'secondary_phone',
+    _order_data->>'city', _order_data->>'address_details', _items_safe,
+    (_order_data->>'price')::numeric, COALESCE((_order_data->>'delivery_fee'), '0')::numeric,
+    COALESCE(_order_data->>'discount_amount', '0')::numeric, COALESCE(_order_data->>'priority', 'normal'),
+    COALESCE(_order_data->>'status', 'confirmed'), COALESCE(_order_data->>'payment_status', 'cod'),
+    COALESCE((_order_data->>'is_return')::boolean, false), COALESCE((_order_data->>'is_shop_order')::boolean, false),
+    COALESCE(_order_data->>'source', 'manual'), _order_data->>'governorate_code',
+    _order_data->>'validated_governorate_code', _order_data->>'notes', _order_data->'risk_metadata',
+    COALESCE((_order_data->>'needs_attention')::boolean, false),
+    ARRAY(SELECT jsonb_array_elements_text(_attention_safe)),
+    _order_data->>'last_status_changed_by_name', _order_data->>'last_status_changed_by_avatar',
+    -- Guard the shape: a malformed payload must not abort an order creation.
+    CASE WHEN jsonb_typeof(_order_data->'attribution') = 'object' THEN _order_data->'attribution' ELSE NULL END,
+    NULLIF(_order_data->>'ad_channel', ''),
+    _idem, _tenant_id
+  RETURNING to_jsonb(orders.*) INTO _result;
+  RETURN _result;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.create_order_atomic(_order_data jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+    IF coalesce(auth.role(), 'service_role') <> 'service_role' THEN
+        RAISE EXCEPTION 'create_order_atomic(jsonb) is deprecated - call create_order_atomic(jsonb, uuid) with an explicit tenant_id' USING ERRCODE = '42501';
+    END IF;
+    RETURN public.create_order_atomic(_order_data, NULL::uuid);
+END;
+$function$;
+
+-- Live ACL: postgres, authenticated, service_role.
+REVOKE ALL ON FUNCTION public.create_order_atomic(jsonb, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.create_order_atomic(jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_order_atomic(jsonb, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_order_atomic(jsonb) TO authenticated, service_role;
+
+-- ---------------------------------------------------------------------------
+-- Data: two tenants, one active member each, and today's existing orders
+-- ---------------------------------------------------------------------------
+INSERT INTO public.tenants (id, name) VALUES
+    ('aaaaaaaa-0000-4000-8000-000000000001', 'Tenant A'),
+    ('bbbbbbbb-0000-4000-8000-000000000002', 'Tenant B');
+INSERT INTO public.user_profiles (id) VALUES
+    ('aaaaaaaa-1111-4000-8000-000000000001'),
+    ('bbbbbbbb-1111-4000-8000-000000000002');
+INSERT INTO public.tenant_members (tenant_id, user_id, role) VALUES
+    ('aaaaaaaa-0000-4000-8000-000000000001', 'aaaaaaaa-1111-4000-8000-000000000001', 'member'),
+    ('bbbbbbbb-0000-4000-8000-000000000002', 'bbbbbbbb-1111-4000-8000-000000000002', 'member');
+
+-- Today: storefront prefix 4 at 001..005 across both tenants, whatsapp
+-- prefix 1 at 007, plus an unrelated LightFunnels-style number and a row that
+-- shares the prefix but not the format (the old MAX() also read those).
+INSERT INTO public.orders (order_id, customer_name, phone, price, source, tenant_id, sequence_number)
+SELECT '4' || to_char(current_date, 'YYMMDD') || lpad(n::text, 3, '0'), 'seed', '07700000000', 1000, 'storefront',
+       CASE WHEN n % 2 = 0 THEN 'aaaaaaaa-0000-4000-8000-000000000001'::uuid ELSE 'bbbbbbbb-0000-4000-8000-000000000002'::uuid END, n
+  FROM generate_series(1, 5) n;
+INSERT INTO public.orders (order_id, customer_name, phone, price, source, tenant_id, sequence_number) VALUES
+    ('1' || to_char(current_date, 'YYMMDD') || '007', 'seed', '07700000000', 1000, 'whatsapp', 'aaaaaaaa-0000-4000-8000-000000000001', 10),
+    ('LF-SHOP-000123', 'seed', '07700000000', 1000, 'lightfunnels', 'aaaaaaaa-0000-4000-8000-000000000001', 11),
+    ('2' || to_char(current_date, 'YYMMDD') || '-B4', 'seed', '07700000000', 1000, 'meta', 'bbbbbbbb-0000-4000-8000-000000000002', 12);
