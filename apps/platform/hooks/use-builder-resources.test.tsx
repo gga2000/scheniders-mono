@@ -42,9 +42,18 @@ const auth = vi.hoisted(() => ({
 
 vi.mock("@/components/auth/auth-provider", () => ({
     useOptionalAuth: () => auth.value,
+    useAuth: () => {
+        if (!auth.value) throw new Error("useAuth outside a provider");
+        return auth.value;
+    },
 }));
 
-import { useBuilderCategories, useBuilderProducts } from "./use-builder-resources";
+import {
+    useBuilderAttributes,
+    useBuilderCategories,
+    useBuilderProducts,
+} from "./use-builder-resources";
+import { useAttributeDefsQuery } from "./use-product-attributes-query";
 
 function wrapper({ children }: { children: ReactNode }) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -60,17 +69,27 @@ describe("builder resource hooks", () => {
         auth.value = undefined;
     });
 
-    it("scope products and categories to the tenant being edited", async () => {
+    it("scope products, categories and attributes to the tenant being edited", async () => {
         auth.value = { session: {}, clientReady: true, tenantId: "tenant-a" };
         const products = renderHook(() => useBuilderProducts(), { wrapper });
         const categories = renderHook(() => useBuilderCategories(), { wrapper });
+        const attributes = renderHook(() => useBuilderAttributes(), { wrapper });
         await waitFor(() => expect(products.result.current.isSuccess).toBe(true));
         await waitFor(() => expect(categories.result.current.isSuccess).toBe(true));
+        await waitFor(() => expect(attributes.result.current.isSuccess).toBe(true));
 
-        const productCall = calls.find((c) => c.table === "products");
-        const categoryCall = calls.find((c) => c.table === "categories");
-        expect(productCall?.filters).toContainEqual(["tenant_id", "tenant-a"]);
-        expect(categoryCall?.filters).toContainEqual(["tenant_id", "tenant-a"]);
+        for (const table of ["products", "categories", "product_attribute_defs"]) {
+            const call = calls.find((c) => c.table === table);
+            expect(call?.filters, table).toContainEqual(["tenant_id", "tenant-a"]);
+        }
+    });
+
+    it("the attributes screen reads the same tenant-scoped definitions", async () => {
+        auth.value = { session: {}, clientReady: true, tenantId: "tenant-b" };
+        const defs = renderHook(() => useAttributeDefsQuery(), { wrapper });
+        await waitFor(() => expect(defs.result.current.isSuccess).toBe(true));
+        const call = calls.find((c) => c.table === "product_attribute_defs");
+        expect(call?.filters).toContainEqual(["tenant_id", "tenant-b"]);
     });
 
     it("do not query without a tenant, or without an auth provider", () => {
@@ -81,6 +100,8 @@ describe("builder resource hooks", () => {
         auth.value = undefined;
         const withoutProvider = renderHook(() => useBuilderCategories(), { wrapper });
         expect(withoutProvider.result.current.fetchStatus).toBe("idle");
+        const attributesWithoutProvider = renderHook(() => useBuilderAttributes(), { wrapper });
+        expect(attributesWithoutProvider.result.current.fetchStatus).toBe("idle");
 
         expect(calls).toHaveLength(0);
     });

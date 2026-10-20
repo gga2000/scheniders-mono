@@ -40,6 +40,7 @@ import {
 import { I18nStringInput } from "./i18n-string-input";
 import { resolveFieldWidget } from "@/lib/section-field-widgets";
 import {
+    AttributePickerField,
     CategoryPickerField,
     LinkPickerField,
     ProductPickerField,
@@ -177,6 +178,15 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
         const picker =
             widget.kind === "product" ? (
                 <ProductPickerField
+                    label={label}
+                    value={value}
+                    onChange={onChange}
+                    multiple={widget.multiple}
+                    locale={fieldLocale}
+                    testId={pickerTestId}
+                />
+            ) : widget.kind === "attribute" ? (
+                <AttributePickerField
                     label={label}
                     value={value}
                     onChange={onChange}

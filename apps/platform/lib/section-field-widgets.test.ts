@@ -16,6 +16,11 @@ describe("resolveFieldWidget", () => {
         }
     });
 
+    it("routes attribute references to the attribute picker", () => {
+        expect(resolveFieldWidget("attribute_key")).toEqual({ kind: "attribute", multiple: false });
+        expect(resolveFieldWidget("attribute_keys")).toEqual({ kind: "attribute", multiple: true });
+    });
+
     it("leaves ordinary fields alone", () => {
         for (const key of ["title_i18n", "limit", "image_url", "tone", "id", "video_url"]) {
             expect(resolveFieldWidget(key), key).toBeNull();

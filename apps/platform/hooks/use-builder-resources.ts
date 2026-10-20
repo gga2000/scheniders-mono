@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOptionalAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
+import { attributeKeys, fetchAttributeDefs } from "@/hooks/use-product-attributes-query";
 
 export interface BuilderProduct {
     id: string;
@@ -85,6 +86,26 @@ export function useBuilderCategories() {
         queryFn: () => {
             if (!tenantId) throw new Error("builder categories requested without a tenant");
             return fetchCategories(tenantId);
+        },
+        enabled: !!session && clientReady && !!tenantId,
+        staleTime: CACHE_PRESETS.STANDARD.staleTime,
+        gcTime: CACHE_PRESETS.STANDARD.gcTime,
+    });
+}
+
+/**
+ * The store's product attributes, for the attribute pickers. Shares its cache
+ * entry with the attributes screen, so an attribute added there shows up
+ * here. Optional auth for the same reason as the hooks above.
+ */
+export function useBuilderAttributes() {
+    const auth = useOptionalAuth();
+    const { session, clientReady, tenantId } = auth ?? { session: null, clientReady: false, tenantId: null };
+    return useQuery({
+        queryKey: attributeKeys.defs(tenantId),
+        queryFn: () => {
+            if (!tenantId) throw new Error("builder attributes requested without a tenant");
+            return fetchAttributeDefs(tenantId);
         },
         enabled: !!session && clientReady && !!tenantId,
         staleTime: CACHE_PRESETS.STANDARD.staleTime,

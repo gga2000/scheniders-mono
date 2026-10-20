@@ -606,6 +606,8 @@ export const STRINGS = {
         choose_product: { en: "Choose a product", ar: "اختر منتج", ku: "بەرهەمێک هەڵبژێرە" },
         choose_products: { en: "Choose products", ar: "اختر المنتجات", ku: "بەرهەمەکان هەڵبژێرە" },
         choose_category: { en: "Choose a category", ar: "اختر قسم", ku: "بەشێک هەڵبژێرە" },
+        choose_attribute: { en: "Choose an attribute", ar: "اختر خاصية", ku: "تایبەتمەندییەک هەڵبژێرە" },
+        choose_attributes: { en: "Choose attributes", ar: "اختر الخصائص", ku: "تایبەتمەندییەکان هەڵبژێرە" },
         choose_categories: { en: "Choose categories", ar: "اختر الأقسام", ku: "بەشەکان هەڵبژێرە" },
         search: { en: "Search", ar: "بحث", ku: "گەڕان" },
         none_selected: { en: "Nothing chosen", ar: "ما مختار شي", ku: "هیچ هەڵنەبژێردراوە" },
