@@ -59,6 +59,15 @@ export async function POST(
   });
 
   if (error) {
+    // tenants_prospect_lead_id_key (one tenant per lead): a prospect store was
+    // built for this lead while the conversion ran. The function rolled back;
+    // a retry takes the prospect-store path.
+    if (error.code === "23505" && error.message.includes("tenants_prospect_lead_id_key")) {
+      return NextResponse.json(
+        { error: "A store was just built for this lead. Reload and convert again." },
+        { status: 409 }
+      );
+    }
     console.error("Convert error:", error);
     return NextResponse.json({ error: "Failed to convert lead" }, { status: 500 });
   }

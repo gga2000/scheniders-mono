@@ -122,6 +122,19 @@ describe("POST /api/leads/[id]/convert", () => {
     expect(await res.json()).toEqual({ error: "Failed to convert lead" });
   });
 
+  it("maps a one-tenant-per-lead conflict with a concurrent store build to 409", async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: {
+        code: "23505",
+        message: 'duplicate key value violates unique constraint "tenants_prospect_lead_id_key"',
+      },
+    });
+    const res = await convert({});
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/store was just built/);
+  });
+
   it("returns 500 for an RPC result it does not recognise", async () => {
     rpc.mockResolvedValue({ data: { outcome: "converted" }, error: null });
     const res = await convert({});
