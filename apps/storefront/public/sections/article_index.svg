@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <rect width="320" height="200" fill="#fff7ed"/>
+  <rect x="20" y="16" width="96" height="12" rx="6" fill="#1a1a1a"/>
+  <g transform="translate(20 38)">
+    <rect width="86" height="136" rx="10" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="1.5" y="1.5" width="83" height="48" rx="8" fill="#ffb3d1"/>
+    <line x1="0" y1="50" x2="86" y2="50" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="10" y="60" width="38" height="6" rx="3" fill="#1a1a1a" opacity="0.4"/>
+    <rect x="10" y="74" width="66" height="9" rx="4" fill="#1a1a1a"/>
+    <rect x="10" y="90" width="62" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
+    <rect x="10" y="102" width="50" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
+  </g>
+  <g transform="translate(117 38)">
+    <rect width="86" height="136" rx="10" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="1.5" y="1.5" width="83" height="48" rx="8" fill="#9ad8ff"/>
+    <line x1="0" y1="50" x2="86" y2="50" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="10" y="60" width="38" height="6" rx="3" fill="#1a1a1a" opacity="0.4"/>
+    <rect x="10" y="74" width="58" height="9" rx="4" fill="#1a1a1a"/>
+    <rect x="10" y="90" width="66" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
+    <rect x="10" y="102" width="44" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
+  </g>
+  <g transform="translate(214 38)">
+    <rect width="86" height="136" rx="10" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="1.5" y="1.5" width="83" height="48" rx="8" fill="#7cf0bd"/>
+    <line x1="0" y1="50" x2="86" y2="50" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="10" y="60" width="38" height="6" rx="3" fill="#1a1a1a" opacity="0.4"/>
+    <rect x="10" y="74" width="62" height="9" rx="4" fill="#1a1a1a"/>
+    <rect x="10" y="90" width="56" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
+    <rect x="10" y="102" width="64" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
+  </g>
+  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">article_index</text>
+</svg>

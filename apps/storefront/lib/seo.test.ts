@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PageConfig } from "@scheniders/shared";
 import {
+  articleJsonLd,
   faqItemsFromPage,
   faqJsonLd,
   itemListJsonLd,
@@ -325,5 +326,51 @@ describe("faqItemsFromPage", () => {
       ),
     );
     expect(ld.mainEntity as unknown[]).toHaveLength(1);
+  });
+});
+
+describe("articleJsonLd", () => {
+  const base = { headline: "كيف تختار عطرك", url: "https://x.iq/p/guide" };
+
+  it("describes a guide with only the fields the merchant set", () => {
+    const ld = defined(
+      articleJsonLd({
+        ...base,
+        description: "دليل قصير",
+        imageUrl: "https://cdn.x.iq/cover.jpg",
+        datePublished: "2026-09-01",
+        author: "سارة",
+        publisherName: "متجر",
+      }),
+    );
+    expect(ld["@type"]).toBe("Article");
+    expect(ld.mainEntityOfPage).toEqual({
+      "@type": "WebPage",
+      "@id": base.url,
+    });
+    expect(ld.image).toEqual(["https://cdn.x.iq/cover.jpg"]);
+    expect(ld.datePublished).toBe("2026-09-01");
+    expect(ld.author).toEqual({ "@type": "Person", name: "سارة" });
+    expect(ld.publisher).toEqual({ "@type": "Organization", name: "متجر" });
+  });
+
+  it("invents no author, date, image, description or publisher", () => {
+    const ld = defined(
+      articleJsonLd({ ...base, author: "  ", description: " " }),
+    );
+    for (const key of [
+      "author",
+      "datePublished",
+      "dateModified",
+      "image",
+      "description",
+      "publisher",
+    ]) {
+      expect(ld[key]).toBeUndefined();
+    }
+  });
+
+  it("emits nothing without a headline", () => {
+    expect(articleJsonLd({ ...base, headline: "   " })).toBeUndefined();
   });
 });

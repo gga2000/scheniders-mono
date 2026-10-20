@@ -334,3 +334,56 @@ export function faqItemsFromPage(
   }
   return out;
 }
+
+/**
+ * An `Article` for a merchant-authored guide.
+ *
+ * Every field is omitted rather than guessed. Google warns about a missing
+ * recommended field and penalises a wrong one, and the fields most tempting
+ * to invent here are exactly the ones that would be lies: an author the
+ * merchant never named, a publish date for a guide they never dated, an
+ * image that is really the store's logo. Undefined when there is not even a
+ * headline to describe.
+ */
+export function articleJsonLd(opts: {
+  headline: string;
+  url: string;
+  description?: string;
+  imageUrl?: string;
+  datePublished?: string;
+  dateModified?: string;
+  author?: string;
+  publisherName?: string;
+  publisherLogoUrl?: string;
+}): JsonLdObject | undefined {
+  const headline = opts.headline.trim();
+  if (!headline) return undefined;
+
+  const description = opts.description?.trim();
+  const author = opts.author?.trim();
+  const publisher = opts.publisherName?.trim();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline,
+    mainEntityOfPage: { "@type": "WebPage", "@id": opts.url },
+    url: opts.url,
+    ...(description ? { description } : {}),
+    ...(opts.imageUrl ? { image: [opts.imageUrl] } : {}),
+    ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),
+    ...(opts.dateModified ? { dateModified: opts.dateModified } : {}),
+    ...(author ? { author: { "@type": "Person", name: author } } : {}),
+    ...(publisher
+      ? {
+          publisher: {
+            "@type": "Organization",
+            name: publisher,
+            ...(opts.publisherLogoUrl
+              ? { logo: { "@type": "ImageObject", url: opts.publisherLogoUrl } }
+              : {}),
+          },
+        }
+      : {}),
+  };
+}

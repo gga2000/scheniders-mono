@@ -30,6 +30,7 @@ const EXPECTED_TYPES = [
   "testimonials_carousel",
   "image_gallery",
   "video_block",
+  "article_index",
   "marquee_strip",
   "announcement_bar",
   // Conversion family
@@ -90,9 +91,9 @@ const EXPECTED_TYPES = [
 ];
 
 describe("section registry", () => {
-  it("registers exactly 63 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(63);
-    expect(listSections()).toHaveLength(63);
+  it("registers exactly 64 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(64);
+    expect(listSections()).toHaveLength(64);
   });
 
   it("each section's defaultProps validates against its own schema", () => {
