@@ -20,6 +20,7 @@
 //     proven by order number + phone inside `lookup_order`).
 // =====================================================================
 
+import { createHash } from "node:crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 export type RateLimitFailureMode = "fail-closed" | "fail-open";
@@ -62,6 +63,16 @@ export async function consumeRateLimit(
       ? Math.max(0, Math.ceil((resetAt - Date.now()) / 1000))
       : 0,
   };
+}
+
+/**
+ * A limiter key segment for one tenant's phone number: the last ten digits,
+ * hashed with the tenant id, so the limiter table never holds a raw number and
+ * 07…, +9647… and 9647… land in the same bucket.
+ */
+export function phoneBucket(tenantId: string, phone: string): string {
+  const digits = phone.replace(/\D/g, "").slice(-10);
+  return createHash("sha256").update(`${tenantId}:${digits}`).digest("hex").slice(0, 32);
 }
 
 /** The caller's address as the edge reports it (first x-forwarded-for hop). */

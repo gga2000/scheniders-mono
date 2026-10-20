@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { clientIp, consumeRateLimit, type RateLimitResult } from "@/lib/rate-limit";
+import { clientIp, consumeRateLimit, phoneBucket, type RateLimitResult } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -63,8 +62,7 @@ async function lookupRateLimited(
   orderNumber: string,
   phone: string,
 ): Promise<number | null> {
-  const phoneDigits = phone.replace(/\D/g, "").slice(-10);
-  const phoneKey = createHash("sha256").update(`${tenantId}:${phoneDigits}`).digest("hex").slice(0, 32);
+  const phoneKey = phoneBucket(tenantId, phone);
   // "unknown" only happens off the edge (local dev); one shared bucket for
   // every such caller would throttle them together, so it is skipped.
   const ip = clientIp(request.headers);

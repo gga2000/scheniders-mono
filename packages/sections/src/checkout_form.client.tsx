@@ -47,6 +47,7 @@ import { CenteredSectionHeader, ChunkyButton, MaterialIcon, WhatsAppButton } fro
 import { useCart } from "./helpers/cart-store";
 import { useStoreBase } from "./helpers/store-context";
 import { isPlausiblePhone, whatsappCartLink } from "./helpers/whatsapp";
+import { useLoyaltyBalance } from "./helpers/loyalty-balance";
 import { formatCount, formatPrice } from "./helpers/format";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./checkout_form";
@@ -78,6 +79,8 @@ const STRINGS = {
   cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
   useAll: { en: "Use all", ar: "استخدم الكل" },
   earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
+  pointsOrderLabel: { en: "Have points? Enter a previous order number", ar: "عندك نقاط؟ اكتب رقم طلب سابق" },
+  pointsOrderPlaceholder: { en: "Order number", ar: "رقم الطلب" },
   referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)" },
   referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M" },
   referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
@@ -217,8 +220,10 @@ export function CheckoutFormRender({
   // One Purchase event_id per submission — minted before the POST so the browser
   // pixel and the server CAPI twin share it (dedup); cleared on success.
   const purchaseEventIdRef = useRef<string | null>(null);
-  // Loyalty: the customer's balance (fetched by phone) + how many they redeem.
-  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  // Loyalty: the previous order number that proves the phone is the
+  // customer's (the balance route answers nothing without it) + how many
+  // points they redeem.
+  const [pointsOrderNumber, setPointsOrderNumber] = useState("");
   const [redeemPoints, setRedeemPoints] = useState(0);
   // Referral: the friend's code (from a shared ?ref= link or typed) and the
   // server's verdict on it. The amount is previewed from the published
@@ -377,6 +382,12 @@ export function CheckoutFormRender({
   // authoritative balance + config and records the real discount). Priced
   // against what the other discounts left, as the server prices it.
   const loyaltyCfg = commerce?.loyalty;
+  const pointsBalance = useLoyaltyBalance({
+    enabled: loyaltyCfg?.enabled === true,
+    tenantId,
+    phone: form.phone,
+    orderNumber: pointsOrderNumber,
+  });
   const pointsRedemption = computePointsRedemption({
     balance: pointsBalance ?? 0,
     requestedPoints: redeemPoints,
@@ -395,36 +406,11 @@ export function CheckoutFormRender({
   const total = subtotal - discountAmount + delivery;
   const returnsDays = commerce?.returns_policy?.window_days;
 
-  // Fetch the customer's points balance once they've entered a valid phone
-  // (debounced). Resets the chosen redemption when the phone changes.
+  // Reset the chosen redemption when the phone or the proving order number
+  // changes, so a number cannot spend another's points.
   useEffect(() => {
-    if (!loyaltyCfg?.enabled) return;
-    const recoveryPhone = normalizeIraqiMobile(form.phone);
-    if (!recoveryPhone) {
-      setPointsBalance(null);
-      return;
-    }
-    let active = true;
-    const handle = setTimeout(() => {
-      const params = new URLSearchParams({
-        tenant_id: tenantId,
-        phone: recoveryPhone,
-      });
-      fetch(`/api/loyalty/balance?${params.toString()}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d: { balance?: number } | null) => {
-          if (active)
-            setPointsBalance(typeof d?.balance === "number" ? d.balance : 0);
-        })
-        .catch(() => {
-          /* balance just won't show */
-        });
-    }, 600);
-    return () => {
-      active = false;
-      clearTimeout(handle);
-    };
-  }, [loyaltyCfg?.enabled, form.phone, tenantId]);
+    setRedeemPoints(0);
+  }, [form.phone, pointsOrderNumber]);
 
   const phone =
     (ctx.tenant as { contact_phone?: string | null } | undefined)
@@ -998,6 +984,27 @@ export function CheckoutFormRender({
                 <MaterialIcon name="loyalty" className="text-base" />
                 {s("earnOnDelivery").replace("{points}", formatPoints(pointsToEarn, locale))}
               </p>
+            )}
+
+            {/* Loyalty: a previous order number proves the phone is theirs */}
+            {loyaltyCfg?.enabled && normalizeIraqiMobile(form.phone) && (
+              <label className="block space-y-bk-xs" data-testid="checkout-points-order">
+                <span className="font-label font-bold text-xs text-bk-ink-soft">
+                  {s("pointsOrderLabel")}
+                </span>
+                <input
+                  name="loyalty_order_number"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  dir="ltr"
+                  value={pointsOrderNumber}
+                  onChange={(e) => setPointsOrderNumber(e.target.value)}
+                  placeholder={s("pointsOrderPlaceholder")}
+                  className="w-full px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                  style={inputStyle}
+                />
+              </label>
             )}
 
             {/* Loyalty points redemption */}
