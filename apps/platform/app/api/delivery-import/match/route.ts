@@ -4,6 +4,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { matchParsedRows, calculateSummary } from "@/lib/delivery-import/match-engine";
 import type { ParsedDeliveryPDF } from "@/types/delivery-import";
 import type { Order } from "@/types/order";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 /**
  * POST /api/delivery-import/match
@@ -54,13 +55,13 @@ export async function POST(request: NextRequest) {
         // Fetch matched orders by ID or Phone in parallel to avoid transferring all orders
         const [idRes, phRes, returnRes] = await Promise.all([
             snArr.length > 0 
-                ? supabaseAdmin.from("orders").select("*").in("order_id", snArr).eq("tenant_id", caller.tenantId).eq("is_archived", false)
+                ? supabaseAdmin.from("orders").select(ORDER_READ_COLUMNS).in("order_id", snArr).eq("tenant_id", caller.tenantId).eq("is_archived", false)
                 : { data: [] as Order[], error: null },
             phArr.length > 0 
-                ? supabaseAdmin.from("orders").select("*").in("phone", phArr).eq("tenant_id", caller.tenantId).eq("is_archived", false)
+                ? supabaseAdmin.from("orders").select(ORDER_READ_COLUMNS).in("phone", phArr).eq("tenant_id", caller.tenantId).eq("is_archived", false)
                 : { data: [] as Order[], error: null },
             // Fetch non-archived returns to match RTN-* prefixes safely
-            supabaseAdmin.from("orders").select("*").eq("tenant_id", caller.tenantId).eq("is_archived", false).eq("is_return", true)
+            supabaseAdmin.from("orders").select(ORDER_READ_COLUMNS).eq("tenant_id", caller.tenantId).eq("is_archived", false).eq("is_return", true)
         ]);
 
         if (idRes.error || phRes.error || returnRes.error) {

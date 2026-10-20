@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { encryptVaultData, decryptVaultData } from "./crypto-utils";
 import * as XLSX from "xlsx";
 
@@ -31,8 +32,12 @@ export interface VaultBackupOptions {
 
 /**
  * Fetches data from Supabase in chunks of 1000 to bypass API limits and scale to massive datasets.
+ *
+ * `columns` defaults to every column; `orders` must pass ORDER_READ_COLUMNS,
+ * because a signed-in caller holds no SELECT on its margin columns and a `*`
+ * read of the table is refused (migration 20261021090000).
  */
-async function fetchTableData(tableName: string) {
+async function fetchTableData(tableName: string, columns = "*") {
     let allData: any[] = [];
     let from = 0;
     const step = 1000;
@@ -41,7 +46,7 @@ async function fetchTableData(tableName: string) {
     while (keepFetching) {
         const { data, error } = await supabase
             .from(tableName)
-            .select("*")
+            .select(columns)
             .range(from, from + step - 1);
 
         if (error) throw new Error(`Failed to fetch ${tableName}: ${error.message}`);
@@ -63,7 +68,7 @@ async function fetchAllData(options: VaultBackupOptions, onProgress?: (msg: stri
     if (onProgress) onProgress("Fetching Database...");
 
     const [orders, products, customers] = await Promise.all([
-        options.includeOrders ? fetchTableData("orders") : Promise.resolve([]),
+        options.includeOrders ? fetchTableData("orders", ORDER_READ_COLUMNS) : Promise.resolve([]),
         options.includeProducts ? fetchTableData("products") : Promise.resolve([]),
         options.includeCustomers ? fetchTableData("customer_metadata") : Promise.resolve([])
     ]);

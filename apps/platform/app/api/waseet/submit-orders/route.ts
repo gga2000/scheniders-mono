@@ -9,6 +9,7 @@ import {
 import type { Order } from "@/types/order";
 import type { WaseetSubmitResult } from "@/types/waseet";
 import { waseetSubmitBodySchema, toOrderUuids, MAX_WASEET_ORDERS_PER_REQUEST } from "@/lib/order-api-schemas";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 /** Roles allowed to dispatch real shipments. `viewer` is read-only. */
 const SHIP_ALLOWED_ROLES = ["admin", "super_admin", "employee"];
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
         // 4. Fetch orders from DB (tenant-scoped: ids alone are not authorization)
         const { data: orders, error: fetchError } = await supabaseAdmin
             .from("orders")
-            .select("*")
+            .select(ORDER_READ_COLUMNS)
             .in("id", orderIds)
             .eq("tenant_id", tenantId);
 

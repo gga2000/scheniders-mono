@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 // Define the shape of our snapshot
 export interface DatabaseSnapshot {
@@ -34,7 +35,7 @@ export async function generateFullSnapshot(tenantId: string): Promise<DatabaseSn
             { data: tags },
             { data: assignments },
         ] = await Promise.all([
-            supabase.from('orders').select('*').eq('tenant_id', tenantId),
+            supabase.from('orders').select(ORDER_READ_COLUMNS).eq('tenant_id', tenantId),
             supabase.from('customer_metadata').select('*').eq('tenant_id', tenantId),
             supabase.from('customer_notes').select('*').eq('tenant_id', tenantId),
             supabase.from('customer_tags').select('*').eq('tenant_id', tenantId),

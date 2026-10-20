@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { Order, OrderFilters } from "@/types/order";
 import { CHIP_PREDICATE_FIELDS } from "@/lib/orders/order-chips";
 import { filterOrders } from "@/lib/orders/filter-orders";
-import { EXPORT_COLUMNS, LIST_COLUMNS, LIST_COLUMN_NAMES, pickListColumns } from "./order-columns";
+import {
+    EXPORT_COLUMNS,
+    LIST_COLUMNS,
+    LIST_COLUMN_NAMES,
+    ORDER_MARGIN_COLUMNS,
+    ORDER_READ_COLUMNS,
+    pickListColumns,
+} from "./order-columns";
 
 /**
  * Checked-in copy of `public.orders`' columns on the NEW project
@@ -48,6 +55,7 @@ function names(select: string): string[] {
 describe.each([
     ["LIST_COLUMNS", LIST_COLUMNS],
     ["EXPORT_COLUMNS", EXPORT_COLUMNS],
+    ["ORDER_READ_COLUMNS", ORDER_READ_COLUMNS],
 ])("%s", (_label, select) => {
     it("names only real `orders` columns", () => {
         const unknown = names(select).filter(c => !ORDERS_TABLE_COLUMNS.has(c));
@@ -65,6 +73,21 @@ describe.each([
     it("has no duplicate columns", () => {
         const cols = names(select);
         expect(new Set(cols).size).toBe(cols.length);
+    });
+});
+
+describe("ORDER_READ_COLUMNS (the full-row read that replaced select(\"*\"))", () => {
+    // Migration 20261021090000 revokes `authenticated`'s SELECT on the margin
+    // columns, so `select=*` on `orders` is refused (42501) for every signed-in
+    // caller. This is the column set those reads use instead: every column the
+    // table has except the margin columns.
+    it("is every `orders` column except the margin columns", () => {
+        const expected = [...ORDERS_TABLE_COLUMNS].filter(c => !MARGIN_COLUMNS.includes(c)).sort();
+        expect(names(ORDER_READ_COLUMNS).sort()).toEqual(expected);
+    });
+
+    it("exports the margin set the migration revokes", () => {
+        expect([...ORDER_MARGIN_COLUMNS].sort()).toEqual([...MARGIN_COLUMNS].sort());
     });
 });
 

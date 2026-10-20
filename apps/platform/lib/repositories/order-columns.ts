@@ -1,4 +1,118 @@
 /**
+ * The margin columns. Only a tenant admin may read them, and only through
+ * `v_orders_with_risk` (masked per row) or `public.order_margin(order_id)`.
+ * Migration 20261021090000 removes them from `authenticated`'s SELECT grant on
+ * `public.orders`; until it is applied the table hands them to any member, so
+ * no select string in this app names them either way.
+ */
+export const ORDER_MARGIN_COLUMNS = [
+    "product_cost",
+    "net_profit",
+    "waseet_merchant_price",
+    "waseet_company_price",
+] as const;
+
+/**
+ * Every `public.orders` column except the margin columns: the full-row read.
+ *
+ * Use this wherever a read wants the whole row — never `select("*")` or a bare
+ * `.select()` (PostgREST sends both as `select=*`). Once the margin columns
+ * leave `authenticated`'s grant, a `*` read of `orders` is refused with 42501
+ * for every signed-in caller, admins included (orders-select-guard.test.ts).
+ *
+ * It is a plain template literal (no `.trim()`), so its type is the literal
+ * string and supabase-js types the rows as the `orders` Row minus the margin
+ * columns; postgrest-js strips the whitespace before sending it.
+ *
+ * Adding a column to `orders` therefore takes three steps: the migration that
+ * adds it also runs `GRANT SELECT (<col>) ON public.orders TO authenticated`,
+ * the column is added here, and the checked-in table copy in
+ * order-columns.test.ts is refreshed.
+ */
+export const ORDER_READ_COLUMNS = `
+  id,
+  created_at,
+  updated_at,
+  order_id,
+  customer_name,
+  phone,
+  city,
+  governorate_code,
+  address_details,
+  items,
+  price,
+  status,
+  whatsapp_link,
+  notes,
+  rejection_reason,
+  scheduled_date,
+  priority,
+  payment_status,
+  delivery_fee,
+  discount_amount,
+  is_return,
+  original_order_id,
+  is_archived,
+  secondary_phone,
+  delivery_slot,
+  source,
+  sequence_number,
+  delivered_at,
+  cancelled_at,
+  printed_at,
+  print_count,
+  last_batch_id,
+  is_gift,
+  tag_color,
+  is_pinned,
+  delivery_order_id,
+  is_reviewed,
+  is_verified_customer,
+  contact_count,
+  address_status,
+  address_issues,
+  validated_governorate_code,
+  internal_notes,
+  assigned_to,
+  assigned_at,
+  is_shop_order,
+  risk_metadata,
+  needs_attention,
+  attention_reasons,
+  original_created_at,
+  last_contacted_at,
+  last_status_changed_by_name,
+  last_status_changed_by_avatar,
+  is_test,
+  delivery_note,
+  is_replacement,
+  delivery_company,
+  waseet_qr_id,
+  waseet_qr_link,
+  waseet_status_id,
+  waseet_status_text,
+  waseet_submitted_at,
+  waseet_invoice_id,
+  completed_at,
+  version,
+  tenant_id,
+  refund_status,
+  refunded_at,
+  delivered_source,
+  reason_id,
+  deleted_at,
+  idempotency_key,
+  waseet_submit_started_at,
+  whatsapp_contact_slot,
+  last_followup_by_name,
+  last_followup_by_avatar,
+  last_followup_at,
+  last_followup_type,
+  attribution,
+  ad_channel
+`;
+
+/**
  * Minimal column set for list/table/card views, read from `public.orders`.
  * Excludes detail-only fields to reduce payload size by ~25%.
  * findById still fetches all columns (*) from the view for the detail modal.
@@ -8,8 +122,8 @@
  * order-columns.test.ts against a checked-in copy of the table's
  * columns.
  *
- * Never add the margin columns (product_cost, net_profit, waseet_*_price):
- * the TABLE does not mask them for non-admins — only the view does.
+ * Never add the margin columns (ORDER_MARGIN_COLUMNS): only the view masks
+ * them for non-admins.
  *
  * `risk_data` is not a column; `withRiskData` (order-repository.ts) attaches it after the fetch.
  * `tenant_id` is here to key that lookup.
@@ -78,10 +192,11 @@ export const LIST_COLUMN_NAMES: readonly string[] = LIST_COLUMNS.split(",").map(
 /**
  * Keep only the LIST_COLUMNS keys of an `orders` row.
  *
- * Realtime delivers the WHOLE row (all 84 columns, margin included) to every
- * tenant member: realtime.apply_rls filters columns only by column privilege,
- * and `authenticated` holds SELECT on every `orders` column. Projecting the
- * payload keeps the list cache to the same shape a list fetch produces, so
+ * Realtime delivers every column the subscriber holds SELECT on:
+ * realtime.apply_rls filters columns only by column privilege. Before migration
+ * 20261021090000 that is the whole row, margin included; after it, everything
+ * but ORDER_MARGIN_COLUMNS. Either way the payload is wider than a list row, so
+ * projecting it keeps the list cache to the shape a list fetch produces, and
  * margin values never land in a non-admin's client cache through realtime.
  */
 export function pickListColumns(row: Record<string, unknown>): Record<string, unknown> {

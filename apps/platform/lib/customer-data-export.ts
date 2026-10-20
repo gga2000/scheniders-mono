@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 // =============================================
 // TYPES
@@ -55,6 +56,15 @@ interface ActivityExport {
     details?: Record<string, unknown>;
 }
 
+/**
+ * What the customer paid for one order: `price` is the item subtotal with the
+ * discount already applied, delivery is separate (lib/order-money). `orders`
+ * has no `total` column; reading one made every exported total 0.
+ */
+function orderTotal(order: { price: unknown; delivery_fee: unknown }): number {
+    return (Number(order.price) || 0) + (Number(order.delivery_fee) || 0);
+}
+
 // =============================================
 // CUSTOMER DATA EXPORT SERVICE
 // =============================================
@@ -71,7 +81,7 @@ class CustomerDataExportService {
         // Fetch all orders for this customer
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
-            .select("*")
+            .select(ORDER_READ_COLUMNS)
             .eq("tenant_id", tenantId)
             .or(`phone.eq.${normalizedPhone},secondary_phone.eq.${normalizedPhone}`)
             .order("created_at", { ascending: false });
@@ -114,7 +124,9 @@ class CustomerDataExportService {
             name: latestOrder?.customer_name || "Unknown",
             phone: normalizedPhone,
             secondaryPhone: latestOrder?.secondary_phone || undefined,
-            email: latestOrder?.email || undefined,
+            // `orders` has no email column; the field stays empty rather than
+            // pretending to read one.
+            email: undefined,
             city: latestOrder?.city || undefined,
             address: latestOrder?.address_details || undefined,
         };
@@ -122,7 +134,7 @@ class CustomerDataExportService {
         // Calculate summary
         const deliveredOrders = orders?.filter(o => o.status === "delivered" || o.status === "completed") || [];
         const cancelledOrders = orders?.filter(o => o.status === "cancelled") || [];
-        const totalSpent = deliveredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+        const totalSpent = deliveredOrders.reduce((sum, o) => sum + orderTotal(o), 0);
 
         const summary = {
             totalOrders: orders?.length || 0,
@@ -143,7 +155,7 @@ class CustomerDataExportService {
                 quantity: item.quantity,
                 price: item.price,
             })),
-            total: o.total || 0,
+            total: orderTotal(o),
             city: o.city || "",
             address: o.address_details,
             notes: o.notes,
