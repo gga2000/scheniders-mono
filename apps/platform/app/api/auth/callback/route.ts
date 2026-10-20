@@ -14,7 +14,7 @@ import { provisionInvitedUserIfNeeded } from '@/lib/team-provisioning';
 export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
-    const next = searchParams.get('next') ?? '/';
+    const next = searchParams.get('next') ?? '/orders';
 
     if (code) {
         const response = NextResponse.redirect(`${origin}${next}`);

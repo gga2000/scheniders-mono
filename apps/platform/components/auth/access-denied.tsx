@@ -22,11 +22,11 @@ export function AccessDenied({ message = "You do not have permission to access t
 
             <div className="flex gap-4">
                 <Link
-                    href="/"
+                    href="/orders"
                     className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium shadow-lg shadow-primary/20"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    Back to Dashboard
+                    Back to Orders
                 </Link>
             </div>
         </div>

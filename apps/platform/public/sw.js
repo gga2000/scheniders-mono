@@ -123,8 +123,8 @@ self.addEventListener('notificationclick', (event) => {
                 }
                 // No open tab — open a new one at the right place.
                 const target = conversationId
-                    ? '/?chat=' + conversationId
-                    : (url || '/');
+                    ? '/orders?chat=' + conversationId
+                    : (url || '/orders');
                 return self.clients.openWindow(target);
             })
     );

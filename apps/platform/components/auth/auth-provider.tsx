@@ -292,7 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
     }, []);
 
-    const signInWithGoogle = useCallback(async (returnTo: string = '/') => {
+    const signInWithGoogle = useCallback(async (returnTo: string = '/orders') => {
         // PKCE OAuth → Google → back to /api/auth/callback, which exchanges the
         // code for a COOKIE session (createServerClient) and forwards to `next`.
         // Reuses the exact cookie callback the email/password flow already uses.

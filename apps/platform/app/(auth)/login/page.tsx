@@ -57,7 +57,7 @@ function LoginForm() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    const returnTo = searchParams.get("returnTo") || "/";
+    const returnTo = searchParams.get("returnTo") || "/orders";
 
     // Redirect if already logged in
     useEffect(() => {
