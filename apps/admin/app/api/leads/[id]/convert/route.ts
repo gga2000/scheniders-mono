@@ -42,25 +42,42 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    if (lead.status === "converted") {
+    // `status` is a free-form field any admin can edit (PATCH /api/leads/[id]),
+    // so it cannot be what stops a second conversion. `converted_tenant_id` is
+    // only ever written here.
+    if (lead.converted_tenant_id || lead.status === "converted") {
       return NextResponse.json({ error: "Lead already converted" }, { status: 400 });
     }
 
     let tenantId: string;
 
     if (lead.prospect_tenant_id) {
-      // Convert existing prospect store to real merchant
-      const { error: updateError } = await supabase
+      // Convert the prospect store into a real merchant. The write only matches
+      // a tenant that is still an untouched prospect trial: converting a store
+      // that was already converted, paused (`limited`), suspended or cancelled
+      // would set it `active` again, which is `reactivate_tenant` (super_admin),
+      // not `convert_lead`.
+      const { data: converted, error: updateError } = await supabase
         .from("tenants")
         .update({
           is_prospect: false,
           status: "active",
           trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         })
-        .eq("id", lead.prospect_tenant_id);
+        .eq("id", lead.prospect_tenant_id)
+        .eq("is_prospect", true)
+        .eq("status", "trial")
+        .select("id")
+        .maybeSingle();
 
       if (updateError) throw updateError;
-      tenantId = lead.prospect_tenant_id;
+      if (!converted) {
+        return NextResponse.json(
+          { error: "The prospect store is no longer an open trial and cannot be converted" },
+          { status: 400 }
+        );
+      }
+      tenantId = converted.id;
     } else {
       // Create new tenant from lead data
       const slug = (lead.merchant_name || "store")
@@ -138,18 +155,19 @@ export async function POST(
     // Create commission record if lead has an assigned employee
     if (lead.assigned_to || lead.created_by) {
       const employeeId = lead.assigned_to || lead.created_by;
-      const { data: activeConfig } = await supabase
+      const { data: activeConfig, error: configError } = await supabase
         .from("admin_commission_config")
         .select("*")
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
+      if (configError) throw configError;
 
       if (activeConfig) {
         const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const periodEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        await supabase.from("admin_employee_commissions").insert({
+        const { error: commissionError } = await supabase.from("admin_employee_commissions").insert({
           admin_user_id: employeeId,
           lead_id: id,
           tenant_id: tenantId,
@@ -161,6 +179,7 @@ export async function POST(
           amount_earned: 0,
           status: "pending",
         });
+        if (commissionError) throw commissionError;
       }
     }
 

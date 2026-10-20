@@ -26,13 +26,15 @@ type DbCall = { method: string; args: unknown[] };
 
 const dbCalls: DbCall[] = [];
 let dbResult: DbResult;
+/** Per-await answers, consumed in order; `dbResult` answers once it is empty. */
+const dbQueue: DbResult[] = [];
 
 /** A PostgREST-shaped builder: every method chains, awaiting yields `dbResult`. */
 function fakeQuery(): unknown {
   return new Proxy(() => undefined, {
     get(_target, prop) {
       if (prop === "then") {
-        return (resolve: (value: DbResult) => void) => resolve(dbResult);
+        return (resolve: (value: DbResult) => void) => resolve(dbQueue.shift() ?? dbResult);
       }
       return (...args: unknown[]) => {
         dbCalls.push({ method: String(prop), args });
@@ -68,6 +70,7 @@ beforeEach(() => {
   // The fake DB answers "not found"; handlers log that before returning 4xx/5xx.
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   dbCalls.length = 0;
+  dbQueue.length = 0;
   createAdminClient.mockClear();
   dbResult = { data: null, error: { code: "PGRST116", message: "not found" } };
 });
@@ -423,6 +426,63 @@ describe("lead conversion", () => {
       }),
     );
     expect(JSON.stringify(inserts)).not.toContain("enterprise");
+  });
+
+  it("only flips a prospect tenant that is still an open prospect trial", async () => {
+    dbResult = {
+      data: { id: TENANT, status: "store_built", prospect_tenant_id: TENANT, assigned_to: null, created_by: null },
+      error: null,
+    };
+    const { POST } = await import("./leads/[id]/convert/route");
+    const res = await POST(req(`/api/leads/${LEAD}/convert`, "POST", "support", {}), leadParams);
+
+    expect(res.status).toBe(200);
+    const updateAt = dbCalls.findIndex((c) => c.method === "update");
+    const filters = dbCalls
+      .slice(updateAt + 1, updateAt + 4)
+      .map((c) => [c.method, ...c.args]);
+    expect(filters).toEqual([
+      ["eq", "id", TENANT],
+      ["eq", "is_prospect", true],
+      ["eq", "status", "trial"],
+    ]);
+  });
+
+  it("refuses a lead that already has a converted tenant even after its status was edited back", async () => {
+    dbResult = {
+      data: {
+        id: LEAD,
+        status: "new",
+        converted_tenant_id: TENANT,
+        prospect_tenant_id: TENANT,
+        assigned_to: SUPPORT_ID,
+        created_by: null,
+      },
+      error: null,
+    };
+    const { POST } = await import("./leads/[id]/convert/route");
+    const res = await POST(req(`/api/leads/${LEAD}/convert`, "POST", "support", {}), leadParams);
+
+    expect(res.status).toBe(400);
+    expect(dbCalls.some((c) => c.method === "update" || c.method === "insert")).toBe(false);
+  });
+
+  it("does not reactivate a paused or suspended prospect store", async () => {
+    dbQueue.push(
+      // the lead
+      {
+        data: { id: LEAD, status: "new", prospect_tenant_id: TENANT, assigned_to: SUPPORT_ID, created_by: null },
+        error: null,
+      },
+      // the conditional tenant write matches no row (tenant is `limited`)
+      { data: null, error: null },
+    );
+    const { POST } = await import("./leads/[id]/convert/route");
+    const res = await POST(req(`/api/leads/${LEAD}/convert`, "POST", "support", {}), leadParams);
+
+    expect(res.status).toBe(400);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+    expect(dbCalls.filter((c) => c.method === "update")).toHaveLength(1);
   });
 });
 
