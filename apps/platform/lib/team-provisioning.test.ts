@@ -34,8 +34,8 @@ beforeEach(() => {
 
 describe("provisionInvitedUserIfNeeded — membership role", () => {
     it.each([
-        ["employee", "member"],
-        ["viewer", "member"],
+        ["employee", "employee"],
+        ["viewer", "viewer"],
         ["admin", "admin"],
     ])("an invite as %s creates a '%s' membership and keeps the profile role", async (role, memberRole) => {
         inviteRole = role;

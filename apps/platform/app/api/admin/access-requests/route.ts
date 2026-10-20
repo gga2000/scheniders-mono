@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     });
     if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 400 });
 
-    // The membership role is 'admin' or 'member'; `role` is the profile role.
+    // The membership role is admin | employee | viewer; `role` is the profile role.
     const { error: memberErr } = await admin.from("tenant_members").upsert(
         { tenant_id: tenantId, user_id: req.user_id, role: tenantMemberRoleFor(role), status: "active", joined_at: now, invited_by: userId },
         { onConflict: "tenant_id,user_id" },

@@ -3,8 +3,7 @@
 -- =============================================================================
 --
 -- WHAT THIS PROVES (after 20261021090000_orders_margin_column_privileges.sql,
--- 20261021090100_tenants_read_member_only.sql,
--- 20261021090200_tenant_members_role_check.sql and
+-- 20261021090100_tenants_read_member_only.sql and
 -- 20261021090300_lookup_order_service_role_only.sql are applied)
 --   Catalog:
 --     * `authenticated` holds no SELECT on the four margin columns of orders,
@@ -14,7 +13,7 @@
 --     * search_orders_v2 is SECURITY DEFINER; v_orders_with_risk stays
 --       security_invoker and no longer reads o.product_cost directly;
 --     * public_storefront_read on tenants applies to anon only;
---     * tenant_members.role is CHECKed to admin/member;
+--     * tenant_members.role is CHECKed to admin/employee/viewer (20261020215422);
 --     * lookup_order is executable by service_role only, so the rate-limited
 --       storefront routes are the only way to test a (phone, order number).
 --   Behaviour as a real single-tenant 'member' (JWT simulated, RLS enforced):
@@ -50,12 +49,12 @@ BEGIN;
 
 SELECT set_config('tt.failures', '', true);
 
--- An active, single-membership 'member' whose tenant has orders and an active admin.
+-- An active, single-membership non-admin (employee/viewer) whose tenant has orders and an active admin.
 SELECT set_config('tt.member_user', coalesce((
     SELECT tm.user_id::text
       FROM public.tenant_members tm
       JOIN public.user_profiles up ON up.id = tm.user_id
-     WHERE tm.role = 'member' AND tm.status = 'active' AND coalesce(up.is_active, true)
+     WHERE tm.role <> 'admin' AND tm.status = 'active' AND coalesce(up.is_active, true)
        AND (SELECT count(*) FROM public.tenant_members x WHERE x.user_id = tm.user_id AND x.status = 'active') = 1
        AND EXISTS (SELECT 1 FROM public.orders o WHERE o.tenant_id = tm.tenant_id AND o.deleted_at IS NULL)
        AND EXISTS (SELECT 1 FROM public.tenant_members a JOIN public.user_profiles ap ON ap.id = a.user_id
@@ -157,8 +156,8 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM pg_constraint
                     WHERE conrelid = 'public.tenant_members'::regclass AND contype = 'c'
-                      AND pg_get_constraintdef(oid) LIKE '%admin%member%') THEN
-        fails := fails || 'tenant_members.role has no admin/member CHECK; ';
+                      AND pg_get_constraintdef(oid) LIKE '%admin%employee%viewer%') THEN
+        fails := fails || 'tenant_members.role has no admin/employee/viewer CHECK; ';
     END IF;
 
     IF has_function_privilege('anon', 'public.lookup_order(uuid,text,text)', 'execute')
