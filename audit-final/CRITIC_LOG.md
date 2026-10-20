@@ -127,3 +127,11 @@ Report: `critic/phase2-tierA-round1.md` (code @ 0032320, SELECT-only DB).
 - No escalations: F-055..F-059 hold at P2 (F-055 already happened live: 7 FULFILLED reverses on deleted orders; F-057 borderline P1). F-058 fix sketch corrected (existing tenant_members admin policies suffice). F-059 adds an active tenant with a cancelled, unbilled subscription. F-062 flagged a pre-launch blocker. New P3 (delivery import ignores `deleted_at`) folded into F-055.
 - OK-step sample: 8/8 hold.
 - Scores: B-merchant-lifecycle 5, B-team 4, B-finances 4, B-trash 6, B-admin 4.
+
+## Phase 2 Tier C, round 1 — 2026-10-20
+Report: `critic/phase2-tierC-round1.md` (code @ 7eed48be, count-only SELECTs).
+- F-067 upheld at P1 and widened (header brand and logo, footer licence number, address, socials). F-066, F-068, F-069, F-070, F-071, F-074, F-075, F-077 upheld at P2. F-076 and F-078 lowered to P3.
+- P3 sample 5/10 (F-072, F-073, F-079, F-084, F-085): all upheld.
+- Clean-cell recheck 9/10; `(auth)/login` English-only text added to F-075.
+- N-C4: production serves mostly the legacy storefront pages, which got only light review; V2-only findings reach 1 tenant today.
+- Scores: C-storefront 6, C-platform orders/printing/returns 6, C-platform other 5, C-admin 5. All capped at 7 by open P1 or heuristic-only pages.

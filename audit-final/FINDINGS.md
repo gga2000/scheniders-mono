@@ -4,7 +4,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 
 **Basis (Phase 2 Tier A, 2026-10-20):** code `origin/main` @ **0032320** (all `file:line` at that commit); DB `sduvpgqwhxragxtxztur`, SELECT on catalog tables only (`pg_proc`, `pg_policies`, `pg_class`, `pg_constraint`, `information_schema.routine_privileges`, storage); aggregates only, no PII. Lenses: isolation, AuthN/AuthZ, money & order integrity. Skills: `security-review`, `supabase-postgres-best-practices`.
 
-**Tier A (A1–A3) totals after critic round 1:** 1 P0 · 3 P1 · 7 P2 · 10 P3 (F-001 raised to P0, F-003 lowered to P2, F-019..F-021 added). **A4–A10 (F-022..F-039) after critic round 1:** 0 P0 · 1 P1 · 10 P2 · 7 P3 (F-025 lowered to P2); F-037 HYPOTHESIS. origin/main is now 7eed48be; cited files unchanged except F-028. **Tier B pass 1 (F-040..F-054) after critic round 1:** 1 P0 (F-040) · 1 P1 (F-041) · 5 P2 · 8 P3. Calibration: production order traffic today is one internal tenant, so "every tenant" claims are launch exposure. **Tier B pass 2 (F-055..F-065) after critic round 1:** 0 P0 · 0 P1 · 5 P2 · 6 P3 (F-062 is a pre-launch blocker if AI summaries are enabled). F-014 is HYPOTHESIS, the rest CONFIRMED. **Tier C (F-066..F-086), before critic:** 0 P0 · 1 P1 (F-067) · 9 P2 · 11 P3, code-based only. Critic round 1: `critic/phase2-tierA-round1.md`.
+**Tier A (A1–A3) totals after critic round 1:** 1 P0 · 3 P1 · 7 P2 · 10 P3 (F-001 raised to P0, F-003 lowered to P2, F-019..F-021 added). **A4–A10 (F-022..F-039) after critic round 1:** 0 P0 · 1 P1 · 10 P2 · 7 P3 (F-025 lowered to P2); F-037 HYPOTHESIS. origin/main is now 7eed48be; cited files unchanged except F-028. **Tier B pass 1 (F-040..F-054) after critic round 1:** 1 P0 (F-040) · 1 P1 (F-041) · 5 P2 · 8 P3. Calibration: production order traffic today is one internal tenant, so "every tenant" claims are launch exposure. **Tier B pass 2 (F-055..F-065) after critic round 1:** 0 P0 · 0 P1 · 5 P2 · 6 P3 (F-062 is a pre-launch blocker if AI summaries are enabled). F-014 is HYPOTHESIS, the rest CONFIRMED. **Tier C (F-066..F-086) after critic round 1:** 0 P0 · 1 P1 (F-067) · 7 P2 · 13 P3 (F-076, F-078 lowered), code-based only. **Phase 2 total: 86 findings: 2 P0 · 6 P1 · 34 P2 · 44 P3.** Critic round 1: `critic/phase2-tierA-round1.md`.
 
 **Tracked elsewhere, referenced not re-filed** (fix branches in progress for most): NEW-P1-06 / NEW-P1-07 (P0) Interakt `[tenantId]` and LightFunnels webhooks default to `monitor`; the 1 live Interakt integration has no `webhook_secret` (fix PR #167) · NEW-P1-09 deactivate is a silent no-op and users can re-activate themselves (fix PR #168; critic N-1) · NEW-P1-01 `charge_wallet_atomic` negative amount (re-confirmed live) · NEW-P1-02 any member UPDATE on `tenants` · NEW-P1-03 `apply_store_config_v2_patch` membership-only (incl. `custom_css`) · NEW-P1-04 `product-images` / `qc-evidence` buckets · NEW-P1-05 generate-batch-pdf SSRF · NEW-P1-08 Telegram secret (3 `telegram_employee_link` rows live) · NEW-P1-13 delivery-import NULL tenant · NEW-P1-14 waseet-sync header · NEW-P1-16 `performance_bonuses` · NEW-P1-17 `webhooks/interakt/route.ts` ~282/~292 insert `whatsapp_logs` / `order_status_history` without `tenant_id` · NEW-P1-19 process-checkouts-manual · NEW-P1-20 `payroll-pdfs` trusts global `role='admin'` · NEW-P1-24 VIEW_FINANCIALS + orders/products policies · NEW-P1-30 admin billing/topup · NEW-P1-32 domains/verify · B-08/F-24 `tenant-assets` SVG · L-15/B-03 JWT-claim policies on `bom_items`, `product_categories` (claim unforgeable → deny-all in practice).
 
@@ -567,6 +567,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
   - Or derive a hint from `Sec-CH-Viewport-Width` / UA and use it only as a default, never as truth.
   - Until then, hide the breakpoint adornment and the breakpoint visibility rule in the builder.
 - **Related:** F-046 (preview).
+- **Critic note:** latent: 0 live configs use breakpoint rules. With N-C4: F-066, F-068, F-069, F-085, F-086 reach only the 1 tenant on V2 today.
 
 ## F-067 — The "Scheniders Signature" starter template seeds another business's phone number, Instagram, address, brand name and policies into any merchant's store
 - **Severity:** **P1** (launch exposure: shoppers of tenant X are told to WhatsApp, call and return goods to a different business) · **Tier/Lens:** C-store-builder / C-storefront-policies · **Status:** CONFIRMED (code)
@@ -589,6 +590,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
   - Restrict this flagship template to its owning tenant, or strip the business data out of it.
   - Remove the customs/tax clause.
 - **Related:** F-068, F-071.
+- **Critic addition (Tier C r1):** wider than reported: header shows the brand name and logo on every page, footer carries company name, a business licence number, address and socials; personalisation only stamps the hero eyebrow. Live: only the owner's own tenant uses it today; no industry recommends it but the wizard allows picking it.
 
 ## F-068 — Turning on catalogue filters makes any store say "perfume": search placeholder, result count, empty state
 - **Severity:** P2 · **Tier/Lens:** C-storefront-category / C-storefront-products · **Status:** CONFIRMED (code)
@@ -605,6 +607,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
   - Use neutral "product/منتج" forms through `formatCount`.
   - Or make the noun a section prop (`item_noun_i18n`) with a neutral default.
 - **Related:** F-067.
+- **Critic addition:** `/products` turns the controls on by itself for `price_pill` grids (`apps/storefront/lib/storefront-runtime.ts:232-243`), so no merchant action is needed.
 
 ## F-069 — Storefront brand-kit contrast: white text is chosen for mid-tone primary colours, and danger text fails AA on default and template surfaces
 - **Severity:** P2 · **Tier/Lens:** C-storefront-checkout / PDP / track (contrast) · **Status:** CONFIRMED (computed ratios)
@@ -659,6 +662,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
   - Expose a `hydrated` flag (`useCart.persist.hasHydrated()` / `onFinishHydration`) and render a skeleton until it is true.
   - Add an explicit empty-checkout branch with a link to `/products` (via `StoreLink`).
 - **Related:** F-054.
+- **Critic addition:** the legacy cart and checkout show the same empty flash.
 
 ## F-071 — The legacy storefront fallback shows English-only, platform-branded and invented copy on public pages; legacy prices use Arabic-Indic digits
 - **Severity:** P2 (exposure: every tenant without V2 config, plus any V2 tenant whose page has 0 sections, because `pickV2Page` returns null at `apps/storefront/lib/storefront-runtime.ts:24-28`; the EC11 guard exists only for home) · **Tier/Lens:** C-storefront-policies / about / contact / faq / search / track / checkout / success · **Status:** CONFIRMED (code)
@@ -688,6 +692,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
   - Delete the legacy shells, or route them to V2 sections.
   - Point `lib/utils.ts` `formatIQD` at the sections `formatPrice`.
 - **Related:** F-048, F-067.
+- **Critic addition:** 6 of 7 active tenants are served these legacy pages on every page except home; P2 only because those 6 have 0 products (F-048). Promote to P1 if any starts selling.
 
 ## F-072 — Order-tracker CTAs and the exit-intent offer link outside the store in path mode; the exit-intent CTA nests a button inside a link
 - **Severity:** P3 · **Tier/Lens:** C-storefront-track / C-storefront-home · **Status:** CONFIRMED (code)
@@ -794,9 +799,10 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
   - Add an ESLint rule (e.g. `i18next/no-literal-string` scoped to JSX text and `toast.*` arguments).
   - Persist the language in a cookie so the server renders the right locale.
 - **Related:** F-074, F-058 (team page).
+- **Critic correction:** Arabic in `confirm-tab.tsx` is at :143, :224, :233 (not :27-28); :54 is the customer WhatsApp message, where Arabic is correct. Also `(auth)/login` has English-only error and greeting text at :87, :99, :346.
 
 ## F-076 — Platform dates and numbers use six different conventions; the shared `formatDate` always prints Arabic months with Arabic-Indic digits, even in the English UI
-- **Severity:** P2 · **Tier/Lens:** C-orders / C-printing / C-customers / C-finances (number, IQD, date formatting) · **Status:** CONFIRMED (code; outputs verified in node)
+- **Severity:** P3 (lowered from P2 by Tier C critic: sampled en-US dates print "Oct 20" style, so inconsistency, not misreading) · **Tier/Lens:** C-orders / C-printing / C-customers / C-finances (number, IQD, date formatting) · **Status:** CONFIRMED (code; outputs verified in node)
 - **Location:**
   - `apps/platform/lib/utils.ts:54-62` uses `Intl.DateTimeFormat('ar-IQ', …)`, which prints `٢٠ تشرين الأول ٢٠٢٦، ٠٣:٣٠ م`. Called at:
     - `app/printing/page.tsx:1022`
@@ -884,7 +890,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
   - Initialise the viewport from `matchMedia` synchronously, or render a neutral skeleton until it is known.
 
 ## F-078 — Returns scan phone page: "● live" is static, scans sent with no laptop listening vanish silently, and the controls are below touch and readability minimums
-- **Severity:** P2 · **Tier/Lens:** C-returns-scan (states, touch, localization) · **Status:** CONFIRMED (code)
+- **Severity:** P3 (lowered from P2 by Tier C critic: beep, vibration and counter fire only on laptop ack, so an unacked scan lacks the success cue) · **Tier/Lens:** C-returns-scan (states, touch, localization) · **Status:** CONFIRMED (code)
 - **Location:** `apps/platform/app/returns/scan/page.tsx`
   - `:28-48`: the channel subscribes. The `subscribe` status is used only to call `track()`; no error, closed or timeout state is shown.
   - `:89`: hard-coded `<span>● live</span>`.
