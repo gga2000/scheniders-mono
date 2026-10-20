@@ -3,6 +3,7 @@
 // =============================================
 
 import type { User, Session, AuthError } from "@supabase/supabase-js";
+import type { UserRole } from "@/lib/permissions";
 
 export interface UserProfile {
     id: string;
@@ -18,8 +19,15 @@ export interface UserProfile {
 export interface AuthContextType {
     user: User | null;
     session: Session | null;
-    role: string | null;
+    /**
+     * The user's role in the current tenant (`tenant_members.role`), or
+     * `super_admin` for platform staff; null when they have no active
+     * membership there. `profile.role` is the global column and must not be
+     * used for authorization.
+     */
+    role: UserRole | null;
     profile: UserProfile | null;
+    /** `role_permissions` for `role`, with the user's `user_permissions` overrides applied. */
     permissions: string[];
     tenantId: string | null;
     isLoading: boolean;

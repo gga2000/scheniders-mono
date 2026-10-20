@@ -2,9 +2,10 @@
 
 import { SalariesTab } from "@/components/salary/salaries-tab";
 import { useAuth } from "@/components/auth/auth-provider";
+import { canAccessRoute } from "@/lib/route-permissions";
 
 export default function SalariesPage() {
-    const { role, isLoading } = useAuth();
+    const { role, permissions, isLoading } = useAuth();
 
     if (isLoading) {
         return (
@@ -14,7 +15,7 @@ export default function SalariesPage() {
         );
     }
 
-    if (role !== "admin") {
+    if (!canAccessRoute("/salaries", role, permissions)) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-rose-600 text-sm">Admin access required.</div>

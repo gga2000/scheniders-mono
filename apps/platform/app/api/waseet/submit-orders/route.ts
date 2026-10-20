@@ -7,6 +7,7 @@ import {
     getDefaultPackageSizeId,
 } from "@/lib/waseet-api";
 import type { Order } from "@/types/order";
+import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import type { WaseetSubmitResult } from "@/types/waseet";
 import { waseetSubmitBodySchema, toOrderUuids, MAX_WASEET_ORDERS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
@@ -54,29 +55,22 @@ export async function POST(request: NextRequest) {
 
         // 2b. Resolve the caller's tenant from their session — the orders we
         // ship must belong to them, regardless of which ids they sent.
-        const supabaseAdmin = createSupabaseServiceClient();
-        const { data: profile } = await supabaseAdmin
-            .from("user_profiles")
-            .select("current_tenant_id, role, is_active")
-            .eq("id", user.id)
-            .maybeSingle();
-
-        if (profile?.is_active === false) {
-            return NextResponse.json({ success: false, error: "Account deactivated" }, { status: 403 });
+        // Only while they are an active member of it, with their role there.
+        const active = await resolveActiveTenant(user.id);
+        if (!active.ok) {
+            return NextResponse.json({ success: false, error: active.error }, { status: active.status });
         }
 
         // Shipping is a real-world, billable side effect — gate it like deletion.
-        if (!SHIP_ALLOWED_ROLES.includes((profile?.role as string) ?? "")) {
+        if (!SHIP_ALLOWED_ROLES.includes(active.role)) {
             return NextResponse.json(
                 { success: false, error: "You do not have permission to ship orders" },
                 { status: 403 },
             );
         }
 
-        const tenantId = profile?.current_tenant_id as string | undefined;
-        if (!tenantId) {
-            return NextResponse.json({ success: false, error: "No active tenant" }, { status: 400 });
-        }
+        const tenantId = active.tenantId;
+        const supabaseAdmin = createSupabaseServiceClient();
 
         // 3. Load dependencies
         const [cityMappings, defaultPackageSizeId] = await Promise.all([
