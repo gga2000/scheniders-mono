@@ -15,6 +15,11 @@ export interface Tenant extends BaseTenant {
   store_config_v2?: StoreConfigV2 | null;
   store_config_v2_draft?: StoreConfigV2 | null;
   address?: string | null;
+  /** Set to true ONLY by `withDraftView` (lib/tenant.ts) when this request
+   *  holds a valid draft-view preview token for the tenant. Not a DB column:
+   *  public loaders never set it. The render uses it to skip the merchant's
+   *  production ad pixels for their own preview traffic. */
+  is_draft_view?: boolean;
 }
 
 export interface Product extends BaseProduct {

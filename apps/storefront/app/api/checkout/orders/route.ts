@@ -10,6 +10,7 @@ import {
 } from "@scheniders/shared";
 import { submitCheckout } from "@/app/actions/checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { isDraftViewRequest } from "@/lib/draft-view";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -126,7 +127,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (result.success) {
       try {
         const visitorKey = (await cookies()).get("sb_vid")?.value;
-        if (visitorKey) {
+        // A test order placed from draft view is the merchant, not a
+        // converted shopper — keep it out of the experiment's revenue.
+        if (visitorKey && !(await isDraftViewRequest(data.tenant_id))) {
           const svc = createSupabaseServiceClient();
           // EC19: re-derive the visitor's arm per running experiment from the
           // store config — never trust the client's `ab_test_arms` (which could

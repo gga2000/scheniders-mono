@@ -236,18 +236,23 @@ export default async function TenantLayout({ params, children }: Props) {
         ) : null;
       })()}
       <HtmlLang lang={htmlLangFor(currentLocale)} />
-      <SchneidersAnalyticsPixels
-        analytics={{
-          // V2 takes precedence — the globals.analytics_pixels section is
-          // the single source of truth post-migration. Falls back to the
-          // legacy `schneiders.analytics` field so pre-migration tenants
-          // still ship their pixels.
-          ...schn.analytics,
-          ...((v2?.globals?.analytics_pixels?.base as
-            | Record<string, string | undefined>
-            | undefined) ?? {}),
-        }}
-      />
+      {/* Draft view is the merchant previewing unpublished changes, not a
+          shopper: no pixel init means no PageView here and no ViewContent /
+          Purchase later (the section trackers no-op without fbq/ttq). */}
+      {!tenant.is_draft_view && (
+        <SchneidersAnalyticsPixels
+          analytics={{
+            // V2 takes precedence — the globals.analytics_pixels section is
+            // the single source of truth post-migration. Falls back to the
+            // legacy `schneiders.analytics` field so pre-migration tenants
+            // still ship their pixels.
+            ...schn.analytics,
+            ...((v2?.globals?.analytics_pixels?.base as
+              | Record<string, string | undefined>
+              | undefined) ?? {}),
+          }}
+        />
+      )}
       <div
         data-bk-motion={bkMotion}
         data-bk-expressive={bkExpressive ? "true" : "false"}

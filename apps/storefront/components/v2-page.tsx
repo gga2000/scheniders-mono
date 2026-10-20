@@ -11,6 +11,7 @@ import { StorefrontGlobals } from "./storefront-globals";
 import { ExperimentBeacon } from "./experiment-beacon";
 import { CartSignal } from "./cart-signal";
 import { SectionReveal } from "./section-reveal";
+import { isDraftViewRequest } from "@/lib/draft-view";
 import type {
   StoreConfigV2,
   PageConfig,
@@ -63,6 +64,12 @@ export async function V2Page({
     const arm = assignAbArm(exp, visitorKey);
     if (arm) abArms[exp.id] = arm;
   }
+  // A draft-view session still renders its assigned arm (the merchant sees
+  // what a shopper would) but never records an exposure, so previewing does
+  // not skew the experiment's results. `renderCtx.tenant` is typed as the
+  // sections' tenant, which has no `is_draft_view`, so re-check the same
+  // gate `withDraftView` used rather than widening that shared type.
+  const draftView = await isDraftViewRequest(renderCtx.tenant.id);
 
   // Build the segment evaluation context from cookies set by middleware.
   // sb_first is set only on second+ visits (response-only on first visit),
@@ -149,7 +156,7 @@ export async function V2Page({
     <>
       <CartSignal />
       <SectionReveal />
-      {Object.keys(abArms).length > 0 && (
+      {Object.keys(abArms).length > 0 && !draftView && (
         <ExperimentBeacon tenantId={renderCtx.tenant.id} arms={abArms} />
       )}
       <StorefrontGlobals

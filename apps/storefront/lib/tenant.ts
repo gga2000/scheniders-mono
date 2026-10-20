@@ -1,6 +1,5 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
-import { cookies } from "next/headers";
 import {
   createSupabaseServerClient,
   createSupabasePublicClient,
@@ -9,10 +8,9 @@ import {
 import { redactServerOnlyConfig } from "@scheniders/shared";
 import type { Tables } from "@scheniders/supabase";
 import type { Tenant } from "./types";
-import { canPreviewDraft } from "./preview-access";
+import { isDraftViewRequest } from "./draft-view";
 
-/** httpOnly cookie holding a preview token; set by /api/draft-view. */
-export const DRAFT_VIEW_COOKIE = "sb_draft_view";
+export { DRAFT_VIEW_COOKIE } from "./draft-view";
 
 /**
  * EC29: how long a PUBLIC storefront read is served from Next's data cache
@@ -135,20 +133,28 @@ const getPublishedTenantBySlug = (slug: string): Promise<Tenant | null> =>
  * re-verified on every request against the resolved tenant, so it expires
  * with the token and never opens another tenant's draft. Everyone else
  * gets the cached published tenant, unchanged.
+ *
+ * The returned tenant carries `is_draft_view: true` so the render knows
+ * the visitor is the merchant, not a shopper, and keeps the production ad
+ * pixels silent. This is the ONLY place that sets the flag; the public
+ * loaders return the DB row, which has no such column. Exported for tests.
  */
-async function withDraftView(
+export async function withDraftView(
   published: Tenant | null,
   loadWithDraft: () => Promise<Tenant | null>,
 ): Promise<Tenant | null> {
   if (!published) return published;
-  const token = (await cookies()).get(DRAFT_VIEW_COOKIE)?.value;
-  if (!canPreviewDraft(token, published.id)) return published;
+  if (!(await isDraftViewRequest(published.id))) return published;
   const withDraft = await loadWithDraft();
-  if (!withDraft) return published;
+  // A draft that fails to load still renders the published config, but the
+  // visitor is still the merchant — the flag follows the session, not the
+  // config that happened to render.
+  if (!withDraft) return { ...published, is_draft_view: true };
   return {
     ...withDraft,
     store_config_v2: withDraft.store_config_v2_draft ?? withDraft.store_config_v2,
     store_config_v2_draft: null,
+    is_draft_view: true,
   };
 }
 

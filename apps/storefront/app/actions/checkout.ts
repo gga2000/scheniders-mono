@@ -15,6 +15,7 @@ import type {
 } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
+import { isDraftViewRequest } from "@/lib/draft-view";
 
 interface CheckoutItem {
   product_id: string;
@@ -387,6 +388,33 @@ export async function submitCheckout(
   const orderRow = raw as Record<string, unknown> | null;
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
 
+  // Draft view: a request carrying a valid draft-view preview token for this
+  // tenant is the merchant testing unpublished changes, not a shopper. Decided
+  // from the httpOnly cookie (never the payload), so it covers every caller
+  // and the checkout body is unchanged.
+  const draftView = await isDraftViewRequest(tenant.id);
+
+  // Flag the draft-view order as a test so it stays out of the public stats
+  // (`tenant_public_stats` skips is_test) and shows the Test badge in the
+  // order book. `create_order_atomic` does not read `is_test` from
+  // `_order_data`, so the flag is set right after it, tenant-scoped, on the
+  // same service-role client. A change to `is_test` alone is a no-op for every
+  // orders UPDATE trigger (inventory, loyalty and referral key off status /
+  // items; the notification trigger off status / name / phone / items; trust
+  // only recomputes). The INSERT-time triggers (log_order_notification,
+  // log_order_creation_history) have already fired by now — only a change to
+  // the RPC itself could keep them quiet for a test order.
+  if (draftView && orderRow?.id) {
+    const { error: testFlagErr } = await supabase
+      .from("orders")
+      .update({ is_test: true })
+      .eq("id", String(orderRow.id))
+      .eq("tenant_id", tenant.id);
+    if (testFlagErr) {
+      console.error("[checkout] could not flag draft-view order as test:", testFlagErr);
+    }
+  }
+
   // Loyalty: award points earned on this order. Best-effort — never fail it.
   if (loyaltyCfg?.enabled) {
     const earned = computePointsEarned(subtotal, loyaltyCfg);
@@ -413,10 +441,12 @@ export async function submitCheckout(
 
   // Server-side Purchase (Meta/TikTok CAPI), deduped with the browser pixel via
   // the shared event_id. Best-effort — never block or fail the order.
+  // A draft-view order never reaches the merchant's ad accounts (the browser
+  // pixels are not even mounted in draft view).
   const analytics = tenant.store_config_v2?.globals?.analytics_pixels?.base as
     | AnalyticsConfig
     | undefined;
-  if (payload.purchaseEventId && analytics) {
+  if (payload.purchaseEventId && analytics && !draftView) {
     try {
       await sendPurchaseCapi({
         analytics,
