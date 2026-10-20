@@ -1620,9 +1620,12 @@ export default function OrdersPage() {
 
                                             {/* Collapsible Analytics Panel */}
                                             <OrdersAnalyticsPanel
-                                                // Its velocity and peak-hour figures are taken over the
-                                                // loaded rows: none until the window has loaded.
-                                                analyticsLevel={previewing ? 0 : analyticsLevel}
+                                                // At the merchant's own level even over the preview:
+                                                // collapsing it there and animating it open when the
+                                                // window lands moved every row below. Its figures are
+                                                // taken over the loaded rows, so they wait instead.
+                                                analyticsLevel={analyticsLevel}
+                                                statsHidden={previewing}
                                                 stats={stats}
                                                 statusCounts={statusCounts}
                                                 filters={filters}

@@ -337,11 +337,7 @@ export function MobileOrdersPage() {
                 <div className="px-3">
                     <OrderSearchBanner count={filteredOrders.length} />
                 </div>
-                {previewing && (
-                    <div className="px-3">
-                        <OrderListPreviewStrip />
-                    </div>
-                )}
+                {previewing && <OrderListPreviewStrip aboveMobileNav />}
                 {listLoading ? (
                     <div className="space-y-3 px-4" aria-busy="true" aria-live="polite">
                         {[0, 1, 2, 3].map((i) => (

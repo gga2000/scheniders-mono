@@ -67,3 +67,40 @@ describe("OrdersAnalyticsPanel Needs Attention", () => {
         expect(attention("urgent")).toBe("—");
     });
 });
+
+const stat = (key: string) => document.querySelector(`[data-stat="${key}"]`)?.textContent;
+
+/**
+ * While the All Orders preview is on screen the panel stays at the merchant's
+ * level and only its figures wait: collapsing it to 0 and animating it back
+ * open when the window landed moved every row of the list below it.
+ */
+describe("OrdersAnalyticsPanel while its figures are not ready", () => {
+    it("keeps both rows open and shows every row-derived figure as a dash", () => {
+        renderPanel({ statsHidden: true, countsHidden: true, flaggedCountHidden: true });
+        for (const key of ["conversion", "confirm_speed", "delivery_speed", "peak_hour", "today_revenue", "today_orders", "average_order_value"]) {
+            expect(stat(key)).toBe("—");
+        }
+        // The level-2 row is still laid out: the panel keeps its height.
+        expect(attention("urgent")).toBe("—");
+        expect(document.body.textContent).not.toContain("12.5%");
+        expect(document.body.textContent).not.toContain("14:00");
+    });
+
+    it("draws the conversion bar empty rather than at a guessed rate", () => {
+        renderPanel({ statsHidden: true });
+        const bar = document.querySelector<HTMLElement>("[data-stat-bar=\"conversion\"]");
+        expect(bar?.style.width).toBe("0%");
+    });
+
+    it("shows the figures once they are ready", () => {
+        renderPanel();
+        expect(stat("conversion")).toBe("12.5%");
+        expect(stat("confirm_speed")).toBe("1h");
+        expect(stat("delivery_speed")).toBe("2d");
+        expect(stat("peak_hour")).toBe("14:00");
+        expect(stat("today_orders")).toBe("4");
+        const bar = document.querySelector<HTMLElement>("[data-stat-bar=\"conversion\"]");
+        expect(bar?.style.width).toBe("12.5%");
+    });
+});
