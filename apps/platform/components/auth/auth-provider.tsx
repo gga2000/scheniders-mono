@@ -8,13 +8,14 @@ import type { UserProfile, AuthContextType } from "@/types/auth";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
 import { sentryIdentityFor } from "@/lib/sentry-identity";
+import { applyPermissionOverrides, resolveEffectiveRole, type UserRole } from "@/lib/permissions";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
-    const [role, setRole] = useState<string | null>(null);
+    const [role, setRole] = useState<UserRole | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [permissions, setPermissions] = useState<string[]>([]);
     const [tenantId, setTenantId] = useState<string | null>(null);
@@ -54,26 +55,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
-            setProfileMissing(false);
-            setRole(profileData.role);
-            setProfile(profileData as UserProfile);
-            setTenantId(profileData.current_tenant_id ?? null);
+            const currentTenantId: string | null = profileData.current_tenant_id ?? null;
+
+            // The role that governs what this user may do is their role in the
+            // current tenant (tenant_members.role), the same row RLS reads.
+            // user_profiles.role only contributes super_admin (platform staff).
+            const { data: membership } = currentTenantId
+                ? await supabase
+                    .from('tenant_members')
+                    .select('role')
+                    .eq('tenant_id', currentTenantId)
+                    .eq('user_id', userId)
+                    .eq('status', 'active')
+                    .maybeSingle()
+                : { data: null };
+            const effectiveRole = resolveEffectiveRole(profileData.role, membership?.role);
 
             // Fetch role permissions + user overrides in parallel
-            const [rolePermsResult, userOverridesResult] = await Promise.all([
-                supabase.from('role_permissions').select('permission').eq('role', profileData.role),
-                supabase.from('user_permissions').select('permission, is_granted').eq('user_id', userId),
-            ]);
+            const [rolePermsResult, userOverridesResult] = effectiveRole
+                ? await Promise.all([
+                    supabase.from('role_permissions').select('permission').eq('role', effectiveRole),
+                    supabase.from('user_permissions').select('permission, is_granted').eq('user_id', userId),
+                ])
+                : [{ data: null }, { data: null }];
 
-            const perms = new Set(rolePermsResult.data?.map(p => p.permission) || []);
-            userOverridesResult.data?.forEach(override => {
-                if (override.is_granted) perms.add(override.permission);
-                else perms.delete(override.permission);
-            });
-            setPermissions(Array.from(perms));
+            const perms = applyPermissionOverrides(
+                rolePermsResult.data?.map(p => p.permission) ?? [],
+                userOverridesResult.data ?? [],
+            );
+
+            setProfileMissing(false);
+            setRole(effectiveRole);
+            setProfile(profileData as UserProfile);
+            setTenantId(currentTenantId);
+            setPermissions(perms);
             markProfileLoaded(true);
-            perfTrace.mark('auth:profile-loaded', { role: profileData.role, perms: perms.size });
-            diag.log(`[Auth] PROFILE_OK userId=${userId} role=${profileData.role} perms=${perms.size}`);
+            perfTrace.mark('auth:profile-loaded', { role: effectiveRole ?? 'none', perms: perms.length });
+            diag.log(`[Auth] PROFILE_OK userId=${userId} role=${effectiveRole ?? 'none'} perms=${perms.length}`);
         } catch (err) {
             diag.error(`[Auth] PROFILE_ERR userId=${userId}:`, err);
             markProfileLoaded(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Users,
@@ -39,6 +39,7 @@ import { useAuth } from "@/components/auth/auth-provider"; // Import useAuth
 
 import {
     UserRole,
+    isAdminRole,
     ROLE_PERMISSIONS,
     hasPermission,
     PERMISSION_CATEGORIES,
@@ -276,12 +277,23 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                 .from('user_profiles')
                 .update({
                     display_name: displayName,
-                    role: role,
                     avatar_url: avatarUrl
                 })
                 .eq('id', user.id);
 
             if (error) throw error;
+
+            // The role is per store: it lives on this tenant's membership row.
+            // RLS lets only a tenant admin change it, and never their own.
+            if (role !== user.role) {
+                if (!tenantId) throw new Error("No active account");
+                const { error: roleError } = await supabase
+                    .from('tenant_members')
+                    .update({ role })
+                    .eq('tenant_id', tenantId)
+                    .eq('user_id', user.id);
+                if (roleError) throw roleError;
+            }
 
             // Log activity
             await activityLogger.log({
@@ -470,6 +482,7 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                 <label className="text-sm font-medium">Role</label>
                                 <select
                                     value={role}
+                                    disabled={currentUser?.id === user.id}
                                     onChange={(e) => setRole(e.target.value as UserRole)}
                                     className="w-full h-11 px-4 rounded-xl bg-background border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                                 >
@@ -612,8 +625,8 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
 // ... Main TeamSettings Component (Similar to before but with added state for EditUserModal) ...
 
 export function TeamSettings() {
-    const { profile } = useAuth();
-    const isAdmin = profile?.role === 'admin';
+    const { role: currentRole, tenantId } = useAuth();
+    const isAdmin = isAdminRole(currentRole);
 
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -702,27 +715,38 @@ export function TeamSettings() {
         return dbPermissions.some(p => p.role === role && p.permission === permission);
     };
 
-    // Fetch all users
-    const fetchUsers = async () => {
+    // Fetch the current tenant's members. The role shown and edited is the
+    // per-store tenant_members.role, not the global user_profiles.role.
+    const fetchUsers = useCallback(async () => {
+        if (!tenantId) return;
         try {
             setLoading(true);
             const { data, error } = await supabase
-                .from("user_profiles")
-                .select("*")
-                .order("created_at", { ascending: false });
+                .from("tenant_members")
+                // Two FKs to user_profiles (user_id + invited_by): name the constraint.
+                .select("role, user_profiles!tenant_members_user_id_fkey(*)")
+                .eq("tenant_id", tenantId)
+                .eq("status", "active");
 
             if (error) throw error;
-            setUsers(data || []);
+            // The browser client is untyped, so the embed comes back as `unknown`.
+            type Row = { role: UserRole; user_profiles: UserProfile | UserProfile[] | null };
+            const members = ((data ?? []) as unknown as Row[]).flatMap((r) => {
+                const p = Array.isArray(r.user_profiles) ? r.user_profiles[0] : r.user_profiles;
+                return p ? [{ ...p, role: r.role }] : [];
+            });
+            members.sort((a, b) => b.created_at.localeCompare(a.created_at));
+            setUsers(members);
         } catch (err) {
             console.error("Error fetching users:", err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [tenantId]);
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, [fetchUsers]);
 
     // Toggle user status
     const toggleUserStatus = async (userId: string, isActive: boolean) => {
