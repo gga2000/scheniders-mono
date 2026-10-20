@@ -12,7 +12,7 @@ import path from "node:path";
  * against the file tree: a route fetches the book exactly when its page or one
  * of its layouts renders <OrdersProvider>, and nothing else can start the
  * window fetch (it lives only in useOrdersQuery, called only by useOrders,
- * called only by OrdersProvider).
+ * called only by OrdersProvider; no other code pages the order table by date).
  */
 
 const PLATFORM = path.resolve(__dirname, "../..");
@@ -104,5 +104,26 @@ describe("order book mounting (PERF-D1)", () => {
 
         expect(callers(/\buseOrdersQuery\(/, "hooks/use-orders-query.ts")).toEqual(["hooks/use-orders.ts"]);
         expect(callers(/\buseOrders\(\)/, "hooks/use-orders.ts")).toEqual(["components/providers/orders-provider.tsx"]);
+    });
+
+    it("nothing outside the book pages the order table in by date", () => {
+        // findWindow (and findAll, which it falls back to for a null window)
+        // is the order book. A sidebar hover prefetch used to call it with no
+        // window from every route, downloading every order.
+        const files = sourceFiles(PLATFORM).filter((f) => relative(f) !== "lib/repositories/order-repository.ts");
+        const callers = (pattern: RegExp) => files.filter((f) => pattern.test(code(f))).map(relative).sort();
+
+        expect(callers(/\borderRepository\.(findWindow|findAll)\(/)).toEqual([
+            "hooks/use-duplicate-window-alerts.ts",
+            "hooks/use-orders-query.ts",
+        ]);
+        // Both run only under OrdersProvider: the duplicate margin from useOrders,
+        // the window from useOrdersQuery — its one fetchOrders call.
+        expect(callers(/\buseDuplicateWindowAlerts\(/).filter((f) => f !== "hooks/use-duplicate-window-alerts.ts")).toEqual([
+            "hooks/use-orders.ts",
+        ]);
+        const query = code(path.join(PLATFORM, "hooks/use-orders-query.ts"));
+        expect(query.match(/\bfetchOrders\(/g)?.length, "fetchOrders definition + one call").toBe(2);
+        expect(query).not.toMatch(/\bprefetchQuery\(/);
     });
 });
