@@ -112,3 +112,8 @@ Report: `critic/phase2-tierA-round1.md` (code @ 0032320, SELECT-only DB).
 - CLEAN sample: 9/10 correct; row 360 AuthZ corrected to NEW-P1-09.
 - Coverage: +75 Tier A cells checked by the critic (rows 73, 113, 117, 120, 135, 210, 373–381, 597–606) → 1,569 checked.
 - Scores: Isolation 4, AuthZ 4, Money/Order 4. All three are capped at 5 by open P0s (F-001, NEW-P1-01/02/06/07). These caps lift only when the fixes ship, so another critic round now cannot reach ≥8; the next round runs after the fixes merge and A4–A10 are hunted.
+
+## Phase 2 Tier A (A4–A10), round 1 — 2026-10-20
+- F-022 upheld at P1; title and evidence corrected (11 days is at launch volume, 115× today; storage ≈2026-11-18 is at today's rate). F-025 lowered P1 → P2 (warm 1.7 ms, 1.8 receipts/message). F-023 deletion-request impact corrected to dead code. F-026 corrected (existing index on a different function; detail path grows with customer_trust). F-028 location updated for main 7eed48be. F-030, F-031 upheld.
+- CLEAN sample: 9/9 checked cells hold (row 619 not re-verified).
+- Scores: A4 5, A5 5, A6 5, A7 4, A8 3, A9 3, A10 5. All capped at 7 by remaining UNCHECKED cells; A8/A9 held down by open P1 F-022.
