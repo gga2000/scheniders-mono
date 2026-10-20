@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { isAdminRole, PERMISSIONS } from "@/lib/permissions";
 
 interface FinancialVisibilityContextValue {
     /** Whether financial values are currently shown. Always false for users without permission. */
@@ -16,8 +16,10 @@ interface FinancialVisibilityContextValue {
 const FinancialVisibilityContext = createContext<FinancialVisibilityContextValue | undefined>(undefined);
 
 export function FinancialVisibilityProvider({ children }: { children: React.ReactNode }) {
-    const { role } = useAuth();
-    const canReveal = role === "admin" || hasPermission(role, PERMISSIONS.VIEW_FINANCIALS);
+    const { role, permissions } = useAuth();
+    // Same rule as RLS (has_tenant_permission): tenant admins, or anyone whose
+    // tenant role / per-user override grants the financials permission.
+    const canReveal = isAdminRole(role) || permissions.includes(PERMISSIONS.VIEW_FINANCIALS);
     const [revealed, setRevealed] = useState(false);
 
     const toggle = useCallback(() => {

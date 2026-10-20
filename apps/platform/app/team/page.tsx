@@ -252,8 +252,8 @@ function AccessDenied() {
 // ============================================
 
 export default function TeamPage() {
-    const { profile, isLoading: authLoading } = useAuth();
-    const isAdmin = isAdminRole(profile?.role);
+    const { role, isLoading: authLoading } = useAuth();
+    const isAdmin = isAdminRole(role);
     const { t } = useLanguage();
 
     // State

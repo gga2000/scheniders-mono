@@ -75,17 +75,40 @@ describe("pdp_direct_order loyalty (W5.2)", () => {
     expect(off).not.toContain("data-points-to-earn");
   });
 
-  it("fetches the balance for a valid phone, lets the shopper redeem, and posts redeem_points", async () => {
+  it("asks for a previous order number and never looks a phone up on its own", async () => {
     render(element());
-    expect(screen.queryByTestId("pdp-redeem-points")).toBeNull();
+    expect(screen.queryByTestId("pdp-points-order")).toBeNull();
     fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
       target: { value: "07701234567" },
     });
     await act(async () => {
       vi.advanceTimersByTime(700);
       await Promise.resolve();
+    });
+    expect(screen.getByTestId("pdp-points-order").textContent).toContain("رقم طلب سابق");
+    const balanceCalls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes("/api/loyalty/balance"));
+    expect(balanceCalls).toEqual([]);
+    expect(screen.queryByTestId("pdp-redeem-points")).toBeNull();
+  });
+
+  it("fetches the balance for a valid phone + order number, lets the shopper redeem, and posts redeem_points", async () => {
+    render(element());
+    expect(screen.queryByTestId("pdp-redeem-points")).toBeNull();
+    fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
+      target: { value: "07701234567" },
+    });
+    fireEvent.change(document.querySelector('input[name="loyalty_order_number"]') as HTMLInputElement, {
+      target: { value: "4260910007" },
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+      await Promise.resolve();
+      await Promise.resolve();
       await Promise.resolve();
     });
+    const [, init] = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes("/api/loyalty/balance")) as [string, RequestInit];
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toMatchObject({ phone: "07701234567", order_number: "4260910007" });
     const box = screen.getByTestId("pdp-redeem-points");
     expect(box.textContent).toContain("عندك 40 نقطة");
     fireEvent.click(screen.getByRole("button", { name: "استخدم الكل" }));

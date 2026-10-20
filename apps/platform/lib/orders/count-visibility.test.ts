@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { countVisibility, type CountContext } from "./count-visibility";
+import { countVisibility, listCountVisible, type CountContext } from "./count-visibility";
+import { canOfferSelectAll, canShipWithoutSelection } from "@/lib/order-bulk-scope";
 
 const base: CountContext = {
     facts: { ready: true, statusIsAll: true, windowIsAll: true },
@@ -46,5 +47,24 @@ describe("countVisibility", () => {
         expect(v({ facts: { statusIsAll: false } }).riskBadge).toBe(false);
         expect(v({ facts: { windowIsAll: false } }).riskBadge).toBe(false);
         expect(v({ facts: { statusIsAll: false, windowIsAll: false } })).toEqual({ chips: true, dueTodayBadge: true, riskBadge: false, flaggedCard: true });
+    });
+});
+
+describe("while the All Orders preview is on screen", () => {
+    // The preview shows while the list does not cover its window: facts.ready
+    // is false, listCovered is false, and ordersAreComplete is false.
+    it("hides every chip and badge, and the list's own length", () => {
+        expect(v({ facts: { ready: false } })).toEqual({ chips: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
+        expect(listCountVisible({ listCovered: false, searching: false })).toBe(false);
+    });
+
+    it("refuses ship-everything and select-all", () => {
+        expect(canShipWithoutSelection({ selectedCount: 0, ordersAreComplete: false })).toBe(false);
+        expect(canOfferSelectAll({ selectedCount: 50, loadedCount: 5_176, pageSelectLimit: 50, ordersAreComplete: false })).toBe(false);
+    });
+
+    it("shows the length once the list covers the window, or for search hits", () => {
+        expect(listCountVisible({ listCovered: true, searching: false })).toBe(true);
+        expect(listCountVisible({ listCovered: false, searching: true })).toBe(true);
     });
 });

@@ -12,7 +12,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
-import { usePrefetchOrders } from "@/hooks/use-orders-query";
 import { usePrefetchCustomers } from "@/hooks/use-customers-query";
 import { usePrefetchProducts } from "@/hooks/use-products-query";
 import { useLanguage } from "@/hooks/use-language";
@@ -137,7 +136,6 @@ export function Sidebar({
         searchParams?.get("tab") ||
         (pathname.startsWith("/finances") ? "overview" : "products");
     const { user, profile, signOut, isLoading: authLoading } = useAuth();
-    const prefetchOrders = usePrefetchOrders();
     const prefetchCustomers = usePrefetchCustomers();
     const prefetchProducts = usePrefetchProducts();
     const { t } = useLanguage();
@@ -185,7 +183,6 @@ export function Sidebar({
                     prefetch={true}
                     onMouseEnter={() => {
                         // Intent-based rigorous prefetching
-                        if (["/", "/orders", "/finances", "/printing"].includes(item.href)) prefetchOrders();
                         if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
                         if (["/products", "/finances"].includes(item.href)) prefetchProducts();
                     }}
@@ -583,7 +580,6 @@ export function Sidebar({
                                             onClick={handleNavClick}
                                             onMouseEnter={() => {
                                                 // Intent-based rigorous prefetching
-                                                if (["/", "/orders", "/finances", "/printing"].includes(item.href)) prefetchOrders();
                                                 if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
                                                 if (["/products", "/finances"].includes(item.href)) prefetchProducts();
                                             }}

@@ -818,7 +818,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 .from("orders")
                 .update({ is_pinned: newPinnedState })
                 .eq("id", orderId)
-                .select()
+                .select("id")
                 .maybeSingle();
 
             if (error) throw error;
@@ -856,7 +856,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 .from("orders")
                 .update({ is_pinned: isPinned })
                 .eq("id", orderId)
-                .select()
+                .select("id")
                 .maybeSingle();
 
             if (error) throw error;
@@ -902,7 +902,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 .from("orders")
                 .update({ is_reviewed: newReviewedState })
                 .eq("id", orderId)
-                .select()
+                .select("id")
                 .maybeSingle();
 
             if (error) throw error;

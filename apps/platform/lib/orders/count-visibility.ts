@@ -61,3 +61,13 @@ export function countVisibility(c: CountContext): CountVisibility {
         flaggedCard: base && !refined({ exceptRisk: true }),
     };
 }
+
+/**
+ * The list's own length — the header count, the mobile number badge — is a
+ * count of the list too: shown only while the list is the whole window, or
+ * the server's search hits. Never over the All Orders preview
+ * (lib/orders/list-preview.ts) or another window's rows still on screen.
+ */
+export function listCountVisible(c: { listCovered: boolean; searching: boolean }): boolean {
+    return c.listCovered || c.searching;
+}
