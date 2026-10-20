@@ -258,6 +258,13 @@ export default async function TenantLayout({ params, children }: Props) {
           // dark kit inherits the browser default black onto a near-black
           // ground.
           color: "var(--bk-ink, #1a1a1a)",
+          // The page ground. Nothing else paints it: `body` in globals.css
+          // sets a font but no background, so a dark kit rendered its
+          // sections onto the browser's white — every gap between sections,
+          // and every section that doesn't pin its own surface, stayed white.
+          // minHeight keeps the ground covering short pages.
+          backgroundColor: "var(--bk-surface, #fff7ed)",
+          minHeight: "100vh",
         }}
       >
         {/* The language switcher lives inside the global `site_header`

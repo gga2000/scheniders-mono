@@ -147,7 +147,9 @@ describe("buildBrandKitVars — shape mapping", () => {
     ["none", "0px", "0px"],
     ["soft", "8px", "6px"],
     ["round", "16px", "12px"],
-    ["pill", "9999px", "9999px"],
+    // Cards cap out well short of fully-round: a 9999px card is a lozenge,
+    // not a card. Only `--bk-radius-pill` is fully round at this setting.
+    ["pill", "28px", "9999px"],
   ] as const)("radius=%s emits card=%s input=%s", (radius, card, input) => {
     const k = cloneKit();
     k.shape.radius = radius;
