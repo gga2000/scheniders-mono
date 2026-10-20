@@ -80,6 +80,9 @@ export const EXPRESS_STRINGS = {
   photoOf: { en: "Photo {n} of {total}", ar: "صورة {n} من {total}" },
   reviews: { en: "{count} reviews", ar: "{count} تقييم" },
   sizeMl: { en: "{n} ml", ar: "{n} مل" },
+  aboutScent: { en: "About the scent", ar: "عن العطر" },
+  readMore: { en: "Read more", ar: "اقرأ المزيد" },
+  readLess: { en: "Show less", ar: "أقل" },
   clockAria: {
     en: "{label} {h} hours {m} minutes",
     ar: "{label} {h} ساعة و{m} دقيقة",

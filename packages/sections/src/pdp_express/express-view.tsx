@@ -18,6 +18,7 @@ import { stockLeftFor } from "../helpers/variant-store";
 import { DEFAULT_DECK_ROTATE_MS } from "../pdp_direct_order";
 import { DIRECT_ORDER_FORM_ID } from "../pdp_direct_order.client";
 import { CheckoutRow } from "./checkout-row";
+import { DescriptionBlock } from "./description-block";
 import { ExpressForm } from "./express-form";
 import { HeroStage } from "./hero-stage";
 import { IdentityLabel, displayNameOf } from "./identity-label";
@@ -161,11 +162,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
         </form>
 
         {props.show_description && product.description && (
-          <div className="border-t border-bk-divider pt-bk-md">
-            <p className="whitespace-pre-line font-bk-body text-sm leading-relaxed text-bk-ink-soft">
-              {product.description}
-            </p>
-          </div>
+          <DescriptionBlock text={product.description} locale={locale} />
         )}
 
         {m.featureCards.length > 0 && (
