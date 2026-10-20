@@ -183,8 +183,8 @@ export const generalPack: ContentPack = {
                 en: "Cash on delivery",
             },
             body_i18n: {
-                ar: "تدفع كاش للمندوب بعد ما تفتح الطلب وتتأكد منه. ما ندفع ولا دينار مقدماً.",
-                en: "Pay the courier in cash after you open and check the الطلب. Nothing is paid up front.",
+                ar: "تدفع كاش للمندوب بعد ما تفتح الطلب وتتأكد منه. ما تدفع ولا دينار مقدماً.",
+                en: "Pay the courier in cash after you open and check the order. Nothing is paid up front.",
             },
         },
         {
@@ -204,7 +204,7 @@ export const generalPack: ContentPack = {
             },
             body_i18n: {
                 ar: "إذا وصل المنتج غير مطابق أو فيه عيب، راسلنا خلال 3 أيام ونستبدله أو نرجع المبلغ.",
-                en: "If the المنتج arrives not as described or faulty, message us within 3 days and we exchange it or refund you.",
+                en: "If the product arrives not as described or faulty, message us within 3 days and we exchange it or refund you.",
             },
         },
         {

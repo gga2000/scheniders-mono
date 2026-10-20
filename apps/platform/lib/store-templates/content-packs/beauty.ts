@@ -193,8 +193,8 @@ export const beautyPack: ContentPack = {
                 en: "Cash on delivery",
             },
             body_i18n: {
-                ar: "تدفع كاش للمندوب بعد ما تفتح المنتج وتتأكد منه. ما ندفع ولا دينار مقدماً.",
-                en: "Pay the courier in cash after you open and check the المنتج. Nothing is paid up front.",
+                ar: "تدفع كاش للمندوب بعد ما تفتح المنتج وتتأكد منه. ما تدفع ولا دينار مقدماً.",
+                en: "Pay the courier in cash after you open and check the product. Nothing is paid up front.",
             },
         },
         {

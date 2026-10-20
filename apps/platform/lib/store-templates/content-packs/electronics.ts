@@ -193,8 +193,8 @@ export const electronicsPack: ContentPack = {
                 en: "Cash on delivery",
             },
             body_i18n: {
-                ar: "تدفع كاش للمندوب بعد ما تفتح الجهاز وتتأكد منه. ما ندفع ولا دينار مقدماً.",
-                en: "Pay the courier in cash after you open and check the الجهاز. Nothing is paid up front.",
+                ar: "تدفع كاش للمندوب بعد ما تفتح الجهاز وتتأكد منه. ما تدفع ولا دينار مقدماً.",
+                en: "Pay the courier in cash after you open and check the device. Nothing is paid up front.",
             },
         },
         {

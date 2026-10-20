@@ -4,6 +4,27 @@ import { applyStoreTemplate, STORE_TEMPLATES, getStoreTemplate } from "../index"
 import { CONTENT_PACKS, applyContentPack, packCategoryRows, resolveContentPack } from "./index";
 import { perfumePack } from "./perfume";
 
+type I18nLeaf = { path: string; locale: string; text: string };
+
+/** Every localized string in a pack: any object whose keys are all locale codes. */
+function i18nLeaves(value: unknown, path = ""): I18nLeaf[] {
+    if (Array.isArray(value)) return value.flatMap((v, i) => i18nLeaves(v, `${path}[${i}]`));
+    if (!value || typeof value !== "object" || value instanceof RegExp) return [];
+    const entries = Object.entries(value);
+    const isI18n = entries.length > 0 && entries.every(([k, v]) => ["ar", "en", "ku"].includes(k) && typeof v === "string");
+    if (isI18n) return entries.map(([locale, text]) => ({ path, locale, text: text as string }));
+    return entries.flatMap(([k, v]) => i18nLeaves(v, path ? `${path}.${k}` : k));
+}
+
+const ARABIC = /[\u0600-\u06FF]/;
+/**
+ * Latin an Iraqi shopper reads as-is in Arabic copy: brand names, storage
+ * and battery units, clothing sizes. `{placeholders}` are stripped first.
+ */
+const LATIN_IN_ARABIC_OK = new Set(["Apple", "Samsung", "Xiaomi", "mAh", "GB", "TB", "XS", "S", "M", "L", "XL", "XXL"]);
+const latinWords = (text: string) =>
+    (text.replace(/\{[a-z_]+\}/g, "").match(/[A-Za-z][A-Za-z0-9-]*/g) ?? []).filter((w) => !LATIN_IN_ARABIC_OK.has(w));
+
 const i18nOk = (v: unknown) => !!v && typeof v === "object" && Object.values(v as object).some((s) => typeof s === "string" && s.trim());
 
 /** Fails the test with a name instead of a TypeError when a lookup misses. */
@@ -55,6 +76,28 @@ describe("content packs", () => {
                 expect(parsed.success, `${p.id}:${a.key} ${JSON.stringify(parsed.success ? "" : parsed.error.issues[0])}`).toBe(true);
             }
             expect(packCategoryRows(p).every((r) => r.name && r.slug)).toBe(true);
+        }
+    });
+
+    it("keeps each language in its own script", () => {
+        const leaks: string[] = [];
+        for (const p of CONTENT_PACKS) {
+            for (const leaf of i18nLeaves(p)) {
+                if (leaf.locale === "en" && ARABIC.test(leaf.text)) leaks.push(`${p.id}.${leaf.path}.en: ${leaf.text}`);
+                if (leaf.locale === "ar" && latinWords(leaf.text).length) {
+                    leaks.push(`${p.id}.${leaf.path}.ar: ${latinWords(leaf.text).join(", ")}`);
+                }
+            }
+        }
+        expect(leaks).toEqual([]);
+    });
+
+    it("tells the shopper they pay nothing up front, not the store", () => {
+        // "ما ندفع" is "we don't pay": the subject is the shopper.
+        for (const p of CONTENT_PACKS) {
+            for (const leaf of i18nLeaves(p)) {
+                if (leaf.locale === "ar") expect(leaf.text, `${p.id}.${leaf.path}`).not.toContain("ما ندفع ولا دينار");
+            }
         }
     });
 
