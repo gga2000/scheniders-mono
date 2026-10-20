@@ -24,7 +24,7 @@ import { BentoCard, Sticker } from "./helpers/primitives";
 
 const SRC = path.dirname(fileURLToPath(import.meta.url));
 
-type Rule = "bg-white" | "white-literal";
+type Rule = "bg-white" | "text-white" | "white-literal" | "white-keyword";
 
 const RULES: Record<Rule, { pattern: RegExp; fix: string }> = {
   // Any variant or modifier: `bg-white`, `hover:bg-white`, `bg-white/95`.
@@ -32,12 +32,26 @@ const RULES: Record<Rule, { pattern: RegExp; fix: string }> = {
     pattern: /\bbg-white\b/g,
     fix: "use bg-bk-surface-alt (and pin text-bk-ink if the parent sets another foreground)",
   },
+  // A white foreground. Over an ink fill or an ink scrim the partner is
+  // `text-bk-surface`; over a primary fill it is `text-bk-on-primary`.
+  "text-white": {
+    pattern: /\btext-white\b/g,
+    fix: "use the fill's partner token: text-bk-surface on ink, text-bk-on-primary on primary",
+  },
   // A white colour as a whole string value, e.g. `backgroundColor: "#ffffff"`
   // or `fg: "#fff"`. A `var(--bk-*, #ffffff)` FALLBACK is fine and is not
   // matched: the brand kit always wins over it.
   "white-literal": {
     pattern: /["'`]#fff(?:fff)?["'`]/gi,
     fix: 'use "var(--bk-surface-alt, #ffffff)" for a surface, or the fill\'s --bk-on-* / --bk-surface token for a foreground',
+  },
+  // The CSS keyword in a value position: `color: "white"`, a ternary branch
+  // `? "white"` / `: "white"`, or `fill="white"`. "white" is also a tint
+  // enum KEY (`bg="white"`, `bg: "white"`, `z.enum(["white", …])`), which
+  // primitives resolve to --bk-surface-alt — those positions are not matched.
+  "white-keyword": {
+    pattern: /(?<!\b(?:bg|tint)\s*)(?:[?:]|\b(?:color|fill|stroke)\s*=)\s*["'`]white["'`]/g,
+    fix: 'use "var(--bk-surface, #ffffff)" (ink\'s partner) or the fill\'s --bk-on-* token',
   },
 };
 
@@ -58,13 +72,19 @@ const PENDING_PDP_FILES: Record<string, readonly Rule[]> = {
 };
 
 /**
- * The one legitimate white: a headline over a photo, sitting on the fixed
- * `bg-black/40` scrim drawn beneath it. The scrim is not a brand colour, so
- * neither is the text on it. Pinned to an exact count and to the scrim
- * still being there, so a second white in the file cannot hide behind it.
+ * The legitimate whites: hero copy over a photo or video, sitting on a FIXED
+ * black scrim drawn beneath it (not a brand colour, so neither is the text
+ * on it — on a dark kit the scrim is still black). Each entry is pinned to
+ * an exact count and to the scrim still being there, so a second white in
+ * the file cannot hide behind it.
  */
-const SCRIM_FOREGROUNDS: Record<string, { count: number; scrim: string }> = {
-  "hero_image.tsx": { count: 1, scrim: "bg-black/40" },
+const SCRIM_FOREGROUNDS: Record<
+  string,
+  { rule: Rule; count: number; scrim: string }
+> = {
+  "hero_image.tsx": { rule: "white-literal", count: 1, scrim: "bg-black/40" },
+  // Headline + subtitle over `rgba(0,0,0,overlay_opacity)`.
+  "hero_video.tsx": { rule: "text-white", count: 2, scrim: "rgba(0,0,0," },
 };
 
 function sourceFiles(dir: string): string[] {
@@ -112,7 +132,7 @@ describe("sections carry no hardcoded white", () => {
       const offenders = FILES.filter(
         ({ rel }) =>
           !PENDING_PDP_FILES[rel]?.includes(rule) &&
-          !(rule === "white-literal" && rel in SCRIM_FOREGROUNDS),
+          SCRIM_FOREGROUNDS[rel]?.rule !== rule,
       ).flatMap(({ rel, src }) => hits(rel, src, pattern));
       expect(offenders).toEqual([]);
     });
@@ -131,12 +151,12 @@ describe("sections carry no hardcoded white", () => {
     }
   }
 
-  for (const [file, { count, scrim }] of Object.entries(SCRIM_FOREGROUNDS)) {
-    it(`${file}: exactly ${count} white headline, over its ${scrim} scrim`, () => {
+  for (const [file, { rule, count, scrim }] of Object.entries(SCRIM_FOREGROUNDS)) {
+    it(`${file}: exactly ${count} ${rule}, over its ${scrim} scrim`, () => {
       const entry = FILES.find((f) => f.rel === file);
       const src = entry?.src ?? "";
       expect(src).toContain(scrim);
-      expect(hits(file, src, RULES["white-literal"].pattern)).toHaveLength(count);
+      expect(hits(file, src, RULES[rule].pattern)).toHaveLength(count);
     });
   }
 });
