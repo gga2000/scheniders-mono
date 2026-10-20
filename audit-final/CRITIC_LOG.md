@@ -122,3 +122,8 @@ Report: `critic/phase2-tierA-round1.md` (code @ 0032320, SELECT-only DB).
 - F-040 raised P1 → **P0** (also reachable via column UPDATE on `order_id`, any member role). F-041 stays P1 (lock precedes the replay check). F-043 lowered to P2 latent (all October orders are one `internal`-plan tenant). F-044, F-047, F-053 confirmed; F-045/F-047 line refs corrected; F-052 mechanism reworded.
 - OK-step sample: 9/9 hold.
 - Scores: B-checkout 4, B-order-intake 4, B-fulfilment 5, B-storefront-browse 6, B-preview 6.
+
+## Phase 2 Tier B pass 2, round 1 — 2026-10-20
+- No escalations: F-055..F-059 hold at P2 (F-055 already happened live: 7 FULFILLED reverses on deleted orders; F-057 borderline P1). F-058 fix sketch corrected (existing tenant_members admin policies suffice). F-059 adds an active tenant with a cancelled, unbilled subscription. F-062 flagged a pre-launch blocker. New P3 (delivery import ignores `deleted_at`) folded into F-055.
+- OK-step sample: 8/8 hold.
+- Scores: B-merchant-lifecycle 5, B-team 4, B-finances 4, B-trash 6, B-admin 4.
