@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
     "analyze": "ANALYZE=true next build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",

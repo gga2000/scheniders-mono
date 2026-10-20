@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { resolveI18n } from "@scheniders/shared";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { resolveStoreTenant, requireStoreTenant } from "@/lib/route-guards";
 import {
   listProducts,
   listCategories,
@@ -21,15 +20,9 @@ interface Props {
   params: Promise<{ tenant: string }>;
 }
 
-function resolveTenant(tenantParam: string) {
-  return tenantParam.startsWith("__domain__")
-    ? getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : getTenantBySlug(tenantParam);
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
   if (!tenant) return { title: "Store not found" };
   const locale = tenant.store_config_v2?.default_locale ?? "ar";
   const title = `${resolveI18n(CATALOG_HEADING, locale)} — ${tenant.business_name}`;
@@ -38,8 +31,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AllProductsPage({ params }: Props) {
   const { tenant: tenantParam } = await params;
-  const tenant = await resolveTenant(tenantParam);
-  if (!tenant) notFound();
+  // The tenant layout already 404'd an unknown store, above the skeleton.
+  const tenant = await requireStoreTenant(tenantParam);
 
   const [products, categories, categoryProductIds] = await Promise.all([
     listProducts(tenant.id, { withAttributes: true }),

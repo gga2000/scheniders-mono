@@ -372,6 +372,49 @@ export const listProducts = cache(
     }),
 );
 
+/** PostgREST's row cap per request on Supabase; the sitemap pages past it. */
+const SITEMAP_PAGE_SIZE = 1000;
+
+/**
+ * Every listable product's URL key and last edit, for the sitemap.
+ *
+ * Its own query rather than `listProducts`: a sitemap needs two columns, not
+ * the card payload, and none of the review / variant / attribute joins that
+ * `listProducts` runs per batch. Same visibility filters, so the sitemap
+ * lists exactly the products the storefront serves. Paged, because a single
+ * request is capped at {@link SITEMAP_PAGE_SIZE} rows and a larger catalogue
+ * would otherwise be cut off without any error.
+ */
+export const listProductSitemapEntries = cache(
+  (
+    tenantId: string,
+  ): Promise<{ id: string; slug: string | null; updated_at: string | null }[]> =>
+    publicCache(["listProductSitemapEntries", tenantId], async (supabase) => {
+      const out: { id: string; slug: string | null; updated_at: string | null }[] = [];
+      for (let from = 0; ; from += SITEMAP_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("products")
+          .select("id, slug, updated_at")
+          .eq("tenant_id", tenantId)
+          .eq("is_visible", true)
+          .eq("status", "active")
+          .eq("is_archived", false)
+          .not("is_supply", "is", true)
+          .order("display_order", { ascending: true })
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, from + SITEMAP_PAGE_SIZE - 1);
+        if (error) {
+          // A partial sitemap would read as "these are all the products";
+          // fail the request instead so the crawler retries later.
+          throw new Error(`[queries.listProductSitemapEntries] ${error.message}`);
+        }
+        out.push(...(data ?? []));
+        if ((data ?? []).length < SITEMAP_PAGE_SIZE) return out;
+      }
+    }),
+);
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Decode a route param that may still be percent-encoded. A no-op for plain

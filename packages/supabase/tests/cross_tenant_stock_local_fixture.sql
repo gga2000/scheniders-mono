@@ -56,7 +56,9 @@ CREATE TABLE public.tenant_members (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id uuid NOT NULL REFERENCES public.tenants(id),
   user_id uuid NOT NULL,
-  role text NOT NULL,
+  -- Live since 20261020215422_tenant_role_source_of_truth.
+  role text NOT NULL DEFAULT 'employee'
+    CONSTRAINT tenant_members_role_check CHECK (role IN ('admin', 'employee', 'viewer')),
   status public.member_status NOT NULL DEFAULT 'active'
 );
 

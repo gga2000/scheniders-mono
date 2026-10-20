@@ -28,6 +28,72 @@ const renderBar = (props: Partial<Parameters<typeof StickyFilterBar>[0]> = {}) =
     return { setFilterDueToday };
 };
 
+describe("counts hidden", () => {
+    const products = Array.from({ length: 10 }, (_, i) => ({ name: `Product ${String.fromCharCode(65 + i)}`, count: 7 + i }));
+
+    it("renders no number in the status chips, the product chips or the overflow menu; chips stay clickable", async () => {
+        const setFilters = vi.fn();
+        render(
+            <LanguageProvider>
+                <StickyFilterBar
+                    filters={{ status: "all" }}
+                    setFilters={setFilters}
+                    statusCounts={{ all: 12, new: 3, delivered: 9 }}
+                    productsInView={products}
+                    showFilters={false}
+                    setShowFilters={() => {}}
+                    hasActiveFilters={false}
+                    groupBy="none"
+                    setGroupBy={() => {}}
+                    showSubFilters
+                    countsHidden
+                />
+            </LanguageProvider>,
+        );
+        const chips = [...document.querySelectorAll<HTMLElement>("[data-chip]")];
+        expect(chips).toHaveLength(16);
+        for (const chip of chips) {
+            expect(chip.textContent ?? "").not.toMatch(/\d/);
+            expect(chip.hasAttribute("data-chip-count")).toBe(false);
+        }
+        for (const chip of document.querySelectorAll<HTMLElement>("[data-product-chip]")) {
+            expect(chip.textContent?.replace(chip.dataset.productChip ?? "", "") ?? "").not.toMatch(/\d/);
+        }
+
+        const more = screen.getByText(/\+2/).closest("button");
+        if (!more) throw new Error("no overflow trigger");
+        fireEvent.pointerDown(more, { button: 0, ctrlKey: false, pointerType: "mouse" });
+        const items = await screen.findAllByRole("menuitem");
+        expect(items).toHaveLength(2);
+        for (const item of items) {
+            expect((item.textContent ?? "").replace(/Product [A-Z]/, "")).not.toMatch(/\d/);
+        }
+
+        fireEvent.click(chips.find((c) => c.dataset.chip === "delivered") as HTMLElement);
+        expect(setFilters).toHaveBeenCalledWith(expect.objectContaining({ status: "delivered" }));
+    });
+
+    it("renders the counts as data attributes when shown", () => {
+        renderBar({ statusCounts: { all: 12, delivered: 9 } });
+        expect(document.querySelector<HTMLElement>('[data-chip="delivered"]')?.dataset.chipCount).toBe("9");
+        expect(document.querySelector<HTMLElement>('[data-chip="all"]')?.dataset.chipCount).toBe("12");
+    });
+
+    it("keeps the due-today toggle reachable while its badge is hidden", () => {
+        renderBar({ dueTodayCount: 0, dueTodayCountHidden: true });
+        const chip = screen.getByRole("button", { name: "مجدولة اليوم" });
+        expect(chip.querySelector('[data-badge="due-today"]')).toBeNull();
+    });
+
+    it("hides the risk badge", () => {
+        renderBar({ totalRiskCount: 5, riskCountHidden: true });
+        expect(document.querySelector('[data-badge="risk"]')).toBeNull();
+        cleanup();
+        renderBar({ totalRiskCount: 5 });
+        expect(document.querySelector('[data-badge="risk"]')?.textContent).toBe("5");
+    });
+});
+
 describe("due-today filter chip", () => {
     it("stays hidden while nothing has come due", () => {
         renderBar({ dueTodayCount: 0 });

@@ -7,7 +7,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { orderKeys, windowCacheKey } from "@/hooks/use-orders-query";
+import { duplicateCandidateKeys, duplicateCandidateMeta } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import {
     buildDuplicateWindowIndex,
@@ -18,16 +18,13 @@ import {
 import type { OrderWindow } from "@/lib/order-window";
 import type { Order } from "@/lib/supabase";
 
+/** Query keys for the margin fetch. Under `orderKeys.lists()` — see below. */
+export { duplicateCandidateKeys };
+
 /**
  * @param orders  the rows the page has loaded — fresh, realtime-patched
  * @param window  the date window those rows were fetched for; `null` = all
  */
-/** Query keys for the margin fetch. Under `orderKeys.lists()` — see below. */
-export const duplicateCandidateKeys = {
-    all: [...orderKeys.lists(), "duplicate-candidates"] as const,
-    window: (window: OrderWindow) => [...duplicateCandidateKeys.all, windowCacheKey(window)] as const,
-};
-
 export function useDuplicateWindowAlerts(
     orders: Order[],
     window: OrderWindow,
@@ -46,9 +43,10 @@ export function useDuplicateWindowAlerts(
     const candidateWindow = duplicateCandidateWindow(window);
 
     // Only a windowed view needs the margin; with the complete set loaded the
-    // query never runs. Keyed under `orderKeys.lists()` because that prefix is
-    // what every order mutation and realtime resync invalidates — under
-    // `orderKeys.all` alone a twin's status change would sit stale here.
+    // query never runs. Keyed under `orderKeys.lists()` so list mutations
+    // cancel it and a failed delta invalidates it. Every catch-up delta is
+    // merged into it (syncOrdersDelta), using the window in `meta` — so a
+    // twin's status change reaches the double-dispatch guard without a refetch.
     const { data: margin } = useQuery({
         queryKey: duplicateCandidateKeys.window(candidateWindow),
         queryFn: () => {
@@ -57,6 +55,7 @@ export function useDuplicateWindowAlerts(
         },
         enabled: candidateWindow !== null && !!session && clientReady && !!tenantId,
         staleTime: 60_000,
+        meta: duplicateCandidateMeta(candidateWindow),
     });
 
     const duplicateCandidates = useMemo(() => {

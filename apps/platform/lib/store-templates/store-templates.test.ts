@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 import type { PageId } from "@scheniders/shared";
 import { getManifestEntry } from "@/lib/sections-manifest";
+import { WEIGHT_COMPLETE_FONTS } from "@/lib/weight-complete-fonts";
 import {
     LEGACY_TEMPLATE_ALIAS,
     STORE_TEMPLATES,
@@ -73,6 +74,19 @@ describe("store templates", () => {
             expect(FORMALITY).toContain(bk.voice.formality);
             expect(bk.typography.display_ar, `${tpl.id} arabic display`).toBeTruthy();
             expect(bk.typography.body_ar, `${tpl.id} arabic body`).toBeTruthy();
+        }
+    });
+
+    it("only uses fonts that ship every weight the storefront renders", () => {
+        for (const tpl of STORE_TEMPLATES) {
+            const { display, body, display_ar, body_ar } = tpl.brand_kit.typography;
+            for (const family of [display, body, display_ar, body_ar]) {
+                if (!family) continue;
+                expect(
+                    WEIGHT_COMPLETE_FONTS.has(family),
+                    `${tpl.id}: "${family}" is not a verified weight-complete family`,
+                ).toBe(true);
+            }
         }
     });
 

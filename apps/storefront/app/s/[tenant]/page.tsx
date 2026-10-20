@@ -12,6 +12,7 @@ import { getTemplate } from "@/templates/registry";
 import type { TemplateName } from "@/lib/types";
 import { buildRuntimeContext, pickV2Page, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
+import { pageNeedsProductAttributes } from "@scheniders/sections";
 import { JsonLd } from "@/components/json-ld";
 import {
   buildGridItemList,
@@ -76,9 +77,14 @@ export default async function StorefrontHome({
 
   if (!tenant) notFound();
 
+  // Attributes are an extra query, so ask for them only when a home
+  // section reads them (the product finder renders nothing without).
+  const withAttributes = pageNeedsProductAttributes(
+    pickV2Page(tenant.store_config_v2, "home")?.sections,
+  );
   const [products, categories, categoryProductIds, publicStats, maxDiscountPct] =
     await Promise.all([
-      listProducts(tenant.id, { limit: 24 }),
+      listProducts(tenant.id, { limit: 24, withAttributes }),
       listCategories(tenant.id),
       listCategoryProductIds(tenant.id),
       getTenantPublicStats(tenant.id),

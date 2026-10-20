@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
+import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const admin = await requireAdmin(token);
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Recalculating writes every employee's commission rows — super_admin only,
+  // the same gate as editing the configs.
+  const auth = await requireAdminPermission(request, "manage_commissions");
+  if (auth instanceof NextResponse) return auth;
 
+  try {
     const body = await request.json();
     const { period_start, period_end } = body;
 

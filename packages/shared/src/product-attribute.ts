@@ -219,3 +219,71 @@ export function parseProductAttributeDefs(rows: readonly unknown[]): ProductAttr
   }
   return out.sort((a, b) => a.display_order - b.display_order || a.key.localeCompare(b.key));
 }
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Similarity                                                           */
+/* ─────────────────────────────────────────────────────────────────── */
+
+/** Per-kind closeness of two values for the SAME attribute, in [0, 1]. */
+function attributeCloseness(
+  a: ResolvedProductAttribute,
+  b: ResolvedProductAttribute,
+): number | null {
+  // Narrowing both sides on `kind` keeps the value types honest — no casts.
+  if (a.kind === "enum" && b.kind === "enum") return a.value === b.value ? 1 : 0;
+  if (a.kind === "boolean" && b.kind === "boolean") return a.value === b.value ? 1 : 0;
+  if (a.kind === "range" && b.kind === "range") {
+    const span = a.def.range_max - a.def.range_min;
+    if (span <= 0) return null;
+    // Linear: touching values score 1, opposite ends score 0.
+    return 1 - Math.abs(a.value - b.value) / span;
+  }
+  if (a.kind === "group_list" && b.kind === "group_list") {
+    const flatten = (v: Record<string, string[]>) =>
+      new Set(
+        Object.values(v)
+          .flat()
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean),
+      );
+    const setA = flatten(a.value);
+    const setB = flatten(b.value);
+    if (setA.size === 0 || setB.size === 0) return null;
+    // Jaccard over the union of every group: two perfumes sharing most of
+    // their notes are alike even when the notes sit in different tiers.
+    let shared = 0;
+    for (const item of setA) if (setB.has(item)) shared += 1;
+    return shared / (setA.size + setB.size - shared);
+  }
+  // Mismatched kinds have nothing to compare, and prose ("text") is not a
+  // similarity signal — string equality on two descriptions would be noise
+  // dressed up as data.
+  return null;
+}
+
+/**
+ * How alike two products are, over the attributes the merchant marked
+ * comparable. Returns `null` when they share no comparable attribute — the
+ * caller then has nothing to rank on and should fall back rather than
+ * pretend everything scored zero.
+ */
+export function attributeSimilarity(
+  a: readonly ResolvedProductAttribute[],
+  b: readonly ResolvedProductAttribute[],
+): number | null {
+  const byKey = new Map(b.filter((x) => x.def.is_comparable).map((x) => [x.def.key, x]));
+
+  let total = 0;
+  let counted = 0;
+  for (const attr of a) {
+    if (!attr.def.is_comparable) continue;
+    const other = byKey.get(attr.def.key);
+    if (!other) continue;
+    const score = attributeCloseness(attr, other);
+    if (score === null) continue;
+    total += score;
+    counted += 1;
+  }
+
+  return counted === 0 ? null : total / counted;
+}

@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
+    "bundle-budget": "node scripts/bundle-budget.mjs",
     "start": "next start",
     "lint": "eslint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@scheniders/sections": "workspace:*",

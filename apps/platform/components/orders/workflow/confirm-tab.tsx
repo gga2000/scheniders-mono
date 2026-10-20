@@ -10,6 +10,7 @@ import { DualPhoneDisplay } from "@/components/ui/phone-display";
 import { CancellationReasonDialog } from "@/components/orders/cancellation-reason-dialog";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import type { Order, MessageTemplate } from "@/lib/supabase";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 interface ConfirmTabProps {
     orders: Order[];
@@ -186,7 +187,7 @@ export function ConfirmTab({
 
                                 {/* Items - compact single line */}
                                 <div className="text-sm text-foreground mb-3 truncate">
-                                    {order.items?.map((item, i) => (
+                                    {mergeOrderItems(order.items).map((item, i) => (
                                         <span key={i}>
                                             {i > 0 && ", "}
                                             {item.name} ×{item.quantity}

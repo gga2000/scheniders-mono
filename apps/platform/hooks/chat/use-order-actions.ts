@@ -1,8 +1,9 @@
 // apps/platform/hooks/chat/use-order-actions.ts
+import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useConversations, chatKeys } from "./use-conversations";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useLinkedOrders } from "./use-linked-orders";
 import { orderKeys } from "@/hooks/use-orders-query";
 import type { Order } from "@/types/order";
 
@@ -49,17 +50,18 @@ export function useSetConversationResolved() {
 }
 
 /**
- * Returns the live `Order` object linked to a conversation, or `null` when:
+ * Returns the `Order` linked to a conversation, or `null` when:
  * - the conversation is not an order thread (`order_id` is null), or
- * - the order is not yet loaded in the orders context.
+ * - the order has not loaded yet.
+ *
+ * Read through `useLinkedOrders`, so an order outside the /orders date window
+ * is fetched instead of reading as missing.
  */
 export function useOrderForConversation(conversationId: string | null): Order | null {
     const { data: conversations = [] } = useConversations();
-    const { orders } = useOrdersContext();
-
     const conv = conversationId ? conversations.find((c) => c.id === conversationId) : null;
     const orderId = conv?.order_id ?? null;
-    if (!orderId) return null;
-
-    return orders.find((o) => o.id === orderId) ?? null;
+    const ids = useMemo(() => (orderId ? [orderId] : []), [orderId]);
+    const linked = useLinkedOrders(ids);
+    return orderId ? linked.get(orderId) ?? null : null;
 }

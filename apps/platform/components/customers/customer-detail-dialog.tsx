@@ -9,6 +9,7 @@ import {
     Package, ChevronDown, User, Home, ShoppingBag, StickyNote, ShieldCheck, CreditCard, Truck,
 } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { trustEngine } from "@/lib/fraud-detector";
@@ -156,6 +157,7 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
     const total = Number(order.price) || 0;
     const pill = statusPill(order.status);
     const itemCount = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
+    const lines = mergeOrderItems(items);
 
     return (
         <div className="rounded-2xl border border-(--card-border) overflow-hidden bg-(--card-bg)">
@@ -179,9 +181,9 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
                         <div className="px-4 pb-4 border-t border-(--card-border)">
                             {/* Items */}
                             <div className="divide-y divide-(--card-border)">
-                                {items.length === 0 ? (
+                                {lines.length === 0 ? (
                                     <div className="py-3 text-sm text-muted-foreground">{t("customers.dialog.noItems", "No item details on this order.")}</div>
-                                ) : items.map((it, i) => (
+                                ) : lines.map((it, i) => (
                                     <div key={i} className="flex items-center gap-3 py-2.5">
                                         <ItemThumb url={it.image_url} name={it.name} />
                                         <div className="flex-1 min-w-0">

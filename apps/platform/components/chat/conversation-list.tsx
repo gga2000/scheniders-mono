@@ -25,7 +25,7 @@ import { useWebPush } from "@/hooks/chat/use-web-push";
 import { useLanguage } from "@/components/providers/language-provider";
 import { filterConversations } from "@/lib/chat/filter-conversations";
 import type { ConvFilter } from "@/lib/chat/filter-conversations";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useLinkedOrders } from "@/hooks/chat/use-linked-orders";
 import type { Order } from "@/types/order";
 import { formatIQD } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
@@ -184,7 +184,7 @@ function OrderSection({
     onSelect: (id: string) => void;
     nameFor: (c: ConversationWithMeta) => string;
     onOpenSettings: (conversationId: string) => void;
-    orderMap: Map<string, Order>;
+    orderMap: ReadonlyMap<string, Order>;
     showSubFilter: boolean;
 }) {
     const { t } = useLanguage();
@@ -415,7 +415,6 @@ export function ConversationList() {
     const startDm = useStartDm();
     const { activeConversationId, setActiveConversation, settingsConversationId, openSettings, closeSettings, soundEnabled, setSoundEnabled } = useChatStore();
     const { t } = useLanguage();
-    const { orders } = useOrdersContext();
     const [startingId, setStartingId] = useState<string | null>(null);
     const [newMenuOpen, setNewMenuOpen] = useState(false);
     const [channelDialogOpen, setChannelDialogOpen] = useState(false);
@@ -440,11 +439,13 @@ export function ConversationList() {
         [members]
     );
 
-    // Index orders by their DB id (= conversation.order_id) for O(1) lookup.
-    const orderMap = useMemo(
-        () => new Map<string, Order>(orders.map((o) => [o.id, o])),
-        [orders]
+    // The orders the order threads link to, keyed by DB id (= conversation.order_id).
+    // Not the orders context alone: that is today's window, not the book.
+    const linkedOrderIds = useMemo(
+        () => conversations.map((c) => c.order_id).filter((id): id is string => !!id),
+        [conversations]
     );
+    const orderMap = useLinkedOrders(linkedOrderIds);
 
     const mentionConvIds = useMemo(
         () => new Set(mentions.map((n) => n.conversation_id).filter((id): id is string => id !== null)),

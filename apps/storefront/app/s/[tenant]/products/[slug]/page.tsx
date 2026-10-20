@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
-import { enforceRedirect } from "@/lib/redirects";
+import { summarizeDelivery } from "@scheniders/shared";
+import { resolveStoreTenant, requireProduct } from "@/lib/route-guards";
 import {
   getProductBySlug,
   getProductImages,
@@ -24,6 +23,8 @@ import {
   getStorefrontBase,
   productJsonLd,
   breadcrumbJsonLd,
+  shippingDetailsJsonLd,
+  returnPolicyJsonLd,
 } from "@/lib/seo";
 
 interface Props {
@@ -36,13 +37,11 @@ interface Props {
 // so this shares the same fetches as the page body (no extra DB round-trips).
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tenant: tenantParam, slug } = await params;
-  const tenant = tenantParam.startsWith("__domain__")
-    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : await getTenantBySlug(tenantParam);
+  const tenant = await resolveStoreTenant(tenantParam);
   if (!tenant) return { title: "Store not found" };
 
   const product = await getProductBySlug(tenant.id, slug);
-  if (!product) return {}; // let the layout title apply; the page renders notFound()
+  if (!product) return {}; // the route's layout has already answered 404 or redirected
 
   const title = `${product.name} — ${tenant.business_name}`;
   const description = product.description ?? undefined;
@@ -72,18 +71,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { tenant: tenantParam, slug } = await params;
-  const tenant = tenantParam.startsWith("__domain__")
-    ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
-    : await getTenantBySlug(tenantParam);
-
-  if (!tenant) notFound();
-
-  const product = await getProductBySlug(tenant.id, slug);
-  if (!product) {
-    // N3: honor a configured redirect before 404ing (e.g. the slug changed).
-    enforceRedirect(tenant.store_config_v2, tenantParam, `/products/${slug}`);
-    notFound();
-  }
+  // The layout already ran this guard above the skeleton — it set the 404 or
+  // the merchant's redirect (N3) — so here it is a cached, narrowed read.
+  const { tenant, product } = await requireProduct(tenantParam, slug);
 
   const [images, variants, categories] = await Promise.all([
     getProductImages(tenant.id, product.id),
@@ -106,7 +96,7 @@ export default async function ProductPage({ params }: Props) {
     // P1-13: approved reviews ride in on the product so product_reviews
     // renders its list in the SSR HTML (the client fetch is revalidation only).
     const [related, reviews] = await Promise.all([
-      listProducts(tenant.id, { limit: 24 }),
+      listProducts(tenant.id, { limit: 24, withAttributes: true }),
       listApprovedReviews(tenant.id, product.id),
     ]);
     // A variant row without its own price sells at the product's price.
@@ -118,6 +108,23 @@ export default async function ProductPage({ params }: Props) {
     const productUrl = `${baseUrl}/products/${encodeURIComponent(product.slug ?? product.id)}`;
     const inStock =
       (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0) > 0;
+    // Delivery and returns in the rich result come from the SAME config the
+    // checkout charges and the product page shows — never a default. Both are
+    // omitted when the merchant has not configured them.
+    const commerce = v2.commerce;
+    // The offer is one unit at the offer price, so the fee is the one that
+    // basket pays — a free-delivery threshold the price already clears is
+    // honoured here exactly as the checkout honours it.
+    const delivery = summarizeDelivery(commerce?.shipping, {
+      subtotalIqd: product.price,
+      itemCount: 1,
+    });
+    const shippingDetails = shippingDetailsJsonLd({
+      minFeeIqd: delivery.fee.min,
+      maxFeeIqd: delivery.fee.max,
+      etaHours: delivery.eta_hours,
+    });
+    const returnPolicy = returnPolicyJsonLd(commerce?.returns_policy?.window_days);
     return (
       <>
         <JsonLd
@@ -132,6 +139,9 @@ export default async function ProductPage({ params }: Props) {
               brand: tenant.business_name,
               ratingAverage: product.avg_rating ?? null,
               ratingCount: product.review_count ?? null,
+              sku: product.sku ?? null,
+              ...(shippingDetails ? { shippingDetails } : {}),
+              ...(returnPolicy ? { returnPolicy } : {}),
             }),
             breadcrumbJsonLd([
               { name: ar ? "الرئيسية" : "Home", url: baseUrl || "/" },
@@ -154,7 +164,7 @@ export default async function ProductPage({ params }: Props) {
   const template = tenant.store_config?.template ?? "schneiders";
 
   if (template === "schneiders") {
-    const related = (await listProducts(tenant.id, { limit: 6 })).filter((p) => p.id !== product.id).slice(0, 4);
+    const related = (await listProducts(tenant.id, { limit: 6, withAttributes: true })).filter((p) => p.id !== product.id).slice(0, 4);
     return (
       <SchneidersPageShell tenant={tenant} categories={categories} showBack hideBottomBar>
         <SchneidersProductDetailClient

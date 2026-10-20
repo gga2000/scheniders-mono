@@ -109,7 +109,7 @@ export function PdpInfoTabsRender({
                         fontFamily: "var(--bk-font-display, inherit)",
                       }
                     : {
-                        backgroundColor: "#ffffff",
+                        backgroundColor: "var(--bk-surface-alt, #ffffff)",
                         color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))",
                         border: "var(--bk-border-thickness, 3px) solid transparent",
                         borderRadius: "var(--bk-radius-input, 0.75rem)",

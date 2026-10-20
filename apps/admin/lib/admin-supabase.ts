@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./admin-env";
+import { AdminAuthError, isCredentialRejection } from "./admin-auth-error";
 import type { AdminRole } from "@/types/admin";
 
 /**
@@ -28,8 +29,8 @@ const ALLOWED_ROLES: AdminRole[] = ["super_admin", "support_staff"];
 /**
  * Given an already-authenticated user id, look up their admin-console access in
  * the dedicated `admin_users` table (service role — bypasses RLS) and return
- * the validated role. Throws if there is no active row or the role is not
- * allowed.
+ * the validated role. Throws `AdminAuthError(403)` if there is no active row or
+ * the role is not allowed; a failed lookup throws a plain error (server fault).
  *
  * Transport-agnostic: callers validate the identity (bearer token or cookie
  * session) first, then hand the resolved user id here for authorization.
@@ -40,20 +41,24 @@ export async function resolveAdminRole(userId: string): Promise<AdminRole> {
     .from("admin_users")
     .select("admin_role, is_active")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  if (adminError || !adminRow) {
-    throw new Error("No admin-console access");
+  if (adminError) {
+    throw new Error(`admin_users lookup failed: ${adminError.message}`, { cause: adminError });
+  }
+
+  if (!adminRow) {
+    throw new AdminAuthError(403, "No admin-console access");
   }
 
   if (!adminRow.is_active) {
-    throw new Error("Admin-console access is disabled");
+    throw new AdminAuthError(403, "Admin-console access is disabled");
   }
 
   const role = adminRow.admin_role as AdminRole;
 
   if (!ALLOWED_ROLES.includes(role)) {
-    throw new Error(`Unauthorized: role "${role}" is not an admin role`);
+    throw new AdminAuthError(403, `Role "${role}" is not an admin role`);
   }
 
   return role;
@@ -67,6 +72,11 @@ export async function resolveAdminRole(userId: string): Promise<AdminRole> {
  * 2. Resolves their admin-console role via `resolveAdminRole` (which reads the
  *    dedicated `admin_users` access list, decoupled from user_profiles.role)
  * 3. Returns the validated user and their admin role
+ *
+ * Throws `AdminAuthError` (401 bad token, 403 not an admin) for caller faults
+ * and a plain error when the auth server or database fails. Routes should not
+ * call this directly — use `requireBearerAdmin` / `requireAdminFromRequest`
+ * (lib/api-auth.ts), which map those to the right status.
  */
 export async function requireAdmin(accessToken: string) {
   // Create a client authenticated as the user to validate the JWT
@@ -87,8 +97,11 @@ export async function requireAdmin(accessToken: string) {
     error: userError,
   } = await userClient.auth.getUser();
 
-  if (userError || !user) {
-    throw new Error(userError?.message ?? "Invalid access token");
+  if (!user) {
+    if (isCredentialRejection(userError)) {
+      throw new AdminAuthError(401, userError?.message ?? "Invalid access token");
+    }
+    throw new Error(`Access-token validation failed: ${userError?.message}`, { cause: userError });
   }
 
   const role = await resolveAdminRole(user.id);

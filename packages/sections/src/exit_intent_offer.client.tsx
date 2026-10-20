@@ -119,7 +119,7 @@ export function ExitIntentOfferRender({
             type="button"
             onClick={dismiss}
             aria-label={locale !== "en" ? "إغلاق" : "Close"}
-            className="absolute top-3 right-3 w-9 h-9 bg-white flex items-center justify-center"
+            className="absolute top-3 right-3 w-9 h-9 bg-bk-surface-alt text-bk-ink flex items-center justify-center"
             style={{
               border:
                 "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
@@ -138,7 +138,7 @@ export function ExitIntentOfferRender({
             <button
               type="button"
               onClick={copyCode}
-              className="w-full mb-bk-sm bg-white px-4 py-3 text-center font-display font-black text-2xl uppercase tracking-widest"
+              className="w-full mb-bk-sm bg-bk-surface-alt text-bk-ink px-4 py-3 text-center font-display font-black text-2xl uppercase tracking-widest"
               style={{
                 border:
                   "var(--bk-border-thickness, 3px) dashed var(--bk-ink, #1a1a1a)",

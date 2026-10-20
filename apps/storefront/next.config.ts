@@ -17,6 +17,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        // YouTube video thumbnails, for the click-to-play facade in
+        // `video_block`. Only the thumbnail path — the player itself is
+        // loaded by the browser from YouTube on click, not through here.
+        protocol: "https",
+        hostname: "i.ytimg.com",
+        pathname: "/vi/**",
+      },
     ],
     formats: ["image/avif", "image/webp"],
     deviceSizes: [320, 390, 640, 750, 828, 1080, 1200, 1920, 2048, 3840],

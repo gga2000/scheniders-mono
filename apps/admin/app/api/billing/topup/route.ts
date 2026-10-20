@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 const topupSchema = z.object({
   tenant_id: z.string().min(1),
@@ -9,6 +10,9 @@ const topupSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "top_up_wallet");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await request.json();
     const parsed = topupSchema.safeParse(body);

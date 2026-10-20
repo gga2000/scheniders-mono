@@ -119,7 +119,7 @@ export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, i
                         </div>
 
                         {/* Quick Stats Grid */}
-                        <div className="hidden md:flex items-center gap-6 px-6 border-l border-gray-200 dark:border-gray-800 rtl:border-l-0 rtl:border-r">
+                        <div className="hidden md:flex items-center gap-6 px-6 border-l border-gray-200 dark:border-gray-800">
                             <div className="text-center">
                                 <p className="text-[10px] text-gray-500 uppercase font-semibold">{t("team.stats.actions")}</p>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{employee.total_actions}</p>
