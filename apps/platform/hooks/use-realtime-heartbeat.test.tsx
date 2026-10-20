@@ -24,6 +24,7 @@ vi.mock("@/lib/repositories/order-repository", () => ({
     orderRepository: { findLatestUpdatedAt: H.findLatestUpdatedAt },
 }));
 vi.mock("@/hooks/use-orders-query", () => ({
+    DELTA_OVERLAP_MS: 120_000,
     orderKeys: { lists: () => ["orders", "list"] },
     syncOrdersDelta: H.syncOrdersDelta,
 }));
@@ -74,6 +75,21 @@ describe("realtime heartbeat drift", () => {
         const qc = await beat([row("2026-10-19T07:30:00.000Z")]);
         expect(H.syncOrdersDelta).toHaveBeenCalledTimes(1);
         expect(H.syncOrdersDelta).toHaveBeenCalledWith(qc, TENANT, "heartbeatDrift");
+    });
+
+    it("a fetch mark still owes its overlap: a delta runs even when it equals the server's newest change", async () => {
+        // A delta that finished during the fetch can have been replaced by the
+        // fetch's older read, and a write stamped before the mark can commit
+        // after it: the mark alone does not prove the cache holds either.
+        H.getSyncWatermark.mockReturnValue({ at: "2026-10-19T08:00:00.000Z", fromFetch: true });
+        await beat([row("2026-10-12T08:00:00.000Z")]);
+        expect(H.syncOrdersDelta).toHaveBeenCalledTimes(1);
+    });
+
+    it("once a delta has run from it, the same mark is no drift", async () => {
+        H.getSyncWatermark.mockReturnValue({ at: "2026-10-19T08:00:00.000Z", fromFetch: false });
+        await beat([row("2026-10-12T08:00:00.000Z")]);
+        expect(H.syncOrdersDelta).not.toHaveBeenCalled();
     });
 
     it("an empty (loaded) window still compares against the watermark", async () => {

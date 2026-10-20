@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/supabase";
-import { orderKeys, syncOrdersDelta } from "@/hooks/use-orders-query";
+import { DELTA_OVERLAP_MS, orderKeys, syncOrdersDelta } from "@/hooks/use-orders-query";
 import { getSyncWatermark } from "@/hooks/orders-list-coverage";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { diag } from "@/lib/diag";
@@ -61,8 +61,13 @@ export function useRealtimeHeartbeat({
             //    delta raises it past trashed and out-of-window rows, which the
             //    cache never keeps) or its newest row (realtime raises that).
             //    The cached rows alone saw permanent drift whenever the newest
-            //    change was a row the cache does not keep.
-            let clientLatest = stampMs(getSyncWatermark(queryClient)?.at);
+            //    change was a row the cache does not keep. A mark a fetch read
+            //    is owed the overlap (a write stamped before it can commit
+            //    after the pages were read, and a commit can replace newer rows
+            //    a delta applied), so it counts for that much less — exactly
+            //    what the delta it triggers reads back.
+            const watermark = getSyncWatermark(queryClient);
+            let clientLatest = stampMs(watermark?.at) - (watermark?.fromFetch ? DELTA_OVERLAP_MS : 0);
             for (const o of cachedOrders) clientLatest = Math.max(clientLatest, stampMs(o.updated_at));
 
             // 4. If the server is ahead by more than 5 seconds, we missed updates.

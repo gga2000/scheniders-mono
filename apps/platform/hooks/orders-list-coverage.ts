@@ -31,7 +31,10 @@ import { listCovers } from "@/lib/orders/coverage-key";
 //                 fetch (never from the fetched rows: a window's own newest row
 //                 says when that window was last edited, not what the cache has
 //                 seen, and `resolveStaleContacted` stamps rewritten rows with
-//                 the client clock). Raised by every complete delta.
+//                 the client clock). Raised by every complete delta. A commit
+//                 REPLACES it with its own mark, even when that is lower: the
+//                 committed rows are complete up to that mark only, and replace
+//                 whatever a delta that finished during the fetch had applied.
 //
 // The cache "covers" the active window when `listCovers(loadedKey, activeKey)`.
 // Counts are shown only then (lib/orders/count-visibility.ts).
@@ -59,6 +62,8 @@ interface InFlightFetch {
     key: string;
     /** The fetch-start high-water mark, once read. */
     mark: string | null;
+    /** The watermark when the fetch started: its rows are complete at least up to it. */
+    baseline: SyncWatermark | null;
 }
 
 interface CoverageOptions {
@@ -160,9 +165,12 @@ export function ensureCoverage(qc: QueryClient, options: CoverageOptions): void 
             store.loadedKey = null;
         } else {
             store.loadedKey = normalize(store, fetched.key);
-            if (fetched.mark) {
-                store.syncedThrough = { at: maxIso(store.syncedThrough?.at ?? null, fetched.mark) ?? fetched.mark, fromFetch: true };
-            }
+            // Never the max with the current watermark: a delta that finished
+            // while this fetch ran (focus starts both) raised it over rows this
+            // commit has just replaced with an older read. Without a mark, the
+            // watermark from before the fetch is still a sound lower bound.
+            const at = fetched.mark ?? fetched.baseline?.at ?? null;
+            store.syncedThrough = at ? { at, fromFetch: true } : null;
         }
         emit(store);
     });
@@ -192,7 +200,8 @@ function storeFor(qc: QueryClient): Store {
  * window. Reads the tenant-wide high-water mark first (`readMark`); the
  * watermark is taken from that, never from the rows. `readMark` reports its
  * own errors and resolves null when the mark is unavailable — the fetch still
- * runs, and the previous watermark (an older, so safe, lower bound) is kept.
+ * runs, and commits the watermark from before it started (an older, so safe,
+ * lower bound).
  */
 export async function trackListFetch<T>(
     qc: QueryClient,
@@ -203,7 +212,7 @@ export async function trackListFetch<T>(
 ): Promise<T> {
     const store = storeFor(qc);
     const token = ++store.tokenSeq;
-    store.inFlight = { token, key: windowKey, mark: null };
+    store.inFlight = { token, key: windowKey, mark: null, baseline: store.syncedThrough };
     if (store.failedKey !== null) {
         store.failedKey = null;
         emit(store);
@@ -225,11 +234,15 @@ export async function trackListFetch<T>(
     }
 }
 
-/** A sessionStorage snapshot of `windowKey` was hydrated into the cache. */
+/**
+ * A sessionStorage snapshot of `windowKey` was hydrated into the cache: its rows
+ * are complete up to the mark its fetch read, and without one up to nothing
+ * known (the next delta then re-reads the window).
+ */
 export function markListLoaded(qc: QueryClient, windowKey: string, mark: string | null): void {
     const store = storeFor(qc);
     store.loadedKey = normalize(store, windowKey);
-    if (mark) store.syncedThrough = { at: maxIso(store.syncedThrough?.at ?? null, mark) ?? mark, fromFetch: true };
+    store.syncedThrough = mark ? { at: mark, fromFetch: true } : null;
     emit(store);
 }
 

@@ -219,6 +219,47 @@ describe("sync watermark advance", () => {
         advanceSyncWatermark(qc, [{ updated_at: "2026-10-18T12:00:00.000Z" }], gen);
         expect(getSyncWatermark(qc)).toEqual({ at: "2026-10-18T11:00:00.000Z", fromFetch: true });
     });
+
+    // A delta that finishes while a list fetch runs (focus starts both) moves
+    // the mark; the fetch then commits rows read before that delta's. The
+    // commit's rows are complete up to the fetch's own mark, not the delta's.
+    function slowFetch(qc: QueryClient, mark: string | null) {
+        const rows = deferred<Row[]>();
+        const done = qc.fetchQuery({ queryKey: LIST, staleTime: 0, queryFn: () => trackListFetch(qc, TODAY, async () => mark, () => rows.promise) });
+        return { release: () => rows.resolve([]), done };
+    }
+
+    it("a fetch that commits after a delta finished during it takes its own mark, not the delta's", async () => {
+        const { qc } = setup();
+        await fetchList(qc, TODAY, [], "2026-10-18T10:00:00.000Z");
+        const fetch = slowFetch(qc, "2026-10-18T11:00:00.000Z");
+        await flush();
+        advanceSyncWatermark(qc, [{ updated_at: "2026-10-18T11:00:30.000Z" }], getCommitGeneration(qc));
+        expect(getSyncWatermark(qc)).toEqual({ at: "2026-10-18T11:00:30.000Z", fromFetch: false });
+        fetch.release();
+        await fetch.done;
+        expect(getSyncWatermark(qc)).toEqual({ at: "2026-10-18T11:00:00.000Z", fromFetch: true });
+    });
+
+    it("a fetch whose mark could not be read falls back to the watermark it started from", async () => {
+        const { qc } = setup();
+        await fetchList(qc, TODAY, [], "2026-10-18T10:00:00.000Z");
+        const fetch = slowFetch(qc, null);
+        await flush();
+        advanceSyncWatermark(qc, [{ updated_at: "2026-10-18T10:05:00.000Z" }], getCommitGeneration(qc));
+        fetch.release();
+        await fetch.done;
+        expect(getSyncWatermark(qc)).toEqual({ at: "2026-10-18T10:00:00.000Z", fromFetch: true });
+    });
+
+    it("a hydrated snapshot is complete up to its own mark only", async () => {
+        const { qc } = setup();
+        await fetchList(qc, TODAY, [], "2026-10-18T10:00:00.000Z");
+        markListLoaded(qc, TODAY, "2026-10-18T09:00:00.000Z");
+        expect(getSyncWatermark(qc)).toEqual({ at: "2026-10-18T09:00:00.000Z", fromFetch: true });
+        markListLoaded(qc, TODAY, null);
+        expect(getSyncWatermark(qc)).toBeNull();
+    });
 });
 
 describe("cancelled list fetches flush once no list mutation is pending", () => {
