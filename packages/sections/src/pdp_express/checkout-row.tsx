@@ -109,6 +109,20 @@ export function CheckoutRow({
             note={`× ${m.qty}`}
             value={<bdi>{formatPrice(m.subtotal, locale)}</bdi>}
           />
+          {m.referralAmount > 0 && (
+            <Row
+              rtl={rtl}
+              label={xs("referralRow", locale)}
+              value={<bdi>−{formatPrice(m.referralAmount, locale)}</bdi>}
+            />
+          )}
+          {m.pointsDiscount > 0 && (
+            <Row
+              rtl={rtl}
+              label={xs("pointsRow", locale)}
+              value={<bdi>−{formatPrice(m.pointsDiscount, locale)}</bdi>}
+            />
+          )}
           {saving > 0 && (
             <Row
               rtl={rtl}

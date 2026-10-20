@@ -75,6 +75,8 @@ export const EXPRESS_STRINGS = {
   deliveryFree: { en: "Free", ar: "مجاني" },
   deliveryPending: { en: "Choose governorate", ar: "اختر المحافظة" },
   savingsRow: { en: "Your saving", ar: "توفيرك" },
+  referralRow: { en: "Friend's code", ar: "خصم رمز صديقك", ku: "داشکاندنی کۆدی هاوڕێ" },
+  pointsRow: { en: "Your points", ar: "خصم نقاطك", ku: "داشکاندنی خاڵەکانت" },
   totalPlain: { en: "Total", ar: "المجموع" },
   whatsapp: { en: "Order on WhatsApp", ar: "اطلب عبر واتساب" },
   whatsappShort: { en: "WhatsApp", ar: "واتساب" },

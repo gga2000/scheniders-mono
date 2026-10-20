@@ -1182,6 +1182,8 @@ export function PdpDirectOrderRender({
           atMinQty,
           atMaxQty,
           subtotal,
+          referralAmount,
+          pointsDiscount,
           // The delivery the total counts: the flat fee when every governorate
           // costs the same, else the chosen governorate's fee (null = varies).
           delivery: displayedDelivery,

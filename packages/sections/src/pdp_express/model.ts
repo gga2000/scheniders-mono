@@ -55,6 +55,9 @@ export interface ExpressModel {
   atMinQty: boolean;
   atMaxQty: boolean;
   subtotal: number;
+  /** Friend-code and points discounts already taken off `total` (0 = none). */
+  referralAmount: number;
+  pointsDiscount: number;
   delivery: number | null;
   total: number;
   shipping: GovernorateShippingConfig | null | undefined;
