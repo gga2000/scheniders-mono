@@ -126,7 +126,13 @@ export function shippingDetailsJsonLd(opts: {
   etaHours?: { min: number; max: number } | null;
 }): JsonLdObject | undefined {
   if (!Number.isFinite(opts.minFeeIqd) || opts.minFeeIqd < 0) return undefined;
-  const sameRate = opts.minFeeIqd === opts.maxFeeIqd;
+  // The max was never checked, so a non-finite one serialised as
+  // `"maxValue": null` — a malformed Offer that Google reads as a broken
+  // shipping rate rather than a missing one. A max that is not a usable
+  // number means there is no range to state, so state the min alone.
+  const maxUsable =
+    Number.isFinite(opts.maxFeeIqd) && opts.maxFeeIqd >= opts.minFeeIqd;
+  const sameRate = !maxUsable || opts.minFeeIqd === opts.maxFeeIqd;
   const eta =
     opts.etaHours && opts.etaHours.min > 0 && opts.etaHours.max > 0 ? opts.etaHours : null;
   return {

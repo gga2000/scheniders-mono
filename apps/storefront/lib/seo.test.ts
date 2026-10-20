@@ -232,6 +232,32 @@ describe("shippingDetailsJsonLd", () => {
       shippingDetailsJsonLd({ minFeeIqd: Number.NaN, maxFeeIqd: 0 }),
     ).toBeUndefined();
   });
+
+  it("states the min alone rather than a null max", () => {
+    // An unusable max used to serialise as `"maxValue": null`, which is a
+    // malformed Offer — Google reads a broken shipping rate, not a missing
+    // one, and a wrong field is worse than an absent one.
+    for (const maxFeeIqd of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const d = defined(shippingDetailsJsonLd({ minFeeIqd: 5000, maxFeeIqd }));
+      expect(d.shippingRate).toEqual({
+        "@type": "MonetaryAmount",
+        currency: "IQD",
+        value: 5000,
+      });
+      expect(JSON.stringify(d)).not.toContain("null");
+    }
+  });
+
+  it("ignores a max below the min", () => {
+    const d = defined(
+      shippingDetailsJsonLd({ minFeeIqd: 5000, maxFeeIqd: 1000 }),
+    );
+    expect(d.shippingRate).toEqual({
+      "@type": "MonetaryAmount",
+      currency: "IQD",
+      value: 5000,
+    });
+  });
 });
 
 describe("returnPolicyJsonLd", () => {
