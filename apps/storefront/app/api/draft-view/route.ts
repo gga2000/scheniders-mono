@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { canPreviewDraft } from "@/lib/preview-access";
 import { DRAFT_VIEW_COOKIE, getTenantForPreview } from "@/lib/tenant";
+import { sameOriginTarget } from "@/lib/same-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -17,15 +18,6 @@ const querySchema = z.object({
 /** How long one draft-view session lasts; the token's own expiry (checked
  *  on every request) still wins when it is sooner. */
 const DRAFT_VIEW_MAX_AGE_SECONDS = 12 * 60 * 60;
-
-/** A relative, same-origin path — never "//host" or "/\host", which
- *  browsers treat as protocol-relative (an open redirect). */
-function safePath(to: string | undefined): string {
-  if (!to || !to.startsWith("/") || to.startsWith("//") || to.startsWith("/\\")) {
-    return "/";
-  }
-  return to;
-}
 
 /**
  * GET /api/draft-view?tenant={slug}&token={preview token}&to={path}
@@ -44,7 +36,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "invalid_query" }, { status: 400 });
   }
   const { tenant: slug, token, to, off } = parsed.data;
-  const target = new URL(safePath(to), req.nextUrl.origin);
+  const target = sameOriginTarget(to, req.nextUrl.origin);
 
   if (off) {
     const res = NextResponse.redirect(target, 303);
