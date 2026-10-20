@@ -2,12 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createFakeSupabase, type Row } from "@/lib/testing/fake-supabase";
 
 // =====================================================================
-// Loyalty at checkout: redeem here, earn on delivery (never here).
+// Loyalty at checkout: no redemption on this public path, earn on delivery.
 // =====================================================================
 // Points are credited by the database (trg_loyalty_order_changed) when an
 // order reaches delivered/completed, and reversed if it leaves that state.
 // A credit at placement as well would pay a cash-on-delivery order that is
 // never delivered — and, once it is, pay it twice over the same ledger.
+//
+// Redemption is refused: the only identity checkout has is the phone number,
+// which is not a secret, so anyone who knows a customer's number could spend
+// their points as a discount on their own order.
 // =====================================================================
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -92,15 +96,22 @@ describe("loyalty at checkout", () => {
     expect(pointsCalls(fake)).toEqual([]);
   });
 
-  it("still redeems at placement, priced into the recorded discount", async () => {
+  it("refuses a redemption backed only by the phone number — no points move, no order", async () => {
     const fake = install(tables(3000));
     const res = await submitCheckout({ tenantId: TENANT, customer, items, redeemPoints: 3000 });
-    expect(res.success).toBe(true);
-    expect(pointsCalls(fake)).toEqual([["redeem", -3000]]);
-    const order = fake.rpcCalls.find((c) => c.fn === "create_order_atomic")?.args._order_data as
-      | { discount_amount: number }
-      | undefined;
-    expect(order?.discount_amount).toBe(3000);
-    expect(res.total).toBe(35000 - 3000 + 5000);
+    expect(res.success).toBe(false);
+    expect(pointsCalls(fake)).toEqual([]);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    // Refused before any RPC runs.
+    expect(fake.rpcCalls).toEqual([]);
+  });
+
+  it("a retry of the same submission cannot move points either", async () => {
+    const fake = install(tables(3000));
+    const first = await submitCheckout({ tenantId: TENANT, customer, items, idempotencyKey: "retry-key-0001" });
+    const retry = await submitCheckout({ tenantId: TENANT, customer, items, idempotencyKey: "retry-key-0001" });
+    expect(first.success).toBe(true);
+    expect(retry.success).toBe(true);
+    expect(pointsCalls(fake)).toEqual([]);
   });
 });

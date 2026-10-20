@@ -146,26 +146,14 @@ describe("referral at checkout", () => {
     expect(attributions(fake)).toEqual([]);
   });
 
-  it("stacks under the subtotal: a 100 % friend's discount leaves no room for points", async () => {
+  it("stacks under the subtotal: a 100 % friend's discount records a zero price, never negative", async () => {
     const fake = install(
       tables({ referral: { enabled: true, friend_discount_pct: 100, referrer_points: 50 } }),
     );
-    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M", redeemPoints: 20000 });
+    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M" });
     expect(res.success).toBe(true);
     expect(recorded(fake)?.discount_amount).toBe(35000);
-    expect(res.total).toBe(5000);
-    // Nothing left to discount, so no points are spent on it.
-    expect(fake.rpcCalls.filter((c) => c.fn === "adjust_customer_points")).toEqual([]);
-  });
-
-  it("prices points against what the friend's discount left", async () => {
-    const fake = install(tables({ referral: { enabled: true, friend_discount_pct: 50, referrer_points: 50 } }));
-    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M", redeemPoints: 30000 });
-    expect(recorded(fake)?.discount_amount).toBe(35000);
-    const redeemed = fake.rpcCalls
-      .filter((c) => c.fn === "adjust_customer_points")
-      .map((c) => [c.args._reason, c.args._delta]);
-    expect(redeemed).toEqual([["redeem", -17500]]);
+    expect(recorded(fake)?.price).toBe(0);
     expect(res.total).toBe(5000);
   });
 
@@ -179,9 +167,9 @@ describe("referral at checkout", () => {
     expect(attributions(fake)).toEqual([]);
   });
 
-  it("fails closed when the check cannot run — before any points are spent", async () => {
+  it("fails closed when the check cannot run — before any order is placed", async () => {
     const fake = install(tables(), "error");
-    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M", redeemPoints: 1000 });
+    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M" });
     expect(res.success).toBe(false);
     expect(recorded(fake)).toBeUndefined();
     expect(fake.rpcCalls.filter((c) => c.fn === "adjust_customer_points")).toEqual([]);
@@ -199,11 +187,12 @@ describe("referral at checkout", () => {
     const fake = install(
       tables({}, {
         orders: [
-          { id: ORDER, order_id: "SH-0001", tenant_id: TENANT, idempotency_key: "k-0001", price: 35000, discount_amount: 3500, delivery_fee: 5000 },
+          // Stored net of the discount (NEW-P1-12): 35,000 of lines − 3,500.
+          { id: ORDER, order_id: "SH-0001", tenant_id: TENANT, idempotency_key: "replay-k-0001", price: 31500, discount_amount: 3500, delivery_fee: 5000 },
         ],
       }),
     );
-    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M", idempotencyKey: "k-0001" });
+    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M", idempotencyKey: "replay-k-0001" });
     expect(res).toMatchObject({ success: true, orderId: ORDER, total: 36500 });
     expect(checks(fake)).toEqual([]);
     expect(attributions(fake)).toEqual([]);
@@ -214,13 +203,13 @@ describe("referral at checkout", () => {
       rpc: {
         referral_check: () => ({ data: [{ ok: true, reason: "ok", referrer_phone: REFERRER }], error: null }),
         create_order_atomic: () => ({
-          data: { id: ORDER, order_id: "SH-0001", price: 35000, discount_amount: 3500, delivery_fee: 5000, idempotent_replay: true },
+          data: { id: ORDER, order_id: "SH-0001", price: 31500, discount_amount: 3500, delivery_fee: 5000, idempotent_replay: true },
           error: null,
         }),
       },
     });
     vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
-    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M", idempotencyKey: "k-0002" });
+    const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M", idempotencyKey: "replay-k-0002" });
     expect(res.success).toBe(true);
     expect(fake.writes.filter((w) => w.table === "referrals")).toEqual([]);
   });
