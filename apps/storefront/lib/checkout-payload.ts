@@ -24,8 +24,11 @@ export const submitCheckoutPayloadSchema = z.object({
   couponCode: z.string().trim().min(1).max(64).optional(),
   /** Pixel Purchase event_id — reused by the CAPI server twin for dedup. */
   purchaseEventId: z.string().min(8).max(100).optional(),
-  /** Loyalty redemption request. Refused on this public path (see checkout.ts). */
+  /** Loyalty redemption request. Honoured only with `loyaltyOrderNumber` (see checkout.ts). */
   redeemPoints: z.number().int().min(0).optional(),
+  /** Loyalty: a previous order number of this phone in this store — the
+   *  proof a redemption needs, re-checked server-side (lib/loyalty-proof). */
+  loyaltyOrderNumber: z.string().trim().min(1).max(40).optional(),
   /** Referral: a friend's code; eligibility + amount are re-resolved server-side. */
   referralCode: z.string().min(1).max(32).optional(),
   customer: z.object({

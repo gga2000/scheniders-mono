@@ -1,10 +1,12 @@
 "use server";
 
+import { headers } from "next/headers";
 import {
   computeDeliveryFee,
   computeDiscount,
   stackDiscounts,
   computeBundleDiscounts,
+  computePointsRedemption,
   computeReferralDiscount,
   stampCodRisk,
   normalizeReferralCode,
@@ -22,6 +24,8 @@ import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-ga
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
 import { submitCheckoutPayloadSchema, type SubmitCheckoutPayload } from "@/lib/checkout-payload";
+import { clientIp } from "@/lib/rate-limit";
+import { verifyLoyaltyProof } from "@/lib/loyalty-proof";
 
 type CheckoutItem = SubmitCheckoutPayload["items"][number];
 
@@ -86,6 +90,35 @@ function isReplayRow(row: Record<string, unknown> | null): boolean {
   return row?.idempotent_replay === true;
 }
 
+const REDEMPTION_NEEDS_PROOF =
+  "لاستخدام النقاط اكتب رقم طلب سابق من نفس الرقم، أو أكمل طلبك بدون استخدام النقاط.";
+
+/** Why a points redemption is refused, or null when the phone is proven the
+ *  shopper's by a previous order of this store (lib/loyalty-proof). */
+async function loyaltyRedemptionRefusal(
+  tenantId: string,
+  phone: string,
+  orderNumber: string | undefined,
+): Promise<string | null> {
+  if (!orderNumber) return REDEMPTION_NEEDS_PROOF;
+  const proof = await verifyLoyaltyProof({
+    tenantId,
+    phone,
+    orderNumber,
+    ip: clientIp(await headers()),
+  });
+  switch (proof.kind) {
+    case "owned":
+      return null;
+    case "not_owned":
+      return REDEMPTION_NEEDS_PROOF;
+    case "rate_limited":
+      return "محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.";
+    case "unavailable":
+      return "تعذّر التحقق من النقاط. حاول مرة أخرى.";
+  }
+}
+
 /**
  * Creates an order in the platform DB via the create_order_atomic RPC, using
  * the service role client.
@@ -110,19 +143,6 @@ export async function submitCheckout(
     return { success: false, error: "السلة فارغة" };
   }
 
-  // Loyalty redemption is refused on this public path. The only identity
-  // checkout has is the phone number, which is not a secret: anyone who knows
-  // a customer's number could spend that customer's points as a discount on
-  // their own order. Redeeming needs a proof of identity the storefront does
-  // not have yet (e.g. a WhatsApp OTP) — a product decision. Earning is
-  // unaffected (credited by the database on delivery).
-  if (payload.redeemPoints && payload.redeemPoints > 0) {
-    return {
-      success: false,
-      error: "استبدال النقاط غير متاح حالياً. أكمل طلبك بدون استخدام النقاط.",
-    };
-  }
-
   // EC23: COD needs a reachable number. Validate as a real Iraqi mobile and
   // store the canonical 07XXXXXXXXX form — landlines, 0000000000, and
   // punctuation junk (which the old `length >= 10` check let through) become
@@ -137,6 +157,20 @@ export async function submitCheckout(
     : null;
   if (payload.customer.alt_phone && !altPhone) {
     return { success: false, error: "الرقم البديل غير صالح" };
+  }
+
+  // Loyalty redemption needs proof the phone is the shopper's. The phone
+  // number alone is not a secret: anyone who knows a customer's number could
+  // spend that customer's points as a discount on their own order. The proof
+  // is a previous order number of THIS store placed with THIS phone — the
+  // check /api/loyalty/balance makes before it shows the balance, re-made here
+  // (same lookup_order match, same tenant, same rate-limit buckets) because
+  // this action is a public endpoint and the client's word proves nothing.
+  // Without it the redemption is refused, before anything is read or written.
+  // Earning is unaffected (credited by the database on delivery).
+  if (payload.redeemPoints && payload.redeemPoints > 0) {
+    const refused = await loyaltyRedemptionRefusal(payload.tenantId, phone, payload.loyaltyOrderNumber);
+    if (refused) return { success: false, error: refused };
   }
 
   const supabase = createSupabaseServiceClient();
@@ -520,16 +554,55 @@ export async function submitCheckout(
 
   // Each engine caps itself at the subtotal; their SUM must be capped too, or a
   // coupon plus a bundle records a negative total. Applied in sequence, each
-  // against what the previous left.
+  // against what the previous left — and points are then priced against the
+  // remainder, so no points are spent on a discount the order cannot take.
   const [couponApplied, bundleApplied, referralApplied] = stackDiscounts(subtotal, [
     couponAmount,
     bundleSummary.total_amount_iqd,
     referralWanted,
   ]).applied;
+  const remainingForPoints = subtotal - couponApplied - bundleApplied - referralApplied;
+  // Loyalty: redeem the points the customer chose to spend — reached only
+  // with the proof checked above. Re-resolve against the PUBLISHED config +
+  // the AUTHORITATIVE balance, then deduct atomically (the RPC blocks an
+  // overdraw) BEFORE the order so the discount is baked into discount_amount;
+  // refunded below if the order then fails.
+  const loyaltyCfg = tenant.store_config_v2?.commerce?.loyalty;
+  let pointsUsed = 0;
+  let pointsDiscount = 0;
+  if (payload.redeemPoints && payload.redeemPoints > 0 && loyaltyCfg?.enabled) {
+    const { data: bal } = await supabase
+      .from("customer_points")
+      .select("balance")
+      .eq("tenant_id", payload.tenantId)
+      .eq("phone", phone)
+      .maybeSingle();
+    const redemption = computePointsRedemption({
+      balance: bal?.balance ?? 0,
+      requestedPoints: payload.redeemPoints,
+      subtotalIqd: remainingForPoints,
+      cfg: loyaltyCfg,
+    });
+    if (redemption.discount_iqd > 0) {
+      const { error: redeemErr } = await supabase.rpc("adjust_customer_points", {
+        _tenant_id: payload.tenantId,
+        _phone: phone,
+        _delta: -redemption.points_used,
+        _reason: "redeem",
+        _order_id: undefined,
+      });
+      if (!redeemErr) {
+        pointsUsed = redemption.points_used;
+        pointsDiscount = redemption.discount_iqd;
+      }
+    }
+  }
+
   const discountAmount = stackDiscounts(subtotal, [
     couponApplied,
     bundleApplied,
     referralApplied,
+    pointsDiscount,
   ]).total;
   // NEW-P1-12: `orders.price` is the line-item subtotal with the discount
   // ALREADY applied (apps/platform/lib/order-money.ts; the platform's own
@@ -604,8 +677,23 @@ export async function submitCheckout(
     _tenant_id: payload.tenantId,
   });
 
+  // Give back points deducted for a redemption this call did not end up using.
+  const refundRedemption = async (): Promise<void> => {
+    if (pointsUsed <= 0) return;
+    const { error: refundErr } = await supabase.rpc("adjust_customer_points", {
+      _tenant_id: payload.tenantId,
+      _phone: phone,
+      _delta: pointsUsed,
+      _reason: "redeem_refund",
+      _order_id: undefined,
+    });
+    if (refundErr) console.error("[checkout] points refund failed:", refundErr);
+  };
+
   if (error) {
     console.error("[checkout] create_order_atomic failed:", error);
+    // The order didn't go through.
+    await refundRedemption();
     return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
   }
 
@@ -615,8 +703,10 @@ export async function submitCheckout(
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
 
   // A concurrent submit with the same key placed the order first: this call
-  // got that order back, and none of a new order's side effects below apply.
+  // got that order back. Its redemption was never used — refund it — and
+  // none of a new order's side effects below apply.
   if (orderRow && orderId && isReplayRow(orderRow)) {
+    await refundRedemption();
     return replayResult({
       id: orderId,
       order_id: typeof orderRow.order_id === "string" ? orderRow.order_id : null,
@@ -645,7 +735,8 @@ export async function submitCheckout(
   // Loyalty earn is NOT credited here. A COD order placed is not an order
   // paid: points are credited by trg_loyalty_order_changed when the order
   // reaches delivered/completed, and taken back if it leaves that state
-  // (live migrations 20260909225706 + 20260909225854).
+  // (live migrations 20260909225706 + 20260909225854). Redemption above
+  // stays at placement because the discount is baked into the order total.
 
   // Abandoned-cart recovery: this phone just ordered — mark any pending cart
   // recovered so the WhatsApp reminder sweep skips it. Best-effort: a failure

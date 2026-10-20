@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Loyalty on the cart checkout: submitCheckout refuses a redemption backed
-// only by a phone number, so the form never looks a balance up or offers one.
+// Loyalty on the cart checkout: the balance is fetched only with a previous
+// order number of the shopper's phone (the route answers nothing without it).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
@@ -79,15 +79,57 @@ afterEach(() => {
 });
 
 describe("checkout_form loyalty", () => {
-  it("never looks up a points balance or offers a redemption, even for a valid phone", async () => {
+  it("does not look a phone up without a previous order number", async () => {
     render(element());
     fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
       target: { value: "07701234567" },
     });
     await settle();
-    expect(screen.queryByTestId("checkout-points-order")).toBeNull();
-    expect(document.querySelector('input[name="loyalty_order_number"]')).toBeNull();
+    expect(screen.getByTestId("checkout-points-order").textContent).toContain("رقم طلب سابق");
     expect(balanceCalls()).toEqual([]);
     expect(screen.queryByText(/لديك 40 نقطة/)).toBeNull();
+  });
+
+  it("shows the balance once the order number is in, and POSTs the proof", async () => {
+    render(element());
+    fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
+      target: { value: "07701234567" },
+    });
+    fireEvent.change(document.querySelector('input[name="loyalty_order_number"]') as HTMLInputElement, {
+      target: { value: "4260910007" },
+    });
+    await settle();
+    const [, init] = balanceCalls()[0] as [string, RequestInit];
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      tenant_id: TENANT,
+      phone: "07701234567",
+      order_number: "4260910007",
+    });
+    expect(screen.getByText(/لديك 40 نقطة/)).toBeTruthy();
+  });
+
+  it("sends the proving order number with the redemption, for the server to re-check", async () => {
+    render(element());
+    fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
+      target: { value: "07701234567" },
+    });
+    fireEvent.change(document.querySelector('input[name="loyalty_order_number"]') as HTMLInputElement, {
+      target: { value: " 4260910007 " },
+    });
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "استخدم الكل" }));
+    await act(async () => {
+      fireEvent.submit(document.querySelector("form") as HTMLFormElement);
+      await Promise.resolve();
+    });
+    const order = vi.mocked(fetch).mock.calls.find(([url]) => String(url) === "/api/checkout/orders") as
+      | [string, RequestInit]
+      | undefined;
+    expect(order).toBeDefined();
+    expect(JSON.parse(String(order?.[1].body))).toMatchObject({
+      redeem_points: 40,
+      loyalty_order_number: "4260910007",
+    });
   });
 });

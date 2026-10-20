@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// W5.2 — loyalty on the direct-order form: earn on delivery (worded as such —
-// the database credits it, never placement). Redemption is not offered: the
-// public checkout refuses a redemption backed only by a phone number.
+// W5.2 — loyalty on the direct-order form: redeem at checkout, earn on
+// delivery (worded as such — the database credits it, never placement).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
@@ -76,18 +75,45 @@ describe("pdp_direct_order loyalty (W5.2)", () => {
     expect(off).not.toContain("data-points-to-earn");
   });
 
-  it("never looks up a points balance or offers a redemption, even for a valid phone", async () => {
+  it("asks for a previous order number and never looks a phone up on its own", async () => {
     render(element());
+    expect(screen.queryByTestId("pdp-points-order")).toBeNull();
     fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
       target: { value: "07701234567" },
     });
     await act(async () => {
       vi.advanceTimersByTime(700);
       await Promise.resolve();
+    });
+    expect(screen.getByTestId("pdp-points-order").textContent).toContain("رقم طلب سابق");
+    const balanceCalls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes("/api/loyalty/balance"));
+    expect(balanceCalls).toEqual([]);
+    expect(screen.queryByTestId("pdp-redeem-points")).toBeNull();
+  });
+
+  it("fetches the balance for a valid phone + order number, lets the shopper redeem, and posts redeem_points", async () => {
+    render(element());
+    expect(screen.queryByTestId("pdp-redeem-points")).toBeNull();
+    fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
+      target: { value: "07701234567" },
+    });
+    fireEvent.change(document.querySelector('input[name="loyalty_order_number"]') as HTMLInputElement, {
+      target: { value: "4260910007" },
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+      await Promise.resolve();
+      await Promise.resolve();
       await Promise.resolve();
     });
-    expect(screen.queryByTestId("pdp-redeem-points")).toBeNull();
-    const calls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
-    expect(calls.some((u) => u.includes("/api/loyalty/balance"))).toBe(false);
+    const [, init] = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes("/api/loyalty/balance")) as [string, RequestInit];
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toMatchObject({ phone: "07701234567", order_number: "4260910007" });
+    const box = screen.getByTestId("pdp-redeem-points");
+    expect(box.textContent).toContain("عندك 40 نقطة");
+    fireEvent.click(screen.getByRole("button", { name: "استخدم الكل" }));
+    // 40 points × 100 IQD = 4,000 off a 25,500 subtotal.
+    expect(screen.getByTestId("pdp-redeem-points").textContent).toContain("خصم −");
+    expect(screen.getByTestId("pdp-redeem-points").textContent).toContain("4,000");
   });
 });

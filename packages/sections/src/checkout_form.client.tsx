@@ -30,6 +30,7 @@ import {
   computeDeliveryFee,
   computeDiscount,
   computeBundleDiscounts,
+  computePointsRedemption,
   pixelContentsFromItems,
   isValidIraqiMobile,
   normalizeIraqiMobile,
@@ -52,6 +53,7 @@ import { CenteredSectionHeader, ChunkyButton, MaterialIcon, WhatsAppButton } fro
 import { useCart } from "./helpers/cart-store";
 import { useStoreBase } from "./helpers/store-context";
 import { isPlausiblePhone, whatsappCartLink } from "./helpers/whatsapp";
+import { useLoyaltyBalance } from "./helpers/loyalty-balance";
 import { formatCount, formatPrice } from "./helpers/format";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./checkout_form";
@@ -85,12 +87,16 @@ const STRINGS = {
   optional: { en: "(optional)", ar: "(اختياري)", ku: "(ئارەزوومەندانە)" },
   paymentMethod: { en: "Payment method", ar: "طريقة الدفع", ku: "شێوازی پارەدان" },
   cod: { en: "Cash on delivery", ar: "الدفع عند الاستلام", ku: "پارەدان لە کاتی وەرگرتن" },
+  useAll: { en: "Use all", ar: "استخدم الكل", ku: "هەمووی بەکاربهێنە" },
   earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب", ku: "{points} بەدەست دەهێنیت کاتێک داواکارییەکەت دەگاتە دەستت" },
+  pointsOrderLabel: { en: "Have points? Enter a previous order number", ar: "عندك نقاط؟ اكتب رقم طلب سابق", ku: "خاڵت هەیە؟ ژمارەی داواکارییەکی پێشووت بنووسە" },
+  pointsOrderPlaceholder: { en: "Order number", ar: "رقم الطلب", ku: "ژمارەی داواکاری" },
   referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)", ku: "کۆدی هاوڕێ (ئارەزوومەندانە)" },
   referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M", ku: "نموونە: AB3K7M" },
   referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك", ku: "{amount} داشکاندن بە کۆدی هاوڕێکەت" },
   referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز.", ku: "ئەم کۆدە ناناسین." },
   referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم.", ku: "ئەم کۆدە لەگەڵ ئەم ژمارەیەدا کار ناکات." },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط", ku: "ژمارەی خاڵەکان بنووسە" },
   placeOrder: { en: "Place order", ar: "أكّد الطلب", ku: "داواکاری پشتڕاست بکەرەوە" },
   placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…", ku: "داواکارییەکەت پشتڕاست دەکرێتەوە…" },
   finePrint: {
@@ -229,6 +235,11 @@ export function CheckoutFormRender({
   // One Purchase event_id per submission — minted before the POST so the browser
   // pixel and the server CAPI twin share it (dedup); cleared on success.
   const purchaseEventIdRef = useRef<string | null>(null);
+  // Loyalty: the previous order number that proves the phone is the
+  // customer's (the balance route answers nothing without it) + how many
+  // points they redeem.
+  const [pointsOrderNumber, setPointsOrderNumber] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState(0);
   // Referral: the friend's code (from a shared ?ref= link or typed) and the
   // server's verdict on it. The amount is previewed from the published
   // program; the server re-checks eligibility and prices it again at submit.
@@ -406,16 +417,40 @@ export function CheckoutFormRender({
     bundleAmount,
     referralWanted,
   ]).applied;
-  // Loyalty points are not redeemable at checkout: the server refuses a
-  // redemption backed only by a phone number, since anyone who knows a
-  // customer's number could spend their points.
+  // Loyalty: preview the points redemption (server re-validates vs the
+  // authoritative balance + config and records the real discount). Priced
+  // against what the other discounts left, as the server prices it.
   const loyaltyCfg = commerce?.loyalty;
-  const discountAmount = couponApplied + bundleApplied + referralAmount;
+  const pointsBalance = useLoyaltyBalance({
+    enabled: loyaltyCfg?.enabled === true,
+    tenantId,
+    phone: form.phone,
+    orderNumber: pointsOrderNumber,
+  });
+  const pointsRedemption = computePointsRedemption({
+    balance: pointsBalance ?? 0,
+    requestedPoints: redeemPoints,
+    subtotalIqd: subtotal - couponApplied - bundleApplied - referralAmount,
+    cfg: loyaltyCfg,
+  });
+  const pointsDiscount = pointsRedemption.discount_iqd;
+  const discountAmount = stackDiscounts(subtotal, [
+    couponApplied,
+    bundleApplied,
+    referralAmount,
+    pointsDiscount,
+  ]).total;
   // Credited by the database on delivery, never at placement, on the order's
   // price — which is the subtotal net of discounts.
   const pointsToEarn = computePointsEarned(subtotal - discountAmount, loyaltyCfg);
   const total = subtotal - discountAmount + delivery;
   const returnsDays = commerce?.returns_policy?.window_days;
+
+  // Reset the chosen redemption when the phone or the proving order number
+  // changes, so a number cannot spend another's points.
+  useEffect(() => {
+    setRedeemPoints(0);
+  }, [form.phone, pointsOrderNumber]);
 
   const phone =
     (ctx.tenant as { contact_phone?: string | null } | undefined)
@@ -491,6 +526,10 @@ export function CheckoutFormRender({
           ...(couponCode ? { coupon_code: couponCode } : {}),
           ...(purchaseEventIdRef.current
             ? { event_id: purchaseEventIdRef.current }
+            : {}),
+          // The server re-checks the proving order number before it spends.
+          ...(redeemPoints > 0
+            ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
             : {}),
           ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
             ? { referral_code: normalizeReferralCode(referralCode) }
@@ -1011,6 +1050,81 @@ export function CheckoutFormRender({
                 <MaterialIcon name="loyalty" className="text-base" />
                 {s("earnOnDelivery").replace("{points}", formatPoints(pointsToEarn, locale))}
               </p>
+            )}
+
+            {/* Loyalty: a previous order number proves the phone is theirs */}
+            {loyaltyCfg?.enabled && normalizeIraqiMobile(form.phone) && (
+              <label className="block space-y-bk-xs" data-testid="checkout-points-order">
+                <span className="font-label font-bold text-xs text-bk-ink-soft">
+                  {s("pointsOrderLabel")}
+                </span>
+                <input
+                  name="loyalty_order_number"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  dir="ltr"
+                  value={pointsOrderNumber}
+                  onChange={(e) => setPointsOrderNumber(e.target.value)}
+                  placeholder={s("pointsOrderPlaceholder")}
+                  className="w-full px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                  style={inputStyle}
+                />
+              </label>
+            )}
+
+            {/* Loyalty points redemption */}
+            {loyaltyCfg?.enabled && (pointsBalance ?? 0) > 0 && (
+              <div
+                className="space-y-bk-xs p-bk-sm"
+                style={{
+                  backgroundColor: ACCENT_TINT,
+                  border: INK_BORDER,
+                  borderRadius: "var(--bk-radius-input, 0.75rem)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-bk-sm">
+                  <span className="font-display font-black text-sm bk-caps inline-flex items-center gap-2 tabular-nums">
+                    <MaterialIcon name="loyalty" className="text-xl" />
+                    {t
+                      ? `لديك ${pointsBalance} نقطة`
+                      : `You have ${pointsBalance} points`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRedeemPoints(pointsBalance ?? 0)}
+                    className="min-h-11 font-label font-bold text-xs bk-caps underline"
+                  >
+                    {s("useAll")}
+                  </button>
+                </div>
+                <div className="flex items-center gap-bk-sm" dir="ltr">
+                  <input
+                    type="number"
+                    min={0}
+                    max={pointsBalance ?? 0}
+                    inputMode="numeric"
+                    value={redeemPoints || ""}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const n = Math.max(
+                        0,
+                        Math.floor(Number(e.target.value) || 0),
+                      );
+                      setRedeemPoints(Math.min(n, pointsBalance ?? 0));
+                    }}
+                    className="w-24 px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                    style={inputStyle}
+                  />
+                  <span className="font-label font-bold text-sm tabular-nums">
+                    {pointsDiscount > 0
+                      ? t
+                        ? `خصم −${formatPrice(pointsDiscount, locale)}`
+                        : `−${formatPrice(pointsDiscount, locale)} off`
+                      : s("enterPoints")}
+                  </span>
+                </div>
+              </div>
             )}
 
             {/* Primary CTA with running total. Stays focusable while pending

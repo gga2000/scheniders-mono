@@ -49,6 +49,7 @@ import {
   etaForGovernorate,
   formatHours,
   computePointsEarned,
+  computePointsRedemption,
   formatPoints,
   computeReferralDiscount,
   normalizeReferralCode,
@@ -75,6 +76,7 @@ import {
 import { PRESSABLE } from "./helpers/utils";
 import { useStoreBase } from "./helpers/store-context";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
+import { useLoyaltyBalance } from "./helpers/loyalty-balance";
 import {
   formatCount,
   formatPrice,
@@ -135,6 +137,12 @@ const STRINGS = {
   deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}", ku: "گەیاندن لە ماوەی {eta}" },
   deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}", ku: "گەیاندن لە ماوەی {min} – {max}" },
   totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل", ku: "بەبێ گەیاندن" },
+  youHavePoints: { en: "You have {points}", ar: "عندك {points}", ku: "{points}ت هەیە" },
+  pointsOrderLabel: { en: "Have points? Enter a previous order number", ar: "عندك نقاط؟ اكتب رقم طلب سابق", ku: "خاڵت هەیە؟ ژمارەی داواکارییەکی پێشووت بنووسە" },
+  pointsOrderPlaceholder: { en: "Order number", ar: "رقم الطلب", ku: "ژمارەی داواکاری" },
+  useAll: { en: "Use all", ar: "استخدم الكل", ku: "هەمووی بەکاربهێنە" },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط", ku: "ژمارەی خاڵەکان بنووسە" },
+  pointsOff: { en: "{amount} off", ar: "خصم {amount}", ku: "{amount} داشکاندن" },
   earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب", ku: "{points} بەدەست دەهێنیت کاتێک داواکارییەکەت دەگاتە دەستت" },
   referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)", ku: "کۆدی هاوڕێ (ئارەزوومەندانە)" },
   referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M", ku: "نموونە: AB3K7M" },
@@ -425,6 +433,12 @@ export function PdpDirectOrderRender({
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
+  // Loyalty: the previous order number that proves the phone is the shopper's
+  // (the balance route answers nothing without it), and how many points they
+  // choose to spend. The server re-resolves the spend against the published
+  // config and the authoritative balance.
+  const [pointsOrderNumber, setPointsOrderNumber] = useState("");
+  const [redeemPoints, setRedeemPoints] = useState(0);
   // Which variant is being bought: chosen in a pdp_variants section, the
   // buy box, or the inline pills below (only when no picker is on the page).
   // Nothing is pre-selected — see helpers/variant-store.
@@ -475,6 +489,23 @@ export function PdpDirectOrderRender({
     const handle = setTimeout(() => setPriceFlashAt(null), 1200);
     return () => clearTimeout(handle);
   }, [priceFlashAt]);
+
+  // Loyalty balance: only for a phone + a previous order number of that
+  // phone (helpers/loyalty-balance). Called before the no-product return so
+  // the hook order never depends on it.
+  const pointsBalance = useLoyaltyBalance({
+    enabled:
+      (ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined)?.store_config_v2?.commerce?.loyalty
+        ?.enabled === true,
+    tenantId: ctx.tenant.id,
+    phone: form.phone,
+    orderNumber: pointsOrderNumber,
+  });
+  // Reset the chosen redemption when the phone or the proving order number
+  // changes, so a number cannot spend another's points.
+  useEffect(() => {
+    setRedeemPoints(0);
+  }, [form.phone, pointsOrderNumber]);
 
   if (!product) {
     if (process.env.NODE_ENV !== "production") {
@@ -647,16 +678,24 @@ export function PdpDirectOrderRender({
     referralState.kind === "valid"
       ? computeReferralDiscount(subtotal, { enabled: true, friend_discount_pct: referralState.pct, friend_max_discount_iqd: referralState.max ?? undefined })
       : 0;
-  // Capped the way the server stacks discounts, so the total shown is the
-  // total recorded. Loyalty points are not redeemable here: the server refuses
-  // a redemption backed only by a phone number, since anyone who knows a
-  // customer's number could spend their points.
-  const [referralAmount] = stackDiscounts(subtotal, [referralWanted]).applied;
+  // Points are priced against what the friend's discount left, and the two
+  // are stacked the way the server stacks them, so the sum never exceeds the
+  // subtotal and the total shown is the total recorded.
+  const pointsRedemption = computePointsRedemption({
+    balance: pointsBalance ?? 0,
+    requestedPoints: redeemPoints,
+    subtotalIqd: subtotal - Math.min(referralWanted, subtotal),
+    cfg: loyaltyCfg,
+  });
+  const [referralAmount, pointsDiscount] = stackDiscounts(subtotal, [
+    referralWanted,
+    pointsRedemption.discount_iqd,
+  ]).applied;
   // Credited by the database when the order is delivered — never at
   // placement — on the order's price, which is the subtotal net of discounts.
   // A promise about delivery, worded as one.
-  const pointsToEarn = computePointsEarned(subtotal - referralAmount, loyaltyCfg);
-  const total = subtotal - referralAmount + (displayedDelivery ?? 0);
+  const pointsToEarn = computePointsEarned(subtotal - referralAmount - pointsDiscount, loyaltyCfg);
+  const total = subtotal - referralAmount - pointsDiscount + (displayedDelivery ?? 0);
   const totalExcludesDelivery = displayedDelivery === null;
 
   const etaHours = chosenGovernorate
@@ -870,6 +909,10 @@ export function PdpDirectOrderRender({
           subtotal,
           locale,
           idempotency_key: idempotencyKeyRef.current,
+          // The server re-checks the proving order number before it spends.
+          ...(redeemPoints > 0
+            ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
+            : {}),
           ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
             ? { referral_code: normalizeReferralCode(referralCode) }
             : {}),
@@ -1850,6 +1893,69 @@ export function PdpDirectOrderRender({
                           : s("referralUnknown")}
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* ── Loyalty: a previous order number proves the phone is theirs ── */}
+            {loyaltyCfg?.enabled && normalizeIraqiMobile(form.phone) && (
+              <label className="block space-y-bk-xs" data-testid="pdp-points-order">
+                <span className="font-label text-xs font-bold text-bk-ink-soft">{s("pointsOrderLabel")}</span>
+                <input
+                  name="loyalty_order_number"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  dir="ltr"
+                  value={pointsOrderNumber}
+                  onChange={(e) => setPointsOrderNumber(e.target.value)}
+                  placeholder={s("pointsOrderPlaceholder")}
+                  className="w-full px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                  style={inputStyle}
+                />
+              </label>
+            )}
+
+            {/* ── Loyalty points redemption ── */}
+            {loyaltyCfg?.enabled && (pointsBalance ?? 0) > 0 && (
+              <div
+                data-testid="pdp-redeem-points"
+                className="space-y-bk-xs rounded-bk-input bg-bk-decor-a/40 p-bk-sm"
+              >
+                <div className="flex items-center justify-between gap-bk-sm">
+                  <span className="inline-flex items-center gap-2 font-display text-sm font-black tabular-nums text-bk-ink">
+                    <MaterialIcon name="loyalty" className="text-xl" />
+                    {s("youHavePoints").replace("{points}", formatPoints(pointsBalance ?? 0, locale))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRedeemPoints(pointsBalance ?? 0)}
+                    className="min-h-11 font-label text-xs font-bold underline"
+                  >
+                    {s("useAll")}
+                  </button>
+                </div>
+                <div className="flex items-center gap-bk-sm" dir="ltr">
+                  <input
+                    type="number"
+                    min={0}
+                    max={pointsBalance ?? 0}
+                    inputMode="numeric"
+                    aria-label={s("enterPoints")}
+                    value={redeemPoints || ""}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                      setRedeemPoints(Math.min(n, pointsBalance ?? 0));
+                    }}
+                    className="w-24 px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                    style={inputStyle}
+                  />
+                  <span className="font-label text-sm font-bold tabular-nums">
+                    {pointsDiscount > 0
+                      ? s("pointsOff").replace("{amount}", `−${formatPrice(pointsDiscount, locale)}`)
+                      : s("enterPoints")}
+                  </span>
+                </div>
               </div>
             )}
 
