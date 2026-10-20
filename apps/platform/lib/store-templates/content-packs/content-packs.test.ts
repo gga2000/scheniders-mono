@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { emptyStoreConfigV2, productAttributeDefSchema, type SectionInstance } from "@scheniders/shared";
 import { applyStoreTemplate, STORE_TEMPLATES, getStoreTemplate } from "../index";
-import { CONTENT_PACKS, applyContentPack, packCategoryRows, resolveContentPack } from "./index";
+import { CONTENT_PACKS, applyContentPack, packCategoryRows, resolveContentPack, resolvePackHeadings } from "./index";
 import { perfumePack } from "./perfume";
+import { buildStarterStoreConfigV2, STARTER_TEMPLATES } from "@/lib/starter-store";
+import { schenidersSignatureTemplate } from "../scheniders-signature";
 
 type I18nLeaf = { path: string; locale: string; text: string };
 
@@ -62,7 +64,7 @@ describe("content packs", () => {
             expect(p.faq.length).toBeGreaterThan(0);
             expect(p.pdp_policies.length).toBeGreaterThan(0);
             // No invented social proof: only the merchant's own words.
-            if (p.id !== "perfume") expect(p.testimonials).toEqual([]);
+            expect(p.testimonials, `${p.id} testimonials`).toEqual([]);
             // Tiles link to categories the pack actually seeds.
             const slugs = new Set(p.categories.map((c) => c.slug));
             expect(slugs.size).toBe(p.categories.length);
@@ -134,5 +136,58 @@ describe("content packs", () => {
         const pdp = baseOf(required(product.sections.find((s) => s.type === "pdp_direct_order"), "pdp_direct_order"));
         expect(pdp.delivery_sla_i18n).toEqual(resolveContentPack("fashion").delivery.sla_i18n);
         expect(JSON.stringify(cfg)).not.toContain(perfumePack.hero.headline_i18n.ar);
+    });
+
+    describe("no store but Scheniders' own speaks as Scheniders", () => {
+        // Scheniders' brand, address, socials, delivery promise, free-tester
+        // and return promises, and its real customers' words. None of it may
+        // reach another merchant's store, whatever look and niche they pick.
+        const FOREIGN = ["شنايدر", "Scheniders", "Schnieder", "kawkab", "زيونة", "Zayouna", "تيستر", "tester", "Tester", "18 ساعة", "18 hours", "نورين", "Noreen"];
+        const REVIEW_SECTIONS = new Set(["testimonial_cards", "testimonials_carousel"]);
+
+        function leaksIn(cfg: object): string[] {
+            const json = JSON.stringify(cfg);
+            return FOREIGN.filter((word) => json.includes(word));
+        }
+
+        it("the Scheniders template still carries them (the control for this test)", () => {
+            const own = applyStoreTemplate(emptyStoreConfigV2(), schenidersSignatureTemplate);
+            expect(leaksIn(own).length).toBeGreaterThan(0);
+        });
+
+        it("seeds every look × every niche with none of them and no reviews", () => {
+            for (const template of STARTER_TEMPLATES) {
+                for (const pack of CONTENT_PACKS) {
+                    const cfg = buildStarterStoreConfigV2({ templateId: template.id, packId: pack.id, businessName: "متجر الواحة" });
+                    expect(leaksIn(cfg), `${template.id} × ${pack.id}`).toEqual([]);
+                    for (const page of cfg.pages) {
+                        for (const section of page.sections) {
+                            if (!REVIEW_SECTIONS.has(section.type)) continue;
+                            expect((section.base as { items?: unknown[] }).items ?? [], `${template.id} × ${pack.id} ${page.page_id}/${section.type}`).toEqual([]);
+                        }
+                    }
+                }
+            }
+        });
+
+        it("seeds a perfume store found by its industry name with none of them", () => {
+            for (const industryId of ["عطور", "Perfume & Fragrance"]) {
+                const cfg = buildStarterStoreConfigV2({ templateId: "scheniders_signature", industryId, businessName: "Oasis Scents" });
+                expect(cfg.template?.pack_id).toBe("perfume");
+                expect(leaksIn(cfg), industryId).toEqual([]);
+            }
+        });
+
+        it("the registry's Signature look carries none of them before any pack is laid on", () => {
+            const direction = required(getStoreTemplate("scheniders_signature"), "scheniders_signature");
+            expect(leaksIn(applyStoreTemplate(emptyStoreConfigV2(), direction))).toEqual([]);
+        });
+
+        it("replaces the Signature section headings with the chosen pack's", () => {
+            const cfg = buildStarterStoreConfigV2({ templateId: "scheniders_signature", packId: "coffee", businessName: "بن الرافدين" });
+            const home = required(cfg.pages.find((p) => p.page_id === "home"), "home page");
+            const pillars = baseOf(required(home.sections.find((s) => s.type === "pillars_grid"), "pillars_grid"));
+            expect(pillars.title_i18n).toEqual(resolvePackHeadings(resolveContentPack("coffee")).pillars.title_i18n);
+        });
     });
 });

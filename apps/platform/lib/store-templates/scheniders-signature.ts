@@ -9,12 +9,13 @@
 //
 // Two builds of the same direction:
 //   - `signatureDirection` — the registry entry every merchant can pick,
-//     built with the perfume pack's copy and no merchant facts; onboarding
-//     overlays the merchant's own pack on top.
+//     built with the neutral perfume pack's copy and no merchant facts;
+//     onboarding overlays the merchant's own pack on top.
 //   - `schenidersSignatureTemplate` — Scheniders' own store: the same
-//     direction plus the merchant's facts (logo, legal name, address,
-//     socials, customer screenshots, legal pages). Pinned by the parity
-//     snapshot so a refactor here can never drift its published config.
+//     direction with Scheniders' own words (./scheniders-words.ts) and
+//     facts (logo, legal name, address, socials, customer screenshots,
+//     legal pages). Pinned by the parity snapshot so a refactor here can
+//     never drift its published config.
 // =====================================================================
 
 import type { I18nString } from "@scheniders/shared";
@@ -22,6 +23,8 @@ import type { StoreTemplate } from "./types";
 import { makeSectionFactory, commercePages } from "./common";
 import type { ContentPack } from "./content-packs/types";
 import { perfumePack } from "./content-packs/perfume";
+import { resolvePackContact, resolvePackHeadings } from "./content-packs/headings";
+import { SCHENIDERS_WORDS } from "./scheniders-words";
 
 const s = makeSectionFactory("scheniders_signature");
 
@@ -299,10 +302,10 @@ const FOOTER_LINKS = [
 
 /** Build the direction from a pack's words (and, for one merchant, its facts). */
 export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFacts): StoreTemplate {
-    // perfumePack is declared `satisfies ContentPack`, so its optional
-    // headings and contact are known to be present.
-    const H = pack.headings ?? perfumePack.headings;
-    const contact = pack.contact ?? perfumePack.contact;
+    // A pack without its own headings or contact copy gets the neutral set —
+    // never another pack's, and never Scheniders' own.
+    const H = resolvePackHeadings(pack);
+    const contact = resolvePackContact(pack);
     const trustTop = pack.trust.map((label_i18n, i) => ({ icon_url: TRUST_ICONS[i], label_i18n }));
     const trustBottom = (pack.trust_bottom ?? pack.trust).map((label_i18n, i) => ({ icon_url: TRUST_ICONS[i], label_i18n }));
     const pillars = (set: typeof pack.pillars) => set.map((p, i) => ({ icon_url: PILLAR_ICONS[i], title_i18n: p.title_i18n, body_i18n: p.body_i18n }));
@@ -596,8 +599,15 @@ export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFact
     };
 }
 
-/** The registry entry: the flagship look with the perfume pack's words, no merchant facts. */
+/**
+ * The registry entry: the flagship look with the neutral perfume pack's
+ * words and no merchant facts. Onboarding lays the merchant's own pack over
+ * it, headings included.
+ */
 export const signatureDirection: StoreTemplate = buildSignatureDirection(perfumePack);
 
-/** Scheniders' own store — direction + the merchant's facts. Parity-pinned. */
-export const schenidersSignatureTemplate: StoreTemplate = buildSignatureDirection(perfumePack, SCHENIDERS_FACTS);
+/**
+ * Scheniders' own store — the direction with Scheniders' own words and
+ * facts. Parity-pinned. The only build that may name Scheniders.
+ */
+export const schenidersSignatureTemplate: StoreTemplate = buildSignatureDirection(SCHENIDERS_WORDS, SCHENIDERS_FACTS);

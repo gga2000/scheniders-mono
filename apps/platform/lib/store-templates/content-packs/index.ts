@@ -11,8 +11,10 @@ import { beautyPack } from "./beauty";
 import { electronicsPack } from "./electronics";
 import { foodPack } from "./food";
 import { servicesPack } from "./services";
+import { resolvePackContact, resolvePackHeadings } from "./headings";
 
-export type { ContentPack, PackAttribute, PackCategory } from "./types";
+export type { ContentPack, PackAttribute, PackCategory, PackContact, PackHeadings } from "./types";
+export { NEUTRAL_CONTACT, NEUTRAL_HEADINGS, resolvePackContact, resolvePackHeadings } from "./headings";
 
 export const CONTENT_PACKS: ContentPack[] = [
     perfumePack,
@@ -71,6 +73,11 @@ const trustPill = (label: I18nString, i: number) => ({ label_i18n: label, icon: 
  */
 export function applyContentPack(cfg: StoreConfigV2, pack: ContentPack): void {
     const policies = pack.policies;
+    // Section headings are copy too: a direction's own titles may name its
+    // niche or its store ("Why Scheniders?"), so they are replaced with the
+    // pack's — or the neutral set — wherever the section carries them.
+    const H = resolvePackHeadings(pack);
+    const contact = resolvePackContact(pack);
     const pillarsFor = (pageId: PageId) => (pageId === "about" ? (pack.pillars_about ?? pack.pillars) : pack.pillars);
     const trustBottom = pack.trust_bottom ?? pack.trust;
     let seenHomeTrust = false;
@@ -100,6 +107,9 @@ export function applyContentPack(cfg: StoreConfigV2, pack: ContentPack): void {
                 Object.assign(b, { quote_i18n: pack.founder.quote_i18n, founder_role_i18n: pack.founder.role_i18n });
                 break;
             case "pillars_grid":
+                Object.assign(b, pageId === "about" ? H.pillars_about : H.pillars);
+                b.items = zipItems(b.items, pillarsFor(pageId as PageId).map((p) => ({ title_i18n: p.title_i18n, body_i18n: p.body_i18n })));
+                break;
             case "feature_grid":
                 b.items = zipItems(b.items, pillarsFor(pageId as PageId).map((p) => ({ title_i18n: p.title_i18n, body_i18n: p.body_i18n })));
                 break;
@@ -121,13 +131,18 @@ export function applyContentPack(cfg: StoreConfigV2, pack: ContentPack): void {
             case "faq_accordion":
                 b.items = pageId === "about" ? pack.faq_orders : pageId === "faq" ? [...pack.faq, ...pack.faq_orders] : pack.faq;
                 break;
-            case "faq_contact_split":
+            case "faq_contact_split": {
                 b.items = pageId === "about" ? pack.faq_orders : pageId === "faq" ? [...pack.faq, ...pack.faq_orders] : pack.faq;
-                if (pack.contact) {
-                    const c = pageId === "home" || pageId === "contact" || pageId === "faq" ? pack.contact.home : pack.contact.more;
-                    b.contact = { ...(b.contact as Base | undefined), ...c };
-                }
+                const near = pageId === "home" || pageId === "contact" || pageId === "faq";
+                b.contact = { ...(b.contact as Base | undefined), ...(near ? contact.home : contact.more) };
+                Object.assign(
+                    b,
+                    pageId === "contact"
+                        ? H.contact_page
+                        : { eyebrow_i18n: H.faq.eyebrow_i18n, title_i18n: H.faq.title_i18n, sub_i18n: pageId === "home" || pageId === "faq" ? H.faq.sub_i18n : H.faq.sub_more_i18n },
+                );
                 break;
+            }
             case "delivery_promise":
                 b.inspection_text_i18n = pack.delivery.inspection_i18n;
                 break;
@@ -149,9 +164,11 @@ export function applyContentPack(cfg: StoreConfigV2, pack: ContentPack): void {
                 }
                 break;
             case "category_spotlight_pair":
+                Object.assign(b, H.spotlights);
                 b.items = zipItems(b.items, pack.spotlights.map((c) => ({ label_i18n: c.name_i18n, href: `/categories/${c.slug}` })));
                 break;
             case "collection_trio":
+                Object.assign(b, H.collections);
                 b.items = zipItems(b.items, pack.collections.map((c) => ({ title_i18n: c.title_i18n, sub_i18n: c.sub_i18n, cta_label_i18n: c.cta_label_i18n, href: `/categories/${c.slug}` })));
                 break;
             case "testimonials_carousel":
@@ -159,6 +176,7 @@ export function applyContentPack(cfg: StoreConfigV2, pack: ContentPack): void {
                 b.items = pack.testimonials.map((t) => ({ author_name: t.name_i18n.ar ?? t.name_i18n.en ?? "", author_city: "", avatar_url: undefined, rating: 5, quote_i18n: t.quote_i18n, verified: true }));
                 break;
             case "testimonial_cards":
+                Object.assign(b, H.testimonials);
                 b.items = pack.testimonials.map((t) => ({ name_i18n: t.name_i18n, quote_i18n: t.quote_i18n }));
                 break;
             case "press_quotes":

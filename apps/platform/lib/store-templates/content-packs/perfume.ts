@@ -1,62 +1,24 @@
-// Perfume — the flagship's own niche. Copy is the Scheniders storefront's,
-// word for word (the parity test pins it); the categories and attributes
-// are the taxonomy a perfume store filters by.
+// Perfume — the niche pack a perfume merchant's store starts from: copy,
+// starter categories and the attributes a perfume store filters by.
+//
+// It names no store and makes no promise a merchant would have to keep on
+// Scheniders' behalf (no free tester, no week-long trial, no 18-hour
+// delivery) and carries no customer quotes: testimonials stay empty until
+// the merchant has real ones. Scheniders' own words live in
+// ../scheniders-words.ts and only reach Scheniders' store.
 import type { ContentPack } from "./types";
 
-/** One delivery promise for the whole store. The original funnel said 14h,
- *  18h and 24h on different surfaces; 18h is what the merchant commits to. */
 const SLA = {
-    ar: "أغلب الطلبات توصل خلال 18 ساعة من تثبيت الطلب",
-    en: "Most orders arrive within 18 hours of confirmation",
+    ar: "بغداد خلال يوم، وبقية المحافظات خلال ١–٣ أيام",
+    en: "Baghdad within a day, other governorates in 1–3 days",
 };
 
-const FAQ_HOME = [
-    {
-        q_i18n: { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
-        a_i18n: {
-            ar: "يتم الدفع حصراً بعد استلام العطر واختباره من خلال زجاجة الاختبار المرفقة مجاناً مع كل عطر",
-            en: "Payment happens only after you receive the perfume and try it via the free tester bottle included with every order.",
-        },
-    },
-    {
-        q_i18n: { ar: "شكد يطول الشحن؟", en: "How long does delivery take?" },
-        a_i18n: {
-            ar: "جميع الطلبات يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز",
-            en: "All orders are delivered within 18 hours of confirming the reservation.",
-        },
-    },
-];
-
-const FAQ_ORDERS = [
-    {
-        q_i18n: { ar: "كيف يمكنني إلغاء طلب؟", en: "How can I cancel an order?" },
-        a_i18n: {
-            ar: "نحن قادرون فقط على إلغاء الطلبات في غضون الـ 12 ساعة الأولى بعد تقديم الطلب. وبعد ذلك تمت معالجة الطلب على الأرجح والاستعداد للشحن. نحن نعتذر عن أي إزعاج قد يسببه هذا الأمر، لكننا نفخر بتقديم الخدمة السريعة وهذا يشمل إخراج طلباتك في أسرع وقت ممكن.",
-            en: "Orders can only be cancelled within the first 12 hours — after that they are likely processed and being prepared for shipping. We apologise for any inconvenience; fast service means your order goes out as quickly as possible.",
-        },
-    },
-    {
-        q_i18n: { ar: "كم تستغرق عملية الشحن من الوقت؟", en: "How long does shipping take?" },
-        a_i18n: {
-            ar: "جميع الطلبات داخل العراق يتم توصيلها خلال اقل من 18 ساعة من تاريخ تثبيت الحجز.",
-            en: "All orders inside Iraq are delivered within 18 hours of confirmation.",
-        },
-    },
-    {
-        q_i18n: { ar: "متى سوف يشحن طلبي؟", en: "When will my order ship?" },
-        a_i18n: {
-            ar: "تتم معالجة الطلبات وشحنها عادة في نفس يوم تثبيت الطلب.",
-            en: "Orders are usually processed and shipped the same day they are confirmed.",
-        },
-    },
-];
-
-export const perfumePack = {
+export const perfumePack: ContentPack = {
     id: "perfume",
     name_i18n: { ar: "عطور", en: "Perfume" },
     description_i18n: {
-        ar: "عطور أصلية، تيستر مع كل طلب، تجرّب قبل ما تدفع.",
-        en: "Authentic perfumes, a tester with every order, try before you pay.",
+        ar: "عطور أصلية مختومة، تفتحها وتتأكد منها قبل ما تدفع.",
+        en: "Authentic, sealed perfumes you open and check before you pay.",
     },
     match: [/perfume|fragrance|scent|عطر|عطور/i],
 
@@ -69,154 +31,152 @@ export const perfumePack = {
         cta_label_i18n: { ar: "مجموعتنا", en: "Our collection" },
     },
     story: {
-        title_i18n: { ar: "منو شنايدر؟", en: "Who is Scheniders?" },
+        title_i18n: { ar: "قصتنا", en: "Our story" },
         body_i18n: {
-            ar: "متجر عطور من بغداد، نختار عطورنا يدوياً من أفخم الدور العالمية ونجرّبها بأنفسنا قبل ما توصلكم. تيستر مجاني مع كل طلب، دفع عند الاستلام، وترجيع خلال أسبوع.",
-            en: "A perfume house from Baghdad. We hand-pick from the world's finest houses and wear-test every scent ourselves. Free tester with every order, cash on delivery, returns within a week.",
+            ar: "متجر عطور عراقي، نختار عطورنا بأنفسنا ونجرّبها قبل ما نعرضها. كل عطر أصلي ومختوم، الدفع عند الاستلام، والتوصيل لكل المحافظات.",
+            en: "An Iraqi perfume store. We choose our perfumes ourselves and wear them before we list them. Every bottle is authentic and sealed, cash on delivery, to every governorate.",
         },
     },
     about: {
         title_i18n: { ar: "منو احنا", en: "Who we are" },
         body_i18n: {
-            ar: "شنايدر متجر عطور من بغداد. نختار عطورنا يدوياً من أفخم الدور العالمية، ونجرّب كل عطر بأنفسنا قبل ما يوصلكم. كل طلب يجيك وياه تيستر مجاني تجرّبه بحضور المندوب، وإذا ما عجبك ترجّعه خلال أسبوع وتستلم فلوسك كاملة. الدفع عند الاستلام، والتوصيل لكل المحافظات.",
-            en: "Scheniders is a perfume house from Baghdad. We hand-pick from the world's finest houses and wear-test every scent ourselves before it reaches you. Every order ships with a free tester to try with the courier present; if it isn't for you, return it within a week for a full refund. Cash on delivery, to every governorate.",
+            ar: "متجر عطور عراقي. نختار عطورنا بأنفسنا ونجرّب كل عطر قبل ما نعرضه. كل قنينة أصلية ومختومة، تفتحها وتتأكد منها بحضور المندوب قبل ما تدفع، والتوصيل لكل المحافظات.",
+            en: "An Iraqi perfume store. We choose our perfumes ourselves and wear-test each one before we list it. Every bottle is authentic and sealed; you open and check it with the courier present before you pay. Delivery to every governorate.",
         },
     },
     founder: {
         quote_i18n: {
-            ar: "نجرّب كل عطر بأنفسنا قبل ما يوصلكم — العطر اللي ما يثبت طول اليوم ما يدخل المتجر.",
-            en: "We wear-test every perfume ourselves before it reaches you — a scent that fades through the day never makes the store.",
+            ar: "نجرّب كل عطر بأنفسنا — العطر اللي ما يثبت طول اليوم ما ينعرض عدنا.",
+            en: "We wear-test every perfume ourselves — a scent that fades through the day never makes our shelf.",
         },
         role_i18n: { ar: "المؤسِّس", en: "Founder" },
     },
     pillars: [
         {
-            title_i18n: { ar: "الجودة الفائقة", en: "Superior quality" },
+            title_i18n: { ar: "عطور أصلية", en: "Authentic perfumes" },
             body_i18n: {
-                ar: "عطورنا نختارهم فقط وحصرياً من اعلى جودة زيوت عطرية, اي شي دون الفئة العليا بالخامات العطرية ما نتقرب الها",
-                en: "We choose only the highest-grade fragrance oils — anything below the top tier never makes the cut.",
+                ar: "كل عطر أصلي ومختوم، وتتأكد من الختم بحضور المندوب قبل ما تدفع.",
+                en: "Every perfume is authentic and sealed; you check the seal with the courier present before you pay.",
             },
         },
         {
-            title_i18n: { ar: "القيمة مقابل السعر", en: "Value for money" },
+            title_i18n: { ar: "سعر عادل", en: "Fair price" },
             body_i18n: {
-                ar: "على عكس بقية الشركات نحرص على تسعير عطورنا بارقام عادلة, مستحيل نخلي سعر على عطر احنا ما مستعدين ندفعها بيه",
-                en: "Unlike others we price fairly — we would never charge a price we would not pay ourselves.",
+                ar: "أسعار واضحة بدون رسوم مخفية، وأجرة التوصيل تنعرض قبل ما تأكد.",
+                en: "Clear prices with no hidden fees; the delivery fee shows before you confirm.",
             },
         },
         {
-            title_i18n: { ar: "الادامة", en: "Longevity" },
+            title_i18n: { ar: "ثبات وفوحان", en: "Longevity and sillage" },
             body_i18n: {
-                ar: "من اكثر الشروط الي معقدة عملنا هو حرصنا على اختبار العطور بصورة شخصية بانفسنا, ونعرضهم لمجموعة اختبارات سيطرة نوعية. العطر اللي ما يحافظ على اداءه وفوحانه اثناء اليوم يتم رفضه",
-                en: "We personally test every perfume through a battery of quality checks — any scent that fades through the day is rejected.",
-            },
-        },
-    ],
-    pillars_about: [
-        {
-            title_i18n: { ar: "تجرّب قبل ما تدفع", en: "Try before you pay" },
-            body_i18n: {
-                ar: "كل طلب يجيك وياه تيستر زجاجي مجاني تجرّبه بحضور المندوب. إذا ما عجبك، ترجّعه وتستلم فلوسك كاملة خلال أسبوع.",
-                en: "Every order arrives with a free glass tester you try with the courier present. Not for you? Return it within a week for a full refund.",
-            },
-        },
-        {
-            title_i18n: { ar: "سعر عادل، بدون مبالغة", en: "Fair prices, no markup games" },
-            body_i18n: {
-                ar: "نسعّر عطورنا بأرقام نقتنع بيها احنا قبلكم — مستحيل نحط سعر على عطر ما مستعدين ندفعه بأنفسنا.",
-                en: "We price at numbers we would pay ourselves — never a price we wouldn't pay for the same bottle.",
-            },
-        },
-        {
-            title_i18n: { ar: "توصيل سريع لكل المحافظات", en: "Fast delivery to every governorate" },
-            body_i18n: {
-                ar: `${SLA.ar}، والدفع عند الاستلام بعد ما تفحص الطلب.`,
-                en: `${SLA.en}, cash on delivery after you inspect the order.`,
+                ar: "نكتب الثبات والفوحان لكل عطر حتى تعرف شنو تشتري قبل ما تطلب.",
+                en: "We list each perfume's longevity and sillage so you know what you are buying before you order.",
             },
         },
     ],
     trust: [
-        { ar: "توصيل سريع", en: "Fast delivery" },
-        { ar: "ضمان الجودة", en: "Quality guarantee" },
-        { ar: "متوفر بالعراق", en: "Available in Iraq" },
-        { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
-    ],
-    trust_bottom: [
-        // "توصيل مجاني" (the original label) contradicted the per-governorate
-        // delivery fee the checkout actually charges — kept truthful instead.
+        { ar: "عطور أصلية", en: "Authentic perfumes" },
         { ar: "توصيل لكل المحافظات", en: "Delivery to every governorate" },
-        { ar: "خدمة العملاء", en: "Customer care" },
-        { ar: "متوفر بالعراق", en: "Available in Iraq" },
+        { ar: "افتح وتأكد قبل ما تدفع", en: "Check before you pay" },
         { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
     ],
-    faq: FAQ_HOME,
-    faq_orders: FAQ_ORDERS,
+    faq: [
+        {
+            q_i18n: { ar: "أكدر أدفع عند الاستلام؟", en: "Can I pay on delivery?" },
+            a_i18n: {
+                ar: "نعم — تدفع كاش للمندوب بعد ما تفتح الطلب وتتأكد من العطر والختم.",
+                en: "Yes — you pay the courier in cash after opening the order and checking the perfume and its seal.",
+            },
+        },
+        {
+            q_i18n: { ar: "شكد يطول التوصيل؟", en: "How long does delivery take?" },
+            a_i18n: { ar: SLA.ar, en: SLA.en },
+        },
+        {
+            q_i18n: { ar: "العطور أصلية؟", en: "Are the perfumes authentic?" },
+            a_i18n: {
+                ar: "كل عطر أصلي ويوصلك مختوم. إذا الختم مفتوح أو العطر مو مثل الوصف، ترجعه للمندوب وما تدفع.",
+                en: "Every perfume is authentic and arrives sealed. If the seal is broken or it isn't as described, hand it back to the courier and pay nothing.",
+            },
+        },
+    ],
+    faq_orders: [
+        {
+            q_i18n: { ar: "كيف ألغي طلبي؟", en: "How do I cancel an order?" },
+            a_i18n: {
+                ar: "تكدر تلغي خلال أول ١٢ ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
+                en: "You can cancel within the first 12 hours over WhatsApp. After that the order has usually shipped.",
+            },
+        },
+        {
+            q_i18n: { ar: "متى يوصل طلبي؟", en: "When will my order arrive?" },
+            a_i18n: {
+                ar: "بغداد عادة خلال يوم، وبقية المحافظات خلال ١–٣ أيام من تثبيت الطلب.",
+                en: "Baghdad usually within a day; other governorates within 1–3 days of confirmation.",
+            },
+        },
+        {
+            q_i18n: { ar: "شلون أتابع طلبي؟", en: "How do I track my order?" },
+            a_i18n: {
+                ar: "من صفحة تتبع الطلب برقم هاتفك ورقم الطلب، أو راسلنا على واتساب.",
+                en: "From the order-tracking page with your phone and order number, or message us on WhatsApp.",
+            },
+        },
+    ],
     delivery: {
         sla_i18n: SLA,
         inspection_i18n: {
-            ar: "افتح الطلب وتأكد قبل ما تدفع — والتيستر هدية وياه",
-            en: "Open and check your order before you pay — tester included",
+            ar: "افتح الطلب وتأكد من العطر والختم قبل ما تدفع",
+            en: "Open your order and check the perfume and its seal before you pay",
         },
         reassurance_i18n: {
-            ar: "تفتح وتجرب قبل ما تدفع — والتيستر هدية وياه",
-            en: "Open it and try it before you pay — tester included",
+            ar: "تفتح وتتأكد قبل ما تدفع — الدفع عند الاستلام",
+            en: "Open and check before you pay — cash on delivery",
         },
     },
     pdp_policies: [
         {
-            title_i18n: { ar: "سياسة الدفع عند الاستلام", en: "Cash-on-delivery policy" },
+            title_i18n: { ar: "الدفع عند الاستلام", en: "Cash on delivery" },
             body_i18n: {
-                ar: "يتم الدفع حصراً بعد استلام العطر واختباره من خلال العينة الزجاجية المرفقة مجاناُ مع كل طلب.",
-                en: "Payment happens only after receiving the perfume and testing it via the free glass sample included with every order.",
+                ar: "تدفع كاش للمندوب بعد ما تفتح الطلب وتتأكد من العطر والختم. ما تدفع ولا دينار مقدماً.",
+                en: "Pay the courier in cash after you open the order and check the perfume and its seal. Nothing is paid up front.",
             },
         },
         {
-            title_i18n: { ar: "شحن فائق السرعة", en: "Ultra-fast shipping" },
-            body_i18n: { ar: `${SLA.ar}.`, en: `${SLA.en}.` },
-        },
-        {
-            title_i18n: { ar: "كرت الضمان المميز و سياسة الاسترجاع", en: "Premium warranty card & return policy" },
+            title_i18n: { ar: "التوصيل", en: "Delivery" },
             body_i18n: {
-                ar: "عند استلام المنتج يتم التأكد من الجودة والمواصفات والفوحان والثبات بحضور المندوب, اي اختلاف يحق للزبون رفض المنتج ويتم ارجاع قيمته كاملة.\n\nويحق للزبون استعمال العطر والاحتفاظ به لمدة اسبوع كامل من تاريخ استلام الطلب واختباره من راحة منزله. ان لم تعجبه التجربة العطرية او اكتشافه لفرق بالمواصفات المذكورة يحق له ارجاع العطر واستلام قيمته من قبلنا.",
-                en: "On delivery, quality, projection and longevity are verified with the courier present — any mismatch entitles you to refuse the product for a full refund.\n\nYou may keep and test the perfume for a full week from delivery; if the experience disappoints or the specs differ, return it for a full refund.",
+                ar: "بغداد خلال يوم، وبقية المحافظات خلال ١–٣ أيام من تثبيت الطلب. أجرة التوصيل تنعرض قبل ما تأكد.",
+                en: "Baghdad within a day, other governorates in 1–3 days of confirmation. The delivery fee shows before you confirm.",
             },
         },
         {
-            title_i18n: { ar: "عطور اصلية", en: "Authentic perfumes" },
+            title_i18n: { ar: "الاستبدال والإرجاع", en: "Exchange and returns" },
             body_i18n: {
-                ar: "جميع عطورنا مختارة يدوياً وبعناية من افخم المصادر العالمية, ومن اجود انواع العطور والخامات العطرية. لا نتعامل بالعطور التركية المصنعة بالجملة او العطور الصينية الرديئة",
-                en: "Every perfume is hand-picked from premium global sources and the finest aromatic materials. We never deal in bulk-made or low-grade imitations.",
+                ar: "إذا وصل العطر غير مطابق أو مفتوح الختم، راسلنا خلال 3 أيام ونستبدله أو نرجع المبلغ.",
+                en: "If the perfume arrives not as described or with a broken seal, message us within 3 days and we exchange it or refund you.",
             },
         },
         {
-            title_i18n: { ar: "خدمة العملاء", en: "Customer care" },
+            title_i18n: { ar: "خدمة الزبائن", en: "Customer care" },
             body_i18n: {
-                ar: "سولف ويانا ! احنا موجودين بأي وقت وبكل وقت حتى نجاوب بكل حب ع اسئلتكم واستفساراتكم من خلال الواتساب",
-                en: "Talk to us! We are available around the clock to answer your questions with love, over WhatsApp.",
+                ar: "راسلنا على واتساب بأي وقت — نرد بسرعة ونتابع طلبك لحد ما يوصل.",
+                en: "Message us on WhatsApp any time — we answer fast and follow your order until it arrives.",
             },
         },
     ],
     pdp: {
         urgency_i18n: {
-            ar: "هذا العطر عليه طلب كبير ✨ سارع بالطلب — باقي {count} قطع فقط",
-            en: "This perfume is in high demand ✨ order fast — only {count} left",
+            ar: "هذا العطر عليه طلب كبير — باقي {count} قطع فقط",
+            en: "This perfume is in high demand — only {count} left",
         },
-        feature_title_i18n: { ar: "شنو يميز هاي العطر عن غيره؟", en: "What makes this scent special?" },
+        feature_title_i18n: { ar: "شنو يميز هذا العطر؟", en: "What makes this scent special?" },
     },
     bestsellers: {
-        eyebrow_i18n: { ar: "الأكثر مبيعا", en: "Best sellers" },
-        heading_i18n: { ar: "اكثر العطور مبيعاً", en: "Our best-selling perfumes" },
+        eyebrow_i18n: { ar: "الأكثر مبيعاً", en: "Best sellers" },
+        heading_i18n: { ar: "أكثر العطور مبيعاً", en: "Our best-selling perfumes" },
         sub_i18n: {
-            ar: "تجميعة من اكثر العطور اللي حبوهم زبائنا",
-            en: "A lineup of the perfumes our customers loved most",
-        },
-    },
-    bestsellers_pdp: {
-        eyebrow_i18n: { ar: "القطع المميزة لهذا الشهر", en: "This month's standouts" },
-        heading_i18n: { ar: "اكثر منتجاتنا مبيعاً", en: "Our best sellers" },
-        sub_i18n: {
-            ar: "شوف تشكيلة من اكثر العطور اللي حبوها زبائنا",
-            en: "A selection of the perfumes our customers loved most",
+            ar: "العطور اللي حبوها زبائننا أكثر شي",
+            en: "The perfumes our customers loved most",
         },
     },
     spotlights: [
@@ -244,73 +204,10 @@ export const perfumePack = {
         },
     ],
     tagline_i18n: {
-        ar: "عطور فخمة فائقة الجودة بأسعار تنافسية",
-        en: "Premium, top-quality perfumes at competitive prices",
+        ar: "عطور أصلية بأسعار عادلة",
+        en: "Authentic perfumes at fair prices",
     },
-    contact: {
-        home: {
-            title_i18n: { ar: "عندك استفسار", en: "Have a question?" },
-            sub_i18n: { ar: "نورونا على الواتساب وسولفوا ويانا", en: "Message us on WhatsApp and let's talk" },
-            cta_label_i18n: { ar: "التواصل على واتساب", en: "Chat on WhatsApp" },
-        },
-        more: {
-            title_i18n: { ar: "لديك أسئلة أخرى؟", en: "More questions?" },
-            sub_i18n: {
-                ar: "إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
-                en: "If you still need more information, you can always reach us.",
-            },
-            cta_label_i18n: { ar: "تواصل معنا", en: "Contact us" },
-        },
-    },
-    headings: {
-        spotlights: { eyebrow_i18n: { ar: "الفئات", en: "Categories" }, title_i18n: { ar: "اختر حسب الفئة", en: "Shop by category" } },
-        collections: { eyebrow_i18n: { ar: "مختاراتنا", en: "Our picks" }, title_i18n: { ar: "عطور مميزة على ذوقنا", en: "Perfumes picked to our taste" } },
-        testimonials: { eyebrow_i18n: { ar: "آراء كشايخنا", en: "What our regulars say" }, title_i18n: { ar: "ليش الناس تموت على عطورنا", en: "Why people are crazy about our perfumes" } },
-        pillars: { eyebrow_i18n: { ar: "ضمانات", en: "Guarantees" }, title_i18n: { ar: "ليش شنايدر؟", en: "Why Scheniders?" } },
-        pillars_about: { eyebrow_i18n: { ar: "مميزات", en: "Highlights" }, title_i18n: { ar: "ليش تشتري من شنايدر؟", en: "Why buy from Scheniders?" } },
-        faq: {
-            eyebrow_i18n: { ar: "أسئلة و أجوبة", en: "Questions & answers" },
-            title_i18n: { ar: "الأسئلة الأكثر شيوعا", en: "Frequently asked questions" },
-            sub_i18n: { ar: "اجوبة لاسئلتكم المشهورة من فريقنا", en: "Answers to your most common questions, from our team" },
-            sub_more_i18n: {
-                ar: "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إذا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
-                en: "Answers to the most common questions — and you can always reach us for more.",
-            },
-        },
-        contact_page: {
-            eyebrow_i18n: { ar: "تواصل معنا", en: "Contact us" },
-            title_i18n: { ar: "لديك أية أسئلة ؟ دعنا نساعدك", en: "Questions? Let us help" },
-            sub_i18n: {
-                ar: "تواصل معنا إن كانت لديك أي أسئلة وسنعاود الاتصال بك في أقرب وقت ممكن. يمكنك أيضًا التحقق من قسم المساعدة والأسئلة الشائعة.",
-                en: "Reach out with any question and we'll get back to you as soon as possible — the FAQ section may help too.",
-            },
-        },
-        catalog_i18n: { ar: "منتجاتنا", en: "Our products" },
-        see_all_i18n: { ar: "شوفهم كلهم", en: "See them all" },
-        see_more_i18n: { ar: "عرض المزيد", en: "Show more" },
-        reviews_gallery_i18n: { ar: "كلامهم مو كلامنا", en: "Their words, not ours" },
-    },
-    // The merchant's own customers, quoted from their messages.
-    testimonials: [
-        {
-            name_i18n: { ar: "نورين", en: "Noreen" },
-            quote_i18n: {
-                ar: "هاي ثاني مرة اشتري منكم، نوعية العطر والكوالتي مال تغليف حرفيا مشايفها مثلها بحياتي",
-                en: "Second time ordering — the perfume quality and packaging are unlike anything I've seen.",
-            },
-        },
-        {
-            name_i18n: { ar: "وسام الدراجي", en: "Wissam Al-Darraji" },
-            quote_i18n: {
-                ar: "مصداقيتكم شي المفروض تنحمدون عليه, العطر وصلني وجان مثل الوصف ولا ولله الوصف ظالمه. كمت اخاف اطلب من النت من ورة الغش بس انتو عملة نادرة كلش شكراً",
-                en: "Your honesty deserves praise — the perfume arrived exactly as described. I was wary of ordering online, but you are a rare find. Thank you.",
-            },
-        },
-        {
-            name_i18n: { ar: "محمد علي", en: "Mohammed Ali" },
-            quote_i18n: { ar: "عطوركم وتغليفكم يفوزون صراحة", en: "Your perfumes and packaging honestly win." },
-        },
-    ],
+    testimonials: [],
     categories: [
         { slug: "picked", name_i18n: { ar: "عطور مختارة", en: "Curated perfumes" } },
         { slug: "topsellers", name_i18n: { ar: "الاكثر مبيعاً", en: "Best sellers" } },
@@ -359,4 +256,4 @@ export const perfumePack = {
         },
         { key: "size_ml", name_i18n: { ar: "الحجم (مل)", en: "Size (ml)" }, kind: "range", range_min: 5, range_max: 200, unit_i18n: { ar: "مل", en: "ml" }, display_order: 7 },
     ],
-} satisfies ContentPack;
+};

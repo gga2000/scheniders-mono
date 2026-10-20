@@ -14,7 +14,8 @@
 //
 // Honesty rule: a pack carries no invented customer reviews, press quotes
 // or statistics. Those sections render nothing until the merchant has real
-// ones. The perfume pack's testimonials are the merchant's own.
+// ones. A registry pack also names no store: Scheniders' own words live in
+// ../scheniders-words.ts and reach only Scheniders' store.
 // =====================================================================
 
 import type { I18nString } from "@scheniders/shared";
@@ -68,6 +69,38 @@ export interface PackTestimonial {
     quote_i18n: I18nString;
 }
 
+export interface PackContactCard {
+    title_i18n: I18nString;
+    sub_i18n: I18nString;
+    cta_label_i18n: I18nString;
+}
+
+/** Contact-card copy beside the FAQ (home) and on deeper pages (more). */
+export interface PackContact {
+    home: PackContactCard;
+    more: PackContactCard;
+}
+
+export interface PackHeadingPair {
+    eyebrow_i18n: I18nString;
+    title_i18n: I18nString;
+}
+
+/** Section eyebrow/heading pairs the signature direction shows. */
+export interface PackHeadings {
+    spotlights: PackHeadingPair;
+    collections: PackHeadingPair;
+    testimonials: PackHeadingPair;
+    pillars: PackHeadingPair;
+    pillars_about: PackHeadingPair;
+    faq: PackHeadingPair & { sub_i18n: I18nString; sub_more_i18n: I18nString };
+    contact_page: PackHeadingPair & { sub_i18n: I18nString };
+    catalog_i18n: I18nString;
+    see_all_i18n: I18nString;
+    see_more_i18n: I18nString;
+    reviews_gallery_i18n: I18nString;
+}
+
 export interface ContentPack {
     /** Stable id: "perfume", "coffee", … Persisted on config.template.pack_id. */
     id: string;
@@ -114,22 +147,10 @@ export interface ContentPack {
     /** Product-page "more products" grid copy; falls back to `bestsellers`. */
     bestsellers_pdp?: { eyebrow_i18n: I18nString; heading_i18n: I18nString; sub_i18n: I18nString };
     /** Contact-card copy beside the FAQ (home) and on deeper pages (more). */
-    contact?: {
-        home: { title_i18n: I18nString; sub_i18n: I18nString; cta_label_i18n: I18nString };
-        more: { title_i18n: I18nString; sub_i18n: I18nString; cta_label_i18n: I18nString };
-    };
-    /** Section eyebrow/heading pairs the signature direction shows. */
-    headings?: {
-        spotlights: { eyebrow_i18n: I18nString; title_i18n: I18nString };
-        collections: { eyebrow_i18n: I18nString; title_i18n: I18nString };
-        testimonials: { eyebrow_i18n: I18nString; title_i18n: I18nString };
-        pillars: { eyebrow_i18n: I18nString; title_i18n: I18nString };
-        pillars_about: { eyebrow_i18n: I18nString; title_i18n: I18nString };
-        faq: { eyebrow_i18n: I18nString; title_i18n: I18nString; sub_i18n: I18nString; sub_more_i18n: I18nString };
-        contact_page: { eyebrow_i18n: I18nString; title_i18n: I18nString; sub_i18n: I18nString };
-        catalog_i18n: I18nString;
-        see_all_i18n: I18nString;
-        see_more_i18n: I18nString;
-        reviews_gallery_i18n: I18nString;
-    };
+    contact?: PackContact;
+    /**
+     * Section eyebrow/heading pairs the signature direction shows. Absent →
+     * NEUTRAL_HEADINGS (./headings), never another pack's or store's.
+     */
+    headings?: PackHeadings;
 }
