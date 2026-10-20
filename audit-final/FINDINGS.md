@@ -4,7 +4,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 
 **Basis (Phase 2 Tier A, 2026-10-20):** code `origin/main` @ **0032320** (all `file:line` at that commit); DB `sduvpgqwhxragxtxztur`, SELECT on catalog tables only (`pg_proc`, `pg_policies`, `pg_class`, `pg_constraint`, `information_schema.routine_privileges`, storage); aggregates only, no PII. Lenses: isolation, AuthN/AuthZ, money & order integrity. Skills: `security-review`, `supabase-postgres-best-practices`.
 
-**Tier A (A1–A3) totals after critic round 1:** 1 P0 · 3 P1 · 7 P2 · 10 P3 (F-001 raised to P0, F-003 lowered to P2, F-019..F-021 added). **A4–A10 (F-022..F-039) after critic round 1:** 0 P0 · 1 P1 · 10 P2 · 7 P3 (F-025 lowered to P2); F-037 HYPOTHESIS. origin/main is now 7eed48be; cited files unchanged except F-028. **Tier B pass 1 (F-040..F-054) after critic round 1:** 1 P0 (F-040) · 1 P1 (F-041) · 5 P2 · 8 P3. Calibration: production order traffic today is one internal tenant, so "every tenant" claims are launch exposure. F-014 is HYPOTHESIS, the rest CONFIRMED. Critic round 1: `critic/phase2-tierA-round1.md`.
+**Tier A (A1–A3) totals after critic round 1:** 1 P0 · 3 P1 · 7 P2 · 10 P3 (F-001 raised to P0, F-003 lowered to P2, F-019..F-021 added). **A4–A10 (F-022..F-039) after critic round 1:** 0 P0 · 1 P1 · 10 P2 · 7 P3 (F-025 lowered to P2); F-037 HYPOTHESIS. origin/main is now 7eed48be; cited files unchanged except F-028. **Tier B pass 1 (F-040..F-054) after critic round 1:** 1 P0 (F-040) · 1 P1 (F-041) · 5 P2 · 8 P3. Calibration: production order traffic today is one internal tenant, so "every tenant" claims are launch exposure. **Tier B pass 2 (F-055..F-065, critic pending):** 0 P0 · 0 P1 · 5 P2 · 6 P3. F-014 is HYPOTHESIS, the rest CONFIRMED. Critic round 1: `critic/phase2-tierA-round1.md`.
 
 **Tracked elsewhere, referenced not re-filed** (fix branches in progress for most): NEW-P1-06 / NEW-P1-07 (P0) Interakt `[tenantId]` and LightFunnels webhooks default to `monitor`; the 1 live Interakt integration has no `webhook_secret` (fix PR #167) · NEW-P1-09 deactivate is a silent no-op and users can re-activate themselves (fix PR #168; critic N-1) · NEW-P1-01 `charge_wallet_atomic` negative amount (re-confirmed live) · NEW-P1-02 any member UPDATE on `tenants` · NEW-P1-03 `apply_store_config_v2_patch` membership-only (incl. `custom_css`) · NEW-P1-04 `product-images` / `qc-evidence` buckets · NEW-P1-05 generate-batch-pdf SSRF · NEW-P1-08 Telegram secret (3 `telegram_employee_link` rows live) · NEW-P1-13 delivery-import NULL tenant · NEW-P1-14 waseet-sync header · NEW-P1-16 `performance_bonuses` · NEW-P1-17 `webhooks/interakt/route.ts` ~282/~292 insert `whatsapp_logs` / `order_status_history` without `tenant_id` · NEW-P1-19 process-checkouts-manual · NEW-P1-20 `payroll-pdfs` trusts global `role='admin'` · NEW-P1-24 VIEW_FINANCIALS + orders/products policies · NEW-P1-30 admin billing/topup · NEW-P1-32 domains/verify · B-08/F-24 `tenant-assets` SVG · L-15/B-03 JWT-claim policies on `bom_items`, `product_categories` (claim unforgeable → deny-all in practice).
 
@@ -442,6 +442,95 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 - **F-017(2):** `/api/orders/lookup` now rate-limits per IP, order and phone (`app/api/orders/lookup/route.ts:43-108`), but `lookup_order` is still EXECUTE to `anon`, so a direct PostgREST call bypasses it. Fix: revoke anon EXECUTE; route calls it with the service role.
 - **F-010 extension:** the newsletter reward (`store_config_v2.globals.footer.base.newsletter.success_i18n`) is in anon-readable `tenants.store_config_v2`, readable without subscribing (`app/api/newsletter/route.ts:68-94` hides it from page payloads only).
 - **L-13 detail:** public `submitCheckout` does no validation: undefined `customer.*` throws 500; `governorate_code` not checked against `IRAQ_GOVERNORATES`; `alt_phone` stored un-normalised (`checkout.ts:581`); no length caps; reachable via legacy forms (`components/schneiders/checkout-form.tsx:10`).
+
+---
+# Tier B, pass 2: merchant lifecycle and admin app (code @ 7eed48be; DB SELECT/catalog 2026-10-20 13:46–14:40 UTC; journeys in journeys/tierB-merchant-admin.md)
+
+## F-055 — Deleting an order never settles its stock; the 30-day purge then reverses it, so deleted shipped/delivered orders put sold units back
+- **Severity:** P2 · **Tier/Lens:** B-trash-restore / Money+Integrity · **Status:** CONFIRMED (code + live function source + counts)
+- **Location:** soft delete sets only `deleted_at` (`apps/platform/app/api/orders/delete/route.ts:110-115`, no status precondition); live `inv_order_changed()` runs `inv_apply` on UPDATE only when `status`/`items` change; purge hard-DELETEs (`apps/platform/app/api/cron/cleanup-deleted-orders/route.ts:63-67`, daily 01:00, `vercel.json:21-22`) → `inv_apply(…, old.status, -1, …)`; FULFILLED branch `stock_quantity = stock_quantity - p_sign*qty` adds stock back for in_transit/delivered/completed. Delete clears `original_order_id` on split children (`delete/route.ts:99-104`), restore never re-links (`apps/platform/app/actions/deleted-orders.ts:47-64,76-98`). Single restore has no role check, no `deleted_at IS NOT NULL` filter, no row count, always `success:true` (trash page `app/orders/trash/page.tsx:31-41`); bulk undo counts (`:96-98`).
+- **Evidence:** live `inv_phase`: confirmed → RESERVED; in_transit/delivered/completed → FULFILLED. Trash today: 50 soft-deleted (4 confirmed holding reservations, deleted 2026-10-04..10-11; 46 CLOSED; 0 FULFILLED).
+- **Impact:** deleting a shipped/delivered order re-adds its units 30 days later (oversell); confirmed orders in trash hold stock 30 days; split links lost on undo; restore reports success when nothing changed.
+- **Repro (read-only):** `pg_get_functiondef('public.inv_apply'::regproc)`; `select inv_phase(status), count(*) from orders where deleted_at is not null group by 1`.
+- **Fix sketch:** treat `deleted_at` changes as inventory events (release on delete, re-apply on restore); purge via an inventory-neutral path or forbid deleting FULFILLED orders; store/restore split links; restore with `.not('deleted_at','is',null).select('id')`, row count, delete's role gate.
+- **Related:** NEW-21, DATA-02, P-12C.5/DATA-09, F-007.
+
+## F-056 — The same salary period can be paid twice; advances and penalties are deducted again
+- **Severity:** P2 · **Tier/Lens:** B-finances-salaries / Money · **Status:** CONFIRMED (code + live constraints); closes NEW-24's open half (no guard)
+- **Location:** `apps/platform/hooks/use-payroll.ts:45-67` inserts `paid` payroll_records with no precondition; `:80-107` marks advances/penalties/bonuses `.in("id", ids)` without `is_deducted=false`/`is_applied=false`, errors only warn, non-transactional (`:33-34`). Only guard is client state (`hooks/use-salaries.ts:598`, `components/salary/salaries-tab.tsx:454-457`). Callers: single confirm `salaries-tab.tsx:421`, bulk "Pay all" `:489`.
+- **Evidence:** `payroll_records` indexes: pkey, `employee_id`, `(period_start, period_end)`, `status`, `tenant_id`, none unique on (tenant, employee, period). Writes admin-only (MONEY-07 partial), so the actors are two admins / two tabs / bulk + single.
+- **Impact:** two paid records for one period with the same deductions; cash out twice.
+- **Repro:** `select indexdef from pg_indexes where tablename='payroll_records'`.
+- **Fix sketch:** DEFINER `run_payroll` with row lock, partial unique `(tenant_id, employee_id, period_start, period_end) WHERE status='paid'`, `UPDATE … WHERE is_deducted=false RETURNING`, one transaction.
+- **Related:** NEW-24, MONEY-07/V-5, MONEY-08.
+
+## F-057 — Saving a product writes back the stock count loaded when the editor opened
+- **Severity:** P2 · **Tier/Lens:** B-products-inventory / Integrity · **Status:** CONFIRMED (code + live columns + ledger volume)
+- **Location:** `apps/platform/hooks/use-product-editor.ts:1019-1027` always sends absolute `stock_quantity`; variants `:1063-1067`; `lib/repositories/product-repository.ts:68-78` updates `.eq("id", id)` with no version/`updated_at` precondition; multi-step non-atomic save (product → variant loop → `deleteVariant` `:1090` → related).
+- **Evidence:** no `version` column on products/product_variants; `inventory_ledger` 30 days: FULFILLED apply 720 / reverse 512 (1,232 trigger moves).
+- **Impact:** a description edit while orders ship resets stock (units created or lost); two editors: last write wins on every field; mid-save failure leaves a half-saved product.
+- **Repro:** `select column_name from information_schema.columns where table_name='products' and column_name='version'` → 0 rows.
+- **Fix sketch:** send only changed fields; stock edits as deltas through a ledgered RPC; version compare.
+- **Related:** DATA-02, NEW-21, NEW-22, F-052.
+
+## F-058 — A merchant cannot change a staff member's role or remove them
+- **Severity:** P2 · **Tier/Lens:** B-team-roles / AuthZ · **Status:** CONFIRMED (code + live column grants)
+- **Location:** `apps/platform/app/settings/team/page.tsx:336-352` (`updateUserRole`, select `:568`) writes `user_profiles.role`; `components/settings/team-settings.tsx:273-283` (`saveProfile`) includes `role` in every save, so name/avatar edits fail too. No code updates or deletes `tenant_members` (writers are inserts: signup `:136`, create-user `:112`, `team-provisioning.ts:75`; only the super-admin access-request upsert `apps/platform/app/api/admin/access-requests/route.ts:62-65` changes a role). No "remove member" action. PR #168 fixes deactivate (NEW-P1-09), not role change.
+- **Evidence:** `authenticated` UPDATE grant on `user_profiles` excludes `role` → PostgREST 42501, UI "خطأ في تحديث الدور" ("error updating role"). Real gate for RLS/admin RPCs is `tenant_members.role`.
+- **Impact:** owners cannot demote, promote or remove staff; until #168 lands, deactivate is also a no-op.
+- **Repro:** the column-privilege query; `grep -rn 'tenant_members' apps --include=*.ts* | grep -E 'update|delete'` → none.
+- **Fix sketch:** DEFINER `set_member_role` and `remove_member` (admin-only, keep ≥1 admin); UI uses them; drop the global-role write.
+- **Related:** NEW-P1-09, F-007, SEC-30/P-R3.1, F-008.
+
+## F-059 — Subscription renewal ignores tenant status, `auto_renew` and trial extensions, and zeroes the month's usage counter
+- **Severity:** P2 · **Tier/Lens:** B-admin-billing / Money · **Status:** CONFIRMED (code + live schema). PR #172's `renew_subscription_atomic` keeps the same semantics (migration `20261020143700`, ~187-195).
+- **Location:** `apps/platform/app/api/cron/subscription-renew/route.ts:39-43` selects `subscriptions.status IN (active, trialing)` only (never `auto_renew`, `cancel_at`, `tenants.status`, `restrictions`); `:139-151` sets `tenants.status='active'` on success; `:116-126` past_due + `suspended` on failure; `:157-166` upserts current-calendar-month `usage_tracking` with `orders_count: 0`. Desync sources: admin suspend touches only `tenants` (`apps/admin/app/api/bulk/route.ts:79-83`, `merchants/[id]/route.ts:128-135`); pause sets `limited` (`merchants/[id]/pause/route.ts:60-63`); trial extension changes only `tenants.trial_ends_at` (`merchants/[id]/extend-trial/route.ts:47-48`, `trials/extend/route.ts:59-60`) while the signup `trialing` subscription keeps the original period end (`apps/platform/app/api/auth/signup/route.ts:150-158`); `canCreateOrder` reads the same month row (`apps/platform/lib/tenant.ts:258-265,306-312`).
+- **Evidence:** `subscriptions` has `auto_renew` (28/28 true), `cancel_at`, no unique on `tenant_id`; renew 03:00, trial-suspend 06:00 UTC (`vercel.json:13-18`).
+- **Impact:** admin-suspended/cancelled merchants with funds are charged and reactivated; paused merchants flip to active; extended trials are charged or suspended at the original end; `auto_renew=false` does nothing; mid-month renewal resets plan-limit counts.
+- **Repro:** read the three files; `select auto_renew, count(*) from subscriptions group by 1`.
+- **Fix sketch:** renew only `auto_renew AND cancel_at IS NULL AND tenants.status IN ('active','trial')`; never raise tenant status from the cron; extend-trial updates the subscription; usage keyed by billing period.
+- **Related:** L-18, F-005, F-043, NEW-43.
+
+## F-060 — Delivery-import confirm writes orders before audit rows, swallows audit failures, trusts client `previousStatus`; rollback (once its columns exist) reverts later edits blindly
+- **Severity:** P3 (rollback half latent, NEW-05) · **Tier/Lens:** B-delivery-import-rollback · **Status:** CONFIRMED (code)
+- **Location:** `apps/platform/app/api/delivery-import/confirm/route.ts:111-183` (orders first), `:274-284` (audit insert errors only logged), `:297-306` (`success:true`), `previous_status` from body (`:213,242`; cast `:43`); `rollback/route.ts:62-78` (snapshot written with no status/version precondition), `:64` (snapshot-less items counted restored), `:88-92` (import marked `cancelled` after partial failure; retry refused `:38-43`).
+- **Evidence:** `delivery_import_items` lacks `previous_price`, `previous_delivered_source`, `previous_delivered_at`, `previous_delivery_order_id`; 22 live imports all `confirmed` (8 NULL tenant).
+- **Impact:** a failed audit batch leaves delivered orders with no undo record; forged `previousStatus` poisons the snapshot; rollback resurrects old statuses over later staff edits.
+- **Fix sketch:** one DEFINER RPC per import in one transaction; read `previous_*` server-side; roll back only rows still at the import's `new_status`; keep `confirmed` until all rows revert.
+- **Related:** NEW-05, L-19, F-053, P-1.11.
+
+## F-061 — Vault "Cloud Sync" and the cloud backup list fail for every merchant; restore is non-atomic and never audited
+- **Severity:** P3 · **Tier/Lens:** B-vault-backup · **Status:** CONFIRMED (code + live storage policy + table)
+- **Location:** `apps/platform/lib/vault-utils.ts:334-336` uploads to the `vault_backups` root, `:351` lists it; only policy "Platform admins manage vault_backups" requires global `super_admin`. Restore `:265-317` = three sequential upserts (customers → products → orders), no rollback. Audit inserts into `security_logs` `:309,341` unchecked; `security_logs` has RLS and 0 policies. `/vault` has no role gate (F-031/L-11).
+- **Evidence:** `vault_backups` holds only cron folders `auto_csv_<ts>/{orders,customers,products}.csv` (48 objects, cross-tenant, `app/api/cron/backup/route.ts:112-132`); `security_logs` only `automated_csv_backup` (44), 0 `VAULT_RESTORE`, 0 `VAULT_CLOUD_SYNC`.
+- **Impact:** "Cloud Sync Failed", empty history; partial restore leaves mixed-era data; restores leave no trace.
+- **Fix sketch:** per-tenant prefix with membership-scoped policy (admin write); restore via DEFINER RPC in one transaction; DEFINER logger for `security_logs`.
+- **Related:** DR-1, DATA-07, F-022, SEC-21.
+
+## F-062 — The AI customer-summary cache write takes over another tenant's `customer_metadata` row for the same phone
+- **Severity:** P3 (latent: `ANTHROPIC_API_KEY` unset, 0 rows) · **Tier/Lens:** B-customers-phone / Isolation · **Status:** CONFIRMED (code + live PK)
+- **Location:** `apps/platform/app/api/customers/[phone]/ai-summary/route.ts:26` (service client), `:137-145` (`upsert({customer_phone, tenant_id: caller.tenantId, …}, { onConflict: "customer_phone" })`); PK `customer_metadata_pkey (customer_phone)`.
+- **Evidence:** service role bypasses RLS, so the conflict UPDATE rewrites `tenant_id`; 201 normalized phones have orders in more than one tenant.
+- **Impact:** tenant B's member moves tenant A's customer row (birthday, manual status) into B. Corrects SEC-D (tenant-scoped for reads only).
+- **Fix sketch:** PK `(tenant_id, customer_phone)` (NEW-36); `onConflict: "tenant_id,customer_phone"`. **Related:** NEW-36, SEC-D.
+
+## F-063 — Admin bulk lead import always fails with 401
+- **Severity:** P3 · **Tier/Lens:** B-admin-leads · **Status:** CONFIRMED (code)
+- **Location:** `apps/admin/components/leads/lead-import-dialog.tsx:400-404` plain `fetch` (mounted `components/leads/leads-desktop-view.tsx:565`); `apps/admin/app/api/leads/import/route.ts:6-8` accepts only `Authorization: Bearer`; others use `adminFetch` (`lib/admin-fetch.ts:18-33`). `components/leads/lead-competitor-section.tsx:68,87` same bug, unmounted.
+- **Impact:** CSV import reports "0 imported, N errors" every time.
+- **Fix sketch:** `adminFetch`, or cookie session via `requireAdminFromRequest`.
+
+## F-064 — Converting a lead is check-then-act: a concurrent second convert creates a second tenant or subscription and commission
+- **Severity:** P3 (28 leads, all `new`) · **Tier/Lens:** B-admin-leads / Money · **Status:** CONFIRMED (code + live indexes); race HYPOTHESIS (reasoned)
+- **Location:** `apps/admin/app/api/leads/[id]/convert/route.ts:29-31` status check; then `:56-75` tenant insert or `:35-47` prospect update; `:89-95` subscription insert; `:98-105` lead update; `:130-141` commission insert; no transaction or conditional update.
+- **Evidence:** no unique on `subscriptions(tenant_id)`, `tenants(prospect_lead_id)`; `admin_employee_commissions` pkey only; `merchants/[id]/route.ts:42` reads the subscription with `.single()`.
+- **Impact:** two active subscriptions (renew charges twice, merchant page errors) or two tenants and duplicate commission.
+- **Fix sketch:** `update leads set status='converted' where id=? and status<>'converted' returning` as the gate; unique `subscriptions(tenant_id)`; one RPC.
+
+## F-065 — `dir="rtl"` / per-locale `dir` sites beyond the tracked N6 list
+- **Severity:** P3 (convention) · **Tier/Lens:** B-onboarding · **Status:** CONFIRMED (grep)
+- **Every site at HEAD:** (1) `apps/platform/components/store-onboarding/onboarding-wizard.tsx:239` (`dir={isAr ? "rtl" : "ltr"}` on the whole onboarding page); (2) `packages/ui/src/prompt-dialog.tsx:62`; (3) `apps/admin/components/leads/lead-form.tsx:201`; (4) `apps/admin/components/leads/lead-industry-manager.tsx:291`; (5) `:438`; (6) `:525`. Plus tracked N6: `components/customers/detail/activity-log-timeline.tsx:82`, `components/settings/message-templates-list.tsx:193,286,315`, `components/store-builder-v2/nav-builder-screen.tsx:163`.
+- **Fix sketch:** remove; `text-start` / `unicode-bidi: plaintext` for Arabic blocks. **Related:** N6, L-31.
 
 ---
 ### Supplementary HYPOTHESIS (not filed)
