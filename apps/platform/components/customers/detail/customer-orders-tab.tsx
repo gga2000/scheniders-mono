@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types/order";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
@@ -116,7 +117,7 @@ export function CustomerOrdersTab({ orders, isLoading }: CustomerOrdersTabProps)
             {sorted.map((order, i) => {
               const cfg = STATUS_CONFIG[order.status] ?? DEFAULT_STATUS;
               const StatusIcon = cfg.icon;
-              const itemsSummary = order.items
+              const itemsSummary = mergeOrderItems(order.items)
                 .map((it) => `${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ""}`)
                 .join("، ");
 

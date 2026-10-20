@@ -3,6 +3,7 @@
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { formatOrderNamedDayMonth } from "@/lib/order-format-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 // ============================================
 // TYPES
@@ -443,7 +444,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
             order.customer_name,
             order.phone || "—",
             order.city || "—",
-            order.items?.map((i) => `${i.name} x${i.quantity}`).join(", ") || "—",
+            mergeOrderItems(order.items).map((i) => `${i.name} x${i.quantity}`).join(", ") || "—",
             formatIQD(Number(order.price) || 0),
             getStatusLabel(order.status),
             formatOrderNamedDayMonth(order.created_at),
