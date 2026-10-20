@@ -27,6 +27,7 @@ import {
 import { cn, formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { processEmojis } from "@/lib/emoji-shortcodes";
 import { formatPhoneForDisplay, formatPhoneGrouped } from "@/lib/order-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import type { MessageTemplate, Order } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -154,7 +155,7 @@ export function WhatsAppTemplatePanel({
     const processTemplate = (content: string): string => {
         if (!previewOrder) return content;
 
-        const items = previewOrder.items || [];
+        const items = mergeOrderItems(previewOrder.items);
         let productDisplay = "";
         if (items.length === 0) {
             productDisplay = "المنتج";

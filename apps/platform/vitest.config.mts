@@ -43,6 +43,9 @@ export default defineConfig({
             "lib/**/*.test.ts",
             "lib/**/*.test.tsx",
             "app/api/**/*.test.ts",
+            // Root-document tests (layout / global-error) sit beside the files
+            // they render, at the top of app/.
+            "app/*.test.tsx",
             // ARCH-6: store/ had no include pattern, so a test placed beside the
             // Zustand slices was silently never collected.
             "store/**/*.test.ts",
@@ -54,6 +57,7 @@ export default defineConfig({
             "apps/platform/lib/**/*.test.ts",
             "apps/platform/lib/**/*.test.tsx",
             "apps/platform/app/api/**/*.test.ts",
+            "apps/platform/app/*.test.tsx",
         ],
     },
 });

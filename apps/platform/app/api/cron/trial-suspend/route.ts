@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { EXEMPT_PLANS_SQL_LIST } from "@/lib/billing-exempt";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -27,6 +28,9 @@ export async function GET(request: Request) {
         .update({ status: "suspended" })
         .eq("status", "trial")
         .lt("trial_ends_at", now)
+        // The house tier is never billed, so an expiring trial date must never
+        // suspend it — that locked the operator out of their own dashboard.
+        .not("plan", "in", EXEMPT_PLANS_SQL_LIST)
         .select("id, business_name, trial_ends_at");
 
     if (error) {

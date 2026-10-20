@@ -8,7 +8,7 @@
 // =====================================================================
 
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { resolveI18n, parseVideoUrl } from "@scheniders/shared";
 import { StoreLink } from "./helpers/store-context";
 import {
   BentoCard,
@@ -18,6 +18,7 @@ import {
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
+import { HeroVideoMedia } from "./hero_video.client";
 
 const schema = z.object({
   video_url: z.string().describe("video"),
@@ -60,6 +61,13 @@ function HeroVideo({
   const ctaLabel = resolveI18n(props.cta_label_i18n, locale);
   const opacity = Math.max(0, Math.min(1, props.overlay_opacity));
 
+  // A background film has to be a file the page can paint behind its own
+  // headline. A YouTube or Vimeo link is a player with its own chrome and
+  // cannot be one, so anything that is not a direct file falls back to the
+  // gradient rather than rendering an embed nobody asked for.
+  const parsed = parseVideoUrl(props.video_url);
+  const film = parsed?.provider === "file" ? parsed : null;
+
   return (
     <Section bleed className="px-4 py-6 sm:py-10">
       <BentoCard
@@ -67,16 +75,11 @@ function HeroVideo({
         size="lg"
         className="relative overflow-hidden p-0 min-h-[420px] sm:min-h-[520px]"
       >
-        {props.video_url ? (
-          <video
+        {film ? (
+          <HeroVideoMedia
             className="absolute inset-0 w-full h-full object-cover"
-            src={props.video_url}
+            src={film.src}
             poster={props.poster_url}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-bk-ink via-bk-decor-b/60 to-bk-primary/60" />
@@ -87,7 +90,7 @@ function HeroVideo({
           aria-hidden="true"
         />
         <div className="relative z-10 px-6 sm:px-10 py-12 sm:py-20 flex flex-col items-start max-w-xl">
-          <h1 className="font-display font-black text-bk-hero uppercase leading-[0.95] tracking-tight text-white drop-shadow-[2px_2px_0_#1a1a1a] max-w-[14ch] sm:max-w-2xl">
+          <h1 className="font-display font-black text-bk-hero uppercase leading-[0.95] tracking-tight text-white drop-shadow-[2px_2px_0_var(--bk-ink)] max-w-[14ch] sm:max-w-2xl">
             {title}
           </h1>
           {subtitle && (

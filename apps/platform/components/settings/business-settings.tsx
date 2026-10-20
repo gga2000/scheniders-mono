@@ -56,6 +56,8 @@ const PLAN_LABELS: Record<string, { label: string; color: string }> = {
     growth: { label: "Growth", color: "bg-green-100 text-green-700" },
     professional: { label: "Professional", color: "bg-purple-100 text-purple-700" },
     enterprise: { label: "Enterprise", color: "bg-amber-100 text-amber-700" },
+    // The house tier (never billed). Without its own entry it fell back to "Starter".
+    internal: { label: "Internal", color: "bg-gray-100 text-gray-700" },
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {

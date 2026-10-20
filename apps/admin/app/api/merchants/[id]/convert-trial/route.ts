@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 const BodySchema = z.object({
   period_days: z.number().int().positive().max(365).default(30),
@@ -9,9 +10,13 @@ const BodySchema = z.object({
 });
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Turns a trial into a paid, active subscription — super_admin only.
+  const auth = await requireAdminPermission(request, "manage_subscription");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
@@ -90,8 +95,8 @@ export async function POST(
     }
 
     await logAdminActivity({
-      adminUserId: null,
-      adminLabel: "system",
+      adminUserId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
       tenantId: id,
       action: "convert_trial",
       details: {

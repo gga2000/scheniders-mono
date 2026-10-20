@@ -16,6 +16,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # `--affected` diffs against the PR base (or, on a push, the commit
+          # before it) and needs the history to find it. Without it turbo
+          # cannot tell what changed and falls back to running everything.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -26,7 +31,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm exec turbo lint type-check build
+      # One job and one turbo run: a single install, one task graph, and the
+      # gates run in parallel where they can. The Actions budget on this
+      # account is small, so nothing here runs twice and only the packages a
+      # change can affect (and the packages that depend on them) run at all.
+      #
+      # `test` is every package's `vitest run` — the suite needs no secrets.
+      # `bundle-budget` is the storefront's shared-runtime JS budget; turbo
+      # runs it after the storefront build, and only when that build ran.
+      - name: Lint, type-check, test, build, bundle budget
+        run: pnpm exec turbo lint type-check test build bundle-budget --affected
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

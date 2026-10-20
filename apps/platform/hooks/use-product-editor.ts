@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Product, ProductVariant, VariantOptionType, OptionValueMetadata, CostBreakdown } from "@/types/product";
-import { slugify } from "@scheniders/shared";
+import { isCanonicalSlug, slugify } from "@scheniders/shared";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { productRepository } from "@/lib/repositories/product-repository";
@@ -898,9 +898,15 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
             return false;
         }
 
-        // Validate slug format
-        if (formData.slug && !/^[a-z0-9-]+$/.test(formData.slug)) {
-            toast.error("URL slug can only contain lowercase letters, numbers, and hyphens");
+        // Validate slug format. Checked against slugify rather than an ASCII
+        // pattern: slugify is Unicode-aware by design for this market, so an
+        // ASCII-only rule rejected the Arabic slugs the system itself had
+        // generated (رفقات, ويفر, بستاشيو…) and blocked every save on those
+        // products — including edits that never touched the slug.
+        if (formData.slug && !isCanonicalSlug(formData.slug)) {
+            toast.error(
+                "URL slug can only contain letters, numbers and hyphens — no spaces or punctuation"
+            );
             return false;
         }
 

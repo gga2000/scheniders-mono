@@ -114,7 +114,7 @@ export function SchneidersProductCard({
   }
 
   return (
-    <article className={cn("bento-card bg-white p-4 relative flex flex-col", className)}>
+    <article className={cn("bento-card bg-bk-surface-alt p-4 relative flex flex-col", className)}>
       {/* One rotated corner badge: Save (on sale) → Bestseller → New. */}
       {onSale ? (
         <div className="absolute -top-3 -left-2 z-10">
@@ -227,7 +227,7 @@ export function SchneidersProductCard({
                 ? "أضف إلى السلة"
                 : "Add to cart"
           }
-          className="bento-card-sm bg-white p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="bento-card-sm bg-bk-surface-alt p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           style={{
             color: justAdded ? "var(--bk-success, #16a34a)" : "var(--bk-ink, #1a1a1a)",
             border:

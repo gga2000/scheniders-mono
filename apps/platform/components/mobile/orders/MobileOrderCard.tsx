@@ -437,7 +437,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
 
                     {/* Items Description (Left of WhatsApp in RTL) */}
                     <div className="flex flex-row-reverse flex-wrap justify-start gap-1.5 w-full pb-px text-right">
-                        {order.items?.map((item, index) => (
+                        {items.map((item, index) => (
                             <div
                                 key={index}
                                 className="flex flex-row-reverse items-center gap-1.5 px-2.5 py-1.5 bg-background rounded-lg text-[11px] font-medium border border-(--card-border)/60 shadow-sm"
@@ -449,7 +449,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     </span>
                                 )}
                                 {item.is_ai_extracted && <GeminiBadge size="xs" />}
-                                {(item as { is_open_box?: boolean }).is_open_box && (
+                                {item.is_open_box && (
                                     <span className="flex items-center justify-center h-4 px-1 rounded bg-amber-100 text-amber-700 text-[9px] font-bold leading-none shrink-0 ring-1 ring-amber-200">
                                         علبة مفتوحة
                                     </span>

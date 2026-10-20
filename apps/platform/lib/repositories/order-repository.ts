@@ -95,6 +95,8 @@ export function buildVersionedIdFilter(ids: readonly string[], expectedVersions?
 const TRUST_LOOKUP_MAX_PHONES = 200;
 /** Phones per `in.(...)` request — keeps the URL well under proxy limits. */
 const TRUST_IN_CHUNK = 100;
+/** Order uuids per `in.(...)` request — 100 uuids is ~3.7 KB of URL. */
+const ID_IN_CHUNK = 100;
 const PAGE = 1000;
 
 /** Search rows carry `deleted_at` so a trashed match can be labelled. */
@@ -530,6 +532,37 @@ export const orderRepository = {
 
         const ranked = rankSearchResults(parsed, [rows], cappedLimit);
         return withRiskData(tenantId, ranked.map(row => normalizeOrder(row)));
+    },
+
+    /**
+     * Specific orders of `tenantId` by uuid, in the list columns, whatever their
+     * date or archive state. For readers that link to orders (chat threads) —
+     * the loaded list is a date window, so a linked order is usually not in it.
+     * Trashed orders are left out, as they are from the list.
+     */
+    async findByIds(tenantId: string, ids: readonly string[]): Promise<Order[]> {
+        const unique = [...new Set(ids)];
+        if (unique.length === 0) return [];
+        const chunks: string[][] = [];
+        for (let i = 0; i < unique.length; i += ID_IN_CHUNK) {
+            chunks.push(unique.slice(i, i + ID_IN_CHUNK));
+        }
+        const results = await Promise.all(
+            chunks.map(chunk =>
+                supabase
+                    .from("orders")
+                    .select(LIST_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .is("deleted_at", null)
+                    .in("id", chunk),
+            ),
+        );
+        const rows: Order[] = [];
+        for (const { data, error } of results) {
+            if (error) throw error;
+            for (const row of data ?? []) rows.push(normalizeOrder(row as unknown as Order));
+        }
+        return withRiskData(tenantId, rows);
     },
 
     /** Fetch a single order by ID (all columns for detail view). */

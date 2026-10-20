@@ -14,6 +14,7 @@ const s = makeSectionFactory("aurora_glass");
 
 export const auroraGlassTemplate: StoreTemplate = {
     id: "aurora_glass",
+    version: 1,
     name_i18n: { en: "Aurora Glass", ar: "زجاج الشفق" },
     description_i18n: {
         en: "Light gradient blooms behind frosted panels. Trust-first: the founder note comes before the catalogue.",
@@ -34,7 +35,10 @@ export const auroraGlassTemplate: StoreTemplate = {
             display: "Outfit",
             body: "Manrope",
             display_ar: "Readex Pro",
-            body_ar: "Almarai",
+            // Not Almarai: it ships only 400/700/800, so the 500 and 600 that
+            // body copy and labels use would be synthesised, and faux-bold
+            // Arabic looks broken. Noto Sans Arabic ships 400-900.
+            body_ar: "Noto Sans Arabic",
             scale: "spacious",
         },
         shape: {

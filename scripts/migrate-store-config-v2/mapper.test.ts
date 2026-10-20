@@ -12,8 +12,10 @@ describe("mapLegacyToV2", () => {
     expect(v2.pages).toHaveLength(16);
     expect(v2.pages.find((p) => p.page_id === "home")?.sections).toEqual([]);
     expect(v2.brand_kit.colors.primary).toBe(EMPTY_BRAND_KIT.colors.primary);
-    expect(v2.default_locale).toBe("en");
-    expect(v2.enabled_locales).toEqual(["en"]);
+    // EC32: a fresh store ships Arabic — the Iraq-market default the shared
+    // resolver applies.
+    expect(v2.default_locale).toBe("ar");
+    expect(v2.enabled_locales).toEqual(["ar"]);
     expect(v2.experiments).toEqual([]);
     expect(v2.segments).toEqual([]);
     expect(v2.schedules).toEqual([]);

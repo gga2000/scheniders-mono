@@ -12,6 +12,7 @@
 import { env } from "./env";
 import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 // =============================================
 // TYPES
@@ -126,7 +127,7 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
     const targetPhone = overridePhone || order.phone;
     const { countryCode, phoneNumber } = formatPhoneForInterakt(targetPhone);
 
-    const itemsList = order.items
+    const itemsList = mergeOrderItems(order.items)
         .map((item) => {
             if (item.quantity > 1) return `${item.name} × ${item.quantity}`;
             return item.name;
@@ -436,7 +437,7 @@ export const STAFF_ALERT_TEMPLATE_NAME = "new_order_alert_staff";
 function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplateBody {
     const { countryCode, phoneNumber } = formatPhoneForInterakt(staffPhone);
 
-    const itemsList = order.items
+    const itemsList = mergeOrderItems(order.items)
         .map((item) => (item.quantity > 1 ? `${item.name} × ${item.quantity}` : item.name))
         .join("، ");
 

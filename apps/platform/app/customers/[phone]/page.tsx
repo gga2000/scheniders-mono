@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Filter, Eye, Download } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import { trustEngine } from "@/lib/fraud-detector";
@@ -319,7 +320,10 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                             const items = (() => {
                                                 try {
                                                     const parsed = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-                                                    if (Array.isArray(parsed)) return `${parsed.length} item${parsed.length !== 1 ? "s" : ""}`;
+                                                    if (Array.isArray(parsed)) {
+                                                        const lineCount = mergeOrderItems(parsed).length;
+                                                        return `${lineCount} item${lineCount !== 1 ? "s" : ""}`;
+                                                    }
                                                 } catch {}
                                                 return "—";
                                             })();

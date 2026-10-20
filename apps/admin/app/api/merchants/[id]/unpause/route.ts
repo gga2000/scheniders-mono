@@ -1,11 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
+import { requireAdminPermission } from "@/lib/api-auth";
 
 export async function POST(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdminPermission(request, "reactivate_tenant");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
@@ -25,7 +29,8 @@ export async function POST(
     }
 
     await logAdminActivity({
-      adminUserId: "system",
+      adminUserId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
       tenantId: id,
       action: "unpause_tenant",
       details: {},

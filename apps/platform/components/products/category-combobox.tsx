@@ -440,7 +440,7 @@ export function CategoryCombobox({
                 />
             </button>
             {open && (
-                <div className="absolute z-50 mt-2 left-0 right-0 rtl:left-0 rtl:right-0">
+                <div className="absolute z-50 mt-2 left-0 right-0">
                     {popover}
                 </div>
             )}

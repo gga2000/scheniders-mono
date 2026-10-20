@@ -1,13 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-
-// TODO: replace with real admin user lookup once admin auth is wired
-const ADMIN_USER_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
+import { requireAdminFromRequest } from "@/lib/api-auth";
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
+  // A watchlist is per-admin: any active admin may remove entries, but only
+  // their own (GET/POST already key on the caller; this used a placeholder id,
+  // so a removal never matched a row).
+  const auth = await requireAdminFromRequest(request);
+  if (auth instanceof NextResponse) return auth;
+
   const { tenantId } = await params;
 
   try {
@@ -15,7 +19,7 @@ export async function DELETE(
     const { error } = await supabase
       .from("admin_watchlist")
       .delete()
-      .eq("admin_user_id", ADMIN_USER_PLACEHOLDER)
+      .eq("admin_user_id", auth.user.id)
       .eq("tenant_id", tenantId);
 
     if (error) throw error;
