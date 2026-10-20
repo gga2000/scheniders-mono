@@ -1,4 +1,4 @@
-# Paths named in PLAN.md §5 that do not exist on main 056c668b, and why.
+# Paths named in PLAN.md §5 that do not exist on main 3365a7d0, and why.
 # New files added by the in-flight PRs (exist on their branches):
 apps/admin/lib/wallet-topup.ts                                              # PR #172
 apps/platform/lib/client-ip.ts                                              # PR #167
@@ -12,11 +12,17 @@ packages/supabase/migrations/20261020150000_inventory_tenant_scoped_stock_writes
 packages/supabase/migrations/20261020150100_product_child_tables_tenant_guard.sql     # PR #173
 packages/supabase/migrations/20261020154000_order_number_counter.sql        # PR #175
 packages/supabase/tests/cross_tenant_stock.sql                              # PR #173
+packages/supabase/tests/cross_tenant_stock_local_fixture.sql                # PR #173 (holds the previous function bodies for rollback)
 packages/supabase/tests/order_number_counter.sql                            # PR #175
 packages/supabase/tests/p1_db_security_holes.sql                            # PR #168
 packages/supabase/tests/wallet_topup_subscription_renew.sql                 # PR #172
 # New files this plan creates:
 .github/workflows/backup.yml                                                # PKG-00
-apps/storefront/app/s/[tenant]/loading.tsx                                  # PKG-26
-apps/storefront/app/sitemap.ts                                              # PKG-26
-packages/supabase/migrations/20261019132424_backfill_followup_attribution_oct.sql  # PKG-04 (live-only migration to commit)
+.github/workflows/drift.yml                                                 # PKG-00
+packages/supabase/tests/fixtures/ci_seed.sql                                # PKG-00
+packages/supabase/tests/fixtures/known_failures.json                        # PKG-00
+packages/supabase/migrations/20261020215422_tenant_role_source_of_truth.sql # PKG-00 00r (live-only migration to commit)
+packages/supabase/tests/secdef_cross_tenant_harness.sql                     # PKG-13
+apps/platform/app/api/healthz/route.ts                                      # PKG-05
+apps/storefront/app/api/healthz/route.ts                                    # PKG-05
+apps/storefront/app/s/[tenant]/loading.tsx                                  # PKG-26 (home route; four sub-routes already have one)
