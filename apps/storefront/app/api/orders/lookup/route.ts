@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createHash } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
-import { clientIp, consumeRateLimit, type RateLimitResult } from "@/lib/rate-limit";
+import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { clientIp, consumeRateLimit, phoneBucket, type RateLimitResult } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -26,16 +25,12 @@ const lookupRowSchema = z.object({
   review_product_slug: z.string().nullish(),
 });
 
-// lookup_order is a newly-added RPC (migration 20260606194612) that is not yet
-// regenerated into database.types.ts. We use an untyped client so that the call
-// compiles without any/ts-ignore; Zod validates the response shape at runtime.
-function createAnonClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+// lookup_order is EXECUTE-granted to service_role only (migration
+// 20261021090300). With the anon key anyone could call it straight against
+// PostgREST, around the limiter below, and walk a known phone's sequential
+// order numbers (or a known order's phones) without bound. This route and
+// /api/loyalty/balance are therefore its only callers, each rate-limited.
+// The service role reads nothing else here: the function is the whole query.
 
 /** Lookup windows. A shopper checks an order a handful of times; these
  *  only bite on guessing. The per-IP cap is loose because Iraqi mobile
@@ -63,13 +58,13 @@ async function lookupRateLimited(
   orderNumber: string,
   phone: string,
 ): Promise<number | null> {
-  const phoneDigits = phone.replace(/\D/g, "").slice(-10);
-  const phoneKey = createHash("sha256").update(`${tenantId}:${phoneDigits}`).digest("hex").slice(0, 32);
+  const phoneKey = phoneBucket(tenantId, phone);
   // "unknown" only happens off the edge (local dev); one shared bucket for
   // every such caller would throttle them together, so it is skipped.
   const ip = clientIp(request.headers);
-  // Fail-open: ownership is already enforced inside lookup_order, so a
-  // limiter outage must not take tracking down for every shopper.
+  // Fail-open: ownership is still proven inside lookup_order (order number
+  // AND phone must match), so a limiter outage must not take tracking down
+  // for every shopper.
   const mode = "fail-open";
   const checks = await Promise.all([
     ip !== "unknown" ? consumeRateLimit(`track:ip:${ip}`, LOOKUP_LIMIT_PER_IP, LOOKUP_WINDOW_SECONDS, mode) : null,
@@ -107,7 +102,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    const supabase = createAnonClient();
+    const supabase = createSupabaseServiceClient();
     const { data, error } = await supabase.rpc("lookup_order", {
       p_tenant_id: tenant_id,
       p_phone: phone,

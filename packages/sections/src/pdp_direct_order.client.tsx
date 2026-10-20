@@ -76,6 +76,7 @@ import {
 import { PRESSABLE } from "./helpers/utils";
 import { useStoreBase } from "./helpers/store-context";
 import { resolveTenantWhatsapp, whatsappCartLink } from "./helpers/whatsapp";
+import { useLoyaltyBalance } from "./helpers/loyalty-balance";
 import {
   formatCount,
   formatPrice,
@@ -137,6 +138,8 @@ const STRINGS = {
   deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}", ku: "گەیاندن لە ماوەی {min} – {max}" },
   totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل", ku: "بەبێ گەیاندن" },
   youHavePoints: { en: "You have {points}", ar: "عندك {points}", ku: "{points}ت هەیە" },
+  pointsOrderLabel: { en: "Have points? Enter a previous order number", ar: "عندك نقاط؟ اكتب رقم طلب سابق", ku: "خاڵت هەیە؟ ژمارەی داواکارییەکی پێشووت بنووسە" },
+  pointsOrderPlaceholder: { en: "Order number", ar: "رقم الطلب", ku: "ژمارەی داواکاری" },
   useAll: { en: "Use all", ar: "استخدم الكل", ku: "هەمووی بەکاربهێنە" },
   enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط", ku: "ژمارەی خاڵەکان بنووسە" },
   pointsOff: { en: "{amount} off", ar: "خصم {amount}", ku: "{amount} داشکاندن" },
@@ -430,10 +433,11 @@ export function PdpDirectOrderRender({
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
-  // Loyalty: the shopper's balance (fetched by phone, debounced) and how
-  // many points they choose to spend. The server re-resolves both against
-  // the published config and the authoritative balance.
-  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  // Loyalty: the previous order number that proves the phone is the shopper's
+  // (the balance route answers nothing without it), and how many points they
+  // choose to spend. The server re-resolves the spend against the published
+  // config and the authoritative balance.
+  const [pointsOrderNumber, setPointsOrderNumber] = useState("");
   const [redeemPoints, setRedeemPoints] = useState(0);
   // Which variant is being bought: chosen in a pdp_variants section, the
   // buy box, or the inline pills below (only when no picker is on the page).
@@ -485,6 +489,23 @@ export function PdpDirectOrderRender({
     const handle = setTimeout(() => setPriceFlashAt(null), 1200);
     return () => clearTimeout(handle);
   }, [priceFlashAt]);
+
+  // Loyalty balance: only for a phone + a previous order number of that
+  // phone (helpers/loyalty-balance). Called before the no-product return so
+  // the hook order never depends on it.
+  const pointsBalance = useLoyaltyBalance({
+    enabled:
+      (ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined)?.store_config_v2?.commerce?.loyalty
+        ?.enabled === true,
+    tenantId: ctx.tenant.id,
+    phone: form.phone,
+    orderNumber: pointsOrderNumber,
+  });
+  // Reset the chosen redemption when the phone or the proving order number
+  // changes, so a number cannot spend another's points.
+  useEffect(() => {
+    setRedeemPoints(0);
+  }, [form.phone, pointsOrderNumber]);
 
   if (!product) {
     if (process.env.NODE_ENV !== "production") {
@@ -676,33 +697,6 @@ export function PdpDirectOrderRender({
   const total = subtotal - referralAmount - pointsDiscount + (displayedDelivery ?? 0);
   const totalExcludesDelivery = displayedDelivery === null;
 
-  // Fetch the balance once a valid phone is in; reset the chosen redemption
-  // when the phone changes so a number cannot spend another's points.
-  useEffect(() => {
-    if (!loyaltyCfg?.enabled) return;
-    const balancePhone = normalizeIraqiMobile(form.phone);
-    setRedeemPoints(0);
-    if (!balancePhone) {
-      setPointsBalance(null);
-      return;
-    }
-    let active = true;
-    const handle = setTimeout(() => {
-      const params = new URLSearchParams({ tenant_id: ctx.tenant.id, phone: balancePhone });
-      fetch(`/api/loyalty/balance?${params.toString()}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d: { balance?: number } | null) => {
-          if (active) setPointsBalance(typeof d?.balance === "number" ? d.balance : 0);
-        })
-        .catch(() => {
-          /* balance just won't show */
-        });
-    }, 600);
-    return () => {
-      active = false;
-      clearTimeout(handle);
-    };
-  }, [loyaltyCfg?.enabled, form.phone, ctx.tenant.id]);
   const etaHours = chosenGovernorate
     ? etaForGovernorate(commerce?.shipping, chosenGovernorate)
     : null;
@@ -1896,6 +1890,25 @@ export function PdpDirectOrderRender({
                   </p>
                 )}
               </div>
+            )}
+
+            {/* ── Loyalty: a previous order number proves the phone is theirs ── */}
+            {loyaltyCfg?.enabled && normalizeIraqiMobile(form.phone) && (
+              <label className="block space-y-bk-xs" data-testid="pdp-points-order">
+                <span className="font-label text-xs font-bold text-bk-ink-soft">{s("pointsOrderLabel")}</span>
+                <input
+                  name="loyalty_order_number"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  dir="ltr"
+                  value={pointsOrderNumber}
+                  onChange={(e) => setPointsOrderNumber(e.target.value)}
+                  placeholder={s("pointsOrderPlaceholder")}
+                  className="w-full px-3 py-2 font-body text-base tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                  style={inputStyle}
+                />
+              </label>
             )}
 
             {/* ── Loyalty points redemption ── */}

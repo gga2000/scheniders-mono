@@ -4,7 +4,7 @@ import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
 import type { OrderWindow } from "@/lib/order-window";
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
-import { EXPORT_COLUMNS, LIST_COLUMNS } from "@/lib/repositories/order-columns";
+import { EXPORT_COLUMNS, LIST_COLUMNS, ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { runInSequentialBatches, type BatchOutcome, type BulkProgress } from "@/lib/order-bulk-batches";
 import {
     MAX_SEARCH_RESULTS,
@@ -667,7 +667,7 @@ export const orderRepository = {
         }
 
         const { data, error } = await query
-            .select()
+            .select(ORDER_READ_COLUMNS)
             .maybeSingle();
 
         if (error) {
@@ -735,7 +735,7 @@ export const orderRepository = {
                 }
                 
                 const supabasePromise = query
-                    .select()
+                    .select(ORDER_READ_COLUMNS)
                     .maybeSingle();
 
                 const timeoutPromise = new Promise<never>((_, reject) =>
@@ -775,7 +775,7 @@ export const orderRepository = {
                 if (err instanceof Error && err.message === "CONFLICT_DETECTED" && attempt > 0) {
                     const { data: current } = await supabase
                         .from("orders")
-                        .select("*")
+                        .select(ORDER_READ_COLUMNS)
                         .eq("id", id)
                         .maybeSingle();
                     if (current && current.status === status) {
@@ -826,7 +826,7 @@ export const orderRepository = {
             .update(buildStatusUpdate(status, ctx))
             .in("id", orderIds)
             .or(buildVersionedIdFilter(orderIds, expectedVersions))
-            .select()
+            .select(ORDER_READ_COLUMNS)
             .abortSignal(AbortSignal.timeout(STATUS_BATCH_TIMEOUT_MS));
         const elapsed = Math.round(performance.now() - t0);
 
@@ -885,7 +885,7 @@ export const orderRepository = {
                 if (error instanceof Error && error.message === "CONFLICT_DETECTED") {
                     const { data: current, error: readError } = await supabase
                         .from("orders")
-                        .select("*")
+                        .select(ORDER_READ_COLUMNS)
                         .eq("id", id)
                         .maybeSingle();
                     if (!readError && current && current.status === status) {
