@@ -263,6 +263,7 @@ async function processOrder(
             from_status: order.status,
             to_status: "in_transit",
             changed_by: "waseet_api",
+            tenant_id: order.tenant_id,
             notes: `Submitted to Al-Waseet (qr_id: ${waseetOrder.qr_id})`,
         });
     } catch (err) {

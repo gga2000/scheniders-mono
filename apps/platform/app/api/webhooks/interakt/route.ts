@@ -196,12 +196,12 @@ function matchResponse(text: string): "confirmed" | "cancelled" | null {
 async function findOrder(
     callbackData: string | null,
     phone: string | null
-): Promise<{ id: string; order_id: string; status: string } | null> {
+): Promise<{ id: string; order_id: string; status: string; tenant_id: string | null } | null> {
     // Strategy 1: Direct lookup by UUID from callback_data
     if (callbackData) {
         const { data, error } = await supabaseAdmin()
             .from("orders")
-            .select("id, order_id, status")
+            .select("id, order_id, status, tenant_id")
             .eq("id", callbackData)
             .single();
 
@@ -259,6 +259,7 @@ async function findOrder(
 async function updateOrderStatus(
     orderId: string,
     orderIdDisplay: string,
+    tenantId: string | null,
     newStatus: "confirmed" | "cancelled",
     phone: string | null,
     payload: InteraktWebhookPayload
@@ -284,6 +285,9 @@ async function updateOrderStatus(
         from_status: "contacted",
         to_status: newStatus,
         changed_by: "whatsapp_bot",
+        // Both history and whatsapp_logs are tenant-scoped by RLS: a row
+        // without the order's tenant is invisible to the merchant (NEW-P1-17).
+        tenant_id: tenantId,
         notes: `Customer responded via WhatsApp: ${newStatus === "confirmed" ? "تأكيد" : "إلغاء"}`,
     });
 
@@ -292,6 +296,7 @@ async function updateOrderStatus(
         await supabaseAdmin().from("whatsapp_logs").insert({
             order_id: orderIdDisplay,
             order_uuid: orderId,
+            tenant_id: tenantId,
             phone: phone || "unknown",
             template_name: "cod_order_confirm",
             direction: "inbound",
@@ -455,6 +460,7 @@ export async function POST(request: NextRequest) {
         const result = await updateOrderStatus(
             order.id,
             order.order_id,
+            order.tenant_id,
             action,
             phone,
             payload
