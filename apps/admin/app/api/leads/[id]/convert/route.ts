@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, requireAdmin } from "@/lib/admin-supabase";
+import { z } from "zod";
+import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
+
+/** A converted merchant always starts on this plan; changing it afterwards is
+ *  `change_plan` (super_admin), so the caller does not get to pick it here. */
+const CONVERSION_PLAN = "starter";
+
+const bodySchema = z.object({
+  notes: z.string().trim().max(2000).optional(),
+});
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const admin = await requireAdmin(token);
-    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Open to support_staff by design — see `convert_lead` in admin-permissions.ts.
+  const auth = await requireAdminPermission(request, "convert_lead");
+  if (auth instanceof NextResponse) return auth;
 
+  try {
     const { id } = await params;
-    const body = await request.json();
+    const parsed = bodySchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid body" },
+        { status: 400 }
+      );
+    }
+    const notes = parsed.data.notes || null;
     const supabase = createAdminClient();
 
     // Fetch the lead
@@ -26,25 +42,42 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    if (lead.status === "converted") {
+    // `status` is a free-form field any admin can edit (PATCH /api/leads/[id]),
+    // so it cannot be what stops a second conversion. `converted_tenant_id` is
+    // only ever written here.
+    if (lead.converted_tenant_id || lead.status === "converted") {
       return NextResponse.json({ error: "Lead already converted" }, { status: 400 });
     }
 
     let tenantId: string;
 
     if (lead.prospect_tenant_id) {
-      // Convert existing prospect store to real merchant
-      const { error: updateError } = await supabase
+      // Convert the prospect store into a real merchant. The write only matches
+      // a tenant that is still an untouched prospect trial: converting a store
+      // that was already converted, paused (`limited`), suspended or cancelled
+      // would set it `active` again, which is `reactivate_tenant` (super_admin),
+      // not `convert_lead`.
+      const { data: converted, error: updateError } = await supabase
         .from("tenants")
         .update({
           is_prospect: false,
           status: "active",
           trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         })
-        .eq("id", lead.prospect_tenant_id);
+        .eq("id", lead.prospect_tenant_id)
+        .eq("is_prospect", true)
+        .eq("status", "trial")
+        .select("id")
+        .maybeSingle();
 
       if (updateError) throw updateError;
-      tenantId = lead.prospect_tenant_id;
+      if (!converted) {
+        return NextResponse.json(
+          { error: "The prospect store is no longer an open trial and cannot be converted" },
+          { status: 400 }
+        );
+      }
+      tenantId = converted.id;
     } else {
       // Create new tenant from lead data
       const slug = (lead.merchant_name || "store")
@@ -58,7 +91,7 @@ export async function POST(
         .insert({
           business_name: lead.merchant_name,
           slug,
-          plan: body.plan || "starter",
+          plan: CONVERSION_PLAN,
           status: "active",
           trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
           is_prospect: false,
@@ -76,26 +109,28 @@ export async function POST(
       tenantId = tenant.id;
 
       // Create wallet
-      await supabase.from("wallet").insert({
+      const { error: walletError } = await supabase.from("wallet").insert({
         tenant_id: tenantId,
         balance_iqd: 0,
         threshold_iqd: 5000,
       });
+      if (walletError) throw walletError;
     }
 
     // Create subscription
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    await supabase.from("subscriptions").insert({
+    const { error: subscriptionError } = await supabase.from("subscriptions").insert({
       tenant_id: tenantId,
-      plan: body.plan || "starter",
+      plan: CONVERSION_PLAN,
       status: "active",
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
     });
+    if (subscriptionError) throw subscriptionError;
 
     // Update lead
-    await supabase
+    const { error: leadUpdateError } = await supabase
       .from("leads")
       .update({
         converted_tenant_id: tenantId,
@@ -103,31 +138,36 @@ export async function POST(
         status: "converted",
       })
       .eq("id", id);
+    if (leadUpdateError) throw leadUpdateError;
 
-    // Log activity
-    await supabase.from("lead_activities").insert({
+    // Log activity — attributed to the authenticated caller, never to a
+    // client-supplied id.
+    const { error: activityError } = await supabase.from("lead_activities").insert({
       lead_id: id,
       activity_type: "conversion",
       title: "Lead converted to merchant",
-      metadata: { tenant_id: tenantId },
-      created_by: body.created_by || null,
+      description: notes,
+      metadata: { tenant_id: tenantId, plan: CONVERSION_PLAN },
+      created_by: auth.user.id,
     });
+    if (activityError) throw activityError;
 
     // Create commission record if lead has an assigned employee
     if (lead.assigned_to || lead.created_by) {
       const employeeId = lead.assigned_to || lead.created_by;
-      const { data: activeConfig } = await supabase
+      const { data: activeConfig, error: configError } = await supabase
         .from("admin_commission_config")
         .select("*")
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
+      if (configError) throw configError;
 
       if (activeConfig) {
         const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const periodEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        await supabase.from("admin_employee_commissions").insert({
+        const { error: commissionError } = await supabase.from("admin_employee_commissions").insert({
           admin_user_id: employeeId,
           lead_id: id,
           tenant_id: tenantId,
@@ -139,6 +179,7 @@ export async function POST(
           amount_earned: 0,
           status: "pending",
         });
+        if (commissionError) throw commissionError;
       }
     }
 
