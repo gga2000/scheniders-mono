@@ -1,6 +1,7 @@
 // Express identity label: the perfume name as the h1, then quiet tags —
-// brand, who it is for, bottle size — and the real rating. Every fact is
-// merchant-entered product data; absent data simply isn't shown.
+// the maker («الشركة: …», the strongest tag), who it is for, bottle size —
+// and the real rating. Every fact is merchant-entered product data; absent
+// data simply isn't shown.
 
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -30,13 +31,16 @@ function Tag({
   children,
   strong,
   className,
+  "data-tag": dataTag,
 }: {
   children: React.ReactNode;
   strong?: boolean;
   className?: string;
+  "data-tag"?: string;
 }) {
   return (
     <span
+      data-tag={dataTag}
       className={cn(
         "inline-flex h-7 items-center gap-1 rounded-bk-pill px-2.5 font-bk-body text-xs font-bold",
         strong
@@ -76,16 +80,25 @@ export function IdentityLabel({
         {displayNameOf(product)}
       </h1>
       {(brand || gender || size || rating) && (
-        <div className={cn("flex flex-wrap items-center gap-1.5", rtl && "flex-row-reverse")}>
+        // w-full pins the row to the column (a column flex item otherwise
+        // sizes to its nowrap content); min-w-0 on the brand pill then lets
+        // a long brand ellipsize inside the gutter instead of off-screen.
+        <div className={cn("flex w-full flex-wrap items-center gap-1.5", rtl && "flex-row-reverse")}>
           {brand && (
-            <Tag strong>
-              <span translate="no" className="tracking-wide">
-                {brand}
-              </span>
+            <Tag strong className="min-w-0 max-w-full" data-tag="brand">
+              {/* <bdi> isolates the phrase and takes its direction from the
+                  label, so «الشركة:» leads on the right even when the brand
+                  itself is Latin. */}
+              <bdi className="min-w-0 truncate">
+                <span className="font-medium">{xs("brandLabel", locale)}</span>{" "}
+                <span translate="no" className="tracking-wide">
+                  {brand}
+                </span>
+              </bdi>
             </Tag>
           )}
           {gender && (
-            <Tag>
+            <Tag className={cn(rtl && "flex-row-reverse")}>
               <MaterialIcon name={GENDER_ICON[gender]} className="text-sm" />
               {xs(gender, locale)}
             </Tag>

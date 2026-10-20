@@ -16,10 +16,41 @@ import { readsRtl, xs } from "./text";
 const PAID_INK = "color-mix(in srgb, var(--bk-success) 38%, var(--bk-ink))";
 /** Struck-price colour: costly red, deepened toward ink for contrast. */
 const STRUCK_INK = "color-mix(in srgb, var(--bk-danger) 65%, var(--bk-ink))";
+/** The seal gives up a little size on the narrowest phones so the price
+ *  column keeps its room; full size from ~400px. */
+const SEAL_SIZE = "clamp(56px, 17vw, 68px)";
+/** A row label never narrows below this: enough for two short words a
+ *  line («السعر بعد / الخصم»), so a long price can't squeeze it to one word
+ *  per line or past its longest word. */
+const LABEL_FLOOR = "3.75rem";
+/** What the paid row spends beside the amount digits: the currency word
+ *  and the two gaps. */
+const AMOUNT_CHROME = "2.25rem";
+/** Advance of one tabular digit in em, a touch above the display font's
+ *  real one so the estimate errs toward fitting. */
+const DIGIT_EM = 0.55;
+/** Paid-price size tracks the price COLUMN (container units), not the
+ *  viewport: the seal and the plate padding already took their share. The
+ *  amount takes what is left after the label floor, divided across its own
+ *  characters — so a longer price shrinks instead of crushing the label,
+ *  and the row always fits beside the seal. The vw clamp is the fallback
+ *  for engines without container units (an invalid inline value is
+ *  dropped and the class applies). */
+export function paidSize(amount: string, withLabel: boolean): string {
+  const ems = (amount.length * DIGIT_EM).toFixed(2);
+  const room = withLabel
+    ? `100cqi - ${LABEL_FLOOR} - ${AMOUNT_CHROME}`
+    : `100cqi - ${AMOUNT_CHROME}`;
+  return `clamp(20px, calc((${room}) / ${ems}), 36px)`;
+}
+const PAID_SIZE_FALLBACK = "text-[length:clamp(26px,8.5vw,36px)]";
 
 export function DiscountSeal({ pct, locale }: { pct: number; locale: LocaleCode }) {
   return (
-    <span className="relative flex h-[68px] w-[68px] shrink-0 flex-col items-center justify-center rounded-bk-pill bg-bk-secondary text-bk-primary shadow-bk-card motion-safe:animate-[bk-seal-in_var(--bk-duration-reveal)_cubic-bezier(.2,.9,.3,1.3)_both]">
+    <span
+      className="relative flex shrink-0 flex-col items-center justify-center rounded-bk-pill bg-bk-secondary text-bk-primary shadow-bk-card motion-safe:animate-[bk-seal-in_var(--bk-duration-reveal)_cubic-bezier(.2,.9,.3,1.3)_both]"
+      style={{ width: SEAL_SIZE, height: SEAL_SIZE }}
+    >
       <span
         aria-hidden="true"
         className="absolute inset-[4px] rounded-bk-pill border-bk border-dashed border-bk-primary/60"
@@ -61,9 +92,15 @@ export function PricePlate({
   const paid = formatPriceParts(price, locale);
   const rtl = readsRtl(locale);
   const saving = onSale && compareAt !== null ? (compareAt - price) * qty : 0;
-  // Label sits on the reading-start side of its price.
-  const row = cn("flex items-baseline justify-end gap-2.5", !rtl && "flex-row-reverse");
-  const labelCls = "font-bk-body text-xs font-bold text-bk-ink-soft whitespace-nowrap";
+  // Label sits on the reading-start side of its price. The price never
+  // wraps; the label does, down to its floor (two short lines), and the
+  // paid amount's size yields so the row always fits beside the seal.
+  const row = cn("flex min-w-0 items-center justify-end gap-2", !rtl && "flex-row-reverse");
+  const labelCls = cn(
+    "font-bk-body text-xs font-bold leading-tight text-bk-ink-soft text-balance",
+    rtl ? "text-right" : "text-left",
+  );
+  const labelStyle = { minWidth: LABEL_FLOOR };
 
   return (
     <div
@@ -83,11 +120,14 @@ export function PricePlate({
             : "var(--bk-surface)",
         }}
       >
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div
+          className="flex min-w-0 flex-1 flex-col gap-1"
+          style={{ containerType: "inline-size" }}
+        >
           {onSale && compareAt !== null && (
             <div className={row} aria-hidden="true">
               <span
-                className="font-bk-display text-[17px] font-bold leading-tight tabular-nums line-through"
+                className="shrink-0 whitespace-nowrap font-bk-display text-[17px] font-bold leading-tight tabular-nums line-through"
                 style={{
                   color: STRUCK_INK,
                   textDecorationColor: "var(--bk-danger)",
@@ -99,7 +139,7 @@ export function PricePlate({
                 <bdi>{formatPrice(compareAt, locale)}</bdi>
               </span>
               {compareLabel && (
-                <span className={labelCls} data-i18n-field="compare_label_i18n">
+                <span className={labelCls} style={labelStyle} data-i18n-field="compare_label_i18n">
                   {compareLabel}
                 </span>
               )}
@@ -107,14 +147,16 @@ export function PricePlate({
           )}
           <div className={row} aria-hidden={onSale ? true : undefined}>
             <bdi
-              className="flex items-baseline gap-1 font-bk-display font-black leading-none tabular-nums"
+              className="flex shrink-0 items-baseline gap-1 whitespace-nowrap font-bk-display font-black leading-none tabular-nums"
               style={{ color: onSale ? PAID_INK : "var(--bk-ink)" }}
             >
-              <span className="text-[36px]">{paid.amount}</span>
+              <span className={PAID_SIZE_FALLBACK} style={{ fontSize: paidSize(paid.amount, Boolean(priceLabel)) }}>
+                {paid.amount}
+              </span>
               <span className="text-[14px] font-bold">{paid.currency}</span>
             </bdi>
             {priceLabel && (
-              <span className={labelCls} data-i18n-field="price_label_i18n">
+              <span className={labelCls} style={labelStyle} data-i18n-field="price_label_i18n">
                 {priceLabel}
               </span>
             )}
