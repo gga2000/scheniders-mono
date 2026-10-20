@@ -1,5 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { resolveRenamedSlug } from "@/lib/slug-redirect";
 import { getCategoryBySlug, getProductBySlug } from "@/lib/queries";
 import { enforceRedirect } from "@/lib/redirects";
 import type { Category, Product, Tenant } from "@/lib/types";
@@ -24,10 +26,45 @@ export function resolveStoreTenant(tenantParam: string): Promise<Tenant | null> 
     : getTenantBySlug(tenantParam);
 }
 
+/**
+ * Where a renamed store's old link should land, or null to 404.
+ *
+ * Path mode (`/s/<old>`) moves to `/s/<new>`; subdomain mode (the proxy
+ * sets `x-store-base: ""`) moves to `<new>.` on the same root host. Custom
+ * domains never reach here: their param is `__domain__<host>`, and a host
+ * is not a slug.
+ */
+export function renamedStoreTarget(
+  renamed: string,
+  storeBase: string | null,
+  host: string | null,
+  proto: string | null,
+): string | null {
+  if (storeBase !== "") return `/s/${renamed}`;
+  const dot = host?.indexOf(".") ?? -1;
+  if (!host || dot < 0) return null;
+  return `${proto === "http" ? "http" : "https"}://${renamed}${host.slice(dot)}`;
+}
+
 /** A tenant that can be shown at all — unknown and cancelled stores 404.
- *  (A suspended store still resolves; the tenant layout renders its notice.) */
+ *  (A suspended store still resolves; the tenant layout renders its notice.)
+ *  An unknown slug a store used to own 308s to that store's current slug
+ *  (UX2-13 handle claim), so links already shared keep working. */
 export async function requireStoreTenant(tenantParam: string): Promise<Tenant> {
   const tenant = await resolveStoreTenant(tenantParam);
+  if (!tenant && !tenantParam.startsWith("__domain__")) {
+    const renamed = await resolveRenamedSlug(tenantParam);
+    if (renamed) {
+      const h = await headers();
+      const target = renamedStoreTarget(
+        renamed,
+        h.get("x-store-base"),
+        h.get("host"),
+        h.get("x-forwarded-proto"),
+      );
+      if (target) permanentRedirect(target);
+    }
+  }
   if (!tenant || tenant.status === "cancelled") notFound();
   return tenant;
 }

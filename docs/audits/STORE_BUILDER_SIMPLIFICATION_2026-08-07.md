@@ -234,7 +234,7 @@ Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 284 ✓.
 
 The oldest open finding (07-02 audit) — `/store/edit` no longer renders inside the OMS sidebar + top bar + search chrome. `DashboardLayout` gets an immersive branch for the editor route: billing banners stay (they gate whether the store operates), everything else goes; editor shells switch from `h-[calc(100vh-4rem)]` to `h-full`. Canvas gains ~200px of vertical space and the editor reads as its own product, with «العودة» as the way back. Live-verified on #100054.
 
-**Sweep complete.** All proposed rounds + cleanup + UX-21 shipped. Still deliberately open (deferred, not forgotten): real per-template thumbnail art (English placeholder art in SVGs), auto-translate/AI copy, slug/handle claim UI.
+**Sweep complete.** All proposed rounds + cleanup + UX-21 shipped. Still deliberately open (deferred, not forgotten): real per-template thumbnail art (English placeholder art in SVGs), auto-translate/AI copy. The slug/handle claim UI shipped afterwards (claim dialog + /api/tenant/slug + old-link redirect).
 
 ---
 

@@ -1092,6 +1092,20 @@ export const STRINGS = {
         preview_loading: { en: "Loading preview…", ar: "جارٍ تحميل المعاينة…", ku: "پێشبینین بار دەکرێت…" },
         preview_iframe_title: { en: "Store preview", ar: "معاينة المتجر", ku: "پێشبینینی فرۆشگا" },
 
+        /* Handle claim (UX2-13) */
+        handle_edit: { en: "Change link", ar: "تغيير الرابط", ku: "گۆڕینی بەستەر" },
+        handle_title: { en: "Your store link", ar: "رابط متجرك", ku: "بەستەری فرۆشگاکەت" },
+        handle_body: { en: "Pick a short name for your store's link — letters, numbers and dashes.", ar: "اختر اسماً قصيراً لرابط متجرك — أحرف إنجليزية وأرقام وشرطات.", ku: "ناوێکی کورت بۆ بەستەری فرۆشگاکەت هەڵبژێرە — پیت و ژمارە و هێڵ." },
+        handle_redirect_note: { en: "Your old link will keep working — it redirects to the new one.", ar: "رابطك القديم سيبقى يعمل — سيحوّل تلقائياً إلى الجديد.", ku: "بەستەرە کۆنەکەت هەر کاردەکات — خۆکارانە دەگوازرێتەوە بۆ نوێکە." },
+        handle_available: { en: "Available ✓", ar: "متاح ✓", ku: "بەردەستە ✓" },
+        handle_taken: { en: "Taken — try another", ar: "محجوز — جرّب اسماً آخر", ku: "گیراوە — یەکێکی تر تاقی بکەرەوە" },
+        handle_invalid: { en: "3–30 chars: english letters, numbers, dashes.", ar: "من 3 إلى 30: أحرف إنجليزية وأرقام وشرطات.", ku: "لە ٣ بۆ ٣٠: پیتی ئینگلیزی و ژمارە و هێڵ." },
+        handle_reserved: { en: "That name is reserved — try another.", ar: "هذا الاسم محجوز للمنصة — جرّب اسماً آخر.", ku: "ئەو ناوە بۆ پلاتفۆرمەکە پارێزراوە — یەکێکی تر تاقی بکەرەوە." },
+        handle_check_failed: { en: "Couldn't check this name — try again in a moment.", ar: "تعذّر التحقق من هذا الاسم — حاول بعد قليل.", ku: "نەتوانرا ئەم ناوە بپشکنرێت — کەمێکی تر هەوڵ بدەرەوە." },
+        handle_save: { en: "Save link", ar: "حفظ الرابط", ku: "پاشەکەوتکردنی بەستەر" },
+        handle_saving: { en: "Saving…", ar: "جارٍ الحفظ…", ku: "پاشەکەوت دەکرێت…" },
+        handle_error: { en: "Couldn't change the link — try again.", ar: "تعذّر تغيير الرابط — حاول مرة أخرى.", ku: "نەتوانرا بەستەرەکە بگۆڕدرێت — دووبارە هەوڵ بدەرەوە." },
+
         /* KPI strip */
         kpi_orders: { en: "Orders", ar: "الطلبات", ku: "داواکارییەکان" },
         kpi_revenue: { en: "Revenue", ar: "الإيرادات", ku: "داهات" },
