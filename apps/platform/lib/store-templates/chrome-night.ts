@@ -13,6 +13,7 @@ const s = makeSectionFactory("chrome_night");
 
 export const chromeNightTemplate: StoreTemplate = {
     id: "chrome_night",
+    version: 1,
     name_i18n: { en: "Chrome Night", ar: "ليل معدني" },
     description_i18n: {
         en: "Graphite and brushed silver. Quiet, slow and expensive-looking, for premium and gifting stores.",

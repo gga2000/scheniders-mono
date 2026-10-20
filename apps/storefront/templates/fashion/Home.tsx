@@ -31,6 +31,7 @@ export default function FashionHome({ tenant, products, categories }: TemplateHo
             src={hero.image_url}
             alt=""
             fill
+            sizes="100vw"
             priority
             className="object-cover"
           />

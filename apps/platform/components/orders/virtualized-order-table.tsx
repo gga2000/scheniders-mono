@@ -1,6 +1,7 @@
 "use client";
 
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
+import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useDocumentOffsetTop } from '@/hooks/use-document-offset-top';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
@@ -407,6 +408,11 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     })()}
                 </span>
                 <OrderPlacementBadge order={order} />
+                <CodRiskChip
+                    variant="row"
+                    needsAttention={order.needs_attention}
+                    attentionReasons={order.attention_reasons}
+                />
                 {order.needs_attention && order.attention_reasons?.some((r: string) => r.startsWith('whatsapp_')) && (
                     <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || 'فشل واتساب'}>
                         <AlertTriangle className="w-3 h-3" />

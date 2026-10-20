@@ -410,7 +410,7 @@ function CustomerLoveCard({ schn }: { schn: ResolvedSchneiders }) {
       <div className="w-24 h-24 rounded-full chunky-border-bold overflow-hidden shrink-0 bg-bk-decor-b flex items-center justify-center font-display font-black text-3xl">
         {t.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={t.avatar_url} alt={name} className="w-full h-full object-cover" />
+          <img src={t.avatar_url} alt={name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
         ) : (
           avatarLetter
         )}

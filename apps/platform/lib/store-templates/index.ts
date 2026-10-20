@@ -18,7 +18,7 @@ import { auroraGlassTemplate } from "./aurora-glass";
 import { cobaltBroadsheetTemplate } from "./cobalt-broadsheet";
 import { chromeNightTemplate } from "./chrome-night";
 import { sunbleachTemplate } from "./sunbleach";
-import { schenidersSignatureTemplate } from "./scheniders-signature";
+import { signatureDirection } from "./scheniders-signature";
 import type { StoreTemplate } from "./types";
 
 export type { StoreTemplate, BrandKitPreset } from "./types";
@@ -29,7 +29,7 @@ export const STORE_TEMPLATES: StoreTemplate[] = [
     cobaltBroadsheetTemplate,
     chromeNightTemplate,
     sunbleachTemplate,
-    schenidersSignatureTemplate,
+    signatureDirection,
 ];
 
 /**
