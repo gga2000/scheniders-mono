@@ -660,6 +660,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 id === "pixels" ||
                 id === "loyalty" ||
                 id === "order_status" ||
+                id === "free_gift" ||
                 id === "custom_pages" ||
                 id === "nav" ||
                 id === "redirects"
@@ -1398,6 +1399,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         "pixels",
         "loyalty",
         "order_status",
+        "free_gift",
         "custom_pages",
         "nav",
         "redirects",

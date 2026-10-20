@@ -39,6 +39,7 @@ import {
     Truck,
     Users,
     MessageSquareText,
+    Gift,
     type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -159,6 +160,7 @@ export type SettingsSectionId =
     | "pixels"
     | "loyalty"
     | "order_status"
+    | "free_gift"
     | "custom_pages"
     | "nav"
     | "redirects";
@@ -189,6 +191,7 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "pixels", icon: BarChart3, labelKey: "setting_pixels", label: "Pixels & tracking" },
     { id: "loyalty", icon: Award, labelKey: "setting_loyalty", label: "Loyalty points" },
     { id: "order_status", icon: MessageSquareText, labelKey: "setting_order_status", label: "Order tracking messages" },
+    { id: "free_gift", icon: Gift, labelKey: "setting_free_gift", label: "Free gift" },
     { id: "custom_pages", icon: FileText, labelKey: "setting_custom_pages", label: "Custom pages" },
     { id: "nav", icon: Menu, labelKey: "setting_nav", label: "Navigation" },
     { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
@@ -229,6 +232,7 @@ const SETTING_TINT: Record<SettingsSectionId, string> = {
     pixels: "sb-tile--page",
     loyalty: "sb-tile--conversion",
     order_status: "sb-tile--trust",
+    free_gift: "sb-tile--conversion",
     custom_pages: "sb-tile--page",
     nav: "sb-tile--page",
     versions: "sb-tile--page",
