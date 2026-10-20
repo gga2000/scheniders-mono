@@ -336,6 +336,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 - **Repro (read-only):** the cast test; `pg_get_functiondef` of `create_order_atomic(jsonb,uuid)`; the two privilege checks.
 - **Fix sketch:** number from a SEQUENCE or counter table, not `MAX()` over text; revoke INSERT/UPDATE of `order_id` from `authenticated`; never accept a caller `order_id` (external refs in their own column); CHECK on `order_id` format.
 - **Related:** F-041, F-042, F-001.
+- **Fix:** PR #175 (draft, `fix/p0-order-number-counter`), migration `20261020154000_order_number_counter.sql`; apply the migration before deploying. Awaiting Ali's OK.
 
 ## F-041 — All order creation runs one at a time under a global lock with a scan of every tenant's orders, and the public checkout has no rate limit
 - **Severity:** P1 (anonymous, platform-wide denial of order intake; grows with data) · **Tier/Lens:** B-checkout (supabase-postgres-best-practices) · **Status:** CONFIRMED
@@ -346,6 +347,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 - **Critic addition:** the advisory lock is taken before the idempotency replay check, so replays also queue behind it. Stays P1, not P0: the outage lasts only while traffic continues, each request leaves a real order, it can be blocked at the edge, and organic load (≈20/day) is far below the ≈1/s ceiling.
 - **Fix sketch:** sequence/counter (F-040) removes lock and scan; per-tenant lock if one is needed; rate-limit checkout per IP and phone with `consume_rate_limit`.
 - **Related:** F-040, F-027, CONTEXT §5.6 hypothesis 1.
+- **Fix:** PR #175 (global lock removed, replays answered before any lock, checkout limited to 20/IP/10 min and 5/tenant+phone/hour). Awaiting Ali's OK.
 
 ## F-042 — A tenant can make another tenant's LightFunnels orders be dropped as duplicates
 - **Severity:** P2 · **Tier/Lens:** B-order-intake (security-review) · **Status:** CONFIRMED (code + live pattern)
