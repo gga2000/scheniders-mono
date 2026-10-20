@@ -362,3 +362,16 @@ export function useAuth() {
     }
     return context;
 }
+
+/**
+ * Auth if there is any, `undefined` if this tree has no provider.
+ *
+ * For leaf components that only need a session to ENRICH themselves — a
+ * picker that lists products, say. Throwing there turns a missing provider
+ * into a blank screen for the whole form, when the honest behaviour is to
+ * render with no data to offer. Anything that gates access or writes must
+ * keep using `useAuth`, so a missing provider stays loud.
+ */
+export function useOptionalAuth() {
+    return useContext(AuthContext);
+}
