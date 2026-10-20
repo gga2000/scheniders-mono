@@ -11,5 +11,4 @@
     <rect x="208" y="58" width="72" height="36" rx="8" fill="#7cf0bd" stroke="#1a1a1a" stroke-width="3"/>
     <rect x="208" y="102" width="72" height="36" rx="8" fill="#c5b6ff" stroke="#1a1a1a" stroke-width="3"/>
   </g>
-  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">pdp_gallery</text>
 </svg>

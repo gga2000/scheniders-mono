@@ -18,5 +18,4 @@
       <line x1="140" y1="14" x2="160" y2="14" stroke="#1a1a1a" stroke-width="3"/>
     </g>
   </g>
-  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">order_tracker</text>
 </svg>

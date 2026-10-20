@@ -191,6 +191,20 @@ Gates: workspace `type-check` 3/3 ✓, `lint` 0 errors ✓, vitest shared/sectio
 
 Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 278 ✓ (new: Simple-health surface test; page-tree fold covered via editor-shell tests).
 
+## Round 3 — fix status (2026-08-08, same branch)
+
+"The wall and the words" — implemented and live-verified on tenant #100051:
+
+| ID | Status | Fix |
+|---|---|---|
+| S3-04a | **FIXED** | Simple picker hides invalid-for-page cards outright (Advanced keeps the greyed taxonomy) — section-picker.tsx. Live: 0 `data-valid="false"` cards on the home picker. |
+| S3-04b | **FIXED** | Near-duplicate flavors folded in Simple: `hero_split/hero_marquee/hero_video` (hero_image is the card), `marquee_strip` (announcement_bar), `sticky_cta_bar` (cta_banner) — `SIMPLE_HIDDEN_FLAVORS`, also applied to the recents shelf. Advanced keeps the flat 48. *Note: implemented as primary-flavor-only in Simple, not a post-add flavor switch — changing a section's type after add would mean re-seeding props.* |
+| S3-04c | **FIXED** | Dev type-name captions (`hero_image` etc.) stripped from all 32 thumbnail SVGs that had them — apps/storefront/public/sections/. English placeholder *art* (HEADLINE HERE…) remains; real art regen is a design task, out of scope. |
+| S3-06 | **SUPERSEDED on main** | The branch's Simple-mode `DestinationControl` was not ported. main already renders every `href`/`*_href` field through `LinkPickerField` (lib/section-field-widgets.ts, 3aa6a054 / cf17e086) in both modes, which also reaches products, categories and custom pages; the remaining `isUrl` fields are `z.string().url()` (absolute URLs), where an internal-path select would write invalid values. |
+| S3-08 | **FIXED** | `scribble_color` hidden in Simple via `SIMPLE_OVERRIDES.product_grid` (seeded default stands); Advanced gets Arabic label «لون التمييز» + localized swatch names (أصفر زبدي/نعناعي/بنفسجي فاتح/أزرق سماوي/وردي). Bonus: `see_all_label` («نص زر عرض الكل») labeled — was English "See All Label" in Simple. |
+
+Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 282 ✓ (4 new: destination picker ×3, Simple picker filtering ×1).
+
 ---
 
 *Test artifacts: tenant #100053 (`noor.simplify3@example.com` / `NoorSimplify3_2026!`) created and left unpublished with hero text «تشكيلة للعيد جديدة»; tenant #100051 gained one publish + a شبكة منتجات section during T3/T5 measurement, and `commerce.whatsapp_number = 07709998877` during the S3-01 verification; tenant #100054 (`reem.simplify3@example.com`) created during the S3-02 verification, wizard not completed.*
