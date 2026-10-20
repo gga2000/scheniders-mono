@@ -4,7 +4,7 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 
 **Basis (Phase 2 Tier A, 2026-10-20):** code `origin/main` @ **0032320** (all `file:line` at that commit); DB `sduvpgqwhxragxtxztur`, SELECT on catalog tables only (`pg_proc`, `pg_policies`, `pg_class`, `pg_constraint`, `information_schema.routine_privileges`, storage); aggregates only, no PII. Lenses: isolation, AuthN/AuthZ, money & order integrity. Skills: `security-review`, `supabase-postgres-best-practices`.
 
-**Tier A (A1–A3) totals after critic round 1:** 1 P0 · 3 P1 · 7 P2 · 10 P3 (F-001 raised to P0, F-003 lowered to P2, F-019..F-021 added). **A4–A10 (F-022..F-039) after critic round 1:** 0 P0 · 1 P1 · 10 P2 · 7 P3 (F-025 lowered to P2); F-037 HYPOTHESIS. origin/main is now 7eed48be; cited files unchanged except F-028. F-014 is HYPOTHESIS, the rest CONFIRMED. Critic round 1: `critic/phase2-tierA-round1.md`.
+**Tier A (A1–A3) totals after critic round 1:** 1 P0 · 3 P1 · 7 P2 · 10 P3 (F-001 raised to P0, F-003 lowered to P2, F-019..F-021 added). **A4–A10 (F-022..F-039) after critic round 1:** 0 P0 · 1 P1 · 10 P2 · 7 P3 (F-025 lowered to P2); F-037 HYPOTHESIS. origin/main is now 7eed48be; cited files unchanged except F-028. **Tier B pass 1 (F-040..F-054, critic pending):** 0 P0 · 3 P1 (F-043 P1/P2 pending Ali) · 4 P2 · 8 P3. F-014 is HYPOTHESIS, the rest CONFIRMED. Critic round 1: `critic/phase2-tierA-round1.md`.
 
 **Tracked elsewhere, referenced not re-filed** (fix branches in progress for most): NEW-P1-06 / NEW-P1-07 (P0) Interakt `[tenantId]` and LightFunnels webhooks default to `monitor`; the 1 live Interakt integration has no `webhook_secret` (fix PR #167) · NEW-P1-09 deactivate is a silent no-op and users can re-activate themselves (fix PR #168; critic N-1) · NEW-P1-01 `charge_wallet_atomic` negative amount (re-confirmed live) · NEW-P1-02 any member UPDATE on `tenants` · NEW-P1-03 `apply_store_config_v2_patch` membership-only (incl. `custom_css`) · NEW-P1-04 `product-images` / `qc-evidence` buckets · NEW-P1-05 generate-batch-pdf SSRF · NEW-P1-08 Telegram secret (3 `telegram_employee_link` rows live) · NEW-P1-13 delivery-import NULL tenant · NEW-P1-14 waseet-sync header · NEW-P1-16 `performance_bonuses` · NEW-P1-17 `webhooks/interakt/route.ts` ~282/~292 insert `whatsapp_logs` / `order_status_history` without `tenant_id` · NEW-P1-19 process-checkouts-manual · NEW-P1-20 `payroll-pdfs` trusts global `role='admin'` · NEW-P1-24 VIEW_FINANCIALS + orders/products policies · NEW-P1-30 admin billing/topup · NEW-P1-32 domains/verify · B-08/F-24 `tenant-assets` SVG · L-15/B-03 JWT-claim policies on `bom_items`, `product_categories` (claim unforgeable → deny-all in practice).
 
@@ -323,6 +323,122 @@ Schema: §9 of the program brief. Severity P0–P3. Status CONFIRMED (evidence i
 - First to break at 10x: (1) Free-plan DB size, read-only in ≈11 days at base, ≈1 day at 10x (F-022); (2) Free-plan 200 Realtime connections (F-022); (3) 1 GB storage ≈2026-11-18 (F-022); then compute: whatsapp_logs receipt scans (F-025), v_orders_with_risk past 8 s at ≈20x tenant size (F-026), refresh crons near their 600 s interval (F-027), orders write amplification from 21 indexes (4 advisor-unused: assigned_to, needs_attention, version, delivery_company).
 - Largest at 12 months (base): notifications ≈2.3M / 6.4 GB (unpruned, P-0.4); whatsapp_logs ≈1.6M / 3.8 GB (F-025); order_status_history ≈1.9M / 0.36 GB; orders ≈550k / 0.6 GB (21 indexes, none for F-028). ×10 at 10x.
 - Not examined in this pass: COVERAGE rows 57–59, 626, 627, 630, 637–643.
+
+---
+# Tier B, pass 1: storefront checkout and merchant order operations (code `origin/main` @ 7eed48be; DB SELECT/EXPLAIN 2026-10-20 13:25–14:10 UTC; Playwright not run, see journeys/tierB-checkout-orders.md §4)
+
+## F-040 — Any tenant can stop order-number generation for every tenant with one order row
+- **Severity:** P1 (critic to decide P0 under F-001's rule) · **Tier/Lens:** B-checkout / B-order-intake (security-review) · **Status:** CONFIRMED (live function source, grants, cast test)
+- **Location:** live `public.create_order_atomic(jsonb,uuid)`: `SELECT COALESCE(MAX(NULLIF(regexp_replace(SUBSTRING(order_id FROM length(_prefix)+1),'\D','','g'),'')::int),0) … WHERE order_id LIKE (_prefix||'%')`, and it accepts caller `_order_data->>'order_id'`. `apps/platform/lib/order-service.ts:59-69` spreads client `orderData` (incl. `order_id`) into the RPC. Policy `orders.tenant_isolation_insert` checks only `tenant_id IN get_user_tenant_ids()`; `has_column_privilege('authenticated','public.orders','order_id','INSERT')` = true.
+- **Evidence:** prefix `<source digit><YYMMDD>` (1 whatsapp, 2 meta, 3 tiktok, 4 everything else incl. storefront) is shared by all tenants; `select '99999999999'::int` raises `22003 out of range for type integer`.
+- **Impact:** a self-signup tenant inserts one own-tenant order with `order_id='4'||YYMMDD||'99999999999'` (and 1–3); until that date ends every `create_order_atomic` call without an explicit `order_id` raises for every tenant (storefront checkout, manual, Telegram). LightFunnels passes its own number. Future dates can be pre-poisoned.
+- **Repro (read-only):** the cast test; `pg_get_functiondef` of `create_order_atomic(jsonb,uuid)`; the two privilege checks.
+- **Fix sketch:** number from a SEQUENCE or counter table, not `MAX()` over text; never accept a caller `order_id` (external refs in their own column); CHECK on `order_id` format.
+- **Related:** F-041, F-042, F-001.
+
+## F-041 — All order creation runs one at a time under a global lock with a scan of every tenant's orders, and the public checkout has no rate limit
+- **Severity:** P1 (anonymous, platform-wide denial of order intake; grows with data) · **Tier/Lens:** B-checkout (supabase-postgres-best-practices) · **Status:** CONFIRMED
+- **Location:** live `create_order_atomic(jsonb,uuid)` `PERFORM pg_advisory_xact_lock(hashtext('create_order_lock'))` held for the whole transaction incl. the 12 orders triggers, plus the prefix `MAX()` scan. `apps/storefront/app/api/checkout/orders/route.ts:67-127` and server action `apps/storefront/app/actions/checkout.ts:126` have no limiter (`consumeRateLimit` imported only by `app/api/orders/lookup/route.ts:5`, `app/api/referral/validate/route.ts:5`).
+- **Evidence:** pg_stat_statements `create_order_atomic` 390 calls, mean 944 ms, max 5,042 ms. EXPLAIN ANALYZE prefix scan: Index Only Scan `orders_order_id_key`, 23,292 rows removed by filter, 5,944 buffers, 142 ms (non-`text_pattern_ops` btree cannot serve `LIKE 'x%'`). `authenticator` statement_timeout 8 s.
+- **Impact:** ≈1 order/s global ceiling today vs 1.25/s needed at 10x peak (CONTEXT §5.4); ≈3.4 s per order at 550k orders, past 8 s at ≈1.3M. Two anonymous checkout POSTs/s to any store saturate the lock and time out order creation for every tenant and channel, and each is a real fake COD order.
+- **Repro (read-only):** `explain analyze select … from orders where order_id like '1261019%'`; pg_stat_statements query above.
+- **Fix sketch:** sequence/counter (F-040) removes lock and scan; per-tenant lock if one is needed; rate-limit checkout per IP and phone with `consume_rate_limit`.
+- **Related:** F-040, F-027, CONTEXT §5.6 hypothesis 1.
+
+## F-042 — A tenant can make another tenant's LightFunnels orders be dropped as duplicates
+- **Severity:** P2 · **Tier/Lens:** B-order-intake (security-review) · **Status:** CONFIRMED (code + live pattern)
+- **Location:** `apps/platform/lib/webhook-handler.ts:748-768` (duplicate check on `order_id` deliberately not tenant-filtered → `{duplicate:true}`, queue row marked processed, no retry); global `orders_order_id_key`; caller `order_id` accepted (F-040).
+- **Evidence:** LightFunnels order numbers in 30 days mostly 4-digit (187 of 287) and sequential.
+- **Impact:** a self-signup tenant pre-inserts upcoming numbers and the victim's real orders are silently discarded; a second legitimate LightFunnels tenant collides by accident.
+- **Repro (read-only):** `select regexp_replace(order_id,'[0-9]','9','g'), count(*) from orders where source='lightfunnels' and created_at>now()-'30 days' group by 1`.
+- **Fix sketch:** external ref in `(tenant_id, external_source, external_id)` unique per tenant; `order_id` server-generated. **Related:** F-034, F-035, F-040.
+
+## F-043 — About 9 in 10 orders are never counted for usage or charged, and only manual orders are checked against plan limits
+- **Severity:** P1 if per-order billing is the intended revenue model, else P2 (question for Ali) · **Tier/Lens:** B-order-intake / Money · **Status:** CONFIRMED (code + live counts); manual-path shortfall cause HYPOTHESIS
+- **Location:** only `apps/platform/lib/order-service.ts:52` (`canCreateOrder`) and `:75-80` (`chargeAndTrack`, not awaited, in a server action) bill and count. None in `apps/platform/lib/webhook-handler.ts:897`, `apps/platform/lib/lightfunnels-api.ts:800,938`, storefront `apps/storefront/app/actions/checkout.ts:616`. LightFunnels paths skip `assertNotBlocked` (`new_orders`); `assertNotBlocked` appears only in order-service, actions/orders, team/invite, create-user.
+- **Evidence (October 2026 to date):** 390 orders (LightFunnels 287, whatsapp/meta/tiktok 102 incl. 98 non-return, storefront 1); `usage_tracking` October `orders_count` = 41; wallet "Order charge…" transactions = 41; wallet balance positive (43,800 IQD); every day has fewer charges than manual orders.
+- **Impact:** ≈89% of orders unbilled and uncounted; plan limits and admin pause do not stop LightFunnels or storefront intake.
+- **HYPOTHESIS:** fire-and-forget `chargeAndTrack` is cut off when the server action returns (41 of 98 manual). Proof: error events, or `after()` and compare.
+- **Fix sketch:** bill in the DB (`create_order_atomic` or AFTER INSERT trigger calling `charge_wallet_atomic` + `increment_usage_tracking`); enforce limits and pause there. **Related:** NEW-P1-01, F-034.
+
+## F-044 — The COD amount the courier is told to collect depends on the print template, and storefront orders use a different price meaning
+- **Severity:** P2 · **Tier/Lens:** B-fulfilment / Money · **Status:** CONFIRMED (code + live data)
+- **Location:** `apps/platform/lib/enhanced-label-generator.ts`: `:197-198` `generateLabelHTML` items − discount (same in `lib/print-label.ts:34-35`); `:442-445` invoice and `:575-578` classic A6 items + delivery_fee − discount; `:746` modern, `:880` prime, `:991` shipping label use `order.price`. Default `prime` (`app/printing/page.tsx:64`), classic/modern selectable (`:499-521`).
+- **Evidence:** last 60 days non-storefront: `price` = item sum excluding `delivery_fee` (meta 274/274, whatsapp 591/597 with a fee); discounted orders already net (LightFunnels 10/10); courier PDF amount = `price` in 348/349 imported rows. Storefront `checkout.ts:603-605` stores gross subtotal in `price` with discount and fee separate, total shown as subtotal − discount + fee (`:572`).
+- **Impact:** classic template prints price + fee on ≈1,700 recent fee-bearing orders (courier collects a fee the customer never agreed); prime/modern print the gross storefront subtotal ignoring coupon and fee (latent, 1 storefront order); `lib/delivery-import/match-engine.ts:129-133` flags every storefront order with fee/discount as a mismatch and `process_with_pdf_price` (`app/api/delivery-import/confirm/route.ts:137-138`) overwrites `price`.
+- **Fix sketch:** one `codAmount(order)` in `packages/shared` used by all templates, delivery-import and Waseet; one price convention documented on the column. **Related:** F-030.
+
+## F-045 — A brief DB error turns a store into a 404 or empty catalogue for 60 s because errors are cached
+- **Severity:** P2 · **Tier/Lens:** B-storefront-browse (next-best-practices) · **Status:** CONFIRMED (code)
+- **Location:** `apps/storefront/lib/tenant.ts:234-236` (`selectTenant` returns null on error) inside `unstable_cache` (`:281-293`, `:302-327`, revalidate 60) → `notFound()` (`app/s/[tenant]/layout.tsx:37-39`); `lib/queries.ts:21-30` (`publicCache`) and `:366-369` (`listProducts` returns `[]` on error, cached). Same for the anon `tenant_domains` lookup.
+- **Impact:** one anon 3 s timeout in a spike caches "store not found" / "no products" for every shopper for up to 60 s (the EC29 case the cache was built for).
+- **Fix sketch:** throw inside the cached function; cache only success; `error.tsx` or stale value on error. **Related:** F-047.
+
+## F-046 — Store-builder preview and order-from-image cannot work in production because their secrets are unset
+- **Severity:** P2 · **Tier/Lens:** B-preview / B-order-intake · **Status:** CONFIRMED in code; env absence from the CONTEXT §3 snapshot (2026-10-19), not re-read
+- **Location:** storefront `app/%5Fpreview/[tenant]/[page_id]/page.tsx:306-326` fails closed without `PREVIEW_TOKEN_SECRET`; platform `app/store/edit/page.tsx:147-150` then mints literal `dev-preview-token`; editor iframe `components/store-builder-v2/editor-shell.tsx:198,1487` shows "A valid preview token is required". `lib/gemini-order-extractor.ts:49-50` throws "GEMINI_API_KEY is not configured"; `GEMINI_*` absent from platform prod; `api_rate_limits` has 0 `analyze-image:` buckets.
+- **Impact:** merchants cannot preview store edits; screenshots cannot become orders.
+- **Fix sketch:** set both secrets; boot-time check in `lib/env.ts`; merchant-visible "not configured" state. **Related:** L-27.
+
+## F-047 — Suspended or paused stores return 404 instead of the "temporarily unavailable" page
+- **Severity:** P3 · **Tier/Lens:** B-storefront-landing · **Status:** CONFIRMED (policy + code)
+- **Location:** `apps/storefront/app/s/[tenant]/layout.tsx:46-63` has a `suspended` branch, but the tenant is read with the anon client (`lib/tenant.ts:285`) and `public_storefront_read` allows only `status IN ('trial','active')`, so the branch never runs. `limited` also 404s although `lib/tenant-order-gate.ts:21-46` accepts orders for some limited stores.
+- **Evidence:** 20 tenants suspended live.
+- **Impact:** paused merchants' ad links show "Store not found" and drop from search indexes.
+- **Fix sketch:** narrow DEFINER `storefront_tenant_status(slug)` (or service client for status only) and render the suspended/limited page.
+
+## F-048 — Legacy-template checkout, tracking and newsletter show shoppers false or inconsistent information
+- **Severity:** P3 (latent: 6 active legacy-checkout tenants have 0 orderable products; newsletter popup mounted for all, enabled on 0) · **Tier/Lens:** B-checkout / B-track / B-newsletter · **Status:** CONFIRMED
+- **Location (every site):**
+  1. `components/schneiders/checkout-form.tsx:91-102`, `components/storefront/CheckoutForm.tsx:47` call `submitCheckout` without an idempotency key (double tap / 3G retry duplicates).
+  2. `checkout-form.tsx:55-81` shows legacy `schneiders.shipping` fees (7,500 IQD, 100,000 IQD threshold outside Baghdad, plus `governorate_pricing`) while the server records `computeDeliveryFee` (`packages/shared/src/delivery.ts:64-66`: flat 5,000 IQD, 75,000 threshold).
+  3. `checkout-form.tsx:107`, `CheckoutForm.tsx:66` redirect to `success?order=<UUID>`; legacy success prints `# <uuid>` (`app/s/[tenant]/checkout/success/page.tsx:133-135`) and links `/track?order=<uuid>` (`:249`), which `lookup_order` (matches `order_id` text) never finds; root-relative, so 404 in `/s/<slug>` mode.
+  4. `components/schneiders/track-form.tsx:12-28` never calls the API; shows a hard-coded "On the way 🚚 … 3:30–4:30 PM" timeline for any input.
+  5. `components/schneiders/newsletter-popup.tsx:46-53` discards the email and says "Check your inbox for the code"; mounted at `app/s/[tenant]/layout.tsx:275`.
+- **Evidence:** 7 active tenants: 1 V2 checkout page, 6 legacy fallback with 0 visible active products.
+- **Fix sketch:** delete the legacy components or route them through V2 sections and endpoints.
+
+## F-049 — Checkout never re-checks stock, and storefront orders hold no stock until staff confirm
+- **Severity:** P3 · **Tier/Lens:** B-checkout / Money · **Status:** CONFIRMED (code + live `inv_phase`)
+- **Location:** `apps/storefront/app/actions/checkout.ts:306-357` (paid lines unchecked; only gift `:436-442` and upsell `app/api/checkout/orders/[id]/upsell/route.ts:208` checked); live `inv_phase('new')` = `CLOSED`; PDP stock up to 60 s stale (`lib/queries.ts:21-30`).
+- **Impact:** sold-out items keep being ordered until staff confirm; merchant must call to cancel.
+- **Fix sketch:** per-line `stock - reserved >= qty` in checkout; optionally reserve at `new` for storefront orders.
+
+## F-050 — Meta/TikTok server-side purchase events are awaited with no timeout before checkout responds
+- **Severity:** P3 (latent: 0 tenants have a token, L-40) · **Tier/Lens:** B-checkout (next-best-practices) · **Status:** CONFIRMED
+- **Location:** `apps/storefront/lib/capi.ts:127-144` (`fetch` without `signal`); awaited at `app/actions/checkout.ts:698-714` after commit.
+- **Impact:** slow upstream holds the shopper's response after the order exists; retries rely on the key (F-054).
+- **Fix sketch:** `after()` + `AbortSignal.timeout(3000)`. **Related:** L-22.
+
+## F-051 — Abandoned-cart recovery reminds each phone at most once, ever
+- **Severity:** P3 (latent: recovery on 0 tenants, 0 rows) · **Tier/Lens:** B-abandoned-cart · **Status:** CONFIRMED
+- **Location:** unique `abandoned_carts_tenant_id_phone_key (tenant_id, phone)`; `apps/storefront/app/api/cart/abandoned/route.ts:50-64` leaves `reminded_at`/`recovered_at` on upsert; sweeper `apps/platform/app/api/cron/abandoned-cart-recovery/route.ts:44-45` needs both null; `checkout.ts:686-691` sets `recovered_at`.
+- **Impact:** repeat customers' later carts are never recovered.
+- **Fix sketch:** row per session, or reset both stamps when the item set changes. **Related:** F-004.
+
+## F-052 — Two staff editing one order: the conflict retry drops the version check, so a stale write can revive a cancelled order
+- **Severity:** P3 · **Tier/Lens:** B-order-ops · **Status:** CONFIRMED (code)
+- **Location:** `apps/platform/hooks/use-order-crud.ts:459-469` re-runs `updateOrder(orderId, updates, undefined, …)` on `CONFLICT_DETECTED`; status writes via this path in `components/orders/workflow/fulfill-tab.tsx:59,69,132`; `components/orders/workflow/delivery-tab.tsx:121` replaces `notes` with "Partial: …".
+- **Impact:** A's in-transit overwrites B's cancel; inventory moves to FULFILLED and the order ships; existing notes lost on partial delivery.
+- **Fix sketch:** re-read and ask, or merge only unchanged fields; status via `updateStatus` with version; append notes.
+
+## F-053 — Delivery-import confirm counts no-op updates as done, overwrites any status, and accepts the same receipt again
+- **Severity:** P3 · **Tier/Lens:** B-delivered-returned · **Status:** CONFIRMED (code + live)
+- **Location:** `apps/platform/app/api/delivery-import/confirm/route.ts:43` (body cast, no Zod), `:170-180` (`update().eq(id).eq(tenant_id)` with no row count, status or version precondition; counted `processed`, audited `confirmed`), `:56-75` (no `receipt_number` uniqueness).
+- **Evidence:** 4 receipts imported 2–3 times (3312155 ×3, 2899543 ×3, 3440650 ×2, 3470668 ×2), each re-setting `delivered_at`. 206 of 219 orders delivered in 30 days came through import.
+- **Fix sketch:** `.select('id')` and count; `.eq('version', v)` or status guard; Zod body; warn/block on an already-confirmed `receipt_number` per tenant. **Related:** NEW-P1-13, L-19.
+
+## F-054 — Checkout duplicate-order protection is lost on reload or back, so a retry after a lost response creates a second order
+- **Severity:** P3 · **Tier/Lens:** B-checkout (sad path) · **Status:** CONFIRMED (code)
+- **Location:** `packages/sections/src/checkout_form.client.tsx:216,479-481` and `pdp_direct_order.client.tsx:335,770-771` keep the key in `useRef`; cart cleared only on success (`checkout_form.client.tsx:556`); catch comment `:614` ("nothing was submitted") is wrong.
+- **Impact:** on 3G a lost response + reload/back/reopen mints a new key → duplicate COD order.
+- **Fix sketch:** persist the key in `sessionStorage` keyed by a cart hash; fix the comment and message.
+
+### Tier B corrections to Tier A items
+- **F-011 partly stale @7eed48be:** earn now happens in trigger `loyalty_order_changed` on delivered/completed and is reversed on leaving it (`checkout.ts:677-681`, live source); replay returns before redemption (`:174-186`); RPC replay refunds redemption (`:649-658`). Still open: redemption by phone alone.
+- **F-017(2):** `/api/orders/lookup` now rate-limits per IP, order and phone (`app/api/orders/lookup/route.ts:43-108`), but `lookup_order` is still EXECUTE to `anon`, so a direct PostgREST call bypasses it. Fix: revoke anon EXECUTE; route calls it with the service role.
+- **F-010 extension:** the newsletter reward (`store_config_v2.globals.footer.base.newsletter.success_i18n`) is in anon-readable `tenants.store_config_v2`, readable without subscribing (`app/api/newsletter/route.ts:68-94` hides it from page payloads only).
+- **L-13 detail:** public `submitCheckout` does no validation: undefined `customer.*` throws 500; `governorate_code` not checked against `IRAQ_GOVERNORATES`; `alt_phone` stored un-normalised (`checkout.ts:581`); no length caps; reachable via legacy forms (`components/schneiders/checkout-form.tsx:10`).
 
 ---
 ### Supplementary HYPOTHESIS (not filed)
