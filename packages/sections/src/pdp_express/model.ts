@@ -21,6 +21,17 @@ import type {
   SubmitOptions,
 } from "../pdp_direct_order.client";
 
+/** The express form's visual field order — phone first, the backup number
+ *  last — which is also the order submit walks to focus the first invalid
+ *  field (passed to onSubmit as SubmitOptions.focusOrder). */
+export const EXPRESS_FIELD_ORDER: readonly FieldKey[] = [
+  "phone",
+  "customer_name",
+  "governorate_code",
+  "address_details",
+  "alt_phone",
+];
+
 export interface FieldA11yCore {
   id: string;
   "aria-invalid": boolean | undefined;
@@ -57,6 +68,8 @@ export interface ExpressModel {
   validateOnBlur: (k: FieldKey) => void;
   fieldA11yCore: (k: FieldKey) => FieldA11yCore;
   errorId: (k: FieldKey) => string;
+  /** Already carries `focusOrder: EXPRESS_FIELD_ORDER`; callers add only
+   *  their own options. */
   onSubmit: (
     e: React.FormEvent<HTMLFormElement>,
     opts?: SubmitOptions,

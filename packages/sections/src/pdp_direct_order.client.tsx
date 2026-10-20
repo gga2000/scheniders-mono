@@ -30,7 +30,7 @@
 
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   resolveI18n,
@@ -70,6 +70,7 @@ import type { Props } from "./pdp_direct_order";
 // The two-way import is benign — the constant is only read at render time.
 import { DEFAULT_URGENCY_MAX_STOCK } from "./pdp_direct_order";
 import { PdpExpress } from "./pdp_express/express-view";
+import { EXPRESS_FIELD_ORDER } from "./pdp_express/model";
 
 /** Chrome strings (Kurdish resolves through the ar fallback chain). */
 export const STRINGS = {
@@ -256,6 +257,11 @@ export interface SubmitOptions {
   /** Appended to address_details as " - {suffix}" when non-empty (the
    *  express layout's optional nearest-landmark field). */
   addressSuffix?: string;
+  /** The order "focus the first invalid field" walks, for a layout whose
+   *  visual order differs from FIELD_ORDER. A layout that passes it may
+   *  also keep fields collapsed (inert) until an error opens them, so the
+   *  focus is taken after the error render commits, not synchronously. */
+  focusOrder?: readonly FieldKey[];
 }
 
 export function isGovernorateCode(v: string): v is GovernorateCode {
@@ -293,6 +299,17 @@ export function PdpDirectOrderRender({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const fieldRefs = useRef<Partial<Record<FieldKey, FieldElement | null>>>({});
+  // The field to focus once the submit-error render has committed (only
+  // set when the layout passed SubmitOptions.focusOrder).
+  const pendingFocus = useRef<FieldKey | null>(null);
+  // No deps on purpose: every submit with errors commits a new
+  // fieldErrors object, and the check is a ref read.
+  useLayoutEffect(() => {
+    const k = pendingFocus.current;
+    if (k === null) return;
+    pendingFocus.current = null;
+    fieldRefs.current[k]?.focus();
+  });
   // Gallery column: the thumb the shopper tapped (null = cover image).
   const [activeImage, setActiveImage] = useState<string | null>(null);
   // EC17: one stable idempotency key per submission, reused across retries
@@ -541,14 +558,15 @@ export function PdpDirectOrderRender({
     setFieldErrors(errors);
     // The option sits above the form, so it is the first thing to fix.
     setVariantError(awaitingVariant);
-    const firstInvalid = FIELD_ORDER.find((k) => errors[k]);
+    const firstInvalid = (opts?.focusOrder ?? FIELD_ORDER).find((k) => errors[k]);
     if (awaitingVariant) {
       variantPillsRef.current?.scrollIntoView?.({ block: "center" });
       variantPillsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
       return;
     }
     if (firstInvalid || !phone) {
-      fieldRefs.current[firstInvalid ?? "phone"]?.focus();
+      if (opts?.focusOrder) pendingFocus.current = firstInvalid ?? "phone";
+      else fieldRefs.current[firstInvalid ?? "phone"]?.focus();
       return;
     }
 
@@ -819,7 +837,8 @@ export function PdpDirectOrderRender({
           validateOnBlur,
           fieldA11yCore,
           errorId,
-          onSubmit,
+          onSubmit: (e, opts) =>
+            onSubmit(e, { ...opts, focusOrder: EXPRESS_FIELD_ORDER }),
           onFormFocus,
           status,
           errorMsg,
