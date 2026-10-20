@@ -14,8 +14,9 @@
 //   - Fonts must exist in the brand-kit editor's Google Fonts catalogue
 //     (Arabic faces in its Arabic list).
 //   - The Arabic body face must ship 400/500/600/700 (WEIGHT_COMPLETE_FONTS):
-//     body copy and labels sit at 500/600, and a family without them
-//     (Almarai, Tajawal) renders those as 400/700, flattening hierarchy.
+//     body copy and labels sit at 500/600, and a family missing either
+//     (Almarai has neither, Tajawal has no 600) renders them as 400/700,
+//     flattening hierarchy.
 //   - Names are trilingual; Arabic is what most merchants read.
 // =====================================================================
 

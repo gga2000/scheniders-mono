@@ -7,12 +7,20 @@
  * re-checked with the Arabic entries 2026-10-20; every Arabic entry also
  * ships an `arabic` subset.
  *
- * Because the multi-weight request the storefront makes still answers 200,
- * nothing fails loudly when a family lacks a weight: the browser falls back
- * to the nearest face (or synthesises one), so 500 renders as 400 and 600
- * as 700 and the type hierarchy collapses. Almarai (300/400/700/800),
- * Tajawal (no 600) and Amiri (400/700) were caught this way. Verify a family
- * the same way before adding it here.
+ * The storefront fetches most families through the multi-weight css2 URL
+ * that buildBrandKitFontsUrl (packages/shared) builds. Because that request
+ * still answers 200, nothing fails loudly when a family lacks a weight: the
+ * browser falls back to the nearest face (or synthesises one), so 500
+ * renders as 400 and 600 as 700 and the type hierarchy collapses. Almarai
+ * (300/400/700/800), Tajawal (no 600) and Amiri (400/700) were caught this
+ * way. Verify a family the same way before adding it here.
+ *
+ * This list only says what Google serves. The families in
+ * SELF_HOSTED_FONT_VARS (Bricolage Grotesque, DM Sans, Cairo, Noto Sans
+ * Arabic) are left out of that URL and served by next/font in the storefront
+ * root layout, so the weights a store actually gets for them are whatever
+ * that layout loads. A self-hosted family on this list is only complete on
+ * the storefront when the layout loads it variable or with 400-700.
  *
  * Presets (store templates, brand themes) are checked against this list by
  * their tests; merchants can still pick any family in the editor.
