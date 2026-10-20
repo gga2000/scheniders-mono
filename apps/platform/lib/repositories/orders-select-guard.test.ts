@@ -80,6 +80,49 @@ function stepBuiltFullReads(source: string): number[] {
     return [...lines];
 }
 
+/**
+ * Lines where another table's select embeds `orders` with a `*` column list:
+ * `orders(*)`, `order:orders(*)`, `orders!qc_quarantine_order_id_fkey(*)`,
+ * `orders!inner(id, *)`. PostgREST expands the embed into a `*` read of
+ * `public.orders`, which is refused with 42501 once the margin columns leave the
+ * grant, exactly like `.from("orders").select("*")`. Comments are blanked
+ * first so prose that quotes the pattern is not counted.
+ */
+function embeddedFullOrderReads(source: string): number[] {
+    const code = source
+        .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))
+        .replace(/(^|[^:"'`\\])\/\/[^\n]*/gm, (line, lead: string) => lead + " ".repeat(line.length - lead.length));
+    const lines = new Set<number>();
+    const embed = /\borders(?:!\w+)*\s*\(([^()]*)\)/g;
+    let match: RegExpExecArray | null;
+    while ((match = embed.exec(code))) {
+        if (/(^|,)\s*\*\s*(,|$)/.test(match[1])) lines.add(code.slice(0, match.index).split("\n").length);
+    }
+    return [...lines];
+}
+
+describe("embeddedFullOrderReads", () => {
+    it.each([
+        [`.select(\`*, product:products(*), order:orders(*)\`)`, [1]],
+        [`.select("id, orders(*)")`, [1]],
+        [`.select("id, orders!qc_quarantine_order_id_fkey(*)")`, [1]],
+        [`.select("id, order:orders!inner( id, * )")`, [1]],
+        [`.select("*,\n  order:orders(\n    *\n  )")`, [2]],
+    ])("flags %s", (src, expected) => {
+        expect(embeddedFullOrderReads(src)).toEqual(expected);
+    });
+
+    it.each([
+        [`.select("id, order:orders(id, order_id)")`],
+        [`.select("id, orders!inner(id)")`],
+        [`// the \`order:orders(*)\` join\nconst a = 1;`],
+        [`/* order:orders(*) */ const a = 1;`],
+        [`.select("id, customer_orders(*)")`],
+    ])("ignores %s", (src) => {
+        expect(embeddedFullOrderReads(src)).toEqual([]);
+    });
+});
+
 describe("stepBuiltFullReads", () => {
     it("flags a select applied to a query variable built from orders", () => {
         const src = `let query = supabase\n  .from("orders")\n  .update(u)\n  .eq("id", id);\nconst { data } = await query\n  .select()\n  .maybeSingle();`;
@@ -122,6 +165,9 @@ describe("platform reads of `orders`", () => {
                     if (readsEveryColumn(chain)) offenders.push(`${path.relative(PLATFORM_ROOT, file)}:${line}`);
                 }
                 for (const line of stepBuiltFullReads(source)) {
+                    offenders.push(`${path.relative(PLATFORM_ROOT, file)}:${line}`);
+                }
+                for (const line of embeddedFullOrderReads(source)) {
                     offenders.push(`${path.relative(PLATFORM_ROOT, file)}:${line}`);
                 }
                 // lib/vault-utils.ts reads tables by name and defaults to `*`.
