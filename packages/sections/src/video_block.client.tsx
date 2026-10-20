@@ -20,6 +20,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { videoEmbedSrc, type ParsedVideo } from "@scheniders/shared";
+import { isOptimizableImageHost } from "./helpers/image";
 
 export interface VideoFacadeProps {
     video: ParsedVideo;
@@ -64,6 +65,9 @@ export function VideoFacade({
                     alt=""
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 800px"
+                    // A merchant poster can live on any host; the optimizer
+                    // only takes the ones in the storefront's remotePatterns.
+                    unoptimized={!isOptimizableImageHost(poster)}
                     className="object-cover"
                 />
             )}

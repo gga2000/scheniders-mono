@@ -102,7 +102,7 @@ function VideoBlock({
             <video
               className="absolute inset-0 h-full w-full"
               src={video.src}
-              poster={props.poster_url}
+              poster={props.poster_url || undefined}
               controls
               // Autoplay only ever happens muted — see the header note.
               muted={props.muted || props.autoplay}
@@ -122,7 +122,9 @@ function VideoBlock({
           ) : (
             <VideoFacade
               video={video}
-              poster={props.poster_url ?? videoPosterUrl(video)}
+              // `||`, not `??`: a cleared poster field saves "", which
+              // must fall back to the provider thumbnail, not hide it.
+              poster={props.poster_url || videoPosterUrl(video)}
               label={label}
               playLabel={resolveI18n(PLAY_LABEL, locale)}
             />

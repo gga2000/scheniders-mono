@@ -91,6 +91,27 @@ describe("video_block — an embed costs nothing until play is pressed", () => {
     expect(html).not.toContain("i.ytimg.com");
   });
 
+  it("serves a merchant poster on a host the optimizer refuses as-is", () => {
+    // next/image throws in dev and /_next/image 400s in production for a
+    // host missing from the storefront's remotePatterns.
+    const html = block({
+      video_url: YT,
+      poster_url: "https://cdn.example.com/still.jpg",
+    });
+    expect(html).toContain('src="https://cdn.example.com/still.jpg"');
+    expect(html).not.toContain("/_next/image");
+  });
+
+  it("optimizes the provider thumbnail, which remotePatterns allows", () => {
+    const html = block({ video_url: YT });
+    expect(html).toContain("/_next/image?url=https%3A%2F%2Fi.ytimg.com");
+  });
+
+  it("falls back to the provider thumbnail when the poster was cleared to an empty string", () => {
+    const html = block({ video_url: YT, poster_url: "" });
+    expect(html).toContain("i.ytimg.com");
+  });
+
   it("names the play control after the heading, in the store's locale", () => {
     const html = block({
       video_url: YT,
