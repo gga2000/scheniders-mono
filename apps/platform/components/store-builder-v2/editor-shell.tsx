@@ -1888,6 +1888,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     set_selected_section_id(section_id);
                                     set_editing_section_id(section_id);
                                 }}
+                                onSetWhatsappNumber={(value) => {
+                                    builder.setConfig(
+                                        (prev) => ({
+                                            ...prev,
+                                            commerce: {
+                                                ...(prev.commerce ?? {}),
+                                                whatsapp_number: value,
+                                            },
+                                        }),
+                                        t(
+                                            STRINGS.health.launch_whatsapp_history,
+                                            builder.active_locale,
+                                        ),
+                                    );
+                                }}
                             />
                         </>
                     )}

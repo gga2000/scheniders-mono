@@ -3326,6 +3326,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.plan.ordersPerMo": "{n} orders/mo",
         "signup.plan.unlimited": "Unlimited",
         "signup.plan.pricePerMo": "{price} IQD/mo",
+        "signup.success": "Account created! Taking you to your store…",
+        "signup.signOutFailed": "Your account was created, but this browser is still signed in to another account and we could not sign it out. Sign out of it, then sign in with your new account.",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
         "login.subtitle": "Sign in to Schenider Order Management",
@@ -6665,6 +6667,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.plan.ordersPerMo": "{n} طلب/شهر",
         "signup.plan.unlimited": "غير محدود",
         "signup.plan.pricePerMo": "{price} د.ع/شهر",
+        "signup.success": "تم إنشاء حسابك! جاري نقلك إلى متجرك…",
+        "signup.signOutFailed": "تم إنشاء حسابك، لكن هذا المتصفح ما زال مسجلاً بحساب آخر ولم نتمكن من تسجيل الخروج منه. سجّل الخروج منه ثم سجّل الدخول بحسابك الجديد.",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "أهلاً بعودتك",
         "login.subtitle": "سجّل الدخول إلى نظام شنايدر لإدارة الطلبات",

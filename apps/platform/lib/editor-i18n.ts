@@ -944,6 +944,11 @@ export const STRINGS = {
         launch_step_publish_hint: { en: "Use the Publish button at the top when the steps above are done.", ar: "استخدم زر «نشر» في الأعلى بعد إكمال الخطوات.", ku: "دوگمەی «بڵاوکردنەوە» لە سەرەوە بەکاربهێنە دوای تەواوکردنی هەنگاوەکان." },
         launch_fix: { en: "Do it", ar: "أكملها", ku: "تەواوی بکە" },
         launch_all_done: { en: "All set — your store is live! 🎉", ar: "كل شيء تمام — متجرك مباشر! 🎉", ku: "هەموو شت تەواوە — فرۆشگاکەت بڵاوە! 🎉" },
+        // Inline WhatsApp capture inside the checklist row (S3-01)
+        launch_whatsapp_placeholder: { en: "07XXXXXXXXX", ar: "07XXXXXXXXX", ku: "07XXXXXXXXX" },
+        launch_whatsapp_save: { en: "Save", ar: "حفظ", ku: "پاشەکەوت" },
+        launch_whatsapp_invalid: { en: "Enter a valid Iraqi number, e.g. 07701234567.", ar: "أدخل رقماً عراقياً صحيحاً، مثل 07701234567.", ku: "ژمارەیەکی عێراقی دروست بنووسە، وەک 07701234567." },
+        launch_whatsapp_history: { en: "Set WhatsApp number", ar: "تعيين رقم الواتساب", ku: "دانانی ژمارەی واتساپ" },
     },
 
     /* ── Page SEO panel ───────────────────────────────────────── */
