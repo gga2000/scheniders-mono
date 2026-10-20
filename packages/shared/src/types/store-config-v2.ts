@@ -545,6 +545,22 @@ export interface StoreConfigV2 {
   redirects?: RedirectRule[];       // NEW
   /** Merchant-authored custom pages, served at /s/<tenant>/p/<slug>. */
   custom_pages?: CustomPage[];      // NEW
+  /**
+   * What the store was seeded from: a visual direction × a content pack,
+   * at a template version. Lets the platform offer upgrades later and tell
+   * a merchant which look and niche their store started as. Absent on
+   * stores seeded before this existed.
+   */
+  template?: StoreTemplateStamp;
+}
+
+export interface StoreTemplateStamp {
+  direction_id: string;
+  pack_id?: string;
+  /** Version of the direction the stacks were seeded from. */
+  version: number;
+  /** ISO timestamp of the seed. */
+  applied_at?: string;
 }
 
 /**
@@ -560,6 +576,31 @@ export interface RedirectRule {
   to: string;
   /** 308 permanent (default) vs 307 temporary. */
   permanent?: boolean;
+}
+
+/**
+ * Marks a custom page as a dated article — a guide, a how-to, a story.
+ *
+ * A custom page is already a full authored page: sections, SEO meta, its own
+ * URL. What an article needs on top is the handful of facts a *list* of them
+ * needs — when it was published, what it looks like, and what it is about —
+ * so guides can be shown newest-first somewhere else on the store. Everything
+ * here is optional, and the block itself is optional, so a page that is not
+ * an article carries nothing and behaves exactly as it did.
+ */
+export interface ArticleMeta {
+  /**
+   * ISO date. A date in the future means "not yet published": the article
+   * keeps its URL but stays out of every list until then, which makes
+   * scheduling a guide free rather than a feature to build later.
+   */
+  published_at?: string;
+  /** Short summary for the listing card. Falls back to the page's SEO description. */
+  excerpt?: I18nString;
+  /** Listing card image. Falls back to the page's OG image. */
+  cover_url?: string;
+  /** Byline. Rendered only when set — never invented from the store name. */
+  author?: string;
 }
 
 /**
@@ -580,6 +621,8 @@ export interface CustomPage {
   meta?: PageMeta;
   /** Hidden = not served (404) without deleting. */
   hidden?: boolean;
+  /** Present when this page is a dated article. Absent for an ordinary page. */
+  article?: ArticleMeta;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */

@@ -8,7 +8,7 @@ import { CACHE_PRESETS } from "@/lib/query-config";
 
 export const attributeKeys = {
     all: ["product-attributes"] as const,
-    defs: () => [...attributeKeys.all, "defs"] as const,
+    defs: (tenantId: string | null) => [...attributeKeys.all, "defs", tenantId] as const,
     usage: () => [...attributeKeys.all, "usage"] as const,
 };
 
@@ -37,10 +37,16 @@ export interface AttributeDefWrite {
     display_order: number;
 }
 
-async function fetchAttributeDefs(): Promise<ProductAttributeDef[]> {
+/**
+ * One store's attribute definitions. Filtered on the tenant explicitly:
+ * `public_storefront_read` lets any signed-in user read every active store's
+ * definitions, so RLS alone would mix other stores' attributes into this list.
+ */
+export async function fetchAttributeDefs(tenantId: string): Promise<ProductAttributeDef[]> {
     const { data, error } = await supabase
         .from("product_attribute_defs")
         .select(DEF_COLUMNS)
+        .eq("tenant_id", tenantId)
         .order("display_order", { ascending: true });
     if (error) throw error;
     return parseProductAttributeDefs(data ?? []);
@@ -64,11 +70,14 @@ async function fetchAttributeUsage(): Promise<Record<string, number>> {
 }
 
 export function useAttributeDefsQuery() {
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
     return useQuery({
-        queryKey: attributeKeys.defs(),
-        queryFn: fetchAttributeDefs,
-        enabled: !!session && clientReady,
+        queryKey: attributeKeys.defs(tenantId),
+        queryFn: () => {
+            if (!tenantId) throw new Error("attribute definitions requested without a tenant");
+            return fetchAttributeDefs(tenantId);
+        },
+        enabled: !!session && clientReady && !!tenantId,
         staleTime: CACHE_PRESETS.STANDARD.staleTime,
         gcTime: CACHE_PRESETS.STANDARD.gcTime,
     });

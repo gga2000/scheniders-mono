@@ -14,6 +14,7 @@ const s = makeSectionFactory("aurora_glass");
 
 export const auroraGlassTemplate: StoreTemplate = {
     id: "aurora_glass",
+    version: 1,
     name_i18n: { en: "Aurora Glass", ar: "زجاج الشفق" },
     description_i18n: {
         en: "Light gradient blooms behind frosted panels. Trust-first: the founder note comes before the catalogue.",

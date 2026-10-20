@@ -10,4 +10,8 @@ export default [
   // a root `vitest run`, and CI does not run tests at all.
   "packages/sections/vitest.config.ts",
   "packages/shared",
+  // Every package with a `test` script belongs here, so the root run and
+  // CI's `turbo test` cover the same suites. This one was missing, and its
+  // stale assertion went unnoticed for months.
+  "scripts/migrate-store-config-v2",
 ];

@@ -159,7 +159,7 @@ export function StickyCtaBarRender({
           "max(var(--bk-space-xs, 0.5rem), env(safe-area-inset-bottom))",
       }}
       role="region"
-      aria-label={locale !== "en" ? "إجراءات سريعة" : "Quick actions"}
+      aria-label={locale === "en" ? "Quick actions" : locale === "ku" ? "کردارە خێراکان" : "إجراءات سريعة"}
     >
       {props.show_total && (
         <div className="flex flex-col leading-tight pl-1">

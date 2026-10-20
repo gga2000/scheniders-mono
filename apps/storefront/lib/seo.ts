@@ -6,7 +6,8 @@
 // =====================================================================
 
 import { headers } from "next/headers";
-import type { LocaleCode } from "@scheniders/shared";
+import { resolveI18n } from "@scheniders/shared";
+import type { LocaleCode, PageConfig } from "@scheniders/shared";
 
 /**
  * BCP-47 value for `<html lang>` (EC15). The root layout can't see the tenant,
@@ -65,6 +66,7 @@ export async function getStorefrontBase(tenantParam: string): Promise<{
 }
 
 type JsonLdObject = Record<string, unknown>;
+type I18nInput = Parameters<typeof resolveI18n>[0];
 
 export function organizationJsonLd(opts: {
   name: string;
@@ -108,6 +110,79 @@ export function websiteJsonLd(opts: { name: string; url: string }): JsonLdObject
   };
 }
 
+/**
+ * `offers.shippingDetails` from the store's REAL shipping configuration.
+ * Returns undefined when there is nothing true to say, so the offer simply
+ * omits the field rather than advertising a rate the checkout won't charge.
+ *
+ * A store with per-governorate rates gets a min/max MonetaryAmount, which is
+ * exactly what a shopper sees on the product page.
+ */
+export function shippingDetailsJsonLd(opts: {
+  minFeeIqd: number;
+  maxFeeIqd: number;
+  /** Real published ETA in hours — a range, because rates may differ by
+   *  governorate. Null/absent when the merchant published none. */
+  etaHours?: { min: number; max: number } | null;
+}): JsonLdObject | undefined {
+  if (!Number.isFinite(opts.minFeeIqd) || opts.minFeeIqd < 0) return undefined;
+  // The max was never checked, so a non-finite one serialised as
+  // `"maxValue": null` — a malformed Offer that Google reads as a broken
+  // shipping rate rather than a missing one. A max that is not a usable
+  // number means there is no range to state, so state the min alone.
+  const maxUsable =
+    Number.isFinite(opts.maxFeeIqd) && opts.maxFeeIqd >= opts.minFeeIqd;
+  const sameRate = !maxUsable || opts.minFeeIqd === opts.maxFeeIqd;
+  const eta =
+    opts.etaHours && opts.etaHours.min > 0 && opts.etaHours.max > 0 ? opts.etaHours : null;
+  return {
+    "@type": "OfferShippingDetails",
+    shippingRate: {
+      "@type": "MonetaryAmount",
+      currency: "IQD",
+      ...(sameRate
+        ? { value: opts.minFeeIqd }
+        : { minValue: opts.minFeeIqd, maxValue: opts.maxFeeIqd }),
+    },
+    shippingDestination: { "@type": "DefinedRegion", addressCountry: "IQ" },
+    // Only when the merchant published an ETA. Hours round up to whole days,
+    // which is the unit Google reads; no ETA means no deliveryTime at all.
+    ...(eta
+      ? {
+          deliveryTime: {
+            "@type": "ShippingDeliveryTime",
+            transitTime: {
+              "@type": "QuantitativeValue",
+              minValue: Math.max(1, Math.ceil(eta.min / 24)),
+              maxValue: Math.max(1, Math.ceil(eta.max / 24)),
+              unitCode: "DAY",
+            },
+          },
+        }
+      : {}),
+  };
+}
+
+/**
+ * `offers.hasMerchantReturnPolicy` from the store's real returns window.
+ * Undefined when the merchant has not set one — an invented return window is
+ * a promise they would have to honour.
+ *
+ * Return fees and method are deliberately absent: we know the window, not who
+ * pays the courier.
+ */
+export function returnPolicyJsonLd(windowDays: number | null | undefined): JsonLdObject | undefined {
+  if (typeof windowDays !== "number" || !Number.isFinite(windowDays) || windowDays <= 0) {
+    return undefined;
+  }
+  return {
+    "@type": "MerchantReturnPolicy",
+    applicableCountry: "IQ",
+    returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+    merchantReturnDays: Math.round(windowDays),
+  };
+}
+
 export function productJsonLd(opts: {
   name: string;
   url: string;
@@ -119,6 +194,11 @@ export function productJsonLd(opts: {
   /** Real approved-review aggregates — emitted only when count > 0. */
   ratingAverage?: number | null;
   ratingCount?: number | null;
+  /** The merchant's own stock-keeping unit, when they set one. */
+  sku?: string | null;
+  /** From `shippingDetailsJsonLd` / `returnPolicyJsonLd`; omitted when unknown. */
+  shippingDetails?: JsonLdObject;
+  returnPolicy?: JsonLdObject;
 }): JsonLdObject {
   const hasImage =
     opts.image && (Array.isArray(opts.image) ? opts.image.length > 0 : true);
@@ -142,6 +222,7 @@ export function productJsonLd(opts: {
         }
       : {}),
     brand: { "@type": "Brand", name: opts.brand },
+    ...(opts.sku ? { sku: opts.sku } : {}),
     offers: {
       "@type": "Offer",
       url: opts.url,
@@ -151,6 +232,14 @@ export function productJsonLd(opts: {
       availability: opts.inStock
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
+      seller: { "@type": "Organization", name: opts.brand },
+      // Google also reads `priceValidUntil` and `itemCondition`. Neither is
+      // emitted: the merchant sets no price expiry, and a store may sell
+      // open-box or used goods — a blanket "new" would be a claim we cannot
+      // stand behind. A missing recommended field is a warning; a wrong one
+      // is a lie in a search result.
+      ...(opts.shippingDetails ? { shippingDetails: opts.shippingDetails } : {}),
+      ...(opts.returnPolicy ? { hasMerchantReturnPolicy: opts.returnPolicy } : {}),
     },
   };
 }
@@ -224,5 +313,83 @@ export function breadcrumbJsonLd(
       name: it.name,
       item: it.url,
     })),
+  };
+}
+
+/**
+ * The merchant's own questions, pulled out of whichever FAQ section they
+ * placed on the page. Section props are the source — never a hardcoded list —
+ * so the rich result always matches what the page actually says.
+ */
+export function faqItemsFromPage(
+  page: PageConfig | null | undefined,
+  locale: LocaleCode,
+): { question: string; answer: string }[] {
+  const out: { question: string; answer: string }[] = [];
+  for (const section of page?.sections ?? []) {
+    if (section.enabled === false) continue;
+    if (section.type !== "faq_accordion" && section.type !== "faq_contact_split") continue;
+    const items = (section.base as { items?: unknown }).items;
+    if (!Array.isArray(items)) continue;
+    for (const raw of items) {
+      const item = raw as { q_i18n?: I18nInput; a_i18n?: I18nInput };
+      const question = resolveI18n(item.q_i18n, locale);
+      const answer = resolveI18n(item.a_i18n, locale);
+      if (question.trim() && answer.trim()) out.push({ question, answer });
+    }
+  }
+  return out;
+}
+
+/**
+ * An `Article` for a merchant-authored guide.
+ *
+ * Every field is omitted rather than guessed. Google warns about a missing
+ * recommended field and penalises a wrong one, and the fields most tempting
+ * to invent here are exactly the ones that would be lies: an author the
+ * merchant never named, a publish date for a guide they never dated, an
+ * image that is really the store's logo. Undefined when there is not even a
+ * headline to describe.
+ */
+export function articleJsonLd(opts: {
+  headline: string;
+  url: string;
+  description?: string;
+  imageUrl?: string;
+  datePublished?: string;
+  dateModified?: string;
+  author?: string;
+  publisherName?: string;
+  publisherLogoUrl?: string;
+}): JsonLdObject | undefined {
+  const headline = opts.headline.trim();
+  if (!headline) return undefined;
+
+  const description = opts.description?.trim();
+  const author = opts.author?.trim();
+  const publisher = opts.publisherName?.trim();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline,
+    mainEntityOfPage: { "@type": "WebPage", "@id": opts.url },
+    url: opts.url,
+    ...(description ? { description } : {}),
+    ...(opts.imageUrl ? { image: [opts.imageUrl] } : {}),
+    ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),
+    ...(opts.dateModified ? { dateModified: opts.dateModified } : {}),
+    ...(author ? { author: { "@type": "Person", name: author } } : {}),
+    ...(publisher
+      ? {
+          publisher: {
+            "@type": "Organization",
+            name: publisher,
+            ...(opts.publisherLogoUrl
+              ? { logo: { "@type": "ImageObject", url: opts.publisherLogoUrl } }
+              : {}),
+          },
+        }
+      : {}),
   };
 }
