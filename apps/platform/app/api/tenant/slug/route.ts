@@ -43,17 +43,28 @@ export async function GET(request: Request): Promise<NextResponse> {
         return NextResponse.json({ available: false, reason: rejection });
     }
 
-    const { data, error } = await admin()
-        .from("tenants")
-        .select("id")
-        .eq("slug", slug)
-        .maybeSingle();
-    if (error) {
-        console.error("[tenant/slug] availability lookup failed:", error);
+    // A slug is held by its current tenant AND, once renamed away, by the
+    // tenant whose old links redirect through tenant_slug_history. Handing a
+    // history slug to anyone else would send every link that store already
+    // shared to the new owner's storefront. claim_tenant_slug enforces the
+    // same rule in the DB (20261021130000); this answer only has to agree.
+    const [current, history] = await Promise.all([
+        admin().from("tenants").select("id").eq("slug", slug).maybeSingle(),
+        admin().from("tenant_slug_history").select("tenant_id").eq("old_slug", slug).maybeSingle(),
+    ]);
+    if (current.error || history.error) {
+        console.error(
+            "[tenant/slug] availability lookup failed:",
+            current.error ?? history.error,
+        );
         return NextResponse.json({ error: "Availability check failed" }, { status: 500 });
     }
-    // The caller's own current slug is not "taken" from their point of view.
-    if (data && data.id !== caller.tenantId) {
+    // The caller's own current slug, and its own old slug, are not "taken"
+    // from their point of view.
+    const heldByOther =
+        (current.data !== null && current.data.id !== caller.tenantId) ||
+        (history.data !== null && history.data.tenant_id !== caller.tenantId);
+    if (heldByOther) {
         return NextResponse.json({ available: false, reason: "taken" });
     }
     return NextResponse.json({ available: true });

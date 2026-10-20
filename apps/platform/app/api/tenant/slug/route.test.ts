@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
 
 import type { RequestCaller } from "@/lib/auth/require-request-caller";
 
@@ -10,6 +12,11 @@ const state = vi.hoisted(() => ({
     requirements: [] as string[],
     rpc: vi.fn(),
     lookup: { data: null as { id: string } | null, error: null as { message: string } | null },
+    history: {
+        data: null as { tenant_id: string } | null,
+        error: null as { message: string } | null,
+    },
+    tables: [] as string[],
 }));
 
 vi.mock("@/lib/auth/require-request-caller", () => ({
@@ -23,11 +30,15 @@ vi.mock("@/lib/auth/require-request-caller", () => ({
 vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: () => ({
         rpc: state.rpc,
-        from: () => ({
-            select: () => ({
-                eq: () => ({ maybeSingle: async () => state.lookup }),
-            }),
-        }),
+        from: (table: string) => {
+            state.tables.push(table);
+            const result = table === "tenant_slug_history" ? state.history : state.lookup;
+            return {
+                select: () => ({
+                    eq: () => ({ maybeSingle: async () => result }),
+                }),
+            };
+        },
     }),
 }));
 
@@ -53,6 +64,8 @@ beforeEach(() => {
     state.requirements = [];
     state.rpc.mockReset();
     state.lookup = { data: null, error: null };
+    state.history = { data: null, error: null };
+    state.tables = [];
 });
 
 describe("PATCH /api/tenant/slug", () => {
@@ -99,6 +112,19 @@ describe("PATCH /api/tenant/slug", () => {
         const malformed = await PATCH(patch({ slug: "no--pe" }));
         expect(malformed.status).toBe(422);
         expect(state.rpc).not.toHaveBeenCalled();
+    });
+
+    it("answers 409 when the slug is another store's old link", async () => {
+        // claim_tenant_slug's tenants trigger raises 23505 for a slug held in a
+        // different tenant's tenant_slug_history (20261021130000); the route
+        // must report it as taken, not as a success or a 500.
+        state.rpc.mockResolvedValue({
+            data: null,
+            error: { code: "23505", message: "slug tenant-1783087997714 is another tenant's old link" },
+        });
+        const res = await PATCH(patch({ slug: "tenant-1783087997714" }));
+        expect(res.status).toBe(409);
+        await expect(res.json()).resolves.toMatchObject({ reason: "taken" });
     });
 
     it("maps the unique-constraint race to 409", async () => {
@@ -154,10 +180,72 @@ describe("GET /api/tenant/slug", () => {
         await expect((await get("my-shop")).json()).resolves.toEqual({ available: true });
     });
 
+    it("calls another store's old link taken, so its redirect cannot be captured", async () => {
+        // Live: tenant-1783087997714 is zahraa-beauty's old handle; no tenant
+        // holds it, but every link zahraa-beauty already shared resolves
+        // through that history row.
+        state.history = { data: { tenant_id: "tenant-b" }, error: null };
+        await expect((await get("tenant-1783087997714")).json()).resolves.toEqual({
+            available: false,
+            reason: "taken",
+        });
+        expect(state.tables).toContain("tenant_slug_history");
+    });
+
+    it("lets a store take back its own old handle", async () => {
+        state.history = { data: { tenant_id: "tenant-a" }, error: null };
+        await expect((await get("my-old-shop")).json()).resolves.toEqual({ available: true });
+    });
+
+    it("surfaces a failed history lookup as 500, not as available", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        state.history = { data: null, error: { message: "timeout" } };
+        expect((await get("noor-beauty")).status).toBe(500);
+        expect(log).toHaveBeenCalled();
+        log.mockRestore();
+    });
+
     it("surfaces a failed lookup as 500", async () => {
         const log = vi.spyOn(console, "error").mockImplementation(() => {});
         state.lookup = { data: null, error: { message: "timeout" } };
         expect((await get("noor-beauty")).status).toBe(500);
         log.mockRestore();
+    });
+});
+
+/**
+ * The route maps 23505 to 409; the DB is what raises it. These pin the
+ * migration's guard so it cannot be dropped silently. Its behaviour is
+ * exercised by packages/supabase/tests/tenant_slug_claim.sql against the
+ * applied migration.
+ */
+describe("20261021130000_tenant_slug_claim.sql", () => {
+    const sql = fs
+        .readFileSync(
+            path.resolve(
+                __dirname,
+                "../../../../../../packages/supabase/migrations/20261021130000_tenant_slug_claim.sql",
+            ),
+            "utf8",
+        )
+        .replace(/--.*$/gm, "")
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+    it("refuses, on every tenants write, a slug another tenant's history holds", () => {
+        expect(sql).toContain(
+            "before insert or update of slug on public.tenants for each row execute function public.tenants_slug_not_in_foreign_history()",
+        );
+        expect(sql).toContain("where h.old_slug = new.slug and h.tenant_id <> new.id");
+        expect(sql).toContain("using errcode = '23505'");
+    });
+
+    it("only ever deletes the claiming tenant's own history row", () => {
+        expect(sql).toContain(
+            "delete from public.tenant_slug_history where old_slug = p_slug and tenant_id = p_tenant;",
+        );
+        expect(sql).not.toMatch(/delete from public\.tenant_slug_history where old_slug = p_slug;/);
+        // Never reassigns an existing history row to the claiming tenant.
+        expect(sql).not.toContain("on conflict (old_slug) do update");
     });
 });
