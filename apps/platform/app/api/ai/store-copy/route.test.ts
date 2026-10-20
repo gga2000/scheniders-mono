@@ -74,7 +74,7 @@ describe("POST /api/ai/store-copy", () => {
         expect(body.pack_id).toBe("coffee");
         expect(body.copy.hero.headline.ar).toBe("قهوتك محمصة طازج");
         const sent = JSON.parse(String((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body));
-        expect(sent.model).toBe("claude-opus-5");
+        expect(sent.model).toBe("claude-opus-5-5");
         expect(sent.output_config.format.type).toBe("json_schema");
     });
 

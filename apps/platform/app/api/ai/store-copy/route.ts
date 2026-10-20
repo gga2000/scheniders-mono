@@ -58,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 "anthropic-version": "2023-06-01",
             },
             body: JSON.stringify({
-                model: "claude-opus-5",
+                model: "claude-opus-5-5",
                 max_tokens: 16000,
                 output_config: {
                     format: { type: "json_schema", schema: STORE_COPY_SCHEMA },
