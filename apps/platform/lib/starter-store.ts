@@ -60,9 +60,6 @@ export function recommendedTemplateForVertical(verticalId: string): string {
 export type { WizardIndustry } from "./wizard-industry-types";
 export { FALLBACK_INDUSTRIES } from "./wizard-industry-types";
 
-/** Version of the direction stacks seeded today; bump when a direction's stacks change shape. */
-export const STORE_TEMPLATE_VERSION = 1;
-
 export interface StarterStoreInput {
     /** Chosen `PageTemplate.id` (home starter pack). */
     templateId: string;
@@ -212,12 +209,17 @@ export function buildStarterStoreConfigV2(
     // name-personalization so the brand-label stamp always wins.
     const pack = resolveContentPack(input.packId ?? input.industryId);
     applyContentPack(cfg, pack);
-    cfg.template = {
-        direction_id: template?.id ?? input.templateId,
-        pack_id: pack.id,
-        version: STORE_TEMPLATE_VERSION,
-        applied_at: new Date().toISOString(),
-    };
+    // Stamped with the direction's OWN version, so a store seeded today is
+    // never told it is behind. No stamp for an unknown direction: there is
+    // nothing to upgrade it from.
+    if (template) {
+        cfg.template = {
+            direction_id: template.id,
+            pack_id: pack.id,
+            version: template.version,
+            applied_at: new Date().toISOString(),
+        };
+    }
 
     // ── Personalize: stamp the business name onto brand-label fields ─
     if (name) {

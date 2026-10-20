@@ -794,6 +794,20 @@ exports[`scheniders_signature parity > produces the same config as before the di
         },
         {
           "base": {
+            "attribute_keys": [],
+            "heading_i18n": {
+              "ar": "التفاصيل",
+              "en": "Details",
+            },
+            "layout": "stacked",
+            "start_collapsed": false,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "product_attributes",
+        },
+        {
+          "base": {
             "allow_multiple": false,
             "items": [
               {
@@ -1284,6 +1298,34 @@ You may keep and test the perfume for a full week from delivery; if the experien
     {
       "page_id": "checkout_success",
       "sections": [
+        {
+          "base": {
+            "accept_label_i18n": {
+              "ar": "نعم، ضيفها",
+              "en": "Yes, add it",
+            },
+            "accepted_i18n": {
+              "ar": "تمت الإضافة ✓ مجموع طلبك الجديد {total}",
+              "en": "Added ✓ Your new order total is {total}",
+            },
+            "decline_label_i18n": {
+              "ar": "لا، شكراً",
+              "en": "No thanks",
+            },
+            "eyebrow_i18n": {
+              "ar": "عرض لمرة وحدة — خصم {discount}٪",
+              "en": "One-time offer — {discount}% off",
+            },
+            "heading_i18n": {
+              "ar": "تضيفها على نفس الطلب؟",
+              "en": "Add it to this order?",
+            },
+            "max_offers": 2,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "post_purchase_offer",
+        },
         {
           "base": {
             "call_promise_i18n": {

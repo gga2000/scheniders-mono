@@ -337,6 +337,11 @@ export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFact
 
     return {
         id: "scheniders_signature",
+        // v2 places two sections this program shipped: the product's own
+        // specs and the post-purchase offer. Both render nothing until the
+        // merchant has the data behind them, so placing them costs a store
+        // with no attributes or order bumps nothing.
+        version: 2,
         name_i18n: { en: "Scheniders Signature", ar: "توقيع شنايدر" },
         description_i18n: {
             en: "Warm cream ground, butter-yellow CTAs, floating pill chrome and a funnel-style COD product page.",
@@ -484,6 +489,9 @@ export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFact
                     reassurance_i18n: pack.delivery.reassurance_i18n,
                     delivery_sla_i18n: pack.delivery.sla_i18n,
                 }),
+                // The product's own facts (scent family, longevity, notes…) from
+                // product_attribute_values. Renders nothing when the product has none.
+                s("product_attributes"),
                 s("accordion_richtext", { heading_i18n: undefined, items: pack.pdp_policies }),
                 s("trust_badge_row", { items: trustBottom, band_style: "tinted" }),
                 // The merchant's customer chat screenshots (site-wide, no names/text);
@@ -569,6 +577,13 @@ export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFact
                 faqSplit(faqAll, H.faq.sub_i18n, contactHome),
             ],
             ...commercePages(s, { productCardStyle: "price_pill" }),
+            // A one-tap add to the order just placed, while it is still
+            // editable. Renders nothing until an order bump is configured.
+            checkout_success: [
+                s("post_purchase_offer"),
+                s("order_confirmation"),
+                s("product_grid", { card_style: "price_pill" }),
+            ],
             ...(facts
                 ? {
                       policy_shipping: policyPage("policy_shipping"),

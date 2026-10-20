@@ -128,6 +128,7 @@ export const STRINGS = {
         setting_loyalty: { en: "Loyalty points", ar: "نقاط الولاء", ku: "خاڵی دڵسۆزی" },
         setting_order_status: { en: "Order tracking messages", ar: "رسائل تتبّع الطلب", ku: "پەیامەکانی شوێنکەوتنی داواکاری" },
         setting_free_gift: { en: "Free gift", ar: "الهدية المجانية", ku: "دیاری بەخۆڕایی" },
+        setting_template_updates: { en: "Template updates", ar: "تحديثات القالب", ku: "نوێکارییەکانی ڕووکار" },
         setting_custom_pages: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
         setting_nav: { en: "Navigation", ar: "التنقّل", ku: "ڕێنیشاندان" },
         setting_versions: { en: "Past versions", ar: "النسخ", ku: "وەشانەکان" },
@@ -561,6 +562,41 @@ export const STRINGS = {
     },
 
     /* ── AutoForm control affordances ─────────────────────────── */
+    template_updates: {
+        title: { en: "Template updates", ar: "تحديثات القالب", ku: "نوێکارییەکانی ڕووکار" },
+        close: { en: "Close template updates", ar: "إغلاق تحديثات القالب", ku: "داخستنی نوێکارییەکان" },
+        intro: {
+            en: "Your store's look came from {template}. When we improve it, the new sections show up here — you choose which to take. Nothing you wrote is ever replaced, and nothing is removed.",
+            ar: "شكل متجرك جاي من {template}. لما نطوّره، الأقسام الجديدة تظهر هنا وانت تختار شنو تاخذ. ولا كلمة كتبتها تنبدّل، وماكو شي ينحذف.",
+            ku: "ڕووکاری فرۆشگاکەت لە {template}ەوە هاتووە. کاتێک باشتری دەکەین، بەشە نوێیەکان لێرە دەردەکەون و تۆ هەڵدەبژێریت. هیچ شتێکی نووسیوت نەدەگۆڕدرێت.",
+        },
+        unknown_origin: {
+            en: "This store wasn't set up from one of our templates, so there is nothing to compare it against. You can still add any section from the page editor.",
+            ar: "هذا المتجر ما انبنى من قالب من قوالبنا، فماكو شي نقارنه بيه. تكدر تضيف أي قسم من محرّر الصفحة.",
+            ku: "ئەم فرۆشگایە لە ڕووکارەکانی ئێمەوە دروست نەکراوە، بۆیە هیچ شتێک نییە بەراوردی پێ بکرێت.",
+        },
+        up_to_date: { en: "Your store has everything this template offers.", ar: "متجرك عنده كل شي يقدمه هذا القالب.", ku: "فرۆشگاکەت هەموو شتێکی ئەم ڕووکارەی هەیە." },
+        placement: { en: "On {page}, after {after}", ar: "بصفحة {page}، بعد {after}", ku: "لە {page}، دوای {after}" },
+        at_top: { en: "the top", ar: "البداية", ku: "سەرەوە" },
+        apply: { en: "Add {count} to my store", ar: "ضيف {count} لمتجري", ku: "{count} زیاد بکە" },
+        applied: {
+            en: "Added to your draft. Look them over in the page editor, then publish when you're happy.",
+            ar: "انضافت للمسودّة. شوفها بمحرّر الصفحة، وانشرها لما تعجبك.",
+            ku: "زیادکرا بۆ ڕەشنووسەکەت. لە دەستکاریکەری پەڕەدا سەیریان بکە، پاشان بڵاوی بکەرەوە.",
+        },
+        draft_note: {
+            en: "This changes your draft only — nothing reaches your customers until you publish.",
+            ar: "هذا يغيّر المسودّة بس — ماكو شي يوصل زبائنك إلا لما تنشر.",
+            ku: "ئەمە تەنها ڕەشنووسەکەت دەگۆڕێت — هیچ شتێک نەگاتە کڕیارەکانت هەتا بڵاوی نەکەیتەوە.",
+        },
+        yours_heading: { en: "Yours, left alone", ar: "مالتك، ما نلمسها", ku: "هی تۆ، دەستی لێنادرێت" },
+        yours_body: {
+            en: "You've edited these, so an update never touches them. Change them yourself in the page editor.",
+            ar: "هاي عدّلتها بنفسك، فالتحديث ما يلمسها أبداً. عدّلها من محرّر الصفحة إذا تريد.",
+            ku: "ئەمانەت دەستکاری کردووە، بۆیە نوێکردنەوە هەرگیز دەستیان لێنادات.",
+        },
+        page_other: { en: "another page", ar: "صفحة ثانية", ku: "پەڕەیەکی تر" },
+    },
     order_status: {
         title: { en: "Order tracking messages", ar: "رسائل تتبّع الطلب", ku: "پەیامەکانی شوێنکەوتنی داواکاری" },
         close: { en: "Close order tracking messages", ar: "إغلاق رسائل التتبّع", ku: "داخستنی پەیامەکان" },

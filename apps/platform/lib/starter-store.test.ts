@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildStarterStoreConfigV2, recommendedTemplateForVertical, STARTER_TEMPLATES, STARTER_VERTICALS, starterTaxonomy } from "./starter-store";
+import { getStoreTemplate } from "./store-templates";
 
 const FIRST = STARTER_TEMPLATES[0];
 
@@ -303,6 +304,17 @@ describe("buildStarterStoreConfigV2 — content packs (W6.1)", () => {
         const cfg = buildStarterStoreConfigV2({ templateId: "kinetic_ink", industryId: "Coffee roastery", businessName: "بن" });
         expect(cfg.template).toMatchObject({ direction_id: "kinetic_ink", pack_id: "coffee", version: 1 });
         expect(typeof cfg.template?.applied_at).toBe("string");
+    });
+
+    it("stamps the direction's own version, so a fresh store is never behind", () => {
+        const cfg = buildStarterStoreConfigV2({ templateId: "scheniders_signature", industryId: "عطور", businessName: "x" });
+        expect(cfg.template?.version).toBe(getStoreTemplate("scheniders_signature")?.version);
+        expect(cfg.template?.version).toBe(2);
+    });
+
+    it("leaves an unknown direction unstamped", () => {
+        const cfg = buildStarterStoreConfigV2({ templateId: "no_such_direction", businessName: "x" });
+        expect(cfg.template).toBeUndefined();
     });
 
     it("an explicit packId wins over the industry name", () => {
