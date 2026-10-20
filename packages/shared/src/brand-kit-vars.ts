@@ -54,9 +54,27 @@ function parseHex(hex: string | undefined | null): Rgb | null {
   };
 }
 
-/** Sanitize a hex string against a fallback. Always returns a valid `#rrggbb`. */
-function safeHex(hex: string | undefined, fallback: string): string {
-  return parseHex(hex) ? hex!.toLowerCase() : fallback.toLowerCase();
+/** A sanitized colour: its lowercased `#rrggbb` and its parsed channels. */
+interface SafeColor {
+  hex: string;
+  rgb: Rgb;
+}
+
+/**
+ * Sanitize a hex string against a fallback. Always returns a valid
+ * `#rrggbb` together with its channels, so callers never re-parse a value
+ * they already validated.
+ */
+function safeColor(hex: string | undefined, fallback: string): SafeColor {
+  const parsed = parseHex(hex);
+  if (parsed && hex) return { hex: hex.trim().toLowerCase(), rgb: parsed };
+  const fallbackRgb = parseHex(fallback);
+  if (!fallbackRgb) {
+    // Fallbacks come from EMPTY_BRAND_KIT, never from merchant input, so
+    // this is a programming error in the defaults rather than bad data.
+    throw new Error(`brand-kit fallback colour is not #rrggbb: ${fallback}`);
+  }
+  return { hex: fallback.toLowerCase(), rgb: fallbackRgb };
 }
 
 /** Format an `Rgb` as `#rrggbb`. */
@@ -75,6 +93,14 @@ function luminance(rgb: Rgb): number {
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   };
   return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
+}
+
+/** WCAG 2.x contrast ratio between two colours, 1 (none) to 21. */
+function contrastRatio(a: Rgb, b: Rgb): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 /** Linear blend of two RGB colours. `t` is the weight of `b` (0..1). */
@@ -407,22 +433,37 @@ export function buildBrandKitVars(
   const defaults = EMPTY_BRAND_KIT.colors;
 
   // Colors — sanitize all inputs against EMPTY_BRAND_KIT.
-  const primaryHex = safeHex(kit.colors?.primary, defaults.primary);
-  const secondaryHex = safeHex(kit.colors?.secondary, defaults.secondary);
-  const accentHex = safeHex(kit.colors?.accent, defaults.accent);
-  const surfaceHex = safeHex(kit.colors?.surface, defaults.surface);
-  const surfaceAltHex = safeHex(kit.colors?.surface_alt, defaults.surface_alt);
-  const inkHex = safeHex(kit.colors?.ink, defaults.ink);
-  const successHex = safeHex(kit.colors?.success, defaults.success);
-  const dangerHex = safeHex(kit.colors?.danger, defaults.danger);
+  const primaryC = safeColor(kit.colors?.primary, defaults.primary);
+  const secondaryC = safeColor(kit.colors?.secondary, defaults.secondary);
+  const accentC = safeColor(kit.colors?.accent, defaults.accent);
+  const surfaceC = safeColor(kit.colors?.surface, defaults.surface);
+  const surfaceAltC = safeColor(kit.colors?.surface_alt, defaults.surface_alt);
+  const inkC = safeColor(kit.colors?.ink, defaults.ink);
+  const successC = safeColor(kit.colors?.success, defaults.success);
+  const dangerC = safeColor(kit.colors?.danger, defaults.danger);
 
-  // We already validated, so these parses are guaranteed.
-  const primary = parseHex(primaryHex)!;
-  const secondary = parseHex(secondaryHex)!;
-  const accent = parseHex(accentHex)!;
-  const ink = parseHex(inkHex)!;
+  const primaryHex = primaryC.hex;
+  const secondaryHex = secondaryC.hex;
+  const accentHex = accentC.hex;
+  const surfaceHex = surfaceC.hex;
+  const surfaceAltHex = surfaceAltC.hex;
+  const inkHex = inkC.hex;
+  const successHex = successC.hex;
+  const dangerHex = dangerC.hex;
 
-  const onColor = (c: Rgb): string => (luminance(c) < 0.5 ? "#ffffff" : inkHex);
+  const primary = primaryC.rgb;
+  const secondary = secondaryC.rgb;
+  const accent = accentC.rgb;
+  const ink = inkC.rgb;
+  const surface = surfaceC.rgb;
+
+  // Text on a filled swatch: whichever of the kit's own ink and surface
+  // reads better on it, by measured contrast. The old rule ("white on dark
+  // colours, ink on light ones") assumed ink is dark; on a dark kit such as
+  // Chrome Night (ink #eceef1, primary #d6dce4) it put light text on a
+  // light primary at about 1.1:1.
+  const onColor = (c: Rgb): string =>
+    contrastRatio(c, ink) >= contrastRatio(c, surface) ? inkHex : surfaceHex;
 
   const [decorA, decorB, decorC] = DECOR_HUE_OFFSETS.map((o) =>
     decorSurface(accent, o),
