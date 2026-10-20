@@ -92,9 +92,9 @@ const EXPECTED_TYPES = [
 ];
 
 describe("section registry", () => {
-  it("registers exactly 64 built-in sections", () => {
-    expect(BUILTIN_SECTIONS).toHaveLength(64);
-    expect(listSections()).toHaveLength(64);
+  it("registers exactly 65 built-in sections", () => {
+    expect(BUILTIN_SECTIONS).toHaveLength(65);
+    expect(listSections()).toHaveLength(65);
   });
 
   it("each section's defaultProps validates against its own schema", () => {

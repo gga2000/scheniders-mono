@@ -105,8 +105,16 @@ describe("LINK_PAGES", () => {
 
     it("lists only routes the storefront serves", () => {
         const tenantRoutes = path.resolve(__dirname, "../../storefront/app/s/[tenant]");
+        // A route group folder such as "(catalogue)" adds no URL segment, so
+        // /products may be served from products/(catalogue)/page.tsx.
+        const servesPage = (dir: string): boolean =>
+            fs.existsSync(path.join(dir, "page.tsx")) ||
+            fs.readdirSync(dir, { withFileTypes: true }).some(
+                (e) => e.isDirectory() && /^\(.+\)$/.test(e.name) && servesPage(path.join(dir, e.name)),
+            );
         for (const p of LINK_PAGES) {
-            expect(fs.existsSync(path.join(tenantRoutes, p.path, "page.tsx")), p.path).toBe(true);
+            const dir = path.join(tenantRoutes, p.path);
+            expect(fs.existsSync(dir) && servesPage(dir), p.path).toBe(true);
         }
         expect(new Set(LINK_PAGES.map((p) => p.path)).size).toBe(LINK_PAGES.length);
     });
