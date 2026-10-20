@@ -135,3 +135,9 @@ Report: `critic/phase2-tierC-round1.md` (code @ 7eed48be, count-only SELECTs).
 - Clean-cell recheck 9/10; `(auth)/login` English-only text added to F-075.
 - N-C4: production serves mostly the legacy storefront pages, which got only light review; V2-only findings reach 1 tenant today.
 - Scores: C-storefront 6, C-platform orders/printing/returns 6, C-platform other 5, C-admin 5. All capped at 7 by open P1 or heuristic-only pages.
+
+## Phase 3 Plan, round 1 — 2026-10-20 (two parallel critics)
+Reports: `critic/phase3-round1-security-data.md`, `critic/phase3-round1-product-ops.md` (plan basis 056c668b).
+- Security & data: Isolation 7, AuthZ 6, Money/Order 5, Data 5, Security 5, Perf 7, Scale 6, Reliab 6; overall 5.5. P0 PRs #173/#175 correct at root cause. Main moved to 3365a7d0; live-only migration `20261020215422 tenant_role_source_of_truth` changes the role model (PKG-03/13 and PR SQL fixtures affected). #172/#175 conflict with main; #172 renewal lacks internal-tenant exemption. #168 should move to Wave 1. Launch gate must require webhook enforce mode. Role-aware write policies, behavioural SECDEF cross-tenant test, default grants on tables/sequences missing. PKG-14 (no stock reservation), PKG-03, PKG-17 approaches wrong.
+- Product & ops: Reliab 6, Observ 5, UX 6, i18n 6, A11y 6, CodeHealth 6, Ops 5; overall 5.5. PKG-00 not buildable as written (needs Supabase Postgres image, seed, schema_migrations dump; no branch protection on main; storage not backed up). Load test would message real phones: stub providers, reserved phone range, limiter bypass, manual crons, staff stream; 32–40 h. Runbook: public /api/healthz, Sentry hard gate, alert channel, kill switch, change freeze. PKG-10 test incomplete; PKG-31 grep broken; PKG-28 approach wrong; PKG-32 misses `direction:"rtl"`. Effort ≈400 h for the launch gate.
+- Loop: < 8, revising for round 2.
