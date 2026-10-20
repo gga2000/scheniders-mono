@@ -23,8 +23,10 @@
 --   Run it before the migrations too: the attack checks then FAIL, which is
 --   the proof that they test the hole and not something else.
 --
--- Fixture ids (synthetic): tenant A aaaaaaaa-...-01 (admin A1 ...a1, member M1
--- ...a2, inactive member X1 ...a3, super_admin SA d...d1 also admin of A),
+-- Fixture ids (synthetic): tenant A aaaaaaaa-...-01 (admin A1 ...a1, employee
+-- M1 ...a2, inactive employee X1 ...a3, viewer V1 ...a4, super_admin SA d...d1
+-- also admin of A); tenant_members.role is admin/employee/viewer as live since
+-- 20261020215422_tenant_role_source_of_truth,
 -- tenant B bbbbbbbb-...-02 (admin B1 b...b1), O1 c...c1 in no tenant.
 -- =============================================================================
 
@@ -295,6 +297,27 @@ SELECT pg_temp.p1_check('NEW-P1-18', 'new public function: no EXECUTE for anon/a
                 AND NOT has_function_privilege('authenticated', 'public.p1_probe_default_acl()', 'EXECUTE')$$, 'allow');
 SELECT pg_temp.p1_check('NEW-P1-18', 'LEGIT new public function still executable by service_role', 'postgres', NULL,
     $$SELECT 1 WHERE has_function_privilege('service_role', 'public.p1_probe_default_acl()', 'EXECUTE')$$, 'allow');
+
+-- ---------------------------------------------------------------------------
+-- ROLE-MODEL: these migrations keep the live F-031 reads (20261020215422)
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.p1_check('ROLE-MODEL', 'viewer reads another employee''s bonus', 'authenticated', 'a0000000-0000-0000-0000-0000000000a4',
+    $$SELECT 1 FROM public.performance_bonuses$$, 'deny');
+SELECT pg_temp.p1_check('ROLE-MODEL', 'employee reads the wallet', 'authenticated', 'a0000000-0000-0000-0000-0000000000a2',
+    $$SELECT 1 FROM public.wallet$$, 'deny');
+SELECT pg_temp.p1_check('ROLE-MODEL', 'employee reads another tenant''s payroll', 'authenticated', 'a0000000-0000-0000-0000-0000000000a2',
+    $$SELECT 1 FROM public.payroll_records WHERE tenant_id = 'bbbbbbbb-0000-0000-0000-000000000002'$$, 'deny');
+SELECT pg_temp.p1_check('ROLE-MODEL', 'LEGIT employee reads own payroll record', 'authenticated', 'a0000000-0000-0000-0000-0000000000a2',
+    $$SELECT 1 FROM public.payroll_records$$, 'allow');
+SELECT pg_temp.p1_check('ROLE-MODEL', 'LEGIT admin reads the wallet', 'authenticated', 'a0000000-0000-0000-0000-0000000000a1',
+    $$SELECT 1 FROM public.wallet$$, 'allow');
+INSERT INTO public.user_permissions (user_id, permission, is_granted)
+VALUES ('a0000000-0000-0000-0000-0000000000a2', 'system.financials.view', true);
+SELECT pg_temp.p1_check('ROLE-MODEL', 'LEGIT employee with a financials override reads the wallet', 'authenticated', 'a0000000-0000-0000-0000-0000000000a2',
+    $$SELECT 1 FROM public.wallet$$, 'allow');
+DELETE FROM public.user_permissions WHERE user_id = 'a0000000-0000-0000-0000-0000000000a2';
+SELECT pg_temp.p1_check('ROLE-MODEL', 'viewer cannot set is_active of a teammate', 'authenticated', 'a0000000-0000-0000-0000-0000000000a4',
+    $$SELECT public.set_team_member_active('a0000000-0000-0000-0000-0000000000a2', false)$$, 'deny');
 
 -- ---------------------------------------------------------------------------
 SELECT finding, check_name, expected, outcome, CASE WHEN pass THEN 'PASS' ELSE 'FAIL' END AS result

@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -11,9 +12,13 @@ const CreateNoteSchema = z.object({
 });
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Read — every active admin (both roles hold `add_note`).
+  const auth = await requireAdminFromRequest(request);
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
@@ -42,9 +47,12 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdminPermission(request, "add_note");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
@@ -78,8 +86,8 @@ export async function POST(
       .from("admin_notes")
       .insert({
         tenant_id: id,
-        admin_user_id: null,
-        admin_label: "system",
+        admin_user_id: auth.user.id,
+        admin_label: auth.user.email ?? null,
         content: parsed.data.content,
         is_pinned: false,
       })

@@ -106,7 +106,9 @@ CREATE TABLE public.user_profiles (
 CREATE TABLE public.tenant_members (
     tenant_id uuid REFERENCES public.tenants (id),
     user_id uuid REFERENCES auth.users (id),
-    role text,
+    -- Live since 20261020215422_tenant_role_source_of_truth.
+    role text NOT NULL DEFAULT 'employee'
+        CONSTRAINT tenant_members_role_check CHECK (role IN ('admin', 'employee', 'viewer')),
     status public.member_status DEFAULT 'active',
     PRIMARY KEY (tenant_id, user_id)
 );
@@ -156,6 +158,19 @@ CREATE TABLE public.payroll_records (
     tenant_id uuid REFERENCES public.tenants (id),
     employee_id uuid,
     pdf_url text
+);
+
+-- Live role matrix (20261020215422): only admin holds system.financials.view.
+CREATE TABLE public.role_permissions (
+    role varchar NOT NULL,
+    permission varchar NOT NULL
+);
+CREATE TABLE public.user_permissions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    permission text NOT NULL,
+    is_granted boolean NOT NULL DEFAULT true,
+    CONSTRAINT user_permissions_user_id_permission_key UNIQUE (user_id, permission)
 );
 
 CREATE TABLE public.store_config_versions (
@@ -347,6 +362,39 @@ BEGIN
 END;
 $function$;
 
+-- Live definition (20261020215422_tenant_role_source_of_truth).
+CREATE OR REPLACE FUNCTION public.has_tenant_permission(p_tenant_id uuid, p_permission text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT COALESCE((
+        SELECT CASE
+            WHEN tm.role = 'admin' THEN true
+            ELSE COALESCE(
+                (SELECT o.is_granted
+                   FROM public.user_permissions o
+                  WHERE o.user_id = tm.user_id
+                    AND o.permission = p_permission),
+                EXISTS (
+                    SELECT 1
+                      FROM public.role_permissions rp
+                     WHERE rp.role = tm.role
+                       AND rp.permission = p_permission
+                )
+            )
+        END
+          FROM public.tenant_members tm
+          JOIN public.user_profiles up ON up.id = tm.user_id
+         WHERE tm.tenant_id = p_tenant_id
+           AND tm.user_id = auth.uid()
+           AND tm.status = 'active'
+           AND COALESCE(up.is_active, true)
+    ), false);
+$$;
+
 -- Live function ACLs (proacl, 2026-10-20) ---------------------------------------
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_user_tenant_ids(), public.is_tenant_admin(uuid),
@@ -355,6 +403,7 @@ GRANT EXECUTE ON FUNCTION public.get_user_tenant_ids(), public.is_tenant_admin(u
     public.publish_store_config_v2(uuid, jsonb, jsonb, bigint) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.tenant_block_active(uuid, text), public.enforce_storefront_writes_block() FROM authenticated;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+GRANT EXECUTE ON FUNCTION public.has_tenant_permission(uuid, text) TO authenticated;
 
 -- Live RLS policies -------------------------------------------------------------
 ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
@@ -379,8 +428,12 @@ ALTER TABLE public.tenant_members ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_members_read ON public.tenant_members FOR SELECT USING (tenant_id IN (SELECT get_user_tenant_ids()));
 
 ALTER TABLE public.wallet ENABLE ROW LEVEL SECURITY;
-CREATE POLICY wallet_read ON public.wallet FOR SELECT USING (tenant_id IN (SELECT get_user_tenant_ids()));
+-- F-031 (20261020215422): wallet reads need system.financials.view.
+CREATE POLICY tenant_read_wallet ON public.wallet FOR SELECT USING (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND has_tenant_permission(tenant_id, 'system.financials.view'::text));
 ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_read_wallet_transactions ON public.wallet_transactions FOR SELECT USING (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND has_tenant_permission(tenant_id, 'system.financials.view'::text));
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 CREATE POLICY products_read ON public.products FOR SELECT USING (tenant_id IN (SELECT get_user_tenant_ids()));
@@ -388,11 +441,31 @@ ALTER TABLE public.qc_quarantine ENABLE ROW LEVEL SECURITY;
 CREATE POLICY qc_read ON public.qc_quarantine FOR SELECT USING (tenant_id IN (SELECT get_user_tenant_ids()));
 
 ALTER TABLE public.performance_bonuses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation_select ON public.performance_bonuses FOR SELECT USING (tenant_id IN (SELECT get_user_tenant_ids()));
+-- F-031 (20261020215422): admin, system.financials.view, or the employee's own rows.
+CREATE POLICY tenant_isolation_select ON public.performance_bonuses FOR SELECT USING (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND (is_tenant_admin(tenant_id)
+        OR has_tenant_permission(tenant_id, 'system.financials.view'::text) OR (employee_id = (SELECT auth.uid()))));
 CREATE POLICY tenant_isolation_insert ON public.performance_bonuses FOR INSERT WITH CHECK (tenant_id IN (SELECT get_user_tenant_ids()));
 CREATE POLICY tenant_isolation_update ON public.performance_bonuses FOR UPDATE
     USING (tenant_id IN (SELECT get_user_tenant_ids())) WITH CHECK (tenant_id IN (SELECT get_user_tenant_ids()));
 CREATE POLICY tenant_isolation_delete ON public.performance_bonuses FOR DELETE USING (tenant_id IN (SELECT get_user_tenant_ids()));
+
+ALTER TABLE public.payroll_records ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_select ON public.payroll_records FOR SELECT USING (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND (is_tenant_admin(tenant_id)
+        OR has_tenant_permission(tenant_id, 'system.financials.view'::text) OR (employee_id = (SELECT auth.uid()))));
+CREATE POLICY tenant_isolation_insert ON public.payroll_records FOR INSERT WITH CHECK (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND is_tenant_admin(tenant_id));
+CREATE POLICY tenant_isolation_update ON public.payroll_records FOR UPDATE
+    USING ((tenant_id IN (SELECT get_user_tenant_ids())) AND is_tenant_admin(tenant_id))
+    WITH CHECK ((tenant_id IN (SELECT get_user_tenant_ids())) AND is_tenant_admin(tenant_id));
+CREATE POLICY tenant_isolation_delete ON public.payroll_records FOR DELETE USING (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND is_tenant_admin(tenant_id));
+
+ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY authenticated_read_roles ON public.role_permissions FOR SELECT USING (auth.role() = 'authenticated'::text);
+ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY user_read_own_permissions ON public.user_permissions FOR SELECT USING (auth.role() = 'authenticated'::text);
 
 ALTER TABLE public.store_config_versions ENABLE ROW LEVEL SECURITY;
 
@@ -461,6 +534,7 @@ INSERT INTO auth.users (id, email) VALUES
     ('b0000000-0000-0000-0000-0000000000b1', 'b1@example.test'),
     ('c0000000-0000-0000-0000-0000000000c1', 'o1@example.test'),
     ('a0000000-0000-0000-0000-0000000000a3', 'x1@example.test'),
+    ('a0000000-0000-0000-0000-0000000000a4', 'v1@example.test'),
     ('d0000000-0000-0000-0000-0000000000d1', 'sa@example.test');
 INSERT INTO public.tenants (id, business_name, slug, plan, status, store_config_v2) VALUES
     ('aaaaaaaa-0000-0000-0000-000000000001', 'Tenant A', 'tenant-a', 'starter', 'trial', '{"schema_version":2,"pages":{}}'),
@@ -471,13 +545,18 @@ INSERT INTO public.user_profiles (id, email, role, is_active) VALUES
     ('b0000000-0000-0000-0000-0000000000b1', 'b1@example.test', 'admin', true),
     ('c0000000-0000-0000-0000-0000000000c1', 'o1@example.test', 'admin', true),
     ('a0000000-0000-0000-0000-0000000000a3', 'x1@example.test', 'employee', false),
+    ('a0000000-0000-0000-0000-0000000000a4', 'v1@example.test', 'viewer', true),
     ('d0000000-0000-0000-0000-0000000000d1', 'sa@example.test', 'super_admin', true);
 INSERT INTO public.tenant_members (tenant_id, user_id, role, status) VALUES
     ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a1', 'admin', 'active'),
-    ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a2', 'member', 'active'),
-    ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a3', 'member', 'active'),
+    ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a2', 'employee', 'active'),
+    ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a3', 'employee', 'active'),
+    ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a4', 'viewer', 'active'),
     ('aaaaaaaa-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-0000000000d1', 'admin', 'active'),
     ('bbbbbbbb-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-0000000000b1', 'admin', 'active');
+INSERT INTO public.role_permissions (role, permission) VALUES
+    ('admin', 'system.financials.view'), ('admin', 'orders.view'),
+    ('employee', 'orders.view'), ('viewer', 'orders.view');
 INSERT INTO public.wallet (tenant_id, balance_iqd, total_charged_iqd) VALUES
     ('aaaaaaaa-0000-0000-0000-000000000001', 5000, 0),
     ('bbbbbbbb-0000-0000-0000-000000000002', 5000, 0);

@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { Order, OrderFilters } from "@/types/order";
+import { CHIP_PREDICATE_FIELDS } from "@/lib/orders/order-chips";
+import { filterOrders } from "@/lib/orders/filter-orders";
 import { EXPORT_COLUMNS, LIST_COLUMNS, LIST_COLUMN_NAMES, pickListColumns } from "./order-columns";
 
 /**
@@ -77,6 +80,33 @@ describe("LIST_COLUMNS", () => {
         // Without it every list row arrives `undefined`, so "Not a duplicate"
         // and "Same customer" are written but never seen, and the banner returns.
         expect(names(LIST_COLUMNS)).toContain("is_verified_customer");
+    });
+
+    it("carries every field a status-chip predicate reads", () => {
+        // Missing, a predicate reads `undefined` on every row: the Refunded chip
+        // and the list it opens were both empty for 53 refunded orders.
+        const cols = names(LIST_COLUMNS);
+        expect(CHIP_PREDICATE_FIELDS.filter((f) => !cols.includes(f))).toEqual([]);
+    });
+
+    it("carries every row field the list filter reads", () => {
+        const read = new Set<string>();
+        const row = new Proxy({ id: "o1", status: "completed", items: [{ name: "x" }], created_at: "2026-10-12T08:00:00.000Z", notes: "", customer_name: "Customer 1" } as unknown as Order, {
+            get(target, key) {
+                if (typeof key === "string") read.add(key);
+                return Reflect.get(target, key);
+            },
+        });
+        const variants: OrderFilters[] = [
+            // `needs_review` is not in the status union but the filter still honours it.
+            { status: "needs_review" as OrderFilters["status"] }, { status: "completed" }, { status: "refunds" }, { status: "refunded" },
+            { status: "replacements" }, { status: "return_pending" }, { orderType: "refund" }, { orderType: "replacement" },
+            { dateFrom: "2026-10-12", dateTo: "2026-10-12" }, { city: "Basra" }, { product: "x" }, { priority: "urgent" },
+            { paymentStatus: "cod" }, { adChannel: "instagram" }, { isReturn: true },
+        ];
+        for (const f of variants) filterOrders([row], f);
+        const cols = names(LIST_COLUMNS);
+        expect([...read].filter((k) => !cols.includes(k))).toEqual([]);
     });
 
     it("does not request risk_data — it is attached after the fetch", () => {

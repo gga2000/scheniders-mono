@@ -21,7 +21,8 @@
 //   store_config_v2.commerce
 //                           cart_summary, checkout_form, checkout_order_summary,
 //                           pdp_direct_order, product_bundles (delivery fees,
-//                           discounts, bundles)
+//                           discounts, bundles), order_tracker
+//                           (order_status_narratives)
 //   store_config_v2.enabled_locales
 //                           helpers/locale-switch (site_header locale switch)
 //   slug, plan, status, settings, contact_email, city

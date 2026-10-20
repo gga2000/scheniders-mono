@@ -158,7 +158,8 @@ export async function PATCH(
 
     if (parsed.data.status) {
       await logAdminActivity({
-        adminUserId: "system",
+        adminUserId: auth.user.id,
+        actorEmail: auth.user.email ?? null,
         tenantId: id,
         action: "status_change",
         details: { status: parsed.data.status },
@@ -166,7 +167,8 @@ export async function PATCH(
     }
     if (parsed.data.plan) {
       await logAdminActivity({
-        adminUserId: "system",
+        adminUserId: auth.user.id,
+        actorEmail: auth.user.email ?? null,
         tenantId: id,
         action: "plan_change",
         details: { plan: parsed.data.plan },
@@ -174,7 +176,8 @@ export async function PATCH(
     }
     if (typeof parsed.data.auto_renew === "boolean") {
       await logAdminActivity({
-        adminUserId: "system",
+        adminUserId: auth.user.id,
+        actorEmail: auth.user.email ?? null,
         tenantId: id,
         action: "auto_renew_toggle",
         details: { auto_renew: parsed.data.auto_renew },

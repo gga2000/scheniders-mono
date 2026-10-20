@@ -1,15 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { requireAdminPermission } from "@/lib/api-auth";
+import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { z } from "zod";
 
 const bodySchema = z.object({
-  days: z.number().int().positive().max(365),
+  days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
 });
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Same permission and the same rules as POST /api/trials/extend: trialing
+  // tenants only, status never written (see lib/trial-extension.ts).
+  const auth = await requireAdminPermission(request, "extend_trial");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
@@ -22,37 +29,16 @@ export async function POST(
       );
     }
 
-    const supabase = createAdminClient();
-
-    const { data: tenant, error: fetchError } = await supabase
-      .from("tenants")
-      .select("trial_ends_at")
-      .eq("id", id)
-      .single();
-
-    if (fetchError) {
-      if (fetchError.code === "PGRST116") {
-        return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
-      }
-      throw fetchError;
+    const result = await extendTrial(createAdminClient(), id, parsed.data.days);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const base =
-      tenant.trial_ends_at && new Date(tenant.trial_ends_at) > new Date()
-        ? new Date(tenant.trial_ends_at)
-        : new Date();
-    const newEnd = new Date(base.getTime() + parsed.data.days * 24 * 60 * 60 * 1000);
-
-    const { data, error } = await supabase
-      .from("tenants")
-      .update({ trial_ends_at: newEnd.toISOString(), status: "trial" })
-      .eq("id", id)
-      .select("id, trial_ends_at, status")
-      .single();
-
-    if (error) throw error;
-
-    return NextResponse.json(data);
+    return NextResponse.json({
+      id: result.tenantId,
+      trial_ends_at: result.trialEndsAt,
+      status: "trial",
+    });
   } catch (error) {
     console.error("Extend trial error:", error);
     return NextResponse.json(

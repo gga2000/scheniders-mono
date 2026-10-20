@@ -38,6 +38,9 @@ import {
     Menu,
     Truck,
     Users,
+    MessageSquareText,
+    Gift,
+    Sparkles,
     type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -157,6 +160,9 @@ export type SettingsSectionId =
     | "cart_recovery"
     | "pixels"
     | "loyalty"
+    | "order_status"
+    | "free_gift"
+    | "template_updates"
     | "custom_pages"
     | "nav"
     | "redirects";
@@ -186,6 +192,9 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "cart_recovery", icon: ShoppingCart, labelKey: "setting_cart_recovery", label: "Cart recovery" },
     { id: "pixels", icon: BarChart3, labelKey: "setting_pixels", label: "Pixels & tracking" },
     { id: "loyalty", icon: Award, labelKey: "setting_loyalty", label: "Loyalty points" },
+    { id: "order_status", icon: MessageSquareText, labelKey: "setting_order_status", label: "Order tracking messages" },
+    { id: "free_gift", icon: Gift, labelKey: "setting_free_gift", label: "Free gift" },
+    { id: "template_updates", icon: Sparkles, labelKey: "setting_template_updates", label: "Template updates" },
     { id: "custom_pages", icon: FileText, labelKey: "setting_custom_pages", label: "Custom pages" },
     { id: "nav", icon: Menu, labelKey: "setting_nav", label: "Navigation" },
     { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
@@ -225,6 +234,9 @@ const SETTING_TINT: Record<SettingsSectionId, string> = {
     cart_recovery: "sb-tile--conversion",
     pixels: "sb-tile--page",
     loyalty: "sb-tile--conversion",
+    order_status: "sb-tile--trust",
+    free_gift: "sb-tile--conversion",
+    template_updates: "sb-tile--story",
     custom_pages: "sb-tile--page",
     nav: "sb-tile--page",
     versions: "sb-tile--page",

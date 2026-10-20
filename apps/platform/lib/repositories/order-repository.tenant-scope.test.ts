@@ -71,6 +71,21 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         expectAllTenantScoped();
     });
 
+    it("findAll and findWindow page in a total order: created_at desc, then id desc", async () => {
+        // Parallel pages over created_at alone repeat or skip rows wherever a
+        // run of equal timestamps straddles a 1,000-row boundary.
+        await orderRepository.findAll(TENANT);
+        await orderRepository.findWindow(TENANT, WINDOW);
+        const pages = queriesOn("orders").filter((q) => q.ops.some((o) => o.op === "range"));
+        expect(pages.length).toBe(2);
+        for (const page of pages) {
+            expect(page.ops.filter((o) => o.op === "order").map((o) => o.args)).toEqual([
+                ["created_at", { ascending: false }],
+                ["id", { ascending: false }],
+            ]);
+        }
+    });
+
     it("findWindow: windowed count and pages", async () => {
         const rows = await orderRepository.findWindow(TENANT, WINDOW);
         expect(rows.map((r) => r.id)).toEqual(["o1"]);
@@ -88,6 +103,29 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         expectAllTenantScoped();
     });
 
+    it("findChangedSince sees soft deletes: no deleted_at filter, and deleted_at is selected", async () => {
+        respond((q) => (q.target === "customer_trust"
+            ? { data: [], error: null }
+            : { data: [{ ...orderRow("o1"), deleted_at: "2026-10-18T10:00:00.000Z" }], error: null }));
+        const rows = await orderRepository.findChangedSince(TENANT, "2026-10-18T09:00:00.000Z");
+        const [q] = queriesOn("orders");
+        expect(q.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at")).toBe(false);
+        const select = q.ops.find((o) => o.op === "select")?.args[0] as string;
+        expect(select.split(",").map((c) => c.trim())).toContain("deleted_at");
+        expect(rows[0].deleted_at).toBe("2026-10-18T10:00:00.000Z");
+    });
+
+    it("findLatestUpdatedAt: the sync high-water mark", async () => {
+        respond(() => ({ data: { updated_at: "2026-10-18T10:00:00.000Z" }, error: null }));
+        await expect(orderRepository.findLatestUpdatedAt(TENANT)).resolves.toBe("2026-10-18T10:00:00.000Z");
+        const [q] = queriesOn("orders");
+        expect(q.ops.filter((o) => o.op === "order").map((o) => o.args)).toEqual([["updated_at", { ascending: false }]]);
+        expect(q.ops.some((o) => o.op === "limit" && o.args[0] === 1)).toBe(true);
+        // The same rows the delta reads: a soft delete moves the mark too.
+        expect(q.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at")).toBe(false);
+        expectAllTenantScoped();
+    });
+
     it("findArchived: every archived page", async () => {
         await orderRepository.findArchived(TENANT);
         expect(queriesOn("orders").some((q) => hasEq(q, "is_archived", true))).toBe(true);
@@ -98,6 +136,25 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         await orderRepository.findForExport(TENANT, { dateFrom: "2026-10-01", dateTo: "2026-10-18" });
         await orderRepository.countForExport(TENANT, {});
         expectAllTenantScoped();
+    });
+
+    it("findByIds: chunked, de-duplicated, trashed rows excluded", async () => {
+        const ids = Array.from({ length: 150 }, (_, i) => `id-${i}`);
+        await orderRepository.findByIds(TENANT, [...ids, "id-0", "id-1"]);
+        const reads = queriesOn("orders");
+        expect(reads.length).toBe(2);
+        const requested = reads.flatMap((q) => {
+            const inOp = q.ops.find((o) => o.op === "in");
+            return inOp ? (inOp.args[1] as string[]) : [];
+        });
+        expect(requested.sort()).toEqual([...ids].sort());
+        expect(reads.every((q) => q.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at" && o.args[1] === null))).toBe(true);
+        expectAllTenantScoped();
+    });
+
+    it("findByIds with no ids makes no request", async () => {
+        expect(await orderRepository.findByIds(TENANT, [])).toEqual([]);
+        expect(scopedReads()).toEqual([]);
     });
 
     it("the trust lookup over the whole book is tenant-scoped too", async () => {

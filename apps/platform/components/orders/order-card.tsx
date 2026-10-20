@@ -1,6 +1,7 @@
 "use client";
 
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
+import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
@@ -1673,6 +1674,12 @@ export const OrderCard = memo(function OrderCard({
                                                                             'مراجعة توصيل'}
                                             </span>
                                         )}
+                                        {/* COD risk signals stamped by the storefront at checkout (cod_risk_signals) */}
+                                        <CodRiskChip
+                                            variant="card"
+                                            needsAttention={order.needs_attention}
+                                            attentionReasons={order.attention_reasons}
+                                        />
                                         {/* WhatsApp Attention Flag - shows when message sending failed */}
                                         {order.needs_attention && order.attention_reasons?.some(r => r.startsWith('whatsapp_')) && (
                                             <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" title={order.delivery_note || 'فشل إرسال واتساب'}>

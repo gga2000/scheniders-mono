@@ -6,6 +6,7 @@
 import { Order } from "@/lib/supabase";
 import { formatIQD, formatIQDArabic, formatDate, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import QRCode from "qrcode";
 
 // =============================================
@@ -324,7 +325,7 @@ export async function generateLabelHTML(
         
         ${order.items && order.items.length > 0 && options.size !== "compact" ? `
         <div class="products">
-            ${order.items.map(item => `
+            ${mergeOrderItems(order.items).map(item => `
                 <div class="product-row">
                     <span>${item.name}</span>
                     <span style="font-weight:bold;">×${item.quantity}</span>
@@ -515,7 +516,7 @@ export function generateInvoiceHTML(order: Order, options: EnhancedLabelOptions)
                 </tr>
             </thead>
             <tbody>
-                ${order.items?.map(item => `
+                ${mergeOrderItems(order.items).map(item => `
                     <tr>
                         <td>${item.name}</td>
                         <td>${item.quantity}</td>
@@ -688,7 +689,7 @@ export async function generateA6InvoiceHTML(order: Order, options: EnhancedLabel
                     </tr>
                 </thead>
                 <tbody>
-                    ${order.items?.map((item, idx) => `
+                    ${mergeOrderItems(order.items).map((item, idx) => `
                     <tr>
                         <td class="col-sl">${idx + 1}</td>
                         <td class="col-desc">${item.name}</td>
@@ -786,7 +787,7 @@ export async function generateA6InvoiceModern(order: Order, options: EnhancedLab
     }
 
     // Product list as compact bullets
-    const productsList = order.items?.map(item =>
+    const productsList = mergeOrderItems(order.items).map(item =>
         `<div class="product-item">▪ ${item.name} × ${item.quantity}</div>`
     ).join('') || '<div class="product-item">لا توجد منتجات</div>';
 
@@ -885,7 +886,7 @@ export async function generateA6InvoicePrime(order: Order, options: EnhancedLabe
     const formattedTime = orderDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
     // Product list as single line
-    const productsText = order.items?.map(item => `${item.name} × ${item.quantity}`).join(', ') || 'لا توجد منتجات';
+    const productsText = mergeOrderItems(order.items).map(item => `${item.name} × ${item.quantity}`).join(', ') || 'لا توجد منتجات';
     const productCount = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
     return `
@@ -996,7 +997,7 @@ export async function generateShippingLabelHTML(
     const formattedTime = orderDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
     // Product list
-    const productsText = order.items?.map(item => `${item.name}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`).join(', ') || 'N/A';
+    const productsText = mergeOrderItems(order.items).map(item => `${item.name}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`).join(', ') || 'N/A';
     const productCount = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
     return `

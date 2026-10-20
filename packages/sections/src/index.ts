@@ -18,6 +18,7 @@ import newsletter_inline from "./newsletter_inline";
 // Hero family
 import hero_split from "./hero_split";
 import hero_marquee from "./hero_marquee";
+import article_index from "./article_index";
 import hero_video from "./hero_video";
 
 // Story family
@@ -91,9 +92,16 @@ import about_spotlight from "./about_spotlight";
 import faq_contact_split from "./faq_contact_split";
 import countdown_announcement from "./countdown_announcement";
 import pdp_direct_order from "./pdp_direct_order";
+import post_purchase_offer from "./post_purchase_offer";
 import product_attributes from "./product_attributes";
+import product_finder from "./product_finder";
 
-export { getSection, listSections, registerSection } from "./_registry";
+export {
+  getSection,
+  listSections,
+  pageNeedsProductAttributes,
+  registerSection,
+} from "./_registry";
 export type {
   SectionDefinition,
   SectionRenderContext,
@@ -120,6 +128,7 @@ export const BUILTIN_SECTIONS = [
   newsletter_inline,
   hero_split,
   hero_marquee,
+  article_index,
   hero_video,
   about_block,
   brand_story,
@@ -174,7 +183,10 @@ export const BUILTIN_SECTIONS = [
   faq_contact_split,
   countdown_announcement,
   pdp_direct_order,
+  post_purchase_offer,
   product_attributes,
+  product_finder,
 ];
 
 export { RenderSection, RenderPage } from "./RenderSection";
+export { setFunnelSink, type FunnelEvent, type FunnelEventType } from "./helpers/pixels";

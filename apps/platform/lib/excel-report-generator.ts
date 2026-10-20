@@ -3,6 +3,7 @@
 import type ExcelJS from "exceljs";
 import { Order } from "@/lib/supabase";
 import { formatOrderNamedDate } from "@/lib/order-format-utils";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 // ============================================
 // TYPES
@@ -346,7 +347,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
             phoneCell.value = order.phone || "—";
             phoneCell.numFmt = "@"; // Text format
             row.getCell(4).value = order.city || "—";
-            row.getCell(5).value = order.items?.map((item) => `${item.name} x${item.quantity}`).join(", ") || "—";
+            row.getCell(5).value = mergeOrderItems(order.items).map((item) => `${item.name} x${item.quantity}`).join(", ") || "—";
             row.getCell(6).value = Number(order.price) || 0;
             row.getCell(6).numFmt = "#,##0";
             row.getCell(7).value = STATUS_LABELS[order.status] || order.status;

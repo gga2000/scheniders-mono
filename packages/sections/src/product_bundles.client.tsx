@@ -79,7 +79,7 @@ function BundleCard({
   }
 
   return (
-    <div className="rounded-bk-card border-2 border-bk-ink/10 bg-white p-bk-md">
+    <div className="rounded-bk-card border-2 border-bk-ink/10 bg-bk-surface-alt p-bk-md">
       <div className="flex flex-wrap items-center gap-bk-sm">
         {products.map((p, i) => (
           <React.Fragment key={p.id}>
@@ -156,7 +156,12 @@ export function ProductBundlesRender({
     (b) =>
       b.enabled !== false &&
       b.product_ids.includes(product.id) &&
-      b.product_ids.every((id) => productMap.has(id)),
+      // "Add all" adds one variant-less unit of each product, which a
+      // product sold by variant cannot be bought as.
+      b.product_ids.every((id) => {
+        const p = productMap.get(id);
+        return p !== undefined && !p.sold_by_variant;
+      }),
   );
   if (relevant.length === 0) return null;
 

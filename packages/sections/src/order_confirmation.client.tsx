@@ -28,11 +28,11 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { resolveI18n } from "@scheniders/shared";
+import { formatPoints, referralShareUrl, resolveI18n, resolveReferral } from "@scheniders/shared";
 import type { I18nString, LocaleCode } from "@scheniders/shared";
 import { EyebrowChip, MaterialIcon, Section, WhatsAppButton } from "./helpers/primitives";
 import { PRESSABLE } from "./helpers/utils";
-import { StoreLink } from "./helpers/store-context";
+import { StoreLink, useStoreBase } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
@@ -53,6 +53,10 @@ interface StashedItem {
 
 interface StashedOrder {
   number: string;
+  order_id?: string;
+  /** The checkout's signed proof that this browser placed the order
+   *  (lib/order-upsell-proof) — what lets the page mint a referral code. */
+  upsell_token?: string;
   /** Buyer's name as typed at checkout — greets them on the thank-you page.
    *  Absent from stashes written before the field existed. */
   customer_name?: string;
@@ -91,6 +95,8 @@ function parseStash(raw: string | null, now: number): StashedOrder | null {
   return {
     number: typeof o.number === "string" ? o.number : "",
     ...(customerName ? { customer_name: customerName } : {}),
+    ...(typeof o.order_id === "string" ? { order_id: o.order_id } : {}),
+    ...(typeof o.upsell_token === "string" ? { upsell_token: o.upsell_token } : {}),
     items: items.map((i) => ({
       name: i.name,
       variant: typeof i.variant === "string" ? i.variant : null,
@@ -420,6 +426,16 @@ export function OrderConfirmationRender({
           </div>
         )}
 
+        {stashIsThisOrder && stash?.order_id && stash.upsell_token && (
+          <ReferralShare
+            tenant={ctx.tenant as ReferralTenant}
+            orderId={stash.order_id}
+            proof={stash.upsell_token}
+            locale={locale}
+            props={props}
+          />
+        )}
+
         <div className="mt-bk-lg flex flex-col gap-bk-xs">
           {phone && (
             <WhatsAppButton
@@ -462,5 +478,124 @@ export function OrderConfirmationRender({
         </div>
       </div>
     </Section>
+  );
+}
+
+/* ── Referral share ───────────────────────────────────────────────── */
+
+interface ReferralTenant {
+  id: string;
+  business_name?: string | null;
+  store_config_v2?: {
+    commerce?: {
+      referral?: Parameters<typeof resolveReferral>[0];
+      loyalty?: Parameters<typeof resolveReferral>[1];
+    };
+  } | null;
+}
+
+/**
+ * "You have a code to share." Mints the buyer's code with the same signed
+ * proof the post-purchase offer uses (minted by the checkout in the response
+ * that created the order, held only in this browser's stash), so a code —
+ * which is worth points — only ever goes to someone who just ordered.
+ * Renders nothing until the program is on and the code is in hand.
+ */
+function ReferralShare({
+  tenant,
+  orderId,
+  proof,
+  locale,
+  props,
+}: {
+  tenant: ReferralTenant;
+  orderId: string;
+  proof: string;
+  locale: LocaleCode;
+  props: Props;
+}) {
+  const base = useStoreBase();
+  const program = resolveReferral(tenant.store_config_v2?.commerce?.referral, tenant.store_config_v2?.commerce?.loyalty);
+  const [code, setCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!program.enabled) return;
+    let active = true;
+    fetch("/api/referral/code", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-upsell-proof": proof },
+      body: JSON.stringify({ order_id: orderId }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { code?: string } | null) => {
+        if (active && typeof d?.code === "string") setCode(d.code);
+      })
+      .catch(() => {
+        /* no code — the block simply does not render */
+      });
+    return () => {
+      active = false;
+    };
+  }, [program.enabled, orderId, proof]);
+  if (!program.enabled || !code) return null;
+
+  const t = (s: I18nString | undefined) => resolveI18n(s, locale);
+  const discount = `${program.friendDiscountPct}%`;
+  const points = formatPoints(program.referrerPoints, locale);
+  const link = referralShareUrl(window.location.origin, base, code);
+  const fill = (s: string) =>
+    s
+      .replaceAll("{discount}", discount)
+      .replaceAll("{points}", points)
+      .replaceAll("{code}", code)
+      .replaceAll("{link}", link)
+      .replaceAll("{store}", tenant.business_name ?? "");
+  // Referrer points only exist with loyalty on; without it, say only what is true.
+  const filledBody = fill(t(props.referral_body_i18n));
+  const body =
+    program.referrerPoints > 0
+      ? filledBody
+      : filledBody.replace(/[،,]?\s*(وانت|and you)[^.]*\.?/u, "");
+  const shareHref = `https://wa.me/?text=${encodeURIComponent(fill(t(props.referral_share_message_i18n)))}`;
+
+  return (
+    <section
+      data-testid="referral-share"
+      aria-labelledby="referral-share-heading"
+      className="mt-bk-md p-bk-md"
+      style={CARD_STYLE}
+    >
+      <p id="referral-share-heading" className={LABEL_CLS} data-i18n-field="referral_heading_i18n">
+        {t(props.referral_heading_i18n)}
+      </p>
+      <p className="mt-1 font-body text-sm text-bk-ink-soft" data-i18n-field="referral_body_i18n">
+        {body}
+      </p>
+      <div className="mt-bk-sm flex flex-wrap items-center gap-bk-xs">
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard
+              ?.writeText(link)
+              .then(() => setCopied(true))
+              .catch(() => setCopied(false));
+          }}
+          className="inline-flex min-h-11 items-center gap-2 px-4 font-display text-lg font-black tracking-[0.2em] tabular-nums"
+          style={{
+            border: INK_BORDER,
+            borderRadius: "var(--bk-radius-input, 0.75rem)",
+            backgroundColor: "var(--bk-surface, #ffffff)",
+          }}
+          aria-live="polite"
+          aria-label={copied ? `${code} — ${locale === "en" ? "copied" : locale === "ku" ? "کۆپی کرا" : "انحفظ"}` : code}
+        >
+          <MaterialIcon name={copied ? "check" : "content_copy"} className="text-xl" />
+          <span dir="ltr">{code}</span>
+        </button>
+        <WhatsAppButton href={shareHref} tone="solid" size="md" data-i18n-field="referral_share_label_i18n">
+          {t(props.referral_share_label_i18n)}
+        </WhatsAppButton>
+      </div>
+    </section>
   );
 }

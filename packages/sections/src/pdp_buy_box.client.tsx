@@ -21,8 +21,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useVariantStore } from "./helpers/variant-store";
-import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems } from "@scheniders/shared";
+import { stockLeftFor, useSelectedVariant, useVariantStore, variantPickerAnchor } from "./helpers/variant-store";
+import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
 import { trackPixel } from "./helpers/pixels";
 import {
   BentoCard,
@@ -91,17 +91,20 @@ export function PdpBuyBoxRender({
 
   // The buy box is itself a picker: its choice goes through the shared store
   // so a direct-order form or add-to-cart on the same page sells the same
-  // variant, and it registers so no second inline picker appears.
+  // variant, and it registers so no second inline picker appears — only while
+  // it shows its pills, or the form would hide its own choice and leave none
+  // on the page. Nothing is pre-selected — the shopper picks before the
+  // product can be added.
   const productId = product?.id ?? "";
-  const storedVariantId = useVariantStore((s) => s.selected[productId] ?? null);
-  const selectVariant = useVariantStore((s) => s.select);
+  const chosen = useSelectedVariant(product);
   const registerPicker = useVariantStore((s) => s.registerPicker);
-  const variantId = storedVariantId ?? variants[0]?.id ?? null;
-  const setVariantId = (id: string | null) => selectVariant(productId, id);
+  const variantId = chosen.variant?.id ?? null;
+  const setVariantId = chosen.select;
+  const showsPills = props.show_variant_picker && variants.length > 0;
   useEffect(() => {
-    if (!productId || variants.length === 0) return;
+    if (!productId || !showsPills) return;
     return registerPicker(productId);
-  }, [productId, variants.length, registerPicker]);
+  }, [productId, showsPills, registerPicker]);
   const [qty, setQty] = useState(1);
 
   // WhatsApp deep-link embeds the absolute page URL — only known client-side,
@@ -141,9 +144,12 @@ export function PdpBuyBoxRender({
     return null;
   }
 
-  const activeVariant =
-    variants.find((v) => v.id === variantId) ?? variants[0] ?? null;
-  const unitPrice = activeVariant?.price ?? product.price;
+  const activeVariant = chosen.variant;
+  const needsVariant = chosen.needsVariant;
+  const basePrice = activeVariant?.price ?? product.price;
+  // See `pdp_add_to_cart`: the ladder was never applied here either, so the
+  // displayed total and the checkout's disagreed at any tier quantity.
+  const unitPrice = resolveTierPrice(product.price_tiers, qty, basePrice);
   const onSale =
     product.compare_at_price != null && product.compare_at_price > product.price;
   const savings = onSale
@@ -156,9 +162,11 @@ export function PdpBuyBoxRender({
           100,
       )
     : 0;
-  const stockLeft =
-    (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
-  const oos = stockLeft <= 0;
+  // The chosen variant's stock; before a choice there is none to count, and
+  // the CTA asks for the option rather than calling the product sold out.
+  // Sold by variant with none in stock is sold out, not a choice to make.
+  const stockLeft = stockLeftFor(product, activeVariant);
+  const oos = chosen.soldOut || (!needsVariant && stockLeft <= 0);
 
   const ctaLabel = resolveI18n(props.add_to_cart_label_i18n, locale);
   const codLabel = resolveI18n(props.cod_badge_label_i18n, locale);
@@ -169,7 +177,7 @@ export function PdpBuyBoxRender({
     typeof ratingValue === "number" && typeof ratingCount === "number";
 
   function handleAdd() {
-    if (oos || !product) return;
+    if (oos || needsVariant || !product) return;
     addItem({
       product_id: product.id,
       variant_id: activeVariant?.id ?? null,
@@ -177,7 +185,9 @@ export function PdpBuyBoxRender({
       variant_name: activeVariant?.name ?? null,
       price: unitPrice,
       quantity: qty,
-      image_url: product.image_url ?? null,
+      image_url: activeVariant?.image_url ?? product.image_url ?? null,
+      base_price: basePrice,
+      ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
     });
     trackPixel(
       "AddToCart",
@@ -194,7 +204,7 @@ export function PdpBuyBoxRender({
     v: ProductVariantLite;
     big?: boolean;
   }) => {
-    const isActive = (variantId ?? variants[0]?.id) === v.id;
+    const isActive = variantId === v.id;
     const vOos = v.stock_quantity === 0;
     return (
       <button
@@ -310,7 +320,7 @@ export function PdpBuyBoxRender({
             style={{ borderStyle: "dashed" }}
           >
             {props.show_variant_picker && sizeVariants.length > 0 && (
-              <div data-layer="variants" data-layer-label="Size pills">
+              <div data-layer="variants" data-layer-label="Size pills" {...variantPickerAnchor(product.id)}>
                 <div className="flex justify-between items-end mb-bk-xs">
                   <h3 className="font-display font-black text-lg uppercase">
                     {t ? "المقاس" : "Size"}
@@ -330,7 +340,7 @@ export function PdpBuyBoxRender({
             )}
 
             {props.show_variant_picker && otherVariants.length > 0 && (
-              <div data-layer="variants" data-layer-label="Option pills">
+              <div data-layer="variants" data-layer-label="Option pills" {...variantPickerAnchor(product.id)}>
                 <h3 className="font-display font-black text-lg uppercase mb-bk-xs">
                   {t ? "الخيار" : "Option"}
                 </h3>
@@ -386,7 +396,7 @@ export function PdpBuyBoxRender({
                     <MaterialIcon name="add" />
                   </button>
                 </div>
-                {!oos && stockLeft > 0 && stockLeft <= 10 && (
+                {!oos && !needsVariant && stockLeft > 0 && stockLeft <= 10 && (
                   <p className="text-xs font-label font-bold text-bk-ink-soft mt-bk-2xs">
                     {t ? `بقي ${stockLeft} فقط` : `Only ${stockLeft} left`}
                   </p>
@@ -409,10 +419,14 @@ export function PdpBuyBoxRender({
             size="lg"
             fullWidth
             onClick={handleAdd}
-            disabled={oos}
+            disabled={oos || needsVariant}
           >
             <MaterialIcon name="shopping_bag" />
-            {oos ? (t ? "نفد المخزون" : "Out of stock") : ctaLabel}
+            {oos
+              ? t ? "نفد المخزون" : "Out of stock"
+              : needsVariant
+                ? t ? "اختر الخيار" : "Choose an option"
+                : ctaLabel}
           </ChunkyButton>
         </div>
 
@@ -497,9 +511,13 @@ export function PdpBuyBoxRender({
             </span>
           </div>
           <div className="shrink-0">
-            <ChunkyButton type="button" bg="pink" size="md" onClick={handleAdd} disabled={oos}>
+            <ChunkyButton type="button" bg="pink" size="md" onClick={handleAdd} disabled={oos || needsVariant}>
               <MaterialIcon name="shopping_bag" />
-              {oos ? (t ? "نفد" : "Sold Out") : ctaLabel}
+              {oos
+                ? t ? "نفد" : "Sold Out"
+                : needsVariant
+                  ? t ? "اختر الخيار" : "Choose an option"
+                  : ctaLabel}
             </ChunkyButton>
           </div>
         </div>

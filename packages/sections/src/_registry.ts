@@ -9,7 +9,7 @@
 // dev where modules are re-evaluated on edit.
 // =====================================================================
 
-import type { PageId } from "@scheniders/shared";
+import type { PageId, SectionInstance } from "@scheniders/shared";
 import type { AnySectionDefinition, SectionDefinition } from "./_types";
 
 const REGISTRY = new Map<string, AnySectionDefinition>();
@@ -33,6 +33,21 @@ export function listSections(opts?: ListSectionsOptions): AnySectionDefinition[]
     if (opts?.category && s.category !== opts.category) return false;
     return true;
   });
+}
+
+/**
+ * Whether any enabled section on a page reads product attributes (see
+ * `SectionDefinition.needsProductAttributes`). Tolerates a malformed
+ * `sections` value the way RenderPage does (EC7): it renders nothing, so
+ * it needs nothing.
+ */
+export function pageNeedsProductAttributes(
+  sections: readonly SectionInstance[] | null | undefined,
+): boolean {
+  if (!Array.isArray(sections)) return false;
+  return sections.some(
+    (s) => s.enabled && getSection(s.type)?.needsProductAttributes === true,
+  );
 }
 
 /** Test helper — wipes the registry. Not exported via the barrel. */

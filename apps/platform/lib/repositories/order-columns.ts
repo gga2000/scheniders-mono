@@ -13,6 +13,12 @@
  *
  * `risk_data` is not a column; `withRiskData` (order-repository.ts) attaches it after the fetch.
  * `tenant_id` is here to key that lookup.
+ *
+ * Every field a status-chip predicate reads (lib/orders/order-chips.ts,
+ * CHIP_PREDICATE_FIELDS) must be here. Without `refund_status` and
+ * `is_replacement` the Refunded, Refund pending and Completed chips — and the
+ * lists they open — silently treated every row as "no refund, not a
+ * replacement" (live 2026-10-18: Refunded 0 for 53 refunded orders).
  */
 export const LIST_COLUMNS = `
   id,
@@ -38,6 +44,8 @@ export const LIST_COLUMNS = `
   delivery_fee,
   discount_amount,
   is_return,
+  is_replacement,
+  refund_status,
   original_order_id,
   is_archived,
   is_pinned,
@@ -90,10 +98,10 @@ export function pickListColumns(row: Record<string, unknown>): Record<string, un
  * without `validated_governorate_code` and `is_replacement` they arrive
  * `undefined`, so every export silently fell back to the raw governorate code
  * and marked replacement orders as NOT containing returned goods.
+ * (`is_replacement` is now in LIST_COLUMNS itself, for the status chips.)
  */
 export const EXPORT_COLUMNS = `
 ${LIST_COLUMNS},
   validated_governorate_code,
-  is_replacement,
   delivery_order_id
 `.trim();

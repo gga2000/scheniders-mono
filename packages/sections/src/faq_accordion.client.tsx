@@ -69,7 +69,7 @@ export function FaqAccordionRender({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t ? "ابحث في الأسئلة…" : "Search FAQs…"}
-          className="w-full bg-white pl-11 pr-4 py-3 font-body text-base focus:outline-none"
+          className="w-full bg-bk-surface-alt pl-11 pr-4 py-3 font-body text-base focus:outline-none"
           style={{
             border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
             borderRadius: "var(--bk-radius-input, 0.75rem)",
@@ -115,8 +115,10 @@ export function FaqAccordionRender({
                   )}
                   style={{
                     // When open, the header bar is already tinted — invert the
-                    // chip to white so it stays legible ("lit" state).
-                    backgroundColor: open ? "#ffffff" : tintVar,
+                    // chip to the card surface so it stays legible ("lit"
+                    // state). Not literal white: on a dark kit the chip's ink
+                    // glyph is light and vanished against #ffffff.
+                    backgroundColor: open ? "var(--bk-surface-alt, #ffffff)" : tintVar,
                     border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                     borderRadius: "var(--bk-radius-input, 0.75rem)",
                     color: "var(--bk-ink, #1a1a1a)",

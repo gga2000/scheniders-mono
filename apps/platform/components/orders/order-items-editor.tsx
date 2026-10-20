@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Package, X } from "lucide-react";
 import { DiscountBadge } from "./discount-badge";
 import { DiscountPresetSelector } from "./discount-preset-selector";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 
 interface OrderItemsEditorProps {
     isEditing: boolean;
@@ -42,6 +43,13 @@ export function OrderItemsEditor({
     /** The item list being edited, or the saved one when not editing. */
     const currentItems = (): OrderItem[] => formData.items ?? order.items ?? [];
 
+    /**
+     * Lines on screen. While editing, the raw stored lines — every action below
+     * addresses a line by its index in that array. Read-only, lines stored once
+     * per unit (historical LightFunnels orders) are shown as one line × N.
+     */
+    const itemsToShow: OrderItem[] = isEditing ? currentItems() : mergeOrderItems(order.items);
+
     const toggleOpenBox = (index: number) => {
         const items = [...currentItems()];
         items[index] = { ...items[index], is_open_box: !items[index].is_open_box };
@@ -54,7 +62,7 @@ export function OrderItemsEditor({
                 <Package className="h-4 w-4 text-muted" />
                 <span className="font-semibold text-foreground">{t("orderDetail.products")}</span>
                 <span className="text-xs text-muted">
-                    {order.items?.length || 0} {t("orderDetail.item")}
+                    {itemsToShow.length} {t("orderDetail.item")}
                 </span>
                 {/* Add Product Button */}
                 {isEditing && (
@@ -67,84 +75,81 @@ export function OrderItemsEditor({
                 )}
             </div>
             <div className="divide-y divide-[var(--card-border)]">
-                {(() => {
-                    const itemsToShow = isEditing ? (formData.items || order.items || []) : (order.items || []);
-                    return itemsToShow.length > 0 ? (
-                        itemsToShow.map((item, index) => (
-                            <div key={index} className="flex items-center gap-3 p-3 hover:bg-[var(--background)] transition-colors group">
-                                {/* Product image */}
-                                {item.image_url ? (
-                                    <img loading="lazy" decoding="async" src={item.image_url} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-lg bg-[var(--background)] flex items-center justify-center">
-                                        <Package className="w-5 h-5 text-muted" />
-                                    </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                        <p className="font-medium text-foreground truncate">{item.name}</p>
-                                        {isEditing ? (
-                                            <button
-                                                onClick={() => toggleOpenBox(index)}
-                                                className={cn(
-                                                    "shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-all",
-                                                    item.is_open_box
-                                                        ? "bg-amber-100 text-amber-700"
-                                                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                                                )}
-                                            >
-                                                {item.is_open_box ? "علبة مفتوحة" : "جديد"}
-                                            </button>
-                                        ) : item.is_open_box ? (
-                                            <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
-                                                علبة مفتوحة
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-muted">
-                                        {isEditing ? (
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={() => handleUpdateItemQuantity(index, item.quantity - 1)}
-                                                    className="w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
-                                                    disabled={item.quantity <= 1}
-                                                >
-                                                    -
-                                                </button>
-                                                <span className="w-6 text-center font-medium">{item.quantity}</span>
-                                                <button
-                                                    onClick={() => handleUpdateItemQuantity(index, item.quantity + 1)}
-                                                    className="w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <span>×{item.quantity}</span>
-                                        )}
-                                        <span>•</span>
-                                        <span>{formatIQD(item.price)}</span>
-                                    </div>
+                {itemsToShow.length > 0 ? (
+                    itemsToShow.map((item, index) => (
+                        <div key={index} className="flex items-center gap-3 p-3 hover:bg-[var(--background)] transition-colors group">
+                            {/* Product image */}
+                            {item.image_url ? (
+                                <img loading="lazy" decoding="async" src={item.image_url} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
+                            ) : (
+                                <div className="w-12 h-12 rounded-lg bg-[var(--background)] flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-muted" />
                                 </div>
-                                <span className="font-bold text-foreground font-mono">
-                                    {formatIQD(item.price * item.quantity)}
-                                </span>
-                                {/* Remove Button - Show when editing */}
-                                {isEditing && (
-                                    <button
-                                        className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center justify-center"
-                                        onClick={() => handleRemoveItem(index)}
-                                        title={t("orderDetail.deleteItem")}
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                    <p className="font-medium text-foreground truncate">{item.name}</p>
+                                    {isEditing ? (
+                                        <button
+                                            onClick={() => toggleOpenBox(index)}
+                                            className={cn(
+                                                "shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                                item.is_open_box
+                                                    ? "bg-amber-100 text-amber-700"
+                                                    : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                                            )}
+                                        >
+                                            {item.is_open_box ? "علبة مفتوحة" : "جديد"}
+                                        </button>
+                                    ) : item.is_open_box ? (
+                                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
+                                            علبة مفتوحة
+                                        </span>
+                                    ) : null}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted">
+                                    {isEditing ? (
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => handleUpdateItemQuantity(index, item.quantity - 1)}
+                                                className="w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
+                                                disabled={item.quantity <= 1}
+                                            >
+                                                -
+                                            </button>
+                                            <span className="w-6 text-center font-medium">{item.quantity}</span>
+                                            <button
+                                                onClick={() => handleUpdateItemQuantity(index, item.quantity + 1)}
+                                                className="w-5 h-5 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <span>×{item.quantity}</span>
+                                    )}
+                                    <span>•</span>
+                                    <span>{formatIQD(item.price)}</span>
+                                </div>
                             </div>
-                        ))
-                    ) : (
-                        <div className="p-6 text-center text-muted">{t("orderDetail.noItems")}</div>
-                    );
-                })()}
+                            <span className="font-bold text-foreground font-mono">
+                                {formatIQD(item.price * item.quantity)}
+                            </span>
+                            {/* Remove Button - Show when editing */}
+                            {isEditing && (
+                                <button
+                                    className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-all flex items-center justify-center"
+                                    onClick={() => handleRemoveItem(index)}
+                                    title={t("orderDetail.deleteItem")}
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    ))
+                ) : (
+                    <div className="p-6 text-center text-muted">{t("orderDetail.noItems")}</div>
+                )}
             </div>
             {/* Discount + Total */}
             <div className="border-t border-[var(--card-border)]">
