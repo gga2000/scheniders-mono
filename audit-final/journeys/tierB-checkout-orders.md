@@ -6,7 +6,7 @@ Basis: code `origin/main` @ 7eed48becdc39990bbfc38e86c863c576f080bb6 (all `file:
 
 ### J1 Storefront: land → browse → PDP → cart → checkout (COD) → success → track → returns policy
 1. Host → tenant: `proxy.ts:105-121` → `/s/<key>` rewrite `:157-161`. OK. Paths containing "." skip the rewrite (`:129-135`), so a custom-domain path with a dot is not rewritten (P3 note, not filed).
-2. Tenant resolution `lib/tenant.ts:276-294` (slug), `:300-328` (custom domain), anon + 60 s `unstable_cache`: errors cached **F-045**; suspended/limited → 404 **F-047**; pixel tokens redacted `:253-268` but anon table read open **L-40 / F-010**.
+2. Tenant resolution `lib/tenant.ts:106-123` (slug), `:130-157` (custom domain), anon + 60 s `unstable_cache` (refs corrected by critic): errors cached **F-045**; suspended/limited → 404 **F-047**; pixel tokens redacted `:83-99` but anon table read open **L-40 / F-010**.
 3. Layout `app/s/[tenant]/layout.tsx:233-236` sanitised `custom_css` **NEW-P1-03**; `<html lang>` via `HtmlLang` `:238`, no `dir`. OK.
 4. Browse/search/category `lib/queries.ts:331-370`: tenant, visibility, status, supply filters. OK. PostgREST `max_rows = 1000` (`packages/supabase/config.toml:18`), largest catalogue 43 (note). Search in memory, no `.or()` interpolation (`queries.ts:486` constant). OK.
 5. PDP: children by `product_id` only **F-002** (PR #173); variant cost **F-009**; sold-out gate `packages/sections/src/pdp_add_to_cart.client.tsx:62`. OK.

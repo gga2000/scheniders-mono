@@ -117,3 +117,8 @@ Report: `critic/phase2-tierA-round1.md` (code @ 0032320, SELECT-only DB).
 - F-022 upheld at P1; title and evidence corrected (11 days is at launch volume, 115× today; storage ≈2026-11-18 is at today's rate). F-025 lowered P1 → P2 (warm 1.7 ms, 1.8 receipts/message). F-023 deletion-request impact corrected to dead code. F-026 corrected (existing index on a different function; detail path grows with customer_trust). F-028 location updated for main 7eed48be. F-030, F-031 upheld.
 - CLEAN sample: 9/9 checked cells hold (row 619 not re-verified).
 - Scores: A4 5, A5 5, A6 5, A7 4, A8 3, A9 3, A10 5. All capped at 7 by remaining UNCHECKED cells; A8/A9 held down by open P1 F-022.
+
+## Phase 2 Tier B pass 1, round 1 — 2026-10-20
+- F-040 raised P1 → **P0** (also reachable via column UPDATE on `order_id`, any member role). F-041 stays P1 (lock precedes the replay check). F-043 lowered to P2 latent (all October orders are one `internal`-plan tenant). F-044, F-047, F-053 confirmed; F-045/F-047 line refs corrected; F-052 mechanism reworded.
+- OK-step sample: 9/9 hold.
+- Scores: B-checkout 4, B-order-intake 4, B-fulfilment 5, B-storefront-browse 6, B-preview 6.
