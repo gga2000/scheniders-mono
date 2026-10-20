@@ -28,10 +28,13 @@ export type QueryResult = { data: unknown; error: unknown; count?: number | null
 
 export const recorded: RecordedQuery[] = [];
 
-let responder: (query: RecordedQuery) => QueryResult = () => ({ data: [], error: null, count: 0 });
+/** A result, or a promise of one — so a test can hold a query open and observe what runs meanwhile. */
+type Responder = (query: RecordedQuery) => QueryResult | Promise<QueryResult>;
+
+let responder: Responder = () => ({ data: [], error: null, count: 0 });
 
 /** Decide what each awaited query resolves to. */
-export function respond(fn: (query: RecordedQuery) => QueryResult): void {
+export function respond(fn: Responder): void {
     responder = fn;
 }
 

@@ -3,6 +3,7 @@
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useDocumentOffsetTop } from '@/hooks/use-document-offset-top';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { cn, formatIQD } from '@/lib/utils';
 import { formatPhoneGrouped } from '@/lib/order-utils';
@@ -660,9 +661,10 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     filters,
     setFilters
 }: VirtualizedOrderTableProps) {
-    const parentRef = useRef<HTMLDivElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
-    const [scrollMargin, setScrollMargin] = useState(0);
+    // Kept current as anything above the table changes height: measured on a
+    // row-count change instead, it read the analytics panel mid-animation.
+    const { top: scrollMargin, ref: parentRef } = useDocumentOffsetTop<HTMLDivElement>();
     const [flashingOrderId, setFlashingOrderId] = useState<string | null>(null);
     const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; order: Order } | null>(null);
@@ -779,13 +781,6 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
         if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
         setHoverPreview(null);
     }, []);
-
-    useEffect(() => {
-        if (parentRef.current) {
-            const rect = parentRef.current.getBoundingClientRect();
-            setScrollMargin(rect.top + window.scrollY);
-        }
-    }, [displayedOrders.length]);
 
     // Flatten groups for virtualization
     // IMPORTANT: Do NOT spread orders here — { ...o } creates new object references

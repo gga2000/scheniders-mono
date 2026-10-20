@@ -2,6 +2,7 @@
 
 import React, { useRef, memo, useCallback, useEffect, useState } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useDocumentOffsetTop } from "@/hooks/use-document-offset-top";
 import { Order, MessageTemplate } from "@/lib/supabase";
 import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
@@ -112,18 +113,12 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     onSplitOrder,
     assignments = [],
 }: VirtualizedOrderListProps) {
-    const listRef = useRef<HTMLDivElement>(null);
     const laneProbeRef = useRef<HTMLDivElement>(null);
-    const [scrollMargin, setScrollMargin] = useState(0);
+    // Kept current as anything above the list changes height (the analytics
+    // panel opening, the pipeline, the selection bar): read once on mount, the
+    // visible-range math stayed off by that change for the rest of the visit.
+    const { top: scrollMargin, ref: listRef } = useDocumentOffsetTop<HTMLDivElement>();
     const [columns, setColumns] = useState(1);
-
-    // Calculate scroll margin (distance from top of viewport to top of list)
-    useEffect(() => {
-        if (listRef.current) {
-            const rect = listRef.current.getBoundingClientRect();
-            setScrollMargin(rect.top + window.scrollY);
-        }
-    }, []);
 
     // PERF-2: how many cards fit across is whatever the browser decided, read
     // off an empty probe carrying the same grid classes. Deriving it from the
@@ -142,8 +137,6 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                 .gridTemplateColumns.split(" ")
                 .filter(Boolean).length;
             setColumns(Math.max(1, tracks));
-            const rect = listRef.current?.getBoundingClientRect();
-            if (rect) setScrollMargin(rect.top + window.scrollY);
         };
         measure();
         const observer = new ResizeObserver(measure);

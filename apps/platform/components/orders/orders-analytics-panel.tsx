@@ -43,6 +43,13 @@ interface OrdersAnalyticsPanelProps {
     countsHidden?: boolean;
     /** The Flagged number renders "—" (its own visibility rule). */
     flaggedCountHidden?: boolean;
+    /**
+     * Every figure taken over the loaded rows (conversion, velocity, peak
+     * hour, today's revenue and orders, average order value) renders "—":
+     * the rows on screen are a preview, not the window. The panel keeps its
+     * level, so nothing below it moves when the figures arrive.
+     */
+    statsHidden?: boolean;
 }
 
 /** What a count shows while it would not describe the list on screen. */
@@ -65,8 +72,10 @@ export function OrdersAnalyticsPanel({
     attentionCounts,
     countsHidden = false,
     flaggedCountHidden = false,
+    statsHidden = false,
 }: OrdersAnalyticsPanelProps) {
     const { t } = useLanguage();
+    const figure = (value: string | number) => (statsHidden ? HIDDEN : value);
 
     return (
         <AnimatePresence initial={false}>
@@ -173,13 +182,14 @@ export function OrdersAnalyticsPanel({
                                             <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{t("orders.stats.conversion")}</span>
                                         </div>
                                         <div className="flex items-end gap-2">
-                                            <h3 className="text-3xl font-bold text-foreground dark:text-white">{stats.conversionRate.toFixed(1)}%</h3>
+                                            <h3 className="text-3xl font-bold text-foreground dark:text-white" data-stat="conversion">{figure(`${stats.conversionRate.toFixed(1)}%`)}</h3>
                                         </div>
                                         {/* Animated Progress Bar */}
                                         <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
                                             <div
                                                 className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 ease-out relative"
-                                                style={{ width: `${stats.conversionRate}%` }}
+                                                data-stat-bar="conversion"
+                                                style={{ width: statsHidden ? "0%" : `${stats.conversionRate}%` }}
                                             >
                                                 <div className="absolute inset-0 bg-white/30 w-full animate-[shimmer_2s_infinite]" />
                                             </div>
@@ -200,15 +210,15 @@ export function OrdersAnalyticsPanel({
                                         <div className="space-y-4 relative z-10">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-foreground/70">{t("orders.stats.confirmSpeed")}</span>
-                                                <span className="font-bold text-foreground">{stats.velocityMetrics.avgNewToConfirmed}</span>
+                                                <span className="font-bold text-foreground" data-stat="confirm_speed">{figure(stats.velocityMetrics.avgNewToConfirmed)}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-foreground/70">{t("orders.stats.deliverySpeed")}</span>
-                                                <span className="font-bold text-foreground">{stats.velocityMetrics.avgConfirmedToDelivered}</span>
+                                                <span className="font-bold text-foreground" data-stat="delivery_speed">{figure(stats.velocityMetrics.avgConfirmedToDelivered)}</span>
                                             </div>
                                             <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
                                                 <span className="text-sm text-foreground/70">{t("orders.stats.peakHour")}</span>
-                                                <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{stats.peakTime}</span>
+                                                <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md" data-stat="peak_hour">{figure(stats.peakTime)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -257,15 +267,15 @@ export function OrdersAnalyticsPanel({
                                         <div className="space-y-4 relative z-10">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-foreground/70">{t("orders.stats.revenue")}</span>
-                                                <span className="font-bold text-emerald-600">{formatIQD(stats.todayRevenue)}</span>
+                                                <span className="font-bold text-emerald-600" data-stat="today_revenue">{figure(formatIQD(stats.todayRevenue))}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-foreground/70">{t("orders.stats.ordersCount")}</span>
-                                                <span className="font-bold text-foreground">{stats.todayOrders}</span>
+                                                <span className="font-bold text-foreground" data-stat="today_orders">{figure(stats.todayOrders)}</span>
                                             </div>
                                             <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-100">
                                                 <span className="text-sm text-foreground/70">{t("orders.stats.avgOrderValue")}</span>
-                                                <span className="font-bold text-foreground">{formatIQD(stats.averageOrderValue)}</span>
+                                                <span className="font-bold text-foreground" data-stat="average_order_value">{figure(formatIQD(stats.averageOrderValue))}</span>
                                             </div>
                                         </div>
                                     </div>
