@@ -91,91 +91,100 @@ import type { Props } from "./pdp_direct_order";
 // The two-way import is benign — the constant is only read at render time.
 import { DEFAULT_URGENCY_MAX_STOCK } from "./pdp_direct_order";
 
-/** Chrome strings (Kurdish resolves through the ar fallback chain). */
+/** Chrome strings. Every entry carries Sorani — _kurdish-coverage.test.ts fails the build otherwise. */
 const STRINGS = {
-  fullName: { en: "Full name", ar: "الاسم الكامل" },
-  namePlaceholder: { en: "Your name", ar: "اكتب اسمك" },
-  phone: { en: "Phone number", ar: "رقم الهاتف" },
-  phoneHint: { en: "(WhatsApp preferred)", ar: "(يفضل عليه واتساب)" },
-  phonePlaceholder: { en: "0770 123 4567", ar: "0770 123 4567" },
-  altPhone: { en: "Alternative phone", ar: "رقم بديل" },
+  fullName: { en: "Full name", ar: "الاسم الكامل", ku: "ناوی تەواو" },
+  namePlaceholder: { en: "Your name", ar: "اكتب اسمك", ku: "ناوت بنووسە" },
+  phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل" },
+  phoneHint: { en: "(WhatsApp preferred)", ar: "(يفضل عليه واتساب)", ku: "(واتسئاپ پەسەندترە)" },
+  phonePlaceholder: { en: "0770 123 4567", ar: "0770 123 4567", ku: "0770 123 4567" },
+  altPhone: { en: "Alternative phone", ar: "رقم بديل", ku: "ژمارەی جێگرەوە" },
   altPhoneHint: {
     en: "(optional — in case we can't reach you)",
     ar: "(اختياري — نتصل عليه إذا ما وصلنا إلك)",
+    ku: "(ئارەزوومەندانە — ئەگەر پێت نەگەیشتین)",
   },
-  governorate: { en: "Governorate", ar: "المحافظة" },
-  governoratePlaceholder: { en: "Choose governorate", ar: "اختر المحافظة" },
-  address: { en: "Address", ar: "العنوان" },
+  governorate: { en: "Governorate", ar: "المحافظة", ku: "پارێزگا" },
+  governoratePlaceholder: { en: "Choose governorate", ar: "اختر المحافظة", ku: "پارێزگا هەڵبژێرە" },
+  address: { en: "Address", ar: "العنوان", ku: "ناونیشان" },
   addressPlaceholder: {
     en: "Nearest landmark, street, house number…",
     ar: "أقرب نقطة دالة، الشارع، رقم الدار…",
+    ku: "نزیکترین شوێنی ناسراو، شەقام، ژمارەی خانوو…",
   },
-  required: { en: "This field is required.", ar: "هذا الحقل مطلوب." },
+  required: { en: "This field is required.", ar: "هذا الحقل مطلوب.", ku: "ئەم خانەیە پێویستە." },
   phoneInvalid: {
     en: "Enter a valid Iraqi mobile number, e.g. 0770 123 4567.",
     ar: "أدخل رقم هاتف عراقي صحيح، مثال: 0770 123 4567.",
+    ku: "ژمارەیەکی مۆبایلی عێراقی دروست بنووسە، نموونە: 0770 123 4567.",
   },
   governorateRequired: {
     en: "Choose your governorate so we can price delivery.",
     ar: "اختر محافظتك حتى نحسب أجرة التوصيل.",
+    ku: "پارێزگاکەت هەڵبژێرە تاکو کرێی گەیاندن بژمێرین.",
   },
   /** When the fee is flat the price is already known — the governorate is
    *  needed for the address, and the copy must not pretend otherwise. */
   governorateRequiredFlat: {
     en: "Choose your governorate for delivery.",
     ar: "اختر محافظتك للتوصيل.",
+    ku: "پارێزگاکەت بۆ گەیاندن هەڵبژێرە.",
   },
-  deliveryAllGovernorates: { en: "all governorates", ar: "لكل المحافظات" },
-  deliveryRange: { en: "{min} – {max} by governorate", ar: "{min} – {max} حسب المحافظة" },
-  deliveryFreeAbove: { en: "free above {amount}", ar: "مجاني فوق {amount}" },
-  deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}" },
-  deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}" },
-  totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل" },
-  youHavePoints: { en: "You have {points}", ar: "عندك {points}" },
-  useAll: { en: "Use all", ar: "استخدم الكل" },
-  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط" },
-  pointsOff: { en: "{amount} off", ar: "خصم {amount}" },
-  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب" },
-  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)" },
-  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M" },
-  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك" },
-  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز." },
-  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم." },
+  deliveryAllGovernorates: { en: "all governorates", ar: "لكل المحافظات", ku: "بۆ هەموو پارێزگاکان" },
+  deliveryRange: { en: "{min} – {max} by governorate", ar: "{min} – {max} حسب المحافظة", ku: "{min} – {max} بەپێی پارێزگا" },
+  deliveryFreeAbove: { en: "free above {amount}", ar: "مجاني فوق {amount}", ku: "بەخۆڕایی سەرووی {amount}" },
+  deliveryEta: { en: "Delivery in {eta}", ar: "التوصيل خلال {eta}", ku: "گەیاندن لە ماوەی {eta}" },
+  deliveryEtaRange: { en: "Delivery in {min} – {max}", ar: "التوصيل خلال {min} – {max}", ku: "گەیاندن لە ماوەی {min} – {max}" },
+  totalExcludesDelivery: { en: "before delivery", ar: "بدون التوصيل", ku: "بەبێ گەیاندن" },
+  youHavePoints: { en: "You have {points}", ar: "عندك {points}", ku: "{points}ت هەیە" },
+  useAll: { en: "Use all", ar: "استخدم الكل", ku: "هەمووی بەکاربهێنە" },
+  enterPoints: { en: "Enter points to redeem", ar: "أدخل عدد النقاط", ku: "ژمارەی خاڵەکان بنووسە" },
+  pointsOff: { en: "{amount} off", ar: "خصم {amount}", ku: "{amount} داشکاندن" },
+  earnOnDelivery: { en: "Earn {points} when it is delivered", ar: "تكسب {points} لما يوصلك الطلب", ku: "{points} بەدەست دەهێنیت کاتێک داواکارییەکەت دەگاتە دەستت" },
+  referralLabel: { en: "Friend's code (optional)", ar: "رمز صديق (اختياري)", ku: "کۆدی هاوڕێ (ئارەزوومەندانە)" },
+  referralPlaceholder: { en: "e.g. AB3K7M", ar: "مثال: AB3K7M", ku: "نموونە: AB3K7M" },
+  referralOff: { en: "{amount} off with your friend's code", ar: "خصم {amount} برمز صديقك", ku: "{amount} داشکاندن بە کۆدی هاوڕێکەت" },
+  referralUnknown: { en: "We don't recognise that code.", ar: "ما نعرف هذا الرمز.", ku: "ئەم کۆدە ناناسین." },
+  referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم.", ku: "ئەم کۆدە لەگەڵ ئەم ژمارەیەدا کار ناکات." },
   /** Only rendered when commerce.returns_policy.inspect_before_paying is true. */
-  inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع" },
-  chooseVariant: { en: "Choose an option", ar: "اختار الخيار" },
-  chooseVariantFirst: { en: "Choose an option first.", ar: "اختار الخيار أول." },
-  variantOut: { en: "out of stock", ar: "نفد" },
-  welcomeBack: { en: "Welcome back — we filled in your details from your last order.", ar: "رجعتلنا؟ عبّينا معلوماتك من آخر طلب." },
-  notYou: { en: "Not you? Clear", ar: "مو انت؟ امسح" },
-  quantity: { en: "Quantity", ar: "الكمية" },
-  decrease: { en: "Decrease quantity", ar: "إنقاص الكمية" },
-  increase: { en: "Increase quantity", ar: "زيادة الكمية" },
-  price: { en: "Price:", ar: "السعر:" },
-  cod: { en: "Cash on Delivery", ar: "الدفع عند الاستلام" },
+  inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع", ku: "پێش پارەدان بیکەرەوە و بیپشکنە" },
+  chooseVariant: { en: "Choose an option", ar: "اختار الخيار", ku: "هەڵبژاردەیەک دیاری بکە" },
+  chooseVariantFirst: { en: "Choose an option first.", ar: "اختار الخيار أول.", ku: "سەرەتا هەڵبژاردەیەک دیاری بکە." },
+  variantOut: { en: "out of stock", ar: "نفد", ku: "نەماوە" },
+  welcomeBack: { en: "Welcome back — we filled in your details from your last order.", ar: "رجعتلنا؟ عبّينا معلوماتك من آخر طلب.", ku: "بەخێربێیتەوە — زانیارییەکانت لە داواکاری پێشووت پڕکردەوە." },
+  notYou: { en: "Not you? Clear", ar: "مو انت؟ امسح", ku: "تۆ نیت؟ بیسڕەوە" },
+  quantity: { en: "Quantity", ar: "الكمية", ku: "بڕ" },
+  decrease: { en: "Decrease quantity", ar: "إنقاص الكمية", ku: "کەمکردنەوەی بڕ" },
+  increase: { en: "Increase quantity", ar: "زيادة الكمية", ku: "زیادکردنی بڕ" },
+  price: { en: "Price:", ar: "السعر:", ku: "نرخ:" },
+  cod: { en: "Cash on Delivery", ar: "الدفع عند الاستلام", ku: "پارەدان لە کاتی وەرگرتن" },
   codNote: {
     en: "You pay when the order arrives",
     ar: "تدفع المبلغ عند استلام الطلب",
+    ku: "کاتێک داواکارییەکە دەگات پارە دەدەیت",
   },
-  delivery: { en: "Delivery", ar: "التوصيل" },
-  deliveryFree: { en: "Free", ar: "مجاني" },
-  total: { en: "Total amount", ar: "إجمالي المبلغ" },
-  outOfStock: { en: "Out of stock", ar: "نفد المخزون" },
-  placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…" },
-  orderReceived: { en: "Order received!", ar: "تم استلام طلبك!" },
+  delivery: { en: "Delivery", ar: "التوصيل", ku: "گەیاندن" },
+  deliveryFree: { en: "Free", ar: "مجاني", ku: "بەخۆڕایی" },
+  total: { en: "Total amount", ar: "إجمالي المبلغ", ku: "کۆی گشتی" },
+  outOfStock: { en: "Out of stock", ar: "نفد المخزون", ku: "لە کۆگا نەماوە" },
+  placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…", ku: "داواکارییەکەت پشتڕاست دەکرێتەوە…" },
+  orderReceived: { en: "Order received!", ar: "تم استلام طلبك!", ku: "داواکارییەکەت گەیشت!" },
   errGeneric: {
     en: "Something went wrong. Please try again.",
     ar: "حدث خطأ. حاول مرة أخرى.",
+    ku: "هەڵەیەک ڕوویدا. تکایە دووبارە هەوڵ بدەرەوە.",
   },
   errNetwork: {
     en: "We couldn't reach the server — check your connection and try again.",
     ar: "تعذّر الاتصال بالخادم — تحقّق من الإنترنت وحاول مرة أخرى.",
+    ku: "نەتوانرا پەیوەندی بە ڕاژەکار بکرێت — ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵ بدەرەوە.",
   },
   priceChanged: {
     en: "The price changed to {price} — tap confirm again.",
     ar: "تغيّر السعر إلى {price} — اضغط التأكيد مرة أخرى",
+    ku: "نرخەکە گۆڕا بۆ {price} — دووبارە پشتڕاستکردنەوە دابگرە",
   },
-  viewImage: { en: "View image {count}", ar: "عرض الصورة {count}" },
+  viewImage: { en: "View image {count}", ar: "عرض الصورة {count}", ku: "وێنەی {count} ببینە" },
 } as const;
 
 function returnsLine(days: number, locale: LocaleCode): string {
@@ -1573,7 +1582,7 @@ export function PdpDirectOrderRender({
                         {rung.saves > 0 && (
                           <span className="font-label text-[10px] font-bold tabular-nums text-bk-primary">
                             <bdi>
-                              {locale === "en" ? "save " : "توفّر "}
+                              {locale === "en" ? "save " : locale === "ku" ? "دەپارێزیت " : "توفّر "}
                               {formatPrice(rung.saves, locale)}
                             </bdi>
                           </span>
