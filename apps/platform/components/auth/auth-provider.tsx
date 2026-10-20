@@ -7,6 +7,7 @@ import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
+import { sentryIdentityFor } from "@/lib/sentry-identity";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -321,6 +322,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { error: err };
         }
     }, [fetchProfile]);
+
+    // Attach identity to Sentry once, here, so every captured error is
+    // attributable to a user and a tenant instead of being an anonymous stack
+    // trace. Cleared on sign-out so a shared machine does not mis-attribute the
+    // next session. The SDK is imported dynamically, as in
+    // instrumentation-client.ts: this provider is in the root layout, and a
+    // static import would put the SDK on every route's first load.
+    const sentryUserId = user?.id ?? null;
+    useEffect(() => {
+        const identity = sentryIdentityFor(sentryUserId, tenantId, role);
+        void import("@sentry/nextjs").then((Sentry) => {
+            Sentry.setUser(identity.user);
+            Sentry.setTag("tenant_id", identity.tags.tenant_id);
+            Sentry.setTag("user_role", identity.tags.user_role);
+        });
+    }, [sentryUserId, tenantId, role]);
 
     // Whether the current user already has a Google identity linked.
     const googleLinked = !!user?.identities?.some((i) => i.provider === 'google');

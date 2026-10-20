@@ -1,27 +1,29 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { clientIp, consumeRateLimit, type RateLimitResult } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
+// Bounded so a limiter key, and the RPC input, stay small.
 const querySchema = z.object({
   tenant_id: z.string().uuid(),
-  order_number: z.string().min(1),
-  phone: z.string().min(1),
+  order_number: z.string().trim().min(1).max(40),
+  phone: z.string().min(1).max(40),
 });
 
-// `stage` is the real state of the order; `status` is only the coarse 5-step
-// timeline key, which collapses cancelled / rejected / no_response /
-// suspended into "placed" and refund_delivered into "delivered". Dropping
-// `stage` here is what made the tracker tell a cancelled order's customer
-// "Order received". Optional so an older `lookup_order` still parses — the
-// client falls back to `status` when it is missing.
 const lookupRowSchema = z.object({
   order_number: z.string(),
+  /** Coarse bucket (placed/confirmed/shipped/delivered) — kept for older clients. */
   status: z.string(),
-  stage: z.string().nullable().optional(),
   customer_name: z.string().nullable(),
   governorate: z.string().nullable(),
+  /** Customer-facing stage (ten values). Optional so the row still validates
+   *  against the RPC as deployed before migration 20260909220811. */
+  stage: z.string().nullish(),
+  /** First ordered product's slug, for a "rate your order" link. */
+  review_product_slug: z.string().nullish(),
 });
 
 // lookup_order is a newly-added RPC (migration 20260606194612) that is not yet
@@ -33,6 +35,50 @@ function createAnonClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
+}
+
+/** Lookup windows. A shopper checks an order a handful of times; these
+ *  only bite on guessing. The per-IP cap is loose because Iraqi mobile
+ *  carriers put many shoppers behind one CGNAT address. */
+const LOOKUP_WINDOW_SECONDS = 600;
+const LOOKUP_LIMIT_PER_IP = 60;
+const LOOKUP_LIMIT_PER_ORDER = 10;
+const LOOKUP_LIMIT_PER_PHONE = 10;
+
+/**
+ * The lookup answers "does this phone own this order" and, on a yes,
+ * returns the customer's name. Order numbers are sequential, so without a
+ * cap a caller who knows one number could walk the order space, or brute
+ * force the phone for a known order. Three buckets, each in its own key:
+ *   - per IP: bulk scanning from one address
+ *   - per (tenant, order number): phone guessing against one order from
+ *     many addresses
+ *   - per (tenant, phone): order-number walking for one known phone. The
+ *     phone is hashed so the limiter table never holds a raw number.
+ * Returns seconds to wait when any bucket is exhausted, else null.
+ */
+async function lookupRateLimited(
+  request: Request,
+  tenantId: string,
+  orderNumber: string,
+  phone: string,
+): Promise<number | null> {
+  const phoneDigits = phone.replace(/\D/g, "").slice(-10);
+  const phoneKey = createHash("sha256").update(`${tenantId}:${phoneDigits}`).digest("hex").slice(0, 32);
+  // "unknown" only happens off the edge (local dev); one shared bucket for
+  // every such caller would throttle them together, so it is skipped.
+  const ip = clientIp(request.headers);
+  // Fail-open: ownership is already enforced inside lookup_order, so a
+  // limiter outage must not take tracking down for every shopper.
+  const mode = "fail-open";
+  const checks = await Promise.all([
+    ip !== "unknown" ? consumeRateLimit(`track:ip:${ip}`, LOOKUP_LIMIT_PER_IP, LOOKUP_WINDOW_SECONDS, mode) : null,
+    consumeRateLimit(`track:order:${tenantId}:${orderNumber}`, LOOKUP_LIMIT_PER_ORDER, LOOKUP_WINDOW_SECONDS, mode),
+    consumeRateLimit(`track:phone:${phoneKey}`, LOOKUP_LIMIT_PER_PHONE, LOOKUP_WINDOW_SECONDS, mode),
+  ]);
+  const blocked = checks.filter((c): c is RateLimitResult => c !== null && !c.allowed);
+  if (blocked.length === 0) return null;
+  return Math.max(1, ...blocked.map((c) => c.retryAfterSeconds));
 }
 
 // POST, not GET: the request carries a customer's phone number, and a query
@@ -52,6 +98,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const { tenant_id, order_number, phone } = parsed.data;
+
+    const limited = await lookupRateLimited(request, tenant_id, order_number, phone);
+    if (limited !== null) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(limited) } },
+      );
+    }
 
     const supabase = createAnonClient();
     const { data, error } = await supabase.rpc("lookup_order", {
@@ -77,9 +131,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({
       order_number: row.order_number,
       status: row.status,
-      stage: row.stage ?? undefined,
       customer_name: row.customer_name ?? undefined,
       governorate: row.governorate ?? undefined,
+      stage: row.stage ?? undefined,
+      review_product_slug: row.review_product_slug ?? undefined,
     });
   } catch (e) {
     console.error("[api/orders/lookup]", e);

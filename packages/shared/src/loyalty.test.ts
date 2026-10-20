@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computePointsEarned,
+  formatPoints,
   computePointsRedemption,
   resolveLoyalty,
 } from "./loyalty";
@@ -78,5 +79,17 @@ describe("resolveLoyalty", () => {
       minRedeemPoints: 0,
       maxRedeemPct: 100,
     });
+  });
+});
+
+describe("formatPoints", () => {
+  it("uses the dialect's count shapes", () => {
+    expect(formatPoints(0, "ar")).toBe("0 نقطة");
+    expect(formatPoints(1, "ar")).toBe("نقطة واحدة");
+    expect(formatPoints(2, "ar")).toBe("نقطتين");
+    expect(formatPoints(7, "ar")).toBe("7 نقاط");
+    expect(formatPoints(25, "ar")).toBe("25 نقطة");
+    expect(formatPoints(1, "en")).toBe("1 point");
+    expect(formatPoints(25, "en")).toBe("25 points");
   });
 });

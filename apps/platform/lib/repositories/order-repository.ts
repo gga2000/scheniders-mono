@@ -101,6 +101,8 @@ const PAGE = 1000;
 
 /** Search rows carry `deleted_at` so a trashed match can be labelled. */
 const SEARCH_COLUMNS = `${LIST_COLUMNS}, deleted_at, delivery_order_id, waseet_qr_id`;
+/** Delta rows carry `deleted_at` so a soft delete realtime missed still removes the row. */
+const DELTA_COLUMNS = `${LIST_COLUMNS}, deleted_at`;
 /** PostgREST: "Could not find the function … in the schema cache". */
 const RPC_NOT_FOUND = "PGRST202";
 /**
@@ -226,6 +228,10 @@ export const orderRepository = {
                 .is("deleted_at", null)
                 .eq("is_archived", false)
                 .order("created_at", { ascending: false })
+                // Tie-break on id, as findWindow does: parallel pages over a
+                // non-unique sort key can repeat or skip rows at page
+                // boundaries, and a skipped row is missing from every count.
+                .order("id", { ascending: false })
                 .range(from, from + step - 1);
         });
 
@@ -404,21 +410,43 @@ export const orderRepository = {
     },
 
     /**
-     * Incremental sync: fetch only orders modified after a given timestamp.
-     * Returns both active and newly-archived orders so the client can
-     * update its cache accordingly.
+     * Incremental sync: every order modified at or after a given timestamp —
+     * live, archived and trashed — so the client can apply each kind of change.
+     * Rows carry `deleted_at` on top of LIST_COLUMNS: a soft delete is an
+     * UPDATE (trg_orders_updated_at moves `updated_at`), and a delta that
+     * filtered trashed rows out could never remove a trashed order realtime
+     * missed. Callers drop the column before a row enters a list cache.
      */
     async findChangedSince(tenantId: string, sinceTimestamp: string): Promise<Order[]> {
         const { data, error } = await supabase
             .from("orders")
-            .select(LIST_COLUMNS)
+            .select(DELTA_COLUMNS)
             .eq("tenant_id", tenantId)
-            .is("deleted_at", null)
             .gte("updated_at", sinceTimestamp)
             .order("updated_at", { ascending: false });
 
         if (error) throw error;
         return withRiskData(tenantId, (data || []).map(row => normalizeOrder(row as unknown as Order)));
+    },
+
+    /**
+     * The newest `updated_at` among the tenant's orders (archived and trashed
+     * included — the same rows `findChangedSince` reads), or null when
+     * there are none. Read BEFORE a list fetch, it is the point the fetched
+     * cache is known complete up to: every later change has a later stamp and
+     * a delta from here (minus an overlap) returns it. One row, the same shape
+     * as the realtime heartbeat's check.
+     */
+    async findLatestUpdatedAt(tenantId: string): Promise<string | null> {
+        const { data, error } = await supabase
+            .from("orders")
+            .select("updated_at")
+            .eq("tenant_id", tenantId)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        if (error) throw error;
+        return (data as { updated_at: string | null } | null)?.updated_at ?? null;
     },
 
     /** Fetch all archived orders, newest first. */

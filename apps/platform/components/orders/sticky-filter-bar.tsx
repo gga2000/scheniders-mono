@@ -48,6 +48,16 @@ interface StickyFilterBarProps {
     showSubFilters?: boolean;
     className?: string;
     isMobile?: boolean;
+    /**
+     * Status-chip and product-chip numbers are hidden (the chips stay
+     * clickable): the list on screen is not the one they would count — search,
+     * archive, a refinement, or a window still loading. lib/orders/count-visibility.ts.
+     */
+    countsHidden?: boolean;
+    /** The due-today badge is hidden; the toggle stays reachable. */
+    dueTodayCountHidden?: boolean;
+    /** The risk badge is hidden. */
+    riskCountHidden?: boolean;
 }
 
 import { memo, useState } from "react";
@@ -70,7 +80,10 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     dueTodayCount = 0,
     showSubFilters = false,
     className,
-    isMobile = false
+    isMobile = false,
+    countsHidden = false,
+    dueTodayCountHidden = false,
+    riskCountHidden = false,
 }: StickyFilterBarProps) {
     const { t } = useLanguage();
     const [useStatusColors, setUseStatusColors] = useState(true);
@@ -127,6 +140,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 {filterOptions.map((option) => (
                     <button
                         key={option.id}
+                        data-chip={option.id}
+                        data-chip-count={countsHidden ? undefined : option.count}
                         onClick={() => setFilters({ ...filters, status: option.id === "all" ? undefined : option.id as Order["status"] })}
                         className={cn(
                             "rounded-full whitespace-nowrap transition-all flex items-center gap-2 snap-start shrink-0 border",
@@ -149,14 +164,14 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         )}
                     >
                         <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>
-                        <span className={cn(
+                        {!countsHidden && <span className={cn(
                             "px-2 py-0.5 rounded-full text-[12px] font-black min-w-[24px] text-center",
                             filters.status === option.id || (option.id === "all" && !filters.status)
                                 ? "bg-background/20 text-current"
                                 : "bg-muted-foreground/20 text-muted-foreground group-hover/filters:bg-muted-foreground/30"
                         )}>
                             {option.count}
-                        </span>
+                        </span>}
                     </button>
                 ))}
 
@@ -263,7 +278,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 {/* Due-Today Filter Toggle — postponed orders whose day has come round.
                     Shown only while that queue has something in it; stays visible
                     while toggled on so it can be switched back off. */}
-                {setFilterDueToday && (dueTodayCount > 0 || filterDueToday) && (
+                {setFilterDueToday && (dueTodayCountHidden || dueTodayCount > 0 || filterDueToday) && (
                     <button
                         type="button"
                         onClick={() => setFilterDueToday(!filterDueToday)}
@@ -279,12 +294,12 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     >
                         <CalendarClock className="w-4 h-4" />
                         <span>{!isMobile && t("orders.filter.dueToday")}</span>
-                        <span className={cn(
+                        {!dueTodayCountHidden && <span data-badge="due-today" className={cn(
                             "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
                             filterDueToday ? "bg-blue-200/70 text-blue-800" : "bg-muted text-muted-foreground"
                         )}>
                             {dueTodayCount}
-                        </span>
+                        </span>}
                     </button>
                 )}
 
@@ -309,8 +324,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 >
                     <ShieldCheck className="w-4 h-4" />
                     <span>{!isMobile && t("common.risk")}</span>
-                    {totalRiskCount !== undefined && totalRiskCount > 0 && (
-                        <span className={cn(
+                    {!riskCountHidden && totalRiskCount !== undefined && totalRiskCount > 0 && (
+                        <span data-badge="risk" className={cn(
                             "px-2 py-0.5 rounded-full text-[11px] font-bold min-w-[24px] text-center",
                             filters.riskLevel
                                 ? "bg-red-200 text-red-800"
@@ -420,6 +435,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         return (
                             <button
                                 key={product.name}
+                                data-product-chip={product.name}
+                                data-chip-count={countsHidden ? undefined : product.count}
                                 onClick={() => toggleProduct(product.name)}
                                 title={product.name}
                                 className={cn(
@@ -431,12 +448,12 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                                 )}
                             >
                                 <span className="max-w-[160px] truncate">{product.name}</span>
-                                <span className={cn(
+                                {!countsHidden && <span className={cn(
                                     "px-1.5 py-0.5 rounded-full text-[10px] font-black min-w-[18px] text-center",
                                     isActive ? "bg-white/25 text-current" : "bg-muted-foreground/15 text-muted-foreground"
                                 )}>
                                     {product.count}
-                                </span>
+                                </span>}
                             </button>
                         );
                     })}
@@ -460,6 +477,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                                 {overflowProducts.map((product) => (
                                     <DropdownMenuItem
                                         key={product.name}
+                                        data-product-chip={product.name}
+                                        data-chip-count={countsHidden ? undefined : product.count}
                                         onClick={() => toggleProduct(product.name)}
                                         className="flex items-center justify-between gap-3"
                                     >
@@ -467,7 +486,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                                             <Check className={cn("w-3.5 h-3.5 shrink-0", filters.product === product.name ? "opacity-100" : "opacity-0")} />
                                             <span className="truncate">{product.name}</span>
                                         </span>
-                                        <span className="text-xs text-muted-foreground font-semibold shrink-0">{product.count}</span>
+                                        <span className="text-xs text-muted-foreground font-semibold shrink-0">{countsHidden ? "—" : product.count}</span>
                                     </DropdownMenuItem>
                                 ))}
                             </DropdownMenuContent>

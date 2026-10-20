@@ -1,5 +1,6 @@
 import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import type { Locale } from "@/lib/i18n";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
@@ -264,9 +265,14 @@ export const getAgeUrgency = (
     return "stale";                         // Red - very old
 };
 
+/**
+ * Card-ready item lines. Lines stored once per unit (historical LightFunnels
+ * orders) are collapsed into one line with the summed quantity — see
+ * merge-order-items.ts.
+ */
 export const getItemsDisplay = (items: Array<{ name: string; quantity: number; image_url?: string; tag_color?: string | null; is_open_box?: boolean; is_ai_extracted?: boolean }>) => {
     if (!items || items.length === 0) return [];
-    return items.map(item => ({
+    return mergeOrderItems(items).map(item => ({
         name: item.name,
         quantity: item.quantity,
         image_url: item.image_url,

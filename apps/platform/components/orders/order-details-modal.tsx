@@ -27,6 +27,7 @@ import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { ProductPicker } from "./product-picker";
 import { OrderCustomerCard } from "./order-customer-card";
 import { OrderItemsEditor } from "./order-items-editor";
+import { mergeOrderItems } from "@/lib/merge-order-items";
 import { OrderNotes } from "./order-notes";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
@@ -1248,7 +1249,7 @@ export function OrderDetailsModal({
                                                 {t("orderDetail.oldProducts")}
                                             </label>
                                             <div className="space-y-2">
-                                                {order.items?.map((item, index) => (
+                                                {mergeOrderItems(order.items).map((item, index) => (
                                                     <div key={index} className="bg-gray-50 p-3 rounded-lg flex justify-between items-center text-sm">
                                                         <span className="font-medium">{item.name}</span>
                                                         <span className="text-muted">x{item.quantity} - {formatIQD(item.price * item.quantity)}</span>

@@ -17,6 +17,7 @@ const H = vi.hoisted(() => ({
     findWindow: vi.fn(),
     findAllProducts: vi.fn(),
     pathname: "/orders",
+    sales: new Map([["p1", { timesSold: 16, totalRevenue: 16000, averageOrderValue: 4000 }]]),
 }));
 
 vi.mock("@/lib/repositories/order-repository", () => ({
@@ -30,6 +31,8 @@ vi.mock("@/lib/repositories/order-repository", () => ({
 vi.mock("@/lib/repositories/product-repository", () => ({
     productRepository: { findAll: H.findAllProducts },
 }));
+// Product sales are folded in SQL (get_product_sales); its own test covers the RPC.
+vi.mock("@/hooks/use-product-sales-query", () => ({ useProductSalesQuery: () => H.sales }));
 vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({
         session: { access_token: "t", user: { id: "u1" } },
@@ -57,6 +60,7 @@ vi.mock("@/hooks/use-order-auxiliary", () => ({ useOrderAuxiliary: () => ({ stat
 vi.mock("@/hooks/use-order-filters", () => ({
     useOrderFilters: ({ orders, filters, setFilters }: { orders: Order[]; filters: unknown; setFilters: unknown }) => ({
         filteredOrders: orders, filters, setFilters, statusCounts: {},
+        countViewFacts: { ready: true, statusIsAll: true, windowIsAll: false },
     }),
 }));
 vi.mock("@/hooks/use-order-crud", () => ({ useOrderCrud: () => ({}) }));
@@ -71,7 +75,7 @@ vi.mock("@/hooks/use-viewport", () => ({ useViewport: () => ({ isMobile: false }
 vi.mock("@/components/mobile/orders/MobileOrdersPage", () => ({ MobileOrdersPage: () => null }));
 
 import OrdersLayout from "@/app/orders/layout";
-import { OrdersProvider, useLoadedOrders, useOrdersContext } from "./orders-provider";
+import { useOrdersContext } from "./orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 
 const order = (id: string, items: Order["items"]) =>
@@ -108,20 +112,18 @@ beforeEach(() => {
 
 describe("outside an order book", () => {
     it("THE COST: root-level code issues no window query", async () => {
-        // What the root layout renders on every route reads orders this way:
-        // product data for the order form's picker, and the loaded window if any.
-        const { result } = renderHook(
-            () => ({ loaded: useLoadedOrders(), crud: useProductsCrud() }),
-            { wrapper: ({ children }) => withQuery(children) },
-        );
-        await waitFor(() => expect(result.current.crud.products).toHaveLength(1));
+        // The order form's product picker (root layout) and the /products list
+        // read products this way, with no book mounted.
+        const { result } = renderHook(() => useProductsCrud(), {
+            wrapper: ({ children }) => withQuery(children),
+        });
+        await waitFor(() => expect(result.current.products).toHaveLength(1));
         await settle();
 
         expect(H.findWindow).not.toHaveBeenCalled();
-        expect(result.current.loaded).toBeNull();
-        // Not "0 sold": no window was loaded, so sales are unknown, not zero.
-        expect(result.current.crud.products[0].times_sold).toBeUndefined();
-        expect(result.current.crud.products[0].total_revenue).toBeUndefined();
+        // Sales come from get_product_sales, so they are known without a book.
+        expect(result.current.products[0].times_sold).toBe(16);
+        expect(result.current.products[0].total_revenue).toBe(16000);
     });
 
     it("a book read fails loudly instead of rendering an empty list", () => {
@@ -148,17 +150,5 @@ describe("/orders", () => {
         expect(screen.getByTestId("trash")).toBeTruthy();
         await settle();
         expect(H.findWindow).not.toHaveBeenCalled();
-    });
-});
-
-describe("the products list", () => {
-    it("sums sales from the window its book loads", async () => {
-        const { result } = renderHook(() => useProductsCrud(), {
-            wrapper: ({ children }) => withQuery(<OrdersProvider>{children}</OrdersProvider>),
-        });
-
-        await waitFor(() => expect(result.current.products[0]?.times_sold).toBe(2));
-        expect(result.current.products[0].total_revenue).toBe(2000);
-        expect(H.findWindow).toHaveBeenCalledTimes(1);
     });
 });

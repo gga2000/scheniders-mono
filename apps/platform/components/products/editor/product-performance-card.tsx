@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 
 interface ProductPerformanceCardProps {
     /**
-     * Sales figures. Undefined means not known on this route (not zero): they
+     * Sales figures. Undefined means not known (not zero): they
      * are shown as "--", never as 0 sold.
      */
     timesSold?: number;

@@ -2,7 +2,6 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { useOrders } from "@/hooks/use-orders";
-import type { Order } from "@/types/order";
 
 /**
  * The order book: the /orders date window (default: today), and everything that
@@ -14,7 +13,7 @@ import type { Order } from "@/types/order";
  * channel, including the dashboard and settings pages that never show an order.
  * A route opts in by rendering <OrdersProvider> in its own layout (or page):
  *
- *   /orders, /finances, /printing, /analytics, /reports, /products (list)
+ *   /orders, /finances, /printing, /analytics, /reports
  *
  * The root layout's own chrome (top bar search, chat) sits ABOVE those layouts,
  * so it can never see a book and reads orders from the server instead.
@@ -59,15 +58,4 @@ export function useOrdersContext(): OrdersContextType {
     }
 
     return context;
-}
-
-/**
- * The loaded window when this tree has a book mounted, `null` when it has not.
- *
- * For code shared between book routes and others that can use the window when it
- * is there and has a correct answer when it is not. `null` is not "no orders":
- * a caller must not treat it as an empty list.
- */
-export function useLoadedOrders(): Order[] | null {
-    return useContext(OrdersContext)?.orders ?? null;
 }

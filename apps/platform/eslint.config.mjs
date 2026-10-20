@@ -51,7 +51,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": ["error", {
         paths: [{
           name: "@/components/providers/orders-provider",
-          importNames: ["OrdersProvider", "useOrdersContext", "useLoadedOrders"],
+          importNames: ["OrdersProvider", "useOrdersContext"],
           message: "The order book is mounted per route, not under the root layout. Fetch the orders this needs from the server (see useServerOrderSearch, useLinkedOrders).",
         }],
       }],

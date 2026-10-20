@@ -11,7 +11,7 @@
 
 import { useCallback } from "react";
 import { X, Award } from "lucide-react";
-import type { LoyaltyConfig } from "@scheniders/shared";
+import type { LoyaltyConfig, ReferralConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 
 export interface LoyaltyScreenProps {
@@ -52,6 +52,50 @@ export function LoyaltyScreen({
         },
         [builder],
     );
+
+    // Referrals live here because the referrer's reward is paid in points:
+    // without loyalty on, a referral can only give the friend a discount.
+    const referral: ReferralConfig = builder.config.commerce?.referral ?? {};
+    const updateReferral = useCallback(
+        (patch: Partial<ReferralConfig>): void => {
+            builder.setConfig(
+                (prev) => ({
+                    ...prev,
+                    commerce: {
+                        ...prev.commerce,
+                        referral: { ...prev.commerce?.referral, ...patch },
+                    },
+                }),
+                "Edited referrals",
+            );
+        },
+        [builder],
+    );
+    const referralRows: {
+        key: keyof ReferralConfig;
+        label: string;
+        hint: string;
+        value: number | undefined;
+    }[] = [
+        {
+            key: "friend_discount_pct",
+            label: "Friend's discount (%)",
+            hint: "Off their first order with the code",
+            value: referral.friend_discount_pct,
+        },
+        {
+            key: "friend_max_discount_iqd",
+            label: "Cap on that discount (IQD)",
+            hint: "Blank = no cap",
+            value: referral.friend_max_discount_iqd,
+        },
+        {
+            key: "referrer_points",
+            label: "Points for the referrer",
+            hint: "Credited when the friend's order is delivered; needs loyalty on",
+            value: referral.referrer_points,
+        },
+    ];
 
     const rows: {
         key: keyof LoyaltyConfig;
@@ -108,9 +152,10 @@ export function LoyaltyScreen({
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">
-                    Reward repeat customers: they earn points on every order and redeem
-                    them for a discount at checkout. Off by default — turn it on to start
-                    the program.
+                    Reward repeat customers: they earn points when an order is delivered
+                    and redeem them for a discount at checkout. If a delivered order is
+                    later returned or cancelled, the points it earned are taken back. Off
+                    by default — turn it on to start the program.
                 </p>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
@@ -150,6 +195,57 @@ export function LoyaltyScreen({
                         />
                     </label>
                 ))}
+
+                <section className="mt-2 flex flex-col gap-3" aria-labelledby="referral-heading">
+                    <div>
+                        <h3 id="referral-heading" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Referrals
+                        </h3>
+                        <p className="mt-1 max-w-prose text-xs text-muted-foreground">
+                            Every buyer gets a code on the thank-you page and a WhatsApp share
+                            link. A friend using it on their first order gets the discount; the
+                            referrer gets points when that order is delivered.
+                        </p>
+                    </div>
+                    <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
+                        <span className="text-sm font-medium text-foreground">Enable referrals</span>
+                        <input
+                            type="checkbox"
+                            data-testid="referral-enabled"
+                            checked={referral.enabled === true}
+                            onChange={(e) => updateReferral({ enabled: e.target.checked })}
+                        />
+                    </label>
+                    {referralRows.map((row) => (
+                        <label
+                            key={row.key}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
+                        >
+                            <span className="min-w-0 text-sm text-foreground">
+                                {row.label}
+                                <span className="mt-0.5 block text-xs text-muted-foreground">{row.hint}</span>
+                            </span>
+                            <input
+                                type="number"
+                                min={0}
+                                step="1"
+                                dir="ltr"
+                                data-testid={`referral-${row.key}`}
+                                value={row.value ?? ""}
+                                onChange={(e) =>
+                                    updateReferral({ [row.key]: num(e.target.value) } as Partial<ReferralConfig>)
+                                }
+                                className={inputCls}
+                            />
+                        </label>
+                    ))}
+                    {referral.enabled === true && !enabled && (referral.referrer_points ?? 0) > 0 && (
+                        <p role="status" data-testid="referral-needs-loyalty" className="text-xs text-amber-700">
+                            Referrer points are paid through loyalty — turn loyalty on, or the
+                            referrer gets nothing.
+                        </p>
+                    )}
+                </section>
             </div>
         </div>
     );

@@ -104,13 +104,17 @@ export function SchneidersProductCard({
       price: product.price,
       quantity: 1,
       image_url: product.image_url ?? null,
+      // Carried so the cart can apply the ladder if the shopper raises the
+      // quantity there; at one unit the price is the base price.
+      base_price: product.price,
+      ...(product.price_tiers ? { price_tiers: product.price_tiers } : {}),
     });
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1500);
   }
 
   return (
-    <article className={cn("bento-card bg-white p-4 relative flex flex-col", className)}>
+    <article className={cn("bento-card bg-bk-surface-alt p-4 relative flex flex-col", className)}>
       {/* One rotated corner badge: Save (on sale) → Bestseller → New. */}
       {onSale ? (
         <div className="absolute -top-3 -left-2 z-10">
@@ -206,6 +210,10 @@ export function SchneidersProductCard({
         >
           {t ? "اشترِ الآن" : "Buy Now"}
         </StoreLink>
+        {/* Quick-add sends one variant-less unit, which a product sold by
+            variant cannot be bought as (the checkout refuses it). Such a
+            product is chosen on its page — the Buy Now link above. */}
+        {!product.sold_by_variant && (
         <button
           type="button"
           onClick={quickAdd}
@@ -219,7 +227,7 @@ export function SchneidersProductCard({
                 ? "أضف إلى السلة"
                 : "Add to cart"
           }
-          className="bento-card-sm bg-white p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="bento-card-sm bg-bk-surface-alt p-2.5 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           style={{
             color: justAdded ? "var(--bk-success, #16a34a)" : "var(--bk-ink, #1a1a1a)",
             border:
@@ -230,6 +238,7 @@ export function SchneidersProductCard({
         >
           <MaterialIcon name={justAdded ? "check" : "add_shopping_cart"} className="text-lg" />
         </button>
+        )}
       </div>
       {showWhatsapp && (() => {
         const productPath = `/products/${product.slug ?? product.id}`;

@@ -19,7 +19,7 @@ const PLATFORM = path.resolve(__dirname, "../..");
 const APP = path.join(PLATFORM, "app");
 
 /** The routes that mount the order book. Adding one is a decision, not an accident. */
-const BOOK_ROUTES = ["/analytics", "/finances", "/orders", "/printing", "/products", "/reports"];
+const BOOK_ROUTES = ["/analytics", "/finances", "/orders", "/printing", "/reports"];
 
 /**
  * Under a book-mounting layout, but the layout skips the book for them on
@@ -88,10 +88,10 @@ describe("order book mounting (PERF-D1)", () => {
         console.info(`[PERF-D1] routes fetching the order book: ${fetching.length} of ${routes.length} (was ${routes.length} of ${routes.length})`);
     });
 
-    it("the product editor routes do not fetch it — only the products list does", () => {
-        const editor = routes.filter((r) => r.route.startsWith("/products/"));
-        expect(editor.length).toBeGreaterThan(0);
-        for (const r of editor) expect(r.files.some(rendersBook), r.route).toBe(false);
+    it("no /products route fetches it: sales come from get_product_sales, not the window", () => {
+        const products = routes.filter((r) => r.route === "/products" || r.route.startsWith("/products/"));
+        expect(products.length).toBeGreaterThan(1);
+        for (const r of products) expect(r.files.some(rendersBook), r.route).toBe(false);
     });
 
     it("nothing but OrdersProvider can start the window fetch", () => {

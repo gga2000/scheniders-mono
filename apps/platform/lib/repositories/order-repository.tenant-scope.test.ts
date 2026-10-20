@@ -71,6 +71,21 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         expectAllTenantScoped();
     });
 
+    it("findAll and findWindow page in a total order: created_at desc, then id desc", async () => {
+        // Parallel pages over created_at alone repeat or skip rows wherever a
+        // run of equal timestamps straddles a 1,000-row boundary.
+        await orderRepository.findAll(TENANT);
+        await orderRepository.findWindow(TENANT, WINDOW);
+        const pages = queriesOn("orders").filter((q) => q.ops.some((o) => o.op === "range"));
+        expect(pages.length).toBe(2);
+        for (const page of pages) {
+            expect(page.ops.filter((o) => o.op === "order").map((o) => o.args)).toEqual([
+                ["created_at", { ascending: false }],
+                ["id", { ascending: false }],
+            ]);
+        }
+    });
+
     it("findWindow: windowed count and pages", async () => {
         const rows = await orderRepository.findWindow(TENANT, WINDOW);
         expect(rows.map((r) => r.id)).toEqual(["o1"]);
@@ -85,6 +100,29 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
 
     it("findChangedSince: the delta sync", async () => {
         await orderRepository.findChangedSince(TENANT, "2026-10-18T09:00:00.000Z");
+        expectAllTenantScoped();
+    });
+
+    it("findChangedSince sees soft deletes: no deleted_at filter, and deleted_at is selected", async () => {
+        respond((q) => (q.target === "customer_trust"
+            ? { data: [], error: null }
+            : { data: [{ ...orderRow("o1"), deleted_at: "2026-10-18T10:00:00.000Z" }], error: null }));
+        const rows = await orderRepository.findChangedSince(TENANT, "2026-10-18T09:00:00.000Z");
+        const [q] = queriesOn("orders");
+        expect(q.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at")).toBe(false);
+        const select = q.ops.find((o) => o.op === "select")?.args[0] as string;
+        expect(select.split(",").map((c) => c.trim())).toContain("deleted_at");
+        expect(rows[0].deleted_at).toBe("2026-10-18T10:00:00.000Z");
+    });
+
+    it("findLatestUpdatedAt: the sync high-water mark", async () => {
+        respond(() => ({ data: { updated_at: "2026-10-18T10:00:00.000Z" }, error: null }));
+        await expect(orderRepository.findLatestUpdatedAt(TENANT)).resolves.toBe("2026-10-18T10:00:00.000Z");
+        const [q] = queriesOn("orders");
+        expect(q.ops.filter((o) => o.op === "order").map((o) => o.args)).toEqual([["updated_at", { ascending: false }]]);
+        expect(q.ops.some((o) => o.op === "limit" && o.args[0] === 1)).toBe(true);
+        // The same rows the delta reads: a soft delete moves the mark too.
+        expect(q.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at")).toBe(false);
         expectAllTenantScoped();
     });
 

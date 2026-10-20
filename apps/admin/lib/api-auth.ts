@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireAdmin, resolveAdminRole } from "./admin-supabase";
 import { env } from "./admin-env";
+import { AdminAuthError, isCredentialRejection } from "./admin-auth-error";
 import { hasPermission } from "./admin-permissions";
 import type { AdminAction, AdminRole } from "@/types/admin";
 
@@ -12,8 +13,9 @@ export type AdminContext = { user: { id: string; email?: string | null }; role: 
  * Resolve the admin context from the caller's cookie-based Supabase session —
  * the transport the browser uses for same-origin fetches. `getUser()` validates
  * the JWT against the auth server (not just the stored cookie). Returns null
- * when there is no authenticated session; throws when the user is authenticated
- * but lacks admin-console access.
+ * when there is no authenticated session; throws `AdminAuthError(403)` when the
+ * user is authenticated but lacks admin-console access, and a plain error when
+ * the auth server or database fails.
  */
 async function adminFromCookies(): Promise<AdminContext | null> {
   const cookieStore = await cookies();
@@ -44,10 +46,55 @@ async function adminFromCookies(): Promise<AdminContext | null> {
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) return null;
+  if (!user) {
+    if (isCredentialRejection(error)) return null;
+    throw new Error(`Session validation failed: ${error?.message}`, { cause: error });
+  }
 
   const role = await resolveAdminRole(user.id);
   return { user: { id: user.id, email: user.email }, role };
+}
+
+const BEARER = /^Bearer\s+(\S+)\s*$/i;
+
+function bearerToken(request: NextRequest): string | null {
+  return request.headers.get("authorization")?.match(BEARER)?.[1] ?? null;
+}
+
+/**
+ * The one place an `AdminAuthError` becomes a response. Anything else is a
+ * genuine server failure: it is rethrown so the route's own error handling
+ * (or Next.js) reports it as a 500 — never disguised as a 401/403.
+ */
+function authFailureResponse(error: unknown): NextResponse {
+  if (error instanceof AdminAuthError) {
+    return NextResponse.json(
+      { error: error.status === 401 ? "Unauthorized" : "Forbidden" },
+      { status: error.status },
+    );
+  }
+  throw error;
+}
+
+/**
+ * Bearer-only admin guard (`Authorization: Bearer <token>`, as sent by
+ * `adminFetch`). Returns the admin context, or a 401/403 NextResponse the
+ * caller returns directly. Server errors propagate.
+ *
+ * Usage:
+ *   const admin = await requireBearerAdmin(request);
+ *   if (admin instanceof NextResponse) return admin;
+ */
+export async function requireBearerAdmin(
+  request: NextRequest,
+): Promise<AdminContext | NextResponse> {
+  const token = bearerToken(request);
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    return await requireAdmin(token);
+  } catch (error) {
+    return authFailureResponse(error);
+  }
 }
 
 /**
@@ -58,6 +105,7 @@ async function adminFromCookies(): Promise<AdminContext | null> {
  * client. On failure, returns a NextResponse the caller should return directly:
  *   401 — no authenticated identity at all
  *   403 — authenticated, but not an active admin
+ * Server errors (auth server / database down) propagate as a thrown error.
  *
  * Usage:
  *   const guard = await requireAdminFromRequest(request);
@@ -67,16 +115,8 @@ async function adminFromCookies(): Promise<AdminContext | null> {
 export async function requireAdminFromRequest(
   request: NextRequest,
 ): Promise<AdminContext | NextResponse> {
-  const bearer = request.headers.get("authorization")?.replace("Bearer ", "");
-
   // Explicit bearer token → validate strictly.
-  if (bearer) {
-    try {
-      return (await requireAdmin(bearer)) as AdminContext;
-    } catch {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  if (bearerToken(request)) return requireBearerAdmin(request);
 
   // No bearer token → fall back to the cookie session.
   try {
@@ -85,8 +125,8 @@ export async function requireAdminFromRequest(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return ctx;
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  } catch (error) {
+    return authFailureResponse(error);
   }
 }
 
