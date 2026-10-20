@@ -63,6 +63,7 @@ export function resolveFieldWidget(fieldKey: string): FieldWidget | null {
 export const LINK_PAGES = [
     { path: "/", labelKey: "home" },
     { path: "/products", labelKey: "products" },
+    { path: "/search", labelKey: "search" },
     { path: "/cart", labelKey: "cart" },
     { path: "/checkout", labelKey: "checkout" },
     { path: "/track", labelKey: "track" },
@@ -75,12 +76,21 @@ export const LINK_PAGES = [
     { path: "/policies/terms", labelKey: "policyTerms" },
 ] as const;
 
-export type LinkTargetKind = "page" | "category" | "product" | "external";
+/**
+ * Where a link can go. `custom_page` is a merchant-authored page from
+ * `config.custom_pages`, served at `/p/<slug>`.
+ */
+export type LinkTargetKind = "page" | "custom_page" | "category" | "product" | "external";
+
+/** True when `path` is one of the store pages the page list names. */
+export function isLinkPagePath(path: string): boolean {
+    return LINK_PAGES.some((p) => p.path === path);
+}
 
 /** What an existing href value already points at, so the picker opens on it. */
 export function classifyHref(href: string | undefined): {
     kind: LinkTargetKind;
-    /** Slug for category/product, the raw value otherwise. */
+    /** Slug for category/product/custom page, the raw value otherwise. */
     value: string;
 } {
     const raw = (href ?? "").trim();
@@ -90,8 +100,12 @@ export function classifyHref(href: string | undefined): {
     }
     const categoryMatch = /^\/categories\/([^/?#]+)/.exec(raw);
     if (categoryMatch) return { kind: "category", value: decodeURIComponent(categoryMatch[1]) };
-    const productMatch = /^\/(?:products|p)\/([^/?#]+)/.exec(raw);
+    const productMatch = /^\/products\/([^/?#]+)/.exec(raw);
     if (productMatch) return { kind: "product", value: decodeURIComponent(productMatch[1]) };
+    // `/p/<slug>` is the storefront's custom-page route
+    // (apps/storefront/app/s/[tenant]/p/[slug]), not a product.
+    const customPageMatch = /^\/p\/([^/?#]+)/.exec(raw);
+    if (customPageMatch) return { kind: "custom_page", value: decodeURIComponent(customPageMatch[1]) };
     if (raw.startsWith("/")) return { kind: "page", value: raw };
     // A bare word is neither a path nor a URL — treat it as external so the
     // merchant sees exactly what is stored rather than a silent rewrite.
@@ -107,6 +121,8 @@ export function buildHref(kind: LinkTargetKind, value: string): string {
             return `/categories/${v}`;
         case "product":
             return `/products/${v}`;
+        case "custom_page":
+            return `/p/${v}`;
         case "page":
         case "external":
             return v;

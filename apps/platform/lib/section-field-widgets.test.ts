@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { resolveFieldWidget, classifyHref, buildHref } from "./section-field-widgets";
+import fs from "node:fs";
+import path from "node:path";
+import { resolveFieldWidget, classifyHref, buildHref, isLinkPagePath, LINK_PAGES } from "./section-field-widgets";
 
 describe("resolveFieldWidget", () => {
     it("routes the reference fields that actually exist in sections", () => {
@@ -33,7 +35,18 @@ describe("classifyHref", () => {
         expect(classifyHref("/products")).toEqual({ kind: "page", value: "/products" });
         expect(classifyHref("/categories/work")).toEqual({ kind: "category", value: "work" });
         expect(classifyHref("/products/fusion")).toEqual({ kind: "product", value: "fusion" });
-        expect(classifyHref("/p/fusion")).toEqual({ kind: "product", value: "fusion" });
+    });
+
+    it("reads /p/<slug> as a custom page, which is what the storefront serves there", () => {
+        // apps/storefront/app/s/[tenant]/p/[slug] is the custom-page route;
+        // products live under /products/<slug> only.
+        expect(classifyHref("/p/eid-sale")).toEqual({ kind: "custom_page", value: "eid-sale" });
+        expect(classifyHref("/p/%D8%B9%D9%8A%D8%AF")).toEqual({ kind: "custom_page", value: "عيد" });
+    });
+
+    it("keeps a store path the page list does not name as a page link, unchanged", () => {
+        expect(classifyHref("/products?sort=sale")).toEqual({ kind: "page", value: "/products?sort=sale" });
+        expect(isLinkPagePath("/products?sort=sale")).toBe(false);
     });
 
     it("decodes a percent-encoded Arabic slug", () => {
@@ -70,6 +83,7 @@ describe("buildHref", () => {
             ["page", "/about"],
             ["category", "work"],
             ["product", "fusion"],
+            ["custom_page", "eid-sale"],
             ["external", "https://example.com"],
         ];
         for (const [kind, value] of cases) {
@@ -81,5 +95,19 @@ describe("buildHref", () => {
     it("returns empty for an empty choice rather than a dangling prefix", () => {
         expect(buildHref("category", "")).toBe("");
         expect(buildHref("product", "  ")).toBe("");
+    });
+});
+
+describe("LINK_PAGES", () => {
+    it("lists search, which live section links already point at", () => {
+        expect(isLinkPagePath("/search")).toBe(true);
+    });
+
+    it("lists only routes the storefront serves", () => {
+        const tenantRoutes = path.resolve(__dirname, "../../storefront/app/s/[tenant]");
+        for (const p of LINK_PAGES) {
+            expect(fs.existsSync(path.join(tenantRoutes, p.path, "page.tsx")), p.path).toBe(true);
+        }
+        expect(new Set(LINK_PAGES.map((p) => p.path)).size).toBe(LINK_PAGES.length);
     });
 });

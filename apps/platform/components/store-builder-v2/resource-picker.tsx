@@ -13,14 +13,16 @@
 import { useMemo, useState, type ReactElement } from "react";
 import Image from "next/image";
 import { ChevronDown, GripVertical, Search, X } from "lucide-react";
-import type { LocaleCode } from "@scheniders/shared";
+import { resolveI18n, type LocaleCode } from "@scheniders/shared";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import {
     LINK_PAGES,
     buildHref,
     classifyHref,
+    isLinkPagePath,
     type LinkTargetKind,
 } from "@/lib/section-field-widgets";
+import { useEditorCustomPages } from "@/lib/editor-link-targets-context";
 import {
     useBuilderAttributes,
     useBuilderCategories,
@@ -468,7 +470,29 @@ export function AttributePickerField(props: {
     );
 }
 
-const TARGET_KINDS: LinkTargetKind[] = ["page", "category", "product", "external"];
+const TARGET_KINDS: LinkTargetKind[] = ["page", "custom_page", "category", "product", "external"];
+
+/** `<select>` sentinel for "a store path the page list does not name". */
+const OTHER_PATH = "__other_path__";
+
+interface LinkOption {
+    value: string;
+    label: string;
+}
+
+/**
+ * Options for a stored slug, plus the stored one itself when it no longer
+ * matches anything — so the select shows what is saved instead of an
+ * empty box that reads as "unset".
+ */
+function withStored(options: LinkOption[], stored: string, missingNote: string): LinkOption[] {
+    if (!stored || options.some((o) => o.value === stored)) return options;
+    return [...options, { value: stored, label: `${stored} — ${missingNote}` }];
+}
+
+function hasSlug<T extends { slug: string | null }>(row: T): row is T & { slug: string } {
+    return typeof row.slug === "string" && row.slug.length > 0;
+}
 
 export function LinkPickerField({
     label,
@@ -484,12 +508,43 @@ export function LinkPickerField({
     testId?: string;
 }): ReactElement {
     const href = typeof value === "string" ? value : "";
-    const current = classifyHref(href);
+    const stored = classifyHref(href);
     const { data: products = [] } = useBuilderProducts();
     const { data: categories = [] } = useBuilderCategories();
+    const customPages = useEditorCustomPages();
+
+    // The destination kind is the merchant's choice, held here — not
+    // re-derived from the stored href. Pressing "A category" on an empty
+    // link must open the category list even though "" still classifies
+    // as a page. Nothing is written until a destination is chosen.
+    const [kind, setKind] = useState<LinkTargetKind>(stored.kind);
+    const unlistedPath = (k: LinkTargetKind, v: string) => k === "page" && v !== "" && !isLinkPagePath(v);
+    const [otherPath, setOtherPath] = useState(() => unlistedPath(stored.kind, stored.value));
+    // The last value this picker wrote. A prop change that is NOT our own
+    // write (undo, another section selected) re-opens the picker on the
+    // new value; our own write never moves the kind, so typing "/" into
+    // the web-address box doesn't swap it for the page list mid-keystroke.
+    const [written, setWritten] = useState<string | null>(null);
+    const [seen, setSeen] = useState(href);
+    if (href !== seen) {
+        setSeen(href);
+        if (href !== written) {
+            setKind(stored.kind);
+            setOtherPath(unlistedPath(stored.kind, stored.value));
+        }
+    }
+    const write = (next: string) => {
+        setWritten(next);
+        onChange(next);
+    };
+    /** The stored value as this kind reads it; empty when it is another kind's. */
+    const valueFor = (k: LinkTargetKind) => (stored.kind === k ? stored.value : "");
+    /** Free-text boxes show exactly what was typed, whatever it classifies as. */
+    const typedFor = (k: LinkTargetKind) => (stored.kind === k || href === written ? href : "");
 
     const kindLabel: Record<LinkTargetKind, string> = {
         page: tx(STRINGS.picker.target_page, locale),
+        custom_page: tx(STRINGS.picker.target_custom_page, locale),
         category: tx(STRINGS.picker.target_category, locale),
         product: tx(STRINGS.picker.target_product, locale),
         external: tx(STRINGS.picker.target_external, locale),
@@ -501,6 +556,43 @@ export function LinkPickerField({
                 STRINGS.picker.target_page,
             locale,
         );
+    const missing = tx(STRINGS.picker.missing, locale);
+
+    const customPageOptions = withStored(
+        customPages.map((p) => ({
+            value: p.slug,
+            label: `${resolveI18n(p.title, locale) || p.slug}${p.hidden ? ` — ${tx(STRINGS.picker.hidden_page, locale)}` : ""}`,
+        })),
+        valueFor("custom_page"),
+        missing,
+    );
+    const categoryOptions = withStored(
+        categories.filter(hasSlug).map((c) => ({ value: c.slug, label: c.name })),
+        valueFor("category"),
+        missing,
+    );
+    const productOptions = withStored(
+        products.filter(hasSlug).map((p) => ({ value: p.slug, label: p.name })),
+        valueFor("product"),
+        missing,
+    );
+
+    const slugSelect = (k: "custom_page" | "category" | "product", options: LinkOption[], placeholder: string) => (
+        <select
+            data-testid={testId}
+            className={FIELD_CLS}
+            value={valueFor(k)}
+            onChange={(e) => write(buildHref(k, e.target.value))}
+            aria-label={label}
+        >
+            <option value="">{placeholder}</option>
+            {options.map((o) => (
+                <option key={o.value} value={o.value}>
+                    {o.label}
+                </option>
+            ))}
+        </select>
+    );
 
     return (
         <div className="space-y-1.5">
@@ -510,14 +602,14 @@ export function LinkPickerField({
                     <button
                         key={k}
                         type="button"
-                        aria-pressed={current.kind === k}
-                        // Switching target clears the value: a category slug is
-                        // not a valid product slug, and carrying it over would
-                        // silently produce a dead link.
-                        onClick={() => onChange(k === current.kind ? href : "")}
+                        aria-pressed={kind === k}
+                        // Choosing a kind writes nothing: the stored link stays
+                        // until a destination of the new kind is picked, so
+                        // looking at another kind never loses a working link.
+                        onClick={() => setKind(k)}
                         className={cn(
                             "rounded-md border px-2 py-1 text-xs",
-                            current.kind === k
+                            kind === k
                                 ? "border-foreground bg-foreground text-background"
                                 : "border-border hover:bg-muted",
                         )}
@@ -527,67 +619,60 @@ export function LinkPickerField({
                 ))}
             </div>
 
-            {current.kind === "page" && (
-                <select
-                    data-testid={testId}
-                    className={FIELD_CLS}
-                    value={current.value}
-                    onChange={(e) => onChange(e.target.value)}
-                    aria-label={label}
-                >
-                    <option value="">{tx(STRINGS.picker.none_selected, locale)}</option>
-                    {LINK_PAGES.map((p) => (
-                        <option key={p.path} value={p.path}>
-                            {pageLabel(p.labelKey)}
-                        </option>
-                    ))}
-                </select>
-            )}
-
-            {current.kind === "category" && (
-                <select
-                    data-testid={testId}
-                    className={FIELD_CLS}
-                    value={current.value}
-                    onChange={(e) => onChange(buildHref("category", e.target.value))}
-                    aria-label={label}
-                >
-                    <option value="">{tx(STRINGS.picker.choose_category, locale)}</option>
-                    {categories
-                        .filter((c) => c.slug)
-                        .map((c) => (
-                            <option key={c.id} value={c.slug!}>
-                                {c.name}
+            {kind === "page" && (
+                <>
+                    <select
+                        data-testid={testId}
+                        className={FIELD_CLS}
+                        value={otherPath ? OTHER_PATH : valueFor("page")}
+                        onChange={(e) => {
+                            if (e.target.value === OTHER_PATH) {
+                                setOtherPath(true);
+                                return;
+                            }
+                            setOtherPath(false);
+                            write(e.target.value);
+                        }}
+                        aria-label={label}
+                    >
+                        <option value="">{tx(STRINGS.picker.none_selected, locale)}</option>
+                        {LINK_PAGES.map((p) => (
+                            <option key={p.path} value={p.path}>
+                                {pageLabel(p.labelKey)}
                             </option>
                         ))}
-                </select>
+                        <option value={OTHER_PATH}>{tx(STRINGS.picker.page_other, locale)}</option>
+                    </select>
+                    {otherPath && (
+                        <input
+                            data-testid={testId ? `${testId}-path` : undefined}
+                            className={FIELD_CLS}
+                            value={typedFor("page")}
+                            onChange={(e) => write(e.target.value)}
+                            placeholder={tx(STRINGS.picker.page_other_placeholder, locale)}
+                            aria-label={tx(STRINGS.picker.page_other_label, locale)}
+                        />
+                    )}
+                </>
             )}
 
-            {current.kind === "product" && (
-                <select
-                    data-testid={testId}
-                    className={FIELD_CLS}
-                    value={current.value}
-                    onChange={(e) => onChange(buildHref("product", e.target.value))}
-                    aria-label={label}
-                >
-                    <option value="">{tx(STRINGS.picker.choose_product, locale)}</option>
-                    {products
-                        .filter((p) => p.slug)
-                        .map((p) => (
-                            <option key={p.id} value={p.slug!}>
-                                {p.name}
-                            </option>
-                        ))}
-                </select>
-            )}
+            {kind === "custom_page" &&
+                (customPageOptions.length > 0 ? (
+                    slugSelect("custom_page", customPageOptions, tx(STRINGS.picker.choose_custom_page, locale))
+                ) : (
+                    <p className="text-xs text-muted-foreground">{tx(STRINGS.picker.no_custom_pages, locale)}</p>
+                ))}
 
-            {current.kind === "external" && (
+            {kind === "category" && slugSelect("category", categoryOptions, tx(STRINGS.picker.choose_category, locale))}
+
+            {kind === "product" && slugSelect("product", productOptions, tx(STRINGS.picker.choose_product, locale))}
+
+            {kind === "external" && (
                 <input
                     data-testid={testId}
                     className={FIELD_CLS}
-                    value={current.value}
-                    onChange={(e) => onChange(e.target.value)}
+                    value={typedFor("external")}
+                    onChange={(e) => write(e.target.value)}
                     placeholder={tx(STRINGS.picker.external_placeholder, locale)}
                     aria-label={label}
                 />
