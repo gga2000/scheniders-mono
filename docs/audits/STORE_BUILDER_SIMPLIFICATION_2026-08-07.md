@@ -218,7 +218,19 @@ Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 282 ✓ (4 new: dest
 
 Gates: type-check 3/3 ✓, lint 0 errors ✓, builder+lib suites 620 ✓ (2 new delivery-step tests). Live E2E: fresh signup → 3-field wizard → beauty hero → delivery inline capture → 3/6 checklist, all on #100054.
 
-**Sweep complete.** All four proposed rounds shipped. Still deliberately open (deferred, not forgotten): OMS double chrome (UX-21), real per-template thumbnail art, auto-translate/AI copy, slug/handle claim UI, brand-kit body dev-fields (favicon/OG → Advanced) + English live-preview card.
+## Round 5 (cleanup) — brand-kit finish (2026-08-08, same branch)
+
+The last finding-scoped leftover from S3-03, live-verified on #100054:
+
+| Item | Status | Fix |
+|---|---|---|
+| Favicon in Simple | **FIXED** | «أيقونة الموقع» (32×32 ICO, warn-level check) is Advanced-only. **OG stays in Simple deliberately** — it's the target of a first-publish recommendation whose fix button lands in the brand kit; hiding it would create a new dead end. |
+| English live-preview card | **FIXED** | «معاينة حية / مباشر / شعار العلامة وخط النص / زر: تسوّق الآن / سطح: مرحباً / النص: أب جد / تخفيض! / الألوان الناتجة» — new `brand_kit_preview` i18n block; font samples now preview **Arabic glyphs**, which is what an Arabic storefront's type actually needs to demonstrate. |
+| English «Translations (AR – · KU –)» toggle in brand kit | **FIXED** | Root cause: `I18nStringInput` defaults `activeLocale="en"` and the brand-kit call sites never passed it — tagline + voice-notes now pass `chromeLocale`, so the toggle localizes AND the primary input edits the merchant's own locale instead of English. |
+
+Gates: type-check 3/3 ✓, lint 0 errors ✓, builder suite 284 ✓.
+
+**Sweep complete.** All proposed rounds + cleanup shipped. Still deliberately open (deferred, not forgotten): OMS double chrome (UX-21), real per-template thumbnail art (English placeholder art in SVGs), auto-translate/AI copy, slug/handle claim UI.
 
 ---
 
