@@ -107,6 +107,36 @@ const TRUST_IN_CHUNK = 100;
 const ID_IN_CHUNK = 100;
 const PAGE = 1000;
 
+/**
+ * Times a list page whose request failed in transit is re-read before the
+ * whole read fails. A list read is several parallel pages; without this one
+ * page passing the client's 10s fetch timeout (lib/supabase.ts) failed the
+ * read, and React Query's retry re-read every page, the count and the trust
+ * book from scratch: measured +12s on a sidebar click to /orders.
+ */
+export const PAGE_RETRIES = 1;
+
+/**
+ * A failed page read that is worth sending again unchanged: the request got
+ * no response (an abort, the timeout, a network error — PostgREST-js reports
+ * those as status 0) or the gateway failed (5xx). A 4xx is the request's own
+ * fault and fails at once.
+ */
+export function isTransientReadFailure(result: { error: unknown; status?: number }): boolean {
+    if (!result.error || typeof result.status !== "number") return false;
+    return result.status === 0 || result.status >= 500;
+}
+
+/** One page GET, re-sent up to PAGE_RETRIES times on a transient failure. Pages are idempotent reads. */
+async function readPage<T extends { error: unknown; status?: number }>(read: () => PromiseLike<T>): Promise<T> {
+    let result = await read();
+    for (let attempt = 1; attempt <= PAGE_RETRIES && isTransientReadFailure(result); attempt++) {
+        diag.warn(`[Diag:Repo] list page failed in transit (status ${result.status}) — re-reading that page, attempt ${attempt}`);
+        perfTrace.markRepeat("list:page-retry", { status: result.status ?? -1, attempt });
+        result = await read();
+    }
+    return result;
+}
 
 /** Search rows carry `deleted_at` so a trashed match can be labelled. */
 const SEARCH_COLUMNS = `${LIST_COLUMNS}, deleted_at, delivery_order_id, waseet_qr_id`;
@@ -160,13 +190,15 @@ async function fetchTrustBook(tenantId: string): Promise<TrustRow[]> {
     const total = count ?? 0;
     const results = await Promise.all(
         Array.from({ length: Math.ceil(total / PAGE) }, (_, i) =>
-            supabase
-                .from("customer_trust")
-                .select(TRUST_RISK_COLUMNS)
-                .eq("tenant_id", tenantId)
-                .order("tenant_id", { ascending: true })
-                .order("phone", { ascending: true })
-                .range(i * PAGE, i * PAGE + PAGE - 1),
+            readPage(() =>
+                supabase
+                    .from("customer_trust")
+                    .select(TRUST_RISK_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .order("tenant_id", { ascending: true })
+                    .order("phone", { ascending: true })
+                    .range(i * PAGE, i * PAGE + PAGE - 1),
+            ),
         ),
     );
     const rows: TrustRow[] = [];
@@ -372,7 +404,7 @@ async function readWideList(tenantId: string, window: OrderWindow, onPreview?: L
         const wholeTrustBook = total > TRUST_LOOKUP_MAX_PHONES;
         const headPreview = head;
         const [pages, trustBook] = await Promise.all([
-            traced(trace, "pages", () => Promise.all(Array.from({ length: pageCount }, (_, i) => listPage(tenantId, window, i))), () => ({ pages: pageCount })),
+            traced(trace, "pages", () => Promise.all(Array.from({ length: pageCount }, (_, i) => readPage(() => listPage(tenantId, window, i)))), () => ({ pages: pageCount })),
             wholeTrustBook ? traced(trace, "trust-book", () => fetchTrustBook(tenantId), (r) => ({ rows: r.length })) : Promise.resolve(null),
             headPreview
                 ? fetchTrustRows(tenantId, trustPhones(headPreview.rows)).then((trust) => {
@@ -500,7 +532,7 @@ export const orderRepository = {
 
         const pageCount = Math.ceil(totalRows / PAGE);
         const pages = await traced(opts.trace, "pages", () => Promise.all(
-            Array.from({ length: pageCount }, (_, i) => listPage(tenantId, window, i)),
+            Array.from({ length: pageCount }, (_, i) => readPage(() => listPage(tenantId, window, i))),
         ), () => ({ pages: pageCount }));
         const rows = tracedSync(opts.trace, "normalize", () => pageRows(pages));
 
