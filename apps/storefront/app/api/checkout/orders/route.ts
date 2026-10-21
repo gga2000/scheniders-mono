@@ -206,6 +206,12 @@ export async function POST(req: Request): Promise<NextResponse> {
       });
       return res;
     }
+    if (result.retryAfterSeconds !== undefined) {
+      return NextResponse.json(result, {
+        status: 429,
+        headers: { "Retry-After": String(result.retryAfterSeconds) },
+      });
+    }
     return NextResponse.json(result, { status: 422 });
   } catch (e) {
     console.error("[api/checkout/orders]", e);
