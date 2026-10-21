@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { maskIraqiMobile } from "@scheniders/shared";
+import { maskIraqiMobile, normalizeIraqiMobile } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import {
   UPSELL_WINDOW_MS,
@@ -44,6 +44,8 @@ const CONFIRMATION_TEMPLATE = "cod_order_confirm";
 
 /** Statuses in which the order is still waiting for its confirmation call. */
 const AWAITING_CALL: readonly string[] = ["new", "contacted"];
+
+const backupSchema = z.object({ phone: z.string().trim().min(1).max(32) });
 
 type Svc = ReturnType<typeof createSupabaseServiceClient>;
 type Ctx = { params: Promise<{ id: string }> };
@@ -148,6 +150,81 @@ export async function GET(req: Request, { params }: Ctx): Promise<NextResponse> 
   } catch (e) {
     if (!(e instanceof ContactReadError)) throw e;
     console.error("[order-contact] GET", e.message);
+    return unavailable();
+  }
+}
+
+/** A second number is already on the order: a retry of the SAME number
+ *  (a double tap, a lost response) is success; a different one is never
+ *  overwritten from a shopper-facing page. */
+function backupOutcome(order: ContactOrder, backup: string): NextResponse {
+  if (normalizeIraqiMobile(order.secondaryPhone) === backup) {
+    return NextResponse.json({ success: true, has_backup: true, already: true });
+  }
+  return NextResponse.json({ success: false, error: "has_backup" }, { status: 409 });
+}
+
+export async function POST(req: Request, { params }: Ctx): Promise<NextResponse> {
+  const { id } = await params;
+  if (!z.string().uuid().safeParse(id).success) return notFound();
+
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+  }
+  const parsed = backupSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, error: "Invalid body" }, { status: 400 });
+  }
+
+  const tenantId = provenTenant(req, id);
+  if (!tenantId) return notFound();
+
+  const backup = normalizeIraqiMobile(parsed.data.phone);
+  if (!backup) {
+    return NextResponse.json({ success: false, error: "invalid_phone" }, { status: 422 });
+  }
+
+  const svc = createSupabaseServiceClient();
+  try {
+    const order = await loadOrder(svc, id, tenantId);
+    if (!order) return notFound();
+    if (order.secondaryPhone !== null) return backupOutcome(order, backup);
+    if (backup === normalizeIraqiMobile(order.phone)) {
+      return NextResponse.json({ success: false, error: "same_as_primary" }, { status: 422 });
+    }
+    if (!acceptsBackup(order, Date.now())) {
+      return NextResponse.json({ success: false, error: "closed" }, { status: 409 });
+    }
+
+    // Optimistic on `version` (bumped by the BEFORE UPDATE trigger on every
+    // write) with the awaiting-call statuses re-asserted in the same
+    // statement: anything that changed the order since the read — staff,
+    // the WhatsApp bot, a second tab — makes this match zero rows.
+    const { data: updated, error: updateErr } = await svc
+      .from("orders")
+      .update({ secondary_phone: backup })
+      .eq("id", order.id)
+      .eq("tenant_id", tenantId)
+      .eq("version", order.version)
+      .in("status", [...AWAITING_CALL])
+      .select("secondary_phone")
+      .maybeSingle();
+    if (updateErr) {
+      console.error("[order-contact] POST update failed", updateErr.message);
+      return unavailable();
+    }
+    if (!updated) {
+      const current = await loadOrder(svc, id, tenantId);
+      if (current && current.secondaryPhone !== null) return backupOutcome(current, backup);
+      return NextResponse.json({ success: false, error: "changed" }, { status: 409 });
+    }
+    return NextResponse.json({ success: true, has_backup: true });
+  } catch (e) {
+    if (!(e instanceof ContactReadError)) throw e;
+    console.error("[order-contact] POST", e.message);
     return unavailable();
   }
 }

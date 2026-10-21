@@ -9,7 +9,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 
-import { GET } from "./route";
+import { GET, POST } from "./route";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { signUpsellProof, UPSELL_WINDOW_MS } from "@/lib/order-upsell-proof";
 
@@ -192,5 +192,148 @@ describe("GET — what it reports", () => {
   it("is 503, not a guess, when the send log cannot be read", async () => {
     install({}, { failingTables: ["whatsapp_logs"] });
     expect((await GET(getReq(proofFor()), ctx())).status).toBe(503);
+  });
+});
+
+const postReq = (body: unknown, proof: string | null, id = ORDER) =>
+  new Request(`http://x/api/checkout/orders/${id}/contact`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(proof ? { "x-upsell-proof": proof } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+const storedOrder = (fake: ReturnType<typeof install>) =>
+  fake.tables.orders.find((o) => o.id === ORDER);
+
+describe("POST — who may add a second number", () => {
+  it.each([
+    ["no proof", null],
+    ["a forged proof", "v1.e30.AAAA"],
+    ["a proof for a different order", proofFor(OTHER_ORDER)],
+    ["an expired proof", proofFor(ORDER, TENANT, Date.now() - UPSELL_WINDOW_MS - 1000)],
+    ["a proof for another store", proofFor(ORDER, OTHER_TENANT)],
+  ])("is the same 404 with %s, and nothing is written", async (_label, proof) => {
+    const fake = install();
+    const res = await POST(postReq({ phone: "07801112222" }, proof), ctx());
+    expect(res.status).toBe(404);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("rejects a malformed body", async () => {
+    const fake = install();
+    expect((await POST(postReq({ phone: 7801112222 }, proofFor()), ctx())).status).toBe(400);
+    const notJson = new Request(`http://x/api/checkout/orders/${ORDER}/contact`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-upsell-proof": proofFor() },
+      body: "{",
+    });
+    expect((await POST(notJson, ctx())).status).toBe(400);
+    expect(fake.writes).toEqual([]);
+  });
+});
+
+describe("POST — what lands on the order", () => {
+  it("stores the normalised number on the order the proof names", async () => {
+    const fake = install();
+    const res = await POST(postReq({ phone: "0780 111 2222" }, proofFor()), ctx());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, has_backup: true });
+    expect(storedOrder(fake)?.secondary_phone).toBe("07801112222");
+    expect(storedOrder(fake)?.version).toBe(4);
+    expect(fake.writes).toEqual([
+      { table: "orders", op: "update", payload: { secondary_phone: "07801112222" }, matched: 1 },
+    ]);
+  });
+
+  it("accepts it while the order is contacted (the WhatsApp bot already sent)", async () => {
+    const fake = install({ orders: [order({ status: "contacted" })] });
+    const res = await POST(postReq({ phone: "07801112222" }, proofFor()), ctx());
+    expect(res.status).toBe(200);
+    expect(storedOrder(fake)?.secondary_phone).toBe("07801112222");
+  });
+
+  it("refuses a number that is not an Iraqi mobile", async () => {
+    const fake = install();
+    const res = await POST(postReq({ phone: "12345" }, proofFor()), ctx());
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ success: false, error: "invalid_phone" });
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("refuses the number the order was placed with", async () => {
+    const fake = install();
+    const res = await POST(postReq({ phone: "+964 770 123 4567" }, proofFor()), ctx());
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ success: false, error: "same_as_primary" });
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("answers a retry of the same number as success without writing again", async () => {
+    const fake = install({ orders: [order({ secondary_phone: "07801112222" })] });
+    const res = await POST(postReq({ phone: "0780 111 2222" }, proofFor()), ctx());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, has_backup: true, already: true });
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("never overwrites a different second number", async () => {
+    const fake = install({ orders: [order({ secondary_phone: "07901234567" })] });
+    const res = await POST(postReq({ phone: "07801112222" }, proofFor()), ctx());
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ success: false, error: "has_backup" });
+    expect(storedOrder(fake)?.secondary_phone).toBe("07901234567");
+    expect(fake.writes).toEqual([]);
+  });
+
+  it.each([
+    ["ops confirmed it", { status: "confirmed" }],
+    ["it was cancelled", { status: "cancelled" }],
+    ["it is older than the window", { created_at: stale() }],
+  ])("is closed when %s", async (_label, over) => {
+    const fake = install({ orders: [order(over)] });
+    const res = await POST(postReq({ phone: "07801112222" }, proofFor()), ctx());
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ success: false, error: "closed" });
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("is 404 for a deleted order", async () => {
+    const fake = install({ orders: [order({ deleted_at: new Date().toISOString() })] });
+    expect((await POST(postReq({ phone: "07801112222" }, proofFor()), ctx())).status).toBe(404);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("lands nothing on an order that changed between the read and the write", async () => {
+    const fake = install({}, {
+      beforeUpdate: (table, t) => {
+        if (table === "orders") t.orders[0].version = 9;
+      },
+    });
+    const res = await POST(postReq({ phone: "07801112222" }, proofFor()), ctx());
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ success: false, error: "changed" });
+    expect(storedOrder(fake)?.secondary_phone).toBeNull();
+  });
+
+  it("treats a concurrent save of the same number as success", async () => {
+    install({}, {
+      beforeUpdate: (table, t) => {
+        if (table !== "orders") return;
+        t.orders[0].secondary_phone = "07801112222";
+        t.orders[0].version = 9;
+      },
+    });
+    const res = await POST(postReq({ phone: "07801112222" }, proofFor()), ctx());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, has_backup: true, already: true });
+  });
+
+  it("is 503 when the order cannot be read", async () => {
+    const fake = install({}, { failingTables: ["orders"] });
+    expect((await POST(postReq({ phone: "07801112222" }, proofFor()), ctx())).status).toBe(503);
+    expect(fake.writes).toEqual([]);
   });
 });
