@@ -164,6 +164,36 @@ describe.each(LAYOUTS)("pdp_direct_order %s — never lose the buyer", (_layout,
     expect(readOrderDraft(TENANT, PRODUCT)?.idempotencyKey).toBe(keys[0]);
   });
 
+  it("ignores a second submit while «نتأكد من طلبك…» — still one attempt and one resend", async () => {
+    vi.useFakeTimers();
+    writeOrderDraft(TENANT, PRODUCT, { form: FILLED, idempotencyKey: null, purchaseEventId: null });
+    const fetchFn = stubFetch(hanging);
+    const v = mount(props);
+    await act(async () => {
+      fireEvent.submit(v.form());
+      await settle();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ORDER_SUBMIT_TIMEOUT_MS);
+      await settle();
+    });
+    expect(v.submit().textContent).toContain("نتأكد من طلبك…");
+
+    // The form itself is submitted (not the button), so this reaches the
+    // submit guard whatever the layout does to its button.
+    await act(async () => {
+      fireEvent.submit(v.form());
+      await settle();
+    });
+    expect(orderKeys(fetchFn)).toHaveLength(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ORDER_SUBMIT_TIMEOUT_MS * 2);
+      await settle();
+    });
+    expect(orderKeys(fetchFn)).toHaveLength(2);
+  });
+
   it("clears the draft once the order is placed", async () => {
     writeOrderDraft(TENANT, PRODUCT, { form: FILLED, idempotencyKey: null, purchaseEventId: null });
     stubFetch(async () => json(200, { success: true, orderNumber: "SH-0001", orderId: "order-1", total: 23000 }));

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ORDER_SUBMIT_TIMEOUT_MS, postOrderWithResubmit } from "./submit-order";
+import { ORDER_SUBMIT_TIMEOUT_MS, postOrderWithResubmit, readPlacedOrder } from "./submit-order";
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -106,5 +106,33 @@ describe("postOrderWithResubmit", () => {
     const out = await postOrderWithResubmit(ENDPOINT, BODY, { onResubmit: vi.fn() });
     expect(out).toEqual({ kind: "unconfirmed" });
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("readPlacedOrder", () => {
+  it("keeps the fields a placed order answers with", () => {
+    expect(
+      readPlacedOrder({
+        success: true,
+        orderNumber: "SH-0001",
+        orderId: "order-1",
+        upsellToken: "tok",
+        total: 23000,
+      }),
+    ).toEqual({ orderNumber: "SH-0001", orderId: "order-1", upsellToken: "tok", total: 23000 });
+  });
+
+  it("reads duplicate only when it is literally true", () => {
+    expect(readPlacedOrder({ success: true, duplicate: true }).duplicate).toBe(true);
+    expect(readPlacedOrder({ success: true, duplicate: "true" }).duplicate).toBeUndefined();
+  });
+
+  it("drops a mistyped field without doubting the rest", () => {
+    expect(readPlacedOrder({ orderNumber: 42, total: 23000 })).toEqual({ total: 23000 });
+  });
+
+  it("reads nothing from a missing or non-object body", () => {
+    expect(readPlacedOrder(null)).toEqual({});
+    expect(readPlacedOrder("ok")).toEqual({});
   });
 });

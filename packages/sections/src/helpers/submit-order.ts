@@ -12,6 +12,8 @@
 // may or may not exist, and the caller must say so and offer a way out.
 // =====================================================================
 
+import { z } from "zod";
+
 /** Per-attempt deadline: room for a slow 3G round trip through the
  *  checkout's database reads, short enough not to strand the buyer. */
 export const ORDER_SUBMIT_TIMEOUT_MS = 20_000;
@@ -28,6 +30,31 @@ export interface PostOrderOptions {
 }
 
 type Answer = { ok: boolean; status: number; data: unknown };
+
+/** What a successful order POST answers with. Each field is read on its own
+ *  and dropped if it is not the expected type: the 2xx status IS the answer,
+ *  so an unreadable field means a missing order number, never a doubted
+ *  order. `duplicate` is only ever true when the server says so. */
+const placedOrderSchema = z.object({
+  orderNumber: z.string().optional().catch(undefined),
+  /** The order's id — which order the post-purchase offer grows. */
+  orderId: z.string().optional().catch(undefined),
+  /** Proof this browser placed it (server-minted, short-lived). */
+  upsellToken: z.string().optional().catch(undefined),
+  total: z.number().optional().catch(undefined),
+  /** The soft duplicate guard answered: this phone ordered these products
+   *  minutes ago, and no new order was created. */
+  duplicate: z.boolean().optional().catch(undefined),
+});
+
+export type PlacedOrder = z.infer<typeof placedOrderSchema>;
+
+/** Narrow a 2xx order answer's body; a body that is not an object (none, or
+ *  unreadable — see attempt) carries no fields. */
+export function readPlacedOrder(data: unknown): PlacedOrder {
+  const parsed = placedOrderSchema.safeParse(data);
+  return parsed.success ? parsed.data : {};
+}
 
 async function attempt(url: string, body: string, timeoutMs: number): Promise<Answer | null> {
   const controller = new AbortController();

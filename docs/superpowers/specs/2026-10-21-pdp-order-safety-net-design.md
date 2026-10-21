@@ -79,6 +79,13 @@ Server:
   existing order as a replay (no new row); the client shows «طلبك واصلنا، لا تطلبه مرة ثانية».
   A different product or after 10 minutes is a normal new order.
 
+Known limitation (accepted): after an unconfirmed submit the key is kept in the draft on purpose,
+so it outlives the form. If the shopper then edits quantity, variant or address and taps again
+(or reloads and taps), the server replays the ORIGINAL order for that key and the page treats it as
+success for the edited one. Retiring the key on edit would instead risk a second order when the
+first did land. The WhatsApp confirmation (§1), queued when the original order was created, shows
+what was actually placed.
+
 ## 3. Half-filled phone capture
 
 - Harden `/api/cart/abandoned`: tenant resolved server-side (never from the body), per-IP + per-phone

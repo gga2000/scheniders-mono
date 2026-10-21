@@ -71,7 +71,7 @@ import {
   readOrderDraft,
   writeOrderDraft,
 } from "./helpers/order-draft";
-import { postOrderWithResubmit } from "./helpers/submit-order";
+import { postOrderWithResubmit, readPlacedOrder } from "./helpers/submit-order";
 import {
   BentoCard,
   ChunkyButton,
@@ -389,6 +389,10 @@ export function PdpDirectOrderRender({
   const [priceFlashAt, setPriceFlashAt] = useState<number | null>(null);
   const priceRowRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<SubmitStatus>("idle");
+  // In flight: the first attempt or the single same-key resend. Both the
+  // submit guard and the button read this, so neither layout depends on how
+  // its button is disabled to keep a second submit out.
+  const submitting = status === "submitting" || status === "checking";
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const fieldRefs = useRef<Partial<Record<FieldKey, FieldElement | null>>>({});
@@ -915,7 +919,7 @@ export function PdpDirectOrderRender({
     opts?: SubmitOptions,
   ) {
     e.preventDefault();
-    if (!product || oos || status === "submitting") return;
+    if (!product || oos || submitting) return;
 
     // Validate every field, show every error at once, focus the first.
     const errors: FieldErrors = {};
@@ -1038,18 +1042,8 @@ export function PdpDirectOrderRender({
       return;
     }
     if (outcome.ok) {
-      const data = outcome.data as {
-        orderNumber?: string;
-        /** The order's id — which order the post-purchase offer grows. */
-        orderId?: string;
-        /** Proof this browser placed it (server-minted, short-lived). */
-        upsellToken?: string;
-        total?: number;
-        /** The soft duplicate guard answered: this phone ordered these
-         *  products minutes ago, and no new order was created. */
-        duplicate?: boolean;
-      } | null;
-      if (data?.duplicate === true) {
+      const data = readPlacedOrder(outcome.data);
+      if (data.duplicate === true) {
         // That order was counted (pixel, CAPI, funnel) when it was placed, so
         // nothing fires again, and there is no new order to thank them for —
         // the form says so instead.
@@ -1059,7 +1053,7 @@ export function PdpDirectOrderRender({
         setStatus("duplicate");
         return;
       }
-      const orderNumber = data?.orderNumber ?? "";
+      const orderNumber = data.orderNumber ?? "";
       if (referralState.kind === "valid") clearCapturedReferral(ctx.tenant.id);
       // Remember the shopper for next time — in their browser only.
       writeCustomerMemory(ctx.tenant.id, {
@@ -1081,8 +1075,8 @@ export function PdpDirectOrderRender({
             // post-purchase offer act on THIS order and no other. Session
             // storage only, like the rest of the stash; additive, so older
             // readers ignore them.
-            order_id: data?.orderId ?? null,
-            upsell_token: data?.upsellToken ?? null,
+            order_id: data.orderId ?? null,
+            upsell_token: data.upsellToken ?? null,
             // Lets the thank-you page greet the buyer by name; optional so
             // older readers of the stash keep working unchanged.
             customer_name: form.customer_name.trim(),
@@ -1093,7 +1087,7 @@ export function PdpDirectOrderRender({
               price: i.price,
             })),
             subtotal,
-            total: data?.total ?? subtotal,
+            total: data.total ?? subtotal,
             ts: Date.now(),
           }),
         );
@@ -1210,9 +1204,6 @@ export function PdpDirectOrderRender({
       </p>
     );
   }
-
-  // In flight: the first attempt or the single same-key resend.
-  const submitting = status === "submitting" || status === "checking";
 
   // Merchant-editable via props ("original products" / "quality guarantee"
   // are business claims a section must not force on every tenant); the
