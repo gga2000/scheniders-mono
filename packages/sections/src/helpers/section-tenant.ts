@@ -24,6 +24,7 @@
 //                           discounts, bundles), order_tracker
 //                           (order_status_narratives), pdp_direct_order
 //                           (contact: the "who contacts you" line),
+//                           order_confirmation (contact: the call card),
 //                           helpers/whatsapp resolveTrackerContact (contact)
 //   store_config_v2.enabled_locales
 //                           helpers/locale-switch (site_header locale switch)
