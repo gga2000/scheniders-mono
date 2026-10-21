@@ -14,4 +14,5 @@ export default [
   // CI's `turbo test` cover the same suites. This one was missing, and its
   // stale assertion went unnoticed for months.
   "scripts/migrate-store-config-v2",
+  "packages/provider-mock/vitest.config.ts",
 ];
