@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       abandoned_carts: {
         Row: {
+          consent_at: string | null
+          consent_text_version: string | null
           created_at: string
           governorate: string | null
           id: string
@@ -23,12 +25,15 @@ export type Database = {
           locale: string | null
           phone: string
           recovered_at: string | null
+          recovery_kind: string | null
           reminded_at: string | null
           subtotal_iqd: number
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          consent_at?: string | null
+          consent_text_version?: string | null
           created_at?: string
           governorate?: string | null
           id?: string
@@ -36,12 +41,15 @@ export type Database = {
           locale?: string | null
           phone: string
           recovered_at?: string | null
+          recovery_kind?: never
           reminded_at?: string | null
           subtotal_iqd?: number
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          consent_at?: string | null
+          consent_text_version?: string | null
           created_at?: string
           governorate?: string | null
           id?: string
@@ -49,6 +57,7 @@ export type Database = {
           locale?: string | null
           phone?: string
           recovered_at?: string | null
+          recovery_kind?: never
           reminded_at?: string | null
           subtotal_iqd?: number
           tenant_id?: string
