@@ -79,12 +79,16 @@ export function CheckoutRow({
   m,
   locale,
   waHref,
+  waFallbackHref,
 }: {
   m: ExpressModel;
   locale: LocaleCode;
   /** The WhatsApp order link — built by the express view, which owns the
    *  landmark the message must carry. Null = no WhatsApp tile. */
   waHref: string | null;
+  /** The same order on WhatsApp, offered when a submit ends `unconfirmed`
+   *  (landmark included). Null = the store has no WhatsApp number. */
+  waFallbackHref: string | null;
 }) {
   const rtl = readsRtl(locale);
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
@@ -95,9 +99,11 @@ export function CheckoutRow({
       : 0;
   const submitLabel = m.oos
     ? m.s("outOfStock")
-    : m.submitting
-      ? m.s("placingOrder")
-      : resolveI18n(m.props.submit_label_i18n, locale);
+    : m.status === "checking"
+      ? m.s("checkingOrder")
+      : m.submitting
+        ? m.s("placingOrder")
+        : resolveI18n(m.props.submit_label_i18n, locale);
 
   return (
     <div className="space-y-bk-sm">
@@ -173,10 +179,11 @@ export function CheckoutRow({
         )}
         <button
           type="submit"
-          disabled={m.oos}
+          disabled={m.oos || m.submitting}
           aria-busy={m.submitting || undefined}
-          aria-disabled={m.submitting || undefined}
-          aria-describedby={m.status === "error" ? m.submitErrorId : undefined}
+          aria-describedby={
+            m.status === "error" || m.status === "unconfirmed" ? m.submitErrorId : undefined
+          }
           className={cn(
             "relative isolate flex min-h-[60px] flex-1 items-center justify-center gap-3 overflow-hidden rounded-bk-input bg-bk-primary px-5 text-bk-on-primary shadow-bk-button",
             "transition-[transform,background-color,box-shadow] duration-bk-fast motion-reduce:transition-none",
@@ -243,6 +250,33 @@ export function CheckoutRow({
       {m.status === "ok" && (
         <p role="status" className="text-center font-bk-body text-sm font-bold text-bk-success">
           {m.s("orderReceived")}
+        </p>
+      )}
+      {m.status === "unconfirmed" && (
+        <div id={m.submitErrorId} role="alert" className="space-y-bk-xs">
+          <p className="text-center font-bk-body text-sm font-bold text-bk-danger">
+            {m.errorMsg ?? m.s("orderUnconfirmed")}
+          </p>
+          {waFallbackHref && (
+            <a
+              href={waFallbackHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-wa-fallback="true"
+              className={cn(
+                "flex min-h-[52px] items-center justify-center gap-2 rounded-bk-input border-bk border-bk-success/25 bg-bk-success/10 px-4 font-bk-body text-[15px] font-bold text-bk-success transition-colors duration-bk-fast hover:bg-bk-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus motion-reduce:transition-none",
+                rtl && "flex-row-reverse",
+              )}
+            >
+              <WhatsAppIcon shadow={false} className="h-6 w-6" />
+              {m.s("sendOnWhatsapp")}
+            </a>
+          )}
+        </div>
+      )}
+      {m.status === "duplicate" && (
+        <p role="status" className="text-center font-bk-body text-sm font-bold text-bk-success">
+          {m.s("alreadyOrdered")}
         </p>
       )}
 

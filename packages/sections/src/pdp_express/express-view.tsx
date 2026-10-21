@@ -40,6 +40,9 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
   // Express owns the landmark, so it builds the WhatsApp link: the message
   // carries the same "<address> - <landmark>" the order posts.
   const waHref = expressWhatsappHref(m, landmark);
+  // The unconfirmed-submit fallback carries the landmark too, so WhatsApp
+  // gets the same address the order would have posted.
+  const waFallbackHref = expressWhatsappHref({ ...m, waHref: m.waFallbackHref }, landmark);
   // On in express unless the merchant turns it off; pointless without a
   // form to scroll to (sold out).
   const showScrollHint = props.show_scroll_hint !== false && !m.oos;
@@ -169,7 +172,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
             />
           )}
 
-          <CheckoutRow m={m} locale={locale} waHref={waHref} />
+          <CheckoutRow m={m} locale={locale} waHref={waHref} waFallbackHref={waFallbackHref} />
         </form>
 
         {props.show_description && product.description && (

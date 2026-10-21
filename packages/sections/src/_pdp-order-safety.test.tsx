@@ -19,7 +19,7 @@ import { ORDER_SUBMIT_TIMEOUT_MS } from "./helpers/submit-order";
 import pdp_direct_order from "./pdp_direct_order";
 import type { Props } from "./pdp_direct_order";
 import type { FormState } from "./pdp_direct_order.client";
-import { fixtureTenant, plainProduct, productCtx } from "./_pdp-fixtures";
+import { EXPRESS_IRAQ_PDP_PROPS, fixtureTenant, plainProduct, productCtx } from "./_pdp-fixtures";
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -33,7 +33,10 @@ const FILLED: FormState = {
   address_details: "الكرادة قرب الجسر",
 };
 
-const LAYOUTS: Array<[string, Props]> = [["classic", pdp_direct_order.defaultProps]];
+const LAYOUTS: Array<[string, Props]> = [
+  ["classic", pdp_direct_order.defaultProps],
+  ["express", EXPRESS_IRAQ_PDP_PROPS],
+];
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
