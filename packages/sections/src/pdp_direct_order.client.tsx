@@ -90,6 +90,7 @@ import {
   formatPercent,
 } from "./helpers/format";
 import { isOptimizableImageHost } from "./helpers/image";
+import { ContactLine } from "./helpers/contact-line";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./pdp_direct_order";
 // Value import from our own definition half: `defaultProps` needs the same
@@ -727,6 +728,9 @@ export function PdpDirectOrderRender({
   const commerce = (
     ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
   )?.store_config_v2?.commerce;
+  // "Who contacts you" line: opt-in per section, and only for a store that
+  // configured `commerce.contact` (the resolver validates what is stored).
+  const contactConfig = props.show_contact_line ? commerce?.contact : undefined;
   const chosenGovernorate = isGovernorateCode(form.governorate_code)
     ? form.governorate_code
     : null;
@@ -1313,6 +1317,7 @@ export function PdpDirectOrderRender({
           setVariantError,
           variantPillsRef,
           reassurance,
+          contactConfig,
           deliverySla,
           featureCards,
           featureCardsTitle,
@@ -2219,6 +2224,16 @@ export function PdpDirectOrderRender({
                   />
                   {reassurance}
                 </p>
+              )}
+
+              {contactConfig && (
+                <ContactLine
+                  contact={contactConfig}
+                  locale={locale}
+                  initialNow={ctx.runtime.now}
+                  className="flex items-center justify-center gap-1.5 text-center font-body text-sm text-bk-ink-soft"
+                  iconClassName="text-lg text-bk-primary"
+                />
               )}
 
               {waHref && (

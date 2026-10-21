@@ -7,6 +7,7 @@ import type { RefObject } from "react";
 import type {
   GovernorateShippingConfig,
   LocaleCode,
+  StoreContactConfig,
 } from "@scheniders/shared";
 import type { SectionRenderContext } from "../_types";
 import type { Product } from "../types";
@@ -101,6 +102,9 @@ export interface ExpressModel {
   setVariantError: (v: boolean) => void;
   variantPillsRef: RefObject<HTMLDivElement | null>;
   reassurance: string;
+  /** The store's `commerce.contact` when the section opted into the
+   *  "who contacts you" line; undefined = no line. */
+  contactConfig: StoreContactConfig | undefined;
   deliverySla: string;
   featureCards: { image_url?: string; title: string; body: string }[];
   featureCardsTitle: string;

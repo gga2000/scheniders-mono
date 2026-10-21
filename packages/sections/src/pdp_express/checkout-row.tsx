@@ -12,6 +12,7 @@ import {
   resolveI18n,
 } from "@scheniders/shared";
 import type { GovernorateShippingConfig, LocaleCode } from "@scheniders/shared";
+import { ContactLine } from "../helpers/contact-line";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
 import { displayNameOf } from "./identity-label";
@@ -236,6 +237,19 @@ export function CheckoutRow({
           <MaterialIcon name="verified_user" className="text-base text-bk-success" />
           {m.reassurance}
         </p>
+      )}
+
+      {m.contactConfig && (
+        <ContactLine
+          contact={m.contactConfig}
+          locale={locale}
+          initialNow={m.ctx.runtime.now}
+          className={cn(
+            "flex items-center justify-center gap-1.5 text-center font-bk-body text-[13px] text-bk-ink-soft",
+            rtl && "flex-row-reverse",
+          )}
+          iconClassName="text-base text-bk-primary"
+        />
       )}
 
       {m.status === "error" && (

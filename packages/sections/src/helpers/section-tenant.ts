@@ -22,7 +22,8 @@
 //                           cart_summary, checkout_form, checkout_order_summary,
 //                           pdp_direct_order, product_bundles (delivery fees,
 //                           discounts, bundles), order_tracker
-//                           (order_status_narratives)
+//                           (order_status_narratives), pdp_direct_order
+//                           (contact: the "who contacts you" line)
 //   store_config_v2.enabled_locales
 //                           helpers/locale-switch (site_header locale switch)
 //   slug, plan, status, settings, contact_email, city

@@ -170,6 +170,11 @@ const schema = z.object({
    *  («ممكن نراسلك واتساب بخصوص طلبك»). Editing it changes the
    *  consent_text_version recorded with each new capture. */
   capture_consent_i18n: i18nStringOptional.catch(undefined),
+  /** "Who contacts you" line under the submit, in both layouts: the call
+   *  number (and, when set, the call hours) from the store's
+   *  `commerce.contact`. Hidden when the store has no usable contact
+   *  config. Absent = no line, byte-identical for every existing config. */
+  show_contact_line: z.boolean().optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
