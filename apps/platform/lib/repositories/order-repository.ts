@@ -438,6 +438,26 @@ export const orderRepository = {
      * The list's head (lib/orders/list-preview.ts) and the window's exact row
      * count: two small parallel reads.
      */
+    /**
+     * The window's row count (a count HEAD over the list's own filter): what a
+     * list restored from the device plus its delta must add up to.
+     */
+    async countWindow(tenantId: string, window: OrderWindow): Promise<number> {
+        const { count, error } = await listQuery(tenantId, window, "id", { count: "exact", head: true });
+        if (error) throw error;
+        return count ?? 0;
+    },
+
+    /**
+     * The current `customer_trust` rows for `rows`' customers, to re-attach
+     * with `attachRiskData`. A list restored from the device carries the
+     * risk_data it was saved with; order deltas do not move trust, so this
+     * refreshes it (the whole trust book when there are many customers).
+     */
+    async findTrustFor(tenantId: string, rows: readonly Order[]): Promise<TrustRow[]> {
+        return fetchTrustRows(tenantId, trustPhones(rows));
+    },
+
     async findHead(tenantId: string, window: OrderWindow, limit = PREVIEW_HEAD_ROWS): Promise<{ total: number; preview: OrderListPreview | null }> {
         return readListHead(tenantId, window, limit);
     },
