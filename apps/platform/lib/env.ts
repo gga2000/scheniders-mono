@@ -38,6 +38,20 @@ const clientSchema = z.object({
 // SERVER ENV (only available server-side)
 // =============================================
 
+// A comma-separated list of tenant uuids. Validated here so a typo fails the
+// boot instead of silently enabling nobody, or the wrong tenant.
+const tenantIdList = z
+    .string()
+    .refine(
+        (v) =>
+            v
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .every((s) => z.string().uuid().safeParse(s).success),
+        "must be a comma-separated list of tenant uuids",
+    );
+
 const serverSchema = z.object({
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
     LIGHTFUNNELS_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -63,6 +77,10 @@ const serverSchema = z.object({
     GEMINI_API_KEY: z.string().min(1).optional(),
     TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
     TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
+    // Tenants whose STOREFRONT orders get the instant WhatsApp confirmation
+    // (app/api/webhooks/storefront-order). Interakt is one global sender, so
+    // list only tenants whose customers expect messages from that number.
+    STOREFRONT_WA_CONFIRM_TENANT_IDS: tenantIdList.optional(),
 });
 
 // =============================================
@@ -112,6 +130,7 @@ function validateEnv() {
             GEMINI_API_KEY: orUndef(process.env.GEMINI_API_KEY),
             TELEGRAM_BOT_TOKEN: orUndef(process.env.TELEGRAM_BOT_TOKEN),
             TELEGRAM_WEBHOOK_SECRET: orUndef(process.env.TELEGRAM_WEBHOOK_SECRET),
+            STOREFRONT_WA_CONFIRM_TENANT_IDS: orUndef(process.env.STOREFRONT_WA_CONFIRM_TENANT_IDS),
         });
 
         if (!serverResult.success) {
