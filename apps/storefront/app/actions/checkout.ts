@@ -27,6 +27,7 @@ import { isDraftViewRequest } from "@/lib/draft-view";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
+import { queueOrderConfirmation } from "@/lib/order-confirmation-queue";
 
 interface CheckoutItem {
   product_id: string;
@@ -708,6 +709,17 @@ export async function submitCheckout(
     if (testFlagErr) {
       console.error("[checkout] could not flag draft-view order as test:", testFlagErr);
     }
+  }
+
+  // Instant WhatsApp confirmation, the same cod_order_confirm a Lightfunnels
+  // order gets. Queued only for an order THIS call created (both replay paths
+  // returned above) and never for a draft-view test order. Only the id
+  // travels: the platform endpoint re-reads the row, takes the tenant from it
+  // and applies every other gate. The publish runs after the response
+  // (next/server `after`), so it never delays or fails the order.
+  const createdRowId = orderRow?.id;
+  if (typeof createdRowId === "string" && !draftView) {
+    queueOrderConfirmation({ id: createdRowId, tenantId: tenant.id });
   }
 
   // Referral attribution: the row trg_referral_order_changed pays the
