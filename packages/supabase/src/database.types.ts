@@ -3888,6 +3888,7 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           completed_at: string | null
+          confirmation_dispatched_at: string | null
           contact_count: number | null
           created_at: string
           customer_name: string
@@ -3974,6 +3975,7 @@ export type Database = {
           cancelled_at?: string | null
           city?: string | null
           completed_at?: string | null
+          confirmation_dispatched_at?: string | null
           contact_count?: number | null
           created_at?: string
           customer_name: string
@@ -4060,6 +4062,7 @@ export type Database = {
           cancelled_at?: string | null
           city?: string | null
           completed_at?: string | null
+          confirmation_dispatched_at?: string | null
           contact_count?: number | null
           created_at?: string
           customer_name?: string
