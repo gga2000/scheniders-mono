@@ -160,7 +160,7 @@ describe("submitCheckout in draft view", () => {
       },
       {
         rpc: {
-          create_order_atomic: () => ({
+          create_storefront_order: () => ({
             data: { id: ORDER_UUID, order_id: "4261020001" },
             error: null,
           }),
@@ -222,9 +222,9 @@ describe("submitCheckout in draft view", () => {
     expect(isTest(fake, OTHER_TENANT_ID)).toBe(false);
   });
 
-  it("the create_order_atomic payload is identical for both", async () => {
+  it("the create_storefront_order payload is identical for both", async () => {
     const orderArgs = (fake: FakeSupabase) =>
-      fake.rpcCalls.filter((c) => c.fn === "create_order_atomic").map((c) => c.args);
+      fake.rpcCalls.filter((c) => c.fn === "create_storefront_order").map((c) => c.args);
     jar(undefined);
     const shopper = install();
     await checkout();

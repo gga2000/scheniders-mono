@@ -63,7 +63,7 @@ function tables(orders: Row[]): Record<string, Row[]> {
 function install(opts: { orders?: Row[]; createOrder?: () => RpcResult } = {}) {
   const fake = createFakeSupabase(tables(opts.orders ?? []), {
     rpc: {
-      create_order_atomic:
+      create_storefront_order:
         opts.createOrder ??
         (() => ({
           data: { id: CREATED, order_id: "SH-0001", price: 35000, discount_amount: 0, delivery_fee: 5000 },
@@ -124,7 +124,7 @@ describe("submitCheckout queues the instant WhatsApp confirmation", () => {
     });
     const res = await submitCheckout({ tenantId: TENANT, idempotencyKey: KEY, customer, items: [line()] });
     expect(res).toMatchObject({ success: true, orderId: EXISTING, replayed: true });
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(false);
     expect(queueOrderConfirmation).not.toHaveBeenCalled();
   });
 

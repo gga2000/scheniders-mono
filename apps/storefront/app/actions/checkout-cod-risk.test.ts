@@ -6,7 +6,7 @@ import { createFakeSupabase, type Row } from "@/lib/testing/fake-supabase";
 // W6.6 — every storefront order carries the COD risk verdict
 // =====================================================================
 // `cod_risk_signals` (SQL) owns the rule; the checkout only stamps its
-// verdict onto the order it hands create_order_atomic. Asserted on what the
+// verdict onto the order it hands create_storefront_order. Asserted on what the
 // server RECORDS: the verdict rides in on the order row, it is asked for only
 // once the server has verified the prices, and a failed lookup never blocks
 // the order.
@@ -68,7 +68,7 @@ function install(risk: RiskResult) {
   const fake = createFakeSupabase(tables(), {
     rpc: {
       cod_risk_signals: () => risk,
-      create_order_atomic: () => ({
+      create_storefront_order: () => ({
         data: { id: "11111111-1111-4111-8111-111111111111", order_id: "SH-0001" },
         error: null,
       }),
@@ -91,7 +91,7 @@ function line(price: number) {
 }
 
 function recordedOrder(fake: ReturnType<typeof install>): Row | undefined {
-  const call = fake.rpcCalls.find((c) => c.fn === "create_order_atomic");
+  const call = fake.rpcCalls.find((c) => c.fn === "create_storefront_order");
   const data = call?.args._order_data;
   return data && typeof data === "object" ? (data as Row) : undefined;
 }
