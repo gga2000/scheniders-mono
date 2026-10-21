@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/supabase-server";
-import { isAdminRole, isPlatformAdminRole } from "@/lib/permissions";
+import { isAdminRole, type UserRole } from "@/lib/permissions";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 
 export type RequestCaller =
-    | { ok: true; userId: string; tenantId: string; role: string; memberRole: string | null }
+    /** `role` is the caller's effective role in `tenantId` (see resolveActiveTenant). */
+    | { ok: true; userId: string; tenantId: string; role: UserRole; platformAdmin: boolean }
     | { ok: false; response: NextResponse };
 
 type Requirement = "member" | "tenant-admin" | "platform-admin";
@@ -33,13 +34,13 @@ export async function requireRequestCaller(
     const active = await resolveActiveTenant(user.id);
     if (!active.ok) return deny(active.status, active.error);
 
-    const platformAdmin = isPlatformAdminRole(active.role);
-    if (requirement === "platform-admin" && !platformAdmin) {
+    if (requirement === "platform-admin" && !active.platformAdmin) {
         return deny(403, "This action requires a platform administrator.");
     }
-    if (requirement === "tenant-admin" && !platformAdmin && !isAdminRole(active.memberRole)) {
+    // super_admin counts as an admin of every tenant.
+    if (requirement === "tenant-admin" && !isAdminRole(active.role)) {
         return deny(403, "This action requires an administrator.");
     }
 
-    return { ok: true, userId: user.id, tenantId: active.tenantId, role: active.role, memberRole: active.memberRole };
+    return { ok: true, userId: user.id, tenantId: active.tenantId, role: active.role, platformAdmin: active.platformAdmin };
 }

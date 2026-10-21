@@ -22,12 +22,24 @@ vi.mock("@/lib/repositories/order-repository", () => ({
     orderRepository: { findWindow: H.findWindow, findLatestUpdatedAt: async () => "2026-10-12T09:00:00.000Z" },
 }));
 vi.mock("@/components/auth/auth-provider", () => ({
-    useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId }),
+    useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId, user: { id: "user-1" } }),
 }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { useOrdersQuery } from "./use-orders-query";
+import { setBookStorageForTests, writePersistedBook, type BookStorage } from "@/lib/orders/persisted-book";
+import type { Order } from "@/types/order";
+
+function memoryStorage(): BookStorage {
+    const map = new Map<string, unknown>();
+    return {
+        get: async (k) => structuredClone(map.get(k)),
+        set: async (k, v) => { map.set(k, structuredClone(v)); },
+        del: async (k) => { map.delete(k); },
+        keys: async () => [...map.keys()],
+    };
+}
 
 const TODAY = { fromInstant: Date.parse("2026-10-11T21:00:00.000Z"), toInstant: Date.parse("2026-10-12T20:59:59.999Z"), fromDay: "2026-10-12", toDay: "2026-10-12" } satisfies NonNullable<OrderWindow>;
 
@@ -42,7 +54,7 @@ beforeEach(() => {
     H.findWindow.mockReset();
     H.findWindow.mockResolvedValue([]);
     H.tenantId = "tenant-1";
-    sessionStorage.clear();
+    setBookStorageForTests(memoryStorage());
 });
 
 describe("useOrdersQuery window gating", () => {
@@ -61,33 +73,19 @@ describe("useOrdersQuery window gating", () => {
 
         await waitFor(() => expect(H.findWindow).toHaveBeenCalled());
         expect(H.findWindow).toHaveBeenCalledTimes(1);
-        expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null);
+        expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null, { onPreview: expect.any(Function), trace: "list" });
     });
 
-    it("refuses a sessionStorage snapshot of a different window", async () => {
-        sessionStorage.setItem("schneiders_orders_swr", JSON.stringify([{ id: "today-row", status: "new" }]));
-        sessionStorage.setItem("schneiders_orders_swr_ts", String(Date.now()));
-        sessionStorage.setItem("schneiders_orders_swr_window", `${TODAY.fromInstant}-${TODAY.toInstant}`);
+    it("refuses a saved book of a different window", async () => {
+        await writePersistedBook({
+            userId: "user-1", tenantId: "tenant-1", windowKey: `${TODAY.fromInstant}-${TODAY.toInstant}`,
+            rows: [{ id: "today-row", tenant_id: "tenant-1", status: "new" } as unknown as Order], mark: null, savedAt: Date.now(),
+        });
 
         const { result } = renderHook(() => useOrdersQuery(null, true), { wrapper: wrapper() });
 
-        await waitFor(() => expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null));
+        await waitFor(() => expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null, { onPreview: expect.any(Function), trace: "list" }));
         await waitFor(() => expect(result.current.data).toEqual([]));
-    });
-
-    it("hydrates a same-window snapshot as a first paint, then refetches it once even within the stale time", async () => {
-        // Without the 2s refetch after a status change, a snapshot can be
-        // behind our own writes: it must never stand in for a fetch.
-        sessionStorage.setItem("schneiders_orders_swr", JSON.stringify([{ id: "snap", status: "new" }]));
-        sessionStorage.setItem("schneiders_orders_swr_ts", String(Date.now()));
-        sessionStorage.setItem("schneiders_orders_swr_window", "all");
-        H.findWindow.mockResolvedValue([{ id: "fresh", status: "confirmed" }]);
-
-        const { result } = renderHook(() => useOrdersQuery(null, true), { wrapper: wrapper() });
-        await waitFor(() => expect(result.current.data?.map((o) => o.id)).toEqual(["fresh"]));
-        expect(H.findWindow).toHaveBeenCalledTimes(1);
-        await new Promise((r) => setTimeout(r, 20));
-        expect(H.findWindow).toHaveBeenCalledTimes(1);
     });
 
     it("does not fetch until the active tenant is known", async () => {

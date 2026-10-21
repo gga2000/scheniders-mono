@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
 import { CreateOrderModal } from "@/components/orders/create-order-modal";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { Plus, Download } from "lucide-react";
 import { baghdadHour, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
@@ -20,6 +20,7 @@ import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboa
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
 import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
+import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
@@ -46,7 +47,8 @@ const StaffLeaderboard = dynamic(() => import("@/components/dashboard/widgets/st
 const TeamAnnouncements = dynamic(() => import("@/components/dashboard/widgets/team-announcements").then(mod => ({ default: mod.TeamAnnouncements })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 
 export default function Home() {
-  const { createOrder } = useOrdersContext();
+  // Creating an order needs no loaded book; the dashboard does not mount one.
+  const { createOrder } = useOrderCrud();
   // ORD-2: every number on this page comes from the server. The orders list is a
   // window of the book (and loads on its own schedule), so nothing here reads it:
   // first paint waits for get_dashboard_metrics alone, behind a skeleton, and a
@@ -243,6 +245,9 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* S3-02c: store-less tenants get one visible route to the builder */}
+        <BuildStoreBanner />
 
         {/* Today at a Glance */}
         <WidgetBoundary label="today-strip"><TodayStrip metrics={dashboardMetrics.todayStrip} /></WidgetBoundary>

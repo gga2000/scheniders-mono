@@ -70,8 +70,9 @@ export default defineConfig({
     // },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
+  /* Run your local dev server before starting the tests — unless the perf
+     harness is pointed at a server of its own (e2e/perf, PERF_BASE_URL). */
+  webServer: process.env.PERF_BASE_URL ? undefined : {
     command: 'pnpm dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,

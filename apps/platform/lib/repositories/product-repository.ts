@@ -3,6 +3,9 @@ import { withRetry } from "./with-retry";
 import type { Product, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
 
+/** A product as the top-bar search lists it. */
+export type ProductSearchMatch = Pick<Product, "id" | "name" | "price">;
+
 /**
  * ProductRepository — Centralized data access for products.
  */
@@ -22,6 +25,29 @@ export const productRepository = {
             if (error) throw error;
             return data || [];
         });
+    },
+
+    /**
+     * Products of `tenantId` whose name contains `term`, for the top-bar search.
+     * Only the columns a result row shows, and at most `limit` of them, so a
+     * keystroke never pulls the whole catalogue with its variants.
+     *
+     * `*` and `%` are LIKE wildcards (PostgREST's and Postgres's) and `\` escapes
+     * the next character; none means anything in a product name, so they are
+     * dropped rather than escaped. An empty remainder searches nothing.
+     */
+    async searchByName(tenantId: string, term: string, limit: number): Promise<ProductSearchMatch[]> {
+        const text = term.replace(/[*%\\]/g, "").trim();
+        if (!text) return [];
+        const { data, error } = await supabase
+            .from("products")
+            .select("id, name, price")
+            .eq("tenant_id", tenantId)
+            .ilike("name", `%${text}%`)
+            .order("name", { ascending: true })
+            .limit(limit);
+        if (error) throw error;
+        return (data ?? []) as ProductSearchMatch[];
     },
 
     /**

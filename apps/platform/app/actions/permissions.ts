@@ -10,8 +10,9 @@ import { requireAdminOverUser, requirePlatformAdmin } from "@/lib/auth/require-a
  * `role_permissions` has no tenant column: one call changes what a role can do
  * in every tenant, so only a platform admin may change it. Every self-serve
  * signup is an `admin` of its own tenant, and this used to accept any `admin`.
- * A `user_permissions` override targets one user, so a tenant admin may set it
- * for members of their own tenant.
+ * A `user_permissions` override targets one user in one tenant, so a tenant
+ * admin may set it for members of their active tenant. The tenant comes from
+ * the server-verified active tenant, never from the client.
  */
 
 export async function toggleRolePermissionAction(
@@ -65,13 +66,16 @@ export async function toggleUserOverrideAction(
             const { error } = await supabase
                 .from("user_permissions")
                 .delete()
-                .match({ user_id: userId, permission });
+                .match({ tenant_id: auth.tenantId, user_id: userId, permission });
             if (error) throw error;
         } else {
             // Create or update override
             const { error } = await supabase
                 .from("user_permissions")
-                .upsert({ user_id: userId, permission, is_granted: grant }, { onConflict: "user_id,permission" });
+                .upsert(
+                    { tenant_id: auth.tenantId, user_id: userId, permission, is_granted: grant },
+                    { onConflict: "tenant_id,user_id,permission" },
+                );
             if (error) throw error;
         }
         return { success: true };

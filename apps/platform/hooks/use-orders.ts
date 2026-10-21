@@ -21,7 +21,9 @@ import {
     useArchivedOrdersQuery,
     syncOrdersDelta,
     orderKeys,
+    orderPreviewKeys,
     setOrderBatcher,
+    useOrderListPreview,
 } from "@/hooks/use-orders-query";
 import { useLoadedOrdersWindowKey } from "@/hooks/orders-list-coverage";
 
@@ -30,7 +32,9 @@ import { useOrderFilterState } from "@/hooks/use-order-filter-state";
 import { useServerOrderSearch } from "@/hooks/use-server-order-search";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { assertAggregateParity } from "@/lib/order-aggregate-parity";
-import { windowFromDateFilter } from "@/lib/order-window";
+import { windowCacheKey, windowFromDateFilter } from "@/lib/order-window";
+import { listCovers } from "@/lib/orders/coverage-key";
+import { perfTrace } from "@/lib/perf-trace";
 
 // =============================================
 // ENHANCED ORDERS HOOK (Composition Root)
@@ -71,7 +75,7 @@ export function useOrders() {
         () => windowFromDateFilter(filters.dateFrom, filters.dateTo),
         [filters.dateFrom, filters.dateTo],
     );
-    const ordersAreComplete = ordersCacheIsCompleteSet(ordersWindow);
+    const ordersWindowKey = windowCacheKey(ordersWindow);
     const ordersWindowRef = useRef(ordersWindow);
     ordersWindowRef.current = ordersWindow;
 
@@ -114,6 +118,15 @@ export function useOrders() {
     // The window the cached rows were loaded for (null: nothing committed yet).
     // Counts are only shown while it covers the filter's window.
     const loadedWindowKey = useLoadedOrdersWindowKey();
+    const listLoadedKey = cachedOrders === undefined ? null : loadedWindowKey;
+
+    // The head of a wide list fetch, painted read-only until the window commits
+    // (lib/orders/list-preview.ts). useOrderFilters gates it on coverage.
+    const listPreviewData = useOrderListPreview(ordersWindowKey);
+    const preview = useMemo(
+        () => (listPreviewData ? { rows: listPreviewData.rows, newestCutoff: listPreviewData.newestCutoff } : null),
+        [listPreviewData],
+    );
 
     // 1. Filters — filter state, presets, persistence, derived lists
     const filterHook = useOrderFilters({
@@ -122,8 +135,26 @@ export function useOrders() {
         filters,
         setFilters,
         clearFilters,
-        loadedWindowKey: cachedOrders === undefined ? null : loadedWindowKey,
+        loadedWindowKey: listLoadedKey,
+        preview,
     });
+
+    // The list holds the whole filtered window — now (the cache) AND in the
+    // list's deferred render. Before the first commit nothing is complete,
+    // whatever the window: "act on everything" (ship with no selection,
+    // select all) must not act on a preview or on another window's rows.
+    const listCovered = listCovers(listLoadedKey, ordersWindowKey) && filterHook.countViewFacts.covered;
+    const ordersAreComplete = ordersCacheIsCompleteSet(ordersWindow) && listCovered;
+
+    // A preview is only ever shown while uncovered; once covered it is stale.
+    // Reset, not removed: the preview observer stays attached to its query, so
+    // a later head for the same window still reaches it. Nothing refetches —
+    // the preview query has no queryFn (skipToken).
+    useEffect(() => {
+        if (!listCovered) return;
+        perfTrace.mark("orders:complete");
+        void queryClient.resetQueries({ queryKey: orderPreviewKeys.all });
+    }, [listCovered, queryClient]);
 
     // 2. Realtime — Supabase channel subscription (updates RQ cache directly)
     const { batcherRef } = useOrderRealtime({
@@ -223,6 +254,19 @@ export function useOrders() {
          */
         countViewFacts: filterHook.countViewFacts,
         statusCountsReady: filterHook.countViewFacts.ready,
+        /**
+         * The list is the whole filtered window (the cache covers it, in the
+         * list's render). While false, no count of the list — header, "select
+         * all N" — is shown: the list is still loading, or is another window's.
+         */
+        listCovered,
+        /**
+         * The head of a wide list fetch (lib/orders/list-preview.ts), filtered
+         * and sorted like `filteredOrders`, while the window is still loading.
+         * Pages show it READ-ONLY after dropping the rows that could still move
+         * (desktopPreviewRows / mobilePreviewRows), and never count it.
+         */
+        listPreview: filterHook.listPreview,
         // Archive
         archivedOrders,
         fetchArchivedOrders: crudHook.fetchArchivedOrders,
@@ -344,6 +388,8 @@ export function useOrders() {
         orderSearch.pending,
         orderSearch.isFetching,
         orderSearch.error,
+        listCovered,
+        ordersAreComplete,
     ]);
 
     return contextValue;

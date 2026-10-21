@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
-import { isAdminRole } from "@/lib/permissions";
+import { isAdminRole, type UserRole } from "@/lib/permissions";
+import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import {
     ORDER_PIPELINE_SETTINGS_KEY,
     normalizePipelineStages,
@@ -10,10 +11,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Caller = { tenantId: string; userId: string; role: string };
+type Caller = { tenantId: string; userId: string; role: UserRole };
 
 /**
- * Resolve the caller's tenant_id + role from the Authorization bearer token.
+ * Resolve the caller from the Authorization bearer token: their active,
+ * membership-verified tenant and their role in it.
  * Returns { error: Response } if the token is missing/invalid.
  */
 async function resolveCaller(request: NextRequest): Promise<{ caller: Caller } | { error: NextResponse }> {
@@ -23,17 +25,10 @@ async function resolveCaller(request: NextRequest): Promise<{ caller: Caller } |
     const { user, error } = await verifyAccessToken(token);
     if (error || !user) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
 
-    const supabase = createSupabaseServiceClient();
-    const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("current_tenant_id, role")
-        .eq("id", user.id)
-        .maybeSingle();
+    const active = await resolveActiveTenant(user.id);
+    if (!active.ok) return { error: NextResponse.json({ error: active.error }, { status: active.status }) };
 
-    const tenantId = profile?.current_tenant_id as string | undefined;
-    if (!tenantId) return { error: NextResponse.json({ error: "No active tenant" }, { status: 400 }) };
-
-    return { caller: { tenantId, userId: user.id, role: (profile?.role as string) ?? "employee" } };
+    return { caller: { tenantId: active.tenantId, userId: user.id, role: active.role } };
 }
 
 async function readOrgDefault(tenantId: string): Promise<PipelineStageId[] | null> {

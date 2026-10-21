@@ -30,6 +30,46 @@ export function isPlatformAdminRole(role: UserRole | string | undefined | null):
     return role === "super_admin";
 }
 
+/** The per-store roles stored in `tenant_members.role` (and `team_invites.role`). */
+export type TenantRole = Exclude<UserRole, "super_admin">;
+
+export const TENANT_ROLES: readonly TenantRole[] = ["admin", "employee", "viewer"];
+
+export function isTenantRole(role: string | null | undefined): role is TenantRole {
+    return TENANT_ROLES.includes(role as TenantRole);
+}
+
+/**
+ * The role a user acts with in a tenant. `tenant_members.role` is the source of
+ * truth for merchant users; the global `user_profiles.role` only contributes
+ * `super_admin` (platform staff), which stays a superset of every tenant role.
+ * Anything else — no active membership, an unknown value — is no role at all.
+ */
+export function resolveEffectiveRole(
+    platformRole: string | null | undefined,
+    memberRole: string | null | undefined,
+): UserRole | null {
+    if (isPlatformAdminRole(platformRole)) return "super_admin";
+    return isTenantRole(memberRole) ? memberRole : null;
+}
+
+/**
+ * A role's permissions (`role_permissions` rows) with the user's
+ * `user_permissions` overrides applied: a granted override adds the
+ * permission, a revoked one removes it. Mirrors `has_tenant_permission` in SQL.
+ */
+export function applyPermissionOverrides(
+    rolePermissions: readonly string[],
+    overrides: readonly { permission: string; is_granted: boolean }[],
+): string[] {
+    const perms = new Set(rolePermissions);
+    for (const o of overrides) {
+        if (o.is_granted) perms.add(o.permission);
+        else perms.delete(o.permission);
+    }
+    return Array.from(perms);
+}
+
 export const PERMISSIONS = {
     // Orders
     VIEW_ORDERS: "orders.view",

@@ -3,12 +3,94 @@
 // =====================================================================
 
 import { describe, expect, it } from "vitest";
-import { whatsappOrderLink, whatsappCartLink } from "./whatsapp";
+import {
+  resolveTenantWhatsapp,
+  resolveTrackerContact,
+  whatsappOrderLink,
+  whatsappCartLink,
+} from "./whatsapp";
+import { toSectionTenant } from "./section-tenant";
+import type { SectionTenant } from "../types";
 
 // A real, plausible Iraqi number (no 6+ identical-digit run, so it passes the
 // placeholder guard). wa.me digits = 9647801234567.
 const PHONE = "+964 (780) 123-4567";
 const PHONE_DIGITS = "9647801234567";
+
+describe("resolveTenantWhatsapp (S3-01 single source)", () => {
+  it("prefers the V2 commerce number over V1 contact and contact_phone", () => {
+    const tenant = {
+      store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
+      store_config: { contact: { whatsapp_number: "07901112233" } },
+      contact_phone: "07905556677",
+    };
+    expect(resolveTenantWhatsapp(tenant)).toBe("07802301677");
+  });
+
+  it("falls back to V1 contact, then contact_phone", () => {
+    expect(
+      resolveTenantWhatsapp({
+        store_config: { contact: { whatsapp_number: "07901112233" } },
+      }),
+    ).toBe("07901112233");
+    expect(resolveTenantWhatsapp({ contact_phone: "07905556677" })).toBe(
+      "07905556677",
+    );
+  });
+
+  it("skips an implausible V2 number entirely", () => {
+    const tenant = {
+      store_config_v2: { commerce: { whatsapp_number: "000000000000" } },
+      contact_phone: "07905556677",
+    };
+    // The whole candidate chain resolves via ?? (first non-null wins), so a
+    // fake-looking V2 number yields null rather than silently deep-linking.
+    expect(resolveTenantWhatsapp(tenant)).toBe(null);
+  });
+
+  it("treats a blank V2 number as unset and falls through", () => {
+    const tenant = {
+      store_config_v2: { commerce: { whatsapp_number: "  " } },
+      store_config: { contact: { whatsapp_number: "07901112233" } },
+    };
+    expect(resolveTenantWhatsapp(tenant)).toBe("07901112233");
+  });
+
+  it("survives the toSectionTenant prune (the shape sections receive)", () => {
+    const tenant: SectionTenant = {
+      id: "t1",
+      business_name: "Shop",
+      slug: "shop",
+      plan: "starter",
+      status: "active",
+      branding: {},
+      settings: {},
+      store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
+    };
+    expect(resolveTenantWhatsapp(toSectionTenant(tenant))).toBe("07802301677");
+  });
+
+  it("the order tracker falls back to the commerce number when no call number is set", () => {
+    expect(
+      resolveTrackerContact({
+        store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
+      }),
+    ).toBe("07802301677");
+    expect(
+      resolveTrackerContact({
+        store_config: { contact: { phone_number: "07901112233" } },
+        store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
+      }),
+    ).toBe("07901112233");
+  });
+
+  it("per-section override wins", () => {
+    const tenant = {
+      store_config_v2: { commerce: { whatsapp_number: "07802301677" } },
+    };
+    expect(resolveTenantWhatsapp(tenant, "07711223344")).toBe("07711223344");
+  });
+});
 
 describe("whatsappOrderLink", () => {
   it("returns null when no phone is provided", () => {

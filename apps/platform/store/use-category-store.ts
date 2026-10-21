@@ -23,6 +23,8 @@ export interface CategoryFilterState {
   navOnly: boolean;
   hasRules: "all" | "yes" | "no";
   parent: "all" | "top-level" | "sub";
+  /** Which audience a category serves. "all" shows both sets together. */
+  scope: "all" | "internal" | "website" | "both";
 }
 
 export const defaultCategoryFilterState: CategoryFilterState = {
@@ -31,6 +33,7 @@ export const defaultCategoryFilterState: CategoryFilterState = {
   navOnly: false,
   hasRules: "all",
   parent: "all",
+  scope: "all",
 };
 
 interface CategoryStoreState {

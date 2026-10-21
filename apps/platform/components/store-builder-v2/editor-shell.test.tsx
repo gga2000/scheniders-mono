@@ -238,6 +238,8 @@ describe("EditorShell", () => {
         );
         expect(screen.getByTestId("page-tree")).toBeTruthy();
         expect(screen.getByTestId("page-tree-item-home")).toBeTruthy();
+        // Simple mode folds commerce pages behind «كل الصفحات» (S3-03).
+        fireEvent.click(screen.getByTestId("page-tree-all-pages-toggle"));
         expect(screen.getByTestId("page-tree-item-cart")).toBeTruthy();
     });
 
@@ -253,6 +255,7 @@ describe("EditorShell", () => {
                 storefrontUrlOverride="http://localhost:3001/s/test-store"
             />,
         );
+        fireEvent.click(screen.getByTestId("page-tree-all-pages-toggle"));
         fireEvent.click(screen.getByTestId("page-tree-item-cart"));
         expect(setActivePage).toHaveBeenCalledWith("cart");
     });

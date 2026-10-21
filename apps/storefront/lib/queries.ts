@@ -551,6 +551,8 @@ export const listCategories = cache((tenantId: string): Promise<Category[]> =>
       .select("id, tenant_id, name, slug, description, image_url, parent_id, display_order")
       .eq("tenant_id", tenantId)
       .eq("is_visible", true)
+      .eq("status", "published")
+      .in("scope", ["website", "both"])
       .order("display_order", { ascending: true });
 
     if (error) {
@@ -694,6 +696,12 @@ export const getCategoryBySlug = cache(
         .select("id, tenant_id, name, slug, description, image_url, parent_id, display_order")
         .eq("tenant_id", tenantId)
         .eq("slug", key)
+        // Without these a category that is archived, hidden, or meant only for
+        // staff was still reachable by typing its URL — nothing linked to it,
+        // but it rendered a real page.
+        .eq("is_visible", true)
+        .eq("status", "published")
+        .in("scope", ["website", "both"])
         .maybeSingle();
       return (data as unknown as Category) ?? null;
     }),

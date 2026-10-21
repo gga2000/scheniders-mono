@@ -1,4 +1,5 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { tenantMemberRoleFor } from "@/lib/tenant-member-role";
 
 interface ProvisionUser {
     id: string;
@@ -71,11 +72,12 @@ export async function provisionInvitedUserIfNeeded(
             return { provisioned: false, reason: "profile-insert-failed" };
         }
 
-        // 2. Active tenant membership.
+        // 2. Active tenant membership. The invite carries a profile role
+        // (admin / employee / viewer); the membership uses the same tenant vocabulary.
         const { error: memberErr } = await admin.from("tenant_members").insert({
             tenant_id: invite.tenant_id,
             user_id: user.id,
-            role: invite.role,
+            role: tenantMemberRoleFor(invite.role),
             status: "active",
             joined_at: now,
             invited_by: invite.invited_by,
