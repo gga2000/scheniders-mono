@@ -61,7 +61,7 @@ describe("useOrdersQuery window gating", () => {
 
         await waitFor(() => expect(H.findWindow).toHaveBeenCalled());
         expect(H.findWindow).toHaveBeenCalledTimes(1);
-        expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null, { onPreview: expect.any(Function) });
+        expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null, { onPreview: expect.any(Function), trace: "list" });
     });
 
     it("refuses a sessionStorage snapshot of a different window", async () => {
@@ -71,7 +71,7 @@ describe("useOrdersQuery window gating", () => {
 
         const { result } = renderHook(() => useOrdersQuery(null, true), { wrapper: wrapper() });
 
-        await waitFor(() => expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null, { onPreview: expect.any(Function) }));
+        await waitFor(() => expect(H.findWindow).toHaveBeenCalledWith("tenant-1", null, { onPreview: expect.any(Function), trace: "list" }));
         await waitFor(() => expect(result.current.data).toEqual([]));
     });
 

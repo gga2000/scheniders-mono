@@ -592,17 +592,18 @@ async function fetchOrders(
     diag.log(`[Diag:RQ:Fetch] fetchOrders START`);
     // Pages are read in parallel, so an order inserted mid-fetch can shift a
     // row across a page boundary and arrive twice; it must count once.
-    const result = dedupeById(await orderRepository.findWindow(tenantId, window, { onPreview }));
+    const result = dedupeById(await orderRepository.findWindow(tenantId, window, { onPreview, trace: "list" }));
     perfTrace.mark('orders:fetch-done', { count: result.length });
     diag.log(`[Diag:RQ:Fetch] fetchOrders OK count=${result.length} took=${(performance.now() - _tFetch).toFixed(1)}ms`);
 
     // Layer 1: Resolve stale "contacted" orders → "no_response" at fetch time.
     // This ensures the React Query cache ALWAYS has correct statuses from the
     // first render — no flicker, no delayed effects, no cron dependency.
-    const resolved = resolveStaleContacted(result);
+    const resolved = perfTrace.time('resolve-stale-contacted', () => resolveStaleContacted(result));
 
     // Persist to sessionStorage for SWR on next refresh
     writeSwrCache(resolved, windowCacheKey(window), mark);
+    perfTrace.markRepeat('orders:queryfn-done', { rows: resolved.length, window: windowCacheKey(window) });
 
     return resolved;
 }
@@ -699,9 +700,12 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
     const [snapshotChecked, setSnapshotChecked] = useState(false);
     useEffect(() => {
         if (!filtersSettled || snapshotChecked) return;
-        if (queryClient.getQueryData(orderKeys.lists()) === undefined) {
+        const cachedAlready = queryClient.getQueryData(orderKeys.lists()) !== undefined;
+        let snapshotRows = 0;
+        if (!cachedAlready) {
             const snapshotKey = windowCacheKey(windowRef.current);
             const snapshot = readSwrCache(snapshotKey);
+            snapshotRows = snapshot?.orders.length ?? 0;
             if (snapshot) {
                 diag.log(`[Diag:RQ:SWR] Hydrated ${snapshot.orders.length} orders from sessionStorage`);
                 // The snapshot is a whole window as it was fetched: it covers that
@@ -715,6 +719,7 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
                 void queryClient.invalidateQueries({ queryKey: orderKeys.lists(), exact: true, refetchType: "none" });
             }
         }
+        perfTrace.markRepeat('orders:snapshot-checked', { cachedAlready, snapshotRows });
         setSnapshotChecked(true);
     }, [filtersSettled, snapshotChecked, queryClient]);
 
@@ -726,7 +731,8 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
         queryKey: orderKeys.lists(),
         queryFn: () => {
             const t = requireTenant(tenantId);
-            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => readListMark(t), (mark) => {
+            perfTrace.markRepeat('orders:queryfn-start', { window: windowCacheKey(windowRef.current) });
+            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => perfTrace.span('list:watermark', () => readListMark(t)), (mark) => {
                 const fetchWindow = windowRef.current;
                 const fetchKey = windowCacheKey(fetchWindow);
                 return fetchOrders(t, fetchWindow, mark, (preview) => publishListPreview(queryClient, t, fetchKey, preview));

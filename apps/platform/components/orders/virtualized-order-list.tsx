@@ -7,6 +7,7 @@ import { Order, MessageTemplate } from "@/lib/supabase";
 import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import { RiskLevel } from "@/lib/fraud-detector";
+import { perfTrace } from "@/lib/perf-trace";
 
 interface VirtualizedOrderListProps {
     orders: Order[];
@@ -232,6 +233,12 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
         );
     };
 
+    // Load tracing: the first frame that paints rows ends the /orders load.
+    const hasRows = orders.length > 0;
+    useEffect(() => {
+        if (hasRows) perfTrace.markPainted("orders:list-painted", "orders", { empty: false });
+    }, [hasRows]);
+
     if (orders.length === 0) {
         return null;
     }
@@ -261,6 +268,7 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                         <div
                             key={virtualRow.key}
                             data-index={virtualRow.index}
+                            data-order-row={rowOrders[0].id}
                             ref={virtualizer.measureElement}
                             style={{
                                 position: "absolute",
