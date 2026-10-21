@@ -10,6 +10,7 @@ import {
     storefrontConfirmationVerdict,
     storefrontOrderGateRowSchema,
 } from "@/lib/storefront-order-confirmation";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import type { Order } from "@/types/order";
 
 export const dynamic = "force-dynamic";
@@ -74,10 +75,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     const orderId = parsed.data.order_id;
 
+    // The full row minus the margin columns (orders-select-guard.test.ts):
+    // the confirmation and the staff alert never read margin, and
+    // ORDER_READ_COLUMNS carries confirmation_dispatched_at for the gate.
     const db = createSupabaseServiceClient();
     const { data: row, error: readErr } = await db
         .from("orders")
-        .select("*")
+        .select(ORDER_READ_COLUMNS)
         .eq("id", orderId)
         .maybeSingle();
     if (readErr) {
