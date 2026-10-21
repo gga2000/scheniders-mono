@@ -97,6 +97,15 @@ describe("GET — who may read an order's contact state", () => {
     expect((await GET(getReq(proofFor(ORDER, OTHER_TENANT)), ctx())).status).toBe(404);
   });
 
+  it("ignores a tenant named in the query string", async () => {
+    install();
+    const req = new Request(
+      `http://x/api/checkout/orders/${ORDER}/contact?tenant_id=${TENANT}`,
+      { headers: { "x-upsell-proof": proofFor(ORDER, OTHER_TENANT) } },
+    );
+    expect((await GET(req, ctx())).status).toBe(404);
+  });
+
   it("is 404 for a malformed order id", async () => {
     install();
     expect((await GET(getReq(proofFor()), ctx("not-a-uuid"))).status).toBe(404);
@@ -220,6 +229,26 @@ describe("POST — who may add a second number", () => {
     const res = await POST(postReq({ phone: "07801112222" }, proof), ctx());
     expect(res.status).toBe(404);
     expect(fake.writes).toEqual([]);
+  });
+
+  it("ignores a tenant named in the body: another store's proof stays a 404", async () => {
+    const fake = install();
+    const res = await POST(
+      postReq({ phone: "07801112222", tenant_id: TENANT }, proofFor(ORDER, OTHER_TENANT)),
+      ctx(),
+    );
+    expect(res.status).toBe(404);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("ignores a tenant named in the body: the write lands on the proof's store", async () => {
+    const fake = install();
+    const res = await POST(
+      postReq({ phone: "07801112222", tenant_id: OTHER_TENANT }, proofFor()),
+      ctx(),
+    );
+    expect(res.status).toBe(200);
+    expect(storedOrder(fake)).toMatchObject({ tenant_id: TENANT, secondary_phone: "07801112222" });
   });
 
   it("rejects a malformed body", async () => {
