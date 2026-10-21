@@ -12,6 +12,9 @@ import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { clientIp, consumeRateLimit, type RateLimitResult } from "@/lib/rate-limit";
 import { resolveStoreTenant } from "@/lib/route-guards";
 import { storeKeyFromRequest } from "@/lib/store-host";
+import { catalogueUnitPrice, type CatalogueVariant } from "@/lib/catalogue-line";
+import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
+import { DUPLICATE_ORDER_WINDOW_MINUTES } from "@/lib/order-duplicate-guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,13 +29,21 @@ export const runtime = "nodejs";
 //   * the store comes from the request's host (lib/store-host), never from
 //     the body, and must be publicly live. A draft-view session is the
 //     merchant, so nothing is captured.
-//   * every line must be one of that store's orderable products; its name
-//     and unit price come from the catalogue.
+//   * every line must be one of that store's orderable products, by the
+//     checkout's own rule (lib/catalogue-line); its name and unit price come
+//     from the catalogue.
 //   * volume is bounded per IP and per (store, phone). This fails closed:
 //     a row here can later drive a WhatsApp to that number, and when the
 //     limiter cannot answer, the database behind this route cannot either.
-//   * consent is recorded only when the caller sends the consent line the
-//     shopper was shown, as consent_at + a version hash of that text.
+//     A limiter outage therefore also answers 429, not 503.
+//   * consent is recorded when the caller sends a consent line, as
+//     consent_at + a version hash of that text. The text is the caller's
+//     claim: nothing here checks it against the line this store's config
+//     renders. The automatic reminder is OFF; before it is turned on, the
+//     sweep has to accept only versions of the configured line.
+//   * what a capture does to an existing (store, phone) row, including one
+//     an order already recovered, is decided atomically in SQL
+//     (capture_abandoned_cart, migration 20261022000000).
 
 const GOVERNORATE_CODES = IRAQ_GOVERNORATES.map((g) => g.code) as [
   GovernorateCode,
@@ -47,6 +58,12 @@ const LIVE_TENANT_STATUSES: ReadonlySet<string> = new Set(["active", "trial"]);
 const CAPTURE_WINDOW_SECONDS = 600;
 const CAPTURE_LIMIT_PER_IP = 120;
 const CAPTURE_LIMIT_PER_PHONE = 20;
+
+/** A capture landing this soon after an order recovered the row is a late
+ *  beacon from that same visit, and leaves the recovery as it is. Later, it
+ *  is a new abandonment and reopens the row. The same window inside which a
+ *  repeat order from this phone counts as the order just placed. */
+const CAPTURE_REOPEN_AFTER_SECONDS = DUPLICATE_ORDER_WINDOW_MINUTES * 60;
 
 // Names and prices are not read from the client. Zod strips any it sends.
 const itemSchema = z.object({
@@ -87,30 +104,31 @@ function consentVersion(text: string): string {
 }
 
 /** Seconds to wait when the IP or the (store, phone) bucket is exhausted,
- *  else null. The phone is hashed so the limiter never holds a raw number. */
+ *  else null. The phone key is an unsalted hash: it keeps the number out of
+ *  the key as written, but over ~10^8 Iraqi mobiles it is reversible. It is
+ *  no more sensitive than abandoned_carts.phone in the same database. */
 async function captureRateLimited(
   req: Request,
   tenantId: string,
   phone: string,
 ): Promise<number | null> {
   const phoneKey = createHash("sha256").update(`${tenantId}:${phone}`).digest("hex").slice(0, 32);
-  // "unknown" only happens off the edge (local dev). One shared bucket for
-  // every such caller would throttle them together, so it is skipped.
+  // A request with no forwarded address (off the edge) shares one "unknown"
+  // bucket, so the per-IP limit always applies.
   const ip = clientIp(req.headers);
   const mode = "fail-closed";
-  const checks = await Promise.all([
-    ip !== "unknown"
-      ? consumeRateLimit(`cart-capture:ip:${ip}`, CAPTURE_LIMIT_PER_IP, CAPTURE_WINDOW_SECONDS, mode)
-      : null,
+  const checks: RateLimitResult[] = await Promise.all([
+    consumeRateLimit(`cart-capture:ip:${ip}`, CAPTURE_LIMIT_PER_IP, CAPTURE_WINDOW_SECONDS, mode),
     consumeRateLimit(`cart-capture:phone:${phoneKey}`, CAPTURE_LIMIT_PER_PHONE, CAPTURE_WINDOW_SECONDS, mode),
   ]);
-  const blocked = checks.filter((c): c is RateLimitResult => c !== null && !c.allowed);
+  const blocked = checks.filter((c) => !c.allowed);
   if (blocked.length === 0) return null;
   return Math.max(1, ...blocked.map((c) => c.retryAfterSeconds));
 }
 
 /** The lines that are this store's orderable products, named and priced
- *  from the catalogue (the variant's price, else the product's). It ignores
+ *  from the catalogue (lib/catalogue-line). A repeated product + variant
+ *  keeps its first line only, as the checkout refuses repeats. It ignores
  *  quantity breaks: this is a lead record, not a charge. Null when the
  *  catalogue could not be read. */
 async function catalogueLines(
@@ -129,10 +147,19 @@ async function catalogueLines(
     return null;
   }
 
+  let soldByVariant: Set<string>;
+  try {
+    soldByVariant = await productsSoldByVariant(svc, tenantId, productIds);
+  } catch (e) {
+    if (!(e instanceof VariantReadError)) throw e;
+    console.error("[cart/abandoned]", e.message);
+    return null;
+  }
+
   const variantIds = items
     .map((i) => i.variant_id)
     .filter((v): v is string => typeof v === "string");
-  const variants = new Map<string, { product_id: string; price: number | null; is_enabled: boolean | null }>();
+  const variants = new Map<string, CatalogueVariant>();
   if (variantIds.length > 0) {
     const { data: rows, error: variantsErr } = await svc
       .from("product_variants")
@@ -148,18 +175,14 @@ async function catalogueLines(
 
   const byId = new Map(products.map((p) => [p.id, p]));
   const lines: CaptureLine[] = [];
+  const seen = new Set<string>();
   for (const i of items) {
+    const lineKey = `${i.product_id}:${i.variant_id ?? ""}`;
+    if (seen.has(lineKey)) continue;
     const p = byId.get(i.product_id);
-    if (!p || p.is_archived || p.status !== "active" || !p.is_visible || p.is_supply) continue;
-    let unitPrice: number;
-    if (i.variant_id) {
-      const v = variants.get(i.variant_id);
-      if (!v || v.product_id !== i.product_id || v.is_enabled === false) continue;
-      unitPrice = Number(v.price ?? p.website_price ?? p.price) || 0;
-    } else {
-      unitPrice = Number(p.website_price ?? p.price) || 0;
-    }
-    if (unitPrice <= 0) continue;
+    const unitPrice = catalogueUnitPrice(i, p, variants, soldByVariant);
+    if (p === undefined || unitPrice === null) continue;
+    seen.add(lineKey);
     lines.push({
       product_id: p.id,
       variant_id: i.variant_id ?? null,
@@ -221,31 +244,27 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ success: true, skipped: "items" });
   }
 
-  const now = new Date().toISOString();
-  // reminded_at, recovered_at and, for a capture without consent, the
-  // consent columns are left out, so an update preserves them. A beacon
-  // must never reset a cart that was already reminded or recovered, or
-  // withdraw consent the shopper gave earlier. A fresh insert defaults
-  // all of them to null.
-  const { error } = await service.from("abandoned_carts").upsert(
-    {
-      tenant_id: tenant.id,
-      phone,
-      items: lines,
-      subtotal_iqd: cartItemsSubtotal(lines),
-      governorate: governorate ?? null,
-      locale: locale ?? null,
-      updated_at: now,
-      ...(consent_text
-        ? { consent_at: now, consent_text_version: consentVersion(consent_text) }
-        : {}),
-    },
-    { onConflict: "tenant_id,phone" },
-  );
+  // The function keeps an open row's reminder, earlier consent, governorate
+  // and locale when this capture has none; leaves a row an order recovered
+  // moments ago untouched; and reopens one recovered longer ago as a fresh
+  // capture (see the migration). Absent optionals are omitted, not null.
+  const { data: written, error } = await service.rpc("capture_abandoned_cart", {
+    _tenant_id: tenant.id,
+    _phone: phone,
+    _items: lines,
+    _subtotal_iqd: cartItemsSubtotal(lines),
+    _reopen_after_seconds: CAPTURE_REOPEN_AFTER_SECONDS,
+    ...(governorate ? { _governorate: governorate } : {}),
+    ...(locale ? { _locale: locale } : {}),
+    ...(consent_text ? { _consent_text_version: consentVersion(consent_text) } : {}),
+  });
 
   if (error) {
-    console.error("[cart/abandoned] upsert failed:", error);
+    console.error("[cart/abandoned] capture write failed:", error);
     return NextResponse.json({ error: "Capture failed" }, { status: 500 });
+  }
+  if (written === false) {
+    return NextResponse.json({ success: true, skipped: "recovered" });
   }
   return NextResponse.json({ success: true });
 }

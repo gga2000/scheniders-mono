@@ -26,6 +26,7 @@ import { sendPurchaseCapi } from "@/lib/capi";
 import { isDraftViewRequest } from "@/lib/draft-view";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
+import { catalogueUnitPrice } from "@/lib/catalogue-line";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
 import { isTransientDbError } from "@/lib/transient-db-error";
 import { DUPLICATE_ORDER_WINDOW_MINUTES, isDuplicateGuardRow } from "@/lib/order-duplicate-guard";
@@ -332,39 +333,17 @@ export async function submitCheckout(
     const issue = (reason: CheckoutIssueReason, new_price?: number): void => {
       issues.push({ product_id: i.product_id, variant_id: i.variant_id, reason, new_price });
     };
-    const product = productMap.get(i.product_id);
-    // Deleted, hidden, draft, archived, or supply (packaging/internal) → not
-    // orderable. status carries the merchant's Draft/Archived choice from the
-    // product editor, which is_visible does not.
-    if (
-      !product ||
-      product.is_archived ||
-      product.status !== "active" ||
-      !product.is_visible ||
-      (product as { is_supply?: boolean }).is_supply
-    ) {
-      issue("unavailable");
-      continue;
-    }
-    let unitPrice: number;
-    if (i.variant_id) {
-      const variant = variantMap.get(i.variant_id);
-      if (!variant || variant.product_id !== i.product_id || variant.is_enabled === false) {
-        issue("unavailable");
-        continue;
-      }
-      unitPrice = Number(variant.price ?? product.website_price ?? product.price) || 0;
-    } else {
-      // No variant named for a product sold by variant: no size for the
-      // courier and no price the merchant set — and a variant priced above
-      // the parent would otherwise be bought at the parent's price.
-      if (soldByVariant.has(i.product_id)) {
-        issue("unavailable");
-        continue;
-      }
-      unitPrice = Number(product.website_price ?? product.price) || 0;
-    }
-    if (unitPrice <= 0 || !Number.isFinite(unitPrice)) {
+    // Deleted, hidden, draft, archived or supply product; a missing, foreign
+    // or disabled variant; no variant for a product sold by variant; or no
+    // positive price → not orderable (lib/catalogue-line, the rule the phone
+    // capture also files lines by).
+    const unitPrice = catalogueUnitPrice(
+      i,
+      productMap.get(i.product_id),
+      variantMap,
+      soldByVariant,
+    );
+    if (unitPrice === null) {
       issue("unavailable");
       continue;
     }

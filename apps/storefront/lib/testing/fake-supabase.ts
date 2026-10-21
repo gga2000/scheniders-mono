@@ -30,7 +30,7 @@ export interface RpcCall {
 
 export interface WriteCall {
   table: string;
-  op: "update" | "insert" | "upsert";
+  op: "update" | "insert";
   payload: Row;
   matched: number;
 }
@@ -61,10 +61,8 @@ export function createFakeSupabase(
 
   function from(table: string) {
     const predicates: Array<(r: Row) => boolean> = [];
-    let op: "select" | "update" | "insert" | "upsert" = "select";
+    let op: "select" | "update" | "insert" = "select";
     let payload: Row = {};
-    // upsert: the columns of the unique key it resolves conflicts on.
-    let conflictCols: string[] = ["id"];
 
     const matching = (): Row[] =>
       (tables[table] ?? []).filter((r) => predicates.every((p) => p(r)));
@@ -77,16 +75,6 @@ export function createFakeSupabase(
         const list = tables[table] ?? (tables[table] = []);
         list.push({ ...payload });
         writes.push({ table, op, payload, matched: 1 });
-        return { data: [payload], error: null };
-      }
-      if (op === "upsert") {
-        // Postgres ON CONFLICT … DO UPDATE: a row with the same key takes the
-        // given columns and keeps every column the payload leaves out.
-        const list = tables[table] ?? (tables[table] = []);
-        const existing = list.find((r) => conflictCols.every((c) => r[c] === payload[c]));
-        if (existing) Object.assign(existing, payload);
-        else list.push({ ...payload });
-        writes.push({ table, op, payload, matched: existing ? 1 : 0 });
         return { data: [payload], error: null };
       }
       if (op === "update") options.beforeUpdate?.(table, tables);
@@ -130,12 +118,6 @@ export function createFakeSupabase(
       insert: (values: Row) => {
         op = "insert";
         payload = values;
-        return chain;
-      },
-      upsert: (values: Row, opts?: { onConflict?: string }) => {
-        op = "upsert";
-        payload = values;
-        conflictCols = (opts?.onConflict ?? "id").split(",").map((c) => c.trim());
         return chain;
       },
       maybeSingle: (): Promise<Result> => {

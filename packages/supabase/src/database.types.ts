@@ -8255,6 +8255,19 @@ export type Database = {
         Returns: undefined
       }
       calculate_lead_score: { Args: { p_lead_id: string }; Returns: number }
+      capture_abandoned_cart: {
+        Args: {
+          _consent_text_version?: string
+          _governorate?: string
+          _items: Json
+          _locale?: string
+          _phone: string
+          _reopen_after_seconds: number
+          _subtotal_iqd: number
+          _tenant_id: string
+        }
+        Returns: boolean
+      }
       charge_wallet_atomic: {
         Args: {
           _amount: number
