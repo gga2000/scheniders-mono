@@ -23,7 +23,8 @@
 //                           pdp_direct_order, product_bundles (delivery fees,
 //                           discounts, bundles), order_tracker
 //                           (order_status_narratives), pdp_direct_order
-//                           (contact: the "who contacts you" line)
+//                           (contact: the "who contacts you" line),
+//                           helpers/whatsapp resolveTrackerContact (contact)
 //   store_config_v2.enabled_locales
 //                           helpers/locale-switch (site_header locale switch)
 //   slug, plan, status, settings, contact_email, city

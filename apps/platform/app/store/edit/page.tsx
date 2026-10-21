@@ -189,6 +189,9 @@ export default async function StoreV2Page({
                 tracking_contact: resolveTrackerContact({
                     store_config: t.store_config,
                     contact_phone: t.contact_phone,
+                    // The draft's structured call number, as the storefront
+                    // tracker reads it once the draft is published.
+                    store_config_v2: { commerce: initialConfig.commerce },
                 }),
             }}
             initialConfig={initialConfig}

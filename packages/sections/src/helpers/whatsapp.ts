@@ -11,6 +11,7 @@
 // other locale falls back to English.
 // =====================================================================
 
+import { parseStoreContact } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 
 export interface WhatsappProductInfo {
@@ -87,6 +88,9 @@ interface TenantContactShape {
     } | null;
   } | null;
   contact_phone?: string | null;
+  /** The structured "who contacts you" config (P4). Validated by
+   *  `parseStoreContact`; the raw jsonb is never trusted as-is. */
+  store_config_v2?: { commerce?: { contact?: unknown } | null } | null;
 }
 
 /**
@@ -114,13 +118,18 @@ export function resolveTenantWhatsapp(
 }
 
 /**
- * The number the order tracker writes into `{contact}` and dials for its
- * call button: the store's configured call number, else its WhatsApp number.
- * The store builder's "Order tracking messages" preview resolves through this
- * too, so the merchant sees exactly which lines survive on the storefront.
+ * The number that calls the buyer to confirm an order. The order tracker
+ * writes it into `{contact}` and dials it, and the thank-you call card shows
+ * it. It is the structured `commerce.contact.call_number` (the number the PDP
+ * "who contacts you" line names) when that parses as an Iraqi mobile, else
+ * the store's configured call number, else its WhatsApp number. The store
+ * builder's "Order tracking messages" preview resolves through this too, so
+ * the merchant sees exactly which lines survive on the storefront.
  */
 export function resolveTrackerContact(tenant: unknown): string | null {
   const t = (tenant ?? {}) as TenantContactShape;
+  const structured = parseStoreContact(t.store_config_v2?.commerce?.contact);
+  if (structured) return structured.call_number;
   const phone = t.store_config?.contact?.phone_number;
   if (phone && isPlausiblePhone(phone)) return phone;
   return resolveTenantWhatsapp(tenant);
