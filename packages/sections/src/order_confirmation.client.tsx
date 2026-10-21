@@ -35,6 +35,7 @@ import { PRESSABLE } from "./helpers/utils";
 import { StoreLink, useStoreBase } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
+import { CARD_STYLE, INK_BORDER, LABEL_CLS } from "./order_confirmation.styles";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./order_confirmation";
 
@@ -117,20 +118,6 @@ function readStash(): StashedOrder | null {
     return null;
   }
 }
-
-/* ─── Styles ────────────────────────────────────────────────────────── */
-
-const INK_BORDER =
-  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
-
-const CARD_STYLE = {
-  backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
-  borderRadius: "var(--bk-radius-card, 1rem)",
-  color: "var(--bk-ink, #1a1a1a)",
-} as const;
-
-const LABEL_CLS =
-  "font-label font-bold text-[11px] bk-caps tracking-[0.2em] text-bk-ink-soft";
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 
