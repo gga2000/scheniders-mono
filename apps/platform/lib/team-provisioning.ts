@@ -73,7 +73,7 @@ export async function provisionInvitedUserIfNeeded(
         }
 
         // 2. Active tenant membership. The invite carries a profile role
-        // (admin / employee / viewer); the membership is 'admin' or 'member'.
+        // (admin / employee / viewer); the membership uses the same tenant vocabulary.
         const { error: memberErr } = await admin.from("tenant_members").insert({
             tenant_id: invite.tenant_id,
             user_id: user.id,

@@ -7,10 +7,20 @@ import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
+import { clearPersistedBooks } from "@/lib/orders/persisted-book";
+import { reportOrderError } from "@/lib/order-telemetry";
 import { sentryIdentityFor } from "@/lib/sentry-identity";
 import { applyPermissionOverrides, resolveEffectiveRole, type UserRole } from "@/lib/permissions";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * Delete what the app keeps on the device for the signed-in user: the saved
+ * order books hold customer names, phones and addresses.
+ */
+function forgetDeviceData(): void {
+    clearPersistedBooks().catch((err: unknown) => reportOrderError(err, { operation: "orders-book-clear" }));
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -28,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const currentUserIdRef = useRef<string | null>(null);
     const profileLoadedRef = useRef(false);
+    // The tenant last published, readable inside fetchProfile's closure.
+    const tenantIdRef = useRef<string | null>(null);
     const deferredLogoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Keep ref in sync with state (ref is readable inside useEffect closures)
@@ -56,6 +68,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const currentTenantId: string | null = profileData.current_tenant_id ?? null;
+            perfTrace.mark('auth:profile-row');
+            // The tenant is known from this row alone, so publish it now: the
+            // order book and every other tenant-scoped read start while the
+            // role and permissions below are still loading, instead of two
+            // round trips later (measured 0.5-4.2s on /orders). This grants
+            // nothing. RLS decides what those reads return, and every UI gate
+            // fails closed on a null role (hasPermission, canAccessRoute,
+            // RoleGuard), while PageGuard holds restricted routes until
+            // profileLoaded.
+            if (tenantIdRef.current !== currentTenantId) {
+                // A different tenant than the role and permissions in state
+                // were read for (a tenant switch): drop them in the same
+                // render, so the new tenant is never paired with the old
+                // tenant's role, and hold restricted routes on their skeleton
+                // until this tenant's role is in.
+                setRole(null);
+                setPermissions([]);
+                markProfileLoaded(false);
+            }
+            tenantIdRef.current = currentTenantId;
+            setTenantId(currentTenantId);
+            perfTrace.mark('auth:tenant', { hasTenant: !!currentTenantId });
 
             // The role that governs what this user may do is their role in the
             // current tenant (tenant_members.role), the same row RLS reads.
@@ -70,12 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .maybeSingle()
                 : { data: null };
             const effectiveRole = resolveEffectiveRole(profileData.role, membership?.role);
+            perfTrace.mark('auth:membership');
 
-            // Fetch role permissions + user overrides in parallel
+            // Fetch role permissions + this tenant's user overrides in parallel.
+            // Overrides are per tenant: one granted in another store grants
+            // nothing here (has_tenant_permission applies the same rule).
             const [rolePermsResult, userOverridesResult] = effectiveRole
                 ? await Promise.all([
                     supabase.from('role_permissions').select('permission').eq('role', effectiveRole),
-                    supabase.from('user_permissions').select('permission, is_granted').eq('user_id', userId),
+                    currentTenantId
+                        ? supabase.from('user_permissions').select('permission, is_granted')
+                            .eq('tenant_id', currentTenantId)
+                            .eq('user_id', userId)
+                        : Promise.resolve({ data: null }),
                 ])
                 : [{ data: null }, { data: null }];
 
@@ -87,7 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfileMissing(false);
             setRole(effectiveRole);
             setProfile(profileData as UserProfile);
-            setTenantId(currentTenantId);
             setPermissions(perms);
             markProfileLoaded(true);
             perfTrace.mark('auth:profile-loaded', { role: effectiveRole ?? 'none', perms: perms.length });
@@ -169,11 +209,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         // redirect to /login immediately (no more 10s deferred-logout wait).
                         clearSafety();
                         if (deferredLogoutRef.current) { clearTimeout(deferredLogoutRef.current); deferredLogoutRef.current = null; }
+                        forgetDeviceData();
                         setSession(null);
                         setUser(null);
                         setRole(null);
                         setProfile(null);
                         setPermissions([]);
+                        tenantIdRef.current = null;
                         setTenantId(null);
                         markProfileLoaded(false);
                         setClientReady(false);
@@ -193,6 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUser(currentSession.user);
                     setSession(currentSession);
                     setClientReady(true);
+                    perfTrace.mark('auth:session', { event });
                     currentUserIdRef.current = currentSession.user.id;
                     setIsLoading(false);
 
@@ -227,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 } else if (event === 'SIGNED_OUT') {
                     clearSafety();
+                    forgetDeviceData();
                     void supabase.realtime.setAuth(); // drop the JWT from the socket
                     currentUserIdRef.current = null;
                     setUser(null);
@@ -234,6 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setRole(null);
                     setProfile(null);
                     setPermissions([]);
+                    tenantIdRef.current = null;
                     setTenantId(null);
                     markProfileLoaded(false);
                     setClientReady(false);
@@ -292,7 +337,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
     }, []);
 
-    const signInWithGoogle = useCallback(async (returnTo: string = '/') => {
+    const signInWithGoogle = useCallback(async (returnTo: string = '/orders') => {
         // PKCE OAuth → Google → back to /api/auth/callback, which exchanges the
         // code for a COOKIE session (createServerClient) and forwards to `next`.
         // Reuses the exact cookie callback the email/password flow already uses.

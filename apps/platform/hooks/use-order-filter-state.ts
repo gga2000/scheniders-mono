@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
 import { useOrderStore } from "@/store/use-order-store";
 import { getDefaultFilters } from "@/lib/order-filter-utils";
+import { perfTrace } from "@/lib/perf-trace";
 import type { OrderFilters } from "@/lib/supabase";
 
 /**
@@ -69,6 +70,7 @@ export function useOrderFilterState() {
             }
             hasLoadedUserPrefs.current = true;
             setFiltersSettled(true);
+            perfTrace.markRepeat('orders:filters-settled', { saved: !!saved });
         } else if (!userId) {
             hasLoadedUserPrefs.current = false;
         }

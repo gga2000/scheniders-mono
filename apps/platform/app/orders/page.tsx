@@ -916,6 +916,15 @@ export default function OrdersPage() {
     // fell through to content with zero orders and rendered the empty state.
     // A preview is content: the page renders it instead of the skeleton.
     const isInitialLoading = !isMounted || ((loading || ordersPending) && !previewing);
+    // Load tracing: the first render of real content (rows or a preview) in this visit.
+    const contentTraced = useRef(false);
+    useEffect(() => {
+        if (isInitialLoading || contentTraced.current) return;
+        contentTraced.current = true;
+        perfTrace.markRepeat("orders:content-render", { rows: orders.length, previewing });
+        // An empty window paints its empty state, not rows: that ends the load too.
+        if (orders.length === 0 && !previewing) perfTrace.markPainted("orders:list-painted", "orders", { empty: true });
+    }, [isInitialLoading, orders.length, previewing]);
 
     return (
         <AnimatePresence mode="wait">

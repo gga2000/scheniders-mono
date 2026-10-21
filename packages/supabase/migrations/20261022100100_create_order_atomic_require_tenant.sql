@@ -1,6 +1,6 @@
 -- =============================================================================
 -- create_order_atomic requires a tenant; orders.tenant_id is NOT NULL
--- Fixes the PKG-02 review finding on F-040/F-041 (20261020154000_order_number_counter)
+-- Fixes the PKG-02 review finding on F-040/F-041 (20261022100000_order_number_counter)
 -- =============================================================================
 --
 -- WHAT WAS WRONG (live, 2026-10-20)
@@ -27,20 +27,21 @@
 --      transaction) and raises 22023 when _tenant_id is NULL, for every
 --      caller including the service role. The tenant filters lose their
 --      `_tenant_id IS NULL OR` escape. Otherwise the body is
---      20261020154000's, unchanged. Grants restated (authenticated,
+--      20261022100000's, unchanged (including mask_order_margin on every
+--      returned order, see that file). Grants restated (authenticated,
 --      service_role).
 --   4. split_order_atomic(uuid,jsonb,jsonb,uuid) — live body, one change: the
 --      return order is created in the original order's tenant
 --      (_original_order.tenant_id, now NOT NULL; equal to _tenant_id whenever
 --      one is given, since the original is looked up under it).
 --
--- APPLY ORDER: after 20261020154000_order_number_counter.sql (its body is the
+-- APPLY ORDER: after 20261022100000_order_number_counter.sql (its body is the
 --   base here), in the same deploy. App code needs no change: every caller
 --   already passes a tenant.
 --
 -- ROLLBACK
 --   ALTER TABLE public.orders ALTER COLUMN tenant_id DROP NOT NULL;
---   Re-apply section 4 of 20261020154000_order_number_counter.sql after
+--   Re-apply section 4 of 20261022100000_order_number_counter.sql after
 --   DROP FUNCTION public.create_order_atomic(jsonb, uuid) (restores the
 --   default), re-create create_order_atomic(jsonb) from the live-history
 --   definition (delegates with NULL::uuid; service role only), and re-apply
@@ -100,7 +101,7 @@ BEGIN
   -- Replay first, before any lock: a lost-response retry never queues.
   _idem := NULLIF(_order_data->>'idempotency_key', '');
   IF _idem IS NOT NULL THEN
-    SELECT to_jsonb(orders.*) INTO _result FROM public.orders
+    SELECT public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result FROM public.orders
      WHERE idempotency_key = _idem AND tenant_id = _tenant_id
      LIMIT 1;
     IF _result IS NOT NULL THEN
@@ -120,7 +121,7 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('create_order_atomic:' || _tenant_id::text, 0));
 
   IF _idem IS NOT NULL THEN
-    SELECT to_jsonb(orders.*) INTO _result FROM public.orders
+    SELECT public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result FROM public.orders
      WHERE idempotency_key = _idem AND tenant_id = _tenant_id
      LIMIT 1;
     IF _result IS NOT NULL THEN
@@ -171,7 +172,7 @@ BEGIN
     CASE WHEN jsonb_typeof(_order_data->'attribution') = 'object' THEN _order_data->'attribution' ELSE NULL END,
     NULLIF(_order_data->>'ad_channel', ''),
     _idem, _tenant_id
-  RETURNING to_jsonb(orders.*) INTO _result;
+  RETURNING public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result;
   RETURN _result;
 END;
 $function$;

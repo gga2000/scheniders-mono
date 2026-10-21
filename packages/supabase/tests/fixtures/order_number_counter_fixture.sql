@@ -120,7 +120,12 @@ CREATE TABLE public.orders (
     ad_channel text,
     delivered_at timestamptz,
     original_order_id uuid,
-    rejection_reason text
+    rejection_reason text,
+    -- Margin columns (masked for non-admins since 20261021090000).
+    product_cost numeric,
+    net_profit numeric,
+    waseet_merchant_price numeric,
+    waseet_company_price numeric
 );
 CREATE UNIQUE INDEX orders_order_id_key ON public.orders USING btree (order_id);
 CREATE UNIQUE INDEX uq_orders_tenant_idempotency ON public.orders USING btree (tenant_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
@@ -137,8 +142,40 @@ REVOKE ALL ON public.orders FROM anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.orders TO authenticated;
 GRANT ALL ON public.orders TO service_role;
 
+-- Live definitions (pg_get_functiondef 2026-10-21): is_tenant_admin, and
+-- mask_order_margin from 20261021090000_orders_margin_column_privileges.
+CREATE OR REPLACE FUNCTION public.is_tenant_admin(p_tenant_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+    SELECT EXISTS (
+        SELECT 1 FROM public.tenant_members
+        WHERE tenant_id = p_tenant_id
+          AND user_id = auth.uid()
+          AND role = 'admin'
+          AND status = 'active'
+    );
+$function$;
+
+CREATE OR REPLACE FUNCTION public.mask_order_margin(p_order jsonb, p_tenant_id uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+    SELECT CASE
+        WHEN p_order IS NULL THEN NULL
+        WHEN coalesce(auth.role(), 'service_role') = 'service_role' THEN p_order
+        WHEN public.is_tenant_admin(p_tenant_id) THEN p_order
+        ELSE p_order - ARRAY['product_cost', 'net_profit', 'waseet_merchant_price', 'waseet_company_price']
+    END;
+$function$;
+
 -- ---------------------------------------------------------------------------
--- Live create_order_atomic overloads, verbatim (pg_get_functiondef 2026-10-20)
+-- Live create_order_atomic overloads (pg_get_functiondef 2026-10-20; the
+-- 2-arg body with main's 20261021090000 margin mask, as live on 2026-10-21)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.create_order_atomic(_order_data jsonb, _tenant_id uuid DEFAULT NULL::uuid)
  RETURNS jsonb
@@ -170,7 +207,7 @@ BEGIN
 
   _idem := NULLIF(_order_data->>'idempotency_key', '');
   IF _idem IS NOT NULL THEN
-    SELECT to_jsonb(orders.*) INTO _result FROM public.orders
+    SELECT public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result FROM public.orders
      WHERE idempotency_key = _idem AND (_tenant_id IS NULL OR tenant_id = _tenant_id)
      LIMIT 1;
     IF _result IS NOT NULL THEN
@@ -223,7 +260,7 @@ BEGIN
     CASE WHEN jsonb_typeof(_order_data->'attribution') = 'object' THEN _order_data->'attribution' ELSE NULL END,
     NULLIF(_order_data->>'ad_channel', ''),
     _idem, _tenant_id
-  RETURNING to_jsonb(orders.*) INTO _result;
+  RETURNING public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result;
   RETURN _result;
 END;
 $function$;

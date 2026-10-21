@@ -1429,7 +1429,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 {system_screen && DESKTOP_ONLY_SETTINGS.includes(system_screen) ? (
                     <div
                         data-testid="editor-shell-v2"
-                        className="flex h-[calc(100vh-4rem)] flex-col bg-background"
+                        className="flex h-full flex-col bg-background"
                     >
                         <MobileDesktopOnlyStub
                             settingId={system_screen}
@@ -1585,7 +1585,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         >
         <div
             data-testid="editor-shell-v2"
-            className="flex h-[calc(100vh-4rem)] flex-col bg-background"
+            className="flex h-full flex-col bg-background"
         >
             {builder.recoverable_backup && (
                 <DraftRecoveryBanner
@@ -1887,6 +1887,43 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     builder.set_active_page(page);
                                     set_selected_section_id(section_id);
                                     set_editing_section_id(section_id);
+                                }}
+                                onSetWhatsappNumber={(value) => {
+                                    builder.setConfig(
+                                        (prev) => ({
+                                            ...prev,
+                                            commerce: {
+                                                ...(prev.commerce ?? {}),
+                                                whatsapp_number: value,
+                                            },
+                                        }),
+                                        t(
+                                            STRINGS.health.launch_whatsapp_history,
+                                            builder.active_locale,
+                                        ),
+                                    );
+                                }}
+                                onSetDeliveryFee={(feeIqd) => {
+                                    builder.setConfig(
+                                        (prev) => ({
+                                            ...prev,
+                                            commerce: {
+                                                ...(prev.commerce ?? {}),
+                                                shipping: {
+                                                    ...(prev.commerce?.shipping ?? {}),
+                                                    default_rate: {
+                                                        ...(prev.commerce?.shipping
+                                                            ?.default_rate ?? {}),
+                                                        fee_iqd: feeIqd,
+                                                    },
+                                                },
+                                            },
+                                        }),
+                                        t(
+                                            STRINGS.health.launch_delivery_history,
+                                            builder.active_locale,
+                                        ),
+                                    );
                                 }}
                             />
                         </>

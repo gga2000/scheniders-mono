@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
+import { perfTrace } from "@/lib/perf-trace";
 import type { OrderWindow } from "@/lib/order-window";
 import {
     PREVIEW_HEAD_ROWS,
@@ -106,6 +107,37 @@ const TRUST_IN_CHUNK = 100;
 const ID_IN_CHUNK = 100;
 const PAGE = 1000;
 
+/**
+ * Times a list page whose request failed in transit is re-read before the
+ * whole read fails. A list read is several parallel pages; without this one
+ * page passing the client's 10s fetch timeout (lib/supabase.ts) failed the
+ * read, and React Query's retry re-read every page, the count and the trust
+ * book from scratch: measured +12s on a sidebar click to /orders.
+ */
+export const PAGE_RETRIES = 1;
+
+/**
+ * A failed page read that is worth sending again unchanged: the request got
+ * no response (an abort, the timeout, a network error — PostgREST-js reports
+ * those as status 0) or the gateway failed (5xx). A 4xx is the request's own
+ * fault and fails at once.
+ */
+export function isTransientReadFailure(result: { error: unknown; status?: number }): boolean {
+    if (!result.error || typeof result.status !== "number") return false;
+    return result.status === 0 || result.status >= 500;
+}
+
+/** One page GET, re-sent up to PAGE_RETRIES times on a transient failure. Pages are idempotent reads. */
+async function readPage<T extends { error: unknown; status?: number }>(read: () => PromiseLike<T>): Promise<T> {
+    let result = await read();
+    for (let attempt = 1; attempt <= PAGE_RETRIES && isTransientReadFailure(result); attempt++) {
+        diag.warn(`[Diag:Repo] list page failed in transit (status ${result.status}) — re-reading that page, attempt ${attempt}`);
+        perfTrace.markRepeat("list:page-retry", { status: result.status ?? -1, attempt });
+        result = await read();
+    }
+    return result;
+}
+
 /** Search rows carry `deleted_at` so a trashed match can be labelled. */
 const SEARCH_COLUMNS = `${LIST_COLUMNS}, deleted_at, delivery_order_id, waseet_qr_id`;
 /** Delta rows carry `deleted_at` so a soft delete realtime missed still removes the row. */
@@ -158,13 +190,15 @@ async function fetchTrustBook(tenantId: string): Promise<TrustRow[]> {
     const total = count ?? 0;
     const results = await Promise.all(
         Array.from({ length: Math.ceil(total / PAGE) }, (_, i) =>
-            supabase
-                .from("customer_trust")
-                .select(TRUST_RISK_COLUMNS)
-                .eq("tenant_id", tenantId)
-                .order("tenant_id", { ascending: true })
-                .order("phone", { ascending: true })
-                .range(i * PAGE, i * PAGE + PAGE - 1),
+            readPage(() =>
+                supabase
+                    .from("customer_trust")
+                    .select(TRUST_RISK_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .order("tenant_id", { ascending: true })
+                    .order("phone", { ascending: true })
+                    .range(i * PAGE, i * PAGE + PAGE - 1),
+            ),
         ),
     );
     const rows: TrustRow[] = [];
@@ -207,9 +241,10 @@ export function attachRiskData(rows: readonly Order[], trustRows: readonly Trust
  * `tenantId` (every list read below filters on it), so only that tenant's
  * `customer_trust` rows are fetched.
  */
-async function withRiskData(tenantId: string, rows: Order[]): Promise<Order[]> {
+async function withRiskData(tenantId: string, rows: Order[], trace?: string): Promise<Order[]> {
     if (rows.length === 0) return rows;
-    return attachRiskData(rows, await fetchTrustRows(tenantId, trustPhones(rows)));
+    const trust = await traced(trace, "trust-rows", () => fetchTrustRows(tenantId, trustPhones(rows)), (r) => ({ rows: r.length }));
+    return tracedSync(trace, "trust-join", () => attachRiskData(rows, trust));
 }
 
 /** Options of a list read. */
@@ -221,6 +256,22 @@ export interface ListReadOptions {
      * settled, and never for a window of a week or less (it loads in full fast).
      */
     onPreview?: (preview: OrderListPreview) => void;
+    /**
+     * Load-trace name (lib/perf-trace.ts). Only the read that gates a page
+     * passes one, so its stages are not confused with the same stages of a
+     * concurrent read (the duplicate-alert margin also calls `findWindow`).
+     */
+    trace?: string;
+}
+
+/** `fn`, timed as `<trace>:<step>` when the read is traced. */
+function traced<T>(trace: string | undefined, step: string, fn: () => PromiseLike<T>, metaOf?: (r: T) => Record<string, number | string | boolean>): Promise<T> {
+    return trace ? perfTrace.span(`${trace}:${step}`, async () => fn(), metaOf) : Promise.resolve(fn());
+}
+
+/** `fn`, timed as the synchronous block `<trace>-<step>` when the read is traced. */
+function tracedSync<T>(trace: string | undefined, step: string, fn: () => T): T {
+    return trace ? perfTrace.time(`${trace}-${step}`, fn) : fn();
 }
 
 /**
@@ -321,7 +372,7 @@ async function readListHead(
  * Page 0 re-reads the head: the result never depends on the preview. Returns
  * the same rows and `risk_data` as the old count → pages → trust read.
  */
-async function readWideList(tenantId: string, window: OrderWindow, onPreview?: ListReadOptions["onPreview"]): Promise<Order[]> {
+async function readWideList(tenantId: string, window: OrderWindow, onPreview?: ListReadOptions["onPreview"], trace?: string): Promise<Order[]> {
     const _t = performance.now();
     let settled = false;
     const publish = (preview: OrderListPreview) => {
@@ -331,9 +382,9 @@ async function readWideList(tenantId: string, window: OrderWindow, onPreview?: L
         let total: number;
         let head: OrderListPreview | null = null;
         if (onPreview) {
-            ({ total, preview: head } = await readListHead(tenantId, window, PREVIEW_HEAD_ROWS));
+            ({ total, preview: head } = await traced(trace, "head", () => readListHead(tenantId, window, PREVIEW_HEAD_ROWS), (h) => ({ total: h.total, rows: h.preview?.rows.length ?? 0 })));
         } else {
-            const { count, error } = await listQuery(tenantId, window, "id", { count: "exact", head: true });
+            const { count, error } = await traced(trace, "count", () => listQuery(tenantId, window, "id", { count: "exact", head: true }));
             if (error) throw error;
             total = count ?? 0;
         }
@@ -353,17 +404,17 @@ async function readWideList(tenantId: string, window: OrderWindow, onPreview?: L
         const wholeTrustBook = total > TRUST_LOOKUP_MAX_PHONES;
         const headPreview = head;
         const [pages, trustBook] = await Promise.all([
-            Promise.all(Array.from({ length: pageCount }, (_, i) => listPage(tenantId, window, i))),
-            wholeTrustBook ? fetchTrustBook(tenantId) : Promise.resolve(null),
+            traced(trace, "pages", () => Promise.all(Array.from({ length: pageCount }, (_, i) => readPage(() => listPage(tenantId, window, i)))), () => ({ pages: pageCount })),
+            wholeTrustBook ? traced(trace, "trust-book", () => fetchTrustBook(tenantId), (r) => ({ rows: r.length })) : Promise.resolve(null),
             headPreview
                 ? fetchTrustRows(tenantId, trustPhones(headPreview.rows)).then((trust) => {
                     publish({ ...headPreview, rows: attachRiskData(headPreview.rows, trust), withRisk: true });
                 })
                 : Promise.resolve(),
         ]);
-        const rows = pageRows(pages);
-        const trust = trustBook ?? await fetchTrustRows(tenantId, trustPhones(rows));
-        const result = attachRiskData(rows, trust);
+        const rows = tracedSync(trace, "normalize", () => pageRows(pages));
+        const trust = trustBook ?? await traced(trace, "trust-rows", () => fetchTrustRows(tenantId, trustPhones(rows)), (r) => ({ rows: r.length }));
+        const result = tracedSync(trace, "trust-join", () => attachRiskData(rows, trust));
         diag.log(`[Diag:Repo] wide list OK rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
         return result;
     } catch (err) {
@@ -380,13 +431,33 @@ export const orderRepository = {
      * All Orders list. See `readWideList`; `onPreview` gets the head first.
      */
     async findAll(tenantId: string, opts: ListReadOptions = {}): Promise<Order[]> {
-        return readWideList(tenantId, null, opts.onPreview);
+        return readWideList(tenantId, null, opts.onPreview, opts.trace);
     },
 
     /**
      * The list's head (lib/orders/list-preview.ts) and the window's exact row
      * count: two small parallel reads.
      */
+    /**
+     * The window's row count (a count HEAD over the list's own filter): what a
+     * list restored from the device plus its delta must add up to.
+     */
+    async countWindow(tenantId: string, window: OrderWindow): Promise<number> {
+        const { count, error } = await listQuery(tenantId, window, "id", { count: "exact", head: true });
+        if (error) throw error;
+        return count ?? 0;
+    },
+
+    /**
+     * The current `customer_trust` rows for `rows`' customers, to re-attach
+     * with `attachRiskData`. A list restored from the device carries the
+     * risk_data it was saved with; order deltas do not move trust, so this
+     * refreshes it (the whole trust book when there are many customers).
+     */
+    async findTrustFor(tenantId: string, rows: readonly Order[]): Promise<TrustRow[]> {
+        return fetchTrustRows(tenantId, trustPhones(rows));
+    },
+
     async findHead(tenantId: string, window: OrderWindow, limit = PREVIEW_HEAD_ROWS): Promise<{ total: number; preview: OrderListPreview | null }> {
         return readListHead(tenantId, window, limit);
     },
@@ -462,7 +533,7 @@ export const orderRepository = {
      */
     async findWindow(tenantId: string, window: OrderWindow, opts: ListReadOptions = {}): Promise<Order[]> {
         if (!window) return this.findAll(tenantId, opts);
-        if (windowWantsPreview(window)) return readWideList(tenantId, window, opts.onPreview);
+        if (windowWantsPreview(window)) return readWideList(tenantId, window, opts.onPreview, opts.trace);
 
         const _t = performance.now();
 
@@ -473,19 +544,20 @@ export const orderRepository = {
         // the list silently disagreeing with its own counts. The payload win
         // comes from the window being narrow (the default view is a single
         // day), never from dropping rows the merchant filtered for.
-        const { count, error: countErr } = await listQuery(tenantId, window, "id", { count: "exact", head: true });
+        const { count, error: countErr } = await traced(opts.trace, "count", () => listQuery(tenantId, window, "id", { count: "exact", head: true }));
         if (countErr) throw countErr;
 
         const totalRows = count ?? 0;
         if (totalRows === 0) return [];
 
         const pageCount = Math.ceil(totalRows / PAGE);
-        const rows = pageRows(await Promise.all(
-            Array.from({ length: pageCount }, (_, i) => listPage(tenantId, window, i)),
-        ));
+        const pages = await traced(opts.trace, "pages", () => Promise.all(
+            Array.from({ length: pageCount }, (_, i) => readPage(() => listPage(tenantId, window, i))),
+        ), () => ({ pages: pageCount }));
+        const rows = tracedSync(opts.trace, "normalize", () => pageRows(pages));
 
         diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return withRiskData(tenantId, rows);
+        return withRiskData(tenantId, rows, opts.trace);
     },
 
     /**

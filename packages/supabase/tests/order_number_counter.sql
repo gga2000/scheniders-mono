@@ -2,7 +2,7 @@
 -- Order-number counter, order_id write guard and per-tenant lock (F-040, F-041)
 -- =============================================================================
 --
--- WHAT THIS PROVES (after 20261020154000_order_number_counter.sql is applied)
+-- WHAT THIS PROVES (after 20261022100000_order_number_counter.sql is applied)
 --   F-040 — nobody outside the server can steer the order-number generator:
 --     * a tenant member cannot INSERT an order row (so cannot plant
 --       '4<YYMMDD>99999999999'), cannot UPDATE an own order's order_id, and
@@ -22,7 +22,7 @@
 --     * concurrent calls get distinct order numbers, and distinct
 --       sequence_numbers within a tenant;
 --     * an idempotent replay returns the same order and uses no number.
---   PKG-02 (after 20261020154100_create_order_atomic_require_tenant.sql) —
+--   PKG-02 (after 20261022100100_create_order_atomic_require_tenant.sql) —
 --   every order has a tenant:
 --     * create_order_atomic with a NULL tenant is refused for the server too,
 --       writes nothing and cannot replay another tenant's idempotency key;
@@ -39,14 +39,14 @@
 --
 --   createdb f040
 --   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/tests/fixtures/order_number_counter_fixture.sql
---   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261020154000_order_number_counter.sql
---   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261020154100_create_order_atomic_require_tenant.sql
+--   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261022100000_order_number_counter.sql
+--   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261022100100_create_order_atomic_require_tenant.sql
 --   psql -d f040 -v ON_ERROR_STOP=1 -v connstr="host=... port=... dbname=f040 user=postgres" \
 --        -f packages/supabase/tests/order_number_counter.sql
 --
 -- Result: one row, 'ALL ASSERTIONS PASSED' or 'FAILED: ' plus each failing
 -- check. Against the pre-migration function every F-040/F-041 check fails;
--- with only 20261020154000 applied, the PKG-02 checks (C1-C3, C5b) fail.
+-- with only 20261022100000 applied, the PKG-02 checks (C1-C3, C5b) fail.
 -- =============================================================================
 
 \set ON_ERROR_STOP 1
@@ -126,6 +126,11 @@ BEGIN
                                          'aaaaaaaa-0000-4000-8000-000000000001');
         IF _r->>'order_id' IS DISTINCT FROM '4' || current_setting('tt.today') || '006' THEN
             PERFORM pg_temp.fail('A4b expected 4<today>006, got ' || coalesce(_r->>'order_id', 'null'));
+        END IF;
+        -- A4c. Main's margin mask (20261021090000) survives: a non-admin
+        -- member's result carries no margin keys.
+        IF _r ?| ARRAY['product_cost', 'net_profit', 'waseet_merchant_price', 'waseet_company_price'] THEN
+            PERFORM pg_temp.fail('A4c member RPC result exposed margin keys');
         END IF;
     EXCEPTION WHEN OTHERS THEN
         PERFORM pg_temp.fail('A4b member RPC call raised ' || SQLSTATE || ' ' || SQLERRM);
@@ -209,6 +214,11 @@ BEGIN
         _r2 := public.create_order_atomic(pg_temp.order_json('storefront', 'idem-A8-0001'), 'aaaaaaaa-0000-4000-8000-000000000001');
         IF _r2->>'id' IS DISTINCT FROM _r->>'id' OR (_r2->>'idempotent_replay') IS DISTINCT FROM 'true' THEN
             PERFORM pg_temp.fail('A8 replay did not return the original order');
+        END IF;
+        -- A8b. The server still gets the full row, margin included.
+        IF NOT (_r ?& ARRAY['product_cost', 'net_profit', 'waseet_merchant_price', 'waseet_company_price'])
+           OR NOT (_r2 ? 'product_cost') THEN
+            PERFORM pg_temp.fail('A8b server RPC result lost margin keys');
         END IF;
         _next := public.create_order_atomic(pg_temp.order_json('storefront'), 'aaaaaaaa-0000-4000-8000-000000000001');
         IF (substring(_next->>'order_id' FROM 8))::int <> (substring(_r->>'order_id' FROM 8))::int + 1 THEN
@@ -433,6 +443,14 @@ BEGIN
     BEGIN
         _r := public.create_order_atomic(pg_temp.order_json('storefront'), 'aaaaaaaa-0000-4000-8000-000000000001');
         IF _r->>'id' IS NULL THEN PERFORM pg_temp.fail('C6 member call returned nothing'); END IF;
+        -- C6b. A member's idempotent replay is masked too.
+        PERFORM public.create_order_atomic(pg_temp.order_json('storefront', 'idem-C6-0001'), 'aaaaaaaa-0000-4000-8000-000000000001');
+        _r := public.create_order_atomic(pg_temp.order_json('storefront', 'idem-C6-0001'), 'aaaaaaaa-0000-4000-8000-000000000001');
+        IF (_r->>'idempotent_replay') IS DISTINCT FROM 'true' THEN
+            PERFORM pg_temp.fail('C6b member replay was not a replay');
+        ELSIF _r ? 'product_cost' THEN
+            PERFORM pg_temp.fail('C6b member replay exposed margin keys');
+        END IF;
     EXCEPTION WHEN OTHERS THEN
         PERFORM pg_temp.fail('C6 member call with own tenant raised ' || SQLSTATE || ' ' || SQLERRM);
     END;

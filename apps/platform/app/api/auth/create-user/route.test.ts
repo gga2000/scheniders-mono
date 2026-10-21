@@ -53,8 +53,8 @@ beforeEach(() => {
 
 describe("POST /api/auth/create-user — membership role", () => {
     it.each([
-        ["employee", "employee", "member"],
-        ["viewer", "viewer", "member"],
+        ["employee", "employee", "employee"],
+        ["viewer", "viewer", "viewer"],
         ["admin", "admin", "admin"],
     ])("role %s → profile %s, tenant_members %s", async (role, profileRole, memberRole) => {
         const res = await POST(request({ role }));
@@ -63,18 +63,18 @@ describe("POST /api/auth/create-user — membership role", () => {
         expect(membershipInsert()).toMatchObject({ role: memberRole, tenant_id: TENANT, user_id: "new-user-id" });
     });
 
-    it("defaults to an employee profile with a plain membership", async () => {
+    it("defaults to an employee profile with an employee membership", async () => {
         const res = await POST(request({}));
         expect(res.status).toBe(200);
         expect(profileUpdate()?.role).toBe("employee");
-        expect(membershipInsert()?.role).toBe("member");
+        expect(membershipInsert()?.role).toBe("employee");
     });
 
-    it("never writes a role outside admin/member to tenant_members", async () => {
+    it("never writes a role outside admin/employee/viewer to tenant_members", async () => {
         for (const role of ["employee", "viewer", "admin", undefined]) {
             fake = fakeServiceClient((call) => respond(call));
             await POST(request(role === undefined ? {} : { role }));
-            expect(["admin", "member"]).toContain(membershipInsert()?.role);
+            expect(["admin", "employee", "viewer"]).toContain(membershipInsert()?.role);
         }
     });
 
@@ -98,7 +98,7 @@ describe("POST /api/auth/create-user — membership role", () => {
 
     it("refuses a caller who is not the tenant's admin", async () => {
         respond = (call) =>
-            call.table === "tenant_members" && call.op === "select" ? { data: { role: "member" } } : defaultRespond(call);
+            call.table === "tenant_members" && call.op === "select" ? { data: { role: "employee" } } : defaultRespond(call);
         const res = await POST(request({ role: "employee" }));
         expect(res.status).toBe(403);
         expect(membershipInsert()).toBeUndefined();

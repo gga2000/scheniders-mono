@@ -39,6 +39,10 @@
 --          sequence_number MAX+1, which needs it) and re-checks the replay
 --          under it;
 --        - takes the number from public.next_order_number().
+--      Every order JSON it returns (replay or new row) goes through
+--      public.mask_order_margin(), as on live since main's
+--      20261021090000_orders_margin_column_privileges.sql: a non-admin
+--      member never gets product_cost / net_profit / waseet_* back.
 --      create_order_atomic(jsonb) only delegates; it is unchanged.
 --   4. A trigger refuses, for anon/authenticated, INSERT into orders and any
 --      UPDATE that changes order_id. Writing order_id back unchanged (full-row
@@ -53,6 +57,13 @@
 --   4261020 max 1; 1261020 / 2261020 / 3261020 none. No later-dated prefix.
 --   Historic max per prefix is 46 (4260319); 223 prefixes since 1251227.
 --
+-- FILE NAME: first written as 20261020154000_order_number_counter.sql and
+--   renamed (never applied anywhere) so it sorts after main's
+--   20261021090000_orders_margin_column_privileges.sql. That migration edits
+--   the pre-counter create_order_atomic body by exact fragment and refuses
+--   any other body, so in file order it must run first; this file then
+--   carries its margin mask forward.
+--
 -- ROLLOUT: apply this migration BEFORE (or with) the app deploy of the same
 --   branch. The new app code sends no order_id from clients and moves the
 --   order-number edit to a server action; old app code keeps working against
@@ -63,8 +74,9 @@
 --   DROP TRIGGER trg_orders_order_id_server_only ON public.orders;
 --   DROP FUNCTION public.orders_order_id_server_only();
 --   Re-apply the create_order_atomic(jsonb,uuid) body from migration
---   20261017120000_create_order_atomic_reports_idempotent_replay.sql
---   (the live body this replaces), then
+--   20261017120000_create_order_atomic_reports_idempotent_replay.sql with
+--   both to_jsonb(orders.*) wrapped in mask_order_margin(..., orders.tenant_id)
+--   as 20261021090000 does (the live body this replaces), then
 --   DROP FUNCTION public.next_order_number(text);
 --   DROP TABLE public.order_number_days;
 --   DROP SEQUENCE public.order_number_seq_1, public.order_number_seq_2,
@@ -203,7 +215,7 @@ BEGIN
   -- Replay first, before any lock: a lost-response retry never queues.
   _idem := NULLIF(_order_data->>'idempotency_key', '');
   IF _idem IS NOT NULL THEN
-    SELECT to_jsonb(orders.*) INTO _result FROM public.orders
+    SELECT public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result FROM public.orders
      WHERE idempotency_key = _idem AND (_tenant_id IS NULL OR tenant_id = _tenant_id)
      LIMIT 1;
     IF _result IS NOT NULL THEN
@@ -223,7 +235,7 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('create_order_atomic:' || coalesce(_tenant_id::text, ''), 0));
 
   IF _idem IS NOT NULL THEN
-    SELECT to_jsonb(orders.*) INTO _result FROM public.orders
+    SELECT public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result FROM public.orders
      WHERE idempotency_key = _idem AND (_tenant_id IS NULL OR tenant_id = _tenant_id)
      LIMIT 1;
     IF _result IS NOT NULL THEN
@@ -274,7 +286,7 @@ BEGIN
     CASE WHEN jsonb_typeof(_order_data->'attribution') = 'object' THEN _order_data->'attribution' ELSE NULL END,
     NULLIF(_order_data->>'ad_channel', ''),
     _idem, _tenant_id
-  RETURNING to_jsonb(orders.*) INTO _result;
+  RETURNING public.mask_order_margin(to_jsonb(orders.*), orders.tenant_id) INTO _result;
   RETURN _result;
 END;
 $function$;

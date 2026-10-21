@@ -5,6 +5,7 @@ import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useDocumentOffsetTop } from '@/hooks/use-document-offset-top';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
+import { perfTrace } from '@/lib/perf-trace';
 import { cn, formatIQD } from '@/lib/utils';
 import { formatPhoneGrouped } from '@/lib/order-utils';
 import { isWhatsAppSlot } from '@/lib/whatsapp-contact';
@@ -865,6 +866,12 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
         container.addEventListener("keydown", handler);
         return () => container.removeEventListener("keydown", handler);
     }, [editingCell, focusedRowIndex, flatItems, rowIndices, rowVirtualizer, setSelectedOrder, setIsModalOpen, toggleOrderSelection]);
+
+    // Load tracing: the first frame that paints rows ends the /orders load.
+    const hasRows = displayedOrders.length > 0;
+    useEffect(() => {
+        if (hasRows) perfTrace.markPainted("orders:list-painted", "orders", { empty: false });
+    }, [hasRows]);
 
     // Empty state
     if (displayedOrders.length === 0) {

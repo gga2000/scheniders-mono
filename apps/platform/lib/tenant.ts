@@ -145,6 +145,13 @@ export function generateSlug(name: string): string {
 /**
  * Ensure the slug is unique by appending a number if needed.
  * Uses service role to bypass RLS.
+ *
+ * A slug is held by a current tenant OR by a renamed tenant's
+ * tenant_slug_history row. The storefront resolves tenants before history,
+ * so a new store on a renamed store's old slug would silently take every
+ * link that store already shared. The tenants trigger from
+ * 20261021130000_tenant_slug_claim.sql refuses such an insert; skipping
+ * those slugs here picks a free one instead of failing the signup.
  */
 export async function ensureUniqueSlug(baseSlug: string): Promise<string> {
     const adminClient = createSupabaseServiceClient();
@@ -152,13 +159,20 @@ export async function ensureUniqueSlug(baseSlug: string): Promise<string> {
     let attempt = 0;
 
     while (true) {
-        const { data } = await adminClient
-            .from('tenants')
-            .select('id')
-            .eq('slug', slug)
-            .maybeSingle();
+        const [current, history] = await Promise.all([
+            adminClient.from('tenants').select('id').eq('slug', slug).maybeSingle(),
+            adminClient
+                .from('tenant_slug_history')
+                .select('tenant_id')
+                .eq('old_slug', slug)
+                .maybeSingle(),
+        ]);
+        const lookupError = current.error ?? history.error;
+        if (lookupError) {
+            throw new Error(`Slug availability lookup failed for "${slug}": ${lookupError.message}`);
+        }
 
-        if (!data) return slug;
+        if (!current.data && !history.data) return slug;
 
         attempt++;
         slug = `${baseSlug}-${attempt}`;

@@ -79,7 +79,23 @@ export function isPlausiblePhone(phone: string | null | undefined): boolean {
  * tenant (which carries `store_config`), but sections are typed against
  * `BaseTenant` (no `store_config`), so we read defensively via `unknown`.
  */
+/**
+ * The V2 commerce number, or null when it is unset or blank. A blank string
+ * means "not configured" (the health rule reads it the same way), so it must
+ * fall through to the older sources instead of ending the `??` chain.
+ */
+function commerceWhatsapp(t: TenantContactShape): string | null {
+  const n = t.store_config_v2?.commerce?.whatsapp_number;
+  return n && n.trim().length > 0 ? n : null;
+}
+
 interface TenantContactShape {
+  /** V2 config — the store builder's single source of truth (S3-01). */
+  store_config_v2?: {
+    commerce?: {
+      whatsapp_number?: string | null;
+    } | null;
+  } | null;
   store_config?: {
     contact?: {
       whatsapp_number?: string | null;
@@ -93,11 +109,13 @@ interface TenantContactShape {
  * The single, canonical WhatsApp number for a storefront.
  *
  * Every WhatsApp CTA across the store resolves through this so a tenant sets
- * their number ONCE (the universal `store_config.contact.whatsapp_number`,
- * editable in the store builder) and it applies everywhere. Pass a per-section
- * `override` to point an individual button at a different number. Falls back to
- * `contact_phone`. Returns `null` when nothing plausible is configured — the
- * caller must then not render the CTA (never deep-link to a dead number).
+ * their number ONCE and it applies everywhere. The store builder's
+ * `store_config_v2.commerce.whatsapp_number` (what the onboarding wizard and
+ * the launch checklist write) wins; the V1 `store_config.contact` numbers and
+ * then `contact_phone` are fallbacks for stores that predate it. Pass a
+ * per-section `override` to point an individual button at a different number.
+ * Returns `null` when nothing plausible is configured — the caller must then
+ * not render the CTA (never deep-link to a dead number).
  */
 export function resolveTenantWhatsapp(
   tenant: unknown,
@@ -106,6 +124,7 @@ export function resolveTenantWhatsapp(
   if (override && isPlausiblePhone(override)) return override;
   const t = (tenant ?? {}) as TenantContactShape;
   const candidate =
+    commerceWhatsapp(t) ??
     t.store_config?.contact?.whatsapp_number ??
     t.store_config?.contact?.phone_number ??
     t.contact_phone ??
@@ -141,6 +160,7 @@ export function resolveTenantPhone(
     t.contact_phone ??
     t.store_config?.contact?.phone_number ??
     t.store_config?.contact?.whatsapp_number ??
+    commerceWhatsapp(t) ??
     null;
   return isPlausiblePhone(candidate) ? candidate : null;
 }

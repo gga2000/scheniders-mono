@@ -48,7 +48,7 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-motion": "auto",
         "--bk-on-accent": "#1a1a1a",
         "--bk-on-decor": "#463a0b",
-        "--bk-on-primary": "#ffffff",
+        "--bk-on-primary": "#1a1a1a",
         "--bk-on-secondary": "#1a1a1a",
         "--bk-primary": "#ff5a8a",
         "--bk-primary-active": "#d64e76",
@@ -73,11 +73,42 @@ describe("buildBrandKitVars — default snapshot", () => {
 });
 
 describe("buildBrandKitVars — color derivations", () => {
-  it("pure black primary derives white on-color", () => {
+  it("pure black primary derives the kit's surface as its on-color", () => {
     const k = cloneKit();
     k.colors.primary = "#000000";
     const v = buildBrandKitVars(k) as Record<string, string>;
-    expect(v["--bk-on-primary"]).toBe("#ffffff");
+    expect(v["--bk-on-primary"]).toBe(k.colors.surface.toLowerCase());
+  });
+
+  it("the default candy pink gets ink, not white (2.97:1 failed AA; ink is 5.87:1)", () => {
+    const v = buildBrandKitVars(cloneKit()) as Record<string, string>;
+    expect(v["--bk-on-primary"]).toBe(EMPTY_BRAND_KIT.colors.ink.toLowerCase());
+  });
+
+  it("a dark kit with a light primary gets the dark surface, not light ink (Chrome Night)", () => {
+    const k = cloneKit();
+    k.colors = {
+      primary: "#d6dce4",
+      secondary: "#878e98",
+      accent: "#eceef1",
+      surface: "#141619",
+      surface_alt: "#1d2126",
+      ink: "#eceef1",
+      success: "#4fbf8b",
+      danger: "#e5645d",
+    };
+    const v = buildBrandKitVars(k) as Record<string, string>;
+    // The old luminance rule picked ink #eceef1 here: about 1.1:1.
+    expect(v["--bk-on-primary"]).toBe("#141619");
+    expect(v["--bk-on-accent"]).toBe("#141619");
+    expect(v["--bk-on-secondary"]).toBe("#141619");
+  });
+
+  it("trims a padded hex before emitting it", () => {
+    const k = cloneKit();
+    k.colors.primary = "  #AABBCC ";
+    const v = buildBrandKitVars(k) as Record<string, string>;
+    expect(v["--bk-primary"]).toBe("#aabbcc");
   });
 
   it("pure white primary derives ink on-color", () => {
@@ -116,7 +147,9 @@ describe("buildBrandKitVars — shape mapping", () => {
     ["none", "0px", "0px"],
     ["soft", "8px", "6px"],
     ["round", "16px", "12px"],
-    ["pill", "9999px", "9999px"],
+    // Cards cap out well short of fully-round: a 9999px card is a lozenge,
+    // not a card. Only `--bk-radius-pill` is fully round at this setting.
+    ["pill", "28px", "9999px"],
   ] as const)("radius=%s emits card=%s input=%s", (radius, card, input) => {
     const k = cloneKit();
     k.shape.radius = radius;

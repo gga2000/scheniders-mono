@@ -110,8 +110,8 @@ export async function POST(request: Request) {
             }
 
             // Create the tenant_members entry so RLS grants access. Its role is
-            // 'admin' or 'member' — the profile vocabulary (employee, viewer)
-            // never goes into this column.
+            // admin | employee | viewer (tenant_members_role_check); platform
+            // roles never go into this column.
             const { error: memberError } = await supabaseAdmin.from("tenant_members").insert({
                 tenant_id: resolvedTenantId,
                 user_id: data.user.id,

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Profiler, Suspense, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useViewport } from "@/hooks/use-viewport";
 import { MobileOrdersPage } from "@/components/mobile/orders/MobileOrdersPage";
 import { OrderSearchParamSync } from "@/components/orders/order-search-param-sync";
 import { OrdersProvider } from "@/components/providers/orders-provider";
+import { perfTrace } from "@/lib/perf-trace";
 
 export default function OrdersLayout({
     children,
@@ -14,6 +15,12 @@ export default function OrdersLayout({
 }) {
     const { isMobile } = useViewport();
     const pathname = usePathname();
+
+    // Load tracing (lib/perf-trace.ts): each visit is measured from the click
+    // that opened it, or from navigation start on a hard load.
+    useEffect(() => {
+        perfTrace.beginRoute("orders");
+    }, []);
 
     // Feature flag - keep false by default to ensure no disruption to desktop users
     const ENABLE_MOBILE = true;
@@ -31,11 +38,11 @@ export default function OrdersLayout({
     // `?search=` sync. /orders/trash lists deleted orders from the server and
     // does not pay for the window.
     if (isMobile && ENABLE_MOBILE) {
-        return <OrdersProvider>{searchParamSync}<MobileOrdersPage /></OrdersProvider>;
+        return <OrdersProvider>{searchParamSync}<Profiler id="orders-mobile" onRender={perfTrace.reactCommit}><MobileOrdersPage /></Profiler></OrdersProvider>;
     }
 
     if (pathname !== "/orders") return <>{children}</>;
 
     // Fallback to exactly what existed before (desktop view)
-    return <OrdersProvider>{searchParamSync}{children}</OrdersProvider>;
+    return <OrdersProvider>{searchParamSync}<Profiler id="orders" onRender={perfTrace.reactCommit}>{children}</Profiler></OrdersProvider>;
 }
