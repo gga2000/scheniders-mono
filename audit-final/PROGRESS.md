@@ -25,3 +25,12 @@ Nothing merged and no production migration applied; each needs Ali's OK (§4 ord
 | #195 | PKG-06 F-087 | fix/pkg06-f087-deactivated-admins | draft, CI green @ 20bd8bd8; migration 20261021170100 unapplied (apply before #168's) | 6 → 8.5 |
 | #196 | PKG-12 cart 410 | fix/pkg12-abandoned-cart-410 | draft, CI green @ 128d13b7 | 9 |
 | #167, #168, #172, #173, #175 | earlier fix PRs | — | being brought up to date with main; #167 storefront build fix in progress | — |
+
+### 2026-10-21 23:58 UTC update
+- #195 nits folded in (9d6047e1): single profile read, distinct read-failure error, dead `getUserTenantRole` removed, `/api/cron/process-checkouts-manual` requires active super_admin. Platform vitest 2630 pass.
+- #167/#168/#172/#173/#175 merged with main (merge commits, no force-push); full CI command passes locally on each (16/16 tasks).
+  - #167 → 6e797260: kept email confirmation (main had auto-login after signup); trial plan now `growth` to match main. **Ask Ali at merge:** confirm `growth` and the loss of auto-login.
+  - #168 → 9bf03c86: `140600` narrowed to only revoking anon writes so it doesn't undo live `20261021223954` (finances-permission path). SQL tests 83/83.
+  - #175 → 620424b1: added `mask_order_margin` to new function bodies; migrations renamed to `20261022100000`/`20261022100100` so main's `20261021090000` runs first. **Ask Ali at merge:** accept the new timestamps.
+- Main CI red at f8e5ca87 (#197): `storefront#build` fails when `next/font/google` can't download at build time (same failure as #167 a1b88e2d; re-runs pass). New package: self-host fonts, branch `fix/ci-self-host-fonts` (worker started).
+- Live (SELECT-verified): `authenticated` has table-level SELECT on `orders` (so `product_cost` is readable directly); `20261021090000` is not in `schema_migrations` although `mask_order_margin` exists. Already planned as R3-C (column revoke needs the 24 `select('*')` reads fixed first).
