@@ -65,3 +65,28 @@ export function isRestrictedRoute(pathname: string): boolean {
     const rule = getRouteRule(pathname);
     return rule !== null && !TENANT_ROLES.every((r) => rule.roles.includes(r));
 }
+
+/**
+ * The navigation links a user may follow: every link whose route
+ * `canAccessRoute` opens to them, so a link is never shown for a page that
+ * would turn them away. `href` may carry a query string (`/finances?tab=cash`);
+ * only its path is checked.
+ */
+export function filterNavItems<T extends { href: string }>(
+    items: readonly T[],
+    role: string | null | undefined,
+    permissions: readonly string[],
+): T[] {
+    return items.filter((item) => canAccessRoute(item.href.split("?")[0], role, permissions));
+}
+
+/** As `filterNavItems`, per titled section, dropping sections left with no links. */
+export function filterNavSections<I extends { href: string }>(
+    sections: readonly { titleKey: string; items: readonly I[] }[],
+    role: string | null | undefined,
+    permissions: readonly string[],
+): { titleKey: string; items: I[] }[] {
+    return sections
+        .map((section) => ({ titleKey: section.titleKey, items: filterNavItems(section.items, role, permissions) }))
+        .filter((section) => section.items.length > 0);
+}
