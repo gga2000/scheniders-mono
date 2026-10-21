@@ -8429,6 +8429,15 @@ export type Database = {
       create_order_atomic:
         | { Args: { _order_data: Json }; Returns: Json }
         | { Args: { _order_data: Json; _tenant_id?: string }; Returns: Json }
+      create_storefront_order: {
+        Args: {
+          _duplicate_window_minutes: number
+          _order_data: Json
+          _paid_product_ids: string[]
+          _tenant_id: string
+        }
+        Returns: Json
+      }
       generate_seed_orders: { Args: never; Returns: undefined }
       get_current_tenant_id: { Args: never; Returns: string }
       get_customer_dashboard_stats: {
