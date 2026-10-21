@@ -28,6 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const currentUserIdRef = useRef<string | null>(null);
     const profileLoadedRef = useRef(false);
+    // The tenant last published, readable inside fetchProfile's closure.
+    const tenantIdRef = useRef<string | null>(null);
     const deferredLogoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Keep ref in sync with state (ref is readable inside useEffect closures)
@@ -57,6 +59,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const currentTenantId: string | null = profileData.current_tenant_id ?? null;
             perfTrace.mark('auth:profile-row');
+            // The tenant is known from this row alone, so publish it now: the
+            // order book and every other tenant-scoped read start while the
+            // role and permissions below are still loading, instead of two
+            // round trips later (measured 0.5-4.2s on /orders). This grants
+            // nothing. RLS decides what those reads return, and every UI gate
+            // fails closed on a null role (hasPermission, canAccessRoute,
+            // RoleGuard), while PageGuard holds restricted routes until
+            // profileLoaded.
+            if (tenantIdRef.current !== currentTenantId) {
+                // A different tenant than the role and permissions in state
+                // were read for (a tenant switch): drop them in the same
+                // render, so the new tenant is never paired with the old
+                // tenant's role, and hold restricted routes on their skeleton
+                // until this tenant's role is in.
+                setRole(null);
+                setPermissions([]);
+                markProfileLoaded(false);
+            }
+            tenantIdRef.current = currentTenantId;
+            setTenantId(currentTenantId);
+            perfTrace.mark('auth:tenant', { hasTenant: !!currentTenantId });
 
             // The role that governs what this user may do is their role in the
             // current tenant (tenant_members.role), the same row RLS reads.
@@ -89,8 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfileMissing(false);
             setRole(effectiveRole);
             setProfile(profileData as UserProfile);
-            setTenantId(currentTenantId);
-            perfTrace.mark('auth:tenant', { hasTenant: !!currentTenantId });
             setPermissions(perms);
             markProfileLoaded(true);
             perfTrace.mark('auth:profile-loaded', { role: effectiveRole ?? 'none', perms: perms.length });
@@ -177,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setRole(null);
                         setProfile(null);
                         setPermissions([]);
+                        tenantIdRef.current = null;
                         setTenantId(null);
                         markProfileLoaded(false);
                         setClientReady(false);
@@ -238,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setRole(null);
                     setProfile(null);
                     setPermissions([]);
+                    tenantIdRef.current = null;
                     setTenantId(null);
                     markProfileLoaded(false);
                     setClientReady(false);
