@@ -129,10 +129,11 @@ async function handleMessage(msg: TgMessage) {
         );
     }
 
-    // Tenant membership must still be active. Suspended/removed employees
-    // can't drive orders into a tenant they no longer belong to.
-    const member = await getActiveMembership(link);
-    if (!member) {
+    // Tenant membership and the user's profile must both still be active.
+    // Suspended/removed employees and deactivated users (F-087) can't drive
+    // orders into the tenant.
+    const active = await getActiveMembership(link);
+    if (!active) {
         return sendMessage(
             msg.chat.id,
             "🚫 حسابك معطّل في هذا المتجر. تواصل مع الأدمن."
@@ -368,15 +369,14 @@ async function handleStart(msg: TgMessage, text: string) {
         return sendMessage(msg.chat.id, "❌ انتهت صلاحية الكود.");
     }
 
-    // Defence in depth: the employee may have been removed from the tenant
-    // between when the code was issued and when the bot is used.
-    const { data: membership } = await supabase
-        .from("tenant_members")
-        .select("status")
-        .eq("tenant_id", codeRow.tenant_id)
-        .eq("user_id", codeRow.user_profile_id)
-        .maybeSingle();
-    if (!membership || membership.status !== "active") {
+    // Defence in depth: the employee may have been removed from the tenant, or
+    // deactivated (F-087), between when the code was issued and when the bot is
+    // used.
+    const active = await getActiveMembership({
+        tenant_id: codeRow.tenant_id,
+        user_profile_id: codeRow.user_profile_id,
+    });
+    if (!active) {
         return sendMessage(msg.chat.id, "❌ الموظف لم يعد جزءاً من هذا المتجر.");
     }
 
@@ -480,16 +480,31 @@ async function getLink(telegramUserId: number): Promise<EmployeeLink | null> {
     return (data as EmployeeLink | null) || null;
 }
 
-async function getActiveMembership(link: EmployeeLink): Promise<{ status: string } | null> {
+/**
+ * True only when the linked user is an active member of the tenant AND their
+ * profile is active: the same rule as get_user_tenant_ids() and
+ * is_tenant_admin() in the database (coalesce(user_profiles.is_active, true)).
+ * A missing membership or profile, or a failed read, refuses.
+ */
+async function getActiveMembership(link: EmployeeLink): Promise<boolean> {
     const supabase = createSupabaseServiceClient();
-    const { data } = await supabase
-        .from("tenant_members")
-        .select("status")
-        .eq("tenant_id", link.tenant_id)
-        .eq("user_id", link.user_profile_id)
-        .eq("status", "active")
-        .maybeSingle();
-    return data;
+    const [membership, profile] = await Promise.all([
+        supabase
+            .from("tenant_members")
+            .select("status")
+            .eq("tenant_id", link.tenant_id)
+            .eq("user_id", link.user_profile_id)
+            .eq("status", "active")
+            .maybeSingle(),
+        supabase
+            .from("user_profiles")
+            .select("is_active")
+            .eq("id", link.user_profile_id)
+            .maybeSingle(),
+    ]);
+    if (membership.error || profile.error) return false;
+    if (!membership.data || !profile.data) return false;
+    return profile.data.is_active !== false;
 }
 
 async function loadProducts(tenantId: string): Promise<CatalogProduct[]> {
