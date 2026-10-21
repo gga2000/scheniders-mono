@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { PageSkeleton } from "@scheniders/ui/skeletons";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { AccessDenied } from "@/components/auth/access-denied";
@@ -12,6 +13,7 @@ import {
     hasRole,
     hasPermission
 } from "@/lib/permissions";
+import { canAccessRoute, isRestrictedRoute } from "@/lib/route-permissions";
 
 export interface RoleGuardProps {
     children: React.ReactNode;
@@ -68,6 +70,7 @@ export function PageGuard({
 }) {
     const { user, role: contextRole, permissions, isLoading, profileLoaded, profileMissing, retryAuth, signOut } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
     const [isRetrying, setIsRetrying] = useState(false);
 
     // Console log removed to prevent clogging the browser console
@@ -81,18 +84,12 @@ export function PageGuard({
 
     const role = contextRole as UserRole;
 
-    // While loading, render children immediately — the sidebar/topbar chrome
-    // appears instantly and each page handles its own skeleton/loading state.
-    // The useEffect above still handles redirect if user turns out unauthenticated.
-    if (isLoading || !user) {
-        return <>{children}</>;
-    }
-
-    // If user is authenticated but profile hasn't loaded yet, keep showing children.
-    // This replaces the old timer-based grace period — we now wait for the actual
-    // profile fetch to complete (or fail) instead of using a fixed timeout.
-    if (user && !role && !profileLoaded) {
-        return <>{children}</>;
+    // Until the user and their tenant role are known, a page that some roles may
+    // not open is withheld; every other page renders immediately so the chrome
+    // appears at once and the page shows its own skeleton. The useEffect above
+    // still redirects if the user turns out to be unauthenticated.
+    if (isLoading || !user || !profileLoaded) {
+        return isRestrictedRoute(pathname) ? <PageSkeleton /> : <>{children}</>;
     }
 
     // Invite-only: signed in (e.g. via Google) but no account is provisioned —
@@ -111,6 +108,7 @@ export function PageGuard({
     let allowed = true;
 
     if (role) {
+        if (!canAccessRoute(pathname, role, permissions)) allowed = false;
         if (allowedRoles && !hasRole(role, allowedRoles)) allowed = false;
 
         if (requiredPermission) {

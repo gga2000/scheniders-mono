@@ -20,7 +20,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Category } from "@scheniders/shared";
+import type { Category, CategoryScope } from "@scheniders/shared";
 import { CategoryRow } from "../category-row";
 import { useCategoryStore } from "@/store/use-category-store";
 import type { ReorderEntry } from "@/hooks/use-categories-query";
@@ -33,6 +33,7 @@ interface CategoryTreeViewProps {
   onArchive: (c: Category) => void;
   onDelete: (c: Category) => void;
   onToggleVisibility: (c: Category) => void;
+  onScopeChange: (c: Category, scope: CategoryScope) => void;
   onOpenDetail?: (c: Category) => void;
   onReorder: (entries: ReorderEntry[]) => void;
 }
@@ -86,6 +87,7 @@ export function CategoryTreeView({
   onArchive,
   onDelete,
   onToggleVisibility,
+  onScopeChange,
   onOpenDetail,
   onReorder,
 }: CategoryTreeViewProps) {
@@ -178,6 +180,7 @@ export function CategoryTreeView({
               onArchive={onArchive}
               onDelete={onDelete}
               onToggleVisibility={onToggleVisibility}
+              onScopeChange={onScopeChange}
               onOpenDetail={onOpenDetail}
             />
           ))}
@@ -212,6 +215,7 @@ interface SortableRowProps {
   onArchive: (c: Category) => void;
   onDelete: (c: Category) => void;
   onToggleVisibility: (c: Category) => void;
+  onScopeChange: (c: Category, scope: CategoryScope) => void;
   onOpenDetail?: (c: Category) => void;
 }
 
@@ -228,6 +232,7 @@ function SortableTreeRow({
   onArchive,
   onDelete,
   onToggleVisibility,
+  onScopeChange,
   onOpenDetail,
 }: SortableRowProps) {
   const {
@@ -261,6 +266,7 @@ function SortableTreeRow({
         onArchive={onArchive}
         onDelete={onDelete}
         onToggleVisibility={onToggleVisibility}
+        onScopeChange={onScopeChange}
         onOpenDetail={onOpenDetail}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDragging}

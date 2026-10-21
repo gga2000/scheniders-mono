@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { useAuth } from "@/components/auth/auth-provider";
 import { generateFullSnapshot, restoreFromSnapshot, downloadSnapshot } from "@/lib/backup-utils";
 import { AlertTriangle, Upload, CheckCircle, Database, Download, FileSpreadsheet, Loader2 } from "lucide-react";
@@ -56,7 +57,7 @@ export function DataSettings() {
         if (!tenantId) return;
         setExporting("orders");
         try {
-            const { data, error } = await supabase.from('orders').select('*').eq('tenant_id', tenantId);
+            const { data, error } = await supabase.from('orders').select(ORDER_READ_COLUMNS).eq('tenant_id', tenantId);
             if (error) throw error;
             const csv = convertToCSV(data);
             downloadCSV(csv, `orders_backup_${new Date().toISOString().split('T')[0]}.csv`);

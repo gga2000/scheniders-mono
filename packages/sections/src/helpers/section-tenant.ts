@@ -25,7 +25,9 @@
 //                           (order_status_narratives), pdp_direct_order
 //                           (contact: the "who contacts you" line),
 //                           order_confirmation (contact: the call card),
-//                           helpers/whatsapp resolveTrackerContact (contact)
+//                           helpers/whatsapp (contact: resolveTrackerContact;
+//                           commerce.whatsapp_number: first choice for every
+//                           WhatsApp CTA, last fallback for call CTAs)
 //   store_config_v2.enabled_locales
 //                           helpers/locale-switch (site_header locale switch)
 //   slug, plan, status, settings, contact_email, city

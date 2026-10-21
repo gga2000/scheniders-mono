@@ -257,6 +257,19 @@ export default async function TenantLayout({ params, children }: Props) {
           // carry no Arabic). --bk-font-body already includes it via fontStack.
           fontFamily:
             "var(--bk-font-body, var(--font-dm-sans), 'DM Sans', 'Noto Sans Arabic', sans-serif)",
+          // Same reasoning for colour: components that inherit rather than
+          // pin a token (headings inside filled cards, plain prose) need the
+          // subtree's default text colour to be the kit's ink. Without this a
+          // dark kit inherits the browser default black onto a near-black
+          // ground.
+          color: "var(--bk-ink, #1a1a1a)",
+          // The page ground. Nothing else paints it: `body` in globals.css
+          // sets a font but no background, so a dark kit rendered its
+          // sections onto the browser's white — every gap between sections,
+          // and every section that doesn't pin its own surface, stayed white.
+          // minHeight keeps the ground covering short pages.
+          backgroundColor: "var(--bk-surface, #fff7ed)",
+          minHeight: "100vh",
         }}
       >
         {/* The language switcher lives inside the global `site_header`

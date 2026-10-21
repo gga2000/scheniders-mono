@@ -55,7 +55,7 @@ const BG_CLASS: Record<z.infer<typeof stripBg>, string> = {
   // which is dark on a dark kit — so it pins ink, never literal white.
   white: "bg-bk-surface-alt text-bk-ink",
   mint: "bg-bk-secondary",
-  butter: "bg-bk-accent",
+  butter: "bg-bk-accent text-bk-on-accent",
   lilac: "bg-bk-decor-b",
   sky: "bg-bk-decor-c",
   pink: "bg-bk-primary text-bk-on-primary",

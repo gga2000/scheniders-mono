@@ -84,6 +84,7 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                         published={storeStatus.published}
                         isBrandNew={isBrandNew}
                         locale={locale}
+                        slug={tenant.slug}
                     />
                     <KpiStrip
                         analytics={analyticsQuery.data}

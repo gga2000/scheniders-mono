@@ -7608,6 +7608,7 @@ export type Database = {
           id: string
           is_granted: boolean
           permission: string
+          tenant_id: string
           user_id: string
         }
         Insert: {
@@ -7615,6 +7616,7 @@ export type Database = {
           id?: string
           is_granted?: boolean
           permission: string
+          tenant_id: string
           user_id: string
         }
         Update: {
@@ -7622,9 +7624,18 @@ export type Database = {
           id?: string
           is_granted?: boolean
           permission?: string
+          tenant_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_profiles: {
         Row: {

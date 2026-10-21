@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { workQueueFromStatusCounts } from "@/lib/analytics/dashboard-work-queue";
 import { baghdadHour } from "@/lib/analytics/dashboard-calculations";
@@ -24,7 +24,8 @@ const UrgencyTriad = dynamic(() => import("@/components/dashboard/widgets/urgenc
 const DeliverySuccessRate = dynamic(() => import("@/components/dashboard/widgets/delivery-success-rate").then(mod => ({ default: mod.DeliverySuccessRate })), { ssr: false });
 
 export function MobileDashboardPage() {
-    const { createOrder } = useOrdersContext();
+    // Creating an order needs no loaded book; the dashboard does not mount one.
+    const { createOrder } = useOrderCrud();
     // ORD-2: server numbers only — see app/page.tsx. Skeleton until they arrive,
     // an error with a retry if they do not; never figures from the orders window.
     const metricsQuery = useDashboardMetricsQuery('all');
