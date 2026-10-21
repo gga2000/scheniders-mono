@@ -77,6 +77,7 @@ function category(i: number): Category {
         name_ar: null,
         name_en: null,
         slug: `c${i}`,
+        scope: "both",
         description: null,
         description_ar: null,
         description_en: null,
