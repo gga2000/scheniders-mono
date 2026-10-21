@@ -107,6 +107,8 @@ const GENERIC_FIELD_LABELS: Record<string, EditorString> = {
     discount_code: { en: "Discount code", ar: "كود الخصم", ku: "کۆدی داشکاندن" },
     threshold_iqd: { en: "Minimum order (IQD)", ar: "الحد الأدنى للطلب (د.ع)", ku: "کەمترین داواکاری (د.ع)" },
     html: { en: "HTML code", ar: "كود HTML", ku: "کۆدی HTML" },
+    scribble_color: { en: "Accent color", ar: "لون التمييز", ku: "ڕەنگی جیاکەرەوە" },
+    see_all_label: { en: "“See all” button text", ar: "نص زر «عرض الكل»", ku: "دەقی دوگمەی «هەموو ببینە»" },
 };
 
 /* ── Sparse help — only where the label alone isn't enough ────────── */
@@ -155,6 +157,12 @@ const ENUM_VALUE_LABELS: Record<string, EditorString> = {
     bestsellers: { en: "Bestsellers", ar: "الأكثر مبيعاً", ku: "زۆرترین فرۆش" },
     featured: { en: "Featured", ar: "المميزة", ku: "تایبەتەکان" },
     sale: { en: "On sale", ar: "التخفيضات", ku: "داشکاندن" },
+    // product_grid scribble_color palette (S3-08)
+    butter: { en: "Butter yellow", ar: "أصفر زبدي", ku: "زەردی کەرەیی" },
+    mint: { en: "Mint", ar: "نعناعي", ku: "میوانی" },
+    lilac: { en: "Lilac", ar: "بنفسجي فاتح", ku: "وەنەوشەیی کاڵ" },
+    sky: { en: "Sky blue", ar: "أزرق سماوي", ku: "شینی ئاسمانی" },
+    pink: { en: "Pink", ar: "وردي", ku: "پەمەیی" },
 };
 
 /* ── Resolvers ─────────────────────────────────────────────────────── */

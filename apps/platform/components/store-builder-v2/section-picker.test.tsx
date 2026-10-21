@@ -6,6 +6,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { SectionInstance } from "@scheniders/shared";
 import { SectionPicker } from "./section-picker";
 import { SECTIONS_MANIFEST } from "@/lib/sections-manifest";
+import { EditorModeProvider } from "@/lib/editor-mode-context";
 
 afterEach(() => {
     cleanup();
@@ -54,6 +55,30 @@ describe("SectionPicker", () => {
         // Sanity: the manifest is populated (started at 21; grows as new
         // section families ship).
         expect(addable.length).toBeGreaterThanOrEqual(21);
+    });
+
+    it("Simple mode hides invalid-for-page cards and near-duplicate flavors (S3-04)", () => {
+        render(
+            <EditorModeProvider value={{ mode: "simple", setMode: () => {} }}>
+                <SectionPicker
+                    open
+                    onClose={() => {}}
+                    pageId="home"
+                    onAdd={() => {}}
+                />
+            </EditorModeProvider>,
+        );
+        // Primary flavors present…
+        expect(screen.getByTestId("section-picker-card-hero_image")).toBeTruthy();
+        // …duplicate flavors folded away…
+        for (const type of ["hero_split", "hero_marquee", "hero_video", "marquee_strip", "sticky_cta_bar"]) {
+            expect(screen.queryByTestId(`section-picker-card-${type}`)).toBeNull();
+        }
+        // …and page-scoped cards (checkout form on home) hidden, not greyed.
+        expect(screen.queryByTestId("section-picker-card-checkout_form")).toBeNull();
+        expect(
+            document.querySelectorAll('[data-valid="false"]').length,
+        ).toBe(0);
     });
 
     it("filters by category chip", () => {

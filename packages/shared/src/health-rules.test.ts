@@ -123,6 +123,31 @@ describe("runHealthChecks — fully populated config", () => {
     });
 });
 
+describe("whatsapp_number_set — config-level number is the source of truth", () => {
+    it("passes on commerce.whatsapp_number alone (no section number)", () => {
+        const cfg = freshEmpty();
+        cfg.commerce = { whatsapp_number: "07701234567" };
+        const report = runHealthChecks(cfg);
+        const check = report.checks.find((c) => c.id === "whatsapp_number_set");
+        expect(check?.status).toBe("pass");
+    });
+
+    it("still passes via section-level fallback for legacy stores", () => {
+        const cfg = freshEmpty();
+        cfg.globals.footer = s("footer", { whatsapp_number: "+9647701234567" });
+        const report = runHealthChecks(cfg);
+        const check = report.checks.find((c) => c.id === "whatsapp_number_set");
+        expect(check?.status).toBe("pass");
+    });
+
+    it("warns when neither config nor sections carry a number", () => {
+        const cfg = freshEmpty();
+        const report = runHealthChecks(cfg);
+        const check = report.checks.find((c) => c.id === "whatsapp_number_set");
+        expect(check?.status).toBe("warn");
+    });
+});
+
 describe("runHealthChecks — adding policies pushes ad_compliance to 100", () => {
     it("starts low, ends at 100", () => {
         const cfg = freshEmpty();

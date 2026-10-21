@@ -1,5 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getTenantBySlug, getTenantByCustomDomain } from "@/lib/tenant";
+import { resolveRenamedSlug } from "@/lib/slug-redirect";
 import { getCategoryBySlug, getProductBySlug } from "@/lib/queries";
 import { enforceRedirect } from "@/lib/redirects";
 import type { Category, Product, Tenant } from "@/lib/types";
@@ -24,10 +26,80 @@ export function resolveStoreTenant(tenantParam: string): Promise<Tenant | null> 
     : getTenantBySlug(tenantParam);
 }
 
+export interface RenamedStoreRequest {
+  /** The `[tenant]` param: the slug the store used to have. */
+  oldSlug: string;
+  /** The store's current slug. */
+  renamed: string;
+  /** `x-store-base`: `""` in subdomain mode, `/s/<slug>` in path mode. */
+  storeBase: string | null;
+  /** `x-store-path`: the visitor's path and query as the proxy received
+   *  them, before any rewrite. */
+  storePath: string | null;
+  host: string | null;
+  proto: string | null;
+}
+
+/**
+ * The part of the visitor's URL to carry over to the new slug: everything
+ * after `/s/<old>` in path mode, the whole path in subdomain mode, plus the
+ * query. Parsed against a throwaway origin so only a pathname and a search
+ * survive: a value like `//evil.example/x` or `@evil.example` can never
+ * become the redirect's host. A path-mode path that is not under exactly
+ * `/s/<old>` carries nothing over, and the redirect lands on the store home.
+ */
+function carriedOverPath(
+  oldSlug: string,
+  storePath: string | null,
+  pathMode: boolean,
+): string {
+  if (!storePath) return pathMode ? "" : "/";
+  const parsed = new URL(storePath, "http://store.invalid");
+  if (!pathMode) return `${parsed.pathname}${parsed.search}`;
+  const prefix = `/s/${encodeURIComponent(oldSlug)}`;
+  if (parsed.pathname !== prefix && !parsed.pathname.startsWith(`${prefix}/`)) return "";
+  return `${parsed.pathname.slice(prefix.length)}${parsed.search}`;
+}
+
+/**
+ * Where a renamed store's old link should land, or null to 404.
+ *
+ * Path mode (`/s/<old>/...`) moves to `/s/<new>/...`; subdomain mode (the
+ * proxy sets `x-store-base: ""`) moves to `<new>.` on the same root host,
+ * same path. Either way the rest of the URL comes along, so a shared
+ * product link opens the same product. Custom domains never reach here:
+ * their param is `__domain__<host>`, and a host is not a slug.
+ */
+export function renamedStoreTarget(req: RenamedStoreRequest): string | null {
+  const pathMode = req.storeBase !== "";
+  const rest = carriedOverPath(req.oldSlug, req.storePath, pathMode);
+  if (pathMode) return `/s/${req.renamed}${rest}`;
+  const dot = req.host?.indexOf(".") ?? -1;
+  if (!req.host || dot < 0) return null;
+  return `${req.proto === "http" ? "http" : "https"}://${req.renamed}${req.host.slice(dot)}${rest}`;
+}
+
 /** A tenant that can be shown at all — unknown and cancelled stores 404.
- *  (A suspended store still resolves; the tenant layout renders its notice.) */
+ *  (A suspended store still resolves; the tenant layout renders its notice.)
+ *  An unknown slug a store used to own 308s to that store's current slug
+ *  (UX2-13 handle claim), so links already shared keep working. */
 export async function requireStoreTenant(tenantParam: string): Promise<Tenant> {
   const tenant = await resolveStoreTenant(tenantParam);
+  if (!tenant && !tenantParam.startsWith("__domain__")) {
+    const renamed = await resolveRenamedSlug(tenantParam);
+    if (renamed) {
+      const h = await headers();
+      const target = renamedStoreTarget({
+        oldSlug: tenantParam,
+        renamed,
+        storeBase: h.get("x-store-base"),
+        storePath: h.get("x-store-path"),
+        host: h.get("host"),
+        proto: h.get("x-forwarded-proto"),
+      });
+      if (target) permanentRedirect(target);
+    }
+  }
   if (!tenant || tenant.status === "cancelled") notFound();
   return tenant;
 }
