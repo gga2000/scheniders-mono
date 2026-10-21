@@ -16,6 +16,8 @@ import { filterOrders } from "@/lib/orders/filter-orders";
 import { countOrderChips, type OrderChipCounts } from "@/lib/orders/order-chips";
 import { countProductsInView } from "@/lib/orders/product-match";
 import { listCovers } from "@/lib/orders/coverage-key";
+import { sortPinnedNewestFirst } from "@/lib/orders/list-sort";
+import type { OrderListPreview } from "@/lib/orders/list-preview";
 import { windowCacheKey, windowFromDateFilter } from "@/lib/order-window";
 
 // =============================================
@@ -43,6 +45,17 @@ interface UseOrderFiltersOptions {
      * are the complete set for whatever window the filters name.
      */
     loadedWindowKey?: string | null;
+    /**
+     * The list fetch's head (lib/orders/list-preview.ts), or null. Shown only
+     * while the loaded rows do not cover the window, and never counted.
+     */
+    preview?: Pick<OrderListPreview, "rows" | "newestCutoff"> | null;
+}
+
+/** The preview the list may show: the head, through the list's own filter and sort. */
+export interface FilteredListPreview {
+    rows: Order[];
+    newestCutoff: string | null;
 }
 
 /**
@@ -54,11 +67,13 @@ interface UseOrderFiltersOptions {
  */
 export interface CountViewFacts {
     ready: boolean;
+    /** The loaded rows cover the filter's window: the list is the whole of it. */
+    covered: boolean;
     statusIsAll: boolean;
     windowIsAll: boolean;
 }
 
-export function useOrderFilters({ orders, searchResults, filters, setFilters, clearFilters, loadedWindowKey }: UseOrderFiltersOptions) {
+export function useOrderFilters({ orders, searchResults, filters, setFilters, clearFilters, loadedWindowKey, preview = null }: UseOrderFiltersOptions) {
 
     // WF-3: saved views used to live only in localStorage, so they did not follow
     // a user to another device or browser and were lost when site data was
@@ -129,9 +144,10 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         return () => { cancelled = true; };
     }, [tenantId]);
 
-    // The rows and the window they were loaded for are deferred TOGETHER, so no
-    // render pairs one window's rows with another's coverage.
-    const snapshot = useMemo(() => ({ orders, loadedWindowKey }), [orders, loadedWindowKey]);
+    // The rows, the window they were loaded for and the preview are deferred
+    // TOGETHER, so no render pairs one window's rows with another's coverage,
+    // or shows the preview beside a list that already covers the window.
+    const snapshot = useMemo(() => ({ orders, loadedWindowKey, preview }), [orders, loadedWindowKey, preview]);
     const deferredSnapshot = useDeferredValue(snapshot);
     const deferredOrders = deferredSnapshot.orders;
     const deferredSearchResults = useDeferredValue(searchResults);
@@ -193,20 +209,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         // other predicate has already been applied, and they are conjunctive.
         const filtered = filterOrders(countView, { status: dStatus });
 
-        // Parsing `created_at` inside the comparator allocated two Date objects
-        // per comparison — on a few thousand orders that is tens of thousands of
-        // allocations for every filter change. Resolve each timestamp once.
-        const createdAtMs = new Map<string, number>();
-        for (const order of filtered) {
-            const parsed = Date.parse(order.created_at);
-            createdAtMs.set(order.id, Number.isNaN(parsed) ? 0 : parsed);
-        }
-
-        return filtered.sort((a, b) => {
-            if (a.is_pinned && !b.is_pinned) return -1;
-            if (!a.is_pinned && b.is_pinned) return 1;
-            return (createdAtMs.get(b.id) ?? 0) - (createdAtMs.get(a.id) ?? 0);
-        });
+        return sortPinnedNewestFirst(filtered);
     }, [countView, deferredSearchResults, dStatus]);
 
     // Needs Attention, each equal to the list its click opens:
@@ -226,15 +229,29 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
     const deferredLoadedKey = deferredSnapshot.loadedWindowKey;
     const countViewFacts = useMemo<CountViewFacts>(() => {
         const window = windowFromDateFilter(dDateFrom, dDateTo);
+        const covered = deferredLoadedKey === undefined || listCovers(deferredLoadedKey, windowCacheKey(window));
         return {
             // Search hits are not narrowed by status, channel or product, so no
             // count describes them. Otherwise the rows must cover the window.
-            ready: deferredSearchResults === null &&
-                (deferredLoadedKey === undefined || listCovers(deferredLoadedKey, windowCacheKey(window))),
+            ready: deferredSearchResults === null && covered,
+            covered,
             statusIsAll: !dStatus || dStatus === "all",
             windowIsAll: window === null,
         };
     }, [deferredSearchResults, deferredLoadedKey, dDateFrom, dDateTo, dStatus]);
+
+    // The head of the list fetch, through the list's own filter and sort —
+    // only while the rows do not cover the window and nothing is searched.
+    // The page drops the rows that could still move (lib/orders/list-preview.ts)
+    // and shows the rest read-only. No count is ever taken over it.
+    const deferredPreview = deferredSnapshot.preview;
+    const listPreview = useMemo<FilteredListPreview | null>(() => {
+        if (!deferredPreview || countViewFacts.covered || deferredSearchResults !== null) return null;
+        return {
+            rows: sortPinnedNewestFirst(filterOrders(deferredPreview.rows, { ...nonStatusFilters, status: dStatus })),
+            newestCutoff: deferredPreview.newestCutoff,
+        };
+    }, [deferredPreview, countViewFacts.covered, deferredSearchResults, nonStatusFilters, dStatus]);
 
     const availableCities = useMemo(() => {
         return [...new Set(deferredOrders.map((o) => o.city).filter(Boolean))] as string[];
@@ -359,6 +376,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         statusCounts,
         attentionCounts,
         countViewFacts,
+        listPreview,
         availableCities,
         availableProducts,
         availableProductsInView,

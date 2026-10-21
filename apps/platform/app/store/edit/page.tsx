@@ -185,10 +185,14 @@ export default async function StoreV2Page({
                 // Resolved here, from the same fields and helper the storefront
                 // tracker uses, so the "Order tracking messages" preview drops
                 // exactly the lines the shopper would not see. Only the number
-                // crosses to the client, not the store_config row.
+                // crosses to the client, not the store_config row. The
+                // commerce slice is the one being edited (draft, else
+                // published): its WhatsApp number is what the tracker falls
+                // back to once this config is live.
                 tracking_contact: resolveTrackerContact({
                     store_config: t.store_config,
                     contact_phone: t.contact_phone,
+                    store_config_v2: { commerce: initialConfig.commerce },
                 }),
             }}
             initialConfig={initialConfig}

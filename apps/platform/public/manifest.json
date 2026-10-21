@@ -2,7 +2,7 @@
     "name": "Schenider OMS",
     "short_name": "Schenider",
     "description": "نظام إدارة الطلبات - Order Management System",
-    "start_url": "/",
+    "start_url": "/orders",
     "display": "standalone",
     "background_color": "#0a0a0a",
     "theme_color": "#E4B5D1",

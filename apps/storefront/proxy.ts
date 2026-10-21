@@ -129,10 +129,21 @@ const TENANT_ROOT_FILES: ReadonlySet<string> = new Set([
   "/sitemap.xml",
 ]);
 
+/**
+ * The visitor's path and query as received, before any rewrite. A renamed
+ * store's old link 308s to its new slug from inside the route
+ * (route-guards requireStoreTenant), which only sees the `[tenant]` param;
+ * this header lets it keep the rest of the URL, so a shared product link
+ * lands on the same product. Always set by the proxy, so a client-sent
+ * value never survives.
+ */
+const STORE_PATH_HEADER = "x-store-path";
+
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const { slug, isCustom } = extractSlug(host);
   const url = request.nextUrl.clone();
+  const storePath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
 
   // Pass through Next internals and static files
   //
@@ -157,6 +168,7 @@ export function proxy(request: NextRequest) {
       if (tenantSlug) {
         const requestHeaders = new Headers(request.headers);
         requestHeaders.set("x-store-base", `/s/${tenantSlug}`);
+        requestHeaders.set(STORE_PATH_HEADER, storePath);
         const response = NextResponse.next({ request: { headers: requestHeaders } });
         ensureVisitorCookie(request, response);
         ensureFirstSeenCookie(request, response);
@@ -173,6 +185,7 @@ export function proxy(request: NextRequest) {
   url.pathname = `/s/${tenantKey}${url.pathname}`;
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-store-base", "");
+  requestHeaders.set(STORE_PATH_HEADER, storePath);
   const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   ensureVisitorCookie(request, response);
   ensureFirstSeenCookie(request, response);

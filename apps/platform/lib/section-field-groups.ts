@@ -223,6 +223,9 @@ const SIMPLE_OVERRIDES: Record<string, SimpleOverride> = {
     // Raw markup is the one essential-bucket field a first-week merchant
     // should NOT meet — Advanced only (UX2-16).
     html_embed: { hide: ["html"] },
+    // "Scribble color" is a designer whim, not a week-one decision — the
+    // seeded default is fine; Advanced can still tune it (S3-08).
+    product_grid: { hide: ["scribble_color"] },
 };
 
 /*

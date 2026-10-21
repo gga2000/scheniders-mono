@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useLanguage } from "@/components/providers/language-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -27,8 +26,9 @@ import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useServerOrderSearch } from "@/hooks/use-server-order-search";
+import { useProductNameSearch } from "@/hooks/use-product-name-search";
 import { useStatusLabel } from "@/hooks/use-status-label";
-import { foldDigits } from "@/lib/order-server-search";
+import { foldDigits, MAX_SEARCH_RESULTS } from "@/lib/order-server-search";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
@@ -64,9 +64,6 @@ interface SearchResult {
 
 export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
     const router = useRouter();
-    // Customers and products are still derived from the loaded window; orders
-    // come from the server (below), across every date and status.
-    const { orders } = useOrdersContext();
     const { t } = useLanguage();
     const statusLabel = useStatusLabel();
     const [query, setQuery] = useState("");
@@ -82,12 +79,28 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
         { id: "products" as const, label: t("nav.products"), icon: ShoppingBag },
     ];
 
-    // Orders: a server lookup over the whole book. This used to filter only the
-    // rows the orders page had loaded for its date window (one day by default)
-    // and compared phones raw, so 07… never found an order stored as +9647….
+    // Everything here comes from the server. The top bar is rendered by the root
+    // layout, above the routes that mount the order book, so there is no loaded
+    // window to read — and the window was one day by default, so a customer who
+    // last ordered yesterday was not found.
+    //
+    // Orders: a server lookup over the whole book, every date and status.
+    // Customers: the people on those same matches. With "All" the order rows
+    // come first and fill the list once there are MAX_RESULTS of them, so the
+    // first MAX_RESULTS matches hold every customer that can still show; the
+    // Customers tab looks wider so one customer's many orders do not crowd out
+    // the rest.
     const debouncedQuery = useDebounce(query, 250);
     const searchOrders = category === "all" || category === "orders";
-    const orderSearch = useServerOrderSearch(searchOrders ? debouncedQuery : "", { limit: MAX_RESULTS });
+    const searchCustomers = category === "all" || category === "customers";
+    const searchProducts = category === "all" || category === "products";
+    const orderSearch = useServerOrderSearch(
+        searchOrders || searchCustomers ? debouncedQuery : "",
+        { limit: category === "customers" ? MAX_SEARCH_RESULTS : MAX_RESULTS },
+    );
+    // Products: the catalogue by name, which is what the products page the
+    // result links to searches.
+    const productSearch = useProductNameSearch(searchProducts ? debouncedQuery : "", MAX_RESULTS);
 
     const results = useMemo<SearchResult[]>(() => {
         if (!query.trim()) return [];
@@ -113,18 +126,21 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
             }
         }
 
-        // Customers (unique by phone)
-        if (category === "all" || category === "customers") {
+        // Customers (unique by phone), from the matched orders. An order can
+        // match on its number alone; its customer is only listed when the name
+        // or phone is what matched, as before.
+        if (searchCustomers) {
+            const matches = orderSearch.orders;
             const seenPhones = new Set<string>();
-            orders.forEach((order) => {
+            matches.forEach((order) => {
                 if (seenPhones.has(order.phone)) return;
 
                 const matchesPhone = phoneQuery.length >= 4 && normalizePhoneForSearch(order.phone).includes(phoneQuery);
-                const matchesName = order.customer_name.toLowerCase().includes(lowerQuery);
+                const matchesName = (order.customer_name ?? "").toLowerCase().includes(lowerQuery);
 
                 if (matchesPhone || matchesName) {
                     seenPhones.add(order.phone);
-                    const customerOrders = orders.filter((o) => o.phone === order.phone);
+                    const customerOrders = matches.filter((o) => o.phone === order.phone);
                     searchResults.push({
                         type: "customer",
                         id: order.phone,
@@ -137,30 +153,26 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
             });
         }
 
-        // Products
-        if (category === "all" || category === "products") {
+        // Products. The previous term's matches are held while the next loads;
+        // only those that still match the text on screen are shown.
+        if (searchProducts) {
             const seenProducts = new Set<string>();
-            orders.forEach((order) => {
-                order.items?.forEach((item) => {
-                    const key = item.name.toLowerCase();
-                    if (seenProducts.has(key)) return;
-
-                    if (item.name.toLowerCase().includes(lowerQuery)) {
-                        seenProducts.add(key);
-                        searchResults.push({
-                            type: "product",
-                            id: key,
-                            title: item.name,
-                            subtitle: formatIQD(item.price),
-                            href: `/products?search=${encodeURIComponent(item.name)}`,
-                        });
-                    }
+            for (const product of productSearch.products) {
+                const key = product.name.toLowerCase();
+                if (seenProducts.has(key) || !key.includes(lowerQuery)) continue;
+                seenProducts.add(key);
+                searchResults.push({
+                    type: "product",
+                    id: product.id,
+                    title: product.name,
+                    subtitle: formatIQD(product.price),
+                    href: `/products?search=${encodeURIComponent(product.name)}`,
                 });
-            });
+            }
         }
 
         return searchResults.slice(0, MAX_RESULTS);
-    }, [query, category, orders, searchOrders, orderSearch.orders]);
+    }, [query, searchOrders, searchCustomers, searchProducts, orderSearch.orders, productSearch.products]);
 
     // Close on click outside
     useEffect(() => {
@@ -333,7 +345,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                             <div className="py-8 text-center">
                                 <p className="text-rose-600 text-sm">{orderSearch.error.message}</p>
                             </div>
-                        ) : orderSearch.pending || query !== debouncedQuery ? (
+                        ) : orderSearch.pending || productSearch.pending || query !== debouncedQuery ? (
                             <div className="py-8 text-center" aria-busy="true">
                                 <Loader2 className="w-6 h-6 text-muted mx-auto mb-2 animate-spin" />
                             </div>

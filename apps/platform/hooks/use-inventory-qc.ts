@@ -15,13 +15,21 @@ export const qcKeys = {
     events: (id: string) => [...qcKeys.all, "events", id] as const,
 };
 
+/**
+ * The order fields a quarantine row shows. Named, never `orders(*)`: PostgREST
+ * expands an embedded `*` into a full read of `public.orders`, which migration
+ * 20261021090000 refuses with 42501 once the margin columns leave
+ * `authenticated`'s grant (orders-select-guard.test.ts).
+ */
+const QC_ORDER_COLUMNS = "id, order_id, customer_name, phone, status, created_at, tenant_id";
+
 async function fetchQCItems(): Promise<QCItem[]> {
     const { data, error } = await supabase
         .from("qc_quarantine")
         .select(`
             *,
             product:products(*),
-            order:orders(*)
+            order:orders(${QC_ORDER_COLUMNS})
         `)
         .order("created_at", { ascending: false });
 
@@ -60,7 +68,7 @@ export function useInventoryQC() {
 
     // ─── Realtime: new items slide in, toast fires ────────────────────────
     // The INSERT payload only contains columns from `qc_quarantine` — it
-    // won't include the `product:products(*)` / `order:orders(*)` joins the
+    // won't include the `product` / `order` joins the
     // list query selects. We therefore do a lightweight refetch of the list
     // to hydrate relations rather than trying to merge the raw row.
     useEffect(() => {

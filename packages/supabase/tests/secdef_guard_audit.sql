@@ -25,9 +25,10 @@
 
 WITH allowlist(fn, reason) AS (
     VALUES
-        -- Storefront order tracking: needs the exact order number AND the
-        -- phone's last 10 digits; returns status/stage/name/governorate only.
-        ('lookup_order(uuid,text,text)', 'public order tracking, matched on order number + phone'),
+        -- lookup_order is not listed: since 20261021090300 only service_role
+        -- executes it (the rate-limited storefront routes). Granted back to an
+        -- API role it is a limiter-free (phone, order number) oracle, and this
+        -- audit should say so.
         -- Membership helpers ARE the caller check.
         ('get_user_tenant_ids()', 'membership source'),
         ('is_tenant_admin(uuid)', 'reads auth.uid()'),

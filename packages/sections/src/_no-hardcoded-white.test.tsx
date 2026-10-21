@@ -56,24 +56,6 @@ const RULES: Record<Rule, { pattern: RegExp; fix: string }> = {
 };
 
 /**
- * RATCHET — not an allowlist.
- *
- * These four PDP files are being rewritten on another branch
- * (feat/pdp-entry-atelier) and are deliberately left untouched here so the
- * two changes do not collide. Each listed rule is pinned to the EXACT number
- * of hits the file has today: adding a white fails (the count is a ceiling,
- * not an exemption), and removing one fails too, so the number must be
- * lowered in the same change. At 0 the rule's entry is deleted, and with
- * no rules left the file's entry is deleted. Nothing may be added.
- */
-const PENDING_PDP_FILES: Record<string, Partial<Record<Rule, number>>> = {
-  "pdp_add_to_cart.client.tsx": { "bg-white": 2 },
-  "pdp_buy_box.client.tsx": { "bg-white": 1, "white-literal": 1 },
-  "pdp_direct_order.client.tsx": { "bg-white": 2 },
-  "pdp_variants.client.tsx": { "bg-white": 1, "white-literal": 1 },
-};
-
-/**
  * The legitimate whites: hero copy over a photo or video, sitting on a FIXED
  * black scrim drawn beneath it (not a brand colour, so neither is the text
  * on it — on a dark kit the scrim is still black). Each entry is pinned to
@@ -115,10 +97,7 @@ describe("sections carry no hardcoded white", () => {
   it("scans the whole section library", () => {
     // Guards the scan itself: a broken walk would pass every rule vacuously.
     expect(FILES.length).toBeGreaterThan(100);
-    for (const name of [
-      ...Object.keys(PENDING_PDP_FILES),
-      ...Object.keys(SCRIM_FOREGROUNDS),
-    ]) {
+    for (const name of Object.keys(SCRIM_FOREGROUNDS)) {
       expect(
         FILES.some((f) => f.rel === name),
         `${name} is listed here but no longer exists — delete its entry`,
@@ -130,29 +109,12 @@ describe("sections carry no hardcoded white", () => {
     Rule,
     (typeof RULES)[Rule],
   ][]) {
-    it(`no ${rule} outside the pending PDP files (${fix})`, () => {
+    it(`no ${rule} anywhere in the library (${fix})`, () => {
       const offenders = FILES.filter(
-        ({ rel }) =>
-          PENDING_PDP_FILES[rel]?.[rule] === undefined &&
-          SCRIM_FOREGROUNDS[rel]?.rule !== rule,
+        ({ rel }) => SCRIM_FOREGROUNDS[rel]?.rule !== rule,
       ).flatMap(({ rel, src }) => hits(rel, src, pattern));
       expect(offenders).toEqual([]);
     });
-  }
-
-  for (const [file, counts] of Object.entries(PENDING_PDP_FILES)) {
-    for (const [rule, count] of Object.entries(counts) as [Rule, number][]) {
-      it(`ratchet: ${file} has exactly ${count} ${rule} — lower the count as they are fixed`, () => {
-        const entry = FILES.find((f) => f.rel === file);
-        const found = entry ? hits(file, entry.src, RULES[rule].pattern) : [];
-        expect(
-          found,
-          found.length > count
-            ? `${file} gained a ${rule}: use the brand-kit token instead — the ratchet only goes down`
-            : `${file} lost a ${rule}: lower its PENDING_PDP_FILES count to ${found.length} (delete the entry at 0)`,
-        ).toHaveLength(count);
-      });
-    }
   }
 
   for (const [file, { rule, count, scrim }] of Object.entries(SCRIM_FOREGROUNDS)) {
@@ -181,6 +143,14 @@ describe("shared primitives resolve their surfaces through the brand kit", () =>
     expect(html).toContain("bg-bk-ink text-bk-surface");
     expect(html).toContain("color:var(--bk-surface, #ffffff)");
     expect(html).not.toMatch(/text-white|color:#fff/i);
+  });
+
+  it("an accent fill takes its on-accent foreground, not ink", () => {
+    // Chrome Night's accent and ink are the same #eceef1, so ink on an
+    // accent sticker was 1:1.
+    const html = renderToStaticMarkup(<Sticker bg="butter">x</Sticker>);
+    expect(html).toContain("bg-bk-accent text-bk-on-accent");
+    expect(html).toContain("color:var(--bk-on-accent, #1a1a1a)");
   });
 
   it("a primary fill takes its on-primary foreground", () => {

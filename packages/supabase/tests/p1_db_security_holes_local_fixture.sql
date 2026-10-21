@@ -165,12 +165,14 @@ CREATE TABLE public.role_permissions (
     role varchar NOT NULL,
     permission varchar NOT NULL
 );
+-- Per-tenant overrides since 20261021223954.
 CREATE TABLE public.user_permissions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL,
     user_id uuid NOT NULL,
     permission text NOT NULL,
     is_granted boolean NOT NULL DEFAULT true,
-    CONSTRAINT user_permissions_user_id_permission_key UNIQUE (user_id, permission)
+    CONSTRAINT user_permissions_tenant_user_permission_key UNIQUE (tenant_id, user_id, permission)
 );
 
 CREATE TABLE public.store_config_versions (
@@ -376,7 +378,8 @@ AS $$
             ELSE COALESCE(
                 (SELECT o.is_granted
                    FROM public.user_permissions o
-                  WHERE o.user_id = tm.user_id
+                  WHERE o.tenant_id = tm.tenant_id
+                    AND o.user_id = tm.user_id
                     AND o.permission = p_permission),
                 EXISTS (
                     SELECT 1
@@ -445,10 +448,17 @@ ALTER TABLE public.performance_bonuses ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_select ON public.performance_bonuses FOR SELECT USING (
     (tenant_id IN (SELECT get_user_tenant_ids())) AND (is_tenant_admin(tenant_id)
         OR has_tenant_permission(tenant_id, 'system.financials.view'::text) OR (employee_id = (SELECT auth.uid()))));
-CREATE POLICY tenant_isolation_insert ON public.performance_bonuses FOR INSERT WITH CHECK (tenant_id IN (SELECT get_user_tenant_ids()));
+CREATE POLICY tenant_isolation_insert ON public.performance_bonuses FOR INSERT WITH CHECK (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND (is_tenant_admin(tenant_id)
+        OR has_tenant_permission(tenant_id, 'system.financials.view'::text)));
 CREATE POLICY tenant_isolation_update ON public.performance_bonuses FOR UPDATE
-    USING (tenant_id IN (SELECT get_user_tenant_ids())) WITH CHECK (tenant_id IN (SELECT get_user_tenant_ids()));
-CREATE POLICY tenant_isolation_delete ON public.performance_bonuses FOR DELETE USING (tenant_id IN (SELECT get_user_tenant_ids()));
+    USING ((tenant_id IN (SELECT get_user_tenant_ids())) AND (is_tenant_admin(tenant_id)
+        OR has_tenant_permission(tenant_id, 'system.financials.view'::text)))
+    WITH CHECK ((tenant_id IN (SELECT get_user_tenant_ids())) AND (is_tenant_admin(tenant_id)
+        OR has_tenant_permission(tenant_id, 'system.financials.view'::text)));
+CREATE POLICY tenant_isolation_delete ON public.performance_bonuses FOR DELETE USING (
+    (tenant_id IN (SELECT get_user_tenant_ids())) AND (is_tenant_admin(tenant_id)
+        OR has_tenant_permission(tenant_id, 'system.financials.view'::text)));
 
 ALTER TABLE public.payroll_records ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_select ON public.payroll_records FOR SELECT USING (
@@ -528,6 +538,7 @@ CREATE POLICY "Tenant members can upload assets" ON storage.objects FOR INSERT T
 --   tenant B: admin B1
 --   O1: signed-up user in no tenant
 --   X1: inactive member of tenant A
+--   F1: employee of tenant A with a system.financials.view override there
 INSERT INTO auth.users (id, email) VALUES
     ('a0000000-0000-0000-0000-0000000000a1', 'a1@example.test'),
     ('a0000000-0000-0000-0000-0000000000a2', 'm1@example.test'),
@@ -535,6 +546,7 @@ INSERT INTO auth.users (id, email) VALUES
     ('c0000000-0000-0000-0000-0000000000c1', 'o1@example.test'),
     ('a0000000-0000-0000-0000-0000000000a3', 'x1@example.test'),
     ('a0000000-0000-0000-0000-0000000000a4', 'v1@example.test'),
+    ('a0000000-0000-0000-0000-0000000000a5', 'f1@example.test'),
     ('d0000000-0000-0000-0000-0000000000d1', 'sa@example.test');
 INSERT INTO public.tenants (id, business_name, slug, plan, status, store_config_v2) VALUES
     ('aaaaaaaa-0000-0000-0000-000000000001', 'Tenant A', 'tenant-a', 'starter', 'trial', '{"schema_version":2,"pages":{}}'),
@@ -546,14 +558,21 @@ INSERT INTO public.user_profiles (id, email, role, is_active) VALUES
     ('c0000000-0000-0000-0000-0000000000c1', 'o1@example.test', 'admin', true),
     ('a0000000-0000-0000-0000-0000000000a3', 'x1@example.test', 'employee', false),
     ('a0000000-0000-0000-0000-0000000000a4', 'v1@example.test', 'viewer', true),
+    ('a0000000-0000-0000-0000-0000000000a5', 'f1@example.test', 'employee', true),
     ('d0000000-0000-0000-0000-0000000000d1', 'sa@example.test', 'super_admin', true);
 INSERT INTO public.tenant_members (tenant_id, user_id, role, status) VALUES
     ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a1', 'admin', 'active'),
     ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a2', 'employee', 'active'),
     ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a3', 'employee', 'active'),
     ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a4', 'viewer', 'active'),
+    ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a5', 'employee', 'active'),
     ('aaaaaaaa-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-0000000000d1', 'admin', 'active'),
     ('bbbbbbbb-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-0000000000b1', 'admin', 'active');
+-- F1: employee granted system.financials.view in tenant A by override; M1's
+-- override for tenant B must not reach tenant A.
+INSERT INTO public.user_permissions (tenant_id, user_id, permission, is_granted) VALUES
+    ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a5', 'system.financials.view', true),
+    ('bbbbbbbb-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-0000000000a2', 'system.financials.view', true);
 INSERT INTO public.role_permissions (role, permission) VALUES
     ('admin', 'system.financials.view'), ('admin', 'orders.view'),
     ('employee', 'orders.view'), ('viewer', 'orders.view');

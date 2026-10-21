@@ -1,5 +1,6 @@
 import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
 import { isAdminRole, isPlatformAdminRole } from "@/lib/permissions";
+import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 
 /**
  * Authorization for Server Actions that operate on a named tenant.
@@ -108,43 +109,31 @@ export async function requirePlatformAdmin(accessToken: string | undefined): Pro
     return caller;
 }
 
+export type TenantAuthResult =
+    | { ok: true; userId: string; tenantId: string }
+    | { ok: false; error: string };
+
 /**
- * The caller administers a tenant that `targetUserId` is an active member of —
- * or is a platform admin. For per-user settings such as permission overrides,
- * where the arguments name a user rather than a tenant.
+ * The caller administers their active tenant — or is a platform admin acting
+ * in it — and `targetUserId` is an active member of that tenant. For per-user
+ * settings such as permission overrides, which are scoped to one tenant: the
+ * tenant is the caller's server-verified active tenant (`resolveActiveTenant`),
+ * never one named by the client, and it is returned so the write uses it.
  */
 export async function requireAdminOverUser(
     accessToken: string | undefined,
     targetUserId: string | null | undefined,
-): Promise<AuthResult> {
+): Promise<TenantAuthResult> {
     const caller = await requireVerifiedCaller(accessToken);
     if (!caller.ok) return caller;
     if (!targetUserId) return { ok: false, error: "No user specified." };
 
-    if (await isPlatformAdmin(caller.userId)) return caller;
+    const active = await resolveActiveTenant(caller.userId);
+    if (!active.ok) return { ok: false, error: active.error };
+    if (!isAdminRole(active.role)) return { ok: false, error: "This action requires an administrator." };
 
-    const supabase = createSupabaseServiceClient();
-    const { data: callerMemberships } = await supabase
-        .from("tenant_members")
-        .select("tenant_id, role")
-        .eq("user_id", caller.userId)
-        .eq("status", "active");
-    const adminTenantIds = ((callerMemberships ?? []) as { tenant_id: string; role: string }[])
-        .filter((m) => isAdminRole(m.role))
-        .map((m) => m.tenant_id);
-    if (adminTenantIds.length === 0) {
-        return { ok: false, error: "This action requires an administrator." };
-    }
-
-    const { data: shared } = await supabase
-        .from("tenant_members")
-        .select("tenant_id")
-        .eq("user_id", targetUserId)
-        .eq("status", "active")
-        .in("tenant_id", adminTenantIds)
-        .limit(1);
-    if (!shared || (shared as unknown[]).length === 0) {
+    if (!(await tenantRole(targetUserId, active.tenantId))) {
         return { ok: false, error: "That user is not a member of your account." };
     }
-    return caller;
+    return { ok: true, userId: caller.userId, tenantId: active.tenantId };
 }

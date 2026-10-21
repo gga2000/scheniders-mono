@@ -140,7 +140,7 @@ function TestimonialsCarousel({
                     className="w-12 h-12 rounded-full border-bk border-bk-ink object-cover"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-full border-bk border-bk-ink bg-bk-accent flex items-center justify-center font-display font-black text-lg">
+                  <div className="w-12 h-12 rounded-full border-bk border-bk-ink bg-bk-accent text-bk-on-accent flex items-center justify-center font-display font-black text-lg">
                     {item.author_name.charAt(0)}
                   </div>
                 )}

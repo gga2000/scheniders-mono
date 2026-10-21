@@ -9,7 +9,8 @@
 --   NEW-P1-04  product-images and qc-evidence storage write policies
 --   F-24       tenant-assets MIME list
 --   NEW-P1-09  user_profiles.is_active self-update; set_team_member_active
---   NEW-P1-16  performance_bonuses admin-only writes
+--   NEW-P1-16  performance_bonuses writes: tenant admin or system.financials.view
+--              (same rule as 20261021223954 on main, which is live)
 --   NEW-P1-18  default EXECUTE on new public functions
 --   PAYROLL-PDF payroll-pdfs bucket trusted the global user_profiles.role
 --
@@ -265,6 +266,8 @@ SELECT pg_temp.p1_check('NEW-P1-16', 'LEGIT employee reads bonuses', 'authentica
     $$SELECT 1 FROM public.performance_bonuses$$, 'allow');
 SELECT pg_temp.p1_check('NEW-P1-16', 'LEGIT admin adds a bonus', 'authenticated', 'a0000000-0000-0000-0000-0000000000a1',
     $$INSERT INTO public.performance_bonuses (employee_id, amount, tenant_id) VALUES ('a0000000-0000-0000-0000-0000000000a2', 1000, 'aaaaaaaa-0000-0000-0000-000000000001')$$, 'allow');
+SELECT pg_temp.p1_check('NEW-P1-16', 'LEGIT employee with financials.view override adds a bonus', 'authenticated', 'a0000000-0000-0000-0000-0000000000a5',
+    $$INSERT INTO public.performance_bonuses (employee_id, amount, tenant_id) VALUES ('a0000000-0000-0000-0000-0000000000a2', 1000, 'aaaaaaaa-0000-0000-0000-000000000001')$$, 'allow');
 SELECT pg_temp.p1_check('NEW-P1-16', 'LEGIT admin marks a bonus applied', 'authenticated', 'a0000000-0000-0000-0000-0000000000a1',
     $$UPDATE public.performance_bonuses SET is_applied = true$$, 'allow');
 
@@ -311,11 +314,12 @@ SELECT pg_temp.p1_check('ROLE-MODEL', 'LEGIT employee reads own payroll record',
     $$SELECT 1 FROM public.payroll_records$$, 'allow');
 SELECT pg_temp.p1_check('ROLE-MODEL', 'LEGIT admin reads the wallet', 'authenticated', 'a0000000-0000-0000-0000-0000000000a1',
     $$SELECT 1 FROM public.wallet$$, 'allow');
-INSERT INTO public.user_permissions (user_id, permission, is_granted)
-VALUES ('a0000000-0000-0000-0000-0000000000a2', 'system.financials.view', true);
+INSERT INTO public.user_permissions (tenant_id, user_id, permission, is_granted)
+VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-0000000000a2', 'system.financials.view', true);
 SELECT pg_temp.p1_check('ROLE-MODEL', 'LEGIT employee with a financials override reads the wallet', 'authenticated', 'a0000000-0000-0000-0000-0000000000a2',
     $$SELECT 1 FROM public.wallet$$, 'allow');
-DELETE FROM public.user_permissions WHERE user_id = 'a0000000-0000-0000-0000-0000000000a2';
+DELETE FROM public.user_permissions
+ WHERE tenant_id = 'aaaaaaaa-0000-0000-0000-000000000001' AND user_id = 'a0000000-0000-0000-0000-0000000000a2';
 SELECT pg_temp.p1_check('ROLE-MODEL', 'viewer cannot set is_active of a teammate', 'authenticated', 'a0000000-0000-0000-0000-0000000000a4',
     $$SELECT public.set_team_member_active('a0000000-0000-0000-0000-0000000000a2', false)$$, 'deny');
 

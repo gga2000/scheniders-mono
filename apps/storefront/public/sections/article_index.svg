@@ -28,5 +28,4 @@
     <rect x="10" y="90" width="56" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
     <rect x="10" y="102" width="64" height="6" rx="3" fill="#1a1a1a" opacity="0.6"/>
   </g>
-  <text x="160" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#1a1a1a" opacity="0.5">article_index</text>
 </svg>

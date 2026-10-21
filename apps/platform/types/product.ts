@@ -80,6 +80,7 @@ export interface Product {
 export type {
     Category,
     CategoryStatus,
+    CategoryScope,
     NavVariant,
     CategoryPageConfig,
     CategoryPageBlock,
@@ -198,7 +199,8 @@ export interface QCItem {
     tenant_id?: string | null;
     // Joined fields
     product?: Product;
-    order?: Order;
+    /** The columns use-inventory-qc.ts embeds (QC_ORDER_COLUMNS). */
+    order?: Pick<Order, 'id' | 'order_id' | 'customer_name' | 'phone' | 'status' | 'created_at' | 'tenant_id'>;
 }
 
 export interface QCEvent {
