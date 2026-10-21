@@ -6,6 +6,7 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 import {
+    ACCOUNT_CHECK_FAILED,
     requireAdminOverUser,
     requirePlatformAdmin,
     requireTenantAdminFor,
@@ -20,9 +21,15 @@ type Row = Record<string, unknown>;
  * `eq`/`in` filters and resolves against the rows, so a test states the data
  * and the guard runs its real queries over it.
  */
+/** Tables named here answer every read with an error; `reads` counts from() per table. */
+let failing: string[] = [];
+let reads: Record<string, number> = {};
+
 function fakeClient(tables: Record<string, Row[]>) {
     return {
         from(table: string) {
+            reads[table] = (reads[table] ?? 0) + 1;
+            const err = failing.includes(table) ? { message: "boom" } : null;
             const filters: ((row: Row) => boolean)[] = [];
             let cap = Infinity;
             const rows = () => (tables[table] ?? []).filter((r) => filters.every((f) => f(r))).slice(0, cap);
@@ -40,9 +47,10 @@ function fakeClient(tables: Record<string, Row[]>) {
                     cap = n;
                     return chain;
                 },
-                maybeSingle: () => Promise.resolve({ data: rows()[0] ?? null, error: null }),
-                then: (resolve: (v: { data: Row[]; error: null }) => unknown) =>
-                    Promise.resolve({ data: rows(), error: null }).then(resolve),
+                maybeSingle: () =>
+                    Promise.resolve(err ? { data: null, error: err } : { data: rows()[0] ?? null, error: null }),
+                then: (resolve: (v: { data: Row[] | null; error: { message: string } | null }) => unknown) =>
+                    Promise.resolve(err ? { data: null, error: err } : { data: rows(), error: null }).then(resolve),
             };
             return chain;
         },
@@ -83,6 +91,8 @@ function callAs(userId: string) {
 }
 
 beforeEach(() => {
+    failing = [];
+    reads = {};
     vi.mocked(createSupabaseServiceClient).mockReturnValue(fakeClient(tables) as never);
 });
 
@@ -132,6 +142,43 @@ describe("deactivated profiles (F-087)", () => {
     it("keeps an admin whose is_active is NULL (coalesce(is_active, true))", async () => {
         const result = await requireTenantAdminFor(callAs("null-active-admin-a"), TENANT_A);
         expect(result).toEqual({ ok: true, userId: "null-active-admin-a" });
+    });
+});
+
+describe("one profile read, and a distinct error when a read fails", () => {
+    it("reads user_profiles once per guard call", async () => {
+        await requireTenantAdminFor(callAs("owner-a"), TENANT_A);
+        expect(reads.user_profiles).toBe(1);
+        reads = {};
+        await requirePlatformAdmin(callAs("platform"));
+        expect(reads.user_profiles).toBe(1);
+        reads = {};
+        await requireAdminOverUser(callAs("owner-a"), "staff-a");
+        expect(reads.user_profiles).toBe(1);
+    });
+
+    it("says the account could not be verified when the profile read fails", async () => {
+        failing = ["user_profiles"];
+        for (const result of [
+            await requireTenantAdminFor(callAs("owner-a"), TENANT_A),
+            await requireTenantMemberFor(callAs("owner-a"), TENANT_A),
+            await requirePlatformAdmin(callAs("platform")),
+            await requireAdminOverUser(callAs("owner-a"), "staff-a"),
+        ]) {
+            expect(result).toEqual({ ok: false, error: ACCOUNT_CHECK_FAILED });
+        }
+    });
+
+    it("says the account could not be verified when the membership read fails", async () => {
+        failing = ["tenant_members"];
+        expect(await requireTenantAdminFor(callAs("owner-a"), TENANT_A)).toEqual({
+            ok: false,
+            error: ACCOUNT_CHECK_FAILED,
+        });
+        expect(await requireAdminOverUser(callAs("owner-a"), "staff-a")).toEqual({
+            ok: false,
+            error: ACCOUNT_CHECK_FAILED,
+        });
     });
 });
 

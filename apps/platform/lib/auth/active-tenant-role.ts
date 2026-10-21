@@ -14,39 +14,38 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
  */
 
 /**
+ * The user's role from an active `tenant_members` row in `tenantId`, without
+ * the profile half of the rule. Only for callers that have already read the
+ * user's profile and know it exists and is active (require-action-caller).
+ * `ok: false` means the read failed, as distinct from "not a member".
+ */
+export async function activeMembershipRole(
+    userId: string,
+    tenantId: string,
+): Promise<{ ok: true; role: string | null } | { ok: false }> {
+    const supabase = createSupabaseServiceClient();
+    const { data, error } = await supabase
+        .from("tenant_members")
+        .select("role")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .maybeSingle();
+    if (error) return { ok: false };
+    return { ok: true, role: data?.role ?? null };
+}
+
+/**
  * The user's role in `tenantId` when both their membership and their profile
- * are active, otherwise null.
+ * are active, otherwise null (a failed read also gives null: fail closed).
  */
 export async function activeTenantRole(userId: string, tenantId: string): Promise<string | null> {
     const supabase = createSupabaseServiceClient();
     const [membership, profile] = await Promise.all([
-        supabase
-            .from("tenant_members")
-            .select("role")
-            .eq("tenant_id", tenantId)
-            .eq("user_id", userId)
-            .eq("status", "active")
-            .maybeSingle(),
+        activeMembershipRole(userId, tenantId),
         supabase.from("user_profiles").select("is_active").eq("id", userId).maybeSingle(),
     ]);
-    if (membership.error || profile.error) return null;
-    if (!membership.data || !profile.data) return null;
+    if (!membership.ok || profile.error || !profile.data) return null;
     if (profile.data.is_active === false) return null;
-    return membership.data.role;
-}
-
-/**
- * True when the user's profile has been deactivated, or cannot be read (fail
- * closed). A user without a profile row is not "deactivated": they simply hold
- * no tenant role, which `activeTenantRole` already refuses.
- */
-export async function isProfileDeactivated(userId: string): Promise<boolean> {
-    const supabase = createSupabaseServiceClient();
-    const { data, error } = await supabase
-        .from("user_profiles")
-        .select("is_active")
-        .eq("id", userId)
-        .maybeSingle();
-    if (error) return true;
-    return data?.is_active === false;
+    return membership.role;
 }
