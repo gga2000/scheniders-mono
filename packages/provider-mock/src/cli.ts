@@ -3,12 +3,14 @@
  * load test): `pnpm --filter @scheniders/provider-mock start`.
  *
  * Env:
- *   PROVIDER_MOCK_PORT (default 4010), PROVIDER_MOCK_HOST (default 127.0.0.1)
+ *   PROVIDER_MOCK_PORT (default 4010), PROVIDER_MOCK_HOST (default 127.0.0.1;
+ *     a non-loopback host needs PROVIDER_MOCK_ALLOW_NON_LOOPBACK=1)
  *   QSTASH_CURRENT_SIGNING_KEY / QSTASH_NEXT_SIGNING_KEY — test keys; when both
  *     are set, QStash publishes are delivered back signed with them
  *   PROVIDER_MOCK_QSTASH_DELAY_SCALE — multiplier for Upstash-Delay (default 1)
  */
 
+import { resolveHost } from "./host";
 import { startProviderMock } from "./server";
 
 function numberFromEnv(name: string, fallback: number): number {
@@ -26,7 +28,7 @@ async function main(): Promise<void> {
     const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
     const mock = await startProviderMock({
         port: numberFromEnv("PROVIDER_MOCK_PORT", 4010),
-        host: process.env.PROVIDER_MOCK_HOST || "127.0.0.1",
+        host: resolveHost(process.env),
         qstash:
             currentSigningKey && nextSigningKey
                 ? {

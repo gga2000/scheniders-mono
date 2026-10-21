@@ -1,10 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { isProductionDeployment, parseProviderBaseUrls } from "./provider-base-url";
+import { z } from "zod";
+import {
+    isProductionDeployment,
+    parseProviderBaseUrls as parseWith,
+    providerBaseUrlSchema,
+    type RawEnv,
+} from "./provider-base-url";
 
 const SPEC = {
     INTERAKT_API_BASE_URL: "https://api.interakt.ai",
     QSTASH_URL: "https://qstash-us-east-1.upstash.io/",
 } as const;
+
+function parseProviderBaseUrls(spec: typeof SPEC, env: RawEnv) {
+    return parseWith(env, (production) =>
+        z.object({
+            INTERAKT_API_BASE_URL: providerBaseUrlSchema(spec.INTERAKT_API_BASE_URL, production),
+            QSTASH_URL: providerBaseUrlSchema(spec.QSTASH_URL, production),
+        }),
+    );
+}
 
 describe("parseProviderBaseUrls", () => {
     it("defaults to the real host when unset or blank (trailing slash dropped)", () => {

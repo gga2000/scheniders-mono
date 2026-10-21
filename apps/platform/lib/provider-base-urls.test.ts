@@ -89,9 +89,9 @@ describe("platform provider clients reach the host from env (against the provide
         const file = await telegram.downloadFile("file-1");
         expect(file.mimeType).toBe("image/png");
         expect(paths()).toEqual([
-            "telegram POST /bottest-bot-token/sendMessage",
-            "telegram POST /bottest-bot-token/getFile",
-            "telegram GET /file/bottest-bot-token/photos/mock.png",
+            "telegram POST /bot<redacted>/sendMessage",
+            "telegram POST /bot<redacted>/getFile",
+            "telegram GET /file/bot<redacted>/photos/mock.png",
         ]);
     });
 

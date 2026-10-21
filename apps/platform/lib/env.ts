@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseProviderBaseUrls, type RawEnv } from "@scheniders/shared/provider-base-url";
+import { parseProviderBaseUrls, providerBaseUrlSchema, type RawEnv } from "@scheniders/shared/provider-base-url";
 
 /**
  * Environment Variable Validation
@@ -158,7 +158,18 @@ export const PLATFORM_PROVIDER_DEFAULTS = {
 } as const;
 
 export function parsePlatformProviderBaseUrls(raw: RawEnv) {
-    return parseProviderBaseUrls(PLATFORM_PROVIDER_DEFAULTS, raw);
+    const d = PLATFORM_PROVIDER_DEFAULTS;
+    return parseProviderBaseUrls(raw, (production) =>
+        z.object({
+            INTERAKT_API_BASE_URL: providerBaseUrlSchema(d.INTERAKT_API_BASE_URL, production),
+            QSTASH_URL: providerBaseUrlSchema(d.QSTASH_URL, production),
+            LIGHTFUNNELS_API_BASE_URL: providerBaseUrlSchema(d.LIGHTFUNNELS_API_BASE_URL, production),
+            TELEGRAM_API_BASE_URL: providerBaseUrlSchema(d.TELEGRAM_API_BASE_URL, production),
+            WASEET_API_BASE_URL: providerBaseUrlSchema(d.WASEET_API_BASE_URL, production),
+            GEMINI_API_BASE_URL: providerBaseUrlSchema(d.GEMINI_API_BASE_URL, production),
+            ANTHROPIC_API_BASE_URL: providerBaseUrlSchema(d.ANTHROPIC_API_BASE_URL, production),
+        }),
+    );
 }
 
 /**

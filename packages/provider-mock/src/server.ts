@@ -8,7 +8,9 @@
  *
  * Every provider call is recorded as { provider, method, path, bodySha256 }
  * (the query string is left out: it can carry tokens such as Meta's
- * `access_token`). Read them with `mock.calls()` or `GET /__mock/calls`.
+ * `access_token`; token path segments such as Telegram's `/bot<token>/` are
+ * redacted; QStash delivery records keep the destination without its query).
+ * Read them with `mock.calls()` or `GET /__mock/calls`.
  *
  * QStash publishes are delivered back to their destination after the
  * requested delay, signed like QStash (HS256 JWT, iss "Upstash", sub = the
@@ -36,7 +38,7 @@ export type ProviderName =
 export interface RecordedCall {
     provider: ProviderName;
     method: string;
-    /** Pathname only; the query string is never recorded. */
+    /** Pathname only: never the query, and token segments (Telegram `/bot<token>/`) redacted. */
     path: string;
     /** Hex SHA-256 of the raw request body ("" hashes to e3b0…). */
     bodySha256: string;
@@ -45,6 +47,7 @@ export interface RecordedCall {
 
 export interface QStashDelivery {
     messageId: string;
+    /** Destination URL without its query string. */
     destination: string;
     /** HTTP status the destination answered, or null when the request failed. */
     status: number | null;
@@ -185,6 +188,21 @@ export function sampleFromJsonSchema(schema: unknown): JsonValue {
         default:
             return null;
     }
+}
+
+/** Drop the query string (it can carry tokens) from a path or URL. */
+export function stripQuery(value: string): string {
+    const queryAt = value.indexOf("?");
+    return queryAt === -1 ? value : value.slice(0, queryAt);
+}
+
+/**
+ * Path as recorded in the call log, with token-bearing segments replaced.
+ * Today that is Telegram's `/bot<token>/` and `/file/bot<token>/`; the
+ * caller has already stripped the query.
+ */
+export function redactPath(path: string): string {
+    return path.replace(/^(\/(?:file\/)?bot)[^/]+/, "$1<redacted>");
 }
 
 function classify(method: string, path: string): ProviderName {
@@ -358,11 +376,11 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
                 body: new Uint8Array(item.body),
             });
             await res.arrayBuffer();
-            delivered.push({ messageId: item.messageId, destination: item.destination, status: res.status, at });
+            delivered.push({ messageId: item.messageId, destination: stripQuery(item.destination), status: res.status, at });
         } catch (error) {
             delivered.push({
                 messageId: item.messageId,
-                destination: item.destination,
+                destination: stripQuery(item.destination),
                 status: null,
                 error: error instanceof Error ? error.message : String(error),
                 at,
@@ -375,9 +393,10 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
         inFlight.add(promise);
     }
 
-    function qstashResponse(req: IncomingMessage, path: string, body: Buffer): MockResponse {
-        if (!path.startsWith("/v2/publish/")) return json({});
-        const destination = decodeURIComponent(path.slice("/v2/publish/".length));
+    /** `rawUrl` keeps the destination's own query so the callback reaches it unchanged. */
+    function qstashResponse(req: IncomingMessage, rawUrl: string, body: Buffer): MockResponse {
+        if (!rawUrl.startsWith("/v2/publish/")) return json({});
+        const destination = decodeURIComponent(rawUrl.slice("/v2/publish/".length));
         const messageId = `msg_mock_${randomUUID()}`;
         if (options.qstash) {
             const scale = options.qstash.delayScale ?? 1;
@@ -442,18 +461,23 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
             // QStash puts a full destination URL in the path, so split the
             // query off by hand instead of parsing the path as a URL.
             const rawUrl = req.url ?? "/";
-            const queryAt = rawUrl.indexOf("?");
-            const path = queryAt === -1 ? rawUrl : rawUrl.slice(0, queryAt);
+            const path = stripQuery(rawUrl);
             const body = await readBody(req);
 
             if (path.startsWith("/__mock/")) return handleControl(req, res, path, body);
 
             const provider = classify(method, path);
-            recorded.push({ provider, method, path, bodySha256: sha256Hex(body), at: new Date().toISOString() });
+            recorded.push({
+                provider,
+                method,
+                path: redactPath(path),
+                bodySha256: sha256Hex(body),
+                at: new Date().toISOString(),
+            });
 
             switch (provider) {
                 case "interakt": return send(res, interaktResponse());
-                case "qstash": return send(res, qstashResponse(req, path, body));
+                case "qstash": return send(res, qstashResponse(req, rawUrl, body));
                 case "lightfunnels": return send(res, lightfunnelsResponse(body, lightfunnelsNodes));
                 case "telegram": return send(res, telegramResponse(path, body));
                 case "waseet": return send(res, waseetResponse(path));

@@ -17,8 +17,6 @@ import { z } from "zod";
  * and drill apps would refuse their mock URLs and fail to boot.
  */
 
-export type ProviderBaseUrlSpec = Readonly<Record<string, string>>;
-
 export type RawEnv = Readonly<Record<string, string | undefined>>;
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -75,27 +73,21 @@ export function providerBaseUrlSchema(defaultUrl: string, production: boolean) {
 }
 
 /**
- * Validate every provider base URL in `spec` (env var name → real host) and
- * return them by env var name. Throws one error listing every bad variable.
+ * Validate an app's provider base URLs. `buildSchema` gets whether this is a
+ * Production deployment and returns a `z.object` of `providerBaseUrlSchema`
+ * fields keyed by env var name; the parsed, typed object is returned. Throws
+ * one error listing every bad variable.
  */
-export function parseProviderBaseUrls<S extends ProviderBaseUrlSpec>(
-    spec: S,
+export function parseProviderBaseUrls<T extends z.ZodType>(
     env: RawEnv,
-): { readonly [K in keyof S]: string } {
-    const production = isProductionDeployment(env);
-    const shape: Record<string, ReturnType<typeof providerBaseUrlSchema>> = {};
-    const input: Record<string, string | undefined> = {};
-    for (const [name, defaultUrl] of Object.entries(spec)) {
-        shape[name] = providerBaseUrlSchema(defaultUrl, production);
-        input[name] = env[name];
-    }
-
-    const result = z.object(shape).safeParse(input);
+    buildSchema: (production: boolean) => T,
+): z.output<T> {
+    const result = buildSchema(isProductionDeployment(env)).safeParse(env);
     if (!result.success) {
         const messages = result.error.issues
             .map((issue) => `  ${issue.path.join(".")}: ${issue.message}`)
             .join("\n");
         throw new Error(`Invalid provider base URL environment variables:\n${messages}`);
     }
-    return result.data as { readonly [K in keyof S]: string };
+    return result.data;
 }

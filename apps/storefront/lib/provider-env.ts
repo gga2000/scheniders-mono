@@ -1,4 +1,5 @@
-import { parseProviderBaseUrls, type RawEnv } from "@scheniders/shared/provider-base-url";
+import { z } from "zod";
+import { parseProviderBaseUrls, providerBaseUrlSchema, type RawEnv } from "@scheniders/shared/provider-base-url";
 
 /**
  * Storefront outbound provider hosts (PKG-00 approach 6a). Env var name → the
@@ -12,7 +13,13 @@ export const STOREFRONT_PROVIDER_DEFAULTS = {
 } as const;
 
 export function parseStorefrontProviderBaseUrls(raw: RawEnv) {
-  return parseProviderBaseUrls(STOREFRONT_PROVIDER_DEFAULTS, raw);
+  const d = STOREFRONT_PROVIDER_DEFAULTS;
+  return parseProviderBaseUrls(raw, (production) =>
+    z.object({
+      META_API_BASE_URL: providerBaseUrlSchema(d.META_API_BASE_URL, production),
+      TIKTOK_API_BASE_URL: providerBaseUrlSchema(d.TIKTOK_API_BASE_URL, production),
+    }),
+  );
 }
 
 /**

@@ -110,6 +110,17 @@ describe("provider mock: call log", () => {
         expect(JSON.stringify(mock.calls())).not.toContain("secret");
     });
 
+    it("redacts the Telegram bot token from recorded paths and the HTTP log", async () => {
+        await post("/bot123456:SECRET-bot-token/sendMessage", { chat_id: 1, text: "x" });
+        await fetch(`${mock.url}/file/bot123456:SECRET-bot-token/photos/mock.png`);
+        expect(mock.calls().map((c) => c.path)).toEqual([
+            "/bot<redacted>/sendMessage",
+            "/file/bot<redacted>/photos/mock.png",
+        ]);
+        const served = await (await fetch(`${mock.url}/__mock/calls`)).text();
+        expect(served).not.toContain("SECRET-bot-token");
+    });
+
     it("exposes the log over HTTP and resets it", async () => {
         await post("/v1/public/message/", {});
         const listed = (await (await fetch(`${mock.url}/__mock/calls`)).json()) as { calls: unknown[] };
@@ -122,6 +133,7 @@ describe("provider mock: call log", () => {
 describe("provider mock: QStash callbacks", () => {
     async function startReceiver() {
         const received: Array<{ verified: boolean; body: string }> = [];
+        const urls: string[] = [];
         const receiver = new Receiver(KEYS);
         const server = createServer((req: IncomingMessage, res) => {
             const chunks: Buffer[] = [];
@@ -137,6 +149,7 @@ describe("provider mock: QStash callbacks", () => {
                     )
                     .then((verified) => {
                         received.push({ verified, body });
+                        urls.push(req.url ?? "");
                         res.writeHead(verified ? 200 : 401).end();
                     });
             });
@@ -146,6 +159,7 @@ describe("provider mock: QStash callbacks", () => {
         return {
             url: `http://127.0.0.1:${port}/api/cron/process-checkouts`,
             received,
+            urls,
             close: () => new Promise<void>((resolve) => server.close(() => resolve())),
         };
     }
@@ -160,6 +174,21 @@ describe("provider mock: QStash callbacks", () => {
             await mock.flushQStash();
             expect(dest.received).toEqual([{ verified: true, body: JSON.stringify({ source: "qstash-delayed-checkout" }) }]);
             expect(mock.deliveries()).toMatchObject([{ destination: dest.url, status: 200 }]);
+        } finally {
+            await dest.close();
+        }
+    });
+
+    it("delivers to the destination with its query, but records it without", async () => {
+        const dest = await startReceiver();
+        try {
+            await post(`/v2/publish/${dest.url}?token=dest-secret`, {});
+            await mock.flushQStash();
+            expect(dest.received).toHaveLength(1);
+            expect(dest.urls).toEqual(["/api/cron/process-checkouts?token=dest-secret"]);
+            expect(mock.deliveries()).toMatchObject([{ destination: dest.url, status: 200 }]);
+            const served = await (await fetch(`${mock.url}/__mock/calls`)).text();
+            expect(served).not.toContain("dest-secret");
         } finally {
             await dest.close();
         }
