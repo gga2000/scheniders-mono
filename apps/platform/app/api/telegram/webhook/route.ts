@@ -8,6 +8,7 @@ import {
     downloadFile,
 } from "@/lib/telegram";
 import { createOrderForTenant } from "@/lib/order-service";
+import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import type { Order, OrderItem } from "@/types/order";
 import {
     matchProductReply,
@@ -482,29 +483,11 @@ async function getLink(telegramUserId: number): Promise<EmployeeLink | null> {
 
 /**
  * True only when the linked user is an active member of the tenant AND their
- * profile is active: the same rule as get_user_tenant_ids() and
- * is_tenant_admin() in the database (coalesce(user_profiles.is_active, true)).
- * A missing membership or profile, or a failed read, refuses.
+ * profile is active (activeTenantRole: the database's get_user_tenant_ids
+ * rule). A missing membership or profile, or a failed read, refuses.
  */
 async function getActiveMembership(link: EmployeeLink): Promise<boolean> {
-    const supabase = createSupabaseServiceClient();
-    const [membership, profile] = await Promise.all([
-        supabase
-            .from("tenant_members")
-            .select("status")
-            .eq("tenant_id", link.tenant_id)
-            .eq("user_id", link.user_profile_id)
-            .eq("status", "active")
-            .maybeSingle(),
-        supabase
-            .from("user_profiles")
-            .select("is_active")
-            .eq("id", link.user_profile_id)
-            .maybeSingle(),
-    ]);
-    if (membership.error || profile.error) return false;
-    if (!membership.data || !profile.data) return false;
-    return profile.data.is_active !== false;
+    return (await activeTenantRole(link.user_profile_id, link.tenant_id)) !== null;
 }
 
 async function loadProducts(tenantId: string): Promise<CatalogProduct[]> {

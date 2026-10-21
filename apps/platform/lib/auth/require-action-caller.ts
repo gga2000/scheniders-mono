@@ -1,5 +1,6 @@
 import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
 import { isAdminRole, isPlatformAdminRole } from "@/lib/permissions";
+import { activeTenantRole, isProfileDeactivated } from "@/lib/auth/active-tenant-role";
 
 /**
  * Authorization for Server Actions that operate on a named tenant.
@@ -23,11 +24,16 @@ import { isAdminRole, isPlatformAdminRole } from "@/lib/permissions";
 
 export type AuthResult = { ok: true; userId: string } | { ok: false; error: string };
 
-/** The caller, proven by their access token. */
+/**
+ * The caller, proven by their access token, whose profile is not deactivated.
+ * Deactivation revokes neither the session nor the refresh token, so a valid
+ * token alone does not mean the owner may still act (F-087).
+ */
 export async function requireVerifiedCaller(accessToken: string | undefined): Promise<AuthResult> {
     if (!accessToken) return { ok: false, error: "Unauthorized" };
     const { user, error } = await verifyAccessToken(accessToken);
     if (error || !user) return { ok: false, error: "Unauthorized" };
+    if (await isProfileDeactivated(user.id)) return { ok: false, error: "Account deactivated" };
     return { ok: true, userId: user.id };
 }
 
@@ -46,19 +52,6 @@ async function isPlatformAdmin(userId: string): Promise<boolean> {
     return isPlatformAdminRole((data as { role: string } | null)?.role);
 }
 
-/** The caller's active role in `tenantId`, or null when not a member. */
-async function tenantRole(userId: string, tenantId: string): Promise<string | null> {
-    const supabase = createSupabaseServiceClient();
-    const { data } = await supabase
-        .from("tenant_members")
-        .select("role")
-        .eq("tenant_id", tenantId)
-        .eq("user_id", userId)
-        .eq("status", "active")
-        .maybeSingle();
-    return (data as { role: string } | null)?.role ?? null;
-}
-
 /**
  * The caller administers `tenantId` — or is a platform admin.
  *
@@ -75,7 +68,7 @@ export async function requireTenantAdminFor(
 
     if (await isPlatformAdmin(caller.userId)) return caller;
 
-    const role = await tenantRole(caller.userId, tenantId);
+    const role = await activeTenantRole(caller.userId, tenantId);
     if (!role) return { ok: false, error: "You are not a member of this account." };
     if (!isAdminRole(role)) return { ok: false, error: "This action requires an administrator." };
 
@@ -92,7 +85,7 @@ export async function requireTenantMemberFor(
     if (!tenantId) return { ok: false, error: "No account specified." };
 
     if (await isPlatformAdmin(caller.userId)) return caller;
-    if (!(await tenantRole(caller.userId, tenantId))) {
+    if (!(await activeTenantRole(caller.userId, tenantId))) {
         return { ok: false, error: "You are not a member of this account." };
     }
     return caller;

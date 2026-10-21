@@ -60,6 +60,11 @@ const tables: Record<string, Row[]> = {
         { id: "platform", role: "super_admin" },
         { id: "staff-a", role: "employee" },
         { id: "staff-b", role: "employee" },
+        // F-087: an admin whose profile was deactivated keeps an 'active'
+        // membership row and a valid session.
+        { id: "deactivated-admin-a", role: "admin", is_active: false },
+        { id: "null-active-admin-a", role: "admin", is_active: null },
+        { id: "deactivated-platform", role: "super_admin", is_active: false },
     ],
     tenant_members: [
         { user_id: "signup-admin", tenant_id: "own-tenant", role: "admin", status: "active" },
@@ -67,6 +72,8 @@ const tables: Record<string, Row[]> = {
         { user_id: "staff-a", tenant_id: TENANT_A, role: "employee", status: "active" },
         { user_id: "staff-b", tenant_id: TENANT_B, role: "employee", status: "active" },
         { user_id: "platform", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "deactivated-admin-a", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "null-active-admin-a", tenant_id: TENANT_A, role: "admin", status: "active" },
     ],
 };
 
@@ -98,6 +105,33 @@ describe("requireTenantAdminFor", () => {
     it("allows a super_admin on any tenant", async () => {
         const result = await requireTenantAdminFor(callAs("platform"), TENANT_B);
         expect(result).toEqual({ ok: true, userId: "platform" });
+    });
+});
+
+describe("deactivated profiles (F-087)", () => {
+    it("requireTenantAdminFor refuses a deactivated admin of the named tenant", async () => {
+        const result = await requireTenantAdminFor(callAs("deactivated-admin-a"), TENANT_A);
+        expect(result.ok).toBe(false);
+    });
+
+    it("requireTenantMemberFor refuses a deactivated admin of the named tenant", async () => {
+        const result = await requireTenantMemberFor(callAs("deactivated-admin-a"), TENANT_A);
+        expect(result.ok).toBe(false);
+    });
+
+    it("requireAdminOverUser refuses a deactivated admin over their own staff", async () => {
+        const result = await requireAdminOverUser(callAs("deactivated-admin-a"), "staff-a");
+        expect(result.ok).toBe(false);
+    });
+
+    it("requirePlatformAdmin refuses a deactivated super_admin", async () => {
+        const result = await requirePlatformAdmin(callAs("deactivated-platform"));
+        expect(result.ok).toBe(false);
+    });
+
+    it("keeps an admin whose is_active is NULL (coalesce(is_active, true))", async () => {
+        const result = await requireTenantAdminFor(callAs("null-active-admin-a"), TENANT_A);
+        expect(result).toEqual({ ok: true, userId: "null-active-admin-a" });
     });
 });
 
