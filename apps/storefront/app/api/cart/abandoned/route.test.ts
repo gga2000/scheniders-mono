@@ -28,9 +28,9 @@ import type { Tenant } from "@/lib/types";
 // The route decides WHAT a capture is (store, phone, catalogue lines,
 // consent) and hands it to capture_abandoned_cart. What that does to an
 // existing row (keep an open row's reminder and consent, leave a fresh
-// recovery alone, reopen an old one) is SQL, verified against the live
-// database in migration 20261022000000's scenarios; here the double
-// records the call.
+// recovery alone, reopen an old one) is SQL, pinned by the regression
+// script packages/supabase/tests/capture_abandoned_cart.sql (run it against
+// the database); here the double records the call.
 
 const TENANT_ID = "f1e2d3c4-b5a6-4789-8f12-cd34ef567890";
 const OTHER_TENANT_ID = "9e8d7c6b-5a49-4382-9716-05f4e3d2c1b0";
@@ -283,6 +283,23 @@ describe("POST /api/cart/abandoned", () => {
     const fake = install();
     await POST(req({ phone: "07701234567", items: [line], consent_text: CONSENT }));
     expect(captures(fake)[0]._consent_text_version).toBe(consentVersion(CONSENT));
+  });
+
+  it("versions a padded consent line like the bare one, so the sweep's hash of the config line matches", async () => {
+    const fake = install();
+    await POST(req({ phone: "07701234567", items: [line], consent_text: `  ${CONSENT}\n` }));
+    expect(captures(fake)[0]._consent_text_version).toBe(consentVersion(CONSENT));
+  });
+
+  it("stores only a supported locale and drops any other value without refusing the capture", async () => {
+    const fake = install();
+    const ok = await POST(req({ phone: "07701234567", items: [line], locale: "ku" }));
+    const odd = await POST(req({ phone: "07701234568", items: [line], locale: "xx" }));
+    expect(ok.status).toBe(200);
+    expect(odd.status).toBe(200);
+    const [first, second] = captures(fake);
+    expect(first._locale).toBe("ku");
+    expect(second).not.toHaveProperty("_locale");
   });
 
   it("asks the function to keep a recovery younger than the duplicate-order window, and says so when it did", async () => {

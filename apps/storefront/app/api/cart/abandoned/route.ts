@@ -3,11 +3,14 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import {
   IRAQ_GOVERNORATES,
+  SUPPORTED_LOCALES,
   cartItemsSubtotal,
   normalizeIraqiMobile,
   type AbandonedCartItem,
   type GovernorateCode,
+  type LocaleCode,
 } from "@scheniders/shared";
+import { consentVersion } from "@scheniders/shared/consent-version";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { clientIp, consumeRateLimit, type RateLimitResult } from "@/lib/rate-limit";
 import { resolveStoreTenant } from "@/lib/route-guards";
@@ -37,10 +40,11 @@ export const runtime = "nodejs";
 //     limiter cannot answer, the database behind this route cannot either.
 //     A limiter outage therefore also answers 429, not 503.
 //   * consent is recorded when the caller sends a consent line, as
-//     consent_at + a version hash of that text. The text is the caller's
-//     claim: nothing here checks it against the line this store's config
-//     renders. The automatic reminder is OFF; before it is turned on, the
-//     sweep has to accept only versions of the configured line.
+//     consent_at + a version hash of that text (consentVersion, shared with
+//     the sweep so both normalize the line the same way). The text is the
+//     caller's claim: nothing here checks it against the line this store's
+//     config renders. The automatic reminder is OFF; before it is turned on,
+//     the sweep has to accept only versions of the configured line.
 //   * what a capture does to an existing (store, phone) row, including one
 //     an order already recovered, is decided atomically in SQL
 //     (capture_abandoned_cart, migration 20261022000000).
@@ -49,6 +53,7 @@ const GOVERNORATE_CODES = IRAQ_GOVERNORATES.map((g) => g.code) as [
   GovernorateCode,
   ...GovernorateCode[],
 ];
+const LOCALE_CODES = SUPPORTED_LOCALES as [LocaleCode, ...LocaleCode[]];
 
 /** Tenant statuses whose storefront is publicly live (as /api/events). */
 const LIVE_TENANT_STATUSES: ReadonlySet<string> = new Set(["active", "trial"]);
@@ -76,7 +81,8 @@ const bodySchema = z.object({
   phone: z.string().min(1).max(40),
   items: z.array(itemSchema).min(1).max(50),
   governorate: z.enum(GOVERNORATE_CODES).optional().catch(undefined),
-  locale: z.string().max(8).optional(),
+  // Like governorate: an unknown value is dropped, not stored or refused.
+  locale: z.enum(LOCALE_CODES).optional().catch(undefined),
   /** The consent line exactly as the shopper saw it under the phone field. */
   consent_text: z.string().trim().min(1).max(300).optional(),
 });
@@ -96,12 +102,6 @@ type CaptureLine = {
   quantity: AbandonedCartItem["quantity"];
   price: AbandonedCartItem["price"];
 };
-
-/** "sha256:" + 16 hex of the consent line, so a capture can be matched to
- *  the config revision that rendered it. */
-function consentVersion(text: string): string {
-  return `sha256:${createHash("sha256").update(text.normalize("NFC")).digest("hex").slice(0, 16)}`;
-}
 
 /** Seconds to wait when the IP or the (store, phone) bucket is exhausted,
  *  else null. The phone key is an unsalted hash: it keeps the number out of
