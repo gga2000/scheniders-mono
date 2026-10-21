@@ -96,11 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const effectiveRole = resolveEffectiveRole(profileData.role, membership?.role);
             perfTrace.mark('auth:membership');
 
-            // Fetch role permissions + user overrides in parallel
+            // Fetch role permissions + this tenant's user overrides in parallel.
+            // Overrides are per tenant: one granted in another store grants
+            // nothing here (has_tenant_permission applies the same rule).
             const [rolePermsResult, userOverridesResult] = effectiveRole
                 ? await Promise.all([
                     supabase.from('role_permissions').select('permission').eq('role', effectiveRole),
-                    supabase.from('user_permissions').select('permission, is_granted').eq('user_id', userId),
+                    currentTenantId
+                        ? supabase.from('user_permissions').select('permission, is_granted')
+                            .eq('tenant_id', currentTenantId)
+                            .eq('user_id', userId)
+                        : Promise.resolve({ data: null }),
                 ])
                 : [{ data: null }, { data: null }];
 
