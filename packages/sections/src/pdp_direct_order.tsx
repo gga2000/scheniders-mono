@@ -158,6 +158,18 @@ const schema = z.object({
   show_scroll_hint: z.boolean().optional().catch(undefined),
   /** Express: the scroll hint's text. Empty = the generic chrome line. */
   scroll_hint_i18n: i18nStringOptional.catch(undefined),
+
+  // ── Half-filled phone capture (opt-in, both layouts) ─────────────────
+  /** When true, a consent line renders under the phone field. Only then is
+   *  a valid phone the shopper typed kept as a lead (with the exact line
+   *  they saw) if they leave without ordering. Staff see it in the orders
+   *  «متروكة» tab. Absent/false = no line and no capture, byte-identical
+   *  for every existing config. */
+  show_capture_consent: z.boolean().optional().catch(undefined),
+  /** The consent line. Empty = the default chrome line
+   *  («ممكن نراسلك واتساب بخصوص طلبك»). Editing it changes the
+   *  consent_text_version recorded with each new capture. */
+  capture_consent_i18n: i18nStringOptional.catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

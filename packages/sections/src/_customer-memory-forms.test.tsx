@@ -31,12 +31,12 @@ const product: Product = {
   is_archived: false,
 };
 
-function element() {
+function element(props: Partial<typeof pdp_direct_order.defaultProps> = {}) {
   return React.createElement(
     StoreBaseProvider,
     { base: "", children: null },
     React.createElement(pdp_direct_order.render, {
-      props: pdp_direct_order.defaultProps,
+      props: { ...pdp_direct_order.defaultProps, ...props },
       ctx: { tenant: tenant as never, runtime, products: [], categories: [], product },
     }),
   );
@@ -95,7 +95,7 @@ describe("pdp_direct_order abandoned-cart beacon (W5.4)", () => {
   it("does not beacon a remembered phone until the shopper touches the form", () => {
     vi.useFakeTimers();
     writeCustomerMemory(TENANT, { customer_name: "زبون-تجريبي-٩٩", phone: "07701234567", governorate_code: "BG", address_details: "x" });
-    render(element());
+    render(element({ show_capture_consent: true }));
     act(() => {
       vi.advanceTimersByTime(3000);
     });
@@ -108,10 +108,22 @@ describe("pdp_direct_order abandoned-cart beacon (W5.4)", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/cart/abandoned");
-    const body = JSON.parse(String(init.body)) as { tenant_id: string; phone: string; items: unknown[]; governorate?: string };
-    expect(body.tenant_id).toBe(TENANT);
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(body).not.toHaveProperty("tenant_id");
     expect(body.phone).toBe("07701234567");
     expect(body.governorate).toBe("BG");
-    expect(body.items).toEqual([{ product_id: product.id, variant_id: null, name: product.name, quantity: 1, price: 25000 }]);
+    expect(body.consent_text).toBe("ممكن نراسلك واتساب بخصوص طلبك");
+    expect(body.items).toEqual([{ product_id: product.id, variant_id: null, quantity: 1 }]);
+  });
+
+  it("beacons nothing for a store that does not show the consent line", () => {
+    vi.useFakeTimers();
+    writeCustomerMemory(TENANT, { customer_name: "زبون-تجريبي-٩٩", phone: "07701234567", governorate_code: "BG", address_details: "x" });
+    render(element());
+    fireEvent.focus(document.querySelector('input[name="phone"]') as HTMLInputElement);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

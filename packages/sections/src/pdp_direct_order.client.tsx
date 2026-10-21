@@ -157,6 +157,12 @@ export const STRINGS = {
   referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم.", ku: "ئەم کۆدە لەگەڵ ئەم ژمارەیەدا کار ناکات." },
   /** Only rendered when commerce.returns_policy.inspect_before_paying is true. */
   inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع", ku: "پێش پارەدان بیکەرەوە و بیپشکنە" },
+  /** Default consent line under the phone field (`show_capture_consent`). */
+  captureConsent: {
+    en: "We may message you on WhatsApp about your order",
+    ar: "ممكن نراسلك واتساب بخصوص طلبك",
+    ku: "لەوانەیە سەبارەت بە داواکارییەکەت لە واتسئاپ نامەت بۆ بنێرین",
+  },
   chooseVariant: { en: "Choose an option", ar: "اختار الخيار", ku: "هەڵبژاردەیەک دیاری بکە" },
   chooseVariantFirst: { en: "Choose an option first.", ar: "اختار الخيار أول.", ku: "سەرەتا هەڵبژاردەیەک دیاری بکە." },
   variantOut: { en: "out of stock", ar: "نفد", ku: "نەماوە" },
@@ -647,12 +653,22 @@ export function PdpDirectOrderRender({
   // checkout server derives for one unit of it.
   const bumpOffer = offersForProduct(product.order_bumps, product.id)[0] ?? null;
 
-  // Abandoned-cart capture: the direct-order form IS this store's checkout,
-  // so once the shopper has touched the form and typed a plausible Iraqi
-  // number the line is beaconed exactly as checkout_form does — debounced,
-  // best-effort (keepalive). Placing the order marks it recovered.
+  // Half-filled phone capture: the direct-order form IS this store's
+  // checkout. A phone is kept only where the merchant shows the consent line
+  // under the phone field (opt-in). Once the shopper has touched the form
+  // and typed a valid Iraqi number, the line is beaconed: debounced,
+  // best-effort (keepalive), with the consent line exactly as shown. The
+  // server works out the store from the request and the names and prices
+  // from the catalogue, so neither is sent. Nothing is beaconed while the
+  // order is being placed or once it was. Placing it marks the capture
+  // recovered.
+  const captureConsent =
+    props.show_capture_consent === true
+      ? resolveI18n(props.capture_consent_i18n, locale) || s("captureConsent")
+      : null;
   useEffect(() => {
-    if (!interacted) return;
+    if (!captureConsent || !interacted) return;
+    if (status !== "idle" && status !== "error") return;
     const recoveryPhone = normalizeIraqiMobile(form.phone);
     if (!recoveryPhone) return;
     const handle = setTimeout(() => {
@@ -661,37 +677,28 @@ export function PdpDirectOrderRender({
         headers: { "content-type": "application/json" },
         keepalive: true,
         body: JSON.stringify({
-          tenant_id: ctx.tenant.id,
           phone: recoveryPhone,
-          items: [
-            {
-              product_id: product.id,
-              variant_id: chosenVariantId,
-              name: product.name,
-              quantity: qty,
-              price: unitPrice,
-            },
-          ],
+          items: [{ product_id: product.id, variant_id: chosenVariantId, quantity: qty }],
           ...(form.governorate_code ? { governorate: form.governorate_code } : {}),
           locale,
+          consent_text: captureConsent,
         }),
       }).catch((error: unknown) => {
-        // Best-effort: a lost beacon only costs one recovery nudge, so it
-        // must never surface to the shopper — but it is not silent either.
-        console.warn("[pdp_direct_order] abandoned-cart beacon failed", error);
+        // Best-effort: a lost beacon only costs one lead, so it must never
+        // surface to the shopper. But it is not silent either.
+        console.warn("[pdp_direct_order] capture beacon failed", error);
       });
     }, 1500);
     return () => clearTimeout(handle);
   }, [
+    captureConsent,
     interacted,
+    status,
     form.phone,
     form.governorate_code,
-    ctx.tenant.id,
     product.id,
-    product.name,
     chosenVariantId,
     qty,
-    unitPrice,
     locale,
   ]);
   const bumpProduct = bumpOffer
@@ -1589,6 +1596,15 @@ export function PdpDirectOrderRender({
                   />
                 </IconField>
                 {renderFieldError("phone")}
+                {captureConsent && (
+                  <p
+                    data-capture-consent=""
+                    data-i18n-field="capture_consent_i18n"
+                    className="mt-bk-2xs font-label text-xs text-bk-ink-faint"
+                  >
+                    {captureConsent}
+                  </p>
+                )}
               </div>
 
               <div>
