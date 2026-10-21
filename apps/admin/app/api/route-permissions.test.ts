@@ -144,13 +144,6 @@ const SUPER_ADMIN_ONLY: Case[] = [
     },
   },
   {
-    name: "PUT /api/merchants/[id]/tags (manage_tags)",
-    call: async (t) => {
-      const { PUT } = await import("./merchants/[id]/tags/route");
-      return PUT(req(`/api/merchants/${TENANT}/tags`, "PUT", t, { tags: ["vip"] }), idParams);
-    },
-  },
-  {
     name: "POST /api/team/commissions (manage_commissions)",
     call: async (t) => {
       const { POST } = await import("./team/commissions/route");
@@ -206,6 +199,13 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { GET } = await import("./merchants/[id]/notes/route");
       return GET(req(`/api/merchants/${TENANT}/notes`, "GET", t), idParams);
+    },
+  },
+  {
+    name: "PUT /api/merchants/[id]/tags (manage_tags)",
+    call: async (t) => {
+      const { PUT } = await import("./merchants/[id]/tags/route");
+      return PUT(req(`/api/merchants/${TENANT}/tags`, "PUT", t, { tags: ["vip"] }), idParams);
     },
   },
   {

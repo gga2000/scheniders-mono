@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X, Grid3X3, ListTree, LayoutGrid, Keyboard } from "lucide-react";
+import { Search, X, Grid3X3, ListTree, LayoutGrid, Keyboard, Store, Globe, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { ViewSwitcher } from "@/components/ui/view-switcher";
@@ -14,6 +14,20 @@ interface CategoryFiltersBarProps {
   onNewCategory: () => void;
   onOpenShortcuts?: () => void;
 }
+
+// Who the category is for. Each chip carries an icon as well as a colour, so
+// the distinction never rests on colour alone.
+const SCOPE_CHIPS: {
+  value: "internal" | "website" | "both";
+  icon: typeof Store;
+  labelKey: string;
+  fallback: string;
+  tone: string;
+}[] = [
+  { value: "website", icon: Globe, labelKey: "categories.scope.website", fallback: "Website", tone: "bg-sky-50 text-sky-700 border-sky-200" },
+  { value: "internal", icon: Store, labelKey: "categories.scope.internal", fallback: "Store", tone: "bg-violet-50 text-violet-700 border-violet-200" },
+  { value: "both", icon: Layers, labelKey: "categories.scope.both", fallback: "Both", tone: "bg-slate-100 text-slate-700 border-slate-300" },
+];
 
 const STATUS_CHIPS: { value: CategoryStatus; label: string; tone: string }[] = [
   { value: "published", label: "Published", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -44,6 +58,7 @@ export function CategoryFiltersBar({
     filters.navOnly ||
     filters.hasRules !== "all" ||
     filters.parent !== "all" ||
+    filters.scope !== "all" ||
     filters.statuses.length !== 2 ||
     !filters.statuses.includes("published") ||
     !filters.statuses.includes("draft");
@@ -93,6 +108,32 @@ export function CategoryFiltersBar({
               )}
             >
               {t(`categories.status.${chip.value}`) || chip.label}
+            </button>
+          );
+        })}
+
+        {/* Audience — who the category is for. A second click clears it, so the
+            set is a filter rather than a mode you can get stuck in. */}
+        <span className="w-px h-5 bg-[var(--card-border)] mx-1" aria-hidden="true" />
+        {SCOPE_CHIPS.map((chip) => {
+          const active = filters.scope === chip.value;
+          const Icon = chip.icon;
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setFilter("scope", active ? "all" : chip.value)}
+              title={t(`${chip.labelKey}Hint`) || undefined}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                active
+                  ? chip.tone
+                  : "bg-transparent text-muted border-[var(--card-border)] hover:text-foreground",
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {t(chip.labelKey) || chip.fallback}
             </button>
           );
         })}

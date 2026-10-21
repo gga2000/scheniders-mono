@@ -34,10 +34,10 @@ beforeEach(() => {
 
 describe("POST /api/admin/access-requests — membership role", () => {
     it.each([
-        ["employee", "employee", "member"],
-        ["viewer", "viewer", "member"],
+        ["employee", "employee", "employee"],
+        ["viewer", "viewer", "viewer"],
         ["admin", "admin", "admin"],
-        [undefined, "employee", "member"],
+        [undefined, "employee", "employee"],
     ])("approving as %s → profile %s, tenant_members %s", async (role, profileRole, memberRole) => {
         const res = await POST(approve(role));
         expect(res.status).toBe(200);

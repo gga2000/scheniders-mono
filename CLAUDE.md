@@ -67,6 +67,7 @@ See also [Use these skills](#use-these-skills-dont-reinvent) for the coding/DB/U
 ## Conventions
 
 - **LTR only.** Set `<html lang>`, never `<html dir>` — the app stays LTR in every locale, including Arabic.
+  - Exception: printed documents (shipping labels, invoices and other print-only HTML that is never part of the app UI) may set `dir="rtl"` for Arabic print layout; the never-`<html dir>` rule applies to app pages.
 - **Iraq market:** currency is **IQD**; there is **no tax/VAT** — skip all tax logic.
 - Don't propose or build keyboard shortcuts or keyboard-a11y sweeps unless explicitly asked.
 

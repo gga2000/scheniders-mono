@@ -1114,27 +1114,6 @@ export async function catchUpAfterOwnWrite(
 }
 
 /**
- * usePrefetchOrders - Prefetch orders data on hover/focus
- * Call this on navigation link hover to preload data before user clicks
- */
-export function usePrefetchOrders() {
-    const queryClient = coverage(useQueryClient());
-    const { tenantId } = useAuth();
-
-    return () => {
-        if (!tenantId) return;
-        queryClient.prefetchQuery({
-            queryKey: orderKeys.lists(),
-            // Prefetch on hover has no filter context; it warms the unwindowed
-            // list and the real query replaces it with the active window.
-            queryFn: () => trackListFetch(queryClient, "all", () => readListMark(tenantId), (mark) => fetchOrders(tenantId, null, mark)),
-            // Match staleTime from useOrdersQuery
-            staleTime: CACHE_PRESETS.FREQUENT.staleTime,
-        });
-    };
-}
-
-/**
  * useDeleteOrderMutation - Optimistic delete
  */
 export function useDeleteOrderMutation() {
