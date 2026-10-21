@@ -55,11 +55,15 @@ const TENANT_B = "tenant-b";
 /** Self-serve signup gives every new account `user_profiles.role = 'admin'`. */
 const tables: Record<string, Row[]> = {
     user_profiles: [
-        { id: "signup-admin", role: "admin" },
-        { id: "owner-a", role: "admin" },
-        { id: "platform", role: "super_admin" },
-        { id: "staff-a", role: "employee" },
-        { id: "staff-b", role: "employee" },
+        { id: "signup-admin", role: "admin", current_tenant_id: "own-tenant", is_active: true },
+        { id: "owner-a", role: "admin", current_tenant_id: TENANT_A, is_active: true },
+        { id: "platform", role: "super_admin", current_tenant_id: TENANT_B, is_active: true },
+        { id: "staff-a", role: "employee", current_tenant_id: TENANT_A, is_active: true },
+        { id: "staff-b", role: "employee", current_tenant_id: TENANT_B, is_active: true },
+        // Admin of A and B, currently acting in A.
+        { id: "owner-ab", role: "admin", current_tenant_id: TENANT_A, is_active: true },
+        // Pointed their own current_tenant_id at a tenant they do not belong to.
+        { id: "tamperer", role: "admin", current_tenant_id: TENANT_A, is_active: true },
     ],
     tenant_members: [
         { user_id: "signup-admin", tenant_id: "own-tenant", role: "admin", status: "active" },
@@ -67,6 +71,9 @@ const tables: Record<string, Row[]> = {
         { user_id: "staff-a", tenant_id: TENANT_A, role: "employee", status: "active" },
         { user_id: "staff-b", tenant_id: TENANT_B, role: "employee", status: "active" },
         { user_id: "platform", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "owner-ab", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "owner-ab", tenant_id: TENANT_B, role: "admin", status: "active" },
+        { user_id: "tamperer", tenant_id: "own-tenant-2", role: "admin", status: "active" },
     ],
 };
 
@@ -126,13 +133,18 @@ describe("requirePlatformAdmin", () => {
 });
 
 describe("requireAdminOverUser", () => {
-    it("allows an admin over a member of their own tenant", async () => {
+    it("allows an admin over a member of their active tenant, and names that tenant", async () => {
         const result = await requireAdminOverUser(callAs("owner-a"), "staff-a");
-        expect(result).toEqual({ ok: true, userId: "owner-a" });
+        expect(result).toEqual({ ok: true, userId: "owner-a", tenantId: TENANT_A });
     });
 
     it("rejects an admin over a member of another tenant", async () => {
         const result = await requireAdminOverUser(callAs("owner-a"), "staff-b");
+        expect(result.ok).toBe(false);
+    });
+
+    it("rejects an admin of two tenants over a member of the one they are not acting in", async () => {
+        const result = await requireAdminOverUser(callAs("owner-ab"), "staff-b");
         expect(result.ok).toBe(false);
     });
 
@@ -141,13 +153,23 @@ describe("requireAdminOverUser", () => {
         expect(result.ok).toBe(false);
     });
 
+    it("rejects an admin whose current_tenant_id points at a tenant they do not belong to", async () => {
+        const result = await requireAdminOverUser(callAs("tamperer"), "staff-a");
+        expect(result.ok).toBe(false);
+    });
+
     it("rejects an employee", async () => {
         const result = await requireAdminOverUser(callAs("staff-a"), "staff-a");
         expect(result.ok).toBe(false);
     });
 
-    it("allows a super_admin over anyone", async () => {
+    it("allows a super_admin over a member of the tenant they are acting in", async () => {
         const result = await requireAdminOverUser(callAs("platform"), "staff-b");
-        expect(result).toEqual({ ok: true, userId: "platform" });
+        expect(result).toEqual({ ok: true, userId: "platform", tenantId: TENANT_B });
+    });
+
+    it("rejects a super_admin over a user outside the tenant they are acting in", async () => {
+        const result = await requireAdminOverUser(callAs("platform"), "staff-a");
+        expect(result.ok).toBe(false);
     });
 });
