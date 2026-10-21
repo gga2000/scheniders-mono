@@ -761,15 +761,27 @@ export async function submitCheckout(
   // (live migrations 20260909225706 + 20260909225854). Redemption above
   // stays at placement because the discount is baked into the order total.
 
-  // Abandoned-cart recovery: this phone just ordered — mark any pending cart
-  // recovered so the WhatsApp reminder sweep skips it. Best-effort: a failure
-  // here must never fail the order.
-  await supabase
-    .from("abandoned_carts")
-    .update({ recovered_at: new Date().toISOString() })
-    .eq("tenant_id", payload.tenantId)
-    .eq("phone", phone)
-    .is("recovered_at", null);
+  // Abandoned-cart recovery: this phone just ordered, so mark its open
+  // capture recovered. The worklist then drops it and no reminder can go
+  // out. Whether a reminder came first is derived in the database
+  // (abandoned_carts.recovery_kind), so the split cannot drift from the
+  // timestamps. A draft-view order is the merchant testing, not a buyer
+  // coming back. Best-effort: a failure here must never fail the order,
+  // so it is logged with the order id, not thrown.
+  if (!draftView) {
+    const { error: recoverErr } = await supabase
+      .from("abandoned_carts")
+      .update({ recovered_at: new Date().toISOString() })
+      .eq("tenant_id", payload.tenantId)
+      .eq("phone", phone)
+      .is("recovered_at", null);
+    if (recoverErr) {
+      console.error(
+        `[checkout] could not mark abandoned cart recovered for order ${orderId ?? "(no id)"}:`,
+        recoverErr,
+      );
+    }
+  }
 
   // Server-side Purchase (Meta/TikTok CAPI), deduped with the browser pixel via
   // the shared event_id. Best-effort — never block or fail the order.
