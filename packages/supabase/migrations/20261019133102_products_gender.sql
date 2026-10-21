@@ -4,7 +4,7 @@
 -- The PDP identity block tags each perfume "men" / "women" / "unisex"
 -- beside its brand. Merchant-entered; NULL = no tag. A closed set so the
 -- storefront can localise the tag without free text.
--- Idempotent, like 20261019120000_products_brand_size_display_name.sql.
+-- Idempotent, like 20261019012123_products_brand_size_display_name.sql.
 -- =====================================================================
 
 ALTER TABLE public.products
