@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseProviderBaseUrls, type RawEnv } from "@scheniders/shared/provider-base-url";
 
 /**
  * Environment Variable Validation
@@ -134,5 +135,40 @@ function validateEnv() {
 }
 
 export const env = validateEnv();
+
+// =============================================
+// PROVIDER BASE URLS (PKG-00 approach 6a)
+// =============================================
+
+/**
+ * Every outbound provider client takes its host from here, so e2e, restore
+ * drills and load tests can point it at the provider mock. Env var name → the
+ * real host used when the variable is unset. Values are validated by
+ * `parseProviderBaseUrls`: https (or http://localhost outside Production), and
+ * only the real host when `VERCEL_ENV=production`.
+ */
+export const PLATFORM_PROVIDER_DEFAULTS = {
+    INTERAKT_API_BASE_URL: "https://api.interakt.ai",
+    QSTASH_URL: "https://qstash-us-east-1.upstash.io",
+    LIGHTFUNNELS_API_BASE_URL: "https://services.lightfunnels.com",
+    TELEGRAM_API_BASE_URL: "https://api.telegram.org",
+    WASEET_API_BASE_URL: "https://api.alwaseet-iq.net",
+    GEMINI_API_BASE_URL: "https://generativelanguage.googleapis.com",
+    ANTHROPIC_API_BASE_URL: "https://api.anthropic.com",
+} as const;
+
+export function parsePlatformProviderBaseUrls(raw: RawEnv) {
+    return parseProviderBaseUrls(PLATFORM_PROVIDER_DEFAULTS, raw);
+}
+
+/**
+ * Validated at import, like `env`, so a bad or refused value fails the boot
+ * instead of the first outbound call. Provider clients run on the server only;
+ * a browser bundle that pulls this module in gets the real hosts, never a
+ * value read from the browser's `process` polyfill.
+ */
+export const providerBaseUrls = parsePlatformProviderBaseUrls(
+    typeof window === "undefined" ? process.env : {},
+);
 
 export type Env = ReturnType<typeof validateEnv>;

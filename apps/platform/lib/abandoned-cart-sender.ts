@@ -7,11 +7,11 @@
  * formatting. Requires an Interakt-approved template named CART_RECOVERY_TEMPLATE.
  */
 
-import { env } from "./env";
+import { env, providerBaseUrls } from "./env";
 import { formatPhoneForInterakt, type SendTemplateResult } from "./interakt";
 import { cartItemsSubtotal, type AbandonedCartItem } from "@scheniders/shared";
 
-const INTERAKT_API_URL = "https://api.interakt.ai/v1/public/message/";
+const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
