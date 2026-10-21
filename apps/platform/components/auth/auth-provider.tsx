@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const currentTenantId: string | null = profileData.current_tenant_id ?? null;
+            perfTrace.mark('auth:profile-row');
 
             // The role that governs what this user may do is their role in the
             // current tenant (tenant_members.role), the same row RLS reads.
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .maybeSingle()
                 : { data: null };
             const effectiveRole = resolveEffectiveRole(profileData.role, membership?.role);
+            perfTrace.mark('auth:membership');
 
             // Fetch role permissions + user overrides in parallel
             const [rolePermsResult, userOverridesResult] = effectiveRole
@@ -88,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRole(effectiveRole);
             setProfile(profileData as UserProfile);
             setTenantId(currentTenantId);
+            perfTrace.mark('auth:tenant', { hasTenant: !!currentTenantId });
             setPermissions(perms);
             markProfileLoaded(true);
             perfTrace.mark('auth:profile-loaded', { role: effectiveRole ?? 'none', perms: perms.length });
@@ -193,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUser(currentSession.user);
                     setSession(currentSession);
                     setClientReady(true);
+                    perfTrace.mark('auth:session', { event });
                     currentUserIdRef.current = currentSession.user.id;
                     setIsLoading(false);
 

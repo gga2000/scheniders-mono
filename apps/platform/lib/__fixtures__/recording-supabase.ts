@@ -24,7 +24,7 @@ export type RecordedQuery = {
     ops: RecordedOp[];
 };
 
-export type QueryResult = { data: unknown; error: unknown; count?: number | null };
+export type QueryResult = { data: unknown; error: unknown; count?: number | null; status?: number };
 
 export const recorded: RecordedQuery[] = [];
 
