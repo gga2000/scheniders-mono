@@ -1317,6 +1317,7 @@ export function PdpDirectOrderRender({
           featureCards,
           featureCardsTitle,
           trustChips,
+          captureConsent,
         }}
       />
     );

@@ -339,6 +339,15 @@ export function ExpressForm({
             <span>{xs("phoneNextHint", locale)}</span>
           </p>
         ) : null}
+        {m.captureConsent && (
+          <p
+            data-capture-consent=""
+            data-i18n-field="capture_consent_i18n"
+            className="mt-1 font-bk-body text-xs text-bk-ink-faint"
+          >
+            {m.captureConsent}
+          </p>
+        )}
       </div>
 
       <Stage open={nameOpen} step="name" onFocusWithin={onStageFocus}>

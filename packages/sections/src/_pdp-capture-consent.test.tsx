@@ -144,3 +144,36 @@ describe("with the opt-in (classic)", () => {
     expect(beacons()).toHaveLength(0);
   });
 });
+
+describe("with the opt-in (express)", () => {
+  function mountExpress(props: Partial<Props> = {}) {
+    const Section = pdp_direct_order.render;
+    return render(
+      <StoreBaseProvider base="/s/fixture-store">
+        <Section props={{ ...EXPRESS_IRAQ_PDP_PROPS, ...props }} ctx={productCtx(plainProduct)} />
+      </StoreBaseProvider>,
+    );
+  }
+
+  it("renders no line without the opt-in (express default unchanged)", () => {
+    mountExpress();
+    expect(document.querySelector("[data-capture-consent]")).toBeNull();
+  });
+
+  it("shows the line inside the phone block and beacons with it", () => {
+    mountExpress({ show_capture_consent: true });
+    const phone = q<HTMLInputElement>('input[name="phone"]');
+    const phoneBlock = phone.closest("div")?.parentElement;
+    expect(phoneBlock?.querySelector("[data-capture-consent]")?.textContent).toBe(DEFAULT_AR);
+
+    typePhone();
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+    expect(beacons()).toHaveLength(1);
+    const [, init] = beacons()[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as { phone: string; consent_text: string };
+    expect(body.phone).toBe("07701234567");
+    expect(body.consent_text).toBe(DEFAULT_AR);
+  });
+});

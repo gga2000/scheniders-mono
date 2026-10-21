@@ -105,4 +105,7 @@ export interface ExpressModel {
   featureCards: { image_url?: string; title: string; body: string }[];
   featureCardsTitle: string;
   trustChips: NonNullable<Props["trust_chips"]>;
+  /** The consent line under the phone field, or null when the merchant has
+   *  not opted in to half-filled phone capture. */
+  captureConsent: string | null;
 }
