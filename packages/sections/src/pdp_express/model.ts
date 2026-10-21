@@ -19,6 +19,7 @@ import type {
   FormState,
   STRINGS,
   SubmitOptions,
+  SubmitStatus,
 } from "../pdp_direct_order.client";
 
 /** The express form's visual field order — phone first, the backup number
@@ -78,7 +79,7 @@ export interface ExpressModel {
     opts?: SubmitOptions,
   ) => Promise<void>;
   onFormFocus: (e: React.FocusEvent<HTMLFormElement>) => void;
-  status: "idle" | "submitting" | "ok" | "error";
+  status: SubmitStatus;
   errorMsg: string | null;
   submitting: boolean;
   submitErrorId: string;
@@ -89,6 +90,9 @@ export interface ExpressModel {
   stockLeft: number | null;
   urgency: string | null;
   waHref: string | null;
+  /** The same order, prefilled, to the store's WhatsApp — offered when a
+   *  submit ends `unconfirmed`, even where the WhatsApp tile is off. */
+  waFallbackHref: string | null;
   galleryImages: string[];
   priceRowRef: RefObject<HTMLDivElement | null>;
   priceFlashAt: number | null;

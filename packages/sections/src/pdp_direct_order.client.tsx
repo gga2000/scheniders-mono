@@ -66,6 +66,13 @@ import {
   writeCustomerMemory,
 } from "./helpers/customer-memory";
 import {
+  clearOrderDraft,
+  mergeDraftForm,
+  readOrderDraft,
+  writeOrderDraft,
+} from "./helpers/order-draft";
+import { postOrderWithResubmit } from "./helpers/submit-order";
+import {
   BentoCard,
   ChunkyButton,
   ChunkyLink,
@@ -171,15 +178,29 @@ export const STRINGS = {
   outOfStock: { en: "Out of stock", ar: "نفد المخزون", ku: "لە کۆگا نەماوە" },
   placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…", ku: "داواکارییەکەت پشتڕاست دەکرێتەوە…" },
   orderReceived: { en: "Order received!", ar: "تم استلام طلبك!", ku: "داواکارییەکەت گەیشت!" },
+  /** The single same-key resend after an unanswered attempt. */
+  checkingOrder: { en: "Checking your order…", ar: "نتأكد من طلبك…", ku: "داواکارییەکەت دەپشکنین…" },
+  /** Neither attempt was answered — the order may or may not exist. */
+  orderUnconfirmed: {
+    en: "We couldn't confirm your order went through. Send the same order on WhatsApp and we'll place it for you.",
+    ar: "ما قدرنا نتأكد إذا طلبك وصل. ابعث نفس الطلب بالواتساب ونثبّته إلك.",
+    ku: "نەمانتوانی دڵنیا بین داواکارییەکەت گەیشتووە. هەمان داواکاری بە واتسئاپ بنێرە و بۆت تۆماری دەکەین.",
+  },
+  sendOnWhatsapp: {
+    en: "Send the same order on WhatsApp",
+    ar: "ابعث نفس الطلب بالواتساب",
+    ku: "هەمان داواکاری بە واتسئاپ بنێرە",
+  },
+  /** The server's soft duplicate guard answered with an existing order. */
+  alreadyOrdered: {
+    en: "We already have your order — no need to order it again.",
+    ar: "طلبك واصلنا، لا تطلبه مرة ثانية",
+    ku: "داواکارییەکەت گەیشتووە، دووبارە داوای مەکەرەوە.",
+  },
   errGeneric: {
     en: "Something went wrong. Please try again.",
     ar: "حدث خطأ. حاول مرة أخرى.",
     ku: "هەڵەیەک ڕوویدا. تکایە دووبارە هەوڵ بدەرەوە.",
-  },
-  errNetwork: {
-    en: "We couldn't reach the server — check your connection and try again.",
-    ar: "تعذّر الاتصال بالخادم — تحقّق من الإنترنت وحاول مرة أخرى.",
-    ku: "نەتوانرا پەیوەندی بە ڕاژەکار بکرێت — ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵ بدەرەوە.",
   },
   priceChanged: {
     en: "The price changed to {price} — tap confirm again.",
@@ -307,6 +328,19 @@ export type FormState = Record<FieldKey, string>;
 export type FieldErrors = Partial<Record<FieldKey, string>>;
 export type FieldElement = HTMLInputElement | HTMLSelectElement;
 
+/** Where one submission stands. `checking` is the single same-key resend
+ *  after an unanswered attempt; `unconfirmed` means neither attempt was
+ *  answered (the order may exist — offer WhatsApp, keep the key);
+ *  `duplicate` is the server's soft duplicate guard ("we already have it"). */
+export type SubmitStatus =
+  | "idle"
+  | "submitting"
+  | "checking"
+  | "ok"
+  | "duplicate"
+  | "unconfirmed"
+  | "error";
+
 /** Per-layout submit options. Classic submits with none, so its request
  *  body is unchanged. */
 export interface SubmitOptions {
@@ -354,9 +388,7 @@ export function PdpDirectOrderRender({
   // highlight on the price row; null once the highlight has faded.
   const [priceFlashAt, setPriceFlashAt] = useState<number | null>(null);
   const priceRowRef = useRef<HTMLDivElement | null>(null);
-  const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const fieldRefs = useRef<Partial<Record<FieldKey, FieldElement | null>>>({});
@@ -468,6 +500,23 @@ export function PdpDirectOrderRender({
   const [variantError, setVariantError] = useState(false);
   const variantPillsRef = useRef<HTMLDivElement | null>(null);
 
+  // A reload mid-order brings back what this tab typed and — when a submit
+  // had started — its idempotency key, so tapping again replays that order
+  // instead of placing a second one (helpers/order-draft). Declared BEFORE
+  // the customer-memory prefill below: effects run in order, so the draft
+  // wins and memory only fills what the draft left blank.
+  const productId = product?.id ?? null;
+  const [draftRestored, setDraftRestored] = useState(false);
+  useEffect(() => {
+    if (!productId) return;
+    const draft = readOrderDraft(ctx.tenant.id, productId);
+    if (!draft) return;
+    idempotencyKeyRef.current = draft.idempotencyKey;
+    purchaseEventIdRef.current = draft.purchaseEventId;
+    setForm((prev) => mergeDraftForm(prev, draft.form));
+    setDraftRestored(true);
+  }, [ctx.tenant.id, productId]);
+
   // A returning shopper's details, from THIS browser only — see
   // helpers/customer-memory for why nothing is looked up by phone. Applied
   // after mount so server HTML and first client render agree; only blank
@@ -496,6 +545,18 @@ export function PdpDirectOrderRender({
   // alone must not turn every product view by a returning shopper into an
   // "abandoned cart" and a WhatsApp nudge.
   const [interacted, setInteracted] = useState(false);
+
+  // Never lose the buyer: once they have touched the form (or it came back
+  // from a draft) the typed fields and any in-flight keys are kept for this
+  // tab, so a reload restores them. Placing the order clears them.
+  useEffect(() => {
+    if (!productId || (!interacted && !draftRestored)) return;
+    writeOrderDraft(ctx.tenant.id, productId, {
+      form,
+      idempotencyKey: idempotencyKeyRef.current,
+      purchaseEventId: purchaseEventIdRef.current,
+    });
+  }, [form, interacted, draftRestored, ctx.tenant.id, productId]);
 
   // Price drift: bring the price row on screen and flash it for 1.2 s so the
   // shopper sees WHAT changed before re-confirming.
@@ -776,23 +837,22 @@ export function PdpDirectOrderRender({
   // message builder the checkout_form WhatsApp CTA uses (product + qty +
   // whatever delivery details the shopper has typed + the total).
   const waNumber = resolveTenantWhatsapp(ctx.tenant);
+  const waOrder = {
+    items: [{ name: product.name, quantity: qty }],
+    customer: {
+      name: form.customer_name || undefined,
+      phone: form.phone || undefined,
+      governorate: governorateName,
+      address: form.address_details || undefined,
+    },
+    total: formatPrice(total, locale),
+  };
   const waHref =
-    props.show_whatsapp && waNumber
-      ? whatsappCartLink(
-          waNumber,
-          {
-            items: [{ name: product.name, quantity: qty }],
-            customer: {
-              name: form.customer_name || undefined,
-              phone: form.phone || undefined,
-              governorate: governorateName,
-              address: form.address_details || undefined,
-            },
-            total: formatPrice(total, locale),
-          },
-          locale,
-        )
-      : null;
+    props.show_whatsapp && waNumber ? whatsappCartLink(waNumber, waOrder, locale) : null;
+  // The way out when a submit ends unconfirmed: the same order, prefilled,
+  // to the store's WhatsApp — offered even where the tile is switched off,
+  // because the buyer has no other way to finish. Null without a number.
+  const waFallbackHref = whatsappCartLink(waNumber, waOrder, locale);
 
   function set(k: FieldKey, v: string) {
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -898,6 +958,14 @@ export function PdpDirectOrderRender({
     if (!purchaseEventIdRef.current) {
       purchaseEventIdRef.current = newPixelEventId();
     }
+    // Saved BEFORE the request leaves: a reload while it is in flight comes
+    // back with this key, so the next tap replays this order instead of
+    // placing a second one (helpers/order-draft).
+    writeOrderDraft(ctx.tenant.id, product.id, {
+      form,
+      idempotencyKey: idempotencyKeyRef.current,
+      purchaseEventId: purchaseEventIdRef.current,
+    });
     const suffix = opts?.addressSuffix?.trim();
     const addressDetails = suffix
       ? `${form.address_details.trim()} - ${suffix}`
@@ -927,140 +995,167 @@ export function PdpDirectOrderRender({
         quantity: 1,
       });
     }
-    try {
-      // Same endpoint + payload contract as the checkout_form section —
-      // only `items` differs (a single line from ctx.product) plus the
-      // optional structured `alt_phone`. The funnel form has no separate
-      // area field, so the governorate label fills the required `city`.
-      const res = await fetch("/api/checkout/orders", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          tenant_id: ctx.tenant.id,
-          customer_name: form.customer_name.trim(),
-          phone,
-          governorate_code: form.governorate_code,
-          city: governorateName ?? form.governorate_code,
-          address_details: addressDetails,
-          ...(altPhone ? { alt_phone: altPhone } : {}),
-          payment_method: "cod",
-          items,
-          subtotal,
-          locale,
-          idempotency_key: idempotencyKeyRef.current,
-          ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
-          ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
-            ? { referral_code: normalizeReferralCode(referralCode) }
-            : {}),
-          ...(purchaseEventIdRef.current
-            ? { event_id: purchaseEventIdRef.current }
-            : {}),
-          ab_test_arms: ctx.runtime.ab_test_arms,
-        }),
-      });
-      if (res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          orderNumber?: string;
-          /** The order's id — which order the post-purchase offer grows. */
-          orderId?: string;
-          /** Proof this browser placed it (server-minted, short-lived). */
-          upsellToken?: string;
-          total?: number;
-        } | null;
-        const orderNumber = data?.orderNumber ?? "";
-        if (referralState.kind === "valid") clearCapturedReferral(ctx.tenant.id);
-        // Remember the shopper for next time — in their browser only.
-        writeCustomerMemory(ctx.tenant.id, {
-          customer_name: form.customer_name.trim(),
-          phone: form.phone.trim(),
-          alt_phone: form.alt_phone.trim() || undefined,
-          governorate_code: form.governorate_code,
-          address_details: form.address_details.trim(),
-        });
-        // Stash the just-placed order for the thank-you recap — identical
-        // privacy-safe path to checkout_form (only the buyer's browser
-        // holds it; the success page never fetches by order number).
-        try {
-          sessionStorage.setItem(
-            "schn:last-order",
-            JSON.stringify({
-              number: orderNumber,
-              // The order id and the server's proof let the thank-you page's
-              // post-purchase offer act on THIS order and no other. Session
-              // storage only, like the rest of the stash; additive, so older
-              // readers ignore them.
-              order_id: data?.orderId ?? null,
-              upsell_token: data?.upsellToken ?? null,
-              // Lets the thank-you page greet the buyer by name; optional so
-              // older readers of the stash keep working unchanged.
-              customer_name: form.customer_name.trim(),
-              items: items.map((i) => ({
-                name: i.name,
-                variant: i.variant_name,
-                qty: i.quantity,
-                price: i.price,
-              })),
-              subtotal,
-              total: data?.total ?? subtotal,
-              ts: Date.now(),
-            }),
-          );
-        } catch {
-          /* sessionStorage unavailable — the recap just won't render */
-        }
-        // Pixel Purchase — same event_id the server sent to CAPI (dedup).
-        trackPixel(
-          "Purchase",
-          pixelContentsFromItems(
-            items.map((i) => ({
-              product_id: i.product_id,
-              price: i.price,
-              quantity: i.quantity,
-            })),
-          ),
-          purchaseEventIdRef.current ?? undefined,
-        );
+    // Same endpoint + payload contract as the checkout_form section —
+    // only `items` differs (a single line from ctx.product) plus the
+    // optional structured `alt_phone`. The funnel form has no separate
+    // area field, so the governorate label fills the required `city`.
+    const body = JSON.stringify({
+      tenant_id: ctx.tenant.id,
+      customer_name: form.customer_name.trim(),
+      phone,
+      governorate_code: form.governorate_code,
+      city: governorateName ?? form.governorate_code,
+      address_details: addressDetails,
+      ...(altPhone ? { alt_phone: altPhone } : {}),
+      payment_method: "cod",
+      items,
+      subtotal,
+      locale,
+      idempotency_key: idempotencyKeyRef.current,
+      ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+      ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
+        ? { referral_code: normalizeReferralCode(referralCode) }
+        : {}),
+      ...(purchaseEventIdRef.current
+        ? { event_id: purchaseEventIdRef.current }
+        : {}),
+      ab_test_arms: ctx.runtime.ab_test_arms,
+    });
+    // A deadline per attempt and one resend of this same body — so the same
+    // key — when an attempt is not answered (helpers/submit-order). The
+    // server answers a key it has seen with that order, so the resend is a
+    // status check, never a second order.
+    const outcome = await postOrderWithResubmit("/api/checkout/orders", body, {
+      onResubmit: () => setStatus("checking"),
+    });
+    if (outcome.kind === "unconfirmed") {
+      // Neither attempt was answered: the order may or may not exist. The key
+      // stays (here and in the draft), so another tap — or a reload and a
+      // tap — replays it rather than ordering twice; WhatsApp is the way to
+      // finish now.
+      setErrorMsg(s("orderUnconfirmed"));
+      setStatus("unconfirmed");
+      return;
+    }
+    if (outcome.ok) {
+      const data = outcome.data as {
+        orderNumber?: string;
+        /** The order's id — which order the post-purchase offer grows. */
+        orderId?: string;
+        /** Proof this browser placed it (server-minted, short-lived). */
+        upsellToken?: string;
+        total?: number;
+        /** The soft duplicate guard answered: this phone ordered these
+         *  products minutes ago, and no new order was created. */
+        duplicate?: boolean;
+      } | null;
+      if (data?.duplicate === true) {
+        // That order was counted (pixel, CAPI, funnel) when it was placed, so
+        // nothing fires again, and there is no new order to thank them for —
+        // the form says so instead.
+        clearOrderDraft(ctx.tenant.id, product.id);
         idempotencyKeyRef.current = null;
         purchaseEventIdRef.current = null;
-        setStatus("ok");
-        // Navigate to the celebratory thank-you page (full nav keeps the stash).
-        window.location.href = `${base}/checkout/success${
-          orderNumber ? `?order=${encodeURIComponent(orderNumber)}` : ""
-        }`;
-      } else {
-        // EC24: surface the server's actionable message; when it reported
-        // line issues the corrected re-submit is a fresh order, so retire
-        // the idempotency key (mirrors checkout_form).
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-          issues?: CheckoutIssue[];
-        } | null;
-        const issues = data && Array.isArray(data.issues) ? data.issues : [];
-        if (issues.length > 0) idempotencyKeyRef.current = null;
-        // Self-heal a price drift: adopt the server's verified price so the
-        // shopper's retry submits (and displays) the correct number — and
-        // SAY so, with the new price, instead of a generic error.
-        const newPrice = issues.find(
-          (i) => i.reason === "price_changed" && i.product_id === product.id,
-        )?.new_price;
-        if (typeof newPrice === "number") {
-          setLivePrice({ variantId: chosenVariantId, price: newPrice });
-          setPriceFlashAt(Date.now());
-          setErrorMsg(
-            s("priceChanged").replace("{price}", formatPrice(newPrice, locale)),
-          );
-        } else {
-          // The server's own messages are Arabic; show them to Arabic-script
-          // locales and the localised generic line to English readers.
-          setErrorMsg((t && data?.error) || s("errGeneric"));
-        }
-        setStatus("error");
+        setStatus("duplicate");
+        return;
       }
-    } catch {
-      // fetch() only throws on network failure — nothing was submitted.
-      setErrorMsg(s("errNetwork"));
-      setStatus("error");
+      const orderNumber = data?.orderNumber ?? "";
+      if (referralState.kind === "valid") clearCapturedReferral(ctx.tenant.id);
+      // Remember the shopper for next time — in their browser only.
+      writeCustomerMemory(ctx.tenant.id, {
+        customer_name: form.customer_name.trim(),
+        phone: form.phone.trim(),
+        alt_phone: form.alt_phone.trim() || undefined,
+        governorate_code: form.governorate_code,
+        address_details: form.address_details.trim(),
+      });
+      // Stash the just-placed order for the thank-you recap — identical
+      // privacy-safe path to checkout_form (only the buyer's browser
+      // holds it; the success page never fetches by order number).
+      try {
+        sessionStorage.setItem(
+          "schn:last-order",
+          JSON.stringify({
+            number: orderNumber,
+            // The order id and the server's proof let the thank-you page's
+            // post-purchase offer act on THIS order and no other. Session
+            // storage only, like the rest of the stash; additive, so older
+            // readers ignore them.
+            order_id: data?.orderId ?? null,
+            upsell_token: data?.upsellToken ?? null,
+            // Lets the thank-you page greet the buyer by name; optional so
+            // older readers of the stash keep working unchanged.
+            customer_name: form.customer_name.trim(),
+            items: items.map((i) => ({
+              name: i.name,
+              variant: i.variant_name,
+              qty: i.quantity,
+              price: i.price,
+            })),
+            subtotal,
+            total: data?.total ?? subtotal,
+            ts: Date.now(),
+          }),
+        );
+      } catch {
+        /* sessionStorage unavailable — the recap just won't render */
+      }
+      // Pixel Purchase — same event_id the server sent to CAPI (dedup).
+      trackPixel(
+        "Purchase",
+        pixelContentsFromItems(
+          items.map((i) => ({
+            product_id: i.product_id,
+            price: i.price,
+            quantity: i.quantity,
+          })),
+        ),
+        purchaseEventIdRef.current ?? undefined,
+      );
+      clearOrderDraft(ctx.tenant.id, product.id);
+      idempotencyKeyRef.current = null;
+      purchaseEventIdRef.current = null;
+      setStatus("ok");
+      // Navigate to the celebratory thank-you page (full nav keeps the stash).
+      window.location.href = `${base}/checkout/success${
+        orderNumber ? `?order=${encodeURIComponent(orderNumber)}` : ""
+      }`;
+      return;
     }
+    // EC24: surface the server's actionable message; when it reported line
+    // issues the corrected re-submit is a fresh order, so retire the
+    // idempotency key — in the draft too (mirrors checkout_form).
+    const failure = outcome.data as {
+      error?: string;
+      issues?: CheckoutIssue[];
+    } | null;
+    const issues = failure && Array.isArray(failure.issues) ? failure.issues : [];
+    if (issues.length > 0) {
+      idempotencyKeyRef.current = null;
+      writeOrderDraft(ctx.tenant.id, product.id, {
+        form,
+        idempotencyKey: null,
+        purchaseEventId: purchaseEventIdRef.current,
+      });
+    }
+    // Self-heal a price drift: adopt the server's verified price so the
+    // shopper's retry submits (and displays) the correct number — and
+    // SAY so, with the new price, instead of a generic error.
+    const newPrice = issues.find(
+      (i) => i.reason === "price_changed" && i.product_id === product.id,
+    )?.new_price;
+    if (typeof newPrice === "number") {
+      setLivePrice({ variantId: chosenVariantId, price: newPrice });
+      setPriceFlashAt(Date.now());
+      setErrorMsg(
+        s("priceChanged").replace("{price}", formatPrice(newPrice, locale)),
+      );
+    } else {
+      // The server's own messages are Arabic; show them to Arabic-script
+      // locales and the localised generic line to English readers.
+      setErrorMsg((t && failure?.error) || s("errGeneric"));
+    }
+    setStatus("error");
   }
 
   const inputCls =
@@ -1116,7 +1211,8 @@ export function PdpDirectOrderRender({
     );
   }
 
-  const submitting = status === "submitting";
+  // In flight: the first attempt or the single same-key resend.
+  const submitting = status === "submitting" || status === "checking";
 
   // Merchant-editable via props ("original products" / "quality guarantee"
   // are business claims a section must not force on every tenant); the
@@ -1210,6 +1306,7 @@ export function PdpDirectOrderRender({
           stockLeft,
           urgency,
           waHref,
+          waFallbackHref,
           galleryImages,
           priceRowRef,
           priceFlashAt,
@@ -2055,20 +2152,20 @@ export function PdpDirectOrderRender({
               data-layer="submit"
               data-layer-label="Order buttons"
             >
-              {/* Stays focusable while pending (aria-busy/aria-disabled) so
-                  focus isn't dropped mid-submit; only sold-out disables. */}
+              {/* Disabled while a submission is in flight (aria-busy says
+                  why): a tap during the same-key resend must start nothing
+                  new. Sold-out disables it too. */}
               <ChunkyButton
                 type="submit"
                 bg="pink"
                 size="lg"
                 fullWidth
-                disabled={oos}
+                disabled={oos || submitting}
                 aria-busy={submitting || undefined}
-                aria-disabled={submitting || undefined}
                 aria-describedby={
                   [
                     showVariantError ? variantErrorId : null,
-                    status === "error" ? submitErrorId : null,
+                    status === "error" || status === "unconfirmed" ? submitErrorId : null,
                   ]
                     .filter(Boolean)
                     .join(" ") || undefined
@@ -2080,7 +2177,7 @@ export function PdpDirectOrderRender({
                       name="progress_activity"
                       className="animate-spin motion-reduce:animate-none"
                     />
-                    {s("placingOrder")}
+                    {status === "checking" ? s("checkingOrder") : s("placingOrder")}
                   </>
                 ) : oos ? (
                   s("outOfStock")
@@ -2145,6 +2242,35 @@ export function PdpDirectOrderRender({
                   className="text-center font-label font-bold text-sm text-bk-success"
                 >
                   {s("orderReceived")}
+                </p>
+              )}
+              {status === "unconfirmed" && (
+                <div id={submitErrorId} role="alert" className="space-y-bk-xs">
+                  <p className="text-center font-label font-bold text-sm text-bk-danger">
+                    {errorMsg ?? s("orderUnconfirmed")}
+                  </p>
+                  {waFallbackHref && (
+                    <ChunkyLink
+                      href={waFallbackHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      bg="success"
+                      size="lg"
+                      fullWidth
+                      data-wa-fallback="true"
+                    >
+                      <WhatsAppIcon className="h-5 w-5" />
+                      {s("sendOnWhatsapp")}
+                    </ChunkyLink>
+                  )}
+                </div>
+              )}
+              {status === "duplicate" && (
+                <p
+                  role="status"
+                  className="text-center font-label font-bold text-sm text-bk-success"
+                >
+                  {s("alreadyOrdered")}
                 </p>
               )}
 
