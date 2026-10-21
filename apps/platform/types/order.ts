@@ -26,7 +26,7 @@ export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial' | 'paid';
 
 export type DeliverySlot = 'morning' | 'afternoon' | 'evening';
 
-export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'telegram' | 'other';
+export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'telegram' | 'storefront' | 'other';
 
 export type OrderTagColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | null;
 
