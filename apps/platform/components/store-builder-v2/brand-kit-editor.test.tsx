@@ -28,6 +28,8 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 import { BrandKitEditor } from "./brand-kit-editor";
+import { EditorModeProvider } from "@/lib/editor-mode-context";
+import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 
 function clone(): BrandKit {
     return JSON.parse(JSON.stringify(EMPTY_BRAND_KIT)) as BrandKit;
@@ -100,6 +102,40 @@ describe("BrandKitEditor", () => {
             "identity-tagline-input-ar",
         ) as HTMLInputElement;
         expect(arInput.value).toBe("مرحبا");
+    });
+
+    it("the tagline's primary input edits the editor's locale, not English", () => {
+        const value = clone();
+        value.identity.tagline = { en: "Hello world", ar: "مرحبا" };
+        const onChange = vi.fn();
+        render(
+            <EditorLocaleProvider value="ar">
+                <BrandKitEditor value={value} onChange={onChange} />
+            </EditorLocaleProvider>,
+        );
+        const primary = screen.getByTestId("identity-tagline-input") as HTMLInputElement;
+        expect(primary.value).toBe("مرحبا");
+        fireEvent.change(primary, { target: { value: "أهلاً" } });
+        const next = onChange.mock.calls.at(-1)?.[0] as BrandKit | undefined;
+        expect(next?.identity.tagline).toEqual({ en: "Hello world", ar: "أهلاً" });
+    });
+
+    it("hides the favicon field in Simple mode and keeps it in Advanced", () => {
+        const { unmount } = render(
+            <EditorModeProvider value={{ mode: "simple", setMode: () => {} }}>
+                <BrandKitEditor value={clone()} onChange={() => {}} />
+            </EditorModeProvider>,
+        );
+        expect(document.querySelector('[data-testid^="identity-favicon"]')).toBeNull();
+        // The OG image stays: a first-publish recommendation's fix lands on it.
+        expect(document.querySelector('[data-testid^="identity-og"]')).not.toBeNull();
+        unmount();
+        render(
+            <EditorModeProvider value={{ mode: "advanced", setMode: () => {} }}>
+                <BrandKitEditor value={clone()} onChange={() => {}} />
+            </EditorModeProvider>,
+        );
+        expect(document.querySelector('[data-testid^="identity-favicon"]')).not.toBeNull();
     });
 
     it("clicking the colors Reset button resets all colors to defaults", () => {

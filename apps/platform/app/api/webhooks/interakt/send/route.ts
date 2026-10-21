@@ -5,6 +5,7 @@ import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/wh
 import { createSupabaseServiceClient, createSupabaseServerClientWithToken, verifyAccessToken } from "@/lib/supabase-server";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { followUpStamp, senderDisplayName } from "@/lib/follow-up-state";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
         // policy the rest of the app uses rather than re-implemented here.
         const { data: order, error: orderError } = await createSupabaseServerClientWithToken(token)
             .from("orders")
-            .select("*")
+            .select(ORDER_READ_COLUMNS)
             .eq("id", requestedOrderId)
             .maybeSingle<Order>();
 

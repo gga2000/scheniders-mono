@@ -1,13 +1,14 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { isPlatformAdminRole } from "@/lib/permissions";
+import { isPlatformAdminRole, resolveEffectiveRole, type UserRole } from "@/lib/permissions";
 
 /**
- * `role` is the global `user_profiles.role`; `memberRole` is the caller's role
- * in this tenant (`tenant_members.role`), or null for a platform admin acting
- * in a tenant they do not belong to.
+ * `role` is the caller's effective role in this tenant: their
+ * `tenant_members.role`, or `super_admin` for platform staff (the only thing
+ * the global `user_profiles.role` still decides). `platformAdmin` marks the
+ * latter, who may act in a tenant they do not belong to.
  */
 export type ActiveTenant =
-    | { ok: true; tenantId: string; role: string; memberRole: string | null }
+    | { ok: true; tenantId: string; role: UserRole; platformAdmin: boolean }
     | { ok: false; error: string; status: 400 | 403 };
 
 /**
@@ -35,8 +36,6 @@ export async function resolveActiveTenant(userId: string): Promise<ActiveTenant>
     const tenantId = profile?.current_tenant_id as string | undefined;
     if (!tenantId) return { ok: false, error: "No active tenant", status: 400 };
 
-    // Deny by default: an absent/NULL role must not inherit any access.
-    const role = (profile?.role as string | undefined) ?? "";
     const { data: membership } = await supabase
         .from("tenant_members")
         .select("role")
@@ -44,10 +43,11 @@ export async function resolveActiveTenant(userId: string): Promise<ActiveTenant>
         .eq("user_id", userId)
         .eq("status", "active")
         .maybeSingle();
-    const memberRole = (membership as { role: string } | null)?.role ?? null;
 
-    if (isPlatformAdminRole(role)) return { ok: true, tenantId, role, memberRole };
-    if (!memberRole) return { ok: false, error: "You are not a member of this account.", status: 403 };
+    // Deny by default: no active membership (or an unknown role value) is no role.
+    const platformRole = profile?.role as string | undefined;
+    const role = resolveEffectiveRole(platformRole, (membership as { role: string } | null)?.role);
+    if (!role) return { ok: false, error: "You are not a member of this account.", status: 403 };
 
-    return { ok: true, tenantId, role, memberRole };
+    return { ok: true, tenantId, role, platformAdmin: isPlatformAdminRole(platformRole) };
 }

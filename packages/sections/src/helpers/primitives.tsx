@@ -90,12 +90,12 @@ export function PromoBar({
   return (
     <div
       className={cn(
-        "bg-bk-accent text-bk-ink font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
+        "bg-bk-accent text-bk-on-accent font-label font-bold text-xs sm:text-sm py-2 px-4 text-center overflow-hidden relative z-20",
         className,
       )}
       style={{
         backgroundColor: "var(--bk-accent, #ffd84a)",
-        color: "var(--bk-ink, #1a1a1a)",
+        color: "var(--bk-on-accent, #1a1a1a)",
         borderBottom:
           "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
       }}
@@ -143,7 +143,7 @@ const BG_MAP: Record<CardBg, string> = {
   cream: "bg-bk-surface",
   pink: "bg-bk-primary text-bk-on-primary",
   mint: "bg-bk-secondary",
-  butter: "bg-bk-accent",
+  butter: "bg-bk-accent text-bk-on-accent",
   lilac: "bg-bk-decor-b",
   sky: "bg-bk-decor-c",
   ink: "bg-bk-ink text-bk-surface",
@@ -171,7 +171,10 @@ const BG_VAR: Partial<Record<CardBg, { bg: string; fg?: string }>> = {
   // a property of the band, not of the tenant's ink (which is light in a
   // dark-surface store and was unreadable here).
   mint: { bg: "var(--bk-decor-a, #7cf0bd)", fg: "var(--bk-on-decor, #1a1a1a)" },
-  butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-ink, #1a1a1a)" },
+  // An accent fill takes the kit's measured on-accent, not ink: on a dark
+  // kit the accent is often the light colour ink already is (Chrome Night:
+  // accent and ink are both #eceef1), so ink on it was 1:1.
+  butter: { bg: "var(--bk-accent, #ffd84a)", fg: "var(--bk-on-accent, #1a1a1a)" },
   lilac: { bg: "var(--bk-decor-b, #c5b6ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
   sky: { bg: "var(--bk-decor-c, #9ad8ff)", fg: "var(--bk-on-decor, #1a1a1a)" },
   cream: { bg: "var(--bk-surface, #fff7ed)", fg: "var(--bk-ink, #1a1a1a)" },

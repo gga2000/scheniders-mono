@@ -7,7 +7,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ChatRuntime } from "@/components/chat/chat-runtime";
 import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
-import { OrdersProvider } from "@/components/providers/orders-provider";
+import { NewOrderAlerts } from "@/components/orders/new-order-alerts";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { LanguageProvider } from "@/components/providers/language-provider";
@@ -98,28 +98,30 @@ export default function RootLayout({
         <ErrorBoundary name="Root">
           <AuthProvider>
             <QueryProvider>
-              <OrdersProvider>
-                <PWAProvider>
-                  <ThemeProvider
-                    attribute="class"
-                    defaultTheme="light"
-                    enableSystem
-                    enableColorScheme
-                    disableTransitionOnChange
-                  >
-                    <RoleProvider>
-                      <FinancialVisibilityProvider>
-                        <LanguageProvider>
-                          <DashboardLayout>
-                            {children}
-                            <ChatRuntime />
-                          </DashboardLayout>
-                        </LanguageProvider>
-                      </FinancialVisibilityProvider>
-                    </RoleProvider>
-                  </ThemeProvider>
-                </PWAProvider>
-              </OrdersProvider>
+              {/* The order book is NOT mounted here: the routes that show orders
+                  mount <OrdersProvider> in their own layouts. Only the
+                  new-order alert stays app-wide. */}
+              <NewOrderAlerts />
+              <PWAProvider>
+                <ThemeProvider
+                  attribute="class"
+                  defaultTheme="light"
+                  enableSystem
+                  enableColorScheme
+                  disableTransitionOnChange
+                >
+                  <RoleProvider>
+                    <FinancialVisibilityProvider>
+                      <LanguageProvider>
+                        <DashboardLayout>
+                          {children}
+                          <ChatRuntime />
+                        </DashboardLayout>
+                      </LanguageProvider>
+                    </FinancialVisibilityProvider>
+                  </RoleProvider>
+                </ThemeProvider>
+              </PWAProvider>
             </QueryProvider>
           </AuthProvider>
         </ErrorBoundary>

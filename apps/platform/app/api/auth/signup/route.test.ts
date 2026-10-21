@@ -99,8 +99,8 @@ describe("POST /api/auth/signup", () => {
 
     it("the server decides the plan: a client-sent plan is ignored", async () => {
         await post({ ...VALID, plan: "enterprise" });
-        expect(inserted("tenants")[0]).toMatchObject({ plan: "starter", status: "trial" });
-        expect(inserted("subscriptions")[0]).toMatchObject({ plan: "starter", status: "trialing" });
+        expect(inserted("tenants")[0]).toMatchObject({ plan: "growth", status: "trial" });
+        expect(inserted("subscriptions")[0]).toMatchObject({ plan: "growth", status: "trialing" });
     });
 
     it("refuses to create an unverified account when Supabase auto-confirms (Confirm email off)", async () => {

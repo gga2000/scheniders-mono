@@ -6,6 +6,7 @@ import { Monitor, Smartphone, Globe, Rocket, Pencil } from "lucide-react";
 import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
+import { ClaimHandleDialog } from "./claim-handle-dialog";
 
 interface PreviewCardProps {
     storefrontUrl: string;
@@ -22,6 +23,8 @@ interface PreviewCardProps {
     isBrandNew?: boolean;
     /** Hub chrome locale — the store's `default_locale` (UX2-14). */
     locale: LocaleCode;
+    /** Current tenant slug — enables the handle-claim affordance (UX2-13). */
+    slug?: string;
 }
 
 type ViewMode = "desktop" | "mobile";
@@ -31,9 +34,11 @@ export function PreviewCard({
     published,
     isBrandNew = false,
     locale,
+    slug,
 }: PreviewCardProps) {
     const [mode, setMode] = useState<ViewMode>("desktop");
     const [loaded, setLoaded] = useState(false);
+    const [claimOpen, setClaimOpen] = useState(false);
 
     return (
         <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) overflow-hidden">
@@ -118,6 +123,17 @@ export function PreviewCard({
                         <div className="flex-1 bg-background border border-border rounded-md px-3 py-1 text-xs text-muted-foreground font-mono truncate">
                             {storefrontUrl}
                         </div>
+                        {slug && (
+                            <button
+                                type="button"
+                                data-testid="claim-handle-open"
+                                onClick={() => setClaimOpen(true)}
+                                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
+                            >
+                                <Pencil className="h-3 w-3" aria-hidden="true" />
+                                {t(STRINGS.command_center.handle_edit, locale)}
+                            </button>
+                        )}
                     </div>
 
                     {/* iframe container */}
@@ -155,6 +171,14 @@ export function PreviewCard({
                         </div>
                     </div>
                 </>
+            )}
+
+            {claimOpen && slug && (
+                <ClaimHandleDialog
+                    currentSlug={slug}
+                    onClose={() => setClaimOpen(false)}
+                    locale={locale}
+                />
             )}
         </div>
     );

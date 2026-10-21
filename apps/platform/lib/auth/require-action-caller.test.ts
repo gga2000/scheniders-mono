@@ -64,8 +64,8 @@ const tables: Record<string, Row[]> = {
     tenant_members: [
         { user_id: "signup-admin", tenant_id: "own-tenant", role: "admin", status: "active" },
         { user_id: "owner-a", tenant_id: TENANT_A, role: "admin", status: "active" },
-        { user_id: "staff-a", tenant_id: TENANT_A, role: "member", status: "active" },
-        { user_id: "staff-b", tenant_id: TENANT_B, role: "member", status: "active" },
+        { user_id: "staff-a", tenant_id: TENANT_A, role: "employee", status: "active" },
+        { user_id: "staff-b", tenant_id: TENANT_B, role: "employee", status: "active" },
         { user_id: "platform", tenant_id: TENANT_A, role: "admin", status: "active" },
     ],
 };

@@ -64,20 +64,25 @@ function SignupForm() {
                 return;
             }
 
-            // The account cannot sign in until the email is confirmed, so the
-            // merchant stays here with the "check your email" message; the
-            // confirmation link lands on /login.
-            setSuccess(data.message || "Check your email to confirm your account, then sign in.");
-            setIsLoading(false);
+            // The account cannot sign in until the email is confirmed
+            // (self-serve signup no longer auto-confirms), so the merchant
+            // stays here with the "check your email" message; the
+            // confirmation link lands on /login. The plan is decided by the
+            // server, not sent from here.
             // UX2-18: if this browser still holds a session for a DIFFERENT
             // account, /login bounces straight back into that old tenant and
-            // the new store silently disappears. Clear it so the confirmation
-            // link's /login is actually reachable.
-            try {
-                await supabase.auth.signOut();
-            } catch {
-                /* no session to clear */
+            // the new store silently disappears. supabase-js reports a
+            // missing session as success, so an error here means an old
+            // session really is still attached: say so instead of claiming
+            // the way to the new account is clear.
+            const { error: signOutError } = await supabase.auth.signOut();
+            if (signOutError) {
+                setError(t("signup.signOutFailed"));
+                setIsLoading(false);
+                return;
             }
+            setSuccess(t("signup.success"));
+            setIsLoading(false);
         } catch {
             setError("Network error. Please check your connection and try again.");
             setIsLoading(false);

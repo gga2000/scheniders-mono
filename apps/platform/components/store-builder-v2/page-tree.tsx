@@ -44,7 +44,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { useEditorMode } from "@/lib/editor-mode-context";
 
@@ -303,6 +303,25 @@ export function PageTree({
             : PRIMARY_SETTINGS;
     const showCustomPages = mode === "advanced" && !!onSelectCustomPage;
 
+    // S3-03: Simple shows Home + the content Pages; the commerce/system
+    // page groups (Shop, Order, Policies, System) fold behind one
+    // «كل الصفحات» reveal. Deep links into a folded page auto-open it.
+    const isSimpleTree = mode === "simple";
+    const primaryGroups = isSimpleTree
+        ? TREE.filter((g) => g.group === "Storefront" || g.group === "Pages")
+        : TREE;
+    const foldedGroups = isSimpleTree
+        ? TREE.filter((g) => g.group !== "Storefront" && g.group !== "Pages")
+        : [];
+    const foldedPageCount = foldedGroups.reduce((n, g) => n + g.items.length, 0);
+    const activeInFolded = foldedGroups.some((g) =>
+        g.items.some((i) => i.id === active),
+    );
+    const [allPagesOpen, setAllPagesOpen] = useState<boolean>(false);
+    useEffect(() => {
+        if (activeInFolded) setAllPagesOpen(true);
+    }, [activeInFolded]);
+
     // Total live items behind the hidden Advanced group (Simple mode).
     const liveAdvancedCount = Object.values(settingBadges ?? {}).reduce(
         (sum, n) => sum + (n ?? 0),
@@ -396,60 +415,90 @@ export function PageTree({
             className="sb-glass flex w-[264px] shrink-0 flex-col overflow-y-auto border-r border-(--card-border) text-sm"
         >
             <div className="p-3">
-                {TREE.map((group) => (
-                    <div key={group.group} className="mb-4">
-                        <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                            {t(STRINGS.page_tree[group.groupKey], locale)}
-                        </div>
-                        <ul className="space-y-0.5">
-                            {group.items.map((item) => {
-                                const isActive = item.id === active;
-                                const count = sectionCounts?.[item.id];
-                                const Icon = item.icon;
-                                return (
-                                    <li key={item.id}>
-                                        <button
-                                            type="button"
-                                            data-testid={`page-tree-item-${item.id}`}
-                                            onClick={() => onSelect(item.id)}
-                                            className={cn(
-                                                "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150",
-                                                isActive
-                                                    ? "sb-active-bar bg-background font-semibold text-foreground shadow-(--card-shadow)"
-                                                    : "text-foreground/75 hover:bg-black/3 hover:text-foreground",
-                                            )}
-                                            aria-current={isActive ? "page" : undefined}
-                                        >
-                                            <span
-                                                aria-hidden="true"
+                {(() => {
+                    const renderPageGroup = (group: (typeof TREE)[number]) => (
+                        <div key={group.group} className="mb-4">
+                            <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                {t(STRINGS.page_tree[group.groupKey], locale)}
+                            </div>
+                            <ul className="space-y-0.5">
+                                {group.items.map((item) => {
+                                    const isActive = item.id === active;
+                                    const count = sectionCounts?.[item.id];
+                                    const Icon = item.icon;
+                                    return (
+                                        <li key={item.id}>
+                                            <button
+                                                type="button"
+                                                data-testid={`page-tree-item-${item.id}`}
+                                                onClick={() => onSelect(item.id)}
                                                 className={cn(
-                                                    "sb-tile flex h-7 w-7 shrink-0",
-                                                    groupTintClass(group.group),
+                                                    "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150",
+                                                    isActive
+                                                        ? "sb-active-bar bg-background font-semibold text-foreground shadow-(--card-shadow)"
+                                                        : "text-foreground/75 hover:bg-black/3 hover:text-foreground",
                                                 )}
+                                                aria-current={isActive ? "page" : undefined}
                                             >
-                                                <Icon className="h-4 w-4" />
-                                            </span>
-                                            <span className="truncate">{t(STRINGS.page_tree[item.labelKey], locale)}</span>
-                                            {typeof count === "number" && count > 0 && (
                                                 <span
-                                                    data-testid={`page-tree-count-${item.id}`}
+                                                    aria-hidden="true"
                                                     className={cn(
-                                                        "ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums transition-colors",
-                                                        isActive
-                                                            ? "bg-foreground/10 text-foreground"
-                                                            : "bg-black/5 text-muted-foreground group-hover:bg-black/10",
+                                                        "sb-tile flex h-7 w-7 shrink-0",
+                                                        groupTintClass(group.group),
                                                     )}
                                                 >
-                                                    {count}
+                                                    <Icon className="h-4 w-4" />
                                                 </span>
-                                            )}
-                                        </button>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-                ))}
+                                                <span className="truncate">{t(STRINGS.page_tree[item.labelKey], locale)}</span>
+                                                {typeof count === "number" && count > 0 && (
+                                                    <span
+                                                        data-testid={`page-tree-count-${item.id}`}
+                                                        className={cn(
+                                                            "ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums transition-colors",
+                                                            isActive
+                                                                ? "bg-foreground/10 text-foreground"
+                                                                : "bg-black/5 text-muted-foreground group-hover:bg-black/10",
+                                                        )}
+                                                    >
+                                                        {count}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    );
+                    return (
+                        <>
+                            {primaryGroups.map(renderPageGroup)}
+                            {foldedGroups.length > 0 && (
+                                <div className="mb-4">
+                                    <button
+                                        type="button"
+                                        data-testid="page-tree-all-pages-toggle"
+                                        onClick={() => setAllPagesOpen((v) => !v)}
+                                        aria-expanded={allPagesOpen}
+                                        className="mb-1.5 flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-foreground/75 transition-colors hover:bg-black/3 hover:text-foreground"
+                                    >
+                                        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                            {tFormat(STRINGS.page_tree.all_pages, locale, {
+                                                n: foldedPageCount,
+                                            })}
+                                        </span>
+                                        {allPagesOpen ? (
+                                            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                        ) : (
+                                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                    {allPagesOpen && foldedGroups.map(renderPageGroup)}
+                                </div>
+                            )}
+                        </>
+                    );
+                })()}
 
                 {/* Custom pages (E4) — selectable; authored in the canvas. */}
                 {showCustomPages && onSelectCustomPage && (

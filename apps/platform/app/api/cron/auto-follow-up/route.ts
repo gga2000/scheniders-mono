@@ -6,6 +6,7 @@ import { scheduleFollowUp, DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/
 import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { automationFollowUpStamp } from "@/lib/follow-up-state";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     // Fetch the order first (to get tenant_id for scoped settings)
     const { data: order, error: fetchErr } = await supabaseAdmin()
         .from("orders")
-        .select("*")
+        .select(ORDER_READ_COLUMNS)
         .eq("id", orderUuid)
         .single();
 

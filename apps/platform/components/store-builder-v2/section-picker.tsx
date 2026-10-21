@@ -44,6 +44,7 @@ import {
 } from "@/lib/section-presets-util";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorMode } from "@/lib/editor-mode-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public API                                                           */
@@ -113,6 +114,23 @@ function categoryTintClass(category: SectionCategory): string {
 /* Picker                                                               */
 /* ─────────────────────────────────────────────────────────────────── */
 
+/**
+ * S3-04 (Simple): near-duplicate flavors of the same idea present as
+ * separate first-class decisions ("what's the difference between 4
+ * heroes?"). Simple shows one card per idea — the primary flavor —
+ * and Advanced keeps the full flat library.
+ */
+const SIMPLE_HIDDEN_FLAVORS = new Set<string>([
+    // heroes — hero_image is the primary
+    "hero_split",
+    "hero_marquee",
+    "hero_video",
+    // scrolling ticker — announcement_bar is the primary
+    "marquee_strip",
+    // CTA bars — cta_banner is the primary
+    "sticky_cta_bar",
+]);
+
 export function SectionPicker(props: SectionPickerProps): React.ReactElement | null {
     const {
         open,
@@ -127,6 +145,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
     } = props;
 
     const locale = useEditorLocale();
+    const { mode } = useEditorMode();
     const manifest = manifestOverride ?? SECTIONS_MANIFEST;
 
     const [query, setQuery] = useState<string>("");
@@ -200,6 +219,13 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
             // addable per-page — exclude it from the picker instead of showing
             // a permanently-disabled card on every page. (BUG/B6)
             if (entry.valid_on.length === 0) return false;
+            // S3-04 (Simple): a first-timer reads only what she can use —
+            // invalid-for-this-page cards and near-duplicate flavors are
+            // hidden. Advanced keeps the full greyed taxonomy.
+            if (mode === "simple") {
+                if (!entry.valid_on.includes(pageId)) return false;
+                if (SIMPLE_HIDDEN_FLAVORS.has(entry.type)) return false;
+            }
             if (category !== "all" && entry.category !== category) return false;
             if (!q) return true;
             // Search across English AND the active locale so an Arabic
@@ -216,7 +242,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                 entry.type.includes(q)
             );
         });
-    }, [manifest, category, query, locale]);
+    }, [manifest, category, query, locale, mode, pageId]);
 
     if (!open) return null;
 
@@ -360,7 +386,10 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                                 .map((type) => manifest.find((e) => e.type === type))
                                 .filter(
                                     (e): e is SectionManifestEntry =>
-                                        !!e && e.valid_on.includes(pageId),
+                                        !!e &&
+                                        e.valid_on.includes(pageId) &&
+                                        (mode !== "simple" ||
+                                            !SIMPLE_HIDDEN_FLAVORS.has(e.type)),
                                 )
                                 .slice(0, 3);
                             if (recents.length === 0) return null;

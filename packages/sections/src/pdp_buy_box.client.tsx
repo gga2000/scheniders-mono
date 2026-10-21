@@ -222,7 +222,7 @@ export function PdpBuyBoxRender({
         style={{
           backgroundColor: isActive
             ? "var(--bk-primary, #ff5a8a)"
-            : "#ffffff",
+            : "var(--bk-surface-alt, #ffffff)",
           color: isActive ? "var(--bk-on-primary, #fff)" : "var(--bk-ink, #1a1a1a)",
           border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
           borderRadius: "var(--bk-radius-input, 0.75rem)",
@@ -358,7 +358,7 @@ export function PdpBuyBoxRender({
                   {t ? "الكمية" : "Quantity"}
                 </h3>
                 <div
-                  className="inline-flex items-center bg-white"
+                  className="inline-flex items-center bg-bk-surface-alt"
                   style={{
                     border: "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)",
                     borderRadius: "var(--bk-radius-input, 0.75rem)",

@@ -25,8 +25,11 @@ import { generateSlug, ensureUniqueSlug, type PlanTier } from '@/lib/tenant';
 // - Every success answers with the same body, so the endpoint does not reveal
 //   whether an email already has an account.
 
-/** Server-decided plan for a self-serve trial. */
-const SIGNUP_PLAN: PlanTier = 'starter';
+/**
+ * Server-decided plan for a self-serve trial: every signup starts its trial on
+ * this plan and picks a paid plan later in-app (S3-02a).
+ */
+const SIGNUP_PLAN: PlanTier = 'growth';
 const TRIAL_DAYS = 14;
 
 const IP_LIMIT = 5;
@@ -106,6 +109,11 @@ export async function POST(request: NextRequest) {
 
         const adminClient = createSupabaseServiceClient();
 
+        // The store's slug is chosen before any account exists: ensureUniqueSlug
+        // throws when its lookup fails, and failing here leaves nothing behind.
+        const baseSlug = generateSlug(business_name);
+        const slug = await ensureUniqueSlug(baseSlug);
+
         // ── 1. Create the auth user (unconfirmed) and send the confirmation email ──
         const origin = env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
         const { data: authData, error: authError } = await createSupabaseAnonClient().auth.signUp({
@@ -169,8 +177,6 @@ export async function POST(request: NextRequest) {
         const userId = user.id;
 
         // ── 2. Create tenant ──
-        const baseSlug = generateSlug(business_name);
-        const slug = await ensureUniqueSlug(baseSlug);
         const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
         const { data: tenant, error: tenantError } = await adminClient
