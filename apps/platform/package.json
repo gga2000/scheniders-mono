@@ -12,7 +12,8 @@
     "analyze": "ANALYZE=true next build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:perf:orders": "playwright test e2e/perf/orders-load.spec.ts --project=chromium --reporter=list"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

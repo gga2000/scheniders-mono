@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
 
         const adminClient = createSupabaseServiceClient();
 
+        // The store's slug is chosen before any account exists: ensureUniqueSlug
+        // throws when its lookup fails, and failing here leaves nothing behind.
+        const baseSlug = generateSlug(business_name);
+        const slug = await ensureUniqueSlug(baseSlug);
+
         // ── 1. Create Supabase auth user ──
         const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
             email: email.trim().toLowerCase(),
@@ -57,8 +62,6 @@ export async function POST(request: NextRequest) {
         const userId = authData.user.id;
 
         // ── 2. Create tenant ──
-        const baseSlug = generateSlug(business_name);
-        const slug = await ensureUniqueSlug(baseSlug);
         const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days
 
         const { data: tenant, error: tenantError } = await adminClient

@@ -25,7 +25,7 @@ export default function StoreEditError({
     }, [error]);
 
     return (
-        <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-6 text-center">
+        <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center">
             <div className="mb-4 rounded-full bg-rose-100 p-4 dark:bg-rose-900/20">
                 <AlertTriangle className="h-8 w-8 text-rose-600" />
             </div>

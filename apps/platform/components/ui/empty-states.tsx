@@ -91,6 +91,7 @@ export function EmptyState({ type, searchQuery, hasFilters }: EmptyStateProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="flex flex-col items-center justify-center py-16 px-8"
+            data-empty-state={effectiveType}
         >
             {/* Animated Icon Container */}
             <motion.div

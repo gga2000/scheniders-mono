@@ -1,6 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { env } from '@/lib/env';
 import { diag } from '@/lib/diag';
+import { perfTrace } from '@/lib/perf-trace';
 
 // =============================================
 // JWT UTILITIES
@@ -86,13 +87,16 @@ export const supabase = createBrowserClient(
                 }, SUPABASE_FETCH_TIMEOUT_MS);
 
                 diag.log(`[Supabase:Fetch] START url=${shortUrl} method=${options?.method ?? 'GET'}`);
+                const traceId = perfTrace.requestStart(urlStr, options);
 
                 return fetch(url, { ...options, signal: controller.signal, cache: 'no-store' as RequestCache })
                     .then(response => {
+                        perfTrace.requestDone(traceId, response);
                         diag.log(`[Supabase:Fetch] DONE url=${shortUrl} status=${response.status} took=${(performance.now() - _t).toFixed(1)}ms`);
                         return response;
                     })
                     .catch(err => {
+                        perfTrace.requestDone(traceId, null);
                         diag.error(`[Supabase:Fetch] FAILED url=${shortUrl} err=${err instanceof Error ? err.message : err} took=${(performance.now() - _t).toFixed(1)}ms`);
                         throw err;
                     })

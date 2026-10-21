@@ -8,6 +8,8 @@ import { useMemo, type CSSProperties, type ReactElement } from "react";
 import type { BrandColors, BrandKit } from "@scheniders/shared";
 import { Tooltip } from "@/components/ui/tooltip";
 import { buildBrandKitVars } from "@scheniders/shared";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Derived-swatch strip                                                 */
@@ -41,6 +43,7 @@ export function readVar(vars: Record<string, string>, name: string): string {
 /* ─────────────────────────────────────────────────────────────────── */
 
 export function LivePreview({ value }: { value: BrandKit }): ReactElement {
+    const locale = useResolvedEditorLocale();
     const vars = useMemo(
         () => buildBrandKitVars(value) as unknown as Record<string, string>,
         [value],
@@ -48,7 +51,9 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
 
     const previewStyle = vars as unknown as CSSProperties;
 
-    const storeName = value.identity?.name?.trim() || "Your Store";
+    const storeName =
+        value.identity?.name?.trim() ||
+        t(STRINGS.brand_kit_preview.store_fallback, locale);
 
     return (
         <aside
@@ -56,10 +61,12 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
             className="sticky top-4 flex flex-col gap-4 rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-sm"
         >
             <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold tracking-tight">Live preview</h4>
+                <h4 className="text-sm font-semibold tracking-tight">
+                    {t(STRINGS.brand_kit_preview.heading, locale)}
+                </h4>
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Real-time
+                    {t(STRINGS.brand_kit_preview.realtime, locale)}
                 </span>
             </div>
 
@@ -97,7 +104,7 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                             lineHeight: "var(--bk-scale-leading)",
                         }}
                     >
-                        Brand wordmark + body type
+                        {t(STRINGS.brand_kit_preview.wordmark_caption, locale)}
                     </div>
                 </div>
 
@@ -116,13 +123,13 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                             className="text-[10px] uppercase tracking-wider opacity-80"
                             style={{ fontFamily: "var(--bk-font-body)" }}
                         >
-                            CTA
+                            {t(STRINGS.brand_kit_preview.cta_label, locale)}
                         </div>
                         <div
                             className="mt-0.5 text-sm font-semibold"
                             style={{ fontFamily: "var(--bk-font-display)" }}
                         >
-                            Shop now
+                            {t(STRINGS.brand_kit_preview.cta_sample, locale)}
                         </div>
                     </div>
 
@@ -139,13 +146,13 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                             className="text-[10px] uppercase tracking-wider opacity-80"
                             style={{ fontFamily: "var(--bk-font-body)" }}
                         >
-                            Surface
+                            {t(STRINGS.brand_kit_preview.surface_label, locale)}
                         </div>
                         <div
                             className="mt-0.5 text-sm font-semibold"
                             style={{ fontFamily: "var(--bk-font-display)" }}
                         >
-                            Hello
+                            {t(STRINGS.brand_kit_preview.surface_sample, locale)}
                         </div>
                     </div>
 
@@ -165,13 +172,13 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                                 color: "var(--bk-ink-soft)",
                             }}
                         >
-                            Ink
+                            {t(STRINGS.brand_kit_preview.ink_label, locale)}
                         </div>
                         <div
                             className="mt-0.5 text-sm font-semibold"
                             style={{ fontFamily: "var(--bk-font-display)" }}
                         >
-                            Aa Bb
+                            {t(STRINGS.brand_kit_preview.ink_sample, locale)}
                         </div>
                     </div>
                 </div>
@@ -190,7 +197,7 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                             fontSize: "0.8rem",
                         }}
                     >
-                        SALE!
+                        {t(STRINGS.brand_kit_preview.sale_sample, locale)}
                     </div>
                 </div>
             </div>
@@ -198,7 +205,7 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
             {/* Resolved tokens grid */}
             <div className="space-y-2">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Resolved tokens
+                    {t(STRINGS.brand_kit_preview.tokens_heading, locale)}
                 </div>
                 <div
                     className="grid grid-cols-8 gap-1"

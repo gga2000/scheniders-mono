@@ -301,6 +301,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                             label={tChrome(STRINGS.brand_kit.field_tagline, chromeLocale)}
                             value={identity.tagline ?? {}}
                             onChange={setTagline}
+                            activeLocale={chromeLocale}
                             placeholder={tChrome(STRINGS.brand_kit_body.tagline_placeholder, chromeLocale)}
                             helperText={tChrome(STRINGS.brand_kit.help_tagline, chromeLocale)}
                             testIdPrefix="identity-tagline"
@@ -318,17 +319,23 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                             testIdPrefix="identity-logo"
                         />
 
-                        <ImageField
-                            label={tChrome(STRINGS.brand_kit.field_favicon, chromeLocale)}
-                            value={identity.favicon_url}
-                            onChange={setFavicon}
-                            tenantId={tenantId}
-                            maxBytes={512 * 1024}
-                            helperText={tChrome(STRINGS.brand_kit.help_favicon, chromeLocale)}
-                            previewAspect="favicon"
-                            onReset={() => setFavicon(undefined)}
-                            testIdPrefix="identity-favicon"
-                        />
+                        {/* S3-03: the favicon is a web-dev nicety (warn-level
+                            check) — Advanced only. The OG image STAYS in
+                            Simple: it's the target of a first-publish
+                            recommendation whose fix button lands here. */}
+                        {editorMode === "advanced" && (
+                            <ImageField
+                                label={tChrome(STRINGS.brand_kit.field_favicon, chromeLocale)}
+                                value={identity.favicon_url}
+                                onChange={setFavicon}
+                                tenantId={tenantId}
+                                maxBytes={512 * 1024}
+                                helperText={tChrome(STRINGS.brand_kit.help_favicon, chromeLocale)}
+                                previewAspect="favicon"
+                                onReset={() => setFavicon(undefined)}
+                                testIdPrefix="identity-favicon"
+                            />
+                        )}
 
                         <ImageField
                             label={tChrome(STRINGS.brand_kit.field_og_image, chromeLocale)}
@@ -938,6 +945,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                             label={tChrome(STRINGS.brand_kit.field_notes, chromeLocale)}
                             value={voice.notes ?? {}}
                             onChange={setVoiceNotes}
+                            activeLocale={chromeLocale}
                             placeholder={tChrome(STRINGS.brand_kit_body.notes_placeholder, chromeLocale)}
                             multiline
                             helperText={tChrome(STRINGS.brand_kit_body.help_notes, chromeLocale)}
