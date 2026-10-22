@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { providerBaseUrls } from "./env";
 
 export interface ExtractedOrder {
     customer_name: string;
@@ -57,7 +58,10 @@ export async function extractOrderFromImage(
     const errors: string[] = [];
     for (const modelName of MODELS) {
         try {
-            const model = genAI.getGenerativeModel({ model: modelName });
+            const model = genAI.getGenerativeModel(
+                { model: modelName },
+                { baseUrl: providerBaseUrls.GEMINI_API_BASE_URL },
+            );
             result = await model.generateContent([
                 PROMPT,
                 { inlineData: { data: base64Image, mimeType } },

@@ -3,7 +3,9 @@
  * call the HTTP API directly instead of pulling in a dependency.
  */
 
-const API = "https://api.telegram.org";
+import { providerBaseUrls } from "./env";
+
+const API = providerBaseUrls.TELEGRAM_API_BASE_URL;
 
 function token(): string {
     const t = process.env.TELEGRAM_BOT_TOKEN;

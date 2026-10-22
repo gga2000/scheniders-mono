@@ -11,6 +11,7 @@
  * Rate Limit: 30 requests per 30 seconds per user
  */
 
+import { providerBaseUrls } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { extractGovernorate } from "@/lib/address-validator";
@@ -35,7 +36,7 @@ import type {
 // CONSTANTS
 // =============================================
 
-const BASE_URL = "https://api.alwaseet-iq.net/v1/merchant";
+const BASE_URL = `${providerBaseUrls.WASEET_API_BASE_URL}/v1/merchant`;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 const RATE_LIMIT_WINDOW_MS = 30_000;

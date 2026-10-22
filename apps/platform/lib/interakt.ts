@@ -9,7 +9,7 @@
  * Auth: Basic Auth with API Key from Interakt Dashboard → Settings → Developer Settings
  */
 
-import { env } from "./env";
+import { env, providerBaseUrls } from "./env";
 import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
@@ -61,7 +61,7 @@ export interface SendTemplateResult {
 // CONSTANTS
 // =============================================
 
-const INTERAKT_API_URL = "https://api.interakt.ai/v1/public/message/";
+const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
 const TEMPLATE_LANGUAGE = "en";
 const IRAQ_COUNTRY_CODE = "964";
 const MAX_RETRIES = 2;

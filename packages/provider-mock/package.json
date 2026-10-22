@@ -1,0 +1,23 @@
+{
+  "name": "@scheniders/provider-mock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One HTTP server that answers like every outbound provider (Interakt, QStash, LightFunnels, Telegram, Al-Waseet, Gemini, Anthropic, Meta and TikTok CAPI, web push) for e2e, restore drills and load tests (PKG-00 6a).",
+  "main": "./src/server.ts",
+  "types": "./src/server.ts",
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@upstash/qstash": "^2.9.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5",
+    "vitest": "^2.1.9"
+  }
+}
