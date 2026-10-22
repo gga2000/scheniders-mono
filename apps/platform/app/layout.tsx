@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { geistFontVars } from "./fonts/geist";
 import "./globals.css";
 // Fail-fast: validate all environment variables at app startup
 import "@/lib/env";
@@ -17,20 +17,6 @@ import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cle
 import { Toaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-  preload: true,
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-  preload: false,
-});
 
 export const metadata: Metadata = {
   title: "شنايدر",
@@ -93,7 +79,8 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/icons/splash.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-pastel-yellow selection:text-black`}
+        style={geistFontVars}
+        className="antialiased selection:bg-pastel-yellow selection:text-black"
       >
         <ErrorBoundary name="Root">
           <AuthProvider>

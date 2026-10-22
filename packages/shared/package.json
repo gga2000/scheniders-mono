@@ -11,7 +11,8 @@
     "./types": "./src/types/index.ts",
     "./iraq-map-paths": "./src/iraq-map-paths.ts",
     "./preview-token": "./src/preview-token.ts",
-    "./health-rules": "./src/health-rules.ts"
+    "./health-rules": "./src/health-rules.ts",
+    "./font-stack": "./src/font-stack.ts"
   },
   "scripts": {
     "test": "vitest run"
