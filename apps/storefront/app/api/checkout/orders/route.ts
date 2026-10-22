@@ -10,6 +10,7 @@ import {
 } from "@scheniders/shared";
 import { submitCheckout } from "@/app/actions/checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { isDraftViewRequest } from "@/lib/draft-view";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -126,29 +127,32 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const result = await submitCheckout(payload);
 
-    if (result.success) {
+    // A replayed submit — the same idempotency key (EC17) or the soft
+    // duplicate guard — answers an order whose purchase and experiment rows
+    // were written when it was placed; writing them again would count one
+    // order twice.
+    if (result.success && !result.replayed) {
       try {
         const visitorKey = (await cookies()).get("sb_vid")?.value;
-        if (visitorKey) {
+        // A test order placed from draft view is the merchant, not a
+        // converted shopper — keep it out of the experiment's revenue.
+        if (visitorKey && !(await isDraftViewRequest(data.tenant_id))) {
           const svc = createSupabaseServiceClient();
           // First-party funnel: one purchase row per line product so the
           // merchant's "viewed → bought" per product is exact; the value is
           // the server-computed total on the first row only (revenue sums).
-          // A replayed submit (EC17) answers an order already counted.
-          if (!result.replayed) {
-            const { error: funnelErr } = await svc.from("storefront_events").insert(
-              payload.items.map((i, idx) => ({
-                tenant_id: parsed.data.tenant_id,
-                visitor_key: visitorKey,
-                event_type: "purchase" as const,
-                page_id: "checkout",
-                product_id: i.product_id,
-                order_id: result.orderId ?? null,
-                value_iqd: idx === 0 ? Math.round(result.total ?? 0) : null,
-              })),
-            );
-            if (funnelErr) console.error("[checkout/orders] funnel purchase write failed:", funnelErr);
-          }
+          const { error: funnelErr } = await svc.from("storefront_events").insert(
+            payload.items.map((i, idx) => ({
+              tenant_id: parsed.data.tenant_id,
+              visitor_key: visitorKey,
+              event_type: "purchase" as const,
+              page_id: "checkout",
+              product_id: i.product_id,
+              order_id: result.orderId ?? null,
+              value_iqd: idx === 0 ? Math.round(result.total ?? 0) : null,
+            })),
+          );
+          if (funnelErr) console.error("[checkout/orders] funnel purchase write failed:", funnelErr);
           // EC19: re-derive the visitor's arm per running experiment from the
           // store config — never trust the client's `ab_test_arms` (which could
           // forge revenue attribution to a chosen arm). Revenue is the
@@ -206,7 +210,11 @@ export async function POST(req: Request): Promise<NextResponse> {
       });
       return res;
     }
-    return NextResponse.json(result, { status: 422 });
+    // A platform failure (the database did not answer) is not the order's
+    // fault: 503 tells the client the same request — same idempotency key —
+    // may be sent again. Everything else, including line `issues` and the
+    // `new_price` self-heal, is the 422 the shopper acts on.
+    return NextResponse.json(result, { status: result.retryable ? 503 : 422 });
   } catch (e) {
     console.error("[api/checkout/orders]", e);
     return NextResponse.json(

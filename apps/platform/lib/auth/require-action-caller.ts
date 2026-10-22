@@ -1,5 +1,5 @@
 import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
-import { isAdminRole, isPlatformAdminRole } from "@/lib/permissions";
+import { isAdminRole, isPlatformAdminRole, resolveEffectiveRole } from "@/lib/permissions";
 import { activeMembershipRole } from "@/lib/auth/active-tenant-role";
 
 /**
@@ -27,15 +27,16 @@ export type AuthResult = { ok: true; userId: string } | { ok: false; error: stri
 /** A read failed: say so, instead of a wrong "deactivated" or "not a member". */
 export const ACCOUNT_CHECK_FAILED = "Could not verify your account, try again";
 
-type CallerProfile = { role: string | null; is_active: boolean | null };
+type CallerProfile = { role: string | null; is_active: boolean | null; current_tenant_id: string | null };
 
 type VerifiedCaller =
     | { ok: true; userId: string; profile: CallerProfile | null }
     | { ok: false; error: string };
 
 /**
- * Verifies the token and reads the caller's profile ONCE (role and is_active),
- * so the deactivation check and the platform-admin check share one read.
+ * Verifies the token and reads the caller's profile ONCE (role, is_active and
+ * current_tenant_id), so the deactivation, platform-admin and active-tenant
+ * checks share one read.
  * Deactivation revokes neither the session nor the refresh token, so a valid
  * token alone does not mean the owner may still act (F-087).
  */
@@ -47,7 +48,7 @@ async function verifyCaller(accessToken: string | undefined): Promise<VerifiedCa
     const supabase = createSupabaseServiceClient();
     const { data, error: profileError } = await supabase
         .from("user_profiles")
-        .select("role, is_active")
+        .select("role, is_active, current_tenant_id")
         .eq("id", user.id)
         .maybeSingle();
     if (profileError) return { ok: false, error: ACCOUNT_CHECK_FAILED };
@@ -133,47 +134,37 @@ export async function requirePlatformAdmin(accessToken: string | undefined): Pro
     return { ok: true, userId: caller.userId };
 }
 
+export type TenantAuthResult =
+    | { ok: true; userId: string; tenantId: string }
+    | { ok: false; error: string };
+
 /**
- * The caller administers a tenant that `targetUserId` is an active member of —
- * or is a platform admin. For per-user settings such as permission overrides,
- * where the arguments name a user rather than a tenant.
+ * The caller administers their active tenant — or is a platform admin acting
+ * in it — and `targetUserId` is an active member of that tenant. For per-user
+ * settings such as permission overrides, which are scoped to one tenant: the
+ * tenant is the caller's server-verified active tenant (the
+ * `resolveActiveTenant` rule: `current_tenant_id` counts only with an active
+ * membership there, or for a platform admin), never one named by the client,
+ * and it is returned so the write uses it.
  */
 export async function requireAdminOverUser(
     accessToken: string | undefined,
     targetUserId: string | null | undefined,
-): Promise<AuthResult> {
+): Promise<TenantAuthResult> {
     const caller = await verifyCaller(accessToken);
     if (!caller.ok) return caller;
     if (!targetUserId) return { ok: false, error: "No user specified." };
 
-    if (isPlatformAdmin(caller)) return { ok: true, userId: caller.userId };
-    // No profile row means no tenant role (the get_user_tenant_ids join).
-    if (!caller.profile) return { ok: false, error: "This action requires an administrator." };
+    const tenantId = caller.profile?.current_tenant_id;
+    if (!tenantId) return { ok: false, error: "No active tenant" };
+    const membership = await callerTenantRole(caller, tenantId);
+    if (!membership.ok) return { ok: false, error: ACCOUNT_CHECK_FAILED };
+    const role = resolveEffectiveRole(caller.profile?.role, membership.role);
+    if (!role) return { ok: false, error: "You are not a member of this account." };
+    if (!isAdminRole(role)) return { ok: false, error: "This action requires an administrator." };
 
-    const supabase = createSupabaseServiceClient();
-    const { data: callerMemberships, error: membershipsError } = await supabase
-        .from("tenant_members")
-        .select("tenant_id, role")
-        .eq("user_id", caller.userId)
-        .eq("status", "active");
-    if (membershipsError) return { ok: false, error: ACCOUNT_CHECK_FAILED };
-    const adminTenantIds = ((callerMemberships ?? []) as { tenant_id: string; role: string }[])
-        .filter((m) => isAdminRole(m.role))
-        .map((m) => m.tenant_id);
-    if (adminTenantIds.length === 0) {
-        return { ok: false, error: "This action requires an administrator." };
-    }
-
-    const { data: shared, error: sharedError } = await supabase
-        .from("tenant_members")
-        .select("tenant_id")
-        .eq("user_id", targetUserId)
-        .eq("status", "active")
-        .in("tenant_id", adminTenantIds)
-        .limit(1);
-    if (sharedError) return { ok: false, error: ACCOUNT_CHECK_FAILED };
-    if (!shared || (shared as unknown[]).length === 0) {
-        return { ok: false, error: "That user is not a member of your account." };
-    }
-    return { ok: true, userId: caller.userId };
+    const target = await activeMembershipRole(targetUserId, tenantId);
+    if (!target.ok) return { ok: false, error: ACCOUNT_CHECK_FAILED };
+    if (!target.role) return { ok: false, error: "That user is not a member of your account." };
+    return { ok: true, userId: caller.userId, tenantId };
 }

@@ -18,9 +18,11 @@ import {
 } from "lucide-react";
 import { TransitionLink as Link } from "./transition-link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/hooks/use-auth";
+import { filterNavItems } from "@/lib/route-permissions";
 
 const PRIMARY_NAV_ITEMS = [
     { key: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -43,9 +45,13 @@ export function MobileNav() {
     const pathname = usePathname();
     const [showMore, setShowMore] = useState(false);
     const { t } = useLanguage();
+    const { role, permissions } = useAuth();
+    // Only the links this user may open: the same rules PageGuard enforces.
+    const primaryItems = useMemo(() => filterNavItems(PRIMARY_NAV_ITEMS, role, permissions), [role, permissions]);
+    const moreItems = useMemo(() => filterNavItems(MORE_NAV_ITEMS, role, permissions), [role, permissions]);
 
     // Check if any "more" item is active
-    const isMoreActive = MORE_NAV_ITEMS.some(item => pathname === item.href);
+    const isMoreActive = moreItems.some(item => pathname === item.href);
 
     return (
         <>
@@ -89,7 +95,7 @@ export function MobileNav() {
 
                             {/* Menu Items */}
                             <div className="px-4 pb-6 space-y-1">
-                                {MORE_NAV_ITEMS.map((item) => {
+                                {moreItems.map((item) => {
                                     const isActive = pathname === item.href;
                                     return (
                                         <Link
@@ -116,7 +122,7 @@ export function MobileNav() {
 
             {/* Bottom Navigation Bar */}
             <nav className="mobile-bottom-nav hide-desktop">
-                {PRIMARY_NAV_ITEMS.map((item) => {
+                {primaryItems.map((item) => {
                     const isActive = pathname === item.href;
                     return (
                         <Link

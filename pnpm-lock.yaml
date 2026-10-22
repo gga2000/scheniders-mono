@@ -424,6 +424,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.46.1
         version: 2.102.1
+      '@upstash/qstash':
+        specifier: ^2.9.0
+        version: 2.10.1
       lucide-react:
         specifier: ^0.460.0
         version: 0.460.0(react@19.2.1)

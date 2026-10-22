@@ -22,6 +22,19 @@ export function formatPrice(
   return `${n} ${iqdSuffix(locale)}`;
 }
 
+/** `formatPrice` split into its number and currency, for layouts that set
+ *  the currency smaller than the amount. Same digits, same suffix. */
+export function formatPriceParts(
+  amount: number,
+  locale?: "ar" | "en" | "ku",
+): { amount: string; currency: string } {
+  const n = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.max(0, Math.round(amount)));
+  return { amount: n, currency: iqdSuffix(locale) };
+}
+
 /**
  * Locale-aware percent, mirroring `formatPrice`: the number carries its
  * sign as one unit ("36٪" / "36% off" in English), Latin digits either

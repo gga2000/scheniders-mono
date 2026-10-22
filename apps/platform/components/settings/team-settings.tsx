@@ -228,13 +228,17 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
 
             setRolePermissions(roleData?.map(p => p.permission) || []);
 
-            // 2. Fetch user overrides
-            const { data: overrideData } = await supabase
-                .from('user_permissions')
-                .select('permission, is_granted')
-                .eq('user_id', user.id);
-
-            setOverrides(overrideData || []);
+            // 2. Fetch the user's overrides in this tenant (overrides are per tenant)
+            if (tenantId) {
+                const { data: overrideData } = await supabase
+                    .from('user_permissions')
+                    .select('permission, is_granted')
+                    .eq('tenant_id', tenantId)
+                    .eq('user_id', user.id);
+                setOverrides(overrideData || []);
+            } else {
+                setOverrides([]);
+            }
         } catch (err) {
             console.error("Error fetching permissions:", err);
         } finally {
