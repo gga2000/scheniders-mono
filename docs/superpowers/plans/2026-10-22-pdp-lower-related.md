@@ -943,6 +943,9 @@ function RowCard({
   const reviewCount = product.review_count ?? 0;
   const avgRating = product.avg_rating ?? 0;
   const rating = showRating && reviewCount > 0;
+  // The public name everywhere on the card, the photo's alt included: the
+  // long marketing name repeats the maker the brand tag already states.
+  const name = displayNameOf(product);
 
   return (
     <li
@@ -962,7 +965,7 @@ function RowCard({
             {product.image_url ? (
               <Image
                 src={product.image_url}
-                alt={product.name}
+                alt={name}
                 fill
                 sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 22vw"
                 className={cn("object-cover", !buyable && "opacity-60 grayscale")}
@@ -986,7 +989,7 @@ function RowCard({
             )}
           >
             <h3 className="line-clamp-2 font-bk-display text-[15px] font-bold leading-snug text-bk-ink">
-              {displayNameOf(product)}
+              {name}
             </h3>
             {(brand || gender || rating) && (
               <div className={cn("flex w-full flex-wrap gap-1", rtl && "flex-row-reverse")}>
