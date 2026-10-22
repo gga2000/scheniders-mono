@@ -152,3 +152,50 @@ describe("QuietReviewCard", () => {
     expect(card(0, "en")).not.toContain("flex-row-reverse");
   });
 });
+
+describe("product_reviews quiet — wired section", () => {
+  it("renders the summary card and quiet cards, not the classic list", () => {
+    const out = render(QUIET, reviewed);
+    expect(out).toContain('id="reviews"');
+    expect(out).toContain("data-reviews-summary");
+    expect(out).toContain("4 تقييم");
+    expect(out).not.toContain("مشترٍ موثّق");
+    expect(out).not.toContain("border-2 border-bk-ink/10");
+  });
+
+  it("folds the form behind a modest entry button", () => {
+    const out = render(QUIET, reviewed);
+    expect(out).not.toContain("<form");
+    expect(out).toContain("اكتب تقييمك");
+    expect(out).toContain("data-review-entry");
+    expect(out).toContain("min-h-11");
+  });
+
+  it("no entry button when the merchant hides the form", () => {
+    const out = render({ ...QUIET, show_form: false }, reviewed);
+    expect(out).not.toContain("data-review-entry");
+  });
+
+  it("an empty product gets one honest line plus the entry, no 0.0", () => {
+    const out = render(QUIET, { ...plainProduct, reviews: [] });
+    expect(out).toContain("بعد ماكو تقييمات، كون أول واحد يقيّم");
+    expect(out).toContain("data-review-entry");
+    expect(out).not.toContain("0.0");
+    expect(out).not.toContain("data-reviews-summary");
+  });
+
+  it("aggregate-only shows the average without bars", () => {
+    const out = render(QUIET, { ...saleProduct });
+    expect(out).toContain(">4.6<");
+    expect(out).toContain("12 تقييم");
+    expect(out).not.toContain("data-star-count");
+  });
+
+  it("english reads left to right", () => {
+    const out = render(QUIET, reviewed, {
+      runtime: { ...productRuntime, locale: "en" },
+    });
+    expect(out).toContain("4 reviews");
+    expect(out).toContain("Write your review");
+  });
+});
