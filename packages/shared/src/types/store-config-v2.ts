@@ -412,6 +412,41 @@ export interface StoreCommerceConfig {
   referral?: ReferralConfig;
   /** Per-stage copy for the order tracker. Missing stages use the shipped defaults. */
   order_status_narratives?: Partial<Record<CustomerOrderStage, OrderStatusNarrative>>;
+  /** Who contacts the buyer after an order, and when (the "who contacts
+   *  you" line). Absent = no line anywhere. */
+  contact?: StoreContactConfig;
+}
+
+/** Weekday codes for call hours, Sunday first (matches `Date#getUTCDay`). */
+export type ContactWeekday = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
+
+/**
+ * When the store's team calls buyers to confirm orders. Wall-clock hours in
+ * `tz`; `from` is strictly before `to` (no overnight windows). A malformed
+ * block is ignored and the line names the channel only — it never guesses.
+ */
+export interface StoreCallHours {
+  days: ContactWeekday[];
+  /** "HH:mm", 24-hour. */
+  from: string;
+  /** "HH:mm", 24-hour, after `from`. */
+  to: string;
+  /** IANA zone; absent = Asia/Baghdad. */
+  tz?: string;
+}
+
+/**
+ * The structured contact promise shown under the order button and on the
+ * thank-you card. `call_number` must be an Iraqi mobile: it is the number
+ * the buyer is told to answer, so a malformed one hides the line instead
+ * of printing a number nobody calls from.
+ */
+export interface StoreContactConfig {
+  call_number?: string;
+  call_hours?: StoreCallHours;
+  /** The store sends the instant WhatsApp confirmation for storefront
+   *  orders, so the line may announce it. Off unless set. */
+  whatsapp_confirm?: boolean;
 }
 
 /**

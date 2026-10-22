@@ -121,6 +121,28 @@ describe("resolveTrackerContact", () => {
     expect(resolveTrackerContact({ store_config: { contact: {} } })).toBeNull();
     expect(resolveTrackerContact(null)).toBeNull();
   });
+
+  it("prefers the structured commerce.contact call number, normalized, over every legacy field", () => {
+    expect(
+      resolveTrackerContact({
+        store_config: { contact: { phone_number: "07701112233", whatsapp_number: "07804445566" } },
+        contact_phone: "07507778899",
+        store_config_v2: { commerce: { contact: { call_number: "+9647779703832" } } },
+      }),
+    ).toBe("07779703832");
+  });
+
+  it("ignores an unusable structured number and keeps the legacy chain", () => {
+    expect(
+      resolveTrackerContact({
+        store_config: { contact: { phone_number: "07701112233" } },
+        store_config_v2: { commerce: { contact: { call_number: "0123" } } },
+      }),
+    ).toBe("07701112233");
+    expect(
+      resolveTrackerContact({ store_config_v2: { commerce: null }, contact_phone: "07507778899" }),
+    ).toBe("07507778899");
+  });
 });
 
 describe("safeLinkTarget", () => {

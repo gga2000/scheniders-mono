@@ -65,10 +65,11 @@ describe("planTemplateUpgrade", () => {
         expect(attrs.after_type).toBe("pdp_direct_order");
         expect(attrs.section.id).not.toMatch(/^__/); // fresh id, not a placeholder
 
-        // The offer leads the thank-you page, so it follows nothing.
+        // v3: the order confirmation (and its call card) leads the thank-you
+        // page; the offer follows it.
         const offer = required(p.additions.find((a) => a.type === "post_purchase_offer"), "post_purchase_offer");
         expect(offer.page_id).toBe("checkout_success");
-        expect(offer.after_type).toBeNull();
+        expect(offer.after_type).toBe("order_confirmation");
         expect(hasTemplateUpdate(p)).toBe(true);
     });
 
@@ -108,12 +109,12 @@ describe("applyTemplateUpgrade", () => {
         expect(page(old, "product").sections.some((s) => s.type === "product_attributes")).toBe(false);
     });
 
-    it("puts the post-purchase offer back at the top of the thank-you page", () => {
+    it("puts the post-purchase offer under the order confirmation", () => {
         const old = v1Signature();
         const next = applyTemplateUpgrade(old, plan(old));
         expect(page(next, "checkout_success").sections.map((s) => s.type)).toEqual([
-            "post_purchase_offer",
             "order_confirmation",
+            "post_purchase_offer",
             "product_grid",
         ]);
     });

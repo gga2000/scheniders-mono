@@ -2,6 +2,8 @@
 
 import { Badge } from "@scheniders/ui";
 import { cartItemCount } from "@scheniders/shared";
+import { formatIQD } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { useAbandonedCarts } from "@/hooks/use-abandoned-carts";
 import {
     cartState,
@@ -15,48 +17,53 @@ const STATE_BADGE: Record<CartState, "new" | "contacted" | "confirmed"> = {
     recovered: "confirmed",
 };
 
-const STATE_LABEL: Record<CartState, string> = {
-    pending: "Pending",
-    reminded: "Reminded",
-    recovered: "Recovered",
+const STATE_LABEL_KEY: Record<CartState, string> = {
+    pending: "recovery.state.pending",
+    reminded: "recovery.state.reminded",
+    recovered: "recovery.state.recovered",
 };
 
-function iqd(n: number): string {
-    return `${n.toLocaleString("en-US")} IQD`;
-}
-
-function itemsSummary(items: { name: string; quantity: number }[]): string {
-    const names = items.map((i) => i.name).slice(0, 3).join("، ");
-    const more = items.length > 3 ? ` +${items.length - 3}` : "";
-    return names + more;
-}
-
 export default function RecoveryPage() {
+    const { t, language } = useLanguage();
     const { data: carts = [], isLoading } = useAbandonedCarts();
     const stats = summarizeRecovery(carts);
 
+    const itemsSummary = (items: { name: string; quantity: number }[]): string => {
+        const names = items
+            .map((i) => i.name)
+            .slice(0, 3)
+            .join(t("orders.captures.itemSeparator"));
+        const more = items.length > 3 ? ` +${items.length - 3}` : "";
+        return names + more;
+    };
+    const day = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", {
+        timeZone: "Asia/Baghdad",
+        dateStyle: "medium",
+    });
+
     const cards = [
-        { label: "Captured", value: String(stats.total) },
-        { label: "Reminded", value: String(stats.reminded) },
-        { label: "Recovered", value: String(stats.recovered) },
+        { label: t("recovery.cards.captured"), value: String(stats.total) },
+        { label: t("recovery.cards.reminded"), value: String(stats.reminded) },
         {
-            label: "Recovery rate",
+            label: t("recovery.cards.recoveredAfterReminder"),
+            value: String(stats.recoveredAfterReminder),
+        },
+        { label: t("recovery.cards.recoveredOrganic"), value: String(stats.recoveredOrganic) },
+        {
+            label: t("recovery.cards.rate"),
             value: `${Math.round(stats.recoveryRate * 100)}%`,
         },
-        { label: "Recovered value", value: iqd(stats.recoveredValue) },
+        { label: t("recovery.cards.value"), value: formatIQD(stats.recoveredValue) },
     ];
 
     return (
         <div className="mx-auto w-full max-w-4xl p-4 md:p-8">
             <header className="mb-6">
-                <h1 className="text-2xl font-bold text-foreground">Cart recovery</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Carts customers started but didn&apos;t complete. A WhatsApp nudge
-                    goes out automatically; placing the order marks it recovered.
-                </p>
+                <h1 className="text-2xl font-bold text-foreground">{t("recovery.title")}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">{t("recovery.subtitle")}</p>
             </header>
 
-            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {cards.map((c) => (
                     <div
                         key={c.label}
@@ -73,10 +80,10 @@ export default function RecoveryPage() {
             </div>
 
             {isLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-sm text-muted-foreground">{t("recovery.loading")}</p>
             ) : carts.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-                    No abandoned carts yet.
+                    {t("recovery.empty")}
                 </p>
             ) : (
                 <ul className="space-y-3">
@@ -93,19 +100,22 @@ export default function RecoveryPage() {
                                             {c.phone}
                                         </span>
                                         <Badge variant={STATE_BADGE[state]}>
-                                            {STATE_LABEL[state]}
+                                            {t(STATE_LABEL_KEY[state])}
                                         </Badge>
                                     </div>
                                     <p className="mt-1 truncate text-sm text-muted-foreground">
-                                        {cartItemCount(c.items)} item(s): {itemsSummary(c.items)}
+                                        {t("recovery.items", {
+                                            count: cartItemCount(c.items),
+                                            names: itemsSummary(c.items),
+                                        })}
                                     </p>
                                 </div>
-                                <div className="text-right">
+                                <div className="text-end">
                                     <p className="font-bold tabular-nums text-foreground">
-                                        {iqd(c.subtotal_iqd)}
+                                        {formatIQD(c.subtotal_iqd)}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        {new Date(c.updated_at).toLocaleDateString()}
+                                        {day.format(new Date(c.updated_at))}
                                     </p>
                                 </div>
                             </li>

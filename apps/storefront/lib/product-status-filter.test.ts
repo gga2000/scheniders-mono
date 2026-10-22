@@ -80,6 +80,9 @@ describe("checkout refuses non-active products", () => {
   });
 
   it("rejects any product whose status is not active", () => {
-    expect(source).toMatch(/product\.status\s*!==\s*"active"/);
+    // The orderability rule lives in lib/catalogue-line, shared with the
+    // phone capture; the checkout must decide every line through it.
+    expect(source).toMatch(/catalogueUnitPrice\(/);
+    expect(read("lib/catalogue-line.ts")).toMatch(/product\.status\s*!==\s*"active"/);
   });
 });

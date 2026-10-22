@@ -187,8 +187,9 @@ export default async function StoreV2Page({
                 // exactly the lines the shopper would not see. Only the number
                 // crosses to the client, not the store_config row. The
                 // commerce slice is the one being edited (draft, else
-                // published): its WhatsApp number is what the tracker falls
-                // back to once this config is live.
+                // published): its structured call number is what the tracker
+                // dials first, and its WhatsApp number what it falls back to,
+                // once this config is live.
                 tracking_contact: resolveTrackerContact({
                     store_config: t.store_config,
                     contact_phone: t.contact_phone,

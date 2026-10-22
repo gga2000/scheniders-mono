@@ -11,6 +11,7 @@
     "./types": "./src/types/index.ts",
     "./iraq-map-paths": "./src/iraq-map-paths.ts",
     "./preview-token": "./src/preview-token.ts",
+    "./consent-version": "./src/consent-version.ts",
     "./health-rules": "./src/health-rules.ts"
   },
   "scripts": {

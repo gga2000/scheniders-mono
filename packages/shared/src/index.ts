@@ -22,6 +22,7 @@ export * from "./locale";
 export * from "./loyalty";
 export * from "./referral";
 export * from "./cod-risk";
+export * from "./contact-line";
 export * from "./order-bumps";
 export * from "./pixel";
 export * from "./post-purchase";

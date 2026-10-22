@@ -19,7 +19,8 @@ export type Row = Record<string, unknown>;
 
 interface Result {
   data: unknown;
-  error: { message: string } | null;
+  /** `code` is the SQLSTATE / PostgREST code a real error carries. */
+  error: { message: string; code?: string } | null;
 }
 
 export interface RpcCall {

@@ -156,10 +156,14 @@ async function withVariantFlags(
   return products.map((p) => (flagged.has(p.id) ? { ...p, sold_by_variant: true } : p));
 }
 
-/** Columns the PDP renders a product from — the PDP product itself and the
- *  add-on products its order bumps point at. */
-const PDP_PRODUCT_COLUMNS =
-  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank";
+/** The product columns every storefront product read selects — the PDP
+ *  product, the add-on products its order bumps point at, and listings. One list so a
+ *  new public column cannot reach the PDP through one query and be missing
+ *  from another. Each name must be in anon's column grant on products (see
+ *  20260817125055_anon_products_column_lockdown.sql and later grants) —
+ *  an ungranted column fails the whole anon select. */
+export const PRODUCT_COLUMNS =
+  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank, brand, size_ml, display_name, gender";
 
 /**
  * Add-on offers attached to one product. PDP only, like tiers — and like
@@ -193,7 +197,7 @@ async function withOrderBumps(
   const bumpIds = [...new Set(data.map((b) => b.bump_product_id))];
   const { data: bumpRows, error: bumpProductsErr } = await supabase
     .from("products")
-    .select(PDP_PRODUCT_COLUMNS)
+    .select(PRODUCT_COLUMNS)
     .in("id", bumpIds)
     .eq("tenant_id", tenantId)
     .eq("is_visible", true)
@@ -338,9 +342,7 @@ export const listProducts = cache(
     publicCache(["listProducts", tenantId, JSON.stringify(opts)], async (supabase) => {
       let q = supabase
         .from("products")
-        .select(
-          "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank",
-        )
+        .select(PRODUCT_COLUMNS)
         .eq("tenant_id", tenantId)
         .eq("is_visible", true)
         .eq("status", "active")
@@ -429,7 +431,7 @@ function decodeSlugParam(value: string): string {
 export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
     publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
-      const columns = PDP_PRODUCT_COLUMNS;
+      const columns = PRODUCT_COLUMNS;
 
       // The dynamic route param can arrive still percent-encoded, so a non-ASCII
       // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
@@ -710,7 +712,7 @@ export const listProductsInCategory = cache(
         let q = supabase
           .from("product_categories")
           .select(
-            "products!inner(id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank)",
+            `products!inner(${PRODUCT_COLUMNS})`,
           )
           .eq("category_id", categoryId)
           .eq("tenant_id", tenantId)
@@ -788,5 +790,12 @@ function normalizeProduct(row: Record<string, unknown>): Product {
     price: r.website_price ?? r.price,
     gallery_urls: coerceGalleryUrls(row.gallery_urls),
     feature_cards: coerceFeatureCards(row.feature_cards),
+    gender: coerceGender(row.gender),
   };
+}
+
+/** products.gender is CHECK-constrained to this set; anything else (an
+ *  older row shape, a builder fixture) renders no tag rather than a raw value. */
+function coerceGender(raw: unknown): Product["gender"] {
+  return raw === "men" || raw === "women" || raw === "unisex" ? raw : null;
 }

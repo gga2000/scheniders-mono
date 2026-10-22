@@ -21,8 +21,8 @@ function normalise(v: unknown): unknown {
 describe("scheniders_signature parity", () => {
     it("is at the version its section stacks say it is", () => {
         // v2 added product_attributes (product) and post_purchase_offer
-        // (checkout_success).
-        expect(schenidersSignatureTemplate.version).toBe(2);
+        // (checkout_success); v3 moved the offer below order_confirmation.
+        expect(schenidersSignatureTemplate.version).toBe(3);
     });
 
     it("produces the same config as before the direction/pack split", () => {
