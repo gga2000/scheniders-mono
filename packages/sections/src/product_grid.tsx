@@ -27,6 +27,7 @@ import { RevealMore } from "./helpers/reveal-more";
 import { CatalogGrid } from "./helpers/catalog-grid";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { chromeString } from "./helpers/chrome-strings";
+import { isBuyable } from "./helpers/stock";
 import {
   formatPrice,
   formatCount,
@@ -54,6 +55,14 @@ const schema = z.object({
        * whose stock is all gone still wants to show its products.
        */
       exclude_out_of_stock: z.boolean().optional(),
+      /**
+       * Keep sold-out products, but after every product a shopper can
+       * order. Applied before `limit`, so a sold-out best seller gives its
+       * slot to something orderable instead of leading the shelf. Opt-in:
+       * unset leaves today's order untouched. `.catch` so a malformed
+       * stored value reads as unset rather than dropping the section.
+       */
+      sold_out_last: z.boolean().optional().catch(undefined),
     })
     .optional(),
   manual_product_ids: z.array(z.string()).optional(),
@@ -138,6 +147,15 @@ const defaultProps: Props = {
 
 /* ---- product selection ------------------------------------------------ */
 
+/** Stable partition: orderable products first, sold-out and oversold ones
+ *  after, each half in the order it arrived. */
+function soldOutLast(products: Product[]): Product[] {
+  return [
+    ...products.filter((p) => isBuyable(p)),
+    ...products.filter((p) => !isBuyable(p)),
+  ];
+}
+
 function selectAuto(
   products: Product[],
   query: Props["query"],
@@ -190,6 +208,7 @@ function selectAuto(
       return bt.localeCompare(at);
     });
   }
+  if (query?.sold_out_last) pool = soldOutLast(pool);
   if (query?.limit && pool.length > query.limit) {
     pool = pool.slice(0, query.limit);
   }
@@ -207,9 +226,10 @@ export function selectProducts(
 ): Product[] {
   const byId = new Map(ctx.products.map((p) => [p.id, p]));
   if (props.mode === "manual") {
-    return (props.manual_product_ids ?? [])
+    const manual = (props.manual_product_ids ?? [])
       .map((id) => byId.get(id))
       .filter((p): p is Product => !!p);
+    return props.query?.sold_out_last ? soldOutLast(manual) : manual;
   }
   if (props.mode === "mixed") {
     const pinned = (props.pinned_product_ids ?? [])
@@ -222,7 +242,8 @@ export function selectProducts(
       ctx.product?.id,
     );
     const limit = props.query?.limit ?? Infinity;
-    return [...pinned, ...fill].slice(0, limit);
+    const merged = [...pinned, ...fill];
+    return (props.query?.sold_out_last ? soldOutLast(merged) : merged).slice(0, limit);
   }
   return selectAuto(ctx.products, props.query, ctx.product?.id);
 }
