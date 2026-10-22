@@ -29,6 +29,8 @@ import { OrderLine } from "./order-line";
 import { phoneDigits, phoneIssue } from "./phone";
 import { PricePlate } from "./price-plate";
 import { ScrollHint } from "./scroll-hint";
+import { buildScentJourney } from "./scent-journey";
+import { ScentJourneyBlock } from "./scent-journey-block";
 import { readsRtl, xs } from "./text";
 import { expressWhatsappHref } from "./whatsapp-href";
 
@@ -46,6 +48,11 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
   // On in express unless the merchant turns it off; pointless without a
   // form to scroll to (sold out).
   const showScrollHint = props.show_scroll_hint !== false && !m.oos;
+  // Opt-in: the product's own attributes as the «رحلة العطر» block; null
+  // (no block) when the product carries none of the configured keys.
+  const journey = props.scent_journey
+    ? buildScentJourney(product.attributes, props.scent_journey, locale)
+    : null;
 
   return (
     <section className="pb-bk-md" data-pdp-layout="express">
@@ -177,6 +184,16 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
 
         {props.show_description && product.description && (
           <DescriptionBlock text={product.description} locale={locale} />
+        )}
+
+        {journey && (
+          <ScentJourneyBlock
+            journey={journey}
+            title={
+              resolveI18n(props.scent_journey?.title_i18n, locale) || xs("scentJourney", locale)
+            }
+            locale={locale}
+          />
         )}
 
         {m.featureCards.length > 0 && (

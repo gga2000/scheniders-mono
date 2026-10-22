@@ -88,3 +88,85 @@ describe("pdp_direct_order schema — scent opt-ins", () => {
     );
   });
 });
+
+function count(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+/** The journey <section>, open tag to close tag (it has no nested section). */
+function journeyBlock(html: string): string {
+  const at = html.indexOf('data-layer="scent-journey"');
+  expect(at).toBeGreaterThan(-1);
+  const open = html.lastIndexOf("<section", at);
+  return html.slice(open, html.indexOf("</section>", at) + "</section>".length);
+}
+
+describe("pdp_direct_order express — scent_journey block", () => {
+  const p = parse({ scent_journey: JOURNEY });
+
+  it("renders once, after the description and before the feature cards", () => {
+    const html = render(p, scentProduct);
+    expect(count(html, 'data-layer="scent-journey"')).toBe(1);
+    const about = html.indexOf(">عن العطر<");
+    const journey = html.indexOf('data-layer="scent-journey"');
+    const cards = html.indexOf('data-i18n-field="feature_cards_title_i18n"');
+    expect(about).toBeGreaterThan(-1);
+    expect(about).toBeLessThan(journey);
+    expect(journey).toBeLessThan(cards);
+  });
+
+  it("walks the merchant's stages top → heart → base with their labels, chrome hints and notes", () => {
+    const b = journeyBlock(render(p, scentProduct));
+    const top = b.indexOf('data-stage="top"');
+    const heart = b.indexOf('data-stage="heart"');
+    const base = b.indexOf('data-stage="base"');
+    expect(top).toBeGreaterThan(-1);
+    expect(top).toBeLessThan(heart);
+    expect(heart).toBeLessThan(base);
+    for (const s of ["المقدمة", "القلب", "القاعدة", "أول ما ترشه", "بعد ما يهدى", "اللي يبقى عليك"]) {
+      expect(b).toContain(s);
+    }
+    expect(b).toContain("<bdi>الليمون</bdi>، <bdi>الماندرين</bdi>، <bdi>البرغموت</bdi>");
+  });
+
+  it("shows the occasion and season chips, in the configured order", () => {
+    const b = journeyBlock(render(p, scentProduct));
+    const occ = b.indexOf('data-chip-row="occasions"');
+    const season = b.indexOf('data-chip-row="season"');
+    expect(occ).toBeGreaterThan(-1);
+    expect(occ).toBeLessThan(season);
+    expect(b).toContain("وين تحطه؟");
+    expect(b).toContain("<bdi>الطلعات النهارية</bdi>");
+    expect(b).toContain("<bdi>صيفي</bdi>");
+  });
+
+  it("states staying power in the merchant's words and never draws the range", () => {
+    const ar = journeyBlock(render(p, scentProduct));
+    expect(ar).toContain("data-staying-power");
+    expect(ar).toContain("<bdi>ثبات ممتاز وفوحان قوي.</bdi>");
+    const english = journeyBlock(render(p, scentProduct, en));
+    expect(english).not.toContain("Longevity");
+    expect(english).not.toContain('role="meter"');
+    expect(english).toContain("Staying power, in words");
+  });
+
+  it("uses the chrome heading unless the merchant sets one", () => {
+    expect(journeyBlock(render(p, scentProduct))).toContain(">رحلة العطر</h2>");
+    const titled = parse({ scent_journey: { ...JOURNEY, title_i18n: { ar: "شلون يتغير عليك" } } });
+    expect(journeyBlock(render(titled, scentProduct))).toContain(">شلون يتغير عليك</h2>");
+  });
+
+  it("flips the visual order in Arabic with classes, never with dir", () => {
+    const ar = journeyBlock(render(p, scentProduct));
+    expect(ar).toContain("flex-row-reverse");
+    expect(ar).not.toContain("dir=");
+    const english = journeyBlock(render(p, scentProduct, en));
+    expect(english).not.toContain("flex-row-reverse");
+  });
+
+  it("classic ignores it", () => {
+    expect(render({ ...p, layout: undefined }, scentProduct)).toBe(
+      render({ ...EXPRESS_IRAQ_PDP_PROPS, layout: undefined }, scentProduct),
+    );
+  });
+});
