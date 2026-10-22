@@ -20,6 +20,7 @@ import {
   saleProduct,
 } from "./_pdp-fixtures";
 import { QuietSummary } from "./product_reviews/quiet-summary";
+import { QuietReviewCard } from "./product_reviews/quiet-review-card";
 import type { RatingSummary } from "@scheniders/shared";
 
 const Reviews = product_reviews.render;
@@ -105,5 +106,49 @@ describe("QuietSummary", () => {
     expect(out).toContain("rounded-bk-card");
     expect(out).toContain("border-bk-divider");
     expect(out).not.toContain("border-2");
+  });
+});
+
+describe("QuietReviewCard", () => {
+  const card = (i: number, locale: "ar" | "en" = "ar") =>
+    renderToStaticMarkup(
+      <ul>
+        <QuietReviewCard
+          review={BASELINE_REVIEWS[i]}
+          locale={locale}
+          onOpenPhoto={() => undefined}
+        />
+      </ul>,
+    );
+
+  it("shows the name, the stars and the body", () => {
+    const out = card(0);
+    expect(out).toContain("حازم السيد");
+    expect(out).toContain('aria-label="5 من 5"');
+    expect(out).toContain("وهسة جربت الانتنس");
+  });
+
+  it("never claims a verified buyer for an anonymous review", () => {
+    expect(card(2)).toContain(">زبون<");
+    expect(card(3)).toContain(">زبون<");
+    expect(card(2)).not.toContain("موثّق");
+    expect(card(2, "en")).toContain(">Customer<");
+  });
+
+  it("keeps the title as a heading and photos as 64px tap targets", () => {
+    const out = card(2);
+    expect(out).toContain("<h3");
+    expect(out).toContain("ثبات");
+    expect(out).toContain('aria-label="تكبير الصورة"');
+    expect(out).toContain("h-16 w-16");
+  });
+
+  it("is a quiet hairline card, flipped for Arabic with classes", () => {
+    const out = card(0);
+    expect(out).toContain("rounded-bk-card border-bk border-bk-divider");
+    expect(out).toContain("flex-row-reverse");
+    expect(out).toContain("text-right");
+    expect(out).not.toContain('dir="');
+    expect(card(0, "en")).not.toContain("flex-row-reverse");
   });
 });
