@@ -67,7 +67,7 @@ export const SCENT_DEFS: readonly unknown[] = [
     id: SCENT_DEF_IDS.occasions,
     key: "occasions",
     kind: "group_list",
-    name_i18n: { ar: "وين تحطه؟", en: "Where to wear it" },
+    name_i18n: { ar: "شوكت ووين تحطه؟", en: "When & where to wear it" },
     group_keys: [{ key: "fits", label_i18n: { ar: "يناسب", en: "Good for" } }],
     is_filterable: false,
     is_comparable: false,

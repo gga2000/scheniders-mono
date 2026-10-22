@@ -139,7 +139,7 @@ describe("pdp_direct_order express — scent_journey block", () => {
     const season = b.indexOf('data-chip-row="season"');
     expect(occ).toBeGreaterThan(-1);
     expect(occ).toBeLessThan(season);
-    expect(b).toContain("وين تحطه؟");
+    expect(b).toContain("شوكت ووين تحطه؟");
     expect(b).toContain("<bdi>الطلعات النهارية</bdi>");
     expect(b).toContain("<bdi>صيفي</bdi>");
   });

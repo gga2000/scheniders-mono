@@ -58,7 +58,7 @@ describe("buildScentJourney", () => {
 
   it("builds chip rows in the configured order: group_list gives every item, enum its option label", () => {
     expect(buildScentJourney(attrs, CONFIG, "ar")?.chipRows).toEqual([
-      { key: "occasions", label: "وين تحطه؟", chips: ["البحر", "السفرات", "الطلعات النهارية"] },
+      { key: "occasions", label: "شوكت ووين تحطه؟", chips: ["البحر", "السفرات", "الطلعات النهارية"] },
       { key: "season", label: "الموسم", chips: ["صيفي"] },
     ]);
   });
