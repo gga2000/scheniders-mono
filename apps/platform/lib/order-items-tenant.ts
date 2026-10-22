@@ -5,7 +5,7 @@ import type { OrderItem } from "@/types/order";
  * from the caller (the order form, the Telegram bot). Stock moves follow the
  * ids, so a line naming another tenant's product would move that tenant's
  * stock. The database refuses such an order (trigger
- * trg_orders_items_tenant_guard, migration 20261020150000); this check runs
+ * trg_orders_items_tenant_guard, migration 20261022123958); this check runs
  * first on the trusted server path so the caller gets a clear error instead
  * of a raw Postgres one.
  *

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 // (tenant_id, id). A public read keyed on product_id alone would serve a row
 // some other tenant attached to this tenant's product. Every storefront read of
 // those tables must therefore filter tenant_id as well. The DB refuses such
-// rows since 20261020150100_product_child_tables_tenant_guard; this keeps the
+// rows since 20261022124035_product_child_tables_tenant_guard_2_triggers; this keeps the
 // read side honest for any new query.
 //
 // Source-level on purpose, like product-status-filter.test.ts: the regression

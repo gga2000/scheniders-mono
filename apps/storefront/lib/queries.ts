@@ -511,7 +511,7 @@ export const listApprovedReviews = cache(
  * A product's child rows (images, variants) are read by tenant AND product:
  * their FK is products(id) alone, so the tenant filter is what keeps another
  * tenant's row off this tenant's page (F-002). The DB refuses such rows too
- * (20261020150100_product_child_tables_tenant_guard).
+ * (20261022124035_product_child_tables_tenant_guard_2_triggers).
  */
 export const getProductImages = cache((tenantId: string, productId: string): Promise<string[]> =>
   publicCache(["getProductImages", tenantId, productId], async (supabase) => {

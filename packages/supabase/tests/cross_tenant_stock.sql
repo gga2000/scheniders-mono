@@ -2,8 +2,8 @@
 -- Cross-tenant stock writes and product child rows (F-001 / F-002)
 -- =============================================================================
 --
--- WHAT THIS PROVES (after 20261020150000_inventory_tenant_scoped_stock_writes
--- and 20261020150100_product_child_tables_tenant_guard are applied)
+-- WHAT THIS PROVES (after the eight 20261022* tenant-guard migrations listed
+-- under MIGRATIONS below are applied)
 --   Attacks, as a real member of tenant A (JWT simulated, RLS enforced):
 --     * process_return / undo_return cannot move tenant V's product or
 --       variant stock (write_off, open_box, historic ledger rows);
@@ -32,10 +32,107 @@
 -- HOW TO RUN
 --   psql -d <db> -v ON_ERROR_STOP=1 -f cross_tenant_stock_local_fixture.sql
 --   psql -d <db> -f cross_tenant_stock.sql        -- before: lists the holes
---   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261020150000_inventory_tenant_scoped_stock_writes.sql
---   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261020150100_product_child_tables_tenant_guard.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022123506_inventory_tenant_scoped_stock_writes_1_inv_apply.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022123531_inventory_tenant_scoped_stock_writes_2_process_return.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022123551_inventory_tenant_scoped_stock_writes_3_undo_return.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022123810_inventory_tenant_scoped_stock_writes_4a_guard_function.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022123958_inventory_tenant_scoped_stock_writes_4b_guard_trigger.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022124025_product_child_tables_tenant_guard_1_function.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022124035_product_child_tables_tenant_guard_2_triggers.sql
+--   psql -d <db> -v ON_ERROR_STOP=1 -f ../migrations/20261022124103_product_child_tables_tenant_guard_3_read_policies.sql
 --   psql -d <db> -f cross_tenant_stock.sql        -- after: ALL ASSERTIONS PASSED
 --   Run as a superuser (the fixture setup bypasses RLS).
+--
+-- MIGRATIONS
+--   Drafted as two files, 20261020150000_inventory_tenant_scoped_stock_writes
+--   and 20261020150100_product_child_tables_tenant_guard. Applied to
+--   production on 2026-10-22 as the eight smaller migrations above, with the
+--   same resulting functions, triggers and policies (live definitions
+--   md5-checked against this test's database). The split, CREATE OR REPLACE
+--   TRIGGER and ALTER POLICY replace the drafts' DROP/CREATE pairs, which the
+--   migration tool would not run. The drafts' headers follow.
+--
+--   ---- 20261020150000_inventory_tenant_scoped_stock_writes ----
+--   Tenant-scoped stock writes in the inventory functions (finding F-001, P0).
+--
+--   WHAT IT FIXES
+--     process_return, undo_return and inv_apply (fired by trg_inv_order_changed
+--     on public.orders) are SECURITY DEFINER and owned by postgres, so RLS does
+--     not apply inside them. They updated products / product_variants
+--     `WHERE id = <id>` with ids taken from the caller's jsonb (process_return),
+--     from inventory_ledger (undo_return) or from orders.items (inv_apply), with
+--     no tenant predicate. Any tenant member could zero, inflate or reserve
+--     another tenant's stock: pass a victim product id to process_return, or
+--     write an order (PostgREST INSERT/UPDATE, create_order_atomic, the platform
+--     createOrderForTenant path, storefront checkout) whose items name a victim
+--     product. A negative item quantity made inv_apply ADD stock.
+--
+--   WHAT CHANGES
+--     1. inv_apply: every UPDATE is `AND tenant_id = p_tenant_id`; the ledger row
+--        is written only when a row of that tenant was actually moved; quantities
+--        <= 0 are skipped (the old `= 0` let a negative quantity add stock).
+--     2. process_return: each destination's product / variant must belong to
+--        _tenant_id, else 42501 and the whole call (status change included)
+--        rolls back; the UPDATEs also carry the tenant predicate.
+--     3. undo_return: only reverses this tenant's ledger rows, and only moves
+--        this tenant's products / variants.
+--     4. New BEFORE INSERT OR UPDATE OF items, tenant_id trigger on orders
+--        (tg_orders_items_tenant_guard): rejects an item whose product_id or
+--        variant_id is a row of another tenant, and a negative quantity. This is
+--        the single choke point for every order writer, including both
+--        create_order_atomic overloads (their bodies are unchanged).
+--
+--     Signatures, return types and grants are unchanged; bodies start from the
+--     live pg_get_functiondef on sduvpgqwhxragxtxztur (read 2026-10-20).
+--
+--   LIVE DATA CHECK (SELECT only, 2026-10-20): 0 order items reference another
+--   tenant's product or variant, 0 have a negative quantity, 0 inventory_ledger
+--   rows disagree with their product's tenant. No existing row trips the guard.
+--
+--   ROLLBACK
+--     DROP TRIGGER IF EXISTS trg_orders_items_tenant_guard ON public.orders;
+--     DROP FUNCTION IF EXISTS public.tg_orders_items_tenant_guard();
+--     then re-run the previous bodies of inv_apply / process_return /
+--     undo_return (pg_get_functiondef output recorded in
+--     packages/supabase/tests/cross_tenant_stock_local_fixture.sql).
+--
+--   ---- 20261020150100_product_child_tables_tenant_guard ----
+--   Product child rows must belong to their product's tenant (finding F-002, P1).
+--
+--   WHAT IT FIXES
+--     product_images, product_variants, product_bundle_items, product_related,
+--     product_order_bumps and product_tiered_pricing checked only that the row's
+--     OWN tenant_id is one of the caller's tenants. Their FKs point at
+--     products(id), not (tenant_id, id), so a member of tenant A could insert a
+--     row with tenant_id = A and product_id = <tenant B's product>. The public
+--     read policies then served that row on B's storefront (defacement /
+--     phishing images, fake variants, bundles, related items, order bumps,
+--     tier prices). The public read policies on product_images /
+--     product_variants were also `EXISTS (products p WHERE p.id = product_id)`
+--     with no visibility filter, so anon could read images and variants of
+--     hidden, archived and supply products.
+--
+--   WHAT CHANGES
+--     1. tg_product_child_tenant_guard(): BEFORE INSERT OR UPDATE trigger,
+--        modelled on tg_product_attribute_values_tenant_guard. Every product id
+--        column named in the trigger arguments must exist and all must belong to
+--        one tenant; tenant_id must equal that tenant (filled in when NULL,
+--        rejected with 42501 when different).
+--     2. public_storefront_read_product_images / _product_variants: same bar as
+--        public_storefront_read_products (visible, not archived, not supply,
+--        tenant trial/active) plus product tenant = row tenant.
+--     3. The four public_storefront_read policies on bundle / related / order
+--        bump / tiered pricing gain the same product-tenant = row-tenant match.
+--
+--   LIVE DATA CHECK (SELECT only, 2026-10-20): 0 rows in any of the six tables
+--   whose tenant_id differs from (or is NULL against) their product's tenant;
+--   0 products with a NULL tenant_id. Existing rows all satisfy the guard.
+--
+--   ROLLBACK
+--     DROP TRIGGER IF EXISTS trg_<table>_tenant_guard ON public.<table>; (x6)
+--     DROP FUNCTION IF EXISTS public.tg_product_child_tenant_guard();
+--     and recreate the six read policies with the previous USING clauses
+--     (recorded in packages/supabase/tests/cross_tenant_stock_local_fixture.sql).
 --
 -- RESULT
 --   One row: 'ALL ASSERTIONS PASSED', or 'FAILED' plus every failing check.
