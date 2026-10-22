@@ -114,4 +114,31 @@ describe("pdp_direct_order abandoned-cart beacon (W5.4)", () => {
     expect(body.governorate).toBe("BG");
     expect(body.items).toEqual([{ product_id: product.id, variant_id: null, name: product.name, quantity: 1, price: 25000 }]);
   });
+
+  it("a 410 from /api/cart/abandoned (capture disabled, PKG-12 interim) changes nothing for the shopper", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "Abandoned-cart capture is disabled" }), { status: 410 }),
+        ),
+      ),
+    );
+    writeCustomerMemory(TENANT, { customer_name: "زبون-تجريبي-٩٩", phone: "07701234567", governorate_code: "BG", address_details: "x" });
+    render(element());
+    fireEvent.focus(document.querySelector('input[name="phone"]') as HTMLInputElement);
+    await act(async () => {
+      vi.advanceTimersByTime(1600);
+      await Promise.resolve();
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // A 410 resolves the fetch, so the beacon's catch never runs and the form
+    // stays as it was: same fields, nothing shown, nothing logged.
+    expect(warn).not.toHaveBeenCalled();
+    expect((document.querySelector('input[name="phone"]') as HTMLInputElement).value).toBe("07701234567");
+    expect(screen.queryByRole("alert")).toBeNull();
+    warn.mockRestore();
+  });
 });
