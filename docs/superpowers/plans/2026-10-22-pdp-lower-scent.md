@@ -105,7 +105,7 @@ scheniders-iraq draft gets: `feature_cards_layout: "row"`, `scent_journey: { pyr
 | `packages/sections/src/pdp_express/strings.ts` | modify | 6 chrome strings (ar/en/ku) |
 | `packages/sections/src/pdp_direct_order.tsx` | modify | 2 schema fields |
 | `packages/sections/src/pdp_express/express-view.tsx` | modify | wire both in the feature-cards slot |
-| `packages/supabase/migrations/20261022100000_scheniders_iraq_scent_attributes.sql` | create | tenant data: 2 defs + values from descriptions |
+| `packages/supabase/migrations/20261022130000_scheniders_iraq_scent_attributes.sql` | create | tenant data: 2 defs + values from descriptions |
 
 No `apps/storefront` or `apps/platform` source changes are needed: the select, types, RLS and editor already exist.
 
@@ -1418,7 +1418,7 @@ No commit unless a fix was needed. If one was, commit it with a `fix(pdp-express
 The data lives in tenant tables, not a schema change. It is recorded as a migration so the exact rows and their source text live in git. It is replay-safe: on any database without scheniders-iraq it does nothing, and `ON CONFLICT DO NOTHING` never overwrites a merchant edit.
 
 **Files:**
-- Create: `packages/supabase/migrations/20261022100000_scheniders_iraq_scent_attributes.sql`
+- Create: `packages/supabase/migrations/20261022130000_scheniders_iraq_scent_attributes.sql`
 
 **What gets filled and from what text.** Only connectors (و / وية / مع / +) and leading ل / ب are removed. Everything else is verbatim.
 
@@ -1461,14 +1461,16 @@ Left null on purpose: ايدنتتي (notes only in English), and ايبسكو, 
 - [ ] **Step 1: Re-check the latest migration timestamp and the live taxonomy**
 
 Run: `cd /Users/ali/scheniders-mono && ls packages/supabase/migrations | grep -E '^[0-9]{14}_' | sort | tail -3`
-Expected: the newest is earlier than `20261022100000`. If a newer one exists, rename this file to a timestamp after it and use that version everywhere below.
+Expected: the newest is earlier than `20261022130000`. If a newer one exists, rename this file to a timestamp after it and use that version everywhere below.
+
+> **Build note (2026-10-22):** the plan first used `20261022100000`, but `supabase_migrations.schema_migrations` already held versions up to `20261022124103` (another session's tenant-guard migrations, applied before their files landed here). Check the remote max as well as the folder; the migration was renamed to `20261022130000`.
 
 Run: `cd /Users/ali/scheniders-mono/packages && export PATH="/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:$PATH"; supabase db query --linked "select d.key, d.kind, count(v.*) n from product_attribute_defs d left join product_attribute_values v on v.attribute_def_id = d.id where d.tenant_id = (select id from tenants where slug = 'scheniders-iraq') group by d.key, d.kind order by d.key"`
 Expected (2026-10-22 baseline): longevity range 1, notes group_list 27, scent_family enum 27, season enum 27, sillage range 1, and no occasions/longevity_note. If the counts differ, stop and re-read the products before writing.
 
 - [ ] **Step 2: Write the migration**
 
-Create `packages/supabase/migrations/20261022100000_scheniders_iraq_scent_attributes.sql`:
+Create `packages/supabase/migrations/20261022130000_scheniders_iraq_scent_attributes.sql`:
 
 ```sql
 -- =====================================================================
@@ -1683,12 +1685,12 @@ END $$;
 
 ```bash
 cd /Users/ali/scheniders-mono && export PATH="/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:$PATH"
-MIG=packages/supabase/migrations/20261022100000_scheniders_iraq_scent_attributes.sql
+MIG=packages/supabase/migrations/20261022130000_scheniders_iraq_scent_attributes.sql
 mkdir -p tmp/pdp-scent
 {
   echo "BEGIN;"
   cat "$MIG"
-  printf "\nINSERT INTO supabase_migrations.schema_migrations (version, name, statements) VALUES ('20261022100000', 'scheniders_iraq_scent_attributes', ARRAY[\$mig_body\$%s\$mig_body\$]);\n" "$(cat "$MIG")"
+  printf "\nINSERT INTO supabase_migrations.schema_migrations (version, name, statements) VALUES ('20261022130000', 'scheniders_iraq_scent_attributes', ARRAY[\$mig_body\$%s\$mig_body\$]);\n" "$(cat "$MIG")"
   echo "COMMIT;"
 } > tmp/pdp-scent/apply.sql
 cd packages && supabase db query --linked -f ../tmp/pdp-scent/apply.sql
@@ -1701,7 +1703,7 @@ Expected: success, no error rows. If the call times out, don't re-run it blindly
 Run: `cd /Users/ali/scheniders-mono/packages && export PATH="/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:$PATH"; supabase db query --linked "select d.key, count(v.*) n from product_attribute_defs d left join product_attribute_values v on v.attribute_def_id = d.id where d.tenant_id = (select id from tenants where slug = 'scheniders-iraq') group by d.key order by d.key"`
 Expected: longevity 1, longevity_note 5, notes 31, occasions 27, scent_family 27, season 28, sillage 1.
 
-Run: `cd /Users/ali/scheniders-mono/packages && export PATH="/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:$PATH"; supabase db query --linked "select version, name from supabase_migrations.schema_migrations where version = '20261022100000'"`
+Run: `cd /Users/ali/scheniders-mono/packages && export PATH="/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:$PATH"; supabase db query --linked "select version, name from supabase_migrations.schema_migrations where version = '20261022130000'"`
 Expected: 1 row.
 
 Anon can read it (RLS check, read-only):
@@ -1714,13 +1716,13 @@ Expected: top starts with "التفاح الاحمر الطازج".
 
 Then delete the scratch file: `rm -r /Users/ali/scheniders-mono/tmp/pdp-scent`.
 
-**Rollback (documented, not run):** in one transaction, restore Fusion's notes to the old value quoted in the SQL. Delete the values this migration inserted: all rows of the `occasions` and `longevity_note` definitions, then those two definitions, the four `notes` rows for products eebd1ed9 / 65be51d4 / 5e847790 / 6ab3bad7, and the `season` row for eebd1ed9. Finally delete the `schema_migrations` row `20261022100000`. Every row it touched is named above.
+**Rollback (documented, not run):** in one transaction, restore Fusion's notes to the old value quoted in the SQL. Delete the values this migration inserted: all rows of the `occasions` and `longevity_note` definitions, then those two definitions, the four `notes` rows for products eebd1ed9 / 65be51d4 / 5e847790 / 6ab3bad7, and the `season` row for eebd1ed9. Finally delete the `schema_migrations` row `20261022130000`. Every row it touched is named above.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /Users/ali/scheniders-mono && git branch --show-current && \
-git add packages/supabase/migrations/20261022100000_scheniders_iraq_scent_attributes.sql && \
+git add packages/supabase/migrations/20261022130000_scheniders_iraq_scent_attributes.sql && \
 git -c user.name=gga2000 -c user.email=gga2000@users.noreply.github.com commit -m "feat(db): scheniders-iraq occasions + staying-power attributes from descriptions
 
 Two attribute definitions and values copied verbatim from each product's
