@@ -1,6 +1,5 @@
-import type { CSSProperties } from "react";
 import localFont from "next/font/local";
-import { subsetFontStack } from "@scheniders/shared/font-stack";
+import { subsetFontStack, type FontVariables } from "@scheniders/shared/font-stack";
 
 // Geist and Geist Mono, self-hosted. The woff2 files beside this module are
 // the exact subset files Google Fonts serves for these families (fetched
@@ -86,6 +85,14 @@ const geistMonoVietnamese = localFont({
   adjustFontFallback: false,
   declarations: [{ prop: "unicode-range", value: "U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB" }],
 });
+const geistMonoSymbols2 = localFont({
+  src: "./geist-mono/symbols2.woff2",
+  weight: "100 900",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+2000-2001, U+2004-2008, U+200A, U+23B8-23BD, U+2500-259F" }],
+});
 const geistMonoCyrillic = localFont({
   src: "./geist-mono/cyrillic.woff2",
   weight: "100 900",
@@ -108,18 +115,19 @@ const geistMonoCyrillicExt = localFont({
  * `--font-geist-sans` / `--font-geist-mono`, set on `<body>`; read by
  * tailwind.config.ts and @scheniders/ui tokens.css.
  */
-export const geistFontVars: CSSProperties = {
-  ["--font-geist-sans" as string]: subsetFontStack([
+export const geistFontVars: FontVariables = {
+  "--font-geist-sans": subsetFontStack([
     geistSansLatin,
     geistSansLatinExt,
     geistSansVietnamese,
     geistSansCyrillic,
     geistSansCyrillicExt,
   ]),
-  ["--font-geist-mono" as string]: subsetFontStack([
+  "--font-geist-mono": subsetFontStack([
     geistMonoLatin,
     geistMonoLatinExt,
     geistMonoVietnamese,
+    geistMonoSymbols2,
     geistMonoCyrillic,
     geistMonoCyrillicExt,
   ]),

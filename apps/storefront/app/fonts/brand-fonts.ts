@@ -1,6 +1,5 @@
-import type { CSSProperties } from "react";
 import localFont from "next/font/local";
-import { subsetFontStack } from "@scheniders/shared/font-stack";
+import { subsetFontStack, type FontVariables } from "@scheniders/shared/font-stack";
 
 // The storefront's self-hosted brand faces. The woff2 files beside this
 // module are the exact subset files Google Fonts serves for these families
@@ -17,7 +16,8 @@ import { subsetFontStack } from "@scheniders/shared/font-stack";
 // variable holds. The calls are listed in stack order: the reverse of
 // Google's CSS, because there the last-declared face wins a shared code
 // point while in a stack the first one does. Only the Latin call carries the
-// size-adjusted fallback, which subsetFontStack puts after every face.
+// size-adjusted fallback, which subsetFontStack puts after every face
+// (Bricolage's is declared by hand; see bricolageFallback).
 //
 // Each subset file is a variable font covering every weight. It is listed
 // once per weight because that is what Google's CSS declares, so weight
@@ -36,6 +36,10 @@ const bricolageLatin = localFont({
     { path: "./bricolage-grotesque/latin.woff2", weight: "800" },
   ],
   display: "swap",
+  // Measured from this file the fallback would be sized for ExtraBold (the
+  // variable font's default instance is wght 800), so the regular-weight
+  // fallback is declared in globals.css instead; see bricolageFallback.
+  adjustFontFallback: false,
   declarations: [{ prop: "unicode-range", value: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD" }],
 });
 const bricolageLatinExt = localFont({
@@ -203,20 +207,24 @@ const notoSansArabicArabic = localFont({
 });
 
 
+// The size-adjusted Arial for Bricolage, declared in globals.css.
+const bricolageFallback = { style: { fontFamily: "'Bricolage Grotesque Fallback'" } };
+
 /**
  * The brand font variables, set on the root `<html>`. The names are the ones
  * `SELF_HOSTED_FONT_VARS` (@scheniders/shared brand-kit-vars), globals.css
  * and tailwind.config.ts read.
  */
-export const brandFontVars: CSSProperties = {
-  ["--font-bricolage" as string]: subsetFontStack([
+export const brandFontVars: FontVariables = {
+  "--font-bricolage": subsetFontStack([
     bricolageLatin,
     bricolageLatinExt,
     bricolageVietnamese,
+    bricolageFallback,
   ]),
-  ["--font-dm-sans" as string]: subsetFontStack([dmSansLatin, dmSansLatinExt]),
-  ["--font-cairo" as string]: subsetFontStack([cairoLatin, cairoLatinExt, cairoArabic]),
-  ["--font-noto-arabic" as string]: subsetFontStack([
+  "--font-dm-sans": subsetFontStack([dmSansLatin, dmSansLatinExt]),
+  "--font-cairo": subsetFontStack([cairoLatin, cairoLatinExt, cairoArabic]),
+  "--font-noto-arabic": subsetFontStack([
     notoSansArabicLatin,
     notoSansArabicLatinExt,
     notoSansArabicSymbols,

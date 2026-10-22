@@ -6,6 +6,9 @@ export interface SelfHostedFontFace {
   readonly style: { readonly fontFamily: string };
 }
 
+/** CSS custom properties holding font stacks, for a `style` prop. */
+export type FontVariables = Record<`--${string}`, string>;
+
 /**
  * One family self-hosted with `next/font/local` as several faces, one per
  * Google Fonts subset file (latin, latin-ext, arabic…), each limited to its

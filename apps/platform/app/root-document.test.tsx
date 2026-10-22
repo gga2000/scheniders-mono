@@ -3,7 +3,7 @@
 // so leaving `dir` off is what keeps every page LTR — and keeps an RTL `dir`
 // from ever being reintroduced on the document element.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -14,11 +14,20 @@ const { Passthrough, Nothing } = vi.hoisted(() => ({
     Nothing: () => null,
 }));
 
+interface LocalFontCall {
+    src: string;
+    adjustFontFallback?: false | string;
+    declarations?: { prop: string; value: string }[];
+}
+
+const { fontCalls } = vi.hoisted(() => ({ fontCalls: [] as LocalFontCall[] }));
+
 // Each next/font/local call becomes a face named after its file
 // (`geist/latin`), plus `<name> Fallback` when it carries the size-adjusted
 // fallback — the same shape `style.fontFamily` has in a real build.
 vi.mock("next/font/local", () => ({
-    default: (options: { src: string; adjustFontFallback?: false | string }) => {
+    default: (options: LocalFontCall) => {
+        fontCalls.push(options);
         const name = options.src.replace(/^\.\//, "").replace(/\.woff2$/, "");
         return {
             style: {
@@ -50,6 +59,7 @@ import RootLayout from "./layout";
 import GlobalError from "./global-error";
 
 const appRoot = join(__dirname, "..");
+const fontsDir = join(__dirname, "fonts");
 
 function sourceFiles(dir: string): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -97,8 +107,31 @@ describe("platform root document", () => {
             "--font-geist-sans:geist/latin, geist/latin-ext, geist/vietnamese, geist/cyrillic, geist/cyrillic-ext, geist/latin Fallback",
         );
         expect(body).toContain(
-            "--font-geist-mono:geist-mono/latin, geist-mono/latin-ext, geist-mono/vietnamese, geist-mono/cyrillic, geist-mono/cyrillic-ext, geist-mono/latin Fallback",
+            "--font-geist-mono:geist-mono/latin, geist-mono/latin-ext, geist-mono/vietnamese, geist-mono/symbols2, geist-mono/cyrillic, geist-mono/cyrillic-ext, geist-mono/latin Fallback",
         );
+    });
+
+    it("gives every face a unicode-range and a committed file, and declares every committed file", () => {
+        const declared = fontCalls.map((call) => {
+            expect(call.declarations?.find((d) => d.prop === "unicode-range")?.value).toMatch(/^U\+/);
+            expect(existsSync(join(fontsDir, call.src))).toBe(true);
+            return call.src.replace(/^\.\//, "");
+        });
+        const committed = ["geist", "geist-mono"].flatMap((dir) =>
+            readdirSync(join(fontsDir, dir))
+                .filter((file) => file.endsWith(".woff2"))
+                .map((file) => `${dir}/${file}`),
+        );
+        expect(declared.sort()).toEqual(committed.sort());
+    });
+
+    it("serves Geist Mono's box-drawing and block glyphs from its symbols2 subset", () => {
+        // Google's Geist Mono has a symbols2 subset (U+23B8-23BD, U+2500-259F);
+        // without it box-drawing text falls back to another monospace face.
+        const symbols2 = fontCalls.find((call) => call.src === "./geist-mono/symbols2.woff2");
+        expect(symbols2?.declarations).toEqual([
+            { prop: "unicode-range", value: "U+2000-2001, U+2004-2008, U+200A, U+23B8-23BD, U+2500-259F" },
+        ]);
     });
 
     it("no source file loads fonts from Google at build time", () => {

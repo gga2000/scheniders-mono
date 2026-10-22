@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Size-adjusted Arial standing in for Bricolage Grotesque until it loads;
+   last in --font-bricolage (app/fonts/brand-fonts.ts). Written by hand
+   because next/font/local measures the file's default instance, which for
+   Bricolage's variable font is ExtraBold (wght 800) and gave a fallback
+   sized for 800-weight text. These are Next's metrics for the regular face
+   (the values next/font/google generated). */
+@font-face {
+  font-family: "Bricolage Grotesque Fallback";
+  src: local("Arial");
+  size-adjust: 105.43%;
+  ascent-override: 88.21%;
+  descent-override: 25.61%;
+  line-gap-override: 0%;
+}
+
 :root {
   --brand-primary: #3b82f6;
   --brand-secondary: #8b5cf6;
