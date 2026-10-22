@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./global-search";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { setSidebarCollapsed, useHydrated, useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
 import { TrialBanner } from "@/components/billing/trial-banner";
@@ -16,17 +17,11 @@ export function useSidebar() { return useContext(SidebarContext); }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    // Default to collapsed to prevent open→close flicker on refresh.
-    // Synchronously read localStorage during init for instant correct state.
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("sidebarCollapsed");
-            // Default to collapsed (true) if no preference saved
-            return saved !== "false";
-        }
-        return true;
-    });
-    const [mounted, setMounted] = useState(false);
+    // The saved preference, server-safe (hooks/use-sidebar-collapsed.ts). The
+    // sidebar is keyed on `hydrated` so the saved state replaces the server's
+    // default by a fresh mount, not by an animation on every page load.
+    const isCollapsed = useSidebarCollapsed();
+    const hydrated = useHydrated();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const isMobile = useIsMobile();
@@ -36,14 +31,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }, []);
 
     /* eslint-disable react-hooks/set-state-in-effect */
-    useEffect(() => { setMounted(true); }, []);
-
-    useEffect(() => {
-        if (mounted) {
-            localStorage.setItem("sidebarCollapsed", String(isCollapsed));
-        }
-    }, [isCollapsed, mounted]);
-
     useEffect(() => {
         if (!isMobile && mobileMenuOpen) {
             setMobileMenuOpen(false);
@@ -91,7 +78,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
 
     const getMainMargin = () => {
-        if (!mounted) return "0px";
+        if (!hydrated) return "0px";
         if (isMobile) return "0px";
         return isCollapsed ? "88px" : "272px";
     };
@@ -109,8 +96,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
                     <Suspense fallback={<div className={cn("shrink-0 transition-all duration-500", isCollapsed ? "w-[88px]" : "w-[272px]")} />}>
                         <Sidebar
+                            key={hydrated ? "client" : "server"}
                             collapsed={isCollapsed}
-                            setCollapsed={setIsCollapsed}
+                            setCollapsed={setSidebarCollapsed}
                             isMobile={isMobile}
                             mobileMenuOpen={mobileMenuOpen}
                             setMobileMenuOpen={handleSetMobileMenuOpen}
