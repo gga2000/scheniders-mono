@@ -139,3 +139,129 @@ describe("product_grid — query.sold_out_last", () => {
     expect(parsed.query?.sort).toBe("newest");
   });
 });
+
+const ROW: Props = {
+  ...product_grid.defaultProps,
+  layout: "row",
+  query: { sort: "bestsellers", limit: 8, sold_out_last: true },
+  heading_i18n: { ar: "اكثر منتجاتنا مبيعاً", en: "Our best sellers" },
+  see_all_href: "/products",
+  see_all_label_i18n: { ar: "عرض المزيد", en: "Show more" },
+  show_stars: true,
+};
+
+function renderRow(props: Props, overrides: Partial<SectionRenderContext> = {}): string {
+  const Section = product_grid.render;
+  return renderToStaticMarkup(
+    <StoreBaseProvider base="/s/fixture-store">
+      <Section props={props} ctx={productCtx(viewed, { products: PRODUCTS, ...overrides })} />
+    </StoreBaseProvider>,
+  );
+}
+
+/** The markup of one card, from its opening <a> to the next card. */
+function card(html: string, id: string): string {
+  const start = html.indexOf(`data-product-card="${id}"`);
+  expect(start, `no card ${id}`).toBeGreaterThan(-1);
+  const next = html.indexOf("data-product-card=", start + 1);
+  return html.slice(start, next === -1 ? undefined : next);
+}
+
+/** The opening tag of the scrolling list. */
+function rowList(html: string): string {
+  const m = html.match(/<ul[^>]*data-layer="cards"[^>]*>/);
+  expect(m, "no card list").not.toBeNull();
+  return m ? m[0] : "";
+}
+
+describe("product_grid — layout: row", () => {
+  it("renders a snap row of compact cards, orderable first, never the viewed product", () => {
+    const html = renderRow(ROW);
+    expect(html).toContain('data-layout="row"');
+    expect(rowList(html)).toContain("snap-x");
+    const order = [...html.matchAll(/data-product-card="([^"]+)"/g)].map((m) => m[1]);
+    expect(order).toEqual(["p-weaver", "p-ibsco", "p-fusion", "p-minya"]);
+  });
+
+  it("reverses the row's visual order for Arabic with a class, never dir", () => {
+    const ar = renderRow(ROW);
+    expect(rowList(ar)).toContain("flex-row-reverse");
+    expect(ar).not.toMatch(/\sdir="rtl"/);
+    const en = renderRow(ROW, { runtime: { ...productRuntime, locale: "en" } });
+    expect(rowList(en)).not.toContain("flex-row-reverse");
+  });
+
+  it("tags the maker and the audience from product data", () => {
+    const w = card(renderRow(ROW), "p-weaver");
+    expect(w).toContain('data-tag="brand"');
+    expect(w).toContain("الشركة:");
+    expect(w).toContain("باريس كورنر");
+    expect(w).toContain('data-tag="gender"');
+    expect(w).toContain("رجالي");
+    // The public display name, not the long marketing name.
+    expect(w).toContain("ويفر انتنس");
+    expect(w).not.toContain("الفاخر من باريس كورنر للرجال");
+  });
+
+  it("shows no tag a product has no data for", () => {
+    const i = card(renderRow(ROW), "p-ibsco");
+    expect(i).not.toContain("data-tag=");
+  });
+
+  it("shows a real rating only with show_stars and reviews", () => {
+    const on = card(renderRow(ROW), "p-weaver");
+    expect(on).toContain('data-tag="rating"');
+    expect(on).toContain("4.6");
+    expect(on).toContain("(12)");
+    const off = card(renderRow({ ...ROW, show_stars: false }), "p-weaver");
+    expect(off).not.toContain('data-tag="rating"');
+    expect(card(renderRow(ROW), "p-ibsco")).not.toContain('data-tag="rating"');
+  });
+
+  it("marks sold-out and oversold products, in every locale", () => {
+    const html = renderRow(ROW);
+    for (const id of ["p-fusion", "p-minya"]) {
+      const c = card(html, id);
+      expect(c).toContain("data-sold-out");
+      expect(c).toContain("نفد المخزون");
+    }
+    const f = card(html, "p-fusion");
+    expect(f).toContain("grayscale");
+    // A struck price on something you cannot buy is a discount you cannot get.
+    expect(f).not.toContain("data-compare-at");
+    expect(card(html, "p-weaver")).not.toContain("data-sold-out");
+    expect(card(html, "p-weaver")).toContain("data-compare-at");
+    expect(
+      card(renderRow(ROW, { runtime: { ...productRuntime, locale: "ku" } }), "p-fusion"),
+    ).toContain("لە کۆگا نەماوە");
+    expect(
+      card(renderRow(ROW, { runtime: { ...productRuntime, locale: "en" } }), "p-fusion"),
+    ).toContain("Sold out");
+  });
+
+  it("offers a full-size see-all link", () => {
+    const html = renderRow(ROW);
+    const link = html.match(/<a[^>]*data-i18n-field="see_all_label_i18n"[^>]*>/);
+    expect(link).not.toBeNull();
+    expect(link?.[0]).toContain('href="/s/fixture-store/products"');
+    expect(link?.[0]).toContain("min-h-11");
+    expect(html).toContain("عرض المزيد");
+  });
+
+  it("renders nothing when there is nothing to show", () => {
+    expect(renderRow(ROW, { products: [viewed] })).toBe("");
+  });
+
+  it("layout: grid is the same render as no layout", () => {
+    const noLayout: Props = { ...ROW, layout: undefined };
+    expect(renderRow({ ...ROW, layout: "grid" })).toBe(renderRow(noLayout));
+  });
+
+  it("parses an unknown layout as unset", () => {
+    const parsed = product_grid.schema.parse({
+      ...product_grid.defaultProps,
+      layout: "carousel",
+    });
+    expect(parsed.layout).toBeUndefined();
+  });
+});

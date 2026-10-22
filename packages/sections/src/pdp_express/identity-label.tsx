@@ -25,9 +25,9 @@ export function displayNameOf(product: Product): string {
   return stripped || name;
 }
 
-const GENDER_ICON = { men: "man", women: "woman", unisex: "wc" } as const;
+export const GENDER_ICON = { men: "man", women: "woman", unisex: "wc" } as const;
 
-function Tag({
+export function Tag({
   children,
   strong,
   className,

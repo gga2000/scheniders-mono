@@ -25,6 +25,7 @@ import { SchneidersProductCard } from "./helpers/product-card";
 import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { RevealMore } from "./helpers/reveal-more";
 import { CatalogGrid } from "./helpers/catalog-grid";
+import { ProductRow } from "./product_grid.row";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { chromeString } from "./helpers/chrome-strings";
 import { isBuyable } from "./helpers/stock";
@@ -86,6 +87,13 @@ const schema = z.object({
    *  "price_pill" = soft rounded photo card, surface price pill overlaid at
    *  the photo bottom, product name centered below the card. */
   card_style: z.enum(["standard", "price_pill"]).default("standard"),
+  /**
+   * "row" = a compact horizontal snap row (maker / audience tags, orderable
+   * first when paired with `query.sold_out_last`), built for the foot of a
+   * product page. Unset or "grid" renders exactly as before. `.catch` so a
+   * malformed stored value reads as unset rather than dropping the section.
+   */
+  layout: z.enum(["grid", "row"]).optional().catch(undefined),
   /** Small rounded chip rendered above the heading (price_pill header only). */
   eyebrow_i18n: i18nStringOptional,
   /** Muted line under the heading (price_pill header only). */
@@ -668,6 +676,23 @@ function ProductGridRender({
   // On a category page the grid is the full category catalogue (filterable +
   // paginated client-side); on the home/curated case it's the limited query.
   if ((category ? ctx.products.length : items.length) === 0) return null;
+
+  // ---- row branch (opt-in) ----------------------------------------------
+  // An early return like price_pill's, so every stored config without
+  // `layout: "row"` keeps its markup byte-for-byte.
+  if (props.layout === "row") {
+    return (
+      <ProductRow
+        products={items}
+        locale={locale}
+        heading={heading}
+        subheading={resolveI18n(props.subheading_i18n, locale)}
+        seeAllHref={props.see_all_href}
+        seeAllLabel={resolveI18n(props.see_all_label_i18n, locale)}
+        showRating={props.show_stars === true}
+      />
+    );
+  }
 
   // ---- price_pill branch ------------------------------------------------
   // Separate early return so the "standard" branch below stays byte-for-byte
