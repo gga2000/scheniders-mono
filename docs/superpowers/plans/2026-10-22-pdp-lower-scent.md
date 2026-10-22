@@ -1717,7 +1717,15 @@ Expected: top starts with "التفاح الاحمر الطازج".
 
 Then delete the scratch file: `rm -r /Users/ali/scheniders-mono/tmp/pdp-scent`.
 
-**Rollback (documented, not run):** in one transaction, restore Fusion's notes to the old value quoted in the SQL. Delete the values this migration inserted: all rows of the `occasions` and `longevity_note` definitions, then those two definitions, the four `notes` rows for products eebd1ed9 / 65be51d4 / 5e847790 / 6ab3bad7, and the `season` row for eebd1ed9. Finally delete the `schema_migrations` row `20261022130000`. Every row it touched is named above.
+**Rollback (documented, not run):** in one transaction, tenant-scoped to scheniders-iraq, touching only the rows this migration wrote — never a whole definition, because the merchant can add `occasions` / `longevity_note` values through the admin after today and those must survive:
+
+1. Restore Fusion's notes (product c092ad91) to the old value quoted in the SQL, guarded on the value the migration set (so a later merchant edit is kept).
+2. Delete the `occasions` values for exactly the 27 `product_id`s in the migration's occasions `VALUES` list, and the `longevity_note` values for exactly its 5 `product_id`s (oud-satin 4d23b558, marshmallow-blush e317c152, eshal-musk 38decc96, envoy 6ab3bad7, فيوجن c092ad91). Guard each delete on `value` still equalling what the migration inserted, so a row the merchant has since edited stays.
+3. Delete the four `notes` rows for products eebd1ed9 / 65be51d4 / 5e847790 / 6ab3bad7 and the `season` row for eebd1ed9, with the same value guard.
+4. Delete the `occasions` and `longevity_note` definitions only if no value rows reference them any more (`NOT EXISTS` on `product_attribute_values.attribute_def_id`); if the merchant has added values of their own, keep the definitions.
+5. Delete the `schema_migrations` row `20261022130000`.
+
+The follow-up `20261022140000` (occasions label «وين تحطه؟» → «شوكت ووين تحطه؟») documents its own rollback in its header; roll it back first, or skip it if step 4 dropped the definition.
 
 - [ ] **Step 5: Commit**
 
