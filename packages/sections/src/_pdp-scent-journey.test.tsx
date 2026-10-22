@@ -170,3 +170,50 @@ describe("pdp_direct_order express — scent_journey block", () => {
     );
   });
 });
+
+/** The note row <section>, open tag to close tag. */
+function noteRow(html: string): string {
+  const at = html.indexOf('data-layer="note-row"');
+  expect(at).toBeGreaterThan(-1);
+  const open = html.lastIndexOf("<section", at);
+  return html.slice(open, html.indexOf("</section>", at) + "</section>".length);
+}
+
+const STACK_GRID = "grid grid-cols-1 gap-bk-sm sm:grid-cols-2";
+
+describe('pdp_direct_order express — feature_cards_layout "row"', () => {
+  const row = parse({ feature_cards_layout: "row" });
+
+  it("replaces the vertical stack with one snap row", () => {
+    const html = render(row, scentProduct);
+    expect(count(html, 'data-layer="note-row"')).toBe(1);
+    expect(html).not.toContain(STACK_GRID);
+    expect(render(EXPRESS_IRAQ_PDP_PROPS, scentProduct)).toContain(STACK_GRID);
+  });
+
+  it("renders every card closed to one line, with the title once", () => {
+    const r = noteRow(render(row, scentProduct));
+    expect(count(r, 'aria-expanded="false"')).toBe(3);
+    expect(count(r, "line-clamp-1")).toBe(3);
+    expect(count(r, "<img")).toBe(2);
+    expect(r).toContain("snap-x");
+    expect(count(render(row, scentProduct), 'data-i18n-field="feature_cards_title_i18n"')).toBe(1);
+  });
+
+  it("sits under the journey when both are on", () => {
+    const html = render(parse({ feature_cards_layout: "row", scent_journey: JOURNEY }), scentProduct);
+    expect(html.indexOf('data-layer="scent-journey"')).toBeLessThan(
+      html.indexOf('data-layer="note-row"'),
+    );
+  });
+
+  it("aligns card text to the reading side, never with dir", () => {
+    expect(noteRow(render(row, scentProduct))).toContain("text-right");
+    expect(noteRow(render(row, scentProduct))).not.toContain("dir=");
+    expect(noteRow(render(row, scentProduct, en))).toContain("text-left");
+  });
+
+  it("renders nothing for a product without cards", () => {
+    expect(render(row, plainProduct)).not.toContain('data-layer="note-row"');
+  });
+});

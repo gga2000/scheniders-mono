@@ -31,6 +31,7 @@ import { PricePlate } from "./price-plate";
 import { ScrollHint } from "./scroll-hint";
 import { buildScentJourney } from "./scent-journey";
 import { ScentJourneyBlock } from "./scent-journey-block";
+import { NoteRow } from "./note-row";
 import { readsRtl, xs } from "./text";
 import { expressWhatsappHref } from "./whatsapp-href";
 
@@ -196,7 +197,11 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           />
         )}
 
-        {m.featureCards.length > 0 && (
+        {m.featureCards.length > 0 && props.feature_cards_layout === "row" && (
+          <NoteRow cards={m.featureCards} title={m.featureCardsTitle} locale={locale} />
+        )}
+
+        {m.featureCards.length > 0 && props.feature_cards_layout !== "row" && (
           <div className="space-y-bk-sm border-t border-bk-divider pt-bk-md">
             {m.featureCardsTitle && (
               <h2

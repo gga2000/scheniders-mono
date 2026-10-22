@@ -116,6 +116,7 @@ export const EXPRESS_STRINGS = {
   stageHintHeart: { en: "once it settles", ar: "بعد ما يهدى", ku: "کە ئارام بووەوە" },
   stageHintBase: { en: "what stays with you", ar: "اللي يبقى عليك", ku: "ئەوەی لەسەرت دەمێنێتەوە" },
   noteSep: { en: ", ", ar: "، ", ku: "، " },
+  notesListLabel: { en: "Scent notes", ar: "مكونات العطر", ku: "پێکهاتەکانی بۆنەکە" },
 } as const;
 
 export type ExpressStringKey = keyof typeof EXPRESS_STRINGS;
