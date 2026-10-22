@@ -1422,8 +1422,8 @@ Expected: 0 errors. Platform's ~1380 warnings are the known baseline. No new `es
 
 - [ ] **Step 4: Hard-rule scan of the new markup code**
 
-Run: `git diff db80cfe8 -- packages/sections/src | grep -nE '^\+.*(dir="rtl"|#[0-9a-fA-F]{3,6}\b|rgb\()'`
-Expected: no output. No `dir="rtl"`, no hex or rgb literals: colours come only from `bk` utilities.
+Run: `git diff <plan-commit> -- packages/sections/src ':!*.snap' | grep -nE '^\+.*(dir="rtl"|#[0-9a-fA-F]{3,6}\b|rgb\()'`
+Expected: only the tests' own `not.toContain('dir="rtl"')` assertions. (Diffing from `db80cfe8` with snapshots included also catches the earlier PDP plans' frozen snapshots, whose default markup legitimately carries `var(--bk-…, #hex)` fallbacks.) No `dir="rtl"`, no hex or rgb literals: colours come only from `bk` utilities.
 
 No commit in this task.
 
@@ -1442,7 +1442,7 @@ There are no repo files and no migration: the change is a jsonb write to `tenant
 **What gets written, and where each FAQ fact comes from.** All target sections are on draft `pages[2]` (`page_id: "product"`). The SQL looks them up by id and type, not by index.
 
 1. Accordion `370f9b04-c300-4dbe-8ea9-b0f9b2d7f78d` (`accordion_richtext`, `layout: "quiet"`):
-   - **Remove `items[4]` «خدمة العملاء».** It is the one item that only restates a trust-strip promise. Its title is the under-CTA chip «خدمة عملاء» word for word, plus the article. Its body («سولف ويانا ! احنا موجودين بأي وقت…من خلال الواتساب») states no policy fact, only "talk to us". The new call row and the FAQ's WhatsApp row now do that as actions. Its unconfirmed «بأي وقت وبكل وقت» (around the clock) claim goes with it.
+   - **Remove `items[4]` «خدمة العملاء».** It is the one item that only restates a trust-strip promise. Its title is the under-CTA chip «خدمة عملاء» word for word, plus the article (and exactly the label of the draft's `trust_badge_row`, which is disabled on the draft PDP). Its body («سولف ويانا ! احنا موجودين بأي وقت…من خلال الواتساب») states no policy fact, only "talk to us". The new call row and the FAQ's WhatsApp row now do that as actions. Its unconfirmed «بأي وقت وبكل وقت» (around the clock) claim goes with it.
    - **Kept:**
      - `items[0]` «سياسة الدفع عند الاستلام» shares the chip «الدفع عند الاستلام» but adds the try-before-you-pay and free-sample facts.
      - `items[3]` «عطور اصلية» echoes the chip «منتجات أصلية» but carries the sourcing facts.
