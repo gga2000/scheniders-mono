@@ -1,25 +1,32 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { clientIp } from "@/lib/client-ip";
 
 /**
- * Inbound webhook authentication with a staged rollout.
+ * Inbound webhook authentication. Fails closed.
  *
  * LightFunnels and Interakt both posted to endpoints that accepted a request
  * carrying NO credential at all — only a present-and-wrong secret was refused.
  * Anyone who knew the URL could create orders (which fan out WhatsApp sends and
  * staff alerts) or confirm/cancel a merchant's orders.
  *
- * Switching straight to "reject when missing" would also reject the real
- * traffic, because neither dashboard was configured to send a credential. So
- * the check runs in one of two modes:
+ * The first fix staged this behind a mode that DEFAULTED to "monitor", and no
+ * mode was ever set in production, so every route using this helper still
+ * accepted anonymous requests while appearing to authenticate them
+ * (NEW-P1-06, NEW-P1-07). The default is now "enforce":
  *
- *   monitor  (default) — a request with no credential is still processed, and a
- *            structured warning is logged so the owner can see whether the real
- *            traffic is authenticated yet.
- *   enforce  — a request with no credential is refused with 401.
+ *   enforce  (default) — a request with no credential is refused with 401, and
+ *            a route with no secret configured refuses every request with 503:
+ *            an unconfigured webhook is misconfigured, not public.
+ *   monitor  — explicit opt-out, per provider or global
+ *            (`<PROVIDER>_WEBHOOK_AUTH_MODE=monitor` / `WEBHOOK_AUTH_MODE=monitor`).
+ *            A request with no credential, or to a route with no secret, is
+ *            still processed, and logged as an error so it cannot go unnoticed.
+ *            It exists only to keep a real sender working while its dashboard
+ *            is being set up to send the secret.
  *
  * A credential that is present but WRONG is refused in both modes: nothing
- * legitimate sends a bad one, and that was already the behaviour before.
+ * legitimate sends a bad one.
  *
  * Accepted credentials, strongest first:
  *   - an HMAC signature header over the raw body (provider-specific scheme);
@@ -162,31 +169,26 @@ export function verifyWebhookAuth(
 
 /**
  * Resolve the mode for one provider: a provider-specific override wins over the
- * global flag, and with neither set the default is `monitor`. The values are
- * validated as an enum in env.ts, so a typo fails the build rather than
- * silently meaning "monitor".
+ * global flag, and with neither set the mode is `enforce`: monitor must be
+ * asked for by name. The values are validated as an enum in env.ts, so a typo
+ * fails the build rather than silently meaning either mode.
  */
 export function resolveWebhookAuthMode(
     providerMode: WebhookAuthMode | undefined,
     globalMode: WebhookAuthMode | undefined,
 ): WebhookAuthMode {
-    return providerMode ?? globalMode ?? "monitor";
-}
-
-function clientIp(headers: Headers): string | null {
-    const forwarded = headers.get("x-forwarded-for");
-    if (forwarded) return forwarded.split(",")[0]?.trim() || null;
-    return headers.get("x-real-ip");
+    return providerMode ?? globalMode ?? "enforce";
 }
 
 /**
  * Apply the mode to a verification result and log the outcome.
  *
- * Returns a 401 response to send back, or null when the request may proceed.
+ * Returns the response to send back, or null when the request may proceed:
+ * 401 for a wrong or missing credential, 503 when no secret is configured.
  * Every outcome is logged as one JSON line (`event: "webhook_auth"`): info for
- * authenticated, warn for accepted-unauthenticated, error for rejected. Those
- * lines are what the owner reads in the Vercel logs before flipping to
- * enforce. Credential values are never logged.
+ * authenticated, error for everything else — including a request accepted
+ * unauthenticated under the monitor opt-out, which is an open hole and must be
+ * loud. Credential values are never logged.
  */
 export function enforceWebhookAuth(
     route: string,
@@ -215,10 +217,10 @@ export function enforceWebhookAuth(
         console.info(line);
         return null;
     }
-    if (rejected) {
-        console.error(line);
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    console.error(line);
+    if (!rejected) return null;
+    if (result.status === "unconfigured") {
+        return NextResponse.json({ error: "Webhook is not configured." }, { status: 503 });
     }
-    console.warn(line);
-    return null;
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
