@@ -16,7 +16,7 @@ Logs kept in the session scratchpad (gates2/). All exits 0.
 
 
 ## Phase 4 build — started 2026-10-21 22:34 UTC (Ali approved plan)
-Nothing merged and no production migration applied; each needs Ali's OK (§4 order). Backup decision pending.
+Each production migration and merge needs Ali's OK (§4 order). Backup: Ali chose "No backup" (2026-10-22 12:24Z).
 
 | PR | Package | Branch | State | Critic |
 |---|---|---|---|---|
@@ -35,3 +35,9 @@ Nothing merged and no production migration applied; each needs Ali's OK (§4 ord
 - Main CI red at f8e5ca87 (#197): `storefront#build` fails when `next/font/google` can't download at build time (same failure as #167 a1b88e2d; re-runs pass). New package: self-host fonts, branch `fix/ci-self-host-fonts` (worker started).
 - Live (SELECT-verified): `authenticated` has table-level SELECT on `orders` (so `product_cost` is readable directly); `20261021090000` is not in `schema_migrations` although `mask_order_margin` exists. Already planned as R3-C (column revoke needs the 24 `select('*')` reads fixed first).
 - #199 `fix/ci-self-host-fonts` → 87196c03: all three apps self-host fonts via next/font/local; offline build proven; CI green; critic 7.5 → 8.5. Add to the merge ask (no migration; merging it removes the intermittent `storefront#build` failure on main).
+
+### 2026-10-22 rollout step 1: #173 (F-001 P0, F-002 P1)
+- Ali approved "Apply and merge" (12:26Z). Pre-check SELECTs: live inv_apply / process_return / undo_return / child policies still equal the fixture's copies; 0 rows would trip the guards.
+- Applied to prod as 8 migrations, 20261022123506 … 20261022124103. The drafts as written hung `apply_migration` until its 60s timeout four times (nothing reached Postgres; no "begin" in the logs, no locks): the MCP tool holds statements containing `DROP TRIGGER` / `DROP POLICY`. Applied versions use `CREATE OR REPLACE TRIGGER` and `ALTER POLICY` (same names, roles, args), and `SET LOCAL lock_timeout = '3s'` on the trigger parts.
+- Verified: each repo file's statement md5 equals remote `schema_migrations.statements`; live `pg_get_functiondef` / `pg_get_triggerdef` / policy md5s equal a local PG16 apply of the original drafts; grants unchanged; anon reads 72/72 product images.
+- #173 @ a53213b2: drafts replaced by the 8 applied files; drafts' headers kept in `cross_tenant_stock.sql`; the SQL test passes on a fresh local DB against the 8 files (before: 21 failing checks). Marked ready; merge on green CI.
