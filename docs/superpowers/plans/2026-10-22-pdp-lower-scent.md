@@ -60,6 +60,7 @@ Order inside the express section, after the form: description («عن العطر
 - The heading is `scent_journey.title_i18n`, or the chrome «رحلة العطر» (ar/en/ku) when that is empty.
 - The block renders only when at least one of pyramid, chips or line has data. Products without attributes render nothing, with no placeholder.
 - Arabic visual order comes from `flex-row-reverse` / `text-right` classes. The document stays LTR and nothing gets a `dir` attribute. Merchant strings are wrapped in `<bdi>`.
+- **Build note (2026-10-22):** the 390px check showed one `<bdi>` per note reversing the Arabic notes line: the isolates hide every strong character, so the storefront's `unicode-bidi: plaintext` on `p` falls back to LTR. The notes line is now one plain run (`notes.join(sep)`), and the note-row title/body (inside a button, outside the plaintext rule) get a `<bdi>` each.
 
 **Note row** (`data-layer="note-row"`), replacing the vertical stack when `feature_cards_layout: "row"`:
 

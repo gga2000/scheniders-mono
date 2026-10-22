@@ -126,7 +126,11 @@ describe("pdp_direct_order express — scent_journey block", () => {
     for (const s of ["المقدمة", "القلب", "القاعدة", "أول ما ترشه", "بعد ما يهدى", "اللي يبقى عليك"]) {
       expect(b).toContain(s);
     }
-    expect(b).toContain("<bdi>الليمون</bdi>، <bdi>الماندرين</bdi>، <bdi>البرغموت</bdi>");
+    // One plain run, not one <bdi> per note: isolates hide every strong
+    // character from the paragraph, so the storefront's
+    // `unicode-bidi: plaintext` fell back to LTR and an Arabic list read
+    // backwards with its commas on the wrong side (seen at 390px).
+    expect(b).toContain(">الليمون، الماندرين، البرغموت</p>");
   });
 
   it("shows the occasion and season chips, in the configured order", () => {

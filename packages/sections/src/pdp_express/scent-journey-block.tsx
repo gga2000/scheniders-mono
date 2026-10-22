@@ -5,7 +5,7 @@
 // derived, scored or metered. Opt-in via `scent_journey`. Arabic flips the
 // visual order with classes; the document stays LTR.
 
-import { Fragment, useId } from "react";
+import { useId } from "react";
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { MaterialIcon } from "../helpers/primitives";
@@ -73,13 +73,13 @@ export function ScentJourneyBlock({
                         <span className="font-bk-body text-xs text-bk-ink-soft">{xs(hint, locale)}</span>
                       )}
                     </p>
+                    {/* One plain run, deliberately not one <bdi> per note: the
+                        isolates would hide every strong character from the
+                        paragraph, so the storefront's `unicode-bidi:
+                        plaintext` would fall back to LTR and an Arabic list
+                        would read backwards with its commas misplaced. */}
                     <p className="mt-0.5 font-bk-body text-sm leading-relaxed text-bk-ink">
-                      {s.notes.map((n, j) => (
-                        <Fragment key={`${n}-${j}`}>
-                          {j > 0 && sep}
-                          <bdi>{n}</bdi>
-                        </Fragment>
-                      ))}
+                      {s.notes.join(sep)}
                     </p>
                   </div>
                 </li>

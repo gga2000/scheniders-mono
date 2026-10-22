@@ -70,7 +70,9 @@ export function NoteRow({
                 )}
                 <span className="block p-3">
                   <span className={cn("flex items-start justify-between gap-2", rtl && "flex-row-reverse")}>
-                    <span className="min-w-0 font-bk-body text-sm font-bold text-bk-ink">{c.title}</span>
+                    <span className="min-w-0 font-bk-body text-sm font-bold text-bk-ink">
+                      <bdi>{c.title}</bdi>
+                    </span>
                     <MaterialIcon
                       name="expand_more"
                       className={cn(
@@ -86,7 +88,10 @@ export function NoteRow({
                       !expanded && "line-clamp-1",
                     )}
                   >
-                    {c.body}
+                    {/* A button is outside the storefront's plaintext-bidi
+                        rule; <bdi> gives the line its own direction so a
+                        trailing full stop stays at the sentence's end. */}
+                    <bdi>{c.body}</bdi>
                   </span>
                 </span>
               </button>
