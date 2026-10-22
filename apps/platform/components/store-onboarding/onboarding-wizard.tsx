@@ -597,7 +597,7 @@ function LogoField({
                               : t("wizard.logo.upload")}
                         <input
                             type="file"
-                            accept="image/*"
+                            accept="image/png,image/jpeg,image/webp"
                             onChange={handleUpload}
                             className="hidden"
                         />

@@ -172,6 +172,9 @@ async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
     });
 
     // ── Charge wallet atomically (prevents race conditions) ──
+    // A zero price (the 'internal' plan) means nothing to charge;
+    // charge_wallet_atomic refuses non-positive amounts.
+    if (chargeAmount <= 0) return;
     try {
         const { data: chargeResult, error: chargeError } = await supabase
             .rpc('charge_wallet_atomic', {

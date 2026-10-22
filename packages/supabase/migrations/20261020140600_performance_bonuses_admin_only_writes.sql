@@ -1,0 +1,32 @@
+-- performance_bonuses: no write privilege for anon (2026-10-20, revised 2026-10-21).
+--
+-- FIXES  NEW-P1-16 (P1), audit-final/REGRESSION.md (ledger MONEY-07, SEC-09,
+--        final-register V-5, D-16).
+--
+-- WHY (live pg_policies, measured 2026-10-20)
+--   performance_bonuses tenant_isolation_insert / _update / _delete tested
+--   membership only, so an employee could grant themselves a bonus that the
+--   next payroll run (use-payroll.ts) adds to their pay.
+--
+-- POLICIES ARE NOT CHANGED HERE
+--   The first version of this file recreated the three write policies as
+--   tenant-admin only. Main has since shipped
+--   20261021223954_financial_writes_and_tenant_permission_overrides.sql
+--   (applied live), which gates the same three policies on
+--     tenant_id IN (SELECT get_user_tenant_ids())
+--     AND (is_tenant_admin(tenant_id)
+--          OR has_tenant_permission(tenant_id, 'system.financials.view'))
+--   That closes NEW-P1-16 (an employee or viewer without financials access is
+--   refused) and deliberately lets a member holding system.financials.view
+--   edit bonuses, matching who may read them. Recreating the policies here
+--   would, on live, run after that migration and silently drop the
+--   financials.view path, so this file leaves them alone.
+--
+-- WHAT THIS CHANGES
+--   anon loses INSERT / UPDATE / DELETE / TRUNCATE on the table (defence in
+--   depth: anon is in no tenant, so the policies already refuse it).
+--
+-- ROLLBACK
+--   GRANT INSERT, UPDATE, DELETE, TRUNCATE ON public.performance_bonuses TO anon;
+
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.performance_bonuses FROM anon;
