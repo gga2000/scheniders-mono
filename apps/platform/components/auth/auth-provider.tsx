@@ -7,10 +7,20 @@ import { activityLogger } from "@/lib/activity-logger";
 import type { UserProfile, AuthContextType } from "@/types/auth";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
+import { clearPersistedBooks } from "@/lib/orders/persisted-book";
+import { reportOrderError } from "@/lib/order-telemetry";
 import { sentryIdentityFor } from "@/lib/sentry-identity";
 import { applyPermissionOverrides, resolveEffectiveRole, type UserRole } from "@/lib/permissions";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * Delete what the app keeps on the device for the signed-in user: the saved
+ * order books hold customer names, phones and addresses.
+ */
+function forgetDeviceData(): void {
+    clearPersistedBooks().catch((err: unknown) => reportOrderError(err, { operation: "orders-book-clear" }));
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -199,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         // redirect to /login immediately (no more 10s deferred-logout wait).
                         clearSafety();
                         if (deferredLogoutRef.current) { clearTimeout(deferredLogoutRef.current); deferredLogoutRef.current = null; }
+                        forgetDeviceData();
                         setSession(null);
                         setUser(null);
                         setRole(null);
@@ -259,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 } else if (event === 'SIGNED_OUT') {
                     clearSafety();
+                    forgetDeviceData();
                     void supabase.realtime.setAuth(); // drop the JWT from the socket
                     currentUserIdRef.current = null;
                     setUser(null);

@@ -123,6 +123,27 @@ export function formatPhoneForInterakt(phone: string): {
 // SHARED HELPERS
 // =============================================
 
+/**
+ * The total a {{7}} quotes: what the courier will collect.
+ *
+ * Storefront checkout records `price` as the line subtotal BEFORE discounts,
+ * with `discount_amount` and `delivery_fee` stored beside it
+ * (apps/storefront/app/actions/checkout.ts: `price: subtotal`), so the amount
+ * the buyer agreed to pay is price - discount_amount + delivery_fee.
+ *
+ * Every other source keeps quoting `price` exactly as before. Those rows follow
+ * lib/order-money's convention (`price` is already net of the discount), and a
+ * Lightfunnels order carries no delivery fee when its confirmation goes out,
+ * so applying the storefront formula to them would subtract the discount twice.
+ */
+function templateTotal(order: Order): number {
+    if (order.source !== "storefront") return order.price;
+    const price = Number(order.price) || 0;
+    const discount = Number(order.discount_amount) || 0;
+    const deliveryFee = Number(order.delivery_fee) || 0;
+    return Math.max(0, Math.round(price - discount + deliveryFee));
+}
+
 function getOrderHelpers(order: Order, overridePhone?: string) {
     const targetPhone = overridePhone || order.phone;
     const { countryCode, phoneNumber } = formatPhoneForInterakt(targetPhone);
@@ -135,6 +156,7 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
         .join("، ");
 
     const totalPrice = `IQD ${order.price.toLocaleString("en-US")}`;
+    const collectibleTotal = `IQD ${templateTotal(order).toLocaleString("en-US")}`;
 
     const addressParts = [
         order.city || order.governorate_code,
@@ -147,7 +169,7 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
         ? formatPhoneForDisplay(order.secondary_phone)
         : "—";
 
-    return { countryCode, phoneNumber, itemsList, totalPrice, address, displayPhone, displaySecondaryPhone };
+    return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, displayPhone, displaySecondaryPhone };
 }
 
 // =============================================
@@ -176,7 +198,7 @@ function buildConfirmationBody(order: Order, overridePhone?: string): InteraktTe
                 h.address,                    // {{4}} — Address
                 h.displayPhone,               // {{5}} — Phone 1
                 h.displaySecondaryPhone,      // {{6}} — Phone 2
-                h.totalPrice,                 // {{7}} — Total price
+                h.collectibleTotal,           // {{7}} — What the courier collects
             ],
         },
     };
@@ -441,7 +463,7 @@ function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplate
         .map((item) => (item.quantity > 1 ? `${item.name} × ${item.quantity}` : item.name))
         .join("، ");
 
-    const totalPrice = `IQD ${order.price.toLocaleString("en-US")}`;
+    const totalPrice = `IQD ${templateTotal(order).toLocaleString("en-US")}`;
     const addressParts = [order.city || order.governorate_code, order.address_details].filter(Boolean);
     const address = addressParts.join(" - ") || "غير محدد";
 

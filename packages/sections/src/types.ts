@@ -56,6 +56,13 @@ export interface Product extends BaseProduct {
   images?: string[];
   /** Short marketing line (per-product promo notice on the funnel PDP). */
   short_description?: string | null;
+  /** Merchant-entered public identity (products.brand / display_name /
+   *  size_ml). Null = not shown; never derived from the marketing name. */
+  brand?: string | null;
+  display_name?: string | null;
+  size_ml?: number | null;
+  /** Who the scent is marketed to; null = no tag. */
+  gender?: "men" | "women" | "unisex" | null;
   /** Ordered gallery photo URLs (products.gallery_urls jsonb, coerced to a
    *  clean string[] by the consuming app before it reaches sections). */
   gallery_urls?: string[];

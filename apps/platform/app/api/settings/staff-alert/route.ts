@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
+import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { normalizeIraqiPhone, STAFF_ALERT_SETTINGS_KEY, type StaffNumberEntry, type StaffAlertSettings } from "@/lib/staff-alerts";
 
 export const dynamic = "force-dynamic";
@@ -22,17 +23,13 @@ async function resolveTenant(request: NextRequest): Promise<{ tenantId: string }
     if (error || !user) {
         return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
     }
-    const supabase = createSupabaseServiceClient();
-    const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("current_tenant_id")
-        .eq("id", user.id)
-        .maybeSingle();
-    const tenantId = profile?.current_tenant_id as string | undefined;
-    if (!tenantId) {
-        return { error: NextResponse.json({ error: "No active tenant" }, { status: 400 }) };
+    // current_tenant_id is accepted only while the caller is an active member
+    // of it with an active profile (resolveActiveTenant; F-087).
+    const active = await resolveActiveTenant(user.id);
+    if (!active.ok) {
+        return { error: NextResponse.json({ error: active.error }, { status: active.status }) };
     }
-    return { tenantId };
+    return { tenantId: active.tenantId };
 }
 
 async function readSettings(tenantId: string): Promise<StaffAlertSettings> {

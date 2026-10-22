@@ -109,7 +109,8 @@ export const ORDER_READ_COLUMNS = `
   last_followup_at,
   last_followup_type,
   attribution,
-  ad_channel
+  ad_channel,
+  confirmation_dispatched_at
 `;
 
 /** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */

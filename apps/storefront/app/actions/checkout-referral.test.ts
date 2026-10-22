@@ -16,6 +16,11 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
+// A real shopper, not a draft-view session: the check reads the request's
+// cookies, which do not exist outside a Next request scope.
+vi.mock("@/lib/draft-view", () => ({
+  isDraftViewRequest: vi.fn(async () => false),
+}));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
@@ -75,7 +80,7 @@ function install(t: Record<string, Row[]>, verdict: Verdict | "error" = { ok: tr
     rpc: {
       referral_check: () =>
         verdict === "error" ? { data: null, error: { message: "boom" } } : { data: [verdict], error: null },
-      create_order_atomic: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }),
+      create_storefront_order: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }),
     },
   });
   vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
@@ -92,7 +97,7 @@ const customer = {
 const items = [{ product_id: PERFUME, variant_id: null, name: "x", variant_name: null, price: 35000, quantity: 1 }];
 
 const recorded = (fake: ReturnType<typeof install>) =>
-  fake.rpcCalls.find((c) => c.fn === "create_order_atomic")?.args._order_data as
+  fake.rpcCalls.find((c) => c.fn === "create_storefront_order")?.args._order_data as
     | { discount_amount: number; price: number }
     | undefined;
 const checks = (fake: ReturnType<typeof install>) => fake.rpcCalls.filter((c) => c.fn === "referral_check");
@@ -213,7 +218,7 @@ describe("referral at checkout", () => {
     const fake = createFakeSupabase(tables(), {
       rpc: {
         referral_check: () => ({ data: [{ ok: true, reason: "ok", referrer_phone: REFERRER }], error: null }),
-        create_order_atomic: () => ({
+        create_storefront_order: () => ({
           data: { id: ORDER, order_id: "SH-0001", price: 35000, discount_amount: 3500, delivery_fee: 5000, idempotent_replay: true },
           error: null,
         }),

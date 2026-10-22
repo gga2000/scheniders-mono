@@ -37,13 +37,25 @@ export const productRepository = {
      * dropped rather than escaped. An empty remainder searches nothing.
      */
     async searchByName(tenantId: string, term: string, limit: number): Promise<ProductSearchMatch[]> {
-        const text = term.replace(/[*%\\]/g, "").trim();
+        // Dropped: LIKE wildcards, and the quote / backslash that would end or
+        // escape the double-quoted values below. Quoting keeps ',', '.', ':'
+        // and parentheses in a term from breaking the `or` filter apart.
+        const text = term.replace(/[*%"\\]/g, "").trim();
         if (!text) return [];
+        // A product is searched by every name it goes by, not only the
+        // catalogue name: order cards show the short name or the name the
+        // order arrived with (e.g. "بيرسيفيرون" for "عطر برسيفيرون الفاخر…"),
+        // and that is what a merchant types. The aliases are the names
+        // imported orders used; an alias matches when typed in full.
+        const like = `"*${text}*"`;
         const { data, error } = await supabase
             .from("products")
             .select("id, name, price")
             .eq("tenant_id", tenantId)
-            .ilike("name", `%${text}%`)
+            .or(
+                `name.ilike.${like},display_name.ilike.${like},short_name.ilike.${like},sku.ilike.${like},` +
+                `lightfunnels_aliases.cs.{"${text}"}`,
+            )
             .order("name", { ascending: true })
             .limit(limit);
         if (error) throw error;

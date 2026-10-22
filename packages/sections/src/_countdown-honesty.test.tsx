@@ -44,4 +44,25 @@ describe("countdown_announcement honesty", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("draws the evergreen clock only when the merchant opts in with evergreen_clock", () => {
+    const html = render({
+      mode: "evergreen_minutes",
+      duration_minutes: 150,
+      evergreen_clock: true,
+      label_i18n: { ar: "ينتهي عرض الخصم خلال:" },
+    });
+    expect(html).toContain('aria-live="off"');
+    expect(html).toContain("ساعات");
+  });
+
+  it("degrades a malformed evergreen_clock to the honest default instead of dropping the bar", () => {
+    const parsed = countdown_announcement.schema.safeParse({
+      ...countdown_announcement.defaultProps,
+      mode: "evergreen_minutes",
+      evergreen_clock: "yes",
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.evergreen_clock).toBeUndefined();
+  });
 });

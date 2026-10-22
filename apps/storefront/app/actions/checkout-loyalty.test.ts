@@ -14,6 +14,11 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
+// A real shopper, not a draft-view session: the check reads the request's
+// cookies, which do not exist outside a Next request scope.
+vi.mock("@/lib/draft-view", () => ({
+  isDraftViewRequest: vi.fn(async () => false),
+}));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
@@ -62,7 +67,7 @@ function tables(balance = 0): Record<string, Row[]> {
 
 function install(t: Record<string, Row[]>) {
   const fake = createFakeSupabase(t, {
-    rpc: { create_order_atomic: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }) },
+    rpc: { create_storefront_order: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }) },
   });
   vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
   return fake;
@@ -97,7 +102,7 @@ describe("loyalty at checkout", () => {
     const res = await submitCheckout({ tenantId: TENANT, customer, items, redeemPoints: 3000 });
     expect(res.success).toBe(true);
     expect(pointsCalls(fake)).toEqual([["redeem", -3000]]);
-    const order = fake.rpcCalls.find((c) => c.fn === "create_order_atomic")?.args._order_data as
+    const order = fake.rpcCalls.find((c) => c.fn === "create_storefront_order")?.args._order_data as
       | { discount_amount: number }
       | undefined;
     expect(order?.discount_amount).toBe(3000);

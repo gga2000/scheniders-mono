@@ -8,6 +8,10 @@
 // `<details>` so closed bodies stay in the DOM (crawlable, find-in-page)
 // and the section ships no client JS; `allow_multiple: false` uses a
 // shared `name` for exclusive-open.
+// Opt-in `layout: "quiet"` swaps the cards for a hairline list with
+// height-animated panels — a small client island in
+// `./accordion_richtext.client.tsx`. Unset (every existing config) keeps
+// the zero-JS cards render byte-identical.
 // =====================================================================
 
 import { useId } from "react";
@@ -22,6 +26,8 @@ import {
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
+import { readsRtl } from "./pdp_express/text";
+import { AccordionRichtextQuiet } from "./accordion_richtext.client";
 
 const schema = z.object({
   heading_i18n: i18nStringOptional,
@@ -32,9 +38,14 @@ const schema = z.object({
       body_i18n: i18nStringSchema,
     }),
   ),
+  /**
+   * "cards" (the default, and what every existing config renders) = bordered bento plates with a tinted +/x chip per row.
+   * "quiet" = one hairline-ruled list with a single ink chevron and height-animated panels (client island). It is opt-in so the shared default stays byte-identical.
+   */
+  layout: z.enum(["cards", "quiet"]).optional().catch(undefined),
 });
 
-type Props = z.infer<typeof schema>;
+export type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   heading_i18n: { en: "Details", ar: "التفاصيل" },
@@ -101,6 +112,20 @@ function AccordionRichtextRender({
   if (props.items.length === 0) return null;
 
   const heading = resolveI18n(props.heading_i18n, locale);
+
+  if (props.layout === "quiet") {
+    return (
+      <AccordionRichtextQuiet
+        heading={heading}
+        items={props.items.map((it) => ({
+          title: resolveI18n(it.title_i18n, locale),
+          body: resolveI18n(it.body_i18n, locale),
+        }))}
+        exclusive={!props.allow_multiple}
+        rtl={readsRtl(locale)}
+      />
+    );
+  }
 
   return (
     <Section>
