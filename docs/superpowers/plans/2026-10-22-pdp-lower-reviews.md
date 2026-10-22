@@ -619,6 +619,8 @@ describe("QuietSummary", () => {
 
 The `width:75%` expectation: 3 five-star reviews out of 4 total gives 75%.
 
+_(Build note: `data-star-count` must be the count span's last prop. The test matches `data-star-count="5">3<`, and React emits attributes in prop order.)_
+
 - [ ] **Step 2: Run to verify failure**
 
 Run: `CI=true pnpm exec vitest run packages/sections/src/_product-reviews-quiet.test.tsx`
@@ -706,8 +708,8 @@ export function QuietSummary({
                 </span>
                 <span
                   aria-hidden="true"
-                  data-star-count={star}
                   className="w-4 text-center font-bk-body text-xs text-bk-ink-soft tabular-nums"
+                  data-star-count={star}
                 >
                   {count}
                 </span>
