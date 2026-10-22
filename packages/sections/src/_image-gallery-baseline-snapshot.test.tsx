@@ -13,7 +13,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { StoreBaseProvider } from "./helpers/store-context";
 import image_gallery from "./image_gallery";
 import type { SectionRenderContext } from "./_types";
-import { productCtx, productRuntime } from "./_pdp-fixtures";
+import { productCtx, productRuntime, saleProduct } from "./_pdp-fixtures";
 
 const Gallery = image_gallery.render;
 
@@ -131,4 +131,32 @@ describe("image_gallery baseline", () => {
       );
     },
   );
+  it("(i) product tags without order change nothing", () => {
+    const tagged = {
+      ...LIVE_IRAQ_PROPS,
+      images: LIVE_IRAQ_PROPS.images.map((img, i) =>
+        i === 4 ? { ...img, product_ids: [saleProduct.id] } : img,
+      ),
+    };
+    expect(render(tagged, { product: saleProduct })).toBe(
+      render(LIVE_IRAQ_PROPS, { product: saleProduct }),
+    );
+  });
+
+  it("(j) order with nothing tagged changes nothing", () => {
+    expect(
+      render({ ...LIVE_IRAQ_PROPS, order: "product_first" }, { product: saleProduct }),
+    ).toBe(render(LIVE_IRAQ_PROPS, { product: saleProduct }));
+  });
+
+  it("(k) junk order and junk tags fall back", () => {
+    const junk = {
+      ...LIVE_IRAQ_PROPS,
+      order: "random",
+      images: LIVE_IRAQ_PROPS.images.map((img) => ({ ...img, product_ids: "nope" })),
+    };
+    expect(render(junk, { product: saleProduct })).toBe(
+      render(LIVE_IRAQ_PROPS, { product: saleProduct }),
+    );
+  });
 });
