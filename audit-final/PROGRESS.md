@@ -42,3 +42,8 @@ Each production migration and merge needs Ali's OK (§4 order). Backup: Ali chos
 - Verified: each repo file's statement md5 equals remote `schema_migrations.statements`; live `pg_get_functiondef` / `pg_get_triggerdef` / policy md5s equal a local PG16 apply of the original drafts; grants unchanged; anon reads 72/72 product images.
 - #173 @ a53213b2: drafts replaced by the 8 applied files; drafts' headers kept in `cross_tenant_stock.sql`; the SQL test passes on a fresh local DB against the 8 files (before: 21 failing checks). Marked ready; merge on green CI.
 - CI green (7m29s) → merged 12:54Z as b0ee952b (squash); platform prod deploy queued. Next: card for step 1b (#195 F-087) posted.
+
+### 2026-10-22 rollout step 1b: #195 (F-087)
+- Ali approved "Apply and merge" (12:57Z). Pre-check: live is_tenant_admin and link-code policy equal the draft's rollback text; 1 admin loses rights, 18 keep, 0 bad link codes.
+- Applied as 20261022125832 (function + grants) and 20261022125848 (ALTER POLICY). Function md5 and ACL equal a local apply of the draft; policy text equal except the enum cast (stub used text). Repo files md5-match remote.
+- #195 @ b5a1ad96: merged main (conflict with #192 in require-action-caller.ts resolved, critic 8.5), draft replaced by the 2 applied files. Platform vitest 254 files / 2702 pass; type-check and lint clean. Waiting on CI to merge.
