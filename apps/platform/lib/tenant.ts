@@ -390,26 +390,3 @@ export async function chargeWallet(
 
     return { newBalance: data.new_balance };
 }
-
-// =============================================
-// TENANT VALIDATION HELPERS
-// =============================================
-
-/**
- * Verify that a user is a member of a tenant.
- * Returns the member's role or null if not a member.
- */
-export async function getUserTenantRole(
-    userId: string,
-    tenantId: string
-): Promise<string | null> {
-    const adminClient = createSupabaseServiceClient();
-    const { data } = await adminClient
-        .from('tenant_members')
-        .select('role')
-        .eq('tenant_id', tenantId)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
-    return data?.role ?? null;
-}

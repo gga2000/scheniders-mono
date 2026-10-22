@@ -1,4 +1,5 @@
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import { NextResponse } from "next/server";
 import { assertNotBlocked, blockedResponseBody, TenantBlockedError } from "@/lib/restrictions";
 
@@ -37,15 +38,9 @@ export async function POST(request: Request) {
         const tenantId = body.tenantId || inviter?.current_tenant_id;
         if (!tenantId) return NextResponse.json({ error: "No workspace found" }, { status: 400 });
 
-        // Tenant-scoped admin check (mirrors /api/auth/create-user).
-        const { data: membership } = await admin
-            .from("tenant_members")
-            .select("role")
-            .eq("user_id", user.id)
-            .eq("tenant_id", tenantId)
-            .eq("status", "active")
-            .single();
-        if (membership?.role !== "admin") {
+        // Tenant-scoped admin check (mirrors /api/auth/create-user): active
+        // membership AND active profile (F-087).
+        if ((await activeTenantRole(user.id, tenantId)) !== "admin") {
             return NextResponse.json({ error: "Admins only" }, { status: 403 });
         }
 
@@ -130,14 +125,7 @@ export async function DELETE(request: Request) {
             .single();
         if (!invite) return NextResponse.json({ error: "Invite not found" }, { status: 404 });
 
-        const { data: membership } = await admin
-            .from("tenant_members")
-            .select("role")
-            .eq("user_id", user.id)
-            .eq("tenant_id", invite.tenant_id)
-            .eq("status", "active")
-            .single();
-        if (membership?.role !== "admin") {
+        if ((await activeTenantRole(user.id, invite.tenant_id)) !== "admin") {
             return NextResponse.json({ error: "Admins only" }, { status: 403 });
         }
 
