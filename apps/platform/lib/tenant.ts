@@ -150,7 +150,7 @@ export function generateSlug(name: string): string {
  * tenant_slug_history row. The storefront resolves tenants before history,
  * so a new store on a renamed store's old slug would silently take every
  * link that store already shared. The tenants trigger from
- * 20261021130000_tenant_slug_claim.sql refuses such an insert; skipping
+ * 20261022090000_tenant_slug_claim.sql refuses such an insert; skipping
  * those slugs here picks a free one instead of failing the signup.
  */
 export async function ensureUniqueSlug(baseSlug: string): Promise<string> {
