@@ -2,7 +2,7 @@
 -- claim_tenant_slug + the foreign-history guard on tenants: regression check
 -- =============================================================================
 --
--- WHAT THIS PROVES (after 20261021130000_tenant_slug_claim.sql is applied)
+-- WHAT THIS PROVES (after 20261022090000_tenant_slug_claim.sql is applied)
 --   Catalog:
 --     * claim_tenant_slug and tenant_slug_lock are executable by service_role
 --       only (not PUBLIC, anon, authenticated);

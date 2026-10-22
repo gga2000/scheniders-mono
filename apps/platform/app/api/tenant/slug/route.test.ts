@@ -116,7 +116,7 @@ describe("PATCH /api/tenant/slug", () => {
 
     it("answers 409 when the slug is another store's old link", async () => {
         // claim_tenant_slug's tenants trigger raises 23505 for a slug held in a
-        // different tenant's tenant_slug_history (20261021130000); the route
+        // different tenant's tenant_slug_history (20261022090000); the route
         // must report it as taken, not as a success or a 500.
         state.rpc.mockResolvedValue({
             data: null,
@@ -219,12 +219,12 @@ describe("GET /api/tenant/slug", () => {
  * exercised by packages/supabase/tests/tenant_slug_claim.sql against the
  * applied migration.
  */
-describe("20261021130000_tenant_slug_claim.sql", () => {
+describe("20261022090000_tenant_slug_claim.sql", () => {
     const sql = fs
         .readFileSync(
             path.resolve(
                 __dirname,
-                "../../../../../../packages/supabase/migrations/20261021130000_tenant_slug_claim.sql",
+                "../../../../../../packages/supabase/migrations/20261022090000_tenant_slug_claim.sql",
             ),
             "utf8",
         )
