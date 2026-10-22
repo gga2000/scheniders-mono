@@ -203,16 +203,25 @@ describe("what lands on the order", () => {
     expect(storedOrder(fake).delivery_fee).toBe(2500);
   });
 
-  it("keeps the order's discount in the total it reports", async () => {
-    install(tables({ orders: [order({ discount_amount: 3000 })] }));
+  // NEW-P1-12: `price` is stored net of `discount_amount` (the courier collects
+  // price + delivery_fee), so the discount is never subtracted a second time.
+  it("reports price + delivery for a discounted order — the stored price is already net", async () => {
+    // Lines 30,000, discount 3,000 → stored price 27,000.
+    const fake = install(tables({ orders: [order({ price: 27000, discount_amount: 3000 })] }));
     const res = await POST(postReq({ product_id: ADDON }, proofFor()), ctx());
-    expect(await res.json()).toMatchObject({ total: 38000 - 3000 + 5000 });
+    expect(await res.json()).toMatchObject({ success: true, total: 27000 + 8000 + 5000 });
+    expect(storedOrder(fake).price).toBe(35000);
   });
 
-  it("P2-1: never reports a total below delivery when the stored discount exceeds the lines", async () => {
-    install(tables({ orders: [order({ discount_amount: 50000, delivery_fee: 5000 })] }));
+  it("measures the free-delivery threshold on the pre-discount lines, like the checkout", async () => {
+    // Lines 55,000 (stored net 50,000 after a 5,000 discount) + 8,000 add-on
+    // = 63,000 of lines ≥ the 60,000 threshold, though the net is 58,000.
+    const fake = install(
+      tables({ orders: [order({ price: 50000, discount_amount: 5000, items: [{ ...parentLine, price: 55000 }] })] }),
+    );
     const res = await POST(postReq({ product_id: ADDON }, proofFor()), ctx());
-    expect(await res.json()).toMatchObject({ success: true, total: 5000 });
+    expect(await res.json()).toMatchObject({ success: true, total: 58000 });
+    expect(storedOrder(fake).delivery_fee).toBe(0);
   });
 
   it("applies the discount to the add-on's own one-unit tier, like the checkout bump", async () => {

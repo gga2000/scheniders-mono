@@ -245,6 +245,16 @@ describe("POST /api/checkout/orders", () => {
     );
   });
 
+  it("(k2b) forwards a redemption with its proving order number", async () => {
+    const res = await POST(
+      makeRequest({ ...validBody, redeem_points: 40, loyalty_order_number: " 4260910007 " }),
+    );
+    expect(res.status).toBe(200);
+    expect(submitCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ redeemPoints: 40, loyaltyOrderNumber: "4260910007" }),
+    );
+  });
+
   it("(k3) rejects a too-short idempotency_key (400)", async () => {
     const res = await POST(makeRequest({ ...validBody, idempotency_key: "short" }));
     expect(res.status).toBe(400);
