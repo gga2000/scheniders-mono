@@ -7,16 +7,28 @@
 // that animate their height (grid rows 0fr → 1fr — native <details>
 // cannot). The server file resolves every i18n string, so this island
 // receives plain strings and booleans only and imports nothing from it.
-// The cards default stays server-only <details> with zero JS.
+// The cards default stays server-only <details> with zero JS. An optional
+// call row (resolved server-side) closes the list.
 // =====================================================================
 
 import { useId, useState } from "react";
 import { cn } from "@scheniders/shared";
 import { MaterialIcon, Section } from "./helpers/primitives";
+import { ActionPill, ActionRow } from "./helpers/action-row";
 
 export interface QuietItem {
   title: string;
   body: string;
+}
+
+/** The call row, resolved by the server file (`resolveCallRow`). */
+export interface QuietCallRow {
+  prompt: string;
+  action: string;
+  /** Display form, `0777 970 3832`. */
+  number: string;
+  /** `tel:+964…`. */
+  href: string;
 }
 
 /** Next open-set after tapping row `i`. Tapping an open row closes it;
@@ -42,11 +54,14 @@ export function AccordionRichtextQuiet({
   items,
   exclusive,
   rtl,
+  call,
 }: {
   heading: string;
   items: readonly QuietItem[];
   exclusive: boolean;
   rtl: boolean;
+  /** Null = no row (the default). */
+  call: QuietCallRow | null;
 }) {
   const [open, setOpen] = useState<readonly number[]>([]);
   const baseId = useId();
@@ -131,6 +146,32 @@ export function AccordionRichtextQuiet({
           );
         })}
       </div>
+      {call && (
+        <ActionRow
+          kind="call"
+          rtl={rtl}
+          action={
+            <ActionPill
+              href={call.href}
+              external={false}
+              rtl={rtl}
+              icon={<MaterialIcon name="call" className="shrink-0 text-lg" />}
+              label={call.action}
+              labelField="call_row.action_i18n"
+            />
+          }
+        >
+          <p
+            data-i18n-field="call_row.prompt_i18n"
+            className="font-bk-body text-sm font-bold leading-snug text-bk-ink text-balance"
+          >
+            {call.prompt}
+          </p>
+          <p className="font-bk-body text-xs tabular-nums text-bk-ink-soft">
+            <bdi>{call.number}</bdi>
+          </p>
+        </ActionRow>
+      )}
     </Section>
   );
 }

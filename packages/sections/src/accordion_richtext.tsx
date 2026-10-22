@@ -11,23 +11,31 @@
 // Opt-in `layout: "quiet"` swaps the cards for a hairline list with
 // height-animated panels — a small client island in
 // `./accordion_richtext.client.tsx`. Unset (every existing config) keeps
-// the zero-JS cards render byte-identical.
+// the zero-JS cards render byte-identical. Opt-in `call_row` (quiet only)
+// ends the list with a tap-to-call row on the store's call number.
 // =====================================================================
 
 import { useId } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import {
+  formatIraqiPhoneDisplay,
+  parseStoreContact,
+  resolveI18n,
+} from "@scheniders/shared";
+import type { LocaleCode } from "@scheniders/shared";
 import {
   BentoCard,
   CenteredSectionHeader,
   MaterialIcon,
   Section,
 } from "./helpers/primitives";
+import { whatsappDigits } from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 import { readsRtl } from "./pdp_express/text";
 import { AccordionRichtextQuiet } from "./accordion_richtext.client";
+import type { QuietCallRow } from "./accordion_richtext.client";
 
 const schema = z.object({
   heading_i18n: i18nStringOptional,
@@ -43,6 +51,23 @@ const schema = z.object({
    * "quiet" = one hairline-ruled list with a single ink chevron and height-animated panels (client island). It is opt-in so the shared default stays byte-identical.
    */
   layout: z.enum(["cards", "quiet"]).optional().catch(undefined),
+  /**
+   * Quiet layout only: one tinted row after the list — the merchant's prompt
+   * over the store's call number, and a tap-to-call pill. The number is
+   * `commerce.contact.call_number`, read through `parseStoreContact` (the
+   * resolver behind the PDP "who contacts you" line and the thank-you call
+   * card), so the three can never disagree. No valid Iraqi mobile there, or
+   * an empty prompt or action → no row. Ignored by the cards layout. Unset
+   * (every existing config) renders exactly as before; a malformed value
+   * parses to undefined.
+   */
+  call_row: z
+    .object({
+      prompt_i18n: i18nStringSchema,
+      action_i18n: i18nStringSchema,
+    })
+    .optional()
+    .catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
@@ -81,6 +106,26 @@ const ICON_TINTS = [
   "color-mix(in srgb, var(--bk-secondary, #3e3129) 18%, var(--bk-surface, #fff))",
   "var(--bk-surface-alt, #fff7ed)",
 ] as const;
+
+/** The quiet layout's call row, resolved — or null when any part is
+ *  missing (no opt-in, no valid call number, an empty string). */
+export function resolveCallRow(
+  callRow: Props["call_row"],
+  contact: unknown,
+  locale: LocaleCode,
+): QuietCallRow | null {
+  if (!callRow) return null;
+  const prompt = resolveI18n(callRow.prompt_i18n, locale);
+  const action = resolveI18n(callRow.action_i18n, locale);
+  const dial = parseStoreContact(contact)?.call_number;
+  if (!prompt || !action || !dial) return null;
+  return {
+    prompt,
+    action,
+    number: formatIraqiPhoneDisplay(dial),
+    href: `tel:+${whatsappDigits(dial)}`,
+  };
+}
 
 function renderParagraphs(text: string): React.ReactNode {
   return text.split(/\n{2,}/).map((p, i) => (
@@ -123,6 +168,11 @@ function AccordionRichtextRender({
         }))}
         exclusive={!props.allow_multiple}
         rtl={readsRtl(locale)}
+        call={resolveCallRow(
+          props.call_row,
+          ctx.tenant.store_config_v2?.commerce?.contact,
+          locale,
+        )}
       />
     );
   }

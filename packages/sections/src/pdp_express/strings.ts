@@ -109,6 +109,14 @@ export const EXPRESS_STRINGS = {
     ar: "{label} {h} ساعة و{m} دقيقة",
     ku: "{label} {h} کاتژمێر و {m} خولەک",
   },
+  scentJourney: { en: "The scent journey", ar: "رحلة العطر", ku: "گەشتی بۆنەکە" },
+  // Phase hints beside the merchant's own pyramid labels. They name the
+  // phase, never a duration — no per-product timing is claimed.
+  stageHintTop: { en: "the moment you spray", ar: "أول ما ترشه", ku: "هەر کە دەیپرژێنیت" },
+  stageHintHeart: { en: "once it settles", ar: "بعد ما يهدى", ku: "کە ئارام بووەوە" },
+  stageHintBase: { en: "what stays with you", ar: "اللي يبقى عليك", ku: "ئەوەی لەسەرت دەمێنێتەوە" },
+  noteSep: { en: ", ", ar: "، ", ku: "، " },
+  notesListLabel: { en: "Scent notes", ar: "مكونات العطر", ku: "پێکهاتەکانی بۆنەکە" },
 } as const;
 
 export type ExpressStringKey = keyof typeof EXPRESS_STRINGS;

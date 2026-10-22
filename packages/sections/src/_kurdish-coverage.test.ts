@@ -11,6 +11,7 @@ const FILES = [
   "order_tracker.client.tsx",
   "pdp_direct_order.client.tsx",
   "pdp_express/strings.ts",
+  "product_reviews/strings.ts",
   "search_results_grid.client.tsx",
 ];
 
