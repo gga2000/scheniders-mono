@@ -199,6 +199,12 @@ describe('pdp_direct_order express — feature_cards_layout "row"', () => {
     const r = noteRow(render(row, scentProduct));
     expect(count(r, 'aria-expanded="false"')).toBe(3);
     expect(count(r, "line-clamp-1")).toBe(3);
+    // The clamp sets its own display; a display utility beside it wins the
+    // cascade (Tailwind v4 emits .block after .line-clamp-1) and undoes it.
+    for (const cls of r.match(/data-note-body="" class="[^"]*"/g) ?? []) {
+      expect(cls).toContain("line-clamp-1");
+      expect(cls).not.toMatch(/[\s"](block|flex|grid|inline|inline-block|hidden)[\s"]/);
+    }
     expect(count(r, "<img")).toBe(2);
     expect(r).toContain("snap-x");
     expect(count(render(row, scentProduct), 'data-i18n-field="feature_cards_title_i18n"')).toBe(1);

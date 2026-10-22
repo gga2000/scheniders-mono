@@ -21,6 +21,7 @@ import { CheckoutRow } from "./checkout-row";
 import { DescriptionBlock } from "./description-block";
 import { ExpressForm } from "./express-form";
 import { ExpressMotion } from "./express-motion";
+import { EXPRESS_GUTTER } from "./gutter";
 import { HeroStage } from "./hero-stage";
 import { IdentityLabel, displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
@@ -67,7 +68,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
         />
       )}
 
-      <div className="mx-auto max-w-2xl space-y-bk-sm px-4 pt-bk-sm">
+      <div className={`mx-auto max-w-2xl space-y-bk-sm ${EXPRESS_GUTTER.pad} pt-bk-sm`}>
         <IdentityLabel
           product={product}
           locale={locale}

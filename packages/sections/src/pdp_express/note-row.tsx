@@ -3,9 +3,11 @@
 // Express note row: the per-product feature cards (products.feature_cards)
 // as one compact horizontal snap row — image, note name, one line — in
 // place of the tall vertical stack. A tap opens that card's whole line, one
-// card at a time. Opt-in via `feature_cards_layout: "row"`. The row scrolls
-// in the document's LTR direction like every other scroller on the page;
-// text inside each card aligns to the reading side with classes.
+// card at a time. Opt-in via `feature_cards_layout: "row"`. In Arabic the
+// row starts at the reader's side: `flex-row-reverse` puts the first card at
+// the right edge and makes the right edge the scroll origin, so the row opens
+// there and scrolls leftward — with classes, never `dir`. Text inside each
+// card aligns to the reading side the same way.
 
 import { useState } from "react";
 import Image from "next/image";
@@ -13,6 +15,7 @@ import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { isOptimizableImageHost } from "../helpers/image";
 import { MaterialIcon } from "../helpers/primitives";
+import { EXPRESS_GUTTER } from "./gutter";
 import type { ExpressModel } from "./model";
 import { readsRtl, xs } from "./text";
 
@@ -41,12 +44,19 @@ export function NoteRow({
       )}
       <ul
         aria-label={xs("notesListLabel", locale)}
-        className="-mx-4 flex snap-x snap-mandatory items-start gap-bk-sm overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className={cn(
+          EXPRESS_GUTTER.bleed,
+          "flex snap-x snap-mandatory items-start gap-bk-sm overflow-x-auto overscroll-x-contain pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          rtl && "flex-row-reverse",
+        )}
       >
         {cards.map((c, i) => {
           const expanded = open === i;
           return (
-            <li key={`${c.title}-${i}`} className="w-3/4 max-w-64 shrink-0 snap-start">
+            <li
+              key={`${c.title}-${i}`}
+              className={cn("w-3/4 max-w-64 shrink-0", rtl ? "snap-end" : "snap-start")}
+            >
               <button
                 type="button"
                 aria-expanded={expanded}
@@ -84,8 +94,11 @@ export function NoteRow({
                   <span
                     data-note-body=""
                     className={cn(
-                      "mt-0.5 block font-bk-body text-xs leading-relaxed text-bk-ink-soft",
-                      !expanded && "line-clamp-1",
+                      "mt-0.5 font-bk-body text-xs leading-relaxed text-bk-ink-soft",
+                      // The clamp carries its own display (-webkit-box); a
+                      // display utility beside it would win the cascade and
+                      // undo it, so `block` belongs to the open state only.
+                      expanded ? "block" : "line-clamp-1",
                     )}
                   >
                     {/* A button is outside the storefront's plaintext-bidi
