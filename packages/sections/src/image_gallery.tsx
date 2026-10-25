@@ -20,6 +20,11 @@
 // which a cropped portrait card turns into blurry half-words. Absent, the
 // historical cropped cards render byte-identically.
 //
+// Opt-in `order: "product_first"`: each image may name `product_ids`; on a
+// product page the pictures tagged for that product lead, untagged keep
+// their order, others' go last (image-gallery-order.ts). Absent, or with
+// no tags, the list renders as entered, byte-identically.
+//
 // Empty state: a freshly added section still carries the untouched
 // default image list (four empty urls). That renders one neutral
 // placeholder frame naming the section so the editor canvas is not
@@ -45,6 +50,7 @@ import { cn, PRESSABLE } from "./helpers/utils";
 import { chromeString } from "./helpers/chrome-strings";
 import { i18nStringOptional } from "./_schema";
 import { GalleryViewer } from "./image_gallery.client";
+import { orderGalleryImages } from "./image-gallery-order";
 import type { GalleryViewerImage } from "./image_gallery.client";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
@@ -59,6 +65,10 @@ const schema = z.object({
       /** Screen-reader description (P1-15). Omitted → caption → "". */
       alt_i18n: i18nStringOptional,
       link_href: z.string().optional(),
+      /** Opt-in: the products this picture is about (ids). Read only by
+       *  `order: "product_first"`. The name gives it the builder's
+       *  product picker (section-field-widgets matches `*product_ids`). */
+      product_ids: z.array(z.string()).optional().catch(undefined),
     }),
   ),
   /** Opt-in: show every picture WHOLE (object-contain, never cropped) in a
@@ -73,6 +83,11 @@ const schema = z.object({
     .enum(["portrait", "square", "landscape", "strip"])
     .optional()
     .catch(undefined),
+  /** Opt-in: on a product page, pictures tagged with that product come
+   *  first, then untagged ones, then ones tagged only for other
+   *  products; order inside each group is kept. Absent, or with nothing
+   *  tagged, the merchant's order renders byte-identically. */
+  order: z.enum(["product_first"]).optional().catch(undefined),
 });
 
 type Props = z.infer<typeof schema>;
@@ -409,7 +424,11 @@ function ImageGallery({
   const trackId = useId();
   // An empty-url entry (fresh editor placeholder, deleted upload) is not a
   // picture — skip it rather than framing a blank tile.
-  const images = props.images.filter((img) => img.url.trim().length > 0);
+  const images = orderGalleryImages(
+    props.images.filter((img) => img.url.trim().length > 0),
+    props.order,
+    ctx.product?.id,
+  );
   if (!images.length) {
     if (!isUntouchedDefaultImages(props.images)) return null;
     return (

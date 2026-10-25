@@ -55,6 +55,11 @@ const schema = z.object({
    *  unchanged for existing stores); "info_panel" = light rounded panel
    *  with brand / links / contact+legal columns and a rights line. */
   layout: z.enum(["bento", "info_panel"]).optional(),
+  /** The shop name in the footer lockup. Set it to the header's
+   *  `wordmark_i18n` so the shop carries one name on every page. Unset
+   *  keeps the tenant's business name. `.catch` so a malformed stored
+   *  value reads as unset rather than dropping the footer. */
+  wordmark_i18n: i18nStringOptional.catch(undefined),
   tagline_i18n: i18nStringOptional,
   columns: z.array(columnSchema),
   show_cod_badge: z.boolean(),
