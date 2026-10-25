@@ -55,4 +55,4 @@ Each production migration and merge needs Ali's OK (§4 order). Backup: Ali chos
 - BLOCKED: the 6 storage.objects policy changes (product-images insert/update/delete, qc-evidence insert/delete, payroll-pdfs) fail with `42501 must be owner of table objects` (owner supabase_storage_admin; postgres not a member). Steps for Ali in /mnt/project-files/launch-readiness/storage-rules-to-apply.md; decision card posted.
 - Vercel runtime errors (2h after apply): none on platform or storefront.
 - Default privileges now revoke EXECUTE on new public functions: every later migration adding an app-called function needs an explicit GRANT EXECUTE (check #175, #194, #196, #167, #172).
-- #204 `fix/p1-db-security-holes-applied`: replaces the 140100..140800 drafts with the applied files; pending policy parts in tests/p1_db_security_holes_storage_policies.sql. Needs Ali's OK to merge.
+- #204 `fix/p1-db-security-holes-applied`: replaces the 140100..140800 drafts with the applied files; pending policy parts in tests/p1_db_security_holes_storage_policies.sql. Merged 2026-10-25 22:01Z as 4d16354a (Ali OK).
