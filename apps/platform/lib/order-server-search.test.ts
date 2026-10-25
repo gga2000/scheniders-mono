@@ -133,6 +133,14 @@ describe("buildDirectSearchFilters", () => {
         expect(exact).not.toContain("phone");
     });
 
+    it("matches city, address, notes and a delivery id fragment too, as the in-browser search did", () => {
+        const { partial } = buildDirectSearchFilters(parsed("كربلاء"));
+        expect(partial).toContain('city.ilike."*كربلاء*"');
+        expect(partial).toContain('address_details.ilike."*كربلاء*"');
+        expect(partial).toContain('notes.ilike."*كربلاء*"');
+        expect(partial).toContain('delivery_order_id.ilike."*كربلاء*"');
+    });
+
     it("cannot be broken out of by a hostile term", () => {
         const { exact, partial } = buildDirectSearchFilters(parsed('x",tenant_id.neq.0,"'));
         // The quote is dropped, so the comma stays inside one quoted value.
@@ -158,9 +166,22 @@ describe("rankOrderSearchMatch", () => {
         expect(rankOrderSearchMatch(row({ id: "a", secondary_phone: "07701234567" }), parsed("۰۷۷۰۱۲۳۴۵۶۷"))).toBe(1);
     });
 
-    it("ranks everything else as partial", () => {
+    it("ranks a fragment of the number, phone or name as partial", () => {
         expect(rankOrderSearchMatch(row({ id: "a", order_id: "1260638790" }), parsed("3879"))).toBe(2);
         expect(rankOrderSearchMatch(row({ id: "a", phone: "07701234567" }), parsed("1234567"))).toBe(2);
+        // Arabic-normalized like search_orders_v2: hamza on the alef does not matter.
+        expect(rankOrderSearchMatch(row({ id: "a", customer_name: "احمد علي" }), parsed("أحمد"))).toBe(2);
+    });
+
+    it("ranks a city, address, notes or return match last", () => {
+        // Returned by the RPC for its city; nothing in the number, phone or name matches.
+        expect(rankOrderSearchMatch(row({ id: "a", customer_name: "سامكو" }), parsed("كربلاء"))).toBe(3);
+    });
+
+    it("keeps a name match above newer city matches", () => {
+        const city = Array.from({ length: 5 }, (_, i) => row({ id: `c${i}`, customer_name: "زيد", created_at: `2026-10-2${i}T00:00:00.000Z` }));
+        const name = row({ id: "n", customer_name: "علي الحر", created_at: "2026-01-01T00:00:00.000Z" });
+        expect(rankSearchResults(parsed("الحر"), [[...city, name]], 3)[0].id).toBe("n");
     });
 });
 
