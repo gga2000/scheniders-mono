@@ -289,7 +289,7 @@ export function ImageField({
                     </span>
                     <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp"
                         onChange={handleUpload}
                         className="hidden"
                         disabled={uploading}

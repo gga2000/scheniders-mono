@@ -137,12 +137,14 @@ async function withPriceTiers(
  */
 async function withVariantFlags(
   supabase: PublicClient,
+  tenantId: string,
   products: Product[],
 ): Promise<Product[]> {
   if (products.length === 0) return products;
   const { data, error } = await supabase
     .from("product_variants")
     .select("product_id")
+    .eq("tenant_id", tenantId)
     .in(
       "product_id",
       products.map((p) => p.id),
@@ -213,7 +215,7 @@ async function withOrderBumps(
   const bumpProducts = await withPriceTiers(
     supabase,
     tenantId,
-    (await withVariantFlags(supabase, (bumpRows ?? []).map((r) => normalizeProduct(r)))).filter(
+    (await withVariantFlags(supabase, tenantId, (bumpRows ?? []).map((r) => normalizeProduct(r)))).filter(
       (p) => !p.sold_by_variant,
     ),
   );
@@ -363,6 +365,7 @@ export const listProducts = cache(
       }
       const products = await withVariantFlags(
         supabase,
+        tenantId,
         await withReviewStats(supabase, (data ?? []).map(normalizeProduct)),
       );
       return opts.withAttributes
@@ -456,6 +459,7 @@ export const getProductBySlug = cache(
       const withStats = async (row: Record<string, unknown>) => {
         const withReviews = await withVariantFlags(
           supabase,
+          tenantId,
           await withReviewStats(supabase, [normalizeProduct(row)]),
         );
         const withAttrs = await withAttributes(supabase, tenantId, withReviews);
@@ -505,11 +509,18 @@ export const listApprovedReviews = cache(
     }),
 );
 
-export const getProductImages = cache((productId: string): Promise<string[]> =>
-  publicCache(["getProductImages", productId], async (supabase) => {
+/**
+ * A product's child rows (images, variants) are read by tenant AND product:
+ * their FK is products(id) alone, so the tenant filter is what keeps another
+ * tenant's row off this tenant's page (F-002). The DB refuses such rows too
+ * (20261022124035_product_child_tables_tenant_guard_2_triggers).
+ */
+export const getProductImages = cache((tenantId: string, productId: string): Promise<string[]> =>
+  publicCache(["getProductImages", tenantId, productId], async (supabase) => {
     const { data } = await supabase
       .from("product_images")
       .select("image_url, display_order")
+      .eq("tenant_id", tenantId)
       .eq("product_id", productId)
       .order("display_order", { ascending: true })
       .returns<Pick<Tables<"product_images">, "image_url" | "display_order">[]>();
@@ -518,8 +529,8 @@ export const getProductImages = cache((productId: string): Promise<string[]> =>
 );
 
 export const getProductVariants = cache(
-  (productId: string): Promise<ProductVariant[]> =>
-    publicCache(["getProductVariants", productId], async (supabase) => {
+  (tenantId: string, productId: string): Promise<ProductVariant[]> =>
+    publicCache(["getProductVariants", tenantId, productId], async (supabase) => {
       // A disabled variant is not for sale; `is_enabled` is nullable and null
       // means enabled (the column arrived after the rows).
       const { data } = await supabase
@@ -527,6 +538,7 @@ export const getProductVariants = cache(
         .select(
           "id, product_id, tenant_id, name, price, stock_quantity, reserved_quantity, sku, compare_at_price, image_url, display_order",
         )
+        .eq("tenant_id", tenantId)
         .eq("product_id", productId)
         .or("is_enabled.is.null,is_enabled.eq.true")
         .order("display_order", { ascending: true, nullsFirst: false });
@@ -735,6 +747,7 @@ export const listProductsInCategory = cache(
         const rows = (data ?? []) as Row[];
         const products = await withVariantFlags(
           supabase,
+          tenantId,
           await withReviewStats(
             supabase,
             rows
