@@ -2,7 +2,7 @@
 -- admin_topup_wallet + renew_subscription_atomic — behaviour test
 -- =============================================================================
 --
--- WHAT THIS PROVES (after 20261026160000_wallet_topup_and_subscription_renew_atomic.sql)
+-- WHAT THIS PROVES (after 20261025232022_wallet_topup_and_subscription_renew_atomic.sql)
 --   Top-up (NEW-P1-30):
 --     * anon and authenticated cannot execute admin_topup_wallet (catalog) and
 --       a call under an authenticated JWT is refused (behaviour);
