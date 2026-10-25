@@ -8874,6 +8874,10 @@ export type Database = {
         Returns: boolean
       }
       send_notification_digests: { Args: { p_mode: string }; Returns: number }
+      set_team_member_active: {
+        Args: { p_is_active: boolean; p_user_id: string }
+        Returns: undefined
+      }
       split_order_atomic:
         | {
             Args: {
@@ -8892,6 +8896,10 @@ export type Database = {
             }
             Returns: Json
           }
+      storage_object_writable: {
+        Args: { p_bucket: string; p_name: string; p_owner_id: string }
+        Returns: boolean
+      }
       storefront_funnel: {
         Args: { _from: string; _tenant_id: string; _to: string }
         Returns: Json
