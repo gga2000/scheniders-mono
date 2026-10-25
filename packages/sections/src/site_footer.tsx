@@ -53,13 +53,21 @@ const newsletterSchema = z.object({
 const schema = z.object({
   /** Footer lockup: "bento" = classic dark anchor footer (default,
    *  unchanged for existing stores); "info_panel" = light rounded panel
-   *  with brand / links / contact+legal columns and a rights line. */
-  layout: z.enum(["bento", "info_panel"]).optional(),
+   *  with brand / links / contact+legal columns and a rights line;
+   *  "boutique" = dark closing panel with brand, one-tap WhatsApp/call,
+   *  link rows, contact details and legal fine print (reads the same
+   *  props as info_panel). `.catch` so an unknown stored value falls back
+   *  to the default lockup instead of dropping the footer. */
+  layout: z.enum(["bento", "info_panel", "boutique"]).optional().catch(undefined),
   /** The shop name in the footer lockup. Set it to the header's
    *  `wordmark_i18n` so the shop carries one name on every page. Unset
    *  keeps the tenant's business name. `.catch` so a malformed stored
    *  value reads as unset rather than dropping the footer. */
   wordmark_i18n: i18nStringOptional.catch(undefined),
+  /** The mark beside the boutique wordmark. Set it to the header's
+   *  `logo_image_url`; unset (or empty) falls back to the tenant's uploaded
+   *  logo. Only the boutique layout reads it. */
+  logo_image_url: z.string().describe("image").optional().catch(undefined),
   tagline_i18n: i18nStringOptional,
   columns: z.array(columnSchema),
   show_cod_badge: z.boolean(),

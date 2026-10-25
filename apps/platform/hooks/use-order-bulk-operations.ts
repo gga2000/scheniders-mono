@@ -234,9 +234,10 @@ export function useOrderBulkOperations() {
             return;
         }
 
-        // WF-2: delete is a soft delete (deleted_at), so the rows stay in Trash
-        // until restored. Offer that directly rather than making the operator
-        // find the trash screen.
+        // WF-2: delete is a soft delete (deleted_at): the rows stay in Trash
+        // until restored or purged after 30 days (/api/cron/cleanup-deleted-
+        // orders, daily). Offer the undo directly rather than making the
+        // operator find the trash screen.
         const deletedIds = result.deletedIds ?? ids;
         toast({
             title: t("toast.ordersDeleted"),
