@@ -1,31 +1,5 @@
--- charge_wallet_atomic: refuse non-positive amounts; service role only (2026-10-20).
---
--- FIXES  NEW-P1-01 (P0), audit-final/REGRESSION.md; ledger MONEY-06 context.
---
--- WHY
--- The live body (pg_get_functiondef, 2026-10-20) computes
---   _new_balance := _current_balance - _amount
--- and only refuses a result below -10000. Nothing checks the sign of _amount,
--- and `authenticated` holds EXECUTE, so any active member of a tenant could call
---   rpc('charge_wallet_atomic', { _tenant_id: <own>, _amount: -1000000 })
--- and credit their own prepaid wallet (total_charged_iqd goes down too, and a
--- positive 'charge' row lands in wallet_transactions).
---
--- WHO CALLS IT (grep apps/ packages/, live pg_proc.prosrc)
---   apps/platform/lib/order-service.ts         chargeAndTrack   service-role client
---   apps/platform/lib/tenant.ts                chargeWallet     service-role client
---   apps/platform/app/api/cron/subscription-renew/route.ts      service-role client
---   public.progress_seed_orders()  SECURITY DEFINER, runs as the owner
--- No browser or user-session caller exists, so EXECUTE is taken away from
--- PUBLIC, anon and authenticated. The membership guard is kept unchanged as
--- defence in depth for any definer function that calls this with a user JWT.
--- order-service.ts now skips the call when the per-order price is 0 (the
--- 'internal' plan), which this function now refuses.
---
--- ROLLBACK
---   Re-run the CREATE OR REPLACE below without the "_amount" guard block, then
---   GRANT EXECUTE ON FUNCTION public.charge_wallet_atomic(uuid, numeric, text, text) TO authenticated;
-
+-- charge_wallet_reject_non_positive_amount (header and rollback notes: packages/supabase/tests/p1_db_security_holes.sql).
+-- charge_wallet_atomic rejects a NULL or non-positive amount; service_role only.
 CREATE OR REPLACE FUNCTION public.charge_wallet_atomic(
     _tenant_id uuid,
     _amount numeric,
