@@ -30,7 +30,7 @@
 
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   resolveI18n,
@@ -66,6 +66,13 @@ import {
   writeCustomerMemory,
 } from "./helpers/customer-memory";
 import {
+  clearOrderDraft,
+  mergeDraftForm,
+  readOrderDraft,
+  writeOrderDraft,
+} from "./helpers/order-draft";
+import { postOrderWithResubmit, readPlacedOrder } from "./helpers/submit-order";
+import {
   BentoCard,
   ChunkyButton,
   ChunkyLink,
@@ -84,6 +91,7 @@ import {
   formatPercent,
 } from "./helpers/format";
 import { isOptimizableImageHost } from "./helpers/image";
+import { ContactLine } from "./helpers/contact-line";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./pdp_direct_order";
 // Value import from our own definition half: `defaultProps` needs the same
@@ -91,9 +99,11 @@ import type { Props } from "./pdp_direct_order";
 // exported by a "use client" module is an opaque reference on the server).
 // The two-way import is benign — the constant is only read at render time.
 import { DEFAULT_URGENCY_MAX_STOCK } from "./pdp_direct_order";
+import { PdpExpress } from "./pdp_express/express-view";
+import { EXPRESS_FIELD_ORDER } from "./pdp_express/model";
 
 /** Chrome strings. Every entry carries Sorani — _kurdish-coverage.test.ts fails the build otherwise. */
-const STRINGS = {
+export const STRINGS = {
   fullName: { en: "Full name", ar: "الاسم الكامل", ku: "ناوی تەواو" },
   namePlaceholder: { en: "Your name", ar: "اكتب اسمك", ku: "ناوت بنووسە" },
   phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل" },
@@ -151,6 +161,12 @@ const STRINGS = {
   referralIneligible: { en: "This code can't be used with this number.", ar: "هذا الرمز ما ينفع مع هذا الرقم.", ku: "ئەم کۆدە لەگەڵ ئەم ژمارەیەدا کار ناکات." },
   /** Only rendered when commerce.returns_policy.inspect_before_paying is true. */
   inspectBeforePaying: { en: "Open and check it before you pay", ar: "افتح الطلب وتأكد قبل ما تدفع", ku: "پێش پارەدان بیکەرەوە و بیپشکنە" },
+  /** Default consent line under the phone field (`show_capture_consent`). */
+  captureConsent: {
+    en: "We may message you on WhatsApp about your order",
+    ar: "ممكن نراسلك واتساب بخصوص طلبك",
+    ku: "لەوانەیە سەبارەت بە داواکارییەکەت لە واتسئاپ نامەت بۆ بنێرین",
+  },
   chooseVariant: { en: "Choose an option", ar: "اختار الخيار", ku: "هەڵبژاردەیەک دیاری بکە" },
   chooseVariantFirst: { en: "Choose an option first.", ar: "اختار الخيار أول.", ku: "سەرەتا هەڵبژاردەیەک دیاری بکە." },
   variantOut: { en: "out of stock", ar: "نفد", ku: "نەماوە" },
@@ -172,15 +188,29 @@ const STRINGS = {
   outOfStock: { en: "Out of stock", ar: "نفد المخزون", ku: "لە کۆگا نەماوە" },
   placingOrder: { en: "Placing your order…", ar: "جارٍ تأكيد الطلب…", ku: "داواکارییەکەت پشتڕاست دەکرێتەوە…" },
   orderReceived: { en: "Order received!", ar: "تم استلام طلبك!", ku: "داواکارییەکەت گەیشت!" },
+  /** The single same-key resend after an unanswered attempt. */
+  checkingOrder: { en: "Checking your order…", ar: "نتأكد من طلبك…", ku: "داواکارییەکەت دەپشکنین…" },
+  /** Neither attempt was answered — the order may or may not exist. */
+  orderUnconfirmed: {
+    en: "We couldn't confirm your order went through. Send the same order on WhatsApp and we'll place it for you.",
+    ar: "ما قدرنا نتأكد إذا طلبك وصل. ابعث نفس الطلب بالواتساب ونثبّته إلك.",
+    ku: "نەمانتوانی دڵنیا بین داواکارییەکەت گەیشتووە. هەمان داواکاری بە واتسئاپ بنێرە و بۆت تۆماری دەکەین.",
+  },
+  sendOnWhatsapp: {
+    en: "Send the same order on WhatsApp",
+    ar: "ابعث نفس الطلب بالواتساب",
+    ku: "هەمان داواکاری بە واتسئاپ بنێرە",
+  },
+  /** The server's soft duplicate guard answered with an existing order. */
+  alreadyOrdered: {
+    en: "We already have your order — no need to order it again.",
+    ar: "طلبك واصلنا، لا تطلبه مرة ثانية",
+    ku: "داواکارییەکەت گەیشتووە، دووبارە داوای مەکەرەوە.",
+  },
   errGeneric: {
     en: "Something went wrong. Please try again.",
     ar: "حدث خطأ. حاول مرة أخرى.",
     ku: "هەڵەیەک ڕوویدا. تکایە دووبارە هەوڵ بدەرەوە.",
-  },
-  errNetwork: {
-    en: "We couldn't reach the server — check your connection and try again.",
-    ar: "تعذّر الاتصال بالخادم — تحقّق من الإنترنت وحاول مرة أخرى.",
-    ku: "نەتوانرا پەیوەندی بە ڕاژەکار بکرێت — ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵ بدەرەوە.",
   },
   priceChanged: {
     en: "The price changed to {price} — tap confirm again.",
@@ -287,7 +317,7 @@ interface CheckoutIssue {
   new_price?: number;
 }
 
-type FieldKey =
+export type FieldKey =
   | "customer_name"
   | "phone"
   | "alt_phone"
@@ -304,11 +334,37 @@ const FIELD_ORDER: readonly FieldKey[] = [
   "address_details",
 ];
 
-type FormState = Record<FieldKey, string>;
-type FieldErrors = Partial<Record<FieldKey, string>>;
-type FieldElement = HTMLInputElement | HTMLSelectElement;
+export type FormState = Record<FieldKey, string>;
+export type FieldErrors = Partial<Record<FieldKey, string>>;
+export type FieldElement = HTMLInputElement | HTMLSelectElement;
 
-function isGovernorateCode(v: string): v is GovernorateCode {
+/** Where one submission stands. `checking` is the single same-key resend
+ *  after an unanswered attempt; `unconfirmed` means neither attempt was
+ *  answered (the order may exist — offer WhatsApp, keep the key);
+ *  `duplicate` is the server's soft duplicate guard ("we already have it"). */
+export type SubmitStatus =
+  | "idle"
+  | "submitting"
+  | "checking"
+  | "ok"
+  | "duplicate"
+  | "unconfirmed"
+  | "error";
+
+/** Per-layout submit options. Classic submits with none, so its request
+ *  body is unchanged. */
+export interface SubmitOptions {
+  /** Appended to address_details as " - {suffix}" when non-empty (the
+   *  express layout's optional nearest-landmark field). */
+  addressSuffix?: string;
+  /** The order "focus the first invalid field" walks, for a layout whose
+   *  visual order differs from FIELD_ORDER. A layout that passes it may
+   *  also keep fields collapsed (inert) until an error opens them, so the
+   *  focus is taken after the error render commits, not synchronously. */
+  focusOrder?: readonly FieldKey[];
+}
+
+export function isGovernorateCode(v: string): v is GovernorateCode {
   return IRAQ_GOVERNORATES.some((g) => g.code === v);
 }
 
@@ -342,12 +398,25 @@ export function PdpDirectOrderRender({
   // highlight on the price row; null once the highlight has faded.
   const [priceFlashAt, setPriceFlashAt] = useState<number | null>(null);
   const priceRowRef = useRef<HTMLDivElement | null>(null);
-  const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+  // In flight: the first attempt or the single same-key resend. Both the
+  // submit guard and the button read this, so neither layout depends on how
+  // its button is disabled to keep a second submit out.
+  const submitting = status === "submitting" || status === "checking";
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const fieldRefs = useRef<Partial<Record<FieldKey, FieldElement | null>>>({});
+  // The field to focus once the submit-error render has committed (only
+  // set when the layout passed SubmitOptions.focusOrder).
+  const pendingFocus = useRef<FieldKey | null>(null);
+  // No deps on purpose: every submit with errors commits a new
+  // fieldErrors object, and the check is a ref read.
+  useLayoutEffect(() => {
+    const k = pendingFocus.current;
+    if (k === null) return;
+    pendingFocus.current = null;
+    fieldRefs.current[k]?.focus();
+  });
   // Gallery column: the thumb the shopper tapped (null = cover image).
   const [activeImage, setActiveImage] = useState<string | null>(null);
   // EC17: one stable idempotency key per submission, reused across retries
@@ -446,6 +515,23 @@ export function PdpDirectOrderRender({
   const [variantError, setVariantError] = useState(false);
   const variantPillsRef = useRef<HTMLDivElement | null>(null);
 
+  // A reload mid-order brings back what this tab typed and — when a submit
+  // had started — its idempotency key, so tapping again replays that order
+  // instead of placing a second one (helpers/order-draft). Declared BEFORE
+  // the customer-memory prefill below: effects run in order, so the draft
+  // wins and memory only fills what the draft left blank.
+  const productId = product?.id ?? null;
+  const [draftRestored, setDraftRestored] = useState(false);
+  useEffect(() => {
+    if (!productId) return;
+    const draft = readOrderDraft(ctx.tenant.id, productId);
+    if (!draft) return;
+    idempotencyKeyRef.current = draft.idempotencyKey;
+    purchaseEventIdRef.current = draft.purchaseEventId;
+    setForm((prev) => mergeDraftForm(prev, draft.form));
+    setDraftRestored(true);
+  }, [ctx.tenant.id, productId]);
+
   // A returning shopper's details, from THIS browser only — see
   // helpers/customer-memory for why nothing is looked up by phone. Applied
   // after mount so server HTML and first client render agree; only blank
@@ -474,6 +560,18 @@ export function PdpDirectOrderRender({
   // alone must not turn every product view by a returning shopper into an
   // "abandoned cart" and a WhatsApp nudge.
   const [interacted, setInteracted] = useState(false);
+
+  // Never lose the buyer: once they have touched the form (or it came back
+  // from a draft) the typed fields and any in-flight keys are kept for this
+  // tab, so a reload restores them. Placing the order clears them.
+  useEffect(() => {
+    if (!productId || (!interacted && !draftRestored)) return;
+    writeOrderDraft(ctx.tenant.id, productId, {
+      form,
+      idempotencyKey: idempotencyKeyRef.current,
+      purchaseEventId: purchaseEventIdRef.current,
+    });
+  }, [form, interacted, draftRestored, ctx.tenant.id, productId]);
 
   // Price drift: bring the price row on screen and flash it for 1.2 s so the
   // shopper sees WHAT changed before re-confirming.
@@ -577,12 +675,22 @@ export function PdpDirectOrderRender({
   // checkout server derives for one unit of it.
   const bumpOffer = offersForProduct(product.order_bumps, product.id)[0] ?? null;
 
-  // Abandoned-cart capture: the direct-order form IS this store's checkout,
-  // so once the shopper has touched the form and typed a plausible Iraqi
-  // number the line is beaconed exactly as checkout_form does — debounced,
-  // best-effort (keepalive). Placing the order marks it recovered.
+  // Half-filled phone capture: the direct-order form IS this store's
+  // checkout. A phone is kept only where the merchant shows the consent line
+  // under the phone field (opt-in). Once the shopper has touched the form
+  // and typed a valid Iraqi number, the line is beaconed: debounced,
+  // best-effort (keepalive), with the consent line exactly as shown. The
+  // server works out the store from the request and the names and prices
+  // from the catalogue, so neither is sent. Nothing is beaconed while the
+  // order is being placed or once it was. Placing it marks the capture
+  // recovered.
+  const captureConsent =
+    props.show_capture_consent === true
+      ? resolveI18n(props.capture_consent_i18n, locale) || s("captureConsent")
+      : null;
   useEffect(() => {
-    if (!interacted) return;
+    if (!captureConsent || !interacted) return;
+    if (status !== "idle" && status !== "error") return;
     const recoveryPhone = normalizeIraqiMobile(form.phone);
     if (!recoveryPhone) return;
     const handle = setTimeout(() => {
@@ -591,37 +699,28 @@ export function PdpDirectOrderRender({
         headers: { "content-type": "application/json" },
         keepalive: true,
         body: JSON.stringify({
-          tenant_id: ctx.tenant.id,
           phone: recoveryPhone,
-          items: [
-            {
-              product_id: product.id,
-              variant_id: chosenVariantId,
-              name: product.name,
-              quantity: qty,
-              price: unitPrice,
-            },
-          ],
+          items: [{ product_id: product.id, variant_id: chosenVariantId, quantity: qty }],
           ...(form.governorate_code ? { governorate: form.governorate_code } : {}),
           locale,
+          consent_text: captureConsent,
         }),
       }).catch((error: unknown) => {
-        // Best-effort: a lost beacon only costs one recovery nudge, so it
-        // must never surface to the shopper — but it is not silent either.
-        console.warn("[pdp_direct_order] abandoned-cart beacon failed", error);
+        // Best-effort: a lost beacon only costs one lead, so it must never
+        // surface to the shopper. But it is not silent either.
+        console.warn("[pdp_direct_order] capture beacon failed", error);
       });
     }, 1500);
     return () => clearTimeout(handle);
   }, [
+    captureConsent,
     interacted,
+    status,
     form.phone,
     form.governorate_code,
-    ctx.tenant.id,
     product.id,
-    product.name,
     chosenVariantId,
     qty,
-    unitPrice,
     locale,
   ]);
   const bumpProduct = bumpOffer
@@ -650,6 +749,9 @@ export function PdpDirectOrderRender({
   const commerce = (
     ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
   )?.store_config_v2?.commerce;
+  // "Who contacts you" line: opt-in per section, and only for a store that
+  // configured `commerce.contact` (the resolver validates what is stored).
+  const contactConfig = props.show_contact_line ? commerce?.contact : undefined;
   const chosenGovernorate = isGovernorateCode(form.governorate_code)
     ? form.governorate_code
     : null;
@@ -692,9 +794,8 @@ export function PdpDirectOrderRender({
     pointsRedemption.discount_iqd,
   ]).applied;
   // Credited by the database when the order is delivered — never at
-  // placement — on the order's price, which is the subtotal net of discounts.
-  // A promise about delivery, worded as one.
-  const pointsToEarn = computePointsEarned(subtotal - referralAmount - pointsDiscount, loyaltyCfg);
+  // placement — so this is a promise about delivery, worded as one.
+  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
   const total = subtotal - referralAmount - pointsDiscount + (displayedDelivery ?? 0);
   const totalExcludesDelivery = displayedDelivery === null;
 
@@ -745,23 +846,22 @@ export function PdpDirectOrderRender({
   // message builder the checkout_form WhatsApp CTA uses (product + qty +
   // whatever delivery details the shopper has typed + the total).
   const waNumber = resolveTenantWhatsapp(ctx.tenant);
+  const waOrder = {
+    items: [{ name: product.name, quantity: qty }],
+    customer: {
+      name: form.customer_name || undefined,
+      phone: form.phone || undefined,
+      governorate: governorateName,
+      address: form.address_details || undefined,
+    },
+    total: formatPrice(total, locale),
+  };
   const waHref =
-    props.show_whatsapp && waNumber
-      ? whatsappCartLink(
-          waNumber,
-          {
-            items: [{ name: product.name, quantity: qty }],
-            customer: {
-              name: form.customer_name || undefined,
-              phone: form.phone || undefined,
-              governorate: governorateName,
-              address: form.address_details || undefined,
-            },
-            total: formatPrice(total, locale),
-          },
-          locale,
-        )
-      : null;
+    props.show_whatsapp && waNumber ? whatsappCartLink(waNumber, waOrder, locale) : null;
+  // The way out when a submit ends unconfirmed: the same order, prefilled,
+  // to the store's WhatsApp — offered even where the tile is switched off,
+  // because the buyer has no other way to finish. Null without a number.
+  const waFallbackHref = whatsappCartLink(waNumber, waOrder, locale);
 
   function set(k: FieldKey, v: string) {
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -819,9 +919,12 @@ export function PdpDirectOrderRender({
     );
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(
+    e: React.FormEvent<HTMLFormElement>,
+    opts?: SubmitOptions,
+  ) {
     e.preventDefault();
-    if (!product || oos || status === "submitting") return;
+    if (!product || oos || submitting) return;
 
     // Validate every field, show every error at once, focus the first.
     const errors: FieldErrors = {};
@@ -840,7 +943,7 @@ export function PdpDirectOrderRender({
     // pills or, when a picker section owns the choice, that section — the
     // message then shows beside the submit button, where the shopper tapped.
     setVariantError(awaitingVariant);
-    const firstInvalid = FIELD_ORDER.find((k) => errors[k]);
+    const firstInvalid = (opts?.focusOrder ?? FIELD_ORDER).find((k) => errors[k]);
     if (awaitingVariant) {
       if (chosen.pickerMounted) {
         focusVariantPicker(product.id);
@@ -851,7 +954,8 @@ export function PdpDirectOrderRender({
       return;
     }
     if (firstInvalid || !phone) {
-      fieldRefs.current[firstInvalid ?? "phone"]?.focus();
+      if (opts?.focusOrder) pendingFocus.current = firstInvalid ?? "phone";
+      else fieldRefs.current[firstInvalid ?? "phone"]?.focus();
       return;
     }
 
@@ -863,6 +967,18 @@ export function PdpDirectOrderRender({
     if (!purchaseEventIdRef.current) {
       purchaseEventIdRef.current = newPixelEventId();
     }
+    // Saved BEFORE the request leaves: a reload while it is in flight comes
+    // back with this key, so the next tap replays this order instead of
+    // placing a second one (helpers/order-draft).
+    writeOrderDraft(ctx.tenant.id, product.id, {
+      form,
+      idempotencyKey: idempotencyKeyRef.current,
+      purchaseEventId: purchaseEventIdRef.current,
+    });
+    const suffix = opts?.addressSuffix?.trim();
+    const addressDetails = suffix
+      ? `${form.address_details.trim()} - ${suffix}`
+      : form.address_details.trim();
     const items = [
       {
         product_id: product.id,
@@ -888,143 +1004,160 @@ export function PdpDirectOrderRender({
         quantity: 1,
       });
     }
-    try {
-      // Same endpoint + payload contract as the checkout_form section —
-      // only `items` differs (a single line from ctx.product) plus the
-      // optional structured `alt_phone`. The funnel form has no separate
-      // area field, so the governorate label fills the required `city`.
-      const res = await fetch("/api/checkout/orders", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          tenant_id: ctx.tenant.id,
-          customer_name: form.customer_name.trim(),
-          phone,
-          governorate_code: form.governorate_code,
-          city: governorateName ?? form.governorate_code,
-          address_details: form.address_details.trim(),
-          ...(altPhone ? { alt_phone: altPhone } : {}),
-          payment_method: "cod",
-          items,
-          subtotal,
-          locale,
-          idempotency_key: idempotencyKeyRef.current,
-          // The server re-checks the proving order number before it spends.
-          ...(redeemPoints > 0
-            ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
-            : {}),
-          ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
-            ? { referral_code: normalizeReferralCode(referralCode) }
-            : {}),
-          ...(purchaseEventIdRef.current
-            ? { event_id: purchaseEventIdRef.current }
-            : {}),
-          ab_test_arms: ctx.runtime.ab_test_arms,
-        }),
-      });
-      if (res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          orderNumber?: string;
-          /** The order's id — which order the post-purchase offer grows. */
-          orderId?: string;
-          /** Proof this browser placed it (server-minted, short-lived). */
-          upsellToken?: string;
-          total?: number;
-        } | null;
-        const orderNumber = data?.orderNumber ?? "";
-        if (referralState.kind === "valid") clearCapturedReferral(ctx.tenant.id);
-        // Remember the shopper for next time — in their browser only.
-        writeCustomerMemory(ctx.tenant.id, {
-          customer_name: form.customer_name.trim(),
-          phone: form.phone.trim(),
-          alt_phone: form.alt_phone.trim() || undefined,
-          governorate_code: form.governorate_code,
-          address_details: form.address_details.trim(),
-        });
-        // Stash the just-placed order for the thank-you recap — identical
-        // privacy-safe path to checkout_form (only the buyer's browser
-        // holds it; the success page never fetches by order number).
-        try {
-          sessionStorage.setItem(
-            "schn:last-order",
-            JSON.stringify({
-              number: orderNumber,
-              // The order id and the server's proof let the thank-you page's
-              // post-purchase offer act on THIS order and no other. Session
-              // storage only, like the rest of the stash; additive, so older
-              // readers ignore them.
-              order_id: data?.orderId ?? null,
-              upsell_token: data?.upsellToken ?? null,
-              // Lets the thank-you page greet the buyer by name; optional so
-              // older readers of the stash keep working unchanged.
-              customer_name: form.customer_name.trim(),
-              items: items.map((i) => ({
-                name: i.name,
-                variant: i.variant_name,
-                qty: i.quantity,
-                price: i.price,
-              })),
-              subtotal,
-              total: data?.total ?? subtotal,
-              ts: Date.now(),
-            }),
-          );
-        } catch {
-          /* sessionStorage unavailable — the recap just won't render */
-        }
-        // Pixel Purchase — same event_id the server sent to CAPI (dedup).
-        trackPixel(
-          "Purchase",
-          pixelContentsFromItems(
-            items.map((i) => ({
-              product_id: i.product_id,
-              price: i.price,
-              quantity: i.quantity,
-            })),
-          ),
-          purchaseEventIdRef.current ?? undefined,
-        );
+    // Same endpoint + payload contract as the checkout_form section —
+    // only `items` differs (a single line from ctx.product) plus the
+    // optional structured `alt_phone`. The funnel form has no separate
+    // area field, so the governorate label fills the required `city`.
+    const body = JSON.stringify({
+      tenant_id: ctx.tenant.id,
+      customer_name: form.customer_name.trim(),
+      phone,
+      governorate_code: form.governorate_code,
+      city: governorateName ?? form.governorate_code,
+      address_details: addressDetails,
+      ...(altPhone ? { alt_phone: altPhone } : {}),
+      payment_method: "cod",
+      items,
+      subtotal,
+      locale,
+      idempotency_key: idempotencyKeyRef.current,
+      // The server re-checks the proving order number before it spends.
+      ...(redeemPoints > 0
+        ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
+        : {}),
+      ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
+        ? { referral_code: normalizeReferralCode(referralCode) }
+        : {}),
+      ...(purchaseEventIdRef.current
+        ? { event_id: purchaseEventIdRef.current }
+        : {}),
+      ab_test_arms: ctx.runtime.ab_test_arms,
+    });
+    // A deadline per attempt and one resend of this same body — so the same
+    // key — when an attempt is not answered (helpers/submit-order). The
+    // server answers a key it has seen with that order, so the resend is a
+    // status check, never a second order.
+    const outcome = await postOrderWithResubmit("/api/checkout/orders", body, {
+      onResubmit: () => setStatus("checking"),
+    });
+    if (outcome.kind === "unconfirmed") {
+      // Neither attempt was answered: the order may or may not exist. The key
+      // stays (here and in the draft), so another tap — or a reload and a
+      // tap — replays it rather than ordering twice; WhatsApp is the way to
+      // finish now.
+      setErrorMsg(s("orderUnconfirmed"));
+      setStatus("unconfirmed");
+      return;
+    }
+    if (outcome.ok) {
+      const data = readPlacedOrder(outcome.data);
+      if (data.duplicate === true) {
+        // That order was counted (pixel, CAPI, funnel) when it was placed, so
+        // nothing fires again, and there is no new order to thank them for —
+        // the form says so instead.
+        clearOrderDraft(ctx.tenant.id, product.id);
         idempotencyKeyRef.current = null;
         purchaseEventIdRef.current = null;
-        setStatus("ok");
-        // Navigate to the celebratory thank-you page (full nav keeps the stash).
-        window.location.href = `${base}/checkout/success${
-          orderNumber ? `?order=${encodeURIComponent(orderNumber)}` : ""
-        }`;
-      } else {
-        // EC24: surface the server's actionable message; when it reported
-        // line issues the corrected re-submit is a fresh order, so retire
-        // the idempotency key (mirrors checkout_form).
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-          issues?: CheckoutIssue[];
-        } | null;
-        const issues = data && Array.isArray(data.issues) ? data.issues : [];
-        if (issues.length > 0) idempotencyKeyRef.current = null;
-        // Self-heal a price drift: adopt the server's verified price so the
-        // shopper's retry submits (and displays) the correct number — and
-        // SAY so, with the new price, instead of a generic error.
-        const newPrice = issues.find(
-          (i) => i.reason === "price_changed" && i.product_id === product.id,
-        )?.new_price;
-        if (typeof newPrice === "number") {
-          setLivePrice({ variantId: chosenVariantId, price: newPrice });
-          setPriceFlashAt(Date.now());
-          setErrorMsg(
-            s("priceChanged").replace("{price}", formatPrice(newPrice, locale)),
-          );
-        } else {
-          // The server's own messages are Arabic; show them to Arabic-script
-          // locales and the localised generic line to English readers.
-          setErrorMsg((t && data?.error) || s("errGeneric"));
-        }
-        setStatus("error");
+        setStatus("duplicate");
+        return;
       }
-    } catch {
-      // fetch() only throws on network failure — nothing was submitted.
-      setErrorMsg(s("errNetwork"));
-      setStatus("error");
+      const orderNumber = data.orderNumber ?? "";
+      if (referralState.kind === "valid") clearCapturedReferral(ctx.tenant.id);
+      // Remember the shopper for next time — in their browser only.
+      writeCustomerMemory(ctx.tenant.id, {
+        customer_name: form.customer_name.trim(),
+        phone: form.phone.trim(),
+        alt_phone: form.alt_phone.trim() || undefined,
+        governorate_code: form.governorate_code,
+        address_details: form.address_details.trim(),
+      });
+      // Stash the just-placed order for the thank-you recap — identical
+      // privacy-safe path to checkout_form (only the buyer's browser
+      // holds it; the success page never fetches by order number).
+      try {
+        sessionStorage.setItem(
+          "schn:last-order",
+          JSON.stringify({
+            number: orderNumber,
+            // The order id and the server's proof let the thank-you page's
+            // post-purchase offer act on THIS order and no other. Session
+            // storage only, like the rest of the stash; additive, so older
+            // readers ignore them.
+            order_id: data.orderId ?? null,
+            upsell_token: data.upsellToken ?? null,
+            // Lets the thank-you page greet the buyer by name; optional so
+            // older readers of the stash keep working unchanged.
+            customer_name: form.customer_name.trim(),
+            items: items.map((i) => ({
+              name: i.name,
+              variant: i.variant_name,
+              qty: i.quantity,
+              price: i.price,
+            })),
+            subtotal,
+            total: data.total ?? subtotal,
+            ts: Date.now(),
+          }),
+        );
+      } catch {
+        /* sessionStorage unavailable — the recap just won't render */
+      }
+      // Pixel Purchase — same event_id the server sent to CAPI (dedup).
+      trackPixel(
+        "Purchase",
+        pixelContentsFromItems(
+          items.map((i) => ({
+            product_id: i.product_id,
+            price: i.price,
+            quantity: i.quantity,
+          })),
+        ),
+        purchaseEventIdRef.current ?? undefined,
+      );
+      clearOrderDraft(ctx.tenant.id, product.id);
+      idempotencyKeyRef.current = null;
+      purchaseEventIdRef.current = null;
+      setStatus("ok");
+      // Navigate to the celebratory thank-you page (full nav keeps the stash).
+      window.location.href = `${base}/checkout/success${
+        orderNumber ? `?order=${encodeURIComponent(orderNumber)}` : ""
+      }`;
+      return;
     }
+    // EC24: surface the server's actionable message; when it reported line
+    // issues the corrected re-submit is a fresh order, so retire the
+    // idempotency key — in the draft too (mirrors checkout_form).
+    const failure = outcome.data as {
+      error?: string;
+      issues?: CheckoutIssue[];
+    } | null;
+    const issues = failure && Array.isArray(failure.issues) ? failure.issues : [];
+    if (issues.length > 0) {
+      idempotencyKeyRef.current = null;
+      writeOrderDraft(ctx.tenant.id, product.id, {
+        form,
+        idempotencyKey: null,
+        purchaseEventId: purchaseEventIdRef.current,
+      });
+    }
+    // Self-heal a price drift: adopt the server's verified price so the
+    // shopper's retry submits (and displays) the correct number — and
+    // SAY so, with the new price, instead of a generic error.
+    const newPrice = issues.find(
+      (i) => i.reason === "price_changed" && i.product_id === product.id,
+    )?.new_price;
+    if (typeof newPrice === "number") {
+      setLivePrice({ variantId: chosenVariantId, price: newPrice });
+      setPriceFlashAt(Date.now());
+      setErrorMsg(
+        s("priceChanged").replace("{price}", formatPrice(newPrice, locale)),
+      );
+    } else {
+      // The server's own messages are Arabic; show them to Arabic-script
+      // locales and the localised generic line to English readers.
+      setErrorMsg((t && failure?.error) || s("errGeneric"));
+    }
+    setStatus("error");
   }
 
   const inputCls =
@@ -1045,8 +1178,9 @@ export function PdpDirectOrderRender({
   const stepperBtnCls =
     "flex h-11 w-11 items-center justify-center transition-opacity duration-bk-fast motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
 
-  /** Shared a11y wiring for one field. */
-  function fieldA11y(k: FieldKey) {
+  /** Layout-neutral a11y wiring for one field (id, error linkage, focus
+   *  ref); each layout adds its own styling. */
+  function fieldA11yCore(k: FieldKey) {
     const err = fieldErrors[k];
     return {
       id: fieldId(k),
@@ -1055,6 +1189,14 @@ export function PdpDirectOrderRender({
       ref: (el: FieldElement | null) => {
         fieldRefs.current[k] = el;
       },
+    };
+  }
+
+  /** Shared a11y wiring for one field. */
+  function fieldA11y(k: FieldKey) {
+    const err = fieldErrors[k];
+    return {
+      ...fieldA11yCore(k),
       style: err ? { ...inputStyle, ...invalidStyle } : inputStyle,
     };
   }
@@ -1070,8 +1212,6 @@ export function PdpDirectOrderRender({
       </p>
     );
   }
-
-  const submitting = status === "submitting";
 
   // Merchant-editable via props ("original products" / "quality guarantee"
   // are business claims a section must not force on every tenant); the
@@ -1117,6 +1257,73 @@ export function PdpDirectOrderRender({
     activeImage && galleryImages.includes(activeImage)
       ? activeImage
       : (product.image_url ?? galleryImages[0]);
+
+  if (props.layout === "express") {
+    return (
+      <PdpExpress
+        model={{
+          props,
+          ctx,
+          product,
+          locale,
+          s,
+          price,
+          compareAt: compareAt ?? null,
+          onSale,
+          discountPct,
+          qty,
+          setQty,
+          maxQty,
+          atMinQty,
+          atMaxQty,
+          subtotal,
+          referralAmount,
+          pointsDiscount,
+          // The delivery the total counts: the flat fee when every governorate
+          // costs the same, else the chosen governorate's fee (null = varies).
+          delivery: displayedDelivery,
+          total,
+          shipping: commerce?.shipping,
+          returnsDays,
+          reviewCount,
+          avgRating,
+          form,
+          set,
+          fieldErrors,
+          fieldError,
+          validateOnBlur,
+          fieldA11yCore,
+          errorId,
+          onSubmit: (e, opts) =>
+            onSubmit(e, { ...opts, focusOrder: EXPRESS_FIELD_ORDER }),
+          onFormFocus,
+          status,
+          errorMsg,
+          submitting,
+          submitErrorId,
+          oos,
+          stockLeft,
+          urgency,
+          waHref,
+          waFallbackHref,
+          galleryImages,
+          priceRowRef,
+          priceFlashAt,
+          chosen,
+          variantError,
+          setVariantError,
+          variantPillsRef,
+          reassurance,
+          contactConfig,
+          deliverySla,
+          featureCards,
+          featureCardsTitle,
+          trustChips,
+          captureConsent,
+        }}
+      />
+    );
+  }
 
   return (
     <section className="px-4 py-4">
@@ -1392,6 +1599,15 @@ export function PdpDirectOrderRender({
                   />
                 </IconField>
                 {renderFieldError("phone")}
+                {captureConsent && (
+                  <p
+                    data-capture-consent=""
+                    data-i18n-field="capture_consent_i18n"
+                    className="mt-bk-2xs font-label text-xs text-bk-ink-faint"
+                  >
+                    {captureConsent}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1965,20 +2181,20 @@ export function PdpDirectOrderRender({
               data-layer="submit"
               data-layer-label="Order buttons"
             >
-              {/* Stays focusable while pending (aria-busy/aria-disabled) so
-                  focus isn't dropped mid-submit; only sold-out disables. */}
+              {/* Disabled while a submission is in flight (aria-busy says
+                  why): a tap during the same-key resend must start nothing
+                  new. Sold-out disables it too. */}
               <ChunkyButton
                 type="submit"
                 bg="pink"
                 size="lg"
                 fullWidth
-                disabled={oos}
+                disabled={oos || submitting}
                 aria-busy={submitting || undefined}
-                aria-disabled={submitting || undefined}
                 aria-describedby={
                   [
                     showVariantError ? variantErrorId : null,
-                    status === "error" ? submitErrorId : null,
+                    status === "error" || status === "unconfirmed" ? submitErrorId : null,
                   ]
                     .filter(Boolean)
                     .join(" ") || undefined
@@ -1990,7 +2206,7 @@ export function PdpDirectOrderRender({
                       name="progress_activity"
                       className="animate-spin motion-reduce:animate-none"
                     />
-                    {s("placingOrder")}
+                    {status === "checking" ? s("checkingOrder") : s("placingOrder")}
                   </>
                 ) : oos ? (
                   s("outOfStock")
@@ -2026,6 +2242,16 @@ export function PdpDirectOrderRender({
                 </p>
               )}
 
+              {contactConfig && (
+                <ContactLine
+                  contact={contactConfig}
+                  locale={locale}
+                  initialNow={ctx.runtime.now}
+                  className="flex items-center justify-center gap-1.5 text-center font-body text-sm text-bk-ink-soft"
+                  iconClassName="text-lg text-bk-primary"
+                />
+              )}
+
               {waHref && (
                 <ChunkyLink
                   href={waHref}
@@ -2055,6 +2281,35 @@ export function PdpDirectOrderRender({
                   className="text-center font-label font-bold text-sm text-bk-success"
                 >
                   {s("orderReceived")}
+                </p>
+              )}
+              {status === "unconfirmed" && (
+                <div id={submitErrorId} role="alert" className="space-y-bk-xs">
+                  <p className="text-center font-label font-bold text-sm text-bk-danger">
+                    {errorMsg ?? s("orderUnconfirmed")}
+                  </p>
+                  {waFallbackHref && (
+                    <ChunkyLink
+                      href={waFallbackHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      bg="success"
+                      size="lg"
+                      fullWidth
+                      data-wa-fallback="true"
+                    >
+                      <WhatsAppIcon className="h-5 w-5" />
+                      {s("sendOnWhatsapp")}
+                    </ChunkyLink>
+                  )}
+                </div>
+              )}
+              {status === "duplicate" && (
+                <p
+                  role="status"
+                  className="text-center font-label font-bold text-sm text-bk-success"
+                >
+                  {s("alreadyOrdered")}
                 </p>
               )}
 

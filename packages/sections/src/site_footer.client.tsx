@@ -266,6 +266,11 @@ export function SiteFooterRender({
 }) {
   const locale = ctx.runtime.locale;
   const name = ctx.tenant.business_name;
+  // Opt-in shop name for the lockup. The copyright keeps `name`: that line
+  // is a legal statement, not branding.
+  const wordmark = props.wordmark_i18n
+    ? resolveI18n(props.wordmark_i18n, locale)
+    : "";
   const logo = ctx.tenant.branding?.logo_url ?? null;
   const tagline = props.tagline_i18n
     ? resolveI18n(props.tagline_i18n, locale)
@@ -311,8 +316,9 @@ export function SiteFooterRender({
               <p
                 className="font-display text-2xl font-black tracking-tight"
                 style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+                {...(wordmark ? { "data-i18n-field": "wordmark_i18n" } : {})}
               >
-                {name}
+                {wordmark || name}
               </p>
               {tagline && (
                 <p className="max-w-xs font-body text-sm opacity-70">
@@ -498,7 +504,7 @@ export function SiteFooterRender({
                 styling) without changing BrandMark's API. */}
             <BrandMark
               logoUrl={logo}
-              name={name}
+              name={wordmark || name}
               size="sm"
               className="[--bm-ink:var(--bk-surface,#ffffff)] [--bm-mark-border:var(--bk-surface,#ffffff)]"
             />

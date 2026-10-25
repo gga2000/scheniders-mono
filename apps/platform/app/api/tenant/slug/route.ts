@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  *   tenant), never from the request and never from
  *   user_profiles.current_tenant_id, which the user can write through
  *   PostgREST. The rename and the old-slug history row are written by
- *   claim_tenant_slug in one transaction (20261021130000), so a rename can
+ *   claim_tenant_slug in one transaction (20261022090000), so a rename can
  *   never land without the redirect that keeps shared links alive.
  */
 
@@ -47,7 +47,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     // tenant whose old links redirect through tenant_slug_history. Handing a
     // history slug to anyone else would send every link that store already
     // shared to the new owner's storefront. claim_tenant_slug enforces the
-    // same rule in the DB (20261021130000); this answer only has to agree.
+    // same rule in the DB (20261022090000); this answer only has to agree.
     const [current, history] = await Promise.all([
         admin().from("tenants").select("id").eq("slug", slug).maybeSingle(),
         admin().from("tenant_slug_history").select("tenant_id").eq("old_slug", slug).maybeSingle(),

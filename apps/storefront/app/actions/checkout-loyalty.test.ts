@@ -22,6 +22,11 @@ vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers({ "x-forwarded-for": "203.0.113.7" })),
 }));
+// A real shopper, not a draft-view session: the check reads the request's
+// cookies, which do not exist outside a Next request scope.
+vi.mock("@/lib/draft-view", () => ({
+  isDraftViewRequest: vi.fn(async () => false),
+}));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
@@ -88,7 +93,7 @@ function tables(balance = 0, tenantId = TENANT): Record<string, Row[]> {
 function install(t: Record<string, Row[]>, rpc: Record<string, RpcHandler> = {}) {
   const fake = createFakeSupabase(t, {
     rpc: {
-      create_order_atomic: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }),
+      create_storefront_order: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }),
       consume_rate_limit: allowed,
       lookup_order: owns,
       ...rpc,
@@ -113,7 +118,7 @@ const pointsCalls = (fake: ReturnType<typeof install>) =>
     .map((c) => [c.args._reason, c.args._delta]);
 
 const placedOrder = (fake: ReturnType<typeof install>) =>
-  fake.rpcCalls.find((c) => c.fn === "create_order_atomic")?.args._order_data as
+  fake.rpcCalls.find((c) => c.fn === "create_storefront_order")?.args._order_data as
     | { price: number; discount_amount: number }
     | undefined;
 
@@ -145,8 +150,9 @@ describe("loyalty at checkout", () => {
     });
     expect(pointsCalls(fake)).toEqual([["redeem", -3000]]);
     expect(placedOrder(fake)?.discount_amount).toBe(3000);
-    // NEW-P1-12: price is recorded net of the discount.
-    expect(placedOrder(fake)?.price).toBe(35000 - 3000);
+    // `price` stays the line subtotal before discounts (main's storefront
+    // convention, which the WhatsApp {{7}} total relies on).
+    expect(placedOrder(fake)?.price).toBe(35000);
     expect(res.total).toBe(35000 - 3000 + 5000);
   });
 
@@ -170,7 +176,7 @@ describe("loyalty at checkout", () => {
     });
     expect(res.success).toBe(false);
     expect(pointsCalls(fake)).toEqual([]);
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(false);
   });
 
   it("refuses an order number from another store, even for the same phone", async () => {
@@ -186,7 +192,7 @@ describe("loyalty at checkout", () => {
     expect(res.success).toBe(false);
     expect(fake.rpcCalls.find((c) => c.fn === "lookup_order")?.args.p_tenant_id).toBe(OTHER_TENANT);
     expect(pointsCalls(fake)).toEqual([]);
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(false);
   });
 
   it("refuses, without checking ownership, when the proof limiter is exhausted or down", async () => {
@@ -218,12 +224,12 @@ describe("loyalty at checkout", () => {
     });
     expect(res.success).toBe(false);
     expect(pointsCalls(fake)).toEqual([]);
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(false);
   });
 
   it("refunds the points when the order then fails", async () => {
     const fake = install(tables(3000), {
-      create_order_atomic: () => ({ data: null, error: { message: "boom" } }),
+      create_storefront_order: () => ({ data: null, error: { message: "boom" } }),
     });
     const res = await submitCheckout({
       tenantId: TENANT,
@@ -250,7 +256,7 @@ describe("loyalty at checkout", () => {
       loyaltyOrderNumber: PREVIOUS_ORDER,
     };
     const first = await submitCheckout(submission);
-    // What create_order_atomic recorded for that key.
+    // What create_storefront_order recorded for that key.
     const placed = placedOrder(fake);
     fake.tables.orders.push({
       id: ORDER,
@@ -258,6 +264,7 @@ describe("loyalty at checkout", () => {
       tenant_id: TENANT,
       idempotency_key: "retry-key-0001",
       price: placed?.price ?? null,
+      discount_amount: placed?.discount_amount ?? null,
       delivery_fee: 5000,
     });
     const retry = await submitCheckout(submission);

@@ -1300,34 +1300,6 @@ You may keep and test the perfume for a full week from delivery; if the experien
       "sections": [
         {
           "base": {
-            "accept_label_i18n": {
-              "ar": "نعم، ضيفها",
-              "en": "Yes, add it",
-            },
-            "accepted_i18n": {
-              "ar": "تمت الإضافة ✓ مجموع طلبك الجديد {total}",
-              "en": "Added ✓ Your new order total is {total}",
-            },
-            "decline_label_i18n": {
-              "ar": "لا، شكراً",
-              "en": "No thanks",
-            },
-            "eyebrow_i18n": {
-              "ar": "عرض لمرة وحدة — خصم {discount}٪",
-              "en": "One-time offer — {discount}% off",
-            },
-            "heading_i18n": {
-              "ar": "تضيفها على نفس الطلب؟",
-              "en": "Add it to this order?",
-            },
-            "max_offers": 2,
-          },
-          "enabled": true,
-          "id": "<id>",
-          "type": "post_purchase_offer",
-        },
-        {
-          "base": {
             "call_promise_i18n": {
               "ar": "سنتصل بك لتأكيد الطلب والعنوان قبل الشحن.",
               "en": "We'll call you to confirm your order and address before shipping.",
@@ -1441,6 +1413,34 @@ You may keep and test the perfume for a full week from delivery; if the experien
           "enabled": true,
           "id": "<id>",
           "type": "order_confirmation",
+        },
+        {
+          "base": {
+            "accept_label_i18n": {
+              "ar": "نعم، ضيفها",
+              "en": "Yes, add it",
+            },
+            "accepted_i18n": {
+              "ar": "تمت الإضافة ✓ مجموع طلبك الجديد {total}",
+              "en": "Added ✓ Your new order total is {total}",
+            },
+            "decline_label_i18n": {
+              "ar": "لا، شكراً",
+              "en": "No thanks",
+            },
+            "eyebrow_i18n": {
+              "ar": "عرض لمرة وحدة — خصم {discount}٪",
+              "en": "One-time offer — {discount}% off",
+            },
+            "heading_i18n": {
+              "ar": "تضيفها على نفس الطلب؟",
+              "en": "Add it to this order?",
+            },
+            "max_offers": 2,
+          },
+          "enabled": true,
+          "id": "<id>",
+          "type": "post_purchase_offer",
         },
         {
           "base": {

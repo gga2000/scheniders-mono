@@ -25,6 +25,8 @@ import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
+import { readsRtl } from "./pdp_express/text";
+import { FaqContactCompact } from "./faq_contact_split.compact";
 
 const schema = z.object({
   eyebrow_i18n: i18nStringSchema,
@@ -41,6 +43,16 @@ const schema = z.object({
    * and a row that opens should feel like it belongs to a document.
    */
   layout: z.enum(["cards", "ledger"]).optional(),
+  /**
+   * Opt-in compact presentation for the product page: a start-aligned
+   * heading, one hairline-ruled list of closed native rows, and the contact
+   * card folded into one tinted row ending in the WhatsApp pill (see
+   * `./faq_contact_split.compact.tsx`). It overrides `layout`; the eyebrow,
+   * the sub line and the three icon images are not drawn. Unset (every
+   * existing config) renders exactly as before; a malformed value parses to
+   * undefined instead of dropping the section.
+   */
+  compact: z.boolean().optional().catch(undefined),
   items: z
     .array(
       z.object({
@@ -161,6 +173,29 @@ function FaqContactSplit({
     question: resolveI18n(item.q_i18n, locale),
     answer: resolveI18n(item.a_i18n, locale),
   }));
+  // On /faq and /contact this section leads the page and owns its h1.
+  const headingAs =
+    ctx.runtime.page_id === "faq" || ctx.runtime.page_id === "contact"
+      ? "h1"
+      : "h2";
+
+  if (props.compact) {
+    return (
+      <FaqContactCompact
+        title={title}
+        headingAs={headingAs}
+        groupName={groupName}
+        rows={rows}
+        contact={
+          waHref && ctaLabel
+            ? { title: contactTitle, sub: contactSub, ctaLabel, href: waHref }
+            : null
+        }
+        rtl={readsRtl(locale)}
+      />
+    );
+  }
+
   const ledger = props.layout === "ledger";
 
   return (
@@ -184,12 +219,7 @@ function FaqContactSplit({
           ) : undefined
         }
         glyph={props.eyebrow_icon_url ? "none" : "sparkle"}
-        // On /faq and /contact this section leads the page and owns its h1.
-        as={
-          ctx.runtime.page_id === "faq" || ctx.runtime.page_id === "contact"
-            ? "h1"
-            : "h2"
-        }
+        as={headingAs}
         title={title}
         subtitle={sub}
         eyebrowField="eyebrow_i18n"

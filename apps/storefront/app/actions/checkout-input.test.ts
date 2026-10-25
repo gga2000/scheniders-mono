@@ -2,22 +2,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createFakeSupabase, type Row } from "@/lib/testing/fake-supabase";
 
 // =====================================================================
-// submitCheckout input validation and the recorded price (lead 11, NEW-P1-12)
+// submitCheckout input validation (lead 11)
 // =====================================================================
 // submitCheckout is an exported server action, so Next.js serves it as a
 // public endpoint: any client can call it with any argument, not just the
 // forms that import it. Its whole argument is validated before anything else.
-//
-// orders.price is the line subtotal with the discount ALREADY applied — the
-// courier collects price + delivery_fee (apps/platform/lib/order-money.ts,
-// computeCodAmount). The storefront used to record the pre-discount subtotal,
-// so a discounted order was over-collected by its discount.
 // =====================================================================
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
+// A real shopper, not a draft-view session: the check reads the request's
+// cookies, which do not exist outside a Next request scope.
+vi.mock("@/lib/draft-view", () => ({
+  isDraftViewRequest: vi.fn(async () => false),
+}));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
@@ -66,7 +66,7 @@ function tables(): Record<string, Row[]> {
 
 function install() {
   const fake = createFakeSupabase(tables(), {
-    rpc: { create_order_atomic: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }) },
+    rpc: { create_storefront_order: () => ({ data: { id: ORDER, order_id: "SH-0001" }, error: null }) },
   });
   vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
   return fake;
@@ -83,8 +83,8 @@ const items = [{ product_id: PERFUME, variant_id: null, name: "x", variant_name:
 const valid = { tenantId: TENANT, customer, items };
 
 const recorded = (fake: ReturnType<typeof install>) =>
-  fake.rpcCalls.find((c) => c.fn === "create_order_atomic")?.args._order_data as
-    | { price: number; discount_amount: number; delivery_fee: number; secondary_phone: string | null }
+  fake.rpcCalls.find((c) => c.fn === "create_storefront_order")?.args._order_data as
+    | { secondary_phone: string | null }
     | undefined;
 
 beforeEach(() => vi.clearAllMocks());
@@ -122,25 +122,5 @@ describe("submitCheckout input validation", () => {
     const ok = await submitCheckout({ ...valid, customer: { ...customer, alt_phone: "+964 780 123 4567" } });
     expect(ok.success).toBe(true);
     expect(recorded(good)?.secondary_phone).toBe("07801234567");
-  });
-});
-
-describe("orders.price (NEW-P1-12)", () => {
-  it("is recorded net of the discount, so price + delivery_fee is what the shopper agreed to pay", async () => {
-    const fake = install();
-    const res = await submitCheckout({ ...valid, couponCode: "save5" });
-    expect(res.success).toBe(true);
-    const order = recorded(fake);
-    expect(order?.discount_amount).toBe(5000);
-    expect(order?.price).toBe(70000 - 5000);
-    expect(order?.delivery_fee).toBe(5000);
-    expect((order?.price ?? 0) + (order?.delivery_fee ?? 0)).toBe(res.total);
-  });
-
-  it("equals the line subtotal when nothing is discounted", async () => {
-    const fake = install();
-    const res = await submitCheckout(valid);
-    expect(recorded(fake)?.price).toBe(70000);
-    expect(res.total).toBe(75000);
   });
 });

@@ -13,8 +13,9 @@ async function requireSuperAdmin(request: Request) {
     const { user, error: authError } = await verifyAccessToken(token);
     if (authError || !user) return { error: NextResponse.json({ error: "Not authorized" }, { status: 401 }) };
     const admin = createSupabaseServiceClient();
-    const { data: profile } = await admin.from("user_profiles").select("role").eq("id", user.id).single();
-    if (profile?.role !== "super_admin") {
+    const { data: profile } = await admin.from("user_profiles").select("role, is_active").eq("id", user.id).single();
+    // A deactivated profile keeps its session, so is_active is checked here too (F-087).
+    if (profile?.role !== "super_admin" || profile.is_active === false) {
         return { error: NextResponse.json({ error: "Super-admins only" }, { status: 403 }) };
     }
     return { admin: admin as Admin, userId: user.id };

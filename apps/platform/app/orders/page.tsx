@@ -71,6 +71,10 @@ const IraqMap = dynamic(
     () => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })),
     { ssr: false, loading: () => <div className="w-full h-[350px] animate-pulse bg-muted/20 rounded-2xl" /> }
 );
+const StoreCapturesPanel = dynamic(
+    () => import("@/components/orders/store-captures-panel").then(mod => ({ default: mod.StoreCapturesPanel })),
+    { ssr: false, loading: () => null }
+);
 import { useIsMobile } from "@/hooks/use-mobile";
 import { OrderPipeline } from "@/components/orders/order-pipeline";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1743,6 +1747,10 @@ export default function OrdersPage() {
                                         </div>
                                     )}
 
+                                    {/* Store-form phones (abandoned_carts) sit beside, never inside,
+                                        the pending_checkout rows: those rows, their statuses and their
+                                        counts stay exactly as they are. Abandoned tab only. */}
+                                    {filters.status === "pending_checkout" && !showArchived && <StoreCapturesPanel />}
                                     {/* While searching, the list is a lookup across every date and status. */}
                                     {!showArchived && <OrderSearchBanner count={filteredOrders.length} />}
 
