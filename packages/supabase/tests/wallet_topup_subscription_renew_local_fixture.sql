@@ -1,13 +1,13 @@
 -- =============================================================================
 -- Local fixture for wallet_topup_subscription_renew.sql — a throwaway Postgres 16
--- database shaped like the live objects 20261020143700 touches.
+-- database shaped like the live objects 20261026160000 touches.
 -- =============================================================================
 --
 -- NEVER run this against Supabase: it creates roles, an auth stub and tables.
 --
 --   createdb renew
 --   psql -d renew -v ON_ERROR_STOP=1 -f packages/supabase/tests/wallet_topup_subscription_renew_local_fixture.sql
---   psql -d renew -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261020143700_wallet_topup_and_subscription_renew_atomic.sql
+--   psql -d renew -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261026160000_wallet_topup_and_subscription_renew_atomic.sql
 --   psql -d renew -v ON_ERROR_STOP=1 -f packages/supabase/tests/wallet_topup_subscription_renew.sql
 --
 -- Enums, columns, constraints, charge_wallet_atomic, auth.role() and the

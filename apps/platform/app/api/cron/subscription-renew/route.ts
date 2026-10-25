@@ -17,7 +17,7 @@ interface RenewalResult {
     details?: string;
 }
 
-/** What renew_subscription_atomic returns (packages/supabase/migrations/20261020143700_*). */
+/** What renew_subscription_atomic returns (packages/supabase/migrations/20261026160000_*). */
 const renewResultSchema = z.object({
     success: z.boolean(),
     outcome: z.enum(["renewed", "plan_changed", "suspended", "already_processed", "exempt", "error"]),
