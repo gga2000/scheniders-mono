@@ -48,3 +48,11 @@ Each production migration and merge needs Ali's OK (§4 order). Backup: Ali chos
 - Applied as 20261022125832 (function + grants) and 20261022125848 (ALTER POLICY). Function md5 and ACL equal a local apply of the draft; policy text equal except the enum cast (stub used text). Repo files md5-match remote.
 - #195 @ b5a1ad96: merged main (conflict with #192 in require-action-caller.ts resolved, critic 8.5), draft replaced by the 2 applied files. Platform vitest 254 files / 2702 pass; type-check and lint clean. Waiting on CI to merge.
 - #195: CI green (7m46s) → merged 13:16Z as 8a8ada90. Step 1b-2 card posted (#168 code first, then 140100..140800). #168 merged with main cleanly (dd221582; platform vitest 2706 pass). Note: 140200, 140300 and 140800 contain DROP POLICY/TRIGGER and need rewriting (ALTER POLICY / CREATE OR REPLACE TRIGGER) before the MCP tool will run them.
+
+### 2026-10-25 rollout step 1b-2: #168 (P1 DB security holes)
+- Ali approved "Apply and merge" (17:23Z). Code merged as 7ba8f95e; platform and storefront prod deploys READY.
+- Applied 8 migrations 20261025172825 … 20261025173244 (wallet amount guard, tenants column scope + trigger, storage helper + qc-evidence limits, SVG drop, is_active admin-only, bonuses anon revoke, default EXECUTE revoke, payroll helper). Repo files md5-match `schema_migrations`; live function/trigger md5s, grants and bucket rows equal a local PG16 apply; local test 83/83.
+- BLOCKED: the 6 storage.objects policy changes (product-images insert/update/delete, qc-evidence insert/delete, payroll-pdfs) fail with `42501 must be owner of table objects` (owner supabase_storage_admin; postgres not a member). Steps for Ali in /mnt/project-files/launch-readiness/storage-rules-to-apply.md; decision card posted.
+- Vercel runtime errors (2h after apply): none on platform or storefront.
+- Default privileges now revoke EXECUTE on new public functions: every later migration adding an app-called function needs an explicit GRANT EXECUTE (check #175, #194, #196, #167, #172).
+- #204 `fix/p1-db-security-holes-applied`: replaces the 140100..140800 drafts with the applied files; pending policy parts in tests/p1_db_security_holes_storage_policies.sql. Needs Ali's OK to merge.
