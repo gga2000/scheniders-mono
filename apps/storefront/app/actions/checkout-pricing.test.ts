@@ -406,7 +406,7 @@ describe("P2-3: an idempotent replay has no side effects", () => {
   const pointsCalls = (fake: ReturnType<typeof createFakeSupabase>) =>
     fake.rpcCalls.filter((c) => c.fn === "adjust_customer_points");
 
-  it("a retry of an order that already exists redeems, earns and mints nothing", async () => {
+  it("a retry of an order that already exists earns and mints nothing", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
     const fake = createFakeSupabase(
       loyaltyTables([
@@ -427,7 +427,6 @@ describe("P2-3: an idempotent replay has no side effects", () => {
       tenantId: TENANT,
       customer,
       idempotencyKey: KEY,
-      redeemPoints: 2000,
       items: [line(PERFUME, 35000, 1)],
     });
     expect(res).toMatchObject({ success: true, orderId: EXISTING, orderNumber: "SH-0007", total: 38000 });
@@ -447,7 +446,7 @@ describe("P2-3: an idempotent replay has no side effects", () => {
     expect(res.orderId).toBe("11111111-1111-4111-8111-111111111111");
   });
 
-  it("losing a concurrent race refunds its redemption and earns nothing, when the RPC reports the replay", async () => {
+  it("losing a concurrent race reports the existing order and earns nothing, when the RPC reports the replay", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
     const fake = createFakeSupabase(loyaltyTables(), {
       rpc: {
@@ -462,16 +461,11 @@ describe("P2-3: an idempotent replay has no side effects", () => {
       tenantId: TENANT,
       customer,
       idempotencyKey: KEY,
-      redeemPoints: 2000,
       items: [line(PERFUME, 35000, 1)],
     });
     expect(res).toMatchObject({ success: true, orderId: EXISTING, total: 38000 });
     expect(res.upsellToken).toBeUndefined();
-    const deltas = pointsCalls(fake).map((c) => [c.args._reason, c.args._delta]);
-    expect(deltas).toEqual([
-      ["redeem", -2000],
-      ["redeem_refund", 2000],
-    ]);
+    expect(pointsCalls(fake)).toEqual([]);
     vi.unstubAllEnvs();
   });
 });

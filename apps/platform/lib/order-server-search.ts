@@ -20,7 +20,7 @@ import { extractScannedOrderId } from "@/lib/scan-utils";
  *
  * Keep it in step with `search_orders_v2` (migrations
  * 20261012120000_search_orders_v2.sql and
- * 20261026120000_search_orders_v2_city_address_notes_returns.sql).
+ * 20261025222625_search_orders_v2_city_address_notes_returns.sql).
  */
 
 /** Shorter terms are not searched: two characters already match broadly. */

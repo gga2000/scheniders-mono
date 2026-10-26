@@ -179,7 +179,7 @@ describe("submitCheckout in draft view", () => {
   const checkout = () =>
     submitCheckout({
       tenantId: TENANT_ID,
-      purchaseEventId: "evt-1",
+      purchaseEventId: "evt-00000001",
       customer: {
         customer_name: "Ali Hassan",
         phone: "07701234567",
