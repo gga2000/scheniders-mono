@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import {
   computeDeliveryFee,
   computeDiscount,
@@ -16,11 +17,7 @@ import {
   type PriceTier,
   type OrderBumpOffer,
 } from "@scheniders/shared";
-import type {
-  StoreConfigV2,
-  GovernorateCode,
-  AnalyticsConfig,
-} from "@scheniders/shared";
+import type { StoreConfigV2, AnalyticsConfig } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
 import { isDraftViewRequest } from "@/lib/draft-view";
@@ -32,41 +29,11 @@ import { isTransientDbError } from "@/lib/transient-db-error";
 import { DUPLICATE_ORDER_WINDOW_MINUTES, isDuplicateGuardRow } from "@/lib/order-duplicate-guard";
 import { queueOrderConfirmation } from "@/lib/order-confirmation-queue";
 import { checkoutRateLimited } from "@/lib/checkout-rate-limit";
-import { headers } from "next/headers";
+import { submitCheckoutPayloadSchema, type SubmitCheckoutPayload } from "@/lib/checkout-payload";
+import { clientIp } from "@/lib/rate-limit";
+import { verifyLoyaltyProof } from "@/lib/loyalty-proof";
 
-interface CheckoutItem {
-  product_id: string;
-  variant_id: string | null;
-  name: string;
-  variant_name: string | null;
-  price: number;
-  quantity: number;
-}
-
-interface SubmitCheckoutPayload {
-  tenantId: string;
-  /** EC17: dedupe key for a re-submitted order (flaky-3G retry). */
-  idempotencyKey?: string;
-  /** Discount engine: coupon code (validated + priced server-side). */
-  couponCode?: string;
-  /** Pixel Purchase event_id — reused by the CAPI server twin for dedup. */
-  purchaseEventId?: string;
-  /** Loyalty: points the customer chose to redeem (server re-validates). */
-  redeemPoints?: number;
-  /** Referral: a friend's code; eligibility + amount are re-resolved here. */
-  referralCode?: string;
-  customer: {
-    customer_name: string;
-    phone: string;
-    /** Already-normalised (07XXXXXXXXX) alternative number, or null. */
-    alt_phone?: string | null;
-    governorate_code: string;
-    city: string;
-    address_details: string;
-    notes?: string;
-  };
-  items: CheckoutItem[];
-}
+type CheckoutItem = SubmitCheckoutPayload["items"][number];
 
 /** EC24: why a specific cart line couldn't be ordered, so the client can act
  *  (remove it / update its price) instead of dead-ending on a generic error. */
@@ -140,16 +107,56 @@ function isReplayRow(row: Record<string, unknown> | null): boolean {
   return row?.idempotent_replay === true;
 }
 
+const REDEMPTION_NEEDS_PROOF =
+  "لاستخدام النقاط اكتب رقم طلب سابق من نفس الرقم، أو أكمل طلبك بدون استخدام النقاط.";
+
+/** Why a points redemption is refused, or null when the phone is proven the
+ *  shopper's by a previous order of this store (lib/loyalty-proof). */
+async function loyaltyRedemptionRefusal(
+  tenantId: string,
+  phone: string,
+  orderNumber: string | undefined,
+): Promise<string | null> {
+  if (!orderNumber) return REDEMPTION_NEEDS_PROOF;
+  const proof = await verifyLoyaltyProof({
+    tenantId,
+    phone,
+    orderNumber,
+    ip: clientIp(await headers()),
+  });
+  switch (proof.kind) {
+    case "owned":
+      return null;
+    case "not_owned":
+      return REDEMPTION_NEEDS_PROOF;
+    case "rate_limited":
+      return "محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.";
+    case "unavailable":
+      return "تعذّر التحقق من النقاط. حاول مرة أخرى.";
+  }
+}
+
 /**
  * Creates an order in the platform DB via the create_storefront_order RPC —
- * create_order_atomic, unchanged, behind the soft duplicate guard.
- * Uses the service role client to bypass RLS — the storefront is trusted server code.
+ * create_order_atomic, unchanged, behind the soft duplicate guard — using the
+ * service role client.
+ *
+ * This is an exported server action, which Next.js serves as a public HTTP
+ * endpoint: any client can call it with any argument. The argument is
+ * therefore validated in full here, and every amount is re-derived from the
+ * database.
  *
  * Mirrors the order shape used by `hooks/use-order-crud.ts` in the platform repo.
  */
 export async function submitCheckout(
-  payload: SubmitCheckoutPayload,
+  input: unknown,
 ): Promise<SubmitCheckoutResult> {
+  const parsedPayload = submitCheckoutPayloadSchema.safeParse(input);
+  if (!parsedPayload.success) {
+    return { success: false, error: "بيانات غير صالحة" };
+  }
+  const payload = parsedPayload.data;
+
   if (payload.items.length === 0) {
     return { success: false, error: "السلة فارغة" };
   }
@@ -161,6 +168,27 @@ export async function submitCheckout(
   const phone = normalizeIraqiMobile(payload.customer.phone);
   if (!phone) {
     return { success: false, error: "رقم الهاتف غير صالح" };
+  }
+  // Same rule for the optional second number the courier tries.
+  const altPhone = payload.customer.alt_phone
+    ? normalizeIraqiMobile(payload.customer.alt_phone)
+    : null;
+  if (payload.customer.alt_phone && !altPhone) {
+    return { success: false, error: "الرقم البديل غير صالح" };
+  }
+
+  // Loyalty redemption needs proof the phone is the shopper's. The phone
+  // number alone is not a secret: anyone who knows a customer's number could
+  // spend that customer's points as a discount on their own order. The proof
+  // is a previous order number of THIS store placed with THIS phone — the
+  // check /api/loyalty/balance makes before it shows the balance, re-made here
+  // (same lookup_order match, same tenant, same rate-limit buckets) because
+  // this action is a public endpoint and the client's word proves nothing.
+  // Without it the redemption is refused, before anything is read or written.
+  // Earning is unaffected (credited by the database on delivery).
+  if (payload.redeemPoints && payload.redeemPoints > 0) {
+    const refused = await loyaltyRedemptionRefusal(payload.tenantId, phone, payload.loyaltyOrderNumber);
+    if (refused) return { success: false, error: refused };
   }
 
   const supabase = createSupabaseServiceClient();
@@ -484,7 +512,7 @@ export async function submitCheckout(
   // merchant hasn't configured rates). Same inputs the storefront displays.
   const deliveryFee = computeDeliveryFee(subtotal, itemCount, {
     shipping: tenant.store_config_v2?.commerce?.shipping,
-    governorate: payload.customer.governorate_code as GovernorateCode,
+    governorate: payload.customer.governorate_code,
   });
   // Discount engine: re-resolve the coupon against the PUBLISHED discounts
   // server-side (never trust a client-supplied amount); records discount_amount
@@ -548,10 +576,11 @@ export async function submitCheckout(
     referralWanted,
   ]).applied;
   const remainingForPoints = subtotal - couponApplied - bundleApplied - referralApplied;
-  // Loyalty: redeem the points the customer chose to spend. Re-resolve against
-  // the PUBLISHED config + the AUTHORITATIVE balance, then deduct atomically
-  // (the RPC blocks an overdraw) BEFORE the order so the discount is baked into
-  // discount_amount; refunded below if the order then fails.
+  // Loyalty: redeem the points the customer chose to spend — reached only
+  // with the proof checked above. Re-resolve against the PUBLISHED config +
+  // the AUTHORITATIVE balance, then deduct atomically (the RPC blocks an
+  // overdraw) BEFORE the order so the discount is baked into discount_amount;
+  // refunded below if the order then fails.
   const loyaltyCfg = tenant.store_config_v2?.commerce?.loyalty;
   let pointsUsed = 0;
   let pointsDiscount = 0;
@@ -611,7 +640,7 @@ export async function submitCheckout(
     customer_name: payload.customer.customer_name.trim(),
     phone,
     // create_order_atomic reads `_order_data->>'secondary_phone'`.
-    secondary_phone: payload.customer.alt_phone ?? null,
+    secondary_phone: altPhone,
     governorate_code: payload.customer.governorate_code,
     city: payload.customer.city.trim(),
     address_details: payload.customer.address_details.trim(),

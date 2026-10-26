@@ -22,6 +22,10 @@ vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
 vi.mock("@/lib/draft-view", () => ({
   isDraftViewRequest: vi.fn(async () => false),
 }));
+// The loyalty proof's per-IP limiter reads the request's address.
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers({ "x-forwarded-for": "203.0.113.7" })),
+}));
 // Piece 1's instant WhatsApp confirmation: queued for a new order only.
 vi.mock("@/lib/order-confirmation-queue", () => ({ queueOrderConfirmation: vi.fn() }));
 // The checkout rate limit has its own suite (checkout-rate-limit.test.ts).
@@ -146,12 +150,20 @@ describe("submitCheckout → create_storefront_order", () => {
         },
         error: null,
       }),
+      // The redemption's proof (lib/loyalty-proof): the limiter allows it and
+      // the phone placed order 4260910007 in this store.
+      consume_rate_limit: () => ({
+        data: [{ allowed: true, remaining: 5, reset_at: new Date(Date.now() + 60_000).toISOString() }],
+        error: null,
+      }),
+      lookup_order: () => ({ data: [{ order_number: "4260910007", status: "delivered" }], error: null }),
     });
     const res = await submitCheckout({
       tenantId: TENANT,
       customer,
       items: [line(PERFUME, 35000, 1)],
       redeemPoints: 2000,
+      loyaltyOrderNumber: "4260910007",
     });
     expect(res).toEqual({ success: true, replayed: true, duplicate: true });
     // The redemption this call made is given back: no order used it.

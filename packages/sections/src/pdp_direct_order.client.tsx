@@ -1021,7 +1021,10 @@ export function PdpDirectOrderRender({
       subtotal,
       locale,
       idempotency_key: idempotencyKeyRef.current,
-      ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+      // The server re-checks the proving order number before it spends.
+      ...(redeemPoints > 0
+        ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
+        : {}),
       ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
         ? { referral_code: normalizeReferralCode(referralCode) }
         : {}),
