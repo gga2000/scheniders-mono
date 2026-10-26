@@ -1,87 +1,7 @@
--- =============================================================================
--- Order numbers from a counter no tenant can steer; no global order lock
--- Fixes F-040 (P0) and the database half of F-041 (P1) — audit-final/FINDINGS.md
--- =============================================================================
---
--- WHAT WAS WRONG (live create_order_atomic(jsonb,uuid), 2026-10-20)
---   * The next number was MAX(<digits after the prefix>)::int over EVERY
---     tenant's orders sharing the '<source digit><YYMMDD>' prefix. Any member
---     could INSERT an own-tenant row, or UPDATE an own order's order_id, to
---     '4<YYMMDD>99999999999': the ::int cast then raised 22003 and order
---     creation stopped for every tenant until the day ended (dates ahead
---     could be poisoned in advance). The caller could also hand the RPC its
---     own order_id.
---   * The prefix scan cannot use orders_order_id_key (not text_pattern_ops)
---     and read the whole table, under pg_advisory_xact_lock(hashtext(
---     'create_order_lock')): ONE lock for all order creation on the platform,
---     held through the insert and its triggers, and taken before the
---     idempotency replay check, so even replays queued behind it.
---
--- WHAT THIS DOES
---   1. Numbers come from four sequences (one per source digit) plus a tiny
---      day table holding each prefix's base. n = nextval - base, so the
---      visible format stays '<digit><YYMMDD><n, at least 3 digits>' and each
---      source/day still counts 001, 002, ... No table scan, no lock shared
---      between tenants, and nothing a tenant writes into orders feeds it. A
---      number someone already holds (a passthrough order_id) is skipped by
---      an equality probe on orders_order_id_key. Rolled-back orders leave
---      gaps, as any sequence does.
---   2. Today's (and any later-dated) prefixes are seeded from live orders, so
---      numbering continues where it is and never collides with existing rows.
---      The migration takes the old global lock first, so no old-style call
---      commits a number between the seed scan and the switch.
---   3. create_order_atomic(jsonb,uuid) — signature, SECURITY DEFINER, search
---      path, grants, payload handling and return shape unchanged — now:
---        - answers an idempotent replay BEFORE taking any lock;
---        - refuses a caller-supplied order_id unless the caller is the server
---          (service_role: LightFunnels passes its own numbers);
---        - takes a PER-TENANT advisory lock (only for the per-tenant
---          sequence_number MAX+1, which needs it) and re-checks the replay
---          under it;
---        - takes the number from public.next_order_number().
---      Every order JSON it returns (replay or new row) goes through
---      public.mask_order_margin(), as on live since main's
---      20261021090000_orders_margin_column_privileges.sql: a non-admin
---      member never gets product_cost / net_profit / waseet_* back.
---      create_order_atomic(jsonb) only delegates; it is unchanged.
---   4. A trigger refuses, for anon/authenticated, INSERT into orders and any
---      UPDATE that changes order_id. Writing order_id back unchanged (full-row
---      saves) still works; SECURITY DEFINER functions and the service role
---      (server actions, webhooks, storefront) are unaffected. A column REVOKE
---      cannot do this: authenticated holds table-level INSERT/UPDATE.
---   No CHECK on the order_id format: live rows use dozens of shapes
---   (LightFunnels, returns RTN-/RPL-, clones, imports), so one would break
---   existing rows and legitimate passthrough numbers.
---
--- LIVE SEED (SELECT-only measurement, 2026-10-20 13:55 UTC): today's prefixes
---   4261020 max 1; 1261020 / 2261020 / 3261020 none. No later-dated prefix.
---   Historic max per prefix is 46 (4260319); 223 prefixes since 1251227.
---
--- FILE NAME: first written as 20261020154000_order_number_counter.sql and
---   renamed (never applied anywhere) so it sorts after main's
---   20261021090000_orders_margin_column_privileges.sql. That migration edits
---   the pre-counter create_order_atomic body by exact fragment and refuses
---   any other body, so in file order it must run first; this file then
---   carries its margin mask forward.
---
--- ROLLOUT: apply this migration BEFORE (or with) the app deploy of the same
---   branch. The new app code sends no order_id from clients and moves the
---   order-number edit to a server action; old app code keeps working against
---   this migration except the in-place order-number edit and snapshot
---   restore of deleted orders, which the trigger refuses for a browser.
---
--- ROLLBACK
---   DROP TRIGGER trg_orders_order_id_server_only ON public.orders;
---   DROP FUNCTION public.orders_order_id_server_only();
---   Re-apply the create_order_atomic(jsonb,uuid) body from migration
---   20261017120000_create_order_atomic_reports_idempotent_replay.sql with
---   both to_jsonb(orders.*) wrapped in mask_order_margin(..., orders.tenant_id)
---   as 20261021090000 does (the live body this replaces), then
---   DROP FUNCTION public.next_order_number(text);
---   DROP TABLE public.order_number_days;
---   DROP SEQUENCE public.order_number_seq_1, public.order_number_seq_2,
---                 public.order_number_seq_3, public.order_number_seq_4;
--- =============================================================================
+-- order_number_counter (header and rollback notes: packages/supabase/tests/order_number_counter.sql).
+-- Order numbers from per-prefix sequences; per-tenant create lock; browsers cannot write order_id.
+-- lock_timeout: fail fast rather than queue live order traffic behind these locks.
+SET LOCAL lock_timeout = '3s';
 
 -- Wait for in-flight old-style calls and hold new ones until this commits.
 SELECT pg_advisory_xact_lock(hashtext('create_order_lock')::bigint);
@@ -323,7 +243,82 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.orders_order_id_server_only() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS trg_orders_order_id_server_only ON public.orders;
-CREATE TRIGGER trg_orders_order_id_server_only
+CREATE OR REPLACE TRIGGER trg_orders_order_id_server_only
     BEFORE INSERT OR UPDATE OF order_id ON public.orders
     FOR EACH ROW EXECUTE FUNCTION public.orders_order_id_server_only();
+
+-- ---------------------------------------------------------------------------
+-- 6. create_storefront_order takes the per-tenant lock instead of the global one
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.create_storefront_order(
+  _order_data jsonb,
+  _tenant_id uuid,
+  _paid_product_ids uuid[],
+  _duplicate_window_minutes integer
+)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _idem text := NULLIF(_order_data->>'idempotency_key', '');
+  _phone_key text := public.loyalty_phone_key(_order_data->>'phone');
+  _existing jsonb;
+BEGIN
+  IF coalesce(auth.role(), 'service_role') <> 'service_role' THEN
+    RAISE EXCEPTION 'Unauthorized: storefront checkout only' USING ERRCODE = '42501';
+  END IF;
+  IF _tenant_id IS NULL THEN
+    RAISE EXCEPTION 'create_storefront_order: _tenant_id is required' USING ERRCODE = '22004';
+  END IF;
+  IF _duplicate_window_minutes IS NULL OR _duplicate_window_minutes <= 0 THEN
+    RAISE EXCEPTION 'create_storefront_order: _duplicate_window_minutes must be positive' USING ERRCODE = '22023';
+  END IF;
+
+  -- The same per-tenant lock create_order_atomic takes (re-entrant in this
+  -- transaction), so the duplicate check and the insert stay one critical
+  -- section without serialising other stores' checkouts.
+  PERFORM pg_advisory_xact_lock(hashtextextended('create_order_atomic:' || _tenant_id::text, 0));
+
+  -- A key this tenant has seen is create_order_atomic's to answer: a same-key
+  -- resend must get ITS order back as a replay, never a "duplicate".
+  IF _idem IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.orders WHERE tenant_id = _tenant_id AND idempotency_key = _idem
+  ) THEN
+    RETURN public.create_order_atomic(_order_data, _tenant_id);
+  END IF;
+
+  -- The array-length check matters: an empty product list would make the
+  -- "every product is in that order" test vacuously true.
+  IF _phone_key IS NOT NULL AND coalesce(array_length(_paid_product_ids, 1), 0) > 0 THEN
+    SELECT to_jsonb(o.*) INTO _existing
+      FROM public.orders o
+     WHERE o.tenant_id = _tenant_id
+       AND public.loyalty_phone_key(o.phone) = _phone_key
+       AND o.deleted_at IS NULL
+       AND coalesce(o.is_test, false) = false
+       AND o.status NOT IN ('pending_checkout', 'cancelled', 'rejected')
+       AND o.created_at > now() - make_interval(mins => _duplicate_window_minutes)
+       AND NOT EXISTS (
+         SELECT 1
+           FROM unnest(_paid_product_ids) AS wanted(product_id)
+          WHERE NOT EXISTS (
+            SELECT 1
+              FROM jsonb_array_elements(
+                     CASE WHEN jsonb_typeof(o.items) = 'array' THEN o.items ELSE '[]'::jsonb END
+                   ) AS line(item)
+             WHERE line.item->>'product_id' = wanted.product_id::text
+          )
+       )
+     ORDER BY o.created_at DESC
+     LIMIT 1;
+
+    IF _existing IS NOT NULL THEN
+      RETURN _existing || jsonb_build_object('idempotent_replay', true, 'duplicate_guard', true);
+    END IF;
+  END IF;
+
+  RETURN public.create_order_atomic(_order_data, _tenant_id);
+END;
+$function$;

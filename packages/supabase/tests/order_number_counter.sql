@@ -21,12 +21,16 @@
 --       and a replay of an existing idempotency key complete at once;
 --     * concurrent calls get distinct order numbers, and distinct
 --       sequence_numbers within a tenant;
---     * an idempotent replay returns the same order and uses no number.
+--     * an idempotent replay returns the same order and uses no number;
+--     * storefront checkout (create_storefront_order) locks per tenant: another
+--       tenant's checkout does not wait, a second same-tenant checkout does
+--       and is answered as a duplicate.
 --   PKG-02 (after 20261022100100_create_order_atomic_require_tenant.sql) —
 --   every order has a tenant:
 --     * create_order_atomic with a NULL tenant is refused for the server too,
 --       writes nothing and cannot replay another tenant's idempotency key;
---     * create_order_atomic(jsonb) is gone and (jsonb, uuid) has no default;
+--     * a one-argument call, or one leaving the tenant at its default,
+--       creates nothing;
 --     * a direct INSERT with tenant_id NULL fails (orders.tenant_id NOT NULL);
 --     * server calls with a tenant (incl. a passthrough order_id), a member's
 --       own-tenant call, and split_order_atomic (with a tenant, and as the
@@ -46,7 +50,153 @@
 --
 -- Result: one row, 'ALL ASSERTIONS PASSED' or 'FAILED: ' plus each failing
 -- check. Against the pre-migration function every F-040/F-041 check fails;
--- with only 20261022100000 applied, the PKG-02 checks (C1-C3, C5b) fail.
+-- with only 20261022100000 applied, the PKG-02 checks (C1, C2b, C3, C5b) fail.
+--
+-- MIGRATIONS
+--   Both files carry short headers; their full notes follow. Rewritten on
+--   2026-10-26 so the migration tool runs them (it would not run DROP
+--   statements): CREATE OR REPLACE TRIGGER replaces the trigger's DROP/CREATE,
+--   and create_order_atomic(jsonb) plus the 2-arg form's DEFAULT NULL are
+--   kept instead of dropped. Both are harmless now: every NULL tenant is
+--   refused (22023) whatever the caller, and a one-argument call is
+--   ambiguous by name. Also new: section 6 of 20261022100000 moves
+--   create_storefront_order (main's 20261021142000) from the global
+--   'create_order_lock' to create_order_atomic's per-tenant lock, so the
+--   storefront duplicate guard no longer serialises every store's checkout.
+--   Notes below that say 'drops' or 'no default' describe the first draft;
+--   ROLLBACK for the kept overload and default is: nothing to restore.
+--
+--   ---- 20261022100000_order_number_counter ----
+--   Order numbers from a counter no tenant can steer; no global order lock
+--   Fixes F-040 (P0) and the database half of F-041 (P1) — audit-final/FINDINGS.md
+--
+--   WHAT WAS WRONG (live create_order_atomic(jsonb,uuid), 2026-10-20)
+--     * The next number was MAX(<digits after the prefix>)::int over EVERY
+--       tenant's orders sharing the '<source digit><YYMMDD>' prefix. Any member
+--       could INSERT an own-tenant row, or UPDATE an own order's order_id, to
+--       '4<YYMMDD>99999999999': the ::int cast then raised 22003 and order
+--       creation stopped for every tenant until the day ended (dates ahead
+--       could be poisoned in advance). The caller could also hand the RPC its
+--       own order_id.
+--     * The prefix scan cannot use orders_order_id_key (not text_pattern_ops)
+--       and read the whole table, under pg_advisory_xact_lock(hashtext(
+--       'create_order_lock')): ONE lock for all order creation on the platform,
+--       held through the insert and its triggers, and taken before the
+--       idempotency replay check, so even replays queued behind it.
+--
+--   WHAT THIS DOES
+--     1. Numbers come from four sequences (one per source digit) plus a tiny
+--        day table holding each prefix's base. n = nextval - base, so the
+--        visible format stays '<digit><YYMMDD><n, at least 3 digits>' and each
+--        source/day still counts 001, 002, ... No table scan, no lock shared
+--        between tenants, and nothing a tenant writes into orders feeds it. A
+--        number someone already holds (a passthrough order_id) is skipped by
+--        an equality probe on orders_order_id_key. Rolled-back orders leave
+--        gaps, as any sequence does.
+--     2. Today's (and any later-dated) prefixes are seeded from live orders, so
+--        numbering continues where it is and never collides with existing rows.
+--        The migration takes the old global lock first, so no old-style call
+--        commits a number between the seed scan and the switch.
+--     3. create_order_atomic(jsonb,uuid) — signature, SECURITY DEFINER, search
+--        path, grants, payload handling and return shape unchanged — now:
+--          - answers an idempotent replay BEFORE taking any lock;
+--          - refuses a caller-supplied order_id unless the caller is the server
+--            (service_role: LightFunnels passes its own numbers);
+--          - takes a PER-TENANT advisory lock (only for the per-tenant
+--            sequence_number MAX+1, which needs it) and re-checks the replay
+--            under it;
+--          - takes the number from public.next_order_number().
+--        Every order JSON it returns (replay or new row) goes through
+--        public.mask_order_margin(), as on live since main's
+--        20261021090000_orders_margin_column_privileges.sql: a non-admin
+--        member never gets product_cost / net_profit / waseet_* back.
+--        create_order_atomic(jsonb) only delegates; it is unchanged.
+--     4. A trigger refuses, for anon/authenticated, INSERT into orders and any
+--        UPDATE that changes order_id. Writing order_id back unchanged (full-row
+--        saves) still works; SECURITY DEFINER functions and the service role
+--        (server actions, webhooks, storefront) are unaffected. A column REVOKE
+--        cannot do this: authenticated holds table-level INSERT/UPDATE.
+--     No CHECK on the order_id format: live rows use dozens of shapes
+--     (LightFunnels, returns RTN-/RPL-, clones, imports), so one would break
+--     existing rows and legitimate passthrough numbers.
+--
+--   LIVE SEED (SELECT-only measurement, 2026-10-20 13:55 UTC): today's prefixes
+--     4261020 max 1; 1261020 / 2261020 / 3261020 none. No later-dated prefix.
+--     Historic max per prefix is 46 (4260319); 223 prefixes since 1251227.
+--
+--   FILE NAME: first written as 20261020154000_order_number_counter.sql and
+--     renamed (never applied anywhere) so it sorts after main's
+--     20261021090000_orders_margin_column_privileges.sql. That migration edits
+--     the pre-counter create_order_atomic body by exact fragment and refuses
+--     any other body, so in file order it must run first; this file then
+--     carries its margin mask forward.
+--
+--   ROLLOUT: apply this migration BEFORE (or with) the app deploy of the same
+--     branch. The new app code sends no order_id from clients and moves the
+--     order-number edit to a server action; old app code keeps working against
+--     this migration except the in-place order-number edit and snapshot
+--     restore of deleted orders, which the trigger refuses for a browser.
+--
+--   ROLLBACK
+--     DROP TRIGGER trg_orders_order_id_server_only ON public.orders;
+--     DROP FUNCTION public.orders_order_id_server_only();
+--     Re-apply the create_order_atomic(jsonb,uuid) body from migration
+--     20261017120000_create_order_atomic_reports_idempotent_replay.sql with
+--     both to_jsonb(orders.*) wrapped in mask_order_margin(..., orders.tenant_id)
+--     as 20261021090000 does (the live body this replaces), then
+--     DROP FUNCTION public.next_order_number(text);
+--     DROP TABLE public.order_number_days;
+--     DROP SEQUENCE public.order_number_seq_1, public.order_number_seq_2,
+--                   public.order_number_seq_3, public.order_number_seq_4;
+--
+--   ---- 20261022100100_create_order_atomic_require_tenant ----
+--   create_order_atomic requires a tenant; orders.tenant_id is NOT NULL
+--   Fixes the PKG-02 review finding on F-040/F-041 (20261022100000_order_number_counter)
+--
+--   WHAT WAS WRONG (live, 2026-10-20)
+--     * create_order_atomic(jsonb, uuid) declared `_tenant_id uuid DEFAULT NULL`
+--       and only checked the tenant for non-service callers. A server call with
+--       NULL (or the 1-arg create_order_atomic(jsonb), which delegates with
+--       NULL) matched an idempotency key in ANY tenant — a replay could return
+--       another tenant's order — computed sequence_number across all tenants,
+--       and inserted an order with tenant_id NULL, which no tenant can see.
+--     * split_order_atomic(uuid,jsonb,jsonb,uuid) passed its own, possibly
+--       NULL, _tenant_id through, so a service-role split without a tenant (and
+--       the deprecated 3-arg overload, which always passes NULL) created its
+--       return order with tenant_id NULL.
+--     * orders.tenant_id was nullable, so nothing in the table stopped it.
+--
+--   WHAT THIS DOES
+--     1. Refuses to run if any order has tenant_id NULL (live count 2026-10-20:
+--        0 of 23,293), then sets orders.tenant_id NOT NULL.
+--     2. Drops create_order_atomic(jsonb). No app code calls it; every caller
+--        (platform order-service, LightFunnels import/webhook, storefront
+--        checkout, split_order_atomic) uses the 2-arg form with a tenant.
+--     3. Recreates create_order_atomic(jsonb, uuid) with NO parameter default
+--        (CREATE OR REPLACE cannot remove a default, hence DROP + CREATE in this
+--        transaction) and raises 22023 when _tenant_id is NULL, for every
+--        caller including the service role. The tenant filters lose their
+--        `_tenant_id IS NULL OR` escape. Otherwise the body is
+--        20261022100000's, unchanged (including mask_order_margin on every
+--        returned order, see that file). Grants restated (authenticated,
+--        service_role).
+--     4. split_order_atomic(uuid,jsonb,jsonb,uuid) — live body, one change: the
+--        return order is created in the original order's tenant
+--        (_original_order.tenant_id, now NOT NULL; equal to _tenant_id whenever
+--        one is given, since the original is looked up under it).
+--
+--   APPLY ORDER: after 20261022100000_order_number_counter.sql (its body is the
+--     base here), in the same deploy. App code needs no change: every caller
+--     already passes a tenant.
+--
+--   ROLLBACK
+--     ALTER TABLE public.orders ALTER COLUMN tenant_id DROP NOT NULL;
+--     Re-apply section 4 of 20261022100000_order_number_counter.sql after
+--     DROP FUNCTION public.create_order_atomic(jsonb, uuid) (restores the
+--     default), re-create create_order_atomic(jsonb) from the live-history
+--     definition (delegates with NULL::uuid; service role only), and re-apply
+--     the live split_order_atomic(uuid,jsonb,jsonb,uuid) body (passes
+--     _tenant_id to create_order_atomic).
 -- =============================================================================
 
 \set ON_ERROR_STOP 1
@@ -295,6 +445,49 @@ END;
 $b2$;
 
 SELECT dblink_exec('c1', 'COMMIT');
+
+-- B3. Storefront checkout (create_storefront_order) locks per tenant too.
+-- c1 holds tenant A's checkout open; tenant B's checkout must not wait on
+-- it, while a second tenant-A checkout must (the duplicate guard's check and
+-- insert stay one critical section), and then gets c1's order as a duplicate.
+SELECT dblink_exec('c1', 'BEGIN');
+SELECT order_id IS NOT NULL AS c1_storefront_open FROM dblink('c1',
+    $q$SELECT public.create_storefront_order(
+        '{"customer_name":"c1","phone":"07709998877","price":1,"source":"storefront","items":[{"product_id":"cccccccc-0000-4000-8000-000000000003","quantity":1}]}'::jsonb,
+        'aaaaaaaa-0000-4000-8000-000000000001', ARRAY['cccccccc-0000-4000-8000-000000000003']::uuid[], 10)->>'order_id'$q$) AS t(order_id text);
+DO $b3$
+DECLARE _id text; _dup text;
+BEGIN
+    PERFORM dblink_exec('c2', 'SET statement_timeout = ''3s''');
+    BEGIN
+        SELECT order_id INTO _id FROM dblink('c2',
+            $q$SELECT public.create_storefront_order(
+                '{"customer_name":"c2","phone":"07709998877","price":1,"source":"storefront","items":[{"product_id":"cccccccc-0000-4000-8000-000000000003","quantity":1}]}'::jsonb,
+                'bbbbbbbb-0000-4000-8000-000000000002', ARRAY['cccccccc-0000-4000-8000-000000000003']::uuid[], 10)->>'order_id'$q$) AS t(order_id text);
+        IF _id IS NULL THEN PERFORM pg_temp.fail('B3 tenant B storefront order returned nothing'); END IF;
+    EXCEPTION WHEN OTHERS OR query_canceled THEN
+        PERFORM pg_temp.fail('B3 tenant B checkout waited on tenant A''s open checkout: ' || SQLERRM);
+    END;
+    PERFORM dblink_exec('c2', 'SET statement_timeout = ''1s''');
+    BEGIN
+        PERFORM * FROM dblink('c2',
+            $q$SELECT public.create_storefront_order(
+                '{"customer_name":"c2","phone":"07709998877","price":1,"source":"storefront","items":[{"product_id":"cccccccc-0000-4000-8000-000000000003","quantity":1}]}'::jsonb,
+                'aaaaaaaa-0000-4000-8000-000000000001', ARRAY['cccccccc-0000-4000-8000-000000000003']::uuid[], 10)->>'order_id'$q$) AS t(order_id text);
+        PERFORM pg_temp.fail('B3 a second tenant-A checkout did not wait for the open one (duplicate guard unserialised)');
+    EXCEPTION WHEN OTHERS OR query_canceled THEN NULL;
+    END;
+    PERFORM dblink_exec('c1', 'COMMIT');
+    PERFORM dblink_exec('c2', 'SET statement_timeout = ''3s''');
+    SELECT dup INTO _dup FROM dblink('c2',
+        $q$SELECT public.create_storefront_order(
+            '{"customer_name":"c2","phone":"07709998877","price":1,"source":"storefront","items":[{"product_id":"cccccccc-0000-4000-8000-000000000003","quantity":1}]}'::jsonb,
+            'aaaaaaaa-0000-4000-8000-000000000001', ARRAY['cccccccc-0000-4000-8000-000000000003']::uuid[], 10)->>'duplicate_guard'$q$) AS t(dup text);
+    IF _dup IS DISTINCT FROM 'true' THEN
+        PERFORM pg_temp.fail('B3 the repeat tenant-A checkout was not answered as a duplicate');
+    END IF;
+END;
+$b3$;
 SELECT dblink_disconnect('c1');
 SELECT dblink_disconnect('c2');
 
@@ -366,14 +559,22 @@ BEGIN
         PERFORM pg_temp.fail('C1 a NULL-tenant call wrote ' || (_n_after - _n_before - 1) || ' order(s)');
     END IF;
 
-    -- C2. The deprecated 1-arg overload (delegated with a NULL tenant) is gone.
-    IF to_regprocedure('public.create_order_atomic(jsonb)') IS NOT NULL THEN
-        PERFORM pg_temp.fail('C2 create_order_atomic(jsonb) still exists');
-    END IF;
-    -- C2b. The 2-arg form has no default: the tenant cannot be left out.
-    IF pg_get_function_arguments('public.create_order_atomic(jsonb,uuid)'::regprocedure) ILIKE '%default%' THEN
-        PERFORM pg_temp.fail('C2b create_order_atomic(jsonb,uuid) still defaults _tenant_id');
-    END IF;
+    -- C2. A one-argument call creates nothing. The deprecated 1-arg overload
+    -- is kept (see MIGRATIONS above): by name the call is ambiguous with the
+    -- 2-arg form's default, and the overload itself delegates with a NULL
+    -- tenant, which is now refused.
+    BEGIN
+        _r := public.create_order_atomic(pg_temp.order_json('storefront'));
+        PERFORM pg_temp.fail('C2 a one-argument create_order_atomic call created an order (tenant_id '
+                             || coalesce(_r->>'tenant_id', 'null') || ')');
+    EXCEPTION WHEN invalid_parameter_value OR ambiguous_function THEN NULL;
+    END;
+    -- C2b. Leaving the tenant out of the 2-arg form (its default) is refused.
+    BEGIN
+        _r := public.create_order_atomic(_order_data => pg_temp.order_json('storefront'), _tenant_id => NULL);
+        PERFORM pg_temp.fail('C2b create_order_atomic with the default tenant was accepted');
+    EXCEPTION WHEN invalid_parameter_value THEN NULL;
+    END;
 
     -- C3. A NULL-tenant row cannot be inserted directly, even by the server.
     BEGIN

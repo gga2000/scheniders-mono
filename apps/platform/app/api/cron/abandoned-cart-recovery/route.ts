@@ -43,6 +43,10 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
         .select("id, tenant_id, phone, items, subtotal_iqd, updated_at")
         .is("reminded_at", null)
         .is("recovered_at", null)
+        // Consent: only a shopper who typed their phone with the consent line
+        // on screen may get an automatic WhatsApp. A capture without it is a
+        // lead for staff to call, never a send.
+        .not("consent_at", "is", null)
         .lte("updated_at", floorCutoff)
         .order("updated_at", { ascending: true })
         .limit(BATCH_SIZE);

@@ -309,7 +309,7 @@ describe("buildStarterStoreConfigV2 — content packs (W6.1)", () => {
     it("stamps the direction's own version, so a fresh store is never behind", () => {
         const cfg = buildStarterStoreConfigV2({ templateId: "scheniders_signature", industryId: "عطور", businessName: "x" });
         expect(cfg.template?.version).toBe(getStoreTemplate("scheniders_signature")?.version);
-        expect(cfg.template?.version).toBe(2);
+        expect(cfg.template?.version).toBe(3);
     });
 
     it("leaves an unknown direction unstamped", () => {

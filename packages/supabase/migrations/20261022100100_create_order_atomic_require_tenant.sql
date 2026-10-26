@@ -1,53 +1,7 @@
--- =============================================================================
--- create_order_atomic requires a tenant; orders.tenant_id is NOT NULL
--- Fixes the PKG-02 review finding on F-040/F-041 (20261022100000_order_number_counter)
--- =============================================================================
---
--- WHAT WAS WRONG (live, 2026-10-20)
---   * create_order_atomic(jsonb, uuid) declared `_tenant_id uuid DEFAULT NULL`
---     and only checked the tenant for non-service callers. A server call with
---     NULL (or the 1-arg create_order_atomic(jsonb), which delegates with
---     NULL) matched an idempotency key in ANY tenant — a replay could return
---     another tenant's order — computed sequence_number across all tenants,
---     and inserted an order with tenant_id NULL, which no tenant can see.
---   * split_order_atomic(uuid,jsonb,jsonb,uuid) passed its own, possibly
---     NULL, _tenant_id through, so a service-role split without a tenant (and
---     the deprecated 3-arg overload, which always passes NULL) created its
---     return order with tenant_id NULL.
---   * orders.tenant_id was nullable, so nothing in the table stopped it.
---
--- WHAT THIS DOES
---   1. Refuses to run if any order has tenant_id NULL (live count 2026-10-20:
---      0 of 23,293), then sets orders.tenant_id NOT NULL.
---   2. Drops create_order_atomic(jsonb). No app code calls it; every caller
---      (platform order-service, LightFunnels import/webhook, storefront
---      checkout, split_order_atomic) uses the 2-arg form with a tenant.
---   3. Recreates create_order_atomic(jsonb, uuid) with NO parameter default
---      (CREATE OR REPLACE cannot remove a default, hence DROP + CREATE in this
---      transaction) and raises 22023 when _tenant_id is NULL, for every
---      caller including the service role. The tenant filters lose their
---      `_tenant_id IS NULL OR` escape. Otherwise the body is
---      20261022100000's, unchanged (including mask_order_margin on every
---      returned order, see that file). Grants restated (authenticated,
---      service_role).
---   4. split_order_atomic(uuid,jsonb,jsonb,uuid) — live body, one change: the
---      return order is created in the original order's tenant
---      (_original_order.tenant_id, now NOT NULL; equal to _tenant_id whenever
---      one is given, since the original is looked up under it).
---
--- APPLY ORDER: after 20261022100000_order_number_counter.sql (its body is the
---   base here), in the same deploy. App code needs no change: every caller
---   already passes a tenant.
---
--- ROLLBACK
---   ALTER TABLE public.orders ALTER COLUMN tenant_id DROP NOT NULL;
---   Re-apply section 4 of 20261022100000_order_number_counter.sql after
---   DROP FUNCTION public.create_order_atomic(jsonb, uuid) (restores the
---   default), re-create create_order_atomic(jsonb) from the live-history
---   definition (delegates with NULL::uuid; service role only), and re-apply
---   the live split_order_atomic(uuid,jsonb,jsonb,uuid) body (passes
---   _tenant_id to create_order_atomic).
--- =============================================================================
+-- create_order_atomic_require_tenant (header and rollback notes: packages/supabase/tests/order_number_counter.sql).
+-- create_order_atomic refuses a NULL tenant for every caller; orders.tenant_id NOT NULL.
+-- lock_timeout: fail fast rather than queue live order traffic behind the orders lock.
+SET LOCAL lock_timeout = '3s';
 
 -- ---------------------------------------------------------------------------
 -- 1. orders.tenant_id NOT NULL, refusing if NULL rows exist
@@ -66,16 +20,9 @@ $guard$;
 ALTER TABLE public.orders ALTER COLUMN tenant_id SET NOT NULL;
 
 -- ---------------------------------------------------------------------------
--- 2. The 1-arg overload always delegated with a NULL tenant
+-- 2. create_order_atomic(jsonb, uuid): tenant required
 -- ---------------------------------------------------------------------------
-DROP FUNCTION IF EXISTS public.create_order_atomic(jsonb);
-
--- ---------------------------------------------------------------------------
--- 3. create_order_atomic(jsonb, uuid): tenant required, no default
--- ---------------------------------------------------------------------------
-DROP FUNCTION IF EXISTS public.create_order_atomic(jsonb, uuid);
-
-CREATE FUNCTION public.create_order_atomic(_order_data jsonb, _tenant_id uuid)
+CREATE OR REPLACE FUNCTION public.create_order_atomic(_order_data jsonb, _tenant_id uuid DEFAULT NULL::uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -177,13 +124,12 @@ BEGIN
 END;
 $function$;
 
--- A new function gets Supabase's default privileges (anon included): restate
--- the live ACL (postgres, authenticated, service_role).
+-- Restate the live ACL (postgres, authenticated, service_role).
 REVOKE ALL ON FUNCTION public.create_order_atomic(jsonb, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_order_atomic(jsonb, uuid) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- 4. split_order_atomic(uuid,jsonb,jsonb,uuid): return order in the
+-- 3. split_order_atomic(uuid,jsonb,jsonb,uuid): return order in the
 --    original's tenant (live body otherwise unchanged)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.split_order_atomic(_original_order_id uuid, _kept_items jsonb, _returned_items jsonb, _tenant_id uuid DEFAULT NULL::uuid)

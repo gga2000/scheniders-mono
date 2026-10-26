@@ -150,7 +150,7 @@ export function generateSlug(name: string): string {
  * tenant_slug_history row. The storefront resolves tenants before history,
  * so a new store on a renamed store's old slug would silently take every
  * link that store already shared. The tenants trigger from
- * 20261021130000_tenant_slug_claim.sql refuses such an insert; skipping
+ * 20261022090000_tenant_slug_claim.sql refuses such an insert; skipping
  * those slugs here picks a free one instead of failing the signup.
  */
 export async function ensureUniqueSlug(baseSlug: string): Promise<string> {
@@ -389,27 +389,4 @@ export async function chargeWallet(
     if (!data?.success) throw new Error(data?.error ?? 'Wallet charge failed');
 
     return { newBalance: data.new_balance };
-}
-
-// =============================================
-// TENANT VALIDATION HELPERS
-// =============================================
-
-/**
- * Verify that a user is a member of a tenant.
- * Returns the member's role or null if not a member.
- */
-export async function getUserTenantRole(
-    userId: string,
-    tenantId: string
-): Promise<string | null> {
-    const adminClient = createSupabaseServiceClient();
-    const { data } = await adminClient
-        .from('tenant_members')
-        .select('role')
-        .eq('tenant_id', tenantId)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
-    return data?.role ?? null;
 }

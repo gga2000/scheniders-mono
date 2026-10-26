@@ -23,6 +23,7 @@ import { POST } from "./route";
 /** The caller is an active admin of TENANT; every write succeeds unless overridden. */
 function defaultRespond(call: FakeCall): FakeResult {
     if (call.table === "tenant_members" && call.op === "select") return { data: { role: "admin" } };
+    if (call.table === "user_profiles" && call.op === "select") return { data: { is_active: true } };
     return {};
 }
 
@@ -49,6 +50,18 @@ function profileUpdate() {
 beforeEach(() => {
     respond = defaultRespond;
     fake = fakeServiceClient((call) => respond(call));
+});
+
+describe("POST /api/auth/create-user — caller (F-087)", () => {
+    it("refuses an admin whose profile is deactivated, and creates nothing", async () => {
+        respond = (call) =>
+            call.table === "user_profiles" && call.op === "select"
+                ? { data: { is_active: false } }
+                : defaultRespond(call);
+        const res = await POST(request({ role: "employee" }));
+        expect(res.status).toBe(403);
+        expect(membershipInsert()).toBeUndefined();
+    });
 });
 
 describe("POST /api/auth/create-user — membership role", () => {

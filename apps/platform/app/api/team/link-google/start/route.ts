@@ -1,4 +1,5 @@
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 
@@ -29,10 +30,8 @@ export async function POST(request: Request) {
         const tenantId = inviter?.current_tenant_id;
         if (!tenantId) return NextResponse.json({ error: "No workspace found" }, { status: 400 });
 
-        const { data: adminMembership } = await admin
-            .from("tenant_members").select("role")
-            .eq("user_id", user.id).eq("tenant_id", tenantId).eq("status", "active").single();
-        if (adminMembership?.role !== "admin") {
+        // Admin of that tenant, with an active profile (F-087).
+        if ((await activeTenantRole(user.id, tenantId)) !== "admin") {
             return NextResponse.json({ error: "Admins only" }, { status: 403 });
         }
 

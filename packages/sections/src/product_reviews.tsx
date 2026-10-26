@@ -21,6 +21,11 @@ import { ProductReviewsRender } from "./product_reviews.client";
 const schema = z.object({
   heading_i18n: i18nStringOptional,
   show_form: z.boolean(),
+  /** Opt-in quieter PDP layout: one hairline summary card (big average,
+   *  star bars, «N تقييم»), each review as a quiet card, and the form
+   *  folded behind a modest «اكتب تقييمك» button. Absent means the
+   *  historical layout, byte-identical. */
+  layout: z.enum(["quiet"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

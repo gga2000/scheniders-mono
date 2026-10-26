@@ -12,6 +12,9 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
+// A real shopper, not a draft-view session (that check reads request cookies).
+vi.mock("@/lib/draft-view", () => ({ isDraftViewRequest: vi.fn(async () => false) }));
+vi.mock("@/lib/order-confirmation-queue", () => ({ queueOrderConfirmation: vi.fn() }));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "x-forwarded-for": "203.0.113.7" }),
 }));
@@ -40,7 +43,7 @@ function install(orders: Row[] = []) {
     },
     {
       rpc: {
-        create_order_atomic: () => ({ data: { id: "11111111-1111-4111-8111-111111111111", order_id: "4261020001" }, error: null }),
+        create_storefront_order: () => ({ data: { id: "11111111-1111-4111-8111-111111111111", order_id: "4261020001" }, error: null }),
       },
     },
   );
@@ -65,7 +68,7 @@ describe("submitCheckout rate limit", () => {
     const fake = install();
     const res = await submitCheckout(order);
     expect(res).toMatchObject({ success: false, retryAfterSeconds: 120 });
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(false);
   });
 
   it("checks the request's address and the normalised phone for this tenant", async () => {
@@ -77,7 +80,7 @@ describe("submitCheckout rate limit", () => {
     expect(headers.get("x-forwarded-for")).toBe("203.0.113.7");
     expect(tenantId).toBe(TENANT);
     expect(phone).toBe("07701234567");
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(true);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(true);
   });
 
   it("answers a replay of a placed order without consuming the limit", async () => {

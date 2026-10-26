@@ -37,6 +37,12 @@ const schema = z.object({
    *  through when on sale) beside the primary button, and hide the bar
    *  while the in-page form's own submit button is visible. Default off. */
   show_product_price: z.boolean().optional(),
+  /** With show_product_price: what hides the bar. "submit" (default) =
+   *  while the form's submit button is on screen. "form" = while ANY part
+   *  of the in-page order form is on screen, hidden from first paint — for
+   *  layouts whose form sits on the first screen, where the bar would
+   *  otherwise cover the fields it points to. */
+  hide_while: z.enum(["submit", "form"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

@@ -7,16 +7,23 @@ import {
 } from "next/font/google";
 import "./globals.css";
 
+// All four families are VARIABLE fonts on Google Fonts, so no `weight` list:
+// next/font then requests the variable axis and gets one woff2 per subset that
+// covers every weight. Asking for discrete weights of a variable family makes
+// Google answer with `/l/font?kit=…&skey=…&v=…` URLs instead, and Turbopack's
+// font replacer asserts the query has exactly one entry — the build fails with
+// "next/font/google queries have exactly one entry" (vercel/next.js#99114).
+// Google does not serve that shape on every request, which is why it surfaced
+// as an intermittently red CI and a dev server that 500s on every page.
+
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-bricolage",
   display: "swap",
 });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-dm-sans",
   display: "swap",
 });
@@ -24,12 +31,11 @@ const dmSans = DM_Sans({
 // RC3: the Arabic-first brand face (scheniders_signature sets Cairo x4).
 // Self-hosted through next/font so it is preloaded from our own origin with
 // size-adjusted fallback metrics instead of a render-blocking Google CSS
-// chain (CLS 0.14 on the home page). 800/900 are included because every
-// section heading is `font-black`; the old Google URL capped at 700 and the
-// browser synthesised the rest.
+// chain (CLS 0.14 on the home page). The variable axis runs 200–1000, so the
+// 800/900 every `font-black` section heading uses are real weights, not
+// browser-synthesised ones.
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
-  weight: ["400", "600", "700", "800", "900"],
   variable: "--font-cairo",
   display: "swap",
 });
@@ -41,7 +47,6 @@ const cairo = Cairo({
 // Latin-only stores never download it.
 const notoSansArabic = Noto_Sans_Arabic({
   subsets: ["arabic"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-noto-arabic",
   display: "swap",
 });
