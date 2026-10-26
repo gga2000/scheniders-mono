@@ -5,7 +5,6 @@ import {
   eligiblePostPurchaseOffers,
   postPurchasePrice,
   resolveTierPrice,
-  stackDiscounts,
   type GovernorateCode,
   type OrderBumpOffer,
   type PriceTier,
@@ -66,7 +65,6 @@ interface OwnedOrder {
   lines: Array<{ product_id: string; quantity: number; price: number }>;
   price: number;
   deliveryFee: number;
-  discountAmount: number;
   governorate: string | null;
   version: number;
 }
@@ -89,7 +87,7 @@ function provenTenant(req: Request, orderId: string): string | null {
 async function loadOrder(svc: Svc, orderId: string, tenantId: string): Promise<OwnedOrder | null> {
   const { data: order, error } = await svc
     .from("orders")
-    .select("id, tenant_id, status, items, price, delivery_fee, discount_amount, governorate_code, created_at, version, deleted_at")
+    .select("id, tenant_id, status, items, price, delivery_fee, governorate_code, created_at, version, deleted_at")
     .eq("id", orderId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -110,7 +108,6 @@ async function loadOrder(svc: Svc, orderId: string, tenantId: string): Promise<O
     lines,
     price: Number(order.price) || 0,
     deliveryFee: Number(order.delivery_fee) || 0,
-    discountAmount: Number(order.discount_amount) || 0,
     governorate: order.governorate_code,
     version: order.version,
   };
@@ -224,18 +221,21 @@ async function loadOffers(svc: Svc, order: OwnedOrder): Promise<PricedOffer[]> {
   });
 }
 
-/** What the courier collects: line subtotal, less discounts, plus delivery —
- *  the same sum the checkout returns as `total`. */
-/** The stored discount is capped at the line subtotal, the same arithmetic the
- *  checkout uses (`stackDiscounts`), so a total is never below delivery. */
-const orderTotal = (price: number, discount: number, delivery: number) =>
-  price - stackDiscounts(price, [discount]).total + delivery;
+/** What the courier collects — the same sum the checkout returns as `total`.
+ *  `price` is stored net of the discount (apps/platform/lib/order-money.ts),
+ *  so this is price + delivery. */
+const orderTotal = (price: number, delivery: number) => price + delivery;
+
+/** The line subtotal before any discount: what the delivery engine reads at
+ *  checkout (its free-delivery threshold is on the pre-discount subtotal). */
+const lineSubtotal = (lines: OwnedOrder["lines"]) =>
+  lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
 
 const alreadyAdded = (order: OwnedOrder) =>
   NextResponse.json({
     success: true,
     already_added: true,
-    total: orderTotal(order.price, order.discountAmount, order.deliveryFee),
+    total: orderTotal(order.price, order.deliveryFee),
   });
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -302,6 +302,8 @@ export async function POST(req: Request, { params }: Ctx): Promise<NextResponse>
       price: offer.offer_price,
       quantity: 1,
     };
+    // The add-on carries no share of the order's discount, so it adds its
+    // full offer price to the (already net) `price`.
     const newPrice = order.price + offer.offer_price;
 
     // Delivery is the shared engine's call, exactly as at checkout: a basket
@@ -311,10 +313,11 @@ export async function POST(req: Request, { params }: Ctx): Promise<NextResponse>
     const shipping = tenant.store_config_v2?.commerce?.shipping;
     const governorate = order.governorate as GovernorateCode | null;
     const paidCount = order.lines.reduce((n, l) => n + l.quantity, 0);
-    const engineFee = computeDeliveryFee(order.price, paidCount, { shipping, governorate });
+    const subtotalBefore = lineSubtotal(order.lines);
+    const engineFee = computeDeliveryFee(subtotalBefore, paidCount, { shipping, governorate });
     const newDeliveryFee =
       order.deliveryFee === engineFee
-        ? computeDeliveryFee(newPrice, paidCount + 1, { shipping, governorate })
+        ? computeDeliveryFee(subtotalBefore + offer.offer_price, paidCount + 1, { shipping, governorate })
         : order.deliveryFee;
 
     // Optimistic on `version`, which a BEFORE UPDATE trigger bumps on every
@@ -330,7 +333,7 @@ export async function POST(req: Request, { params }: Ctx): Promise<NextResponse>
       .eq("tenant_id", order.tenantId)
       .eq("version", order.version)
       .eq("status", "new")
-      .select("price, delivery_fee, discount_amount")
+      .select("price, delivery_fee")
       .maybeSingle();
     if (updateErr) {
       console.error("[upsell] POST update failed", updateErr.message);
@@ -347,11 +350,7 @@ export async function POST(req: Request, { params }: Ctx): Promise<NextResponse>
     return NextResponse.json({
       success: true,
       offer_price: offer.offer_price,
-      total: orderTotal(
-        Number(updated.price) || 0,
-        Number(updated.discount_amount) || 0,
-        Number(updated.delivery_fee) || 0,
-      ),
+      total: orderTotal(Number(updated.price) || 0, Number(updated.delivery_fee) || 0),
     });
   } catch (e) {
     if (!(e instanceof UpsellReadError || e instanceof VariantReadError)) throw e;

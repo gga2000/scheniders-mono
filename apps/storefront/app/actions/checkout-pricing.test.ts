@@ -418,7 +418,8 @@ describe("P2-3: an idempotent replay has no side effects", () => {
           order_id: "SH-0007",
           tenant_id: TENANT,
           idempotency_key: KEY,
-          price: 35000,
+          // Stored net of the discount: 35,000 of lines less 2,000.
+          price: 33000,
           discount_amount: 2000,
           delivery_fee: 5000,
         },
@@ -454,7 +455,7 @@ describe("P2-3: an idempotent replay has no side effects", () => {
     const fake = createFakeSupabase(loyaltyTables(), {
       rpc: {
         create_storefront_order: () => ({
-          data: { id: EXISTING, order_id: "SH-0007", price: 35000, discount_amount: 2000, delivery_fee: 5000, idempotent_replay: true },
+          data: { id: EXISTING, order_id: "SH-0007", price: 33000, discount_amount: 2000, delivery_fee: 5000, idempotent_replay: true },
           error: null,
         }),
       },
