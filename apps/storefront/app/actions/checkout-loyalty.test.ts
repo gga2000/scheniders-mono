@@ -152,9 +152,9 @@ describe("loyalty at checkout", () => {
     });
     expect(pointsCalls(fake)).toEqual([["redeem", -3000]]);
     expect(placedOrder(fake)?.discount_amount).toBe(3000);
-    // `price` stays the line subtotal before discounts (main's storefront
-    // convention, which the WhatsApp {{7}} total relies on).
-    expect(placedOrder(fake)?.price).toBe(35000);
+    // `price` is stored net of the discount, as every other source stores it
+    // (apps/platform/lib/order-money.ts): the courier collects price + delivery.
+    expect(placedOrder(fake)?.price).toBe(35000 - 3000);
     expect(res.total).toBe(35000 - 3000 + 5000);
   });
 

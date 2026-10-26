@@ -86,16 +86,15 @@ function replayResult(row: {
   id: string;
   order_id: string | null;
   price: number | null;
-  discount_amount: number | null;
   delivery_fee: number | null;
 }): SubmitCheckoutResult {
-  const price = Number(row.price) || 0;
-  const discount = stackDiscounts(price, [Number(row.discount_amount) || 0]).total;
+  // `price` is stored net of the discount, so the courier collects
+  // price + delivery (apps/platform/lib/order-money.ts computeCodAmount).
   return {
     success: true,
     orderId: row.id,
     orderNumber: row.order_id ?? undefined,
-    total: price - discount + (Number(row.delivery_fee) || 0),
+    total: (Number(row.price) || 0) + (Number(row.delivery_fee) || 0),
     replayed: true,
   };
 }
@@ -230,7 +229,7 @@ export async function submitCheckout(
   if (payload.idempotencyKey) {
     const { data: existing, error: existingErr } = await supabase
       .from("orders")
-      .select("id, order_id, price, discount_amount, delivery_fee")
+      .select("id, order_id, price, delivery_fee")
       .eq("tenant_id", payload.tenantId)
       .eq("idempotency_key", payload.idempotencyKey)
       .maybeSingle();
@@ -634,8 +633,11 @@ export async function submitCheckout(
   const risk = riskErr ? null : stampCodRisk(riskVerdict);
 
   // Build the order payload in the shape create_order_atomic expects.
-  // Convention (see waseet-api): `price` is the line-item subtotal and the
-  // courier collects `price + delivery_fee`.
+  // Convention (apps/platform/lib/order-money.ts): `price` is the line-item
+  // subtotal with the discount already taken off, `discount_amount` records
+  // that discount, and the courier collects `price + delivery_fee`. Every
+  // other source already stores it this way; a gross `price` here made the
+  // courier collect the discount back from the shopper.
   const orderData = {
     customer_name: payload.customer.customer_name.trim(),
     phone,
@@ -662,7 +664,7 @@ export async function submitCheckout(
         quantity: i.quantity,
       };
     }),
-    price: subtotal,
+    price: subtotal - discountAmount,
     delivery_fee: deliveryFee,
     discount_amount: discountAmount,
     status: "new",
@@ -740,7 +742,6 @@ export async function submitCheckout(
       id: orderId,
       order_id: typeof orderRow.order_id === "string" ? orderRow.order_id : null,
       price: Number(orderRow.price),
-      discount_amount: Number(orderRow.discount_amount),
       delivery_fee: Number(orderRow.delivery_fee),
     });
   }

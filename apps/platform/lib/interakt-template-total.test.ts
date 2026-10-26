@@ -5,14 +5,13 @@ import type { Order } from "@/types/order";
  * {{7}} on cod_order_confirm (and on the staff new-order alert) quotes what
  * the courier will collect.
  *
- * Storefront checkout records `price` as the line subtotal BEFORE discounts,
- * with discount_amount and delivery_fee beside it
+ * Every source stores `price` net of the discount (lib/order-money). A
+ * storefront order also records its delivery_fee at checkout
  * (apps/storefront/app/actions/checkout.ts), so its collectible amount is
- * price - discount_amount + delivery_fee.
+ * price + delivery_fee; discount_amount is only a record and is never
+ * subtracted again.
  *
- * Every other source keeps quoting `price` byte-for-byte: those rows follow
- * lib/order-money's convention (`price` already net of the discount), so
- * subtracting the discount again would under-quote them.
+ * Every other source keeps quoting `price` byte-for-byte.
  */
 
 vi.mock("@/lib/env", () => ({ env: { INTERAKT_API_KEY: "test-key" } }));
@@ -59,10 +58,10 @@ function sentTotal(): string {
     return body.template.bodyValues[6];
 }
 
-describe("{{7}} on storefront orders: price - discount + delivery", () => {
-    it("confirmation quotes the discounted subtotal plus delivery", async () => {
+describe("{{7}} on storefront orders: price (net) + delivery", () => {
+    it("confirmation quotes the net price plus delivery, without taking the discount off again", async () => {
         await sendTemplateMessage(
-            order({ source: "storefront", price: 40000, discount_amount: 4000, delivery_fee: 5000 }),
+            order({ source: "storefront", price: 36000, discount_amount: 4000, delivery_fee: 5000 }),
             "confirmation",
         );
         expect(sentTotal()).toBe("IQD 41,000");
@@ -76,7 +75,7 @@ describe("{{7}} on storefront orders: price - discount + delivery", () => {
         expect(sentTotal()).toBe("IQD 40,000");
     });
 
-    it("confirmation treats a missing discount and fee as zero", async () => {
+    it("confirmation treats a missing fee as zero", async () => {
         await sendTemplateMessage(
             order({ source: "storefront", price: 35000, discount_amount: null, delivery_fee: null }),
             "confirmation",
@@ -86,7 +85,7 @@ describe("{{7}} on storefront orders: price - discount + delivery", () => {
 
     it("the staff alert quotes the same amount", async () => {
         await sendStaffAlertMessage(
-            order({ source: "storefront", price: 40000, discount_amount: 4000, delivery_fee: 5000 }),
+            order({ source: "storefront", price: 36000, discount_amount: 4000, delivery_fee: 5000 }),
             "07801234567",
         );
         expect(sentTotal()).toBe("IQD 41,000");

@@ -161,7 +161,8 @@ describe("referral at checkout", () => {
     const res = await submitCheckout({ tenantId: TENANT, customer, items, referralCode: "AB3K7M" });
     expect(res.success).toBe(true);
     expect(recorded(fake)?.discount_amount).toBe(35000);
-    expect(recorded(fake)?.price).toBe(35000);
+    // Stored net of the discount: the lines are free, the courier collects delivery.
+    expect(recorded(fake)?.price).toBe(0);
     expect(res.total).toBe(5000);
   });
 
@@ -195,7 +196,7 @@ describe("referral at checkout", () => {
     const fake = install(
       tables({}, {
         orders: [
-          { id: ORDER, order_id: "SH-0001", tenant_id: TENANT, idempotency_key: "replay-k-0001", price: 35000, discount_amount: 3500, delivery_fee: 5000 },
+          { id: ORDER, order_id: "SH-0001", tenant_id: TENANT, idempotency_key: "replay-k-0001", price: 31500, discount_amount: 3500, delivery_fee: 5000 },
         ],
       }),
     );
@@ -210,7 +211,7 @@ describe("referral at checkout", () => {
       rpc: {
         referral_check: () => ({ data: [{ ok: true, reason: "ok", referrer_phone: REFERRER }], error: null }),
         create_storefront_order: () => ({
-          data: { id: ORDER, order_id: "SH-0001", price: 35000, discount_amount: 3500, delivery_fee: 5000, idempotent_replay: true },
+          data: { id: ORDER, order_id: "SH-0001", price: 31500, discount_amount: 3500, delivery_fee: 5000, idempotent_replay: true },
           error: null,
         }),
       },
