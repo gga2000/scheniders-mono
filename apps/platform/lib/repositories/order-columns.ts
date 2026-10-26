@@ -138,6 +138,12 @@ export function pickOrderWriteColumns(row: Record<string, unknown>): Record<stri
 }
 
 /**
+ * Order rows per restoreOrdersAction call. Server Action bodies are capped at
+ * 1 MB, so the backup and vault restores send their orders in batches.
+ */
+export const RESTORE_ORDERS_BATCH_SIZE = 200;
+
+/**
  * Minimal column set for list/table/card views, read from `public.orders`.
  * Excludes detail-only fields to reduce payload size by ~25%.
  * findById still fetches all columns (*) from the view for the detail modal.

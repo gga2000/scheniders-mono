@@ -28,6 +28,7 @@ import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
 import { isTransientDbError } from "@/lib/transient-db-error";
 import { DUPLICATE_ORDER_WINDOW_MINUTES, isDuplicateGuardRow } from "@/lib/order-duplicate-guard";
 import { queueOrderConfirmation } from "@/lib/order-confirmation-queue";
+import { checkoutRateLimited } from "@/lib/checkout-rate-limit";
 import { submitCheckoutPayloadSchema, type SubmitCheckoutPayload } from "@/lib/checkout-payload";
 import { clientIp } from "@/lib/rate-limit";
 import { verifyLoyaltyProof } from "@/lib/loyalty-proof";
@@ -63,6 +64,8 @@ interface SubmitCheckoutResult {
    *  page's post-purchase offer (see lib/order-upsell-proof). Only the
    *  response that created the order carries it. */
   upsellToken?: string;
+  /** Set when the checkout rate limit refused the order (seconds to wait). */
+  retryAfterSeconds?: number;
   /** EC17: this answers an order the same idempotency key already placed, so
    *  callers must not record its side effects (funnel purchase) again. */
   replayed?: boolean;
@@ -236,6 +239,18 @@ export async function submitCheckout(
       return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى.", retryable: isTransientDbError(existingErr) };
     }
     if (existing) return replayResult(existing);
+  }
+
+  // F-041: a public endpoint where every call is a real COD order, so it is
+  // capped per IP and per phone (lib/checkout-rate-limit). Placed after the
+  // replay answer, so a shopper's retry of a placed order is never refused.
+  const retryAfterSeconds = await checkoutRateLimited(await headers(), payload.tenantId, phone);
+  if (retryAfterSeconds !== null) {
+    return {
+      success: false,
+      error: "طلبات كثيرة خلال وقت قصير. حاول مرة أخرى بعد قليل.",
+      retryAfterSeconds,
+    };
   }
 
   // Re-fetch canonical prices from the DB — never trust client-supplied amounts.

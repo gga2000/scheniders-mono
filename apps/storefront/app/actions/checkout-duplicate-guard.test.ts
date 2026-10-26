@@ -28,6 +28,8 @@ vi.mock("next/headers", () => ({
 }));
 // Piece 1's instant WhatsApp confirmation: queued for a new order only.
 vi.mock("@/lib/order-confirmation-queue", () => ({ queueOrderConfirmation: vi.fn() }));
+// The checkout rate limit has its own suite (checkout-rate-limit.test.ts).
+vi.mock("@/lib/checkout-rate-limit", () => ({ checkoutRateLimited: async () => null }));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";

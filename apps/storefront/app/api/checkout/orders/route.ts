@@ -213,6 +213,12 @@ export async function POST(req: Request): Promise<NextResponse> {
       });
       return res;
     }
+    if (result.retryAfterSeconds !== undefined) {
+      return NextResponse.json(result, {
+        status: 429,
+        headers: { "Retry-After": String(result.retryAfterSeconds) },
+      });
+    }
     // A platform failure (the database did not answer) is not the order's
     // fault: 503 tells the client the same request — same idempotency key —
     // may be sent again. Everything else, including line `issues` and the

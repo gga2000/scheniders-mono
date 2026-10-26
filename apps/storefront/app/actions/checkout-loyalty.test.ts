@@ -27,6 +27,8 @@ vi.mock("next/headers", () => ({
 vi.mock("@/lib/draft-view", () => ({
   isDraftViewRequest: vi.fn(async () => false),
 }));
+// The checkout rate limit has its own suite (checkout-rate-limit.test.ts).
+vi.mock("@/lib/checkout-rate-limit", () => ({ checkoutRateLimited: async () => null }));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";

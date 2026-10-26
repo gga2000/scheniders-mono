@@ -12,12 +12,23 @@ import { queriesOn, resetRecording, respond } from "@/lib/__fixtures__/recording
  * send only ORDER_READ_COLUMNS keys.
  */
 
-vi.mock("@/lib/supabase", async () =>
-    (await import("@/lib/__fixtures__/recording-supabase")).recordingSupabaseModule());
+vi.mock("@/lib/supabase", async () => {
+    const { recordingSupabase } = await import("@/lib/__fixtures__/recording-supabase");
+    return {
+        supabase: {
+            ...recordingSupabase,
+            auth: { getSession: async () => ({ data: { session: { access_token: "token" } } }) },
+        },
+    };
+});
+// Browsers cannot insert orders (trg_orders_order_id_server_only): both
+// restores hand their order rows to this Server Action.
+vi.mock("@/app/actions/orders", () => ({ restoreOrdersAction: vi.fn() }));
 
 import { restoreFromSnapshot, type DatabaseSnapshot } from "./backup-utils";
 import { executeVaultRestore, type VaultData } from "./vault-utils";
-import { ORDER_MARGIN_COLUMNS } from "./repositories/order-columns";
+import { ORDER_MARGIN_COLUMNS, RESTORE_ORDERS_BATCH_SIZE } from "./repositories/order-columns";
+import { restoreOrdersAction } from "@/app/actions/orders";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 
@@ -39,23 +50,24 @@ function legacyOrderRow(id: string): Record<string, unknown> {
     };
 }
 
-function upsertedOrderRows(): Record<string, unknown>[] {
-    const upserts = queriesOn("orders").flatMap((q) => q.ops.filter((o) => o.op === "upsert"));
-    expect(upserts).toHaveLength(1);
-    const rows = upserts[0].args[0];
-    if (!Array.isArray(rows)) throw new Error("orders upsert payload is not an array");
-    return rows as Record<string, unknown>[];
+/** The order rows sent to restoreOrdersAction, all batches in order. */
+function restoredOrderRows(): Record<string, unknown>[] {
+    const calls = vi.mocked(restoreOrdersAction).mock.calls;
+    for (const [, token] of calls) expect(token).toBe("token");
+    return calls.flatMap(([rows]) => rows as Record<string, unknown>[]);
 }
 
 beforeEach(() => {
     resetRecording();
+    vi.mocked(restoreOrdersAction).mockReset();
+    vi.mocked(restoreOrdersAction).mockImplementation(async (rows) => ({ success: true, restored: (rows as unknown[]).length }));
     respond((q) => (q.kind === "rpc" && q.target === "get_current_tenant_id"
         ? { data: TENANT, error: null }
         : { data: null, error: null }));
 });
 
 describe("restoreFromSnapshot", () => {
-    it("upserts orders without the margin columns", async () => {
+    it("sends orders to the server without the margin columns", async () => {
         const snapshot: DatabaseSnapshot = {
             version: 1,
             timestamp: "2026-10-01T00:00:00.000Z",
@@ -68,18 +80,53 @@ describe("restoreFromSnapshot", () => {
 
         await expect(restoreFromSnapshot(snapshot)).resolves.toEqual({ success: true });
 
-        const rows = upsertedOrderRows();
+        const rows = restoredOrderRows();
         expect(rows.map((r) => r.id)).toEqual(["o1", "o2"]);
         for (const row of rows) {
             for (const col of ORDER_MARGIN_COLUMNS) expect(row).not.toHaveProperty(col);
             expect(row).not.toHaveProperty("risk_data");
             expect(row).toMatchObject({ order_id: "1001", customer_name: "Ali", status: "new", price: 25000, tenant_id: TENANT });
         }
+        expect(queriesOn("orders")).toHaveLength(0);
+    });
+
+    it("sends a large book in Server Action sized batches", async () => {
+        const total = RESTORE_ORDERS_BATCH_SIZE * 2 + 1;
+        const snapshot: DatabaseSnapshot = {
+            version: 1,
+            timestamp: "2026-10-01T00:00:00.000Z",
+            source: "admin_dashboard",
+            data: {
+                orders: Array.from({ length: total }, (_, i) => legacyOrderRow(`o${i}`)),
+                customers: { metadata: [], notes: [], tags: [], assignments: [] },
+            },
+        };
+
+        await expect(restoreFromSnapshot(snapshot)).resolves.toEqual({ success: true });
+
+        const sizes = vi.mocked(restoreOrdersAction).mock.calls.map(([rows]) => (rows as unknown[]).length);
+        expect(sizes).toEqual([RESTORE_ORDERS_BATCH_SIZE, RESTORE_ORDERS_BATCH_SIZE, 1]);
+        expect(restoredOrderRows()).toHaveLength(total);
+    });
+
+    it("reports the server's refusal", async () => {
+        vi.mocked(restoreOrdersAction).mockResolvedValue({ success: false, error: "1 order(s) in this backup belong to another store" });
+        const snapshot: DatabaseSnapshot = {
+            version: 1,
+            timestamp: "2026-10-01T00:00:00.000Z",
+            source: "admin_dashboard",
+            data: { orders: [legacyOrderRow("o1")], customers: { metadata: [], notes: [], tags: [], assignments: [] } },
+        };
+
+        await expect(restoreFromSnapshot(snapshot)).resolves.toEqual({
+            success: false,
+            error: "1 order(s) in this backup belong to another store",
+        });
     });
 });
 
 describe("executeVaultRestore", () => {
-    it("upserts orders without the margin columns", async () => {
+    it("sends orders to the server without the margin columns", async () => {
         const vault: VaultData = {
             metadata: { version: "1", timestamp: "2026-10-01T00:00:00.000Z", counts: { orders: 1, products: 0, customers: 0 } },
             data: { orders: [legacyOrderRow("o1")], products: [], customers: [] },
@@ -87,7 +134,7 @@ describe("executeVaultRestore", () => {
 
         await executeVaultRestore(vault);
 
-        const rows = upsertedOrderRows();
+        const rows = restoredOrderRows();
         expect(rows).toHaveLength(1);
         for (const col of ORDER_MARGIN_COLUMNS) expect(rows[0]).not.toHaveProperty(col);
         expect(rows[0]).not.toHaveProperty("risk_data");
