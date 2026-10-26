@@ -145,6 +145,20 @@ export default function OrdersPage() {
             return next;
         });
     }, []);
+    // Ad-channel chips — hidden by default, toggled from the search bar like the
+    // sub-filters above. Per-device pref.
+    const [showAdChannels, setShowAdChannels] = useState(false);
+    useEffect(() => {
+        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowAdChannels") : null;
+        if (stored !== null) setShowAdChannels(stored === "true");
+    }, []);
+    const toggleAdChannels = useCallback(() => {
+        setShowAdChannels((v) => {
+            const next = !v;
+            localStorage.setItem("ordersShowAdChannels", String(next));
+            return next;
+        });
+    }, []);
     // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
     // Per-device pref, mirrors the sub-filters pattern above.
     const [showPipeline, setShowPipeline] = useState(false);
@@ -1685,6 +1699,8 @@ export default function OrdersPage() {
                                                 riskCountHidden={!countVis.riskBadge}
                                                 showSubFilters={showSubFilters}
                                                 toggleSubFilters={toggleSubFilters}
+                                                showAdChannels={showAdChannels}
+                                                toggleAdChannels={toggleAdChannels}
                                                 onOpenScanner={() => setIsScannerOpen(true)}
                                             />
 
