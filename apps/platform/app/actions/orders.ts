@@ -193,7 +193,7 @@ export async function restoreOrdersAction(
     const now = new Date();
     const writes: Record<string, unknown>[] = [];
     for (const row of parsed.data) {
-        const write = { ...pickOrderWriteColumns(row), tenant_id: tenantId };
+        const write: Record<string, unknown> = { ...pickOrderWriteColumns(row), tenant_id: tenantId };
         const current = existingById.get(row.id);
         if (current) {
             write.order_id = current.order_id;
