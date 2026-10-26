@@ -13,6 +13,18 @@ export function isSystemOrderNumber(value: string): boolean {
     return SYSTEM_ORDER_NUMBER.test(value.trim());
 }
 
+/**
+ * True for a generator-format number dated before `now`'s UTC day (the
+ * database's current_date). The counter only hands out numbers for today, so
+ * an earlier day's number can be restored without taking one from any tenant.
+ */
+export function isPastDaySystemOrderNumber(value: string, now: Date = new Date()): boolean {
+    const trimmed = value.trim();
+    if (!isSystemOrderNumber(trimmed)) return false;
+    const today = now.toISOString().slice(2, 10).replace(/-/g, "");
+    return trimmed.slice(1, 7) < today;
+}
+
 /** A number a merchant may type for an order (the order-number edit). */
 export const merchantOrderNumberSchema = z
     .string()

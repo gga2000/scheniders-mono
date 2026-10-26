@@ -7,8 +7,8 @@ import { canCreateOrder } from "@/lib/tenant";
 import { createOrderForTenant } from "@/lib/order-service";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
-import { isSystemOrderNumber, merchantOrderNumberSchema } from "@/lib/order-number";
-import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { isPastDaySystemOrderNumber, isSystemOrderNumber, merchantOrderNumberSchema } from "@/lib/order-number";
+import { ORDER_READ_COLUMNS, RESTORE_ORDERS_BATCH_SIZE, pickOrderWriteColumns } from "@/lib/repositories/order-columns";
 import { z } from "zod";
 
 // =============================================
@@ -134,6 +134,86 @@ export async function renameOrderNumberAction(
     }
     if (!data) return { success: false, error: "Order not found" };
     return { success: true, data: data as Order };
+}
+
+// =============================================
+// RESTORE ORDERS FROM A BACKUP
+// =============================================
+
+const restoreOrdersInput = z
+    .array(z.looseObject({ id: z.string().uuid() }))
+    .min(1)
+    .max(RESTORE_ORDERS_BATCH_SIZE);
+
+/**
+ * Upsert order rows from a snapshot or vault file into the caller's tenant.
+ *
+ * Browsers cannot insert orders (trg_orders_order_id_server_only), so the
+ * restore runs here with the service role, which skips RLS. That makes these
+ * checks the only tenant boundary:
+ * - every row is written with the caller's tenant_id, whatever the file says;
+ * - a batch holding an id that belongs to another tenant is refused whole, or
+ *   the upsert would overwrite that tenant's order;
+ * - an order that still exists keeps its current number (numbers change only
+ *   through renameOrderNumberAction);
+ * - a new row may carry a generator-format number only from an earlier day,
+ *   so a file cannot take today's numbers from other tenants.
+ */
+export async function restoreOrdersAction(
+    rows: unknown,
+    accessToken: string,
+): Promise<{ success: boolean; restored?: number; error?: string }> {
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+
+    const { tenantId, role } = resolved.caller;
+    if (!ORDER_WRITE_ROLES.includes(role)) {
+        return { success: false, error: "You do not have permission to restore orders" };
+    }
+
+    const parsed = restoreOrdersInput.safeParse(rows);
+    if (!parsed.success) {
+        return { success: false, error: "The backup's orders are not in the expected format" };
+    }
+
+    const supabase = createSupabaseServiceClient();
+    const ids = parsed.data.map((row) => row.id);
+    const { data: existing, error: existingError } = await supabase
+        .from("orders")
+        .select("id, tenant_id, order_id")
+        .in("id", ids);
+    if (existingError) return { success: false, error: existingError.message };
+
+    const existingById = new Map((existing ?? []).map((row) => [row.id, row]));
+    const foreign = (existing ?? []).filter((row) => row.tenant_id !== tenantId).length;
+    if (foreign > 0) {
+        return { success: false, error: `${foreign} order(s) in this backup belong to another store` };
+    }
+
+    const now = new Date();
+    const writes: Record<string, unknown>[] = [];
+    for (const row of parsed.data) {
+        const write = { ...pickOrderWriteColumns(row), tenant_id: tenantId };
+        const current = existingById.get(row.id);
+        if (current) {
+            write.order_id = current.order_id;
+        } else if (
+            typeof write.order_id === "string"
+            && isSystemOrderNumber(write.order_id)
+            && !isPastDaySystemOrderNumber(write.order_id, now)
+        ) {
+            return { success: false, error: `Order number ${write.order_id} is assigned by the system and cannot be restored` };
+        }
+        writes.push(write);
+    }
+
+    const { error } = await supabase.from("orders").upsert(writes, { onConflict: "id" });
+    if (error) {
+        // orders_order_id_key is global: the number may belong to any tenant.
+        if (error.code === "23505") return { success: false, error: "An order number in this backup is already in use" };
+        return { success: false, error: error.message };
+    }
+    return { success: true, restored: writes.length };
 }
 
 // =============================================
