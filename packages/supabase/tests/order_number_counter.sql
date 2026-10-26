@@ -2,7 +2,7 @@
 -- Order-number counter, order_id write guard and per-tenant lock (F-040, F-041)
 -- =============================================================================
 --
--- WHAT THIS PROVES (after 20261022100000_order_number_counter.sql is applied)
+-- WHAT THIS PROVES (after 20261026142859_order_number_counter.sql is applied)
 --   F-040 — nobody outside the server can steer the order-number generator:
 --     * a tenant member cannot INSERT an order row (so cannot plant
 --       '4<YYMMDD>99999999999'), cannot UPDATE an own order's order_id, and
@@ -25,7 +25,7 @@
 --     * storefront checkout (create_storefront_order) locks per tenant: another
 --       tenant's checkout does not wait, a second same-tenant checkout does
 --       and is answered as a duplicate.
---   PKG-02 (after 20261022100100_create_order_atomic_require_tenant.sql) —
+--   PKG-02 (after 20261026142948_create_order_atomic_require_tenant.sql) —
 --   every order has a tenant:
 --     * create_order_atomic with a NULL tenant is refused for the server too,
 --       writes nothing and cannot replay another tenant's idempotency key;
@@ -43,14 +43,14 @@
 --
 --   createdb f040
 --   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/tests/fixtures/order_number_counter_fixture.sql
---   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261022100000_order_number_counter.sql
---   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261022100100_create_order_atomic_require_tenant.sql
+--   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261026142859_order_number_counter.sql
+--   psql -d f040 -v ON_ERROR_STOP=1 -f packages/supabase/migrations/20261026142948_create_order_atomic_require_tenant.sql
 --   psql -d f040 -v ON_ERROR_STOP=1 -v connstr="host=... port=... dbname=f040 user=postgres" \
 --        -f packages/supabase/tests/order_number_counter.sql
 --
 -- Result: one row, 'ALL ASSERTIONS PASSED' or 'FAILED: ' plus each failing
 -- check. Against the pre-migration function every F-040/F-041 check fails;
--- with only 20261022100000 applied, the PKG-02 checks (C1, C2b, C3, C5b) fail.
+-- with only 20261026142859 applied, the PKG-02 checks (C1, C2b, C3, C5b) fail.
 --
 -- MIGRATIONS
 --   Both files carry short headers; their full notes follow. Rewritten on
@@ -59,14 +59,14 @@
 --   and create_order_atomic(jsonb) plus the 2-arg form's DEFAULT NULL are
 --   kept instead of dropped. Both are harmless now: every NULL tenant is
 --   refused (22023) whatever the caller, and a one-argument call is
---   ambiguous by name. Also new: section 6 of 20261022100000 moves
+--   ambiguous by name. Also new: section 6 of 20261026142859 moves
 --   create_storefront_order (main's 20261021142000) from the global
 --   'create_order_lock' to create_order_atomic's per-tenant lock, so the
 --   storefront duplicate guard no longer serialises every store's checkout.
 --   Notes below that say 'drops' or 'no default' describe the first draft;
 --   ROLLBACK for the kept overload and default is: nothing to restore.
 --
---   ---- 20261022100000_order_number_counter ----
+--   ---- 20261026142859_order_number_counter ----
 --   Order numbers from a counter no tenant can steer; no global order lock
 --   Fixes F-040 (P0) and the database half of F-041 (P1) — audit-final/FINDINGS.md
 --
@@ -149,9 +149,9 @@
 --     DROP SEQUENCE public.order_number_seq_1, public.order_number_seq_2,
 --                   public.order_number_seq_3, public.order_number_seq_4;
 --
---   ---- 20261022100100_create_order_atomic_require_tenant ----
+--   ---- 20261026142948_create_order_atomic_require_tenant ----
 --   create_order_atomic requires a tenant; orders.tenant_id is NOT NULL
---   Fixes the PKG-02 review finding on F-040/F-041 (20261022100000_order_number_counter)
+--   Fixes the PKG-02 review finding on F-040/F-041 (20261026142859_order_number_counter)
 --
 --   WHAT WAS WRONG (live, 2026-10-20)
 --     * create_order_atomic(jsonb, uuid) declared `_tenant_id uuid DEFAULT NULL`
@@ -177,7 +177,7 @@
 --        transaction) and raises 22023 when _tenant_id is NULL, for every
 --        caller including the service role. The tenant filters lose their
 --        `_tenant_id IS NULL OR` escape. Otherwise the body is
---        20261022100000's, unchanged (including mask_order_margin on every
+--        20261026142859's, unchanged (including mask_order_margin on every
 --        returned order, see that file). Grants restated (authenticated,
 --        service_role).
 --     4. split_order_atomic(uuid,jsonb,jsonb,uuid) — live body, one change: the
@@ -185,13 +185,13 @@
 --        (_original_order.tenant_id, now NOT NULL; equal to _tenant_id whenever
 --        one is given, since the original is looked up under it).
 --
---   APPLY ORDER: after 20261022100000_order_number_counter.sql (its body is the
+--   APPLY ORDER: after 20261026142859_order_number_counter.sql (its body is the
 --     base here), in the same deploy. App code needs no change: every caller
 --     already passes a tenant.
 --
 --   ROLLBACK
 --     ALTER TABLE public.orders ALTER COLUMN tenant_id DROP NOT NULL;
---     Re-apply section 4 of 20261022100000_order_number_counter.sql after
+--     Re-apply section 4 of 20261026142859_order_number_counter.sql after
 --     DROP FUNCTION public.create_order_atomic(jsonb, uuid) (restores the
 --     default), re-create create_order_atomic(jsonb) from the live-history
 --     definition (delegates with NULL::uuid; service role only), and re-apply
