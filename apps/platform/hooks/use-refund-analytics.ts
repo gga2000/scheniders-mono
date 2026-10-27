@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { Order } from "@/lib/supabase";
 import { normalizeGovernorate, governorateLabel } from "@/lib/governorate-normalize";
+import { refundPaidAt } from "@/lib/refunds/refund-reporting";
 
 export interface RefundReasonRow {
     reason: string;
@@ -125,8 +126,13 @@ export function useRefundAnalytics(
             // Treat refund magnitude as positive throughout analytics so charts,
             // sums and "has data" checks work correctly.
             const value = Math.abs(o.price || 0);
-            totalValue += value;
-            totalCount++;
+            // Refunded money counts once it reached the customer; open and
+            // failed refunds are counted on their own below.
+            const paid = o.status === "refund_delivered";
+            if (paid) {
+                totalValue += value;
+                totalCount++;
+            }
 
             if (o.status === "return_pending") {
                 pendingReturns++;
@@ -136,13 +142,15 @@ export function useRefundAnalytics(
                 failedReturns++;
             }
 
-            // Daily aggregation
-            const refDate = new Date(o.updated_at || o.created_at);
-            const dateKey = refDate.toISOString().split("T")[0];
-            const day = dailyMap.get(dateKey) || { value: 0, count: 0 };
-            day.value += value;
-            day.count += 1;
-            dailyMap.set(dateKey, day);
+            // Daily aggregation, on the day the customer was paid
+            const paidAt = refundPaidAt(o);
+            if (paidAt) {
+                const dateKey = paidAt.toISOString().split("T")[0];
+                const day = dailyMap.get(dateKey) || { value: 0, count: 0 };
+                day.value += value;
+                day.count += 1;
+                dailyMap.set(dateKey, day);
+            }
 
             // Reason aggregation — prefer short categorical reasons; fall back to a
             // truncated first line of notes so the UI doesn't render a paragraph.
@@ -206,7 +214,7 @@ export function useRefundAnalytics(
                 ) {
                     totalShippedPrev++;
                 }
-                if (!isRefund(o)) continue;
+                if (!isRefund(o) || o.status !== "refund_delivered") continue;
                 valuePrev += Math.abs(o.price || 0);
                 countPrev++;
             }
