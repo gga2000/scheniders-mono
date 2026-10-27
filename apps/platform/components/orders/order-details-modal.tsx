@@ -31,6 +31,7 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 import { OrderNotes } from "./order-notes";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
+import { AbandonedCartBadge } from "./abandoned-cart-badge";
 import { SplitOrderDialog } from "./split-order-dialog";
 import { CreateOrderModal } from "./create-order-modal";
 import type { CreateOrderModalInitialData } from "@/components/orders/create-order-modal";
@@ -621,6 +622,7 @@ export function OrderDetailsModal({
                                             </button>
                                         )}
                                     </div>
+                                    <AbandonedCartBadge order={order} withDetail className="text-[10px] px-2 py-1" />
                                     {/* Status Badge with Dropdown */}
                                     <div className="relative">
                                         <button

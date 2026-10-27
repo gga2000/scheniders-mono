@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Layers, ChevronDown, ShieldCheck, Copy, CalendarClock, Package, Check, X, RotateCcw, Repeat } from "lucide-react";
+import { Filter, Layers, ChevronDown, ShieldCheck, Copy, CalendarClock, Package, Check, X, RotateCcw, Repeat, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
@@ -22,7 +22,7 @@ interface FilterState {
     priority?: OrderPriority;
     riskLevel?: 'low' | 'medium' | 'high' | 'blocked' | 'flagged';
     isReturn?: boolean;
-    orderType?: 'refund' | 'replacement';
+    orderType?: 'refund' | 'replacement' | 'abandoned_cart';
 }
 
 interface StickyFilterBarProps {
@@ -100,7 +100,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     // Refund / replacement sub-filter only makes sense in the Confirmed & All
     // tabs (other tabs already isolate their own order types).
     const showOrderTypeFilter = !filters.status || filters.status === "all" || filters.status === "confirmed";
-    const toggleOrderType = (type: 'refund' | 'replacement') =>
+    const toggleOrderType = (type: 'refund' | 'replacement' | 'abandoned_cart') =>
         setFilters({ ...filters, orderType: filters.orderType === type ? undefined : type });
 
     const filterOptions = [
@@ -411,6 +411,20 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     >
                         <Repeat className="w-3.5 h-3.5" />
                         <span>الاستبدالات</span>
+                    </button>
+
+                    <button
+                        onClick={() => toggleOrderType("abandoned_cart")}
+                        className={cn(
+                            "rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border",
+                            isMobile ? "px-4 py-2 text-xs font-semibold" : "px-3 py-1.5 text-xs font-medium",
+                            filters.orderType === "abandoned_cart"
+                                ? "bg-[#B4533F] text-white border-[#B4533F] shadow-sm"
+                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:text-white dark:hover:bg-[#242424]"
+                        )}
+                    >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <span>{t("orders.toolbar.fromAbandonedCarts")}</span>
                     </button>
                 </div>
             )}
