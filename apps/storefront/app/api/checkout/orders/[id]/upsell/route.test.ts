@@ -204,15 +204,29 @@ describe("what lands on the order", () => {
   });
 
   it("keeps the order's discount in the total it reports", async () => {
-    install(tables({ orders: [order({ discount_amount: 3000 })] }));
+    // `price` is stored net: 30,000 of lines less a 3,000 discount.
+    const fake = install(tables({ orders: [order({ price: 27000, discount_amount: 3000 })] }));
     const res = await POST(postReq({ product_id: ADDON }, proofFor()), ctx());
     expect(await res.json()).toMatchObject({ total: 38000 - 3000 + 5000 });
+    expect(storedOrder(fake).price).toBe(27000 + 8000);
+    expect(storedOrder(fake).discount_amount).toBe(3000);
   });
 
-  it("P2-1: never reports a total below delivery when the stored discount exceeds the lines", async () => {
-    install(tables({ orders: [order({ discount_amount: 50000, delivery_fee: 5000 })] }));
+  it("P2-1: a fully discounted order adds the add-on at its offer price, never below delivery", async () => {
+    install(tables({ orders: [order({ price: 0, discount_amount: 30000, delivery_fee: 5000 })] }));
     const res = await POST(postReq({ product_id: ADDON }, proofFor()), ctx());
-    expect(await res.json()).toMatchObject({ success: true, total: 5000 });
+    expect(await res.json()).toMatchObject({ success: true, total: 8000 + 5000 });
+  });
+
+  it("re-prices delivery on the line subtotal before the discount, as the checkout does", async () => {
+    // Lines 55,000 + 8,000 = 63,000 clear the 60,000 threshold, although the
+    // net price (50,000 + 8,000) does not.
+    const fake = install(
+      tables({ orders: [order({ price: 50000, discount_amount: 5000, items: [{ ...parentLine, price: 55000 }] })] }),
+    );
+    const res = await POST(postReq({ product_id: ADDON }, proofFor()), ctx());
+    expect(storedOrder(fake).delivery_fee).toBe(0);
+    expect(await res.json()).toMatchObject({ success: true, total: 58000 });
   });
 
   it("applies the discount to the add-on's own one-unit tier, like the checkout bump", async () => {

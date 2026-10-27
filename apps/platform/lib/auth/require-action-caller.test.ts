@@ -6,6 +6,7 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 import {
+    ACCOUNT_CHECK_FAILED,
     requireAdminOverUser,
     requirePlatformAdmin,
     requireTenantAdminFor,
@@ -20,9 +21,15 @@ type Row = Record<string, unknown>;
  * `eq`/`in` filters and resolves against the rows, so a test states the data
  * and the guard runs its real queries over it.
  */
+/** Tables named here answer every read with an error; `reads` counts from() per table. */
+let failing: string[] = [];
+let reads: Record<string, number> = {};
+
 function fakeClient(tables: Record<string, Row[]>) {
     return {
         from(table: string) {
+            reads[table] = (reads[table] ?? 0) + 1;
+            const err = failing.includes(table) ? { message: "boom" } : null;
             const filters: ((row: Row) => boolean)[] = [];
             let cap = Infinity;
             const rows = () => (tables[table] ?? []).filter((r) => filters.every((f) => f(r))).slice(0, cap);
@@ -40,9 +47,10 @@ function fakeClient(tables: Record<string, Row[]>) {
                     cap = n;
                     return chain;
                 },
-                maybeSingle: () => Promise.resolve({ data: rows()[0] ?? null, error: null }),
-                then: (resolve: (v: { data: Row[]; error: null }) => unknown) =>
-                    Promise.resolve({ data: rows(), error: null }).then(resolve),
+                maybeSingle: () =>
+                    Promise.resolve(err ? { data: null, error: err } : { data: rows()[0] ?? null, error: null }),
+                then: (resolve: (v: { data: Row[] | null; error: { message: string } | null }) => unknown) =>
+                    Promise.resolve(err ? { data: null, error: err } : { data: rows(), error: null }).then(resolve),
             };
             return chain;
         },
@@ -55,11 +63,20 @@ const TENANT_B = "tenant-b";
 /** Self-serve signup gives every new account `user_profiles.role = 'admin'`. */
 const tables: Record<string, Row[]> = {
     user_profiles: [
-        { id: "signup-admin", role: "admin" },
-        { id: "owner-a", role: "admin" },
-        { id: "platform", role: "super_admin" },
-        { id: "staff-a", role: "employee" },
-        { id: "staff-b", role: "employee" },
+        { id: "signup-admin", role: "admin", current_tenant_id: "own-tenant", is_active: true },
+        { id: "owner-a", role: "admin", current_tenant_id: TENANT_A, is_active: true },
+        { id: "platform", role: "super_admin", current_tenant_id: TENANT_B, is_active: true },
+        { id: "staff-a", role: "employee", current_tenant_id: TENANT_A, is_active: true },
+        { id: "staff-b", role: "employee", current_tenant_id: TENANT_B, is_active: true },
+        // Admin of A and B, currently acting in A.
+        { id: "owner-ab", role: "admin", current_tenant_id: TENANT_A, is_active: true },
+        // Pointed their own current_tenant_id at a tenant they do not belong to.
+        { id: "tamperer", role: "admin", current_tenant_id: TENANT_A, is_active: true },
+        // F-087: an admin whose profile was deactivated keeps an 'active'
+        // membership row and a valid session.
+        { id: "deactivated-admin-a", role: "admin", current_tenant_id: TENANT_A, is_active: false },
+        { id: "null-active-admin-a", role: "admin", current_tenant_id: TENANT_A, is_active: null },
+        { id: "deactivated-platform", role: "super_admin", current_tenant_id: TENANT_B, is_active: false },
     ],
     tenant_members: [
         { user_id: "signup-admin", tenant_id: "own-tenant", role: "admin", status: "active" },
@@ -67,6 +84,11 @@ const tables: Record<string, Row[]> = {
         { user_id: "staff-a", tenant_id: TENANT_A, role: "employee", status: "active" },
         { user_id: "staff-b", tenant_id: TENANT_B, role: "employee", status: "active" },
         { user_id: "platform", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "deactivated-admin-a", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "null-active-admin-a", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "owner-ab", tenant_id: TENANT_A, role: "admin", status: "active" },
+        { user_id: "owner-ab", tenant_id: TENANT_B, role: "admin", status: "active" },
+        { user_id: "tamperer", tenant_id: "own-tenant-2", role: "admin", status: "active" },
     ],
 };
 
@@ -76,6 +98,8 @@ function callAs(userId: string) {
 }
 
 beforeEach(() => {
+    failing = [];
+    reads = {};
     vi.mocked(createSupabaseServiceClient).mockReturnValue(fakeClient(tables) as never);
 });
 
@@ -98,6 +122,70 @@ describe("requireTenantAdminFor", () => {
     it("allows a super_admin on any tenant", async () => {
         const result = await requireTenantAdminFor(callAs("platform"), TENANT_B);
         expect(result).toEqual({ ok: true, userId: "platform" });
+    });
+});
+
+describe("deactivated profiles (F-087)", () => {
+    it("requireTenantAdminFor refuses a deactivated admin of the named tenant", async () => {
+        const result = await requireTenantAdminFor(callAs("deactivated-admin-a"), TENANT_A);
+        expect(result.ok).toBe(false);
+    });
+
+    it("requireTenantMemberFor refuses a deactivated admin of the named tenant", async () => {
+        const result = await requireTenantMemberFor(callAs("deactivated-admin-a"), TENANT_A);
+        expect(result.ok).toBe(false);
+    });
+
+    it("requireAdminOverUser refuses a deactivated admin over their own staff", async () => {
+        const result = await requireAdminOverUser(callAs("deactivated-admin-a"), "staff-a");
+        expect(result.ok).toBe(false);
+    });
+
+    it("requirePlatformAdmin refuses a deactivated super_admin", async () => {
+        const result = await requirePlatformAdmin(callAs("deactivated-platform"));
+        expect(result.ok).toBe(false);
+    });
+
+    it("keeps an admin whose is_active is NULL (coalesce(is_active, true))", async () => {
+        const result = await requireTenantAdminFor(callAs("null-active-admin-a"), TENANT_A);
+        expect(result).toEqual({ ok: true, userId: "null-active-admin-a" });
+    });
+});
+
+describe("one profile read, and a distinct error when a read fails", () => {
+    it("reads user_profiles once per guard call", async () => {
+        await requireTenantAdminFor(callAs("owner-a"), TENANT_A);
+        expect(reads.user_profiles).toBe(1);
+        reads = {};
+        await requirePlatformAdmin(callAs("platform"));
+        expect(reads.user_profiles).toBe(1);
+        reads = {};
+        await requireAdminOverUser(callAs("owner-a"), "staff-a");
+        expect(reads.user_profiles).toBe(1);
+    });
+
+    it("says the account could not be verified when the profile read fails", async () => {
+        failing = ["user_profiles"];
+        for (const result of [
+            await requireTenantAdminFor(callAs("owner-a"), TENANT_A),
+            await requireTenantMemberFor(callAs("owner-a"), TENANT_A),
+            await requirePlatformAdmin(callAs("platform")),
+            await requireAdminOverUser(callAs("owner-a"), "staff-a"),
+        ]) {
+            expect(result).toEqual({ ok: false, error: ACCOUNT_CHECK_FAILED });
+        }
+    });
+
+    it("says the account could not be verified when the membership read fails", async () => {
+        failing = ["tenant_members"];
+        expect(await requireTenantAdminFor(callAs("owner-a"), TENANT_A)).toEqual({
+            ok: false,
+            error: ACCOUNT_CHECK_FAILED,
+        });
+        expect(await requireAdminOverUser(callAs("owner-a"), "staff-a")).toEqual({
+            ok: false,
+            error: ACCOUNT_CHECK_FAILED,
+        });
     });
 });
 
@@ -126,13 +214,18 @@ describe("requirePlatformAdmin", () => {
 });
 
 describe("requireAdminOverUser", () => {
-    it("allows an admin over a member of their own tenant", async () => {
+    it("allows an admin over a member of their active tenant, and names that tenant", async () => {
         const result = await requireAdminOverUser(callAs("owner-a"), "staff-a");
-        expect(result).toEqual({ ok: true, userId: "owner-a" });
+        expect(result).toEqual({ ok: true, userId: "owner-a", tenantId: TENANT_A });
     });
 
     it("rejects an admin over a member of another tenant", async () => {
         const result = await requireAdminOverUser(callAs("owner-a"), "staff-b");
+        expect(result.ok).toBe(false);
+    });
+
+    it("rejects an admin of two tenants over a member of the one they are not acting in", async () => {
+        const result = await requireAdminOverUser(callAs("owner-ab"), "staff-b");
         expect(result.ok).toBe(false);
     });
 
@@ -141,13 +234,23 @@ describe("requireAdminOverUser", () => {
         expect(result.ok).toBe(false);
     });
 
+    it("rejects an admin whose current_tenant_id points at a tenant they do not belong to", async () => {
+        const result = await requireAdminOverUser(callAs("tamperer"), "staff-a");
+        expect(result.ok).toBe(false);
+    });
+
     it("rejects an employee", async () => {
         const result = await requireAdminOverUser(callAs("staff-a"), "staff-a");
         expect(result.ok).toBe(false);
     });
 
-    it("allows a super_admin over anyone", async () => {
+    it("allows a super_admin over a member of the tenant they are acting in", async () => {
         const result = await requireAdminOverUser(callAs("platform"), "staff-b");
-        expect(result).toEqual({ ok: true, userId: "platform" });
+        expect(result).toEqual({ ok: true, userId: "platform", tenantId: TENANT_B });
+    });
+
+    it("rejects a super_admin over a user outside the tenant they are acting in", async () => {
+        const result = await requireAdminOverUser(callAs("platform"), "staff-a");
+        expect(result.ok).toBe(false);
     });
 });

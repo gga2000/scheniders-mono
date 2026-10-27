@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/supabase-server';
+import { requirePlatformAdmin } from '@/lib/auth/require-action-caller';
 import { env } from '@/lib/env';
 import { fetchCheckoutById, getSavedAccessToken } from '@/lib/lightfunnels-api';
 import { parseCheckoutToWebhook, createOrderFromWebhook } from '@/lib/webhook-handler';
@@ -20,8 +20,10 @@ const BATCH_SIZE = 50; // Process all pending checkouts
  * This used to say "No authentication required - useful for debugging", and it
  * meant it. The middleware matcher excludes `/api`, so nothing else was checking
  * either: anyone who knew the URL could make the production app drain the
- * checkout queue and create orders under the service role. It now requires a
- * signed-in user, like every other operator endpoint.
+ * checkout queue and create orders under the service role. Requiring only a
+ * signed-in user was not enough either: any merchant's staff could then drain
+ * the platform's Lightfunnels queue into LIGHTFUNNELS_TENANT_ID. It is a
+ * platform operation, so it requires a platform admin (an active super_admin).
  */
 export async function GET(request: Request) {
     try {
@@ -29,9 +31,12 @@ export async function GET(request: Request) {
         if (!token) {
             return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
         }
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const caller = await requirePlatformAdmin(token);
+        if (!caller.ok) {
+            return NextResponse.json(
+                { error: caller.error },
+                { status: caller.error === 'Unauthorized' ? 401 : 403 },
+            );
         }
 
         console.log('[Manual] Processing all pending checkouts...');

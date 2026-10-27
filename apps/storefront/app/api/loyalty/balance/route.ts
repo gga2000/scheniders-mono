@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
-import { clientIp, consumeRateLimit, phoneBucket, type RateLimitResult } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/rate-limit";
+import { verifyLoyaltyProof } from "@/lib/loyalty-proof";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,16 +16,9 @@ export const runtime = "nodejs";
 // tenant + phone: anyone could walk phone numbers and learn who buys from a
 // store and roughly how much (points track spend).
 //
-// Proof is the one a returning shopper can give at checkout and a stranger
-// cannot: an order number of THIS store placed with THIS phone, checked by
-// lookup_order (the same match order tracking uses). Order numbers are
-// sequential, so the pair is guessable only by brute force, which the
-// limiter stops. That holds only because lookup_order is executable by
-// service_role alone (migration 20261021090300): with anon EXECUTE, guessing
-// went straight to PostgREST and never reached a bucket. Buckets are
-// per IP, per (tenant, order number) and per hashed phone,
-// fail-closed — this route is an oracle, and when the limiter cannot answer
-// the database behind it cannot either.
+// Proof is an order number of THIS store placed with THIS phone, checked
+// rate-limited and fail-closed by lib/loyalty-proof — the same check
+// submitCheckout runs before it spends points.
 //
 // POST, not GET: the body carries a phone number, which a query string would
 // write into edge access logs and Referer headers. Every "not yours" answer is
@@ -37,30 +31,7 @@ const bodySchema = z.object({
   order_number: z.string().trim().min(1).max(40),
 });
 
-const lookupRowsSchema = z.array(z.object({ order_number: z.string() }));
-
-const WINDOW_SECONDS = 600;
-/** Loose per IP: Iraqi carriers put many shoppers behind one CGNAT address. */
-const LIMIT_PER_IP = 30;
-const LIMIT_PER_ORDER = 10;
-const LIMIT_PER_PHONE = 10;
-
 const notFound = () => NextResponse.json({ error: "Not found" }, { status: 404 });
-
-/** Seconds to wait when any bucket is exhausted (or the limiter is down), else null. */
-async function rateLimited(req: Request, tenantId: string, orderNumber: string, phone: string): Promise<number | null> {
-  const ip = clientIp(req.headers);
-  const mode = "fail-closed";
-  const checks = await Promise.all([
-    // "unknown" is off the edge (local dev); one shared bucket would throttle every such caller together.
-    ip !== "unknown" ? consumeRateLimit(`loyalty:ip:${ip}`, LIMIT_PER_IP, WINDOW_SECONDS, mode) : null,
-    consumeRateLimit(`loyalty:order:${tenantId}:${orderNumber}`, LIMIT_PER_ORDER, WINDOW_SECONDS, mode),
-    consumeRateLimit(`loyalty:phone:${phoneBucket(tenantId, phone)}`, LIMIT_PER_PHONE, WINDOW_SECONDS, mode),
-  ]);
-  const blocked = checks.filter((c): c is RateLimitResult => c !== null && !c.allowed);
-  if (blocked.length === 0) return null;
-  return Math.max(1, ...blocked.map((c) => c.retryAfterSeconds));
-}
 
 export async function POST(req: Request): Promise<NextResponse> {
   let raw: unknown;
@@ -79,27 +50,22 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
   }
 
-  const wait = await rateLimited(req, tenantId, orderNumber, phone);
-  if (wait !== null) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(wait) } },
-    );
+  const proof = await verifyLoyaltyProof({ tenantId, phone, orderNumber, ip: clientIp(req.headers) });
+  switch (proof.kind) {
+    case "rate_limited":
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(proof.retryAfterSeconds) } },
+      );
+    case "unavailable":
+      return NextResponse.json({ error: "Try again shortly" }, { status: 503 });
+    case "not_owned":
+      return notFound();
+    case "owned":
+      break;
   }
 
   const service = createSupabaseServiceClient();
-  const { data: owned, error: lookupError } = await service.rpc("lookup_order", {
-    p_tenant_id: tenantId,
-    p_phone: phone,
-    p_order_number: orderNumber,
-  });
-  if (lookupError) {
-    console.error("[loyalty/balance] ownership check failed:", lookupError.message);
-    return NextResponse.json({ error: "Try again shortly" }, { status: 503 });
-  }
-  const rows = lookupRowsSchema.safeParse(owned);
-  if (!rows.success || rows.data.length === 0) return notFound();
-
   const { data, error } = await service
     .from("customer_points")
     .select("balance")

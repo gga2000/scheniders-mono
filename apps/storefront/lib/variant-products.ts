@@ -16,7 +16,15 @@ import type { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 type Svc = ReturnType<typeof createSupabaseServiceClient>;
 
-export class VariantReadError extends Error {}
+export class VariantReadError extends Error {
+  /** The failed read's SQLSTATE / PostgREST code — what tells a transient
+   *  failure (resend the same request) from a refused one. */
+  readonly code: string | null;
+  constructor(message: string, code: string | null = null) {
+    super(message);
+    this.code = code;
+  }
+}
 
 /** Product ids (of `productIds`) that have at least one enabled variant. */
 export async function productsSoldByVariant(
@@ -30,6 +38,6 @@ export async function productsSoldByVariant(
     .select("product_id, is_enabled")
     .in("product_id", [...productIds])
     .eq("tenant_id", tenantId);
-  if (error) throw new VariantReadError(`variant read failed: ${error.message}`);
+  if (error) throw new VariantReadError(`variant read failed: ${error.message}`, error.code ?? null);
   return new Set((data ?? []).filter((v) => v.is_enabled !== false).map((v) => v.product_id));
 }

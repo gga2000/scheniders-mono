@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import {
   computeDeliveryFee,
   computeDiscount,
@@ -16,50 +17,23 @@ import {
   type PriceTier,
   type OrderBumpOffer,
 } from "@scheniders/shared";
-import type {
-  StoreConfigV2,
-  GovernorateCode,
-  AnalyticsConfig,
-} from "@scheniders/shared";
+import type { StoreConfigV2, AnalyticsConfig } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
+import { isDraftViewRequest } from "@/lib/draft-view";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
+import { catalogueUnitPrice } from "@/lib/catalogue-line";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
+import { isTransientDbError } from "@/lib/transient-db-error";
+import { DUPLICATE_ORDER_WINDOW_MINUTES, isDuplicateGuardRow } from "@/lib/order-duplicate-guard";
+import { queueOrderConfirmation } from "@/lib/order-confirmation-queue";
+import { checkoutRateLimited } from "@/lib/checkout-rate-limit";
+import { submitCheckoutPayloadSchema, type SubmitCheckoutPayload } from "@/lib/checkout-payload";
+import { clientIp } from "@/lib/rate-limit";
+import { verifyLoyaltyProof } from "@/lib/loyalty-proof";
 
-interface CheckoutItem {
-  product_id: string;
-  variant_id: string | null;
-  name: string;
-  variant_name: string | null;
-  price: number;
-  quantity: number;
-}
-
-interface SubmitCheckoutPayload {
-  tenantId: string;
-  /** EC17: dedupe key for a re-submitted order (flaky-3G retry). */
-  idempotencyKey?: string;
-  /** Discount engine: coupon code (validated + priced server-side). */
-  couponCode?: string;
-  /** Pixel Purchase event_id — reused by the CAPI server twin for dedup. */
-  purchaseEventId?: string;
-  /** Loyalty: points the customer chose to redeem (server re-validates). */
-  redeemPoints?: number;
-  /** Referral: a friend's code; eligibility + amount are re-resolved here. */
-  referralCode?: string;
-  customer: {
-    customer_name: string;
-    phone: string;
-    /** Already-normalised (07XXXXXXXXX) alternative number, or null. */
-    alt_phone?: string | null;
-    governorate_code: string;
-    city: string;
-    address_details: string;
-    notes?: string;
-  };
-  items: CheckoutItem[];
-}
+type CheckoutItem = SubmitCheckoutPayload["items"][number];
 
 /** EC24: why a specific cart line couldn't be ordered, so the client can act
  *  (remove it / update its price) instead of dead-ending on a generic error. */
@@ -90,9 +64,20 @@ interface SubmitCheckoutResult {
    *  page's post-purchase offer (see lib/order-upsell-proof). Only the
    *  response that created the order carries it. */
   upsellToken?: string;
+  /** Set when the checkout rate limit refused the order (seconds to wait). */
+  retryAfterSeconds?: number;
   /** EC17: this answers an order the same idempotency key already placed, so
    *  callers must not record its side effects (funnel purchase) again. */
   replayed?: boolean;
+  /** The failure is the platform's (a read or write that did not complete),
+   *  not the order's: the same request — same idempotency key — may succeed
+   *  when sent again. The route answers it with 503 instead of 422. */
+  retryable?: boolean;
+  /** Soft duplicate guard: this phone placed an order holding these products
+   *  minutes ago, and no new order was created. Always with `replayed`, and
+   *  with no order id or number — a phone and a product are not proof of
+   *  being that buyer, and an order number plus the phone opens /track. */
+  duplicate?: boolean;
 }
 
 /** The answer for an order this idempotency key already placed: what was
@@ -101,16 +86,15 @@ function replayResult(row: {
   id: string;
   order_id: string | null;
   price: number | null;
-  discount_amount: number | null;
   delivery_fee: number | null;
 }): SubmitCheckoutResult {
-  const price = Number(row.price) || 0;
-  const discount = stackDiscounts(price, [Number(row.discount_amount) || 0]).total;
+  // `price` is stored net of the discount, so the courier collects
+  // price + delivery (apps/platform/lib/order-money.ts computeCodAmount).
   return {
     success: true,
     orderId: row.id,
     orderNumber: row.order_id ?? undefined,
-    total: price - discount + (Number(row.delivery_fee) || 0),
+    total: (Number(row.price) || 0) + (Number(row.delivery_fee) || 0),
     replayed: true,
   };
 }
@@ -122,15 +106,56 @@ function isReplayRow(row: Record<string, unknown> | null): boolean {
   return row?.idempotent_replay === true;
 }
 
+const REDEMPTION_NEEDS_PROOF =
+  "لاستخدام النقاط اكتب رقم طلب سابق من نفس الرقم، أو أكمل طلبك بدون استخدام النقاط.";
+
+/** Why a points redemption is refused, or null when the phone is proven the
+ *  shopper's by a previous order of this store (lib/loyalty-proof). */
+async function loyaltyRedemptionRefusal(
+  tenantId: string,
+  phone: string,
+  orderNumber: string | undefined,
+): Promise<string | null> {
+  if (!orderNumber) return REDEMPTION_NEEDS_PROOF;
+  const proof = await verifyLoyaltyProof({
+    tenantId,
+    phone,
+    orderNumber,
+    ip: clientIp(await headers()),
+  });
+  switch (proof.kind) {
+    case "owned":
+      return null;
+    case "not_owned":
+      return REDEMPTION_NEEDS_PROOF;
+    case "rate_limited":
+      return "محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.";
+    case "unavailable":
+      return "تعذّر التحقق من النقاط. حاول مرة أخرى.";
+  }
+}
+
 /**
- * Creates an order in the platform DB via the create_order_atomic RPC.
- * Uses the service role client to bypass RLS — the storefront is trusted server code.
+ * Creates an order in the platform DB via the create_storefront_order RPC —
+ * create_order_atomic, unchanged, behind the soft duplicate guard — using the
+ * service role client.
+ *
+ * This is an exported server action, which Next.js serves as a public HTTP
+ * endpoint: any client can call it with any argument. The argument is
+ * therefore validated in full here, and every amount is re-derived from the
+ * database.
  *
  * Mirrors the order shape used by `hooks/use-order-crud.ts` in the platform repo.
  */
 export async function submitCheckout(
-  payload: SubmitCheckoutPayload,
+  input: unknown,
 ): Promise<SubmitCheckoutResult> {
+  const parsedPayload = submitCheckoutPayloadSchema.safeParse(input);
+  if (!parsedPayload.success) {
+    return { success: false, error: "بيانات غير صالحة" };
+  }
+  const payload = parsedPayload.data;
+
   if (payload.items.length === 0) {
     return { success: false, error: "السلة فارغة" };
   }
@@ -142,6 +167,27 @@ export async function submitCheckout(
   const phone = normalizeIraqiMobile(payload.customer.phone);
   if (!phone) {
     return { success: false, error: "رقم الهاتف غير صالح" };
+  }
+  // Same rule for the optional second number the courier tries.
+  const altPhone = payload.customer.alt_phone
+    ? normalizeIraqiMobile(payload.customer.alt_phone)
+    : null;
+  if (payload.customer.alt_phone && !altPhone) {
+    return { success: false, error: "الرقم البديل غير صالح" };
+  }
+
+  // Loyalty redemption needs proof the phone is the shopper's. The phone
+  // number alone is not a secret: anyone who knows a customer's number could
+  // spend that customer's points as a discount on their own order. The proof
+  // is a previous order number of THIS store placed with THIS phone — the
+  // check /api/loyalty/balance makes before it shows the balance, re-made here
+  // (same lookup_order match, same tenant, same rate-limit buckets) because
+  // this action is a public endpoint and the client's word proves nothing.
+  // Without it the redemption is refused, before anything is read or written.
+  // Earning is unaffected (credited by the database on delivery).
+  if (payload.redeemPoints && payload.redeemPoints > 0) {
+    const refused = await loyaltyRedemptionRefusal(payload.tenantId, phone, payload.loyaltyOrderNumber);
+    if (refused) return { success: false, error: refused };
   }
 
   const supabase = createSupabaseServiceClient();
@@ -155,8 +201,12 @@ export async function submitCheckout(
     .eq("id", payload.tenantId)
     .maybeSingle();
 
-  if (tenantErr || !tenantRaw) {
-    console.error("[checkout] tenant not found:", tenantErr);
+  if (tenantErr) {
+    console.error("[checkout] tenant lookup failed:", tenantErr);
+    return { success: false, error: "المتجر غير متاح", retryable: isTransientDbError(tenantErr) };
+  }
+  if (!tenantRaw) {
+    console.error("[checkout] tenant not found:", payload.tenantId);
     return { success: false, error: "المتجر غير متاح" };
   }
 
@@ -179,15 +229,27 @@ export async function submitCheckout(
   if (payload.idempotencyKey) {
     const { data: existing, error: existingErr } = await supabase
       .from("orders")
-      .select("id, order_id, price, discount_amount, delivery_fee")
+      .select("id, order_id, price, delivery_fee")
       .eq("tenant_id", payload.tenantId)
       .eq("idempotency_key", payload.idempotencyKey)
       .maybeSingle();
     if (existingErr) {
       console.error("[checkout] idempotency lookup failed:", existingErr);
-      return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
+      return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى.", retryable: isTransientDbError(existingErr) };
     }
     if (existing) return replayResult(existing);
+  }
+
+  // F-041: a public endpoint where every call is a real COD order, so it is
+  // capped per IP and per phone (lib/checkout-rate-limit). Placed after the
+  // replay answer, so a shopper's retry of a placed order is never refused.
+  const retryAfterSeconds = await checkoutRateLimited(await headers(), payload.tenantId, phone);
+  if (retryAfterSeconds !== null) {
+    return {
+      success: false,
+      error: "طلبات كثيرة خلال وقت قصير. حاول مرة أخرى بعد قليل.",
+      retryAfterSeconds,
+    };
   }
 
   // Re-fetch canonical prices from the DB — never trust client-supplied amounts.
@@ -200,7 +262,7 @@ export async function submitCheckout(
 
   if (productsErr || !products) {
     console.error("[checkout] product lookup failed:", productsErr);
-    return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+    return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(productsErr) };
   }
   const productMap = new Map(products.map((p) => [p.id as string, p]));
 
@@ -223,7 +285,9 @@ export async function submitCheckout(
   } catch (e) {
     if (!(e instanceof VariantReadError)) throw e;
     console.error("[checkout]", e.message);
-    return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+    // Classified from the failed read's own code (carried by VariantReadError)
+    // like every other read here — never assumed transient.
+    return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(e) };
   }
   if (variantIds.length > 0) {
     const { data: variants, error: variantsErr } = await supabase
@@ -233,7 +297,7 @@ export async function submitCheckout(
       .eq("tenant_id", payload.tenantId);
     if (variantsErr || !variants) {
       console.error("[checkout] variant lookup failed:", variantsErr);
-      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(variantsErr) };
     }
     for (const v of variants as VariantRow[]) variantMap.set(v.id, v);
   }
@@ -255,7 +319,7 @@ export async function submitCheckout(
       // instead would tell a shopper who was shown a tier price that their
       // prices "changed" upward when nothing had.
       console.error("[checkout] tier lookup failed:", tiersErr);
-      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(tiersErr) };
     }
     for (const row of tierRows) {
       const list = tiersByProduct.get(row.product_id) ?? [];
@@ -283,7 +347,7 @@ export async function submitCheckout(
     if (bumpsErr || !bumpRows) {
       // Fail closed, for the same reason as the tier read above.
       console.error("[checkout] bump lookup failed:", bumpsErr);
-      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+      return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(bumpsErr) };
     }
     for (const row of bumpRows) {
       bumpOffers.push({
@@ -312,39 +376,17 @@ export async function submitCheckout(
     const issue = (reason: CheckoutIssueReason, new_price?: number): void => {
       issues.push({ product_id: i.product_id, variant_id: i.variant_id, reason, new_price });
     };
-    const product = productMap.get(i.product_id);
-    // Deleted, hidden, draft, archived, or supply (packaging/internal) → not
-    // orderable. status carries the merchant's Draft/Archived choice from the
-    // product editor, which is_visible does not.
-    if (
-      !product ||
-      product.is_archived ||
-      product.status !== "active" ||
-      !product.is_visible ||
-      (product as { is_supply?: boolean }).is_supply
-    ) {
-      issue("unavailable");
-      continue;
-    }
-    let unitPrice: number;
-    if (i.variant_id) {
-      const variant = variantMap.get(i.variant_id);
-      if (!variant || variant.product_id !== i.product_id || variant.is_enabled === false) {
-        issue("unavailable");
-        continue;
-      }
-      unitPrice = Number(variant.price ?? product.website_price ?? product.price) || 0;
-    } else {
-      // No variant named for a product sold by variant: no size for the
-      // courier and no price the merchant set — and a variant priced above
-      // the parent would otherwise be bought at the parent's price.
-      if (soldByVariant.has(i.product_id)) {
-        issue("unavailable");
-        continue;
-      }
-      unitPrice = Number(product.website_price ?? product.price) || 0;
-    }
-    if (unitPrice <= 0 || !Number.isFinite(unitPrice)) {
+    // Deleted, hidden, draft, archived or supply product; a missing, foreign
+    // or disabled variant; no variant for a product sold by variant; or no
+    // positive price → not orderable (lib/catalogue-line, the rule the phone
+    // capture also files lines by).
+    const unitPrice = catalogueUnitPrice(
+      i,
+      productMap.get(i.product_id),
+      variantMap,
+      soldByVariant,
+    );
+    if (unitPrice === null) {
       issue("unavailable");
       continue;
     }
@@ -436,7 +478,7 @@ export async function submitCheckout(
         // promised this shopper a gift, so placing the order without it on a
         // transient error would break that promise silently.
         console.error("[checkout] free gift lookup failed:", giftErr);
-        return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى." };
+        return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(giftErr) };
       }
       const giftOrderable =
         gift !== null &&
@@ -469,7 +511,7 @@ export async function submitCheckout(
   // merchant hasn't configured rates). Same inputs the storefront displays.
   const deliveryFee = computeDeliveryFee(subtotal, itemCount, {
     shipping: tenant.store_config_v2?.commerce?.shipping,
-    governorate: payload.customer.governorate_code as GovernorateCode,
+    governorate: payload.customer.governorate_code,
   });
   // Discount engine: re-resolve the coupon against the PUBLISHED discounts
   // server-side (never trust a client-supplied amount); records discount_amount
@@ -511,7 +553,7 @@ export async function submitCheckout(
         // Fail closed: the form previewed this discount, so placing the order
         // without it on a transient error would charge more than was shown.
         console.error("[checkout] referral check failed:", checkErr);
-        return { success: false, error: "تعذّر التحقق من رمز الصديق. حاول مرة أخرى." };
+        return { success: false, error: "تعذّر التحقق من رمز الصديق. حاول مرة أخرى.", retryable: isTransientDbError(checkErr) };
       }
       const row = Array.isArray(check) ? check[0] : null;
       // The SQL already refuses a buyer's own code; the phone comparison here
@@ -533,10 +575,11 @@ export async function submitCheckout(
     referralWanted,
   ]).applied;
   const remainingForPoints = subtotal - couponApplied - bundleApplied - referralApplied;
-  // Loyalty: redeem the points the customer chose to spend. Re-resolve against
-  // the PUBLISHED config + the AUTHORITATIVE balance, then deduct atomically
-  // (the RPC blocks an overdraw) BEFORE the order so the discount is baked into
-  // discount_amount; refunded below if the order then fails.
+  // Loyalty: redeem the points the customer chose to spend — reached only
+  // with the proof checked above. Re-resolve against the PUBLISHED config +
+  // the AUTHORITATIVE balance, then deduct atomically (the RPC blocks an
+  // overdraw) BEFORE the order so the discount is baked into discount_amount;
+  // refunded below if the order then fails.
   const loyaltyCfg = tenant.store_config_v2?.commerce?.loyalty;
   let pointsUsed = 0;
   let pointsDiscount = 0;
@@ -590,13 +633,16 @@ export async function submitCheckout(
   const risk = riskErr ? null : stampCodRisk(riskVerdict);
 
   // Build the order payload in the shape create_order_atomic expects.
-  // Convention (see waseet-api): `price` is the line-item subtotal and the
-  // courier collects `price + delivery_fee`.
+  // Convention (apps/platform/lib/order-money.ts): `price` is the line-item
+  // subtotal with the discount already taken off, `discount_amount` records
+  // that discount, and the courier collects `price + delivery_fee`. Every
+  // other source already stores it this way; a gross `price` here made the
+  // courier collect the discount back from the shopper.
   const orderData = {
     customer_name: payload.customer.customer_name.trim(),
     phone,
     // create_order_atomic reads `_order_data->>'secondary_phone'`.
-    secondary_phone: payload.customer.alt_phone ?? null,
+    secondary_phone: altPhone,
     governorate_code: payload.customer.governorate_code,
     city: payload.customer.city.trim(),
     address_details: payload.customer.address_details.trim(),
@@ -618,7 +664,7 @@ export async function submitCheckout(
         quantity: i.quantity,
       };
     }),
-    price: subtotal,
+    price: subtotal - discountAmount,
     delivery_fee: deliveryFee,
     discount_amount: discountAmount,
     status: "new",
@@ -638,9 +684,16 @@ export async function submitCheckout(
     idempotency_key: payload.idempotencyKey ?? null,
   };
 
-  const { data, error } = await supabase.rpc("create_order_atomic", {
+  // create_order_atomic (unchanged, called inside) behind the soft duplicate
+  // guard, both under create_order_atomic's own transaction lock — see
+  // migration 20261021142000_create_storefront_order_duplicate_guard. Only
+  // the products the buyer is PAYING for count: a server-added gift must not
+  // make two different orders look alike.
+  const { data, error } = await supabase.rpc("create_storefront_order", {
     _order_data: orderData,
     _tenant_id: payload.tenantId,
+    _paid_product_ids: Array.from(new Set(paidItems.map((i) => i.product_id))),
+    _duplicate_window_minutes: DUPLICATE_ORDER_WINDOW_MINUTES,
   });
 
   // Give back points deducted for a redemption this call did not end up using.
@@ -657,16 +710,28 @@ export async function submitCheckout(
   };
 
   if (error) {
-    console.error("[checkout] create_order_atomic failed:", error);
-    // The order didn't go through.
+    console.error("[checkout] create_storefront_order failed:", error);
+    // The RPC's transaction rolled back — or, for a transport failure, its
+    // outcome is unknown; the client's same-key resend is then answered by
+    // the replay lookup above.
     await refundRedemption();
-    return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى." };
+    return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى.", retryable: isTransientDbError(error) };
   }
 
   // create_order_atomic returns the created order row (or its id)
   const raw = Array.isArray(data) ? data[0] : data;
   const orderRow = raw as Record<string, unknown> | null;
   const orderId = (orderRow?.id ?? orderRow?.order_id ?? null) as string | null;
+
+  // Soft duplicate guard (create_storefront_order): this phone placed an
+  // order holding every product of this one minutes ago, and that order came
+  // back instead of a new one. Its redemption was never used — refund it —
+  // and none of a new order's side effects apply. The answer names no order
+  // (see SubmitCheckoutResult.duplicate).
+  if (orderRow && isDuplicateGuardRow(orderRow)) {
+    await refundRedemption();
+    return { success: true, replayed: true, duplicate: true };
+  }
 
   // A concurrent submit with the same key placed the order first: this call
   // got that order back. Its redemption was never used — refund it — and
@@ -677,9 +742,46 @@ export async function submitCheckout(
       id: orderId,
       order_id: typeof orderRow.order_id === "string" ? orderRow.order_id : null,
       price: Number(orderRow.price),
-      discount_amount: Number(orderRow.discount_amount),
       delivery_fee: Number(orderRow.delivery_fee),
     });
+  }
+
+  // Draft view: a request carrying a valid draft-view preview token for this
+  // tenant is the merchant testing unpublished changes, not a shopper. Decided
+  // from the httpOnly cookie (never the payload), so it covers every caller
+  // and the checkout body is unchanged.
+  const draftView = await isDraftViewRequest(tenant.id);
+
+  // Flag the draft-view order as a test so it stays out of the public stats
+  // (`tenant_public_stats` skips is_test) and shows the Test badge in the
+  // order book. `create_order_atomic` does not read `is_test` from
+  // `_order_data`, so the flag is set right after it, tenant-scoped, on the
+  // same service-role client. A change to `is_test` alone is a no-op for every
+  // orders UPDATE trigger (inventory, loyalty and referral key off status /
+  // items; the notification trigger off status / name / phone / items; trust
+  // only recomputes). The INSERT-time triggers (log_order_notification,
+  // log_order_creation_history) have already fired by now — only a change to
+  // the RPC itself could keep them quiet for a test order.
+  if (draftView && orderRow?.id) {
+    const { error: testFlagErr } = await supabase
+      .from("orders")
+      .update({ is_test: true })
+      .eq("id", String(orderRow.id))
+      .eq("tenant_id", tenant.id);
+    if (testFlagErr) {
+      console.error("[checkout] could not flag draft-view order as test:", testFlagErr);
+    }
+  }
+
+  // Instant WhatsApp confirmation, the same cod_order_confirm a Lightfunnels
+  // order gets. Queued only for an order THIS call created (both replay paths
+  // returned above) and never for a draft-view test order. Only the id
+  // travels: the platform endpoint re-reads the row, takes the tenant from it
+  // and applies every other gate. The publish runs after the response
+  // (next/server `after`), so it never delays or fails the order.
+  const createdRowId = orderRow?.id;
+  if (typeof createdRowId === "string" && !draftView) {
+    queueOrderConfirmation({ id: createdRowId, tenantId: tenant.id });
   }
 
   // Referral attribution: the row trg_referral_order_changed pays the
@@ -705,22 +807,36 @@ export async function submitCheckout(
   // (live migrations 20260909225706 + 20260909225854). Redemption above
   // stays at placement because the discount is baked into the order total.
 
-  // Abandoned-cart recovery: this phone just ordered — mark any pending cart
-  // recovered so the WhatsApp reminder sweep skips it. Best-effort: a failure
-  // here must never fail the order.
-  await supabase
-    .from("abandoned_carts")
-    .update({ recovered_at: new Date().toISOString() })
-    .eq("tenant_id", payload.tenantId)
-    .eq("phone", phone)
-    .is("recovered_at", null);
+  // Abandoned-cart recovery: this phone just ordered, so mark its open
+  // capture recovered. The worklist then drops it and no reminder can go
+  // out. Whether a reminder came first is derived in the database
+  // (abandoned_carts.recovery_kind), so the split cannot drift from the
+  // timestamps. A draft-view order is the merchant testing, not a buyer
+  // coming back. Best-effort: a failure here must never fail the order,
+  // so it is logged with the order id, not thrown.
+  if (!draftView) {
+    const { error: recoverErr } = await supabase
+      .from("abandoned_carts")
+      .update({ recovered_at: new Date().toISOString() })
+      .eq("tenant_id", payload.tenantId)
+      .eq("phone", phone)
+      .is("recovered_at", null);
+    if (recoverErr) {
+      console.error(
+        `[checkout] could not mark abandoned cart recovered for order ${orderId ?? "(no id)"}:`,
+        recoverErr,
+      );
+    }
+  }
 
   // Server-side Purchase (Meta/TikTok CAPI), deduped with the browser pixel via
   // the shared event_id. Best-effort — never block or fail the order.
+  // A draft-view order never reaches the merchant's ad accounts (the browser
+  // pixels are not even mounted in draft view).
   const analytics = tenant.store_config_v2?.globals?.analytics_pixels?.base as
     | AnalyticsConfig
     | undefined;
-  if (payload.purchaseEventId && analytics) {
+  if (payload.purchaseEventId && analytics && !draftView) {
     try {
       await sendPurchaseCapi({
         analytics,

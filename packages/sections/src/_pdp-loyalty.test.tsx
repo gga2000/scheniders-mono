@@ -115,5 +115,8 @@ describe("pdp_direct_order loyalty (W5.2)", () => {
     // 40 points × 100 IQD = 4,000 off a 25,500 subtotal.
     expect(screen.getByTestId("pdp-redeem-points").textContent).toContain("خصم −");
     expect(screen.getByTestId("pdp-redeem-points").textContent).toContain("4,000");
+    // Points are earned on the order's price, stored net of every discount:
+    // 25,500 − 4,000 = 21,500 → 21 points, not the 25 the full subtotal earns.
+    expect(document.querySelector("[data-points-to-earn]")?.getAttribute("data-points-to-earn")).toBe("21");
   });
 });

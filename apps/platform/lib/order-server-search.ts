@@ -1,4 +1,5 @@
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { normalizeArabicText } from "@/lib/order-filter-utils";
 import { extractScannedOrderId } from "@/lib/scan-utils";
 
 /**
@@ -17,8 +18,9 @@ import { extractScannedOrderId } from "@/lib/scan-utils";
  *     exact order number or phone is never pushed out of the result limit by
  *     newer partial matches.
  *
- * Keep it in step with `search_orders_v2` (migration
- * 20261012120000_search_orders_v2.sql).
+ * Keep it in step with `search_orders_v2` (migrations
+ * 20261012120000_search_orders_v2.sql and
+ * 20261025222625_search_orders_v2_city_address_notes_returns.sql).
  */
 
 /** Shorter terms are not searched: two characters already match broadly. */
@@ -27,8 +29,12 @@ export const MIN_SEARCH_TERM_LENGTH = 2;
 /** Partial phone matching starts at this many national digits. */
 export const MIN_PHONE_DIGITS = 4;
 
-/** The most rows one search returns — the RPC clamps to the same value. */
-export const MAX_SEARCH_RESULTS = 50;
+/**
+ * The most rows one search returns — the RPC clamps to the same value. A
+ * city or street matches many orders; 50 cut those off well short of what
+ * the in-browser search this replaced used to show.
+ */
+export const MAX_SEARCH_RESULTS = 200;
 
 /** A Postgres `integer` holds at most 10 digits; nine always fit. */
 const SEQUENCE_PATTERN = /^-?\d{1,9}$/;
@@ -153,7 +159,18 @@ export function buildDirectSearchFilters(parsed: ParsedOrderSearch): DirectSearc
     if (parsed.phone) {
         partial.push(`phone.like.${containsPattern(parsed.phone)}`, `secondary_phone.like.${containsPattern(parsed.phone)}`);
     }
-    if (parsed.name) partial.push(`customer_name.ilike.${containsPattern(parsed.name)}`);
+    if (parsed.name) {
+        // The RPC compares Arabic-normalized text; this fallback (only used
+        // while search_orders_v2 is not deployed) matches the raw columns.
+        const pattern = containsPattern(parsed.name);
+        partial.push(
+            `customer_name.ilike.${pattern}`,
+            `city.ilike.${pattern}`,
+            `address_details.ilike.${pattern}`,
+            `notes.ilike.${pattern}`,
+        );
+    }
+    partial.push(`delivery_order_id.ilike.${containsPattern(parsed.text)}`);
 
     return { exact: exact.join(","), partial: partial.join(",") };
 }
@@ -168,17 +185,21 @@ export interface RankableOrder {
     waseet_qr_id?: string | null;
     phone?: string | null;
     secondary_phone?: string | null;
+    customer_name?: string | null;
 }
 
 /**
  * 0 — the term IS this order's number (order id, LightFunnels base number,
  *     sequence number, delivery or QR id);
  * 1 — the term is this order's full phone or secondary phone;
- * 2 — a partial match.
+ * 2 — part of its number, phone or customer name;
+ * 3 — any other match: city, address, notes, a delivery id fragment, or the
+ *     return of a matching order. Ranked last so a broad term (a city) never
+ *     pushes a number, phone or name match out of the limit.
  *
  * Mirrors the ORDER BY of `search_orders_v2`.
  */
-export function rankOrderSearchMatch(order: RankableOrder, parsed: ParsedOrderSearch): 0 | 1 | 2 {
+export function rankOrderSearchMatch(order: RankableOrder, parsed: ParsedOrderSearch): 0 | 1 | 2 | 3 {
     const term = parsed.text.toLowerCase();
     const orderId = (order.order_id ?? "").toLowerCase();
     if (
@@ -198,7 +219,16 @@ export function rankOrderSearchMatch(order: RankableOrder, parsed: ParsedOrderSe
     ) {
         return 1;
     }
-    return 2;
+    if (
+        orderId.includes(term) ||
+        (parsed.phone &&
+            (normalizePhoneForSearch(order.phone).includes(parsed.phone) ||
+                normalizePhoneForSearch(order.secondary_phone).includes(parsed.phone))) ||
+        (parsed.name && normalizeArabicText(order.customer_name ?? "").includes(normalizeArabicText(parsed.name)))
+    ) {
+        return 2;
+    }
+    return 3;
 }
 
 /**

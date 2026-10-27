@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { ChevronsDownUp, ChevronsUpDown, ScanBarcode, Search } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, Megaphone, ScanBarcode, Search } from "lucide-react";
 import { useOrderStore } from "@/store/use-order-store";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useLanguage } from "@/hooks/use-language";
@@ -22,9 +22,12 @@ interface GlobalSearchFieldProps {
     /** Optional sub-filters toggle rendered next to the scanner button. When wired, it shows/hides the TYPE+PRODUCTS rows in the sticky filter bar. */
     subFiltersOpen?: boolean;
     onToggleSubFilters?: () => void;
+    /** Optional ad-channel toggle, left of the sub-filters toggle. Shows/hides the channel chip row. */
+    adChannelsOpen?: boolean;
+    onToggleAdChannels?: () => void;
 }
 
-export const GlobalSearchField = React.memo(function GlobalSearchField({ setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen, subFiltersOpen, onToggleSubFilters }: GlobalSearchFieldProps) {
+export const GlobalSearchField = React.memo(function GlobalSearchField({ setFilters, inputClassName = "w-full pl-10 pr-12 py-2.5 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all", onScannerOpen, subFiltersOpen, onToggleSubFilters, adChannelsOpen, onToggleAdChannels }: GlobalSearchFieldProps) {
     const localSearchQuery = useOrderStore((s) => s.localSearchQuery);
     const setLocalSearchQuery = useOrderStore((s) => s.setLocalSearchQuery);
     const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
@@ -51,6 +54,27 @@ export const GlobalSearchField = React.memo(function GlobalSearchField({ setFilt
                 onChange={(e) => setLocalSearchQuery(e.target.value)}
                 className={inputClassName}
             />
+            {/* Ad-channel toggle — same look as the sub-filters toggle, one slot further left. */}
+            {onToggleAdChannels && (
+                <button
+                    type="button"
+                    onClick={onToggleAdChannels}
+                    title={adChannelsOpen ? t("orders.toolbar.hideChannels") : t("orders.toolbar.showChannels")}
+                    aria-label={adChannelsOpen ? t("orders.toolbar.hideChannels") : t("orders.toolbar.showChannels")}
+                    aria-pressed={!!adChannelsOpen}
+                    data-testid="toggle-ad-channels"
+                    className={cn(
+                        "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",
+                        adChannelsOpen
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200"
+                            : "text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
+                        // Left of the sub-filters toggle (right-11), or in its slot when there is none.
+                        onToggleSubFilters ? "right-20" : "right-11"
+                    )}
+                >
+                    <Megaphone className="w-4 h-4" />
+                </button>
+            )}
             {/* Sub-filters toggle — sits to the left of the scanner so the user
                 can show/hide the TYPE + PRODUCTS rows without leaving the search bar. */}
             {onToggleSubFilters && (

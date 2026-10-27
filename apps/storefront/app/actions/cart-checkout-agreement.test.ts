@@ -20,6 +20,14 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
+// A real shopper, not a draft-view session: the check reads the request's
+// cookies, which do not exist outside a Next request scope.
+vi.mock("@/lib/draft-view", () => ({
+  isDraftViewRequest: vi.fn(async () => false),
+}));
+// The checkout rate limit has its own suite (checkout-rate-limit.test.ts).
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("@/lib/checkout-rate-limit", () => ({ checkoutRateLimited: async () => null }));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
@@ -66,7 +74,7 @@ function install() {
     },
     {
       rpc: {
-        create_order_atomic: () => ({ data: { id: "11111111-1111-4111-8111-111111111111", order_id: "SH-1" }, error: null }),
+        create_storefront_order: () => ({ data: { id: "11111111-1111-4111-8111-111111111111", order_id: "SH-1" }, error: null }),
       },
     },
   );
@@ -176,6 +184,6 @@ describe("cart and checkout agree", () => {
     const res = await submitCart();
     expect(res.success).toBe(false);
     expect(res.issues?.[0]).toMatchObject({ reason: "price_changed", new_price: 30000 });
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(false);
   });
 });

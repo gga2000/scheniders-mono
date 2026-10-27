@@ -24,8 +24,18 @@ const CHANNEL_STYLE: Record<string, string> = {
     other: "bg-[var(--background)] text-muted border-[var(--card-border)]",
 };
 
+/** The network's colour for its glyph alone, where the surrounding chip stays neutral. */
+export const CHANNEL_GLYPH_COLOR: Record<string, string> = {
+    facebook: "text-[#1877F2] dark:text-[#6BA7FF]",
+    instagram: "text-[#C13584] dark:text-[#FF7AB6]",
+    tiktok: "text-black dark:text-white",
+    snapchat: "text-[#8a8700] dark:text-[#FFFC00]",
+    google: "text-[#4285F4] dark:text-[#8AB4F8]",
+    youtube: "text-[#CC0000] dark:text-[#FF6B6B]",
+};
+
 /** Brand glyphs. lucide has no Meta/TikTok marks, so these are inline. */
-function ChannelGlyph({ channel, className }: { channel: string; className?: string }) {
+export function ChannelGlyph({ channel, className }: { channel: string; className?: string }) {
     switch (channel) {
         case "facebook":
             return (

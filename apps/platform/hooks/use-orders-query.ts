@@ -1,4 +1,4 @@
-import { skipToken, useQuery, useMutation, useQueryClient, useIsMutating, type Query, type QueryClient, type QueryState } from "@tanstack/react-query";
+import { hashKey, skipToken, useQuery, useMutation, useQueryClient, useIsMutating, type Query, type QueryClient, type QueryState } from "@tanstack/react-query";
 import {
     ORDERS_LIST_MUTATION_KEY,
     advanceSyncWatermark,
@@ -20,7 +20,8 @@ import { type Order } from "@/types";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
-import { orderRepository } from "@/lib/repositories/order-repository";
+import { attachRiskData, orderRepository } from "@/lib/repositories/order-repository";
+import { readPersistedBook, writePersistedBook } from "@/lib/orders/persisted-book";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { createOrderAction } from "@/app/actions/orders";
@@ -228,8 +229,33 @@ function mergeDeltaIntoMargins(queryClient: QueryClient, changed: readonly Order
 // through the component tree.
 // =============================================
 let _orderBatcher: RealtimeBatcher | null = null;
-export function setOrderBatcher(b: RealtimeBatcher | null) { _orderBatcher = b; }
+const batcherWaiters = new Set<() => void>();
+export function setOrderBatcher(b: RealtimeBatcher | null) {
+    _orderBatcher = b;
+    if (b) for (const wake of [...batcherWaiters]) wake();
+}
 function getOrderBatcher() { return _orderBatcher; }
+
+/**
+ * Resolves true once a batcher is registered (immediately if one is), false
+ * after `timeoutMs`. A catch-up started on mount runs before useOrders'
+ * effect registers the batcher of the same render.
+ */
+function whenBatcherReady(timeoutMs: number): Promise<boolean> {
+    if (_orderBatcher) return Promise.resolve(true);
+    return new Promise((resolve) => {
+        const wake = () => {
+            batcherWaiters.delete(wake);
+            clearTimeout(timer);
+            resolve(true);
+        };
+        const timer = setTimeout(() => {
+            batcherWaiters.delete(wake);
+            resolve(false);
+        }, timeoutMs);
+        batcherWaiters.add(wake);
+    });
+}
 
 /**
  * Every hook that touches the list cache calls this first: it creates the
@@ -430,29 +456,15 @@ if (typeof window !== 'undefined') {
 }
 
 // =============================================
-// SESSION STORAGE SWR CACHE
-// Shows stale data instantly on refresh while
-// fresh data loads in the background (~2.5s).
-// A hydrated snapshot is a first paint only: it
-// is marked stale, so the mount always refetches.
+// PERSISTED ORDER BOOK (lib/orders/persisted-book.ts)
+// The list is kept on the device between visits. Opening /orders restores the
+// window from disk, then a delta from the saved watermark brings it current
+// (the same path realtime reconnects use), and the row count is checked
+// against the server. A full window read runs only when there is no usable
+// copy, the count disagrees, or the delta overflows. Replaces the
+// sessionStorage snapshot, which held 650 rows for 5 minutes, so an
+// All Orders book was never kept, and which always refetched on mount.
 // =============================================
-const SWR_CACHE_KEY = 'schneiders_orders_swr';
-const SWR_TS_KEY = 'schneiders_orders_swr_ts';
-const SWR_WINDOW_KEY = 'schneiders_orders_swr_window';
-/** The fetch-start sync watermark the snapshot is complete up to (see orders-list-coverage). */
-const SWR_MARK_KEY = 'schneiders_orders_swr_mark';
-const SWR_KEYS = [SWR_CACHE_KEY, SWR_TS_KEY, SWR_WINDOW_KEY, SWR_MARK_KEY] as const;
-const SWR_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes — discard if older
-/**
- * Snapshot size bounds. sessionStorage stores UTF-16 (2 bytes a char) and
- * Safari's quota is ~5 MB, so 1.5M chars (~3 MB) leaves room for the rest of
- * the origin. A list row with its risk_data serializes to ~2.2K chars (live,
- * 2026-10-19: mean 2,244, p99 2,696 over 1,000 rows), so 650 rows ≈ 1.46M.
- * The row cap is checked BEFORE stringifying, so a full-book fetch (5,000+
- * rows) costs nothing here; the char cap catches unusually large rows.
- */
-export const SWR_MAX_ROWS = 650;
-export const SWR_MAX_CHARS = 1_500_000;
 
 // Moved to lib/order-window so pure modules (useOrderFilters) can use it
 // without importing this one; re-exported for existing imports.
@@ -461,9 +473,9 @@ export { windowCacheKey };
 /** Storage errors that recur on every write in a session (quota, blocked storage): reported once per page load. */
 const reportedStorageErrors = new Set<string>();
 
-function reportSwrError(err: unknown, operation: string, extra: Record<string, unknown> = {}): void {
+function reportBookError(err: unknown, operation: string, extra: Record<string, unknown> = {}): void {
     const name = err instanceof DOMException ? err.name : null;
-    if (name === "QuotaExceededError" || name === "SecurityError") {
+    if (name === "QuotaExceededError" || name === "SecurityError" || name === "InvalidStateError") {
         const key = `${operation}:${name}`;
         if (reportedStorageErrors.has(key)) return;
         reportedStorageErrors.add(key);
@@ -471,76 +483,163 @@ function reportSwrError(err: unknown, operation: string, extra: Record<string, u
     reportOrderError(err, { operation, extra });
 }
 
-/** Remove every snapshot key: after a failed write the keys may disagree with each other. */
-export function clearSwrCache(): void {
-    try {
-        for (const key of SWR_KEYS) sessionStorage.removeItem(key);
-    } catch (err) {
-        reportSwrError(err, "orders-swr-clear");
-    }
-}
-
-export function writeSwrCache(orders: Order[], windowKey: string, mark: string | null = null): void {
-    // An empty result is not worth caching, and caching it is actively harmful:
-    // hydrating from it makes React Query report `isLoading: false` with no rows,
-    // which is indistinguishable from "this merchant has no orders". See
-    // readSwrCache.
-    if (orders.length === 0) return;
-    // Too large for the quota. Skipped before serializing, and the existing
-    // snapshot is left alone: it is keyed to its own window and age-limited, so
-    // it stays correct (a sidebar full-book prefetch no longer wipes Today's).
-    if (orders.length > SWR_MAX_ROWS) {
-        diag.log(`[Diag:RQ:SWR] skip oversize rows=${orders.length} max=${SWR_MAX_ROWS}`);
-        return;
-    }
-    // Measure the SYNCHRONOUS main-thread serialization cost + payload size.
-    const serialized = perfTrace.time('swr-stringify', () => JSON.stringify(orders), s => s.length);
-    if (serialized.length > SWR_MAX_CHARS) {
-        diag.log(`[Diag:RQ:SWR] skip oversize chars=${serialized.length} max=${SWR_MAX_CHARS} rows=${orders.length}`);
-        return;
-    }
-    try {
-        sessionStorage.setItem(SWR_CACHE_KEY, serialized);
-        sessionStorage.setItem(SWR_TS_KEY, String(Date.now()));
-        sessionStorage.setItem(SWR_WINDOW_KEY, windowKey);
-        if (mark) sessionStorage.setItem(SWR_MARK_KEY, mark);
-        else sessionStorage.removeItem(SWR_MARK_KEY);
-    } catch (err) {
-        // Reported, not rethrown: this runs inside the list queryFn, and a
-        // snapshot failure must not fail the fetch. A partial write leaves
-        // the keys disagreeing, so all of them are removed.
-        clearSwrCache();
-        reportSwrError(err, "orders-swr-write", { rows: orders.length, chars: serialized.length });
-    }
+/** Every row is `tenantId`'s. A list that is not is never restored or saved under it. */
+function allRowsOfTenant(rows: readonly Order[], tenantId: string): boolean {
+    return rows.every((row) => row.tenant_id === tenantId);
 }
 
 /**
- * The snapshot for `windowKey`, or null. A snapshot of a different window is
- * refused: hydrating one showed, say, today's rows under an "All Orders" filter
- * as if they were fresh.
+ * Restore the saved copy of `windowKey` into the list cache. Returns the rows
+ * restored, 0 on a miss (the query then reads the server). The restored rows
+ * cover the window and are complete up to the saved watermark, exactly like a
+ * committed fetch with that mark.
  */
-export function readSwrCache(windowKey: string): { orders: Order[]; savedAt: number; mark: string | null } | null {
-    try {
-        const ts = sessionStorage.getItem(SWR_TS_KEY);
-        if (!ts || Date.now() - Number(ts) > SWR_MAX_AGE_MS) return null;
-        if (sessionStorage.getItem(SWR_WINDOW_KEY) !== windowKey) return null;
-        const raw = sessionStorage.getItem(SWR_CACHE_KEY);
-        if (!raw) return null;
-        // Measure the SYNCHRONOUS main-thread parse cost (runs during render via initialData).
-        const parsed = perfTrace.time('swr-parse', () => JSON.parse(raw) as Order[], () => raw.length);
-        // An empty cache tells us nothing, and returning it would be worse than
-        // returning nothing: React Query treats `[]` as loaded data, so the page
-        // drops out of its loading state and renders the "No orders yet" empty
-        // state while the real fetch is still in flight. A merchant with 4,778
-        // orders was shown "When you receive orders, they'll appear here".
-        if (!Array.isArray(parsed) || parsed.length === 0) return null;
-        return { orders: parsed, savedAt: Number(ts), mark: sessionStorage.getItem(SWR_MARK_KEY) };
-    } catch (err) {
-        // Corrupt or unreadable: report it, drop it, and load from the server.
-        reportSwrError(err, "orders-swr-read");
-        clearSwrCache();
-        return null;
+export async function restoreOrdersBook(
+    queryClient: QueryClient,
+    { userId, tenantId, windowKey }: { userId: string; tenantId: string; windowKey: string },
+): Promise<number> {
+    coverage(queryClient);
+    const result = await readPersistedBook(userId, tenantId, windowKey);
+    if ("miss" in result) {
+        if (result.error) reportBookError(result.error, "orders-book-read");
+        diag.log(`[Diag:RQ:Book] miss=${result.miss} window=${windowKey}`);
+        perfTrace.markRepeat("orders:book-miss", { reason: result.miss });
+        return 0;
     }
+    const { book } = result;
+    if (!allRowsOfTenant(book.rows, tenantId)) {
+        reportOrderError(new Error("Saved order book holds another tenant's rows"), { operation: "orders-book-read", tenantId });
+        return 0;
+    }
+    const rows = dedupeById(resolveStaleContacted(book.rows));
+    markListLoaded(queryClient, windowKey, book.mark);
+    queryClient.setQueryData(orderKeys.lists(), rows, { updatedAt: book.savedAt });
+    diag.log(`[Diag:RQ:Book] restored rows=${rows.length} age=${Math.round((Date.now() - book.savedAt) / 1000)}s window=${windowKey}`);
+    perfTrace.markRepeat("orders:book-restored", { rows: rows.length, ageS: Math.round((Date.now() - book.savedAt) / 1000) });
+    return rows.length;
+}
+
+/** How long a catch-up waits for the realtime batcher before falling back to a full read. */
+const BATCHER_WAIT_MS = 3000;
+
+/**
+ * Bring a list that did not come from a fetch (restored from the device, or
+ * still in memory from an earlier visit) up to date with a delta. With
+ * `verify`, the row count is then checked against the server — a mismatch
+ * (a hard delete the delta cannot see, or anything else missed) re-reads the
+ * window — and risk_data is refreshed, which order deltas do not move.
+ */
+export async function catchUpRestoredList(
+    queryClient: QueryClient,
+    tenantId: string,
+    window: OrderWindow,
+    { source, verify }: { source: string; verify: boolean },
+): Promise<void> {
+    const refetchList = () => queryClient.refetchQueries({ queryKey: orderKeys.lists(), exact: true }, { cancelRefetch: false });
+    if (!(await whenBatcherReady(BATCHER_WAIT_MS))) {
+        diag.warn(`[Diag:RQ:Book] source=${source} — no realtime batcher after ${BATCHER_WAIT_MS}ms, reading the window`);
+        await refetchList();
+        return;
+    }
+    await requestOrdersCatchUp(queryClient, tenantId, { source });
+    perfTrace.markRepeat("orders:book-caught-up", { source });
+    if (!verify) return;
+    // A delta that overflowed, or failed, has started a full read: that read is the check.
+    if (queryClient.getQueryState(orderKeys.lists())?.fetchStatus === "fetching") return;
+    const windowKey = windowCacheKey(window);
+    const rows = queryClient.getQueryData<Order[]>(orderKeys.lists());
+    if (!Array.isArray(rows) || getLoadedWindowKey(queryClient) !== windowKey) return;
+
+    let total: number;
+    try {
+        total = await orderRepository.countWindow(tenantId, window);
+    } catch (err) {
+        // The delta succeeded; the list is as current as realtime keeps it.
+        reportOrderError(err, { operation: "orders-book-verify", tenantId });
+        return;
+    }
+    const current = queryClient.getQueryData<Order[]>(orderKeys.lists());
+    if (!Array.isArray(current) || getLoadedWindowKey(queryClient) !== windowKey) return;
+    if (total !== current.length) {
+        diag.warn(`[Diag:RQ:Book] count mismatch cached=${current.length} server=${total} window=${windowKey} — reading the window`);
+        perfTrace.markRepeat("orders:book-mismatch", { cached: current.length, server: total });
+        await refetchList();
+        return;
+    }
+    perfTrace.markRepeat("orders:book-verified", { rows: total });
+
+    try {
+        const trust = await orderRepository.findTrustFor(tenantId, current);
+        queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => (Array.isArray(old) ? attachRiskData(old, trust) : old));
+    } catch (err) {
+        reportOrderError(err, { operation: "orders-book-risk", tenantId });
+    }
+}
+
+/** Quiet time after the last change to the list before it is saved. */
+const BOOK_SAVE_DEBOUNCE_MS = 1000;
+
+/**
+ * Save the list cache to the device whenever it settles: after a fetch, a
+ * delta, realtime events or our own edits. Never while a mutation is pending
+ * (the cache may hold an optimistic value that is about to be rolled back),
+ * never rows of another tenant, never a window the cache does not cover.
+ * Pending changes are saved when the tab is hidden or the page is left.
+ */
+function useOrdersBookWriter(queryClient: QueryClient, userId: string | null, tenantId: string | null): void {
+    useEffect(() => {
+        if (!userId || !tenantId) return;
+        const listHash = hashKey(orderKeys.lists());
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        let lastSaved: Order[] | null = null;
+
+        const save = () => {
+            timer = null;
+            const rows = queryClient.getQueryData<Order[]>(orderKeys.lists());
+            const windowKey = getLoadedWindowKey(queryClient);
+            if (!Array.isArray(rows) || rows === lastSaved || !windowKey) return;
+            if (queryClient.isMutating() > 0) {
+                schedule();
+                return;
+            }
+            if (!allRowsOfTenant(rows, tenantId)) return;
+            lastSaved = rows;
+            const startedAt = performance.now();
+            writePersistedBook({ userId, tenantId, windowKey, rows, mark: getSyncWatermark(queryClient)?.at ?? null, savedAt: Date.now() })
+                .then(() => perfTrace.markRepeat("orders:book-saved", { rows: rows.length, ms: Math.round(performance.now() - startedAt) }))
+                .catch((err: unknown) => {
+                    lastSaved = null;
+                    reportBookError(err, "orders-book-write", { rows: rows.length });
+                });
+        };
+        const schedule = () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(save, BOOK_SAVE_DEBOUNCE_MS);
+        };
+        const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+            if (event.query.queryHash === listHash && event.type === "updated") schedule();
+        });
+        const flush = () => {
+            if (timer) {
+                clearTimeout(timer);
+                save();
+            }
+        };
+        const onHidden = () => {
+            if (document.visibilityState === "hidden") flush();
+        };
+        document.addEventListener("visibilitychange", onHidden);
+        // A reload or close: the write is best-effort, the next visit reads the server otherwise.
+        window.addEventListener("pagehide", flush);
+        return () => {
+            // No save here: on a tenant switch or sign-out the cache may
+            // already hold rows this user/tenant key must not receive.
+            unsubscribe();
+            document.removeEventListener("visibilitychange", onHidden);
+            window.removeEventListener("pagehide", flush);
+            if (timer) clearTimeout(timer);
+        };
+    }, [queryClient, userId, tenantId]);
 }
 
 /**
@@ -584,7 +683,6 @@ export function shouldCancelBeforeWindowRefetch(state: Pick<QueryState<unknown>,
 async function fetchOrders(
     tenantId: string,
     window: OrderWindow = null,
-    mark: string | null = null,
     onPreview?: (preview: OrderListPreview) => void,
 ): Promise<Order[]> {
     const _tFetch = performance.now();
@@ -601,8 +699,6 @@ async function fetchOrders(
     // first render — no flicker, no delayed effects, no cron dependency.
     const resolved = perfTrace.time('resolve-stale-contacted', () => resolveStaleContacted(result));
 
-    // Persist to sessionStorage for SWR on next refresh
-    writeSwrCache(resolved, windowCacheKey(window), mark);
     perfTrace.markRepeat('orders:queryfn-done', { rows: resolved.length, window: windowCacheKey(window) });
 
     return resolved;
@@ -623,7 +719,7 @@ function requireTenant(tenantId: string | null): string {
  * useOrdersQuery - React Query hook for fetching orders with caching
  *
  * FAANG-level optimizations:
- * 1. SessionStorage SWR: cached data shown instantly on refresh
+ * 1. Saved on the device: a visit restores the window and fetches only what changed
  * 2. Auth-gated: only fetches when session is ready (no throw+retry)
  * 3. Column-pruned fetch via orderRepository.findAll()
  *
@@ -631,10 +727,12 @@ function requireTenant(tenantId: string | null): string {
  */
 export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true, refetchTrigger?: string) {
     const queryClient = coverage(useQueryClient());
-    const { session, clientReady, tenantId } = useAuth();
+    const { session, clientReady, tenantId, user } = useAuth();
+    const userId = user?.id ?? null;
+    useOrdersBookWriter(queryClient, userId, tenantId);
 
     // The query key deliberately does NOT include the window. Realtime, every
-    // mutation, delta sync and the sessionStorage SWR cache all read and write
+    // mutation, delta sync and the saved book all read and write
     // `orderKeys.lists()`; keying per window would scatter those across caches.
     // The cache holds one window at a time and a change re-fetches it.
     //
@@ -695,33 +793,45 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
     // the cache was filled with the wrong window and marked fresh: "Confirmed 1"
     // over "No confirmed orders" until a refocus 30s later.
     //
-    // Once settled, a sessionStorage snapshot of the SAME window may seed the
-    // cache for an instant first paint; React Query then refetches it if stale.
+    // Once settled, the list starts from what is already here instead of a
+    // full read: the cache from an earlier visit in this tab, else the copy
+    // saved on the device (lib/orders/persisted-book.ts). Either is brought
+    // current by a delta (catchUpRestoredList); the device copy is also
+    // count-checked. Only when neither exists does the query read the window.
     const [snapshotChecked, setSnapshotChecked] = useState(false);
+    // Survives StrictMode's effect re-run: a copy restored by the first run is
+    // still verified by the second, which finds it already in the cache.
+    const restoredUnverified = useRef(false);
+    // The catch-up for a list that did not come from a fetch. Started by an
+    // effect below once the query is enabled: before that, a re-read it asks
+    // for (a count mismatch) would be skipped as a disabled query's.
+    const pendingCatchUp = useRef<{ source: string; verify: boolean } | null>(null);
     useEffect(() => {
-        if (!filtersSettled || snapshotChecked) return;
-        const cachedAlready = queryClient.getQueryData(orderKeys.lists()) !== undefined;
-        let snapshotRows = 0;
-        if (!cachedAlready) {
-            const snapshotKey = windowCacheKey(windowRef.current);
-            const snapshot = readSwrCache(snapshotKey);
-            snapshotRows = snapshot?.orders.length ?? 0;
-            if (snapshot) {
-                diag.log(`[Diag:RQ:SWR] Hydrated ${snapshot.orders.length} orders from sessionStorage`);
-                // The snapshot is a whole window as it was fetched: it covers that
-                // window, and is complete up to the mark its fetch read.
-                markListLoaded(queryClient, snapshotKey, snapshot.mark);
-                queryClient.setQueryData(orderKeys.lists(), dedupeById(snapshot.orders), { updatedAt: snapshot.savedAt });
-                // A first paint only. It can be behind our own writes (the 2s
-                // refetch that used to follow every status change is gone) and
-                // anyone else's, so mark it stale: the query, enabled in this
-                // same pass, refetches on mount.
-                void queryClient.invalidateQueries({ queryKey: orderKeys.lists(), exact: true, refetchType: "none" });
+        if (!filtersSettled || snapshotChecked || !tenantId) return;
+        let cancelled = false;
+        const window = windowRef.current;
+        const key = windowCacheKey(window);
+        void (async () => {
+            const cachedAlready = queryClient.getQueryData(orderKeys.lists()) !== undefined;
+            let restoredRows = 0;
+            // The saved book is keyed to the user: without one there is none to read.
+            if (!cachedAlready && userId) {
+                restoredRows = await restoreOrdersBook(queryClient, { userId, tenantId, windowKey: key });
+                if (restoredRows > 0) restoredUnverified.current = true;
             }
-        }
-        perfTrace.markRepeat('orders:snapshot-checked', { cachedAlready, snapshotRows });
-        setSnapshotChecked(true);
-    }, [filtersSettled, snapshotChecked, queryClient]);
+            if (cancelled) return;
+            // A list kept in memory or restored covers its window; anything
+            // else is left to the query's own fetch or the coverage reconciler.
+            if ((cachedAlready || restoredRows > 0) && listCovers(getLoadedWindowKey(queryClient), key)) {
+                const verify = restoredUnverified.current;
+                restoredUnverified.current = false;
+                pendingCatchUp.current = { source: verify ? "restore" : "remount", verify };
+            }
+            perfTrace.markRepeat('orders:snapshot-checked', { cachedAlready, restoredRows });
+            setSnapshotChecked(true);
+        })();
+        return () => { cancelled = true; };
+    }, [filtersSettled, snapshotChecked, tenantId, userId, queryClient]);
 
     // CRITICAL: Wait for Supabase client's internal session to be ready
     // Not just React state - the client must have completed _initialize()
@@ -732,24 +842,34 @@ export function useOrdersQuery(window: OrderWindow = null, filtersSettled = true
         queryFn: () => {
             const t = requireTenant(tenantId);
             perfTrace.markRepeat('orders:queryfn-start', { window: windowCacheKey(windowRef.current) });
-            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => perfTrace.span('list:watermark', () => readListMark(t)), (mark) => {
+            return trackListFetch(queryClient, windowCacheKey(windowRef.current), () => perfTrace.span('list:watermark', () => readListMark(t)), () => {
                 const fetchWindow = windowRef.current;
                 const fetchKey = windowCacheKey(fetchWindow);
-                return fetchOrders(t, fetchWindow, mark, (preview) => publishListPreview(queryClient, t, fetchKey, preview));
+                return fetchOrders(t, fetchWindow, (preview) => publishListPreview(queryClient, t, fetchKey, preview));
             });
         },
         enabled,
-        // Short staleTime — realtime patches keep cache fresh between refetches
-        staleTime: 30 * 1000, // 30 seconds
+        // Realtime, the reopen / reconnect / heartbeat deltas and the
+        // remount catch-up above keep the list current. None of React
+        // Query's automatic refetches may re-read the whole window: a focus
+        // after 30s, a return to the page and a network reconnect each did,
+        // on top of the delta that already covers them.
+        staleTime: 30 * 1000,
         gcTime: CACHE_PRESETS.FREQUENT.gcTime, // 10 mins
-        // Refetch when window regains focus to catch missed updates
-        refetchOnWindowFocus: true, // respects staleTime (30s)
-        // Refetch on mount if data is stale
-        refetchOnMount: true,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
         // Lighter retry since we no longer throw for missing auth
         retry: 2,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
     });
+
+    useEffect(() => {
+        if (!enabled || !tenantId || !pendingCatchUp.current) return;
+        const pending = pendingCatchUp.current;
+        pendingCatchUp.current = null;
+        void catchUpRestoredList(queryClient, tenantId, windowRef.current, pending);
+    }, [enabled, tenantId, queryClient]);
 
     // Coverage reconciler. Whenever the query is idle and enabled, no list
     // mutation is pending, and the loaded window does not cover the one on

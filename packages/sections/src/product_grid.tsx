@@ -25,8 +25,10 @@ import { SchneidersProductCard } from "./helpers/product-card";
 import { FilterableProductGrid } from "./helpers/filterable-grid";
 import { RevealMore } from "./helpers/reveal-more";
 import { CatalogGrid } from "./helpers/catalog-grid";
+import { ProductRow } from "./product_grid.row";
 import { resolveTenantWhatsapp } from "./helpers/whatsapp";
 import { chromeString } from "./helpers/chrome-strings";
+import { isBuyable } from "./helpers/stock";
 import {
   formatPrice,
   formatCount,
@@ -54,6 +56,14 @@ const schema = z.object({
        * whose stock is all gone still wants to show its products.
        */
       exclude_out_of_stock: z.boolean().optional(),
+      /**
+       * Keep sold-out products, but after every product a shopper can
+       * order. Applied before `limit`, so a sold-out best seller gives its
+       * slot to something orderable instead of leading the shelf. Opt-in:
+       * unset leaves today's order untouched. `.catch` so a malformed
+       * stored value reads as unset rather than dropping the section.
+       */
+      sold_out_last: z.boolean().optional().catch(undefined),
     })
     .optional(),
   manual_product_ids: z.array(z.string()).optional(),
@@ -77,6 +87,13 @@ const schema = z.object({
    *  "price_pill" = soft rounded photo card, surface price pill overlaid at
    *  the photo bottom, product name centered below the card. */
   card_style: z.enum(["standard", "price_pill"]).default("standard"),
+  /**
+   * "row" = a compact horizontal snap row (maker / audience tags, orderable
+   * first when paired with `query.sold_out_last`), built for the foot of a
+   * product page. Unset or "grid" renders exactly as before. `.catch` so a
+   * malformed stored value reads as unset rather than dropping the section.
+   */
+  layout: z.enum(["grid", "row"]).optional().catch(undefined),
   /** Small rounded chip rendered above the heading (price_pill header only). */
   eyebrow_i18n: i18nStringOptional,
   /** Muted line under the heading (price_pill header only). */
@@ -138,6 +155,15 @@ const defaultProps: Props = {
 
 /* ---- product selection ------------------------------------------------ */
 
+/** Stable partition: orderable products first, sold-out and oversold ones
+ *  after, each half in the order it arrived. */
+function soldOutLast(products: Product[]): Product[] {
+  return [
+    ...products.filter((p) => isBuyable(p)),
+    ...products.filter((p) => !isBuyable(p)),
+  ];
+}
+
 function selectAuto(
   products: Product[],
   query: Props["query"],
@@ -190,6 +216,7 @@ function selectAuto(
       return bt.localeCompare(at);
     });
   }
+  if (query?.sold_out_last) pool = soldOutLast(pool);
   if (query?.limit && pool.length > query.limit) {
     pool = pool.slice(0, query.limit);
   }
@@ -207,9 +234,10 @@ export function selectProducts(
 ): Product[] {
   const byId = new Map(ctx.products.map((p) => [p.id, p]));
   if (props.mode === "manual") {
-    return (props.manual_product_ids ?? [])
+    const manual = (props.manual_product_ids ?? [])
       .map((id) => byId.get(id))
       .filter((p): p is Product => !!p);
+    return props.query?.sold_out_last ? soldOutLast(manual) : manual;
   }
   if (props.mode === "mixed") {
     const pinned = (props.pinned_product_ids ?? [])
@@ -222,7 +250,8 @@ export function selectProducts(
       ctx.product?.id,
     );
     const limit = props.query?.limit ?? Infinity;
-    return [...pinned, ...fill].slice(0, limit);
+    const merged = [...pinned, ...fill];
+    return (props.query?.sold_out_last ? soldOutLast(merged) : merged).slice(0, limit);
   }
   return selectAuto(ctx.products, props.query, ctx.product?.id);
 }
@@ -647,6 +676,23 @@ function ProductGridRender({
   // On a category page the grid is the full category catalogue (filterable +
   // paginated client-side); on the home/curated case it's the limited query.
   if ((category ? ctx.products.length : items.length) === 0) return null;
+
+  // ---- row branch (opt-in) ----------------------------------------------
+  // An early return like price_pill's, so every stored config without
+  // `layout: "row"` keeps its markup byte-for-byte.
+  if (props.layout === "row") {
+    return (
+      <ProductRow
+        products={items}
+        locale={locale}
+        heading={heading}
+        subheading={resolveI18n(props.subheading_i18n, locale)}
+        seeAllHref={props.see_all_href}
+        seeAllLabel={resolveI18n(props.see_all_label_i18n, locale)}
+        showRating={props.show_stars === true}
+      />
+    );
+  }
 
   // ---- price_pill branch ------------------------------------------------
   // Separate early return so the "standard" branch below stays byte-for-byte

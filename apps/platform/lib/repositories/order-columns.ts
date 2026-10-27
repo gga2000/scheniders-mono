@@ -109,7 +109,8 @@ export const ORDER_READ_COLUMNS = `
   last_followup_at,
   last_followup_type,
   attribution,
-  ad_channel
+  ad_channel,
+  confirmation_dispatched_at
 `;
 
 /** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */
@@ -135,6 +136,12 @@ export function pickOrderWriteColumns(row: Record<string, unknown>): Record<stri
     }
     return picked;
 }
+
+/**
+ * Order rows per restoreOrdersAction call. Server Action bodies are capped at
+ * 1 MB, so the backup and vault restores send their orders in batches.
+ */
+export const RESTORE_ORDERS_BATCH_SIZE = 200;
 
 /**
  * Minimal column set for list/table/card views, read from `public.orders`.

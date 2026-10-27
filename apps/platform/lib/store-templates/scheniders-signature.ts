@@ -340,11 +340,14 @@ export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFact
 
     return {
         id: "scheniders_signature",
-        // v2 places two sections this program shipped: the product's own
+        // v2 placed two sections this program shipped: the product's own
         // specs and the post-purchase offer. Both render nothing until the
         // merchant has the data behind them, so placing them costs a store
         // with no attributes or order bumps nothing.
-        version: 2,
+        // v3 moves the post-purchase offer below order_confirmation, so the
+        // thank-you call card (order_confirmation.show_call_card) is the
+        // first thing a buyer sees; the offer still renders, one block down.
+        version: 3,
         name_i18n: { en: "Scheniders Signature", ar: "توقيع شنايدر" },
         description_i18n: {
             en: "Warm cream ground, butter-yellow CTAs, floating pill chrome and a funnel-style COD product page.",
@@ -580,11 +583,14 @@ export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFact
                 faqSplit(faqAll, H.faq.sub_i18n, contactHome),
             ],
             ...commercePages(s, { productCardStyle: "price_pill" }),
-            // A one-tap add to the order just placed, while it is still
-            // editable. Renders nothing until an order bump is configured.
+            // The order confirmation leads: with its call card on, it is the
+            // brief for the confirmation call, and nothing may push it below
+            // the fold. The one-tap add to the order just placed follows,
+            // while the order is still editable; it renders nothing until an
+            // order bump is configured.
             checkout_success: [
-                s("post_purchase_offer"),
                 s("order_confirmation"),
+                s("post_purchase_offer"),
                 s("product_grid", { card_style: "price_pill" }),
             ],
             ...(facts

@@ -1,9 +1,10 @@
 "use client";
 
+import { Megaphone } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
-import type { AdChannel } from "@/lib/ad-attribution";
+import { useLanguage } from "@/hooks/use-language";
 import type { ChannelSummary } from "@/lib/ad-channel-filter";
-import { AdChannelBadge } from "./ad-channel-badge";
+import { CHANNEL_GLYPH_COLOR, ChannelGlyph } from "./ad-channel-badge";
 
 /**
  * Orders and realized revenue per ad channel, doubling as the channel filter.
@@ -28,6 +29,7 @@ interface AdChannelFilterProps {
 }
 
 export function AdChannelFilter({ summary, selected, onSelect, className, countsHidden = false }: AdChannelFilterProps) {
+    const { t } = useLanguage();
     const { stats, attributed, total } = summary;
 
     // Nothing attributed in this view, and no channel pinned that would need a
@@ -36,8 +38,20 @@ export function AdChannelFilter({ summary, selected, onSelect, className, counts
 
     const isAll = !selected;
 
+    // Laid out like the TYPE and PRODUCTS rows in StickyFilterBar: a label, then
+    // one scrollable line of equal-height pills. Each pill is glyph · name ·
+    // count · revenue, so the figures read as part of their channel instead of
+    // floating loose between chips and wrapping onto a second line.
     return (
-        <div className={cn("flex flex-wrap items-center gap-2", className)} data-testid="ad-channel-filter">
+        <div
+            className={cn("flex items-center gap-2 overflow-x-auto scrollbar-hide", className)}
+            data-testid="ad-channel-filter"
+        >
+            <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/70 pr-1">
+                <Megaphone className="w-3.5 h-3.5" aria-hidden="true" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t("orders.toolbar.channels")}</span>
+            </div>
+
             <button
                 type="button"
                 onClick={() => onSelect(null)}
@@ -46,15 +60,12 @@ export function AdChannelFilter({ summary, selected, onSelect, className, counts
                 // with no channel pinned), like every other count on the page.
                 // How many of those carry a channel is disclosed in the title.
                 title={countsHidden ? undefined : `${attributed} من ${total} طلب في هذا العرض تحمل قناة إعلانية`}
-                className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-bold transition-colors",
-                    isAll
-                        ? "border-foreground bg-foreground text-[var(--background)]"
-                        : "border-[var(--card-border)] text-muted hover:text-foreground",
-                )}
+                className={cn(CHIP, isAll ? CHIP_ACTIVE : CHIP_IDLE)}
             >
-                كل القنوات
-                {!countsHidden && <span className="ms-1.5 opacity-70 tabular-nums" dir="ltr">{total}</span>}
+                <span>كل القنوات</span>
+                {!countsHidden && (
+                    <span className={cn(COUNT, isAll ? COUNT_ACTIVE : COUNT_IDLE)} dir="ltr">{total}</span>
+                )}
             </button>
 
             {stats.map(stat => {
@@ -67,20 +78,27 @@ export function AdChannelFilter({ summary, selected, onSelect, className, counts
                         data-channel={stat.channel}
                         data-selected={isSelected ? "true" : "false"}
                         title={countsHidden ? stat.label : `${stat.label}: ${stat.orders} طلب · ${formatIQD(stat.revenue)} محقق`}
-                        className={cn(
-                            "flex items-center gap-2 rounded-full border px-2 py-1 transition-all",
-                            isSelected
-                                ? "border-foreground/40 bg-[var(--card-bg)] shadow-sm ring-1 ring-foreground/10"
-                                : "border-transparent hover:border-[var(--card-border)]",
-                        )}
+                        className={cn(CHIP, isSelected ? CHIP_ACTIVE : CHIP_IDLE)}
                     >
-                        <AdChannelBadge
-                            attribution={{ channel: stat.channel as AdChannel, source: stat.label }}
-                            compact
+                        <ChannelGlyph
+                            channel={stat.channel}
+                            className={cn(
+                                "w-3.5 h-3.5 shrink-0",
+                                !isSelected && (CHANNEL_GLYPH_COLOR[stat.channel] ?? "text-muted-foreground"),
+                            )}
                         />
-                        {!countsHidden && <span className="text-xs font-bold tabular-nums" dir="ltr">{stat.orders}</span>}
+                        <span className="max-w-[140px] truncate" dir="ltr">{stat.label}</span>
+                        {!countsHidden && (
+                            <span className={cn(COUNT, isSelected ? COUNT_ACTIVE : COUNT_IDLE)} dir="ltr">{stat.orders}</span>
+                        )}
                         {!countsHidden && stat.revenue > 0 && (
-                            <span className="text-[10px] text-muted tabular-nums" dir="ltr">
+                            <span
+                                className={cn(
+                                    "border-l ps-1.5 text-[10px] font-semibold tabular-nums",
+                                    isSelected ? "border-white/30 text-current opacity-90" : "border-border/60 text-muted-foreground",
+                                )}
+                                dir="ltr"
+                            >
                                 {formatIQD(stat.revenue)}
                             </span>
                         )}
@@ -90,3 +108,11 @@ export function AdChannelFilter({ summary, selected, onSelect, className, counts
         </div>
     );
 }
+
+// The product chips' classes (sticky-filter-bar.tsx), so the three sub-filter rows match.
+const CHIP = "rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border px-3 py-1.5 text-xs font-medium";
+const CHIP_ACTIVE = "bg-blue-600 text-white border-blue-600 shadow-sm dark:bg-primary dark:text-black dark:border-primary";
+const CHIP_IDLE = "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]";
+const COUNT = "px-1.5 py-0.5 rounded-full text-[10px] font-black min-w-[18px] text-center tabular-nums";
+const COUNT_ACTIVE = "bg-white/25 text-current";
+const COUNT_IDLE = "bg-muted-foreground/15 text-muted-foreground";
