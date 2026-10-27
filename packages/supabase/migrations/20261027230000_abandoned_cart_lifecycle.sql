@@ -63,6 +63,16 @@ COMMENT ON COLUMN public.orders.abandoned_cart_outcome IS
 COMMENT ON COLUMN public.orders.abandoned_cart_order_id IS
     'The real order that replaced this cart, or (on that real order) the cart it replaced.';
 
+-- authenticated reads orders column by column (20261021090000); members see
+-- these through the orders RLS like every other column.
+GRANT SELECT (
+    abandoned_cart_at,
+    abandoned_cart_outcome,
+    abandoned_cart_resolved_at,
+    abandoned_cart_resolved_by_name,
+    abandoned_cart_order_id
+) ON public.orders TO authenticated;
+
 -- Phone lookups per tenant, among live orders (the triggers below).
 CREATE INDEX IF NOT EXISTS idx_orders_tenant_phone_key_live
     ON public.orders (tenant_id, public.normalize_phone(phone))
