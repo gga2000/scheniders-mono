@@ -63,7 +63,7 @@ class FakeQuery implements PromiseLike<{ data: Row[] | null; error: null }> {
 
 // The webhook fails closed without its secret (route.auth.test.ts), so these
 // updates carry the registered one.
-const SECRET = "tg-secret";
+const SECRET = vi.hoisted(() => "tg-secret");
 vi.mock("@/lib/env", () => ({ env: { TELEGRAM_WEBHOOK_SECRET: SECRET } }));
 
 vi.mock("@/lib/supabase-server", () => ({

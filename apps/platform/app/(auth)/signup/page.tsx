@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import {
     Eye,
     EyeOff,
@@ -21,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 
 function SignupForm() {
     const { t } = useLanguage();
+    const router = useRouter();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -64,25 +66,33 @@ function SignupForm() {
                 return;
             }
 
-            // The account cannot sign in until the email is confirmed
-            // (self-serve signup no longer auto-confirms), so the merchant
-            // stays here with the "check your email" message; the
-            // confirmation link lands on /login. The plan is decided by the
-            // server, not sent from here.
+            setSuccess(data.message || t("signup.success"));
             // UX2-18: if this browser still holds a session for a DIFFERENT
-            // account, /login bounces straight back into that old tenant and
-            // the new store silently disappears. supabase-js reports a
-            // missing session as success, so an error here means an old
-            // session really is still attached: say so instead of claiming
-            // the way to the new account is clear.
+            // account, it must be cleared before signing in as the new one.
+            // supabase-js reports a missing session as success, so an error
+            // here means an old session really is still attached: stop and
+            // say so rather than signing in on top of another tenant.
             const { error: signOutError } = await supabase.auth.signOut();
             if (signOutError) {
+                setSuccess(null);
                 setError(t("signup.signOutFailed"));
                 setIsLoading(false);
                 return;
             }
-            setSuccess(t("signup.success"));
-            setIsLoading(false);
+            // S3-02: the account is auto-confirmed server-side, so sign the
+            // merchant straight in and land them on the store builder — no
+            // silent bounce through an empty /login form.
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password,
+            });
+            if (signInError) {
+                // Extremely unlikely (account was just created) — fall back to
+                // the login screen rather than stranding them here.
+                router.push("/login");
+                return;
+            }
+            router.push("/store");
         } catch {
             setError("Network error. Please check your connection and try again.");
             setIsLoading(false);
@@ -256,7 +266,7 @@ function SignupForm() {
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
                         <button
                             type="submit"
-                            disabled={isLoading || !isFormValid || success !== null}
+                            disabled={isLoading || !isFormValid}
                             className="w-full h-12 rounded-xl font-semibold text-white bg-gradient-to-r from-[#1E1E1E] to-[#3D3D3D] hover:from-[#2D2D2D] hover:to-[#4D4D4D] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                         >
                             {isLoading ? (

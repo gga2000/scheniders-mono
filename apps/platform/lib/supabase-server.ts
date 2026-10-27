@@ -66,25 +66,6 @@ export function createSupabaseServerClientWithToken(accessToken: string) {
 }
 
 /**
- * Anonymous client with no session storage, for server code that calls a
- * public auth endpoint on the visitor's behalf (e.g. `auth.signUp`, which sends
- * the confirmation email). RLS applies as `anon`.
- */
-export function createSupabaseAnonClient() {
-    return createClient(
-        env.NEXT_PUBLIC_SUPABASE_URL,
-        env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-            auth: {
-                persistSession: false,
-                autoRefreshToken: false,
-                detectSessionInUrl: false,
-            },
-        }
-    );
-}
-
-/**
  * Create a Supabase client with the service role key.
  * Bypasses RLS — use only for admin operations after verifying the user.
  */

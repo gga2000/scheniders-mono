@@ -2,9 +2,8 @@ import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { clientIp } from '@/lib/client-ip';
-import { env } from '@/lib/env';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
-import { createSupabaseAnonClient, createSupabaseServiceClient } from '@/lib/supabase-server';
+import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { generateSlug, ensureUniqueSlug, type PlanTier } from '@/lib/tenant';
 
 // =============================================
@@ -15,15 +14,13 @@ import { generateSlug, ensureUniqueSlug, type PlanTier } from '@/lib/tenant';
 // Hardened (Phase 4):
 // - The plan is decided here, not by the client. Every self-serve signup starts
 //   a trial on SIGNUP_PLAN; plan changes go through billing.
-// - The email must be confirmed before the account can sign in. The user is
-//   created through the public `auth.signUp`, which sends Supabase's
-//   confirmation email, instead of `admin.createUser({ email_confirm: true })`,
-//   which marked any typed address as verified.
+// - The account is created confirmed and the signup page signs the merchant
+//   straight in. Email confirmation was offered and declined by the owner
+//   (2026-10-27), so the per-IP and per-email limits are what stop mass
+//   signups.
 // - Input is validated with Zod.
 // - Requests are rate limited per IP and per email (Postgres-backed limiter,
 //   lib/rate-limit.ts).
-// - Every success answers with the same body, so the endpoint does not reveal
-//   whether an email already has an account.
 
 /**
  * Server-decided plan for a self-serve trial: every signup starts its trial on
@@ -35,9 +32,6 @@ const TRIAL_DAYS = 14;
 const IP_LIMIT = 5;
 const EMAIL_LIMIT = 3;
 const WINDOW_SECONDS = 60 * 60;
-
-const CHECK_EMAIL_MESSAGE =
-    'Check your email to confirm your account, then sign in. Your 14-day free trial starts now.';
 
 const optionalText = (max: number) =>
     z.string().trim().max(max).optional().transform(v => (v ? v : null));
@@ -53,10 +47,6 @@ const signupSchema = z.object({
 
 function sha256(value: string): string {
     return createHash('sha256').update(value, 'utf8').digest('hex');
-}
-
-function accepted() {
-    return NextResponse.json({ success: true, message: CHECK_EMAIL_MESSAGE }, { status: 202 });
 }
 
 function limiterUnavailable(error: string) {
@@ -114,67 +104,26 @@ export async function POST(request: NextRequest) {
         const baseSlug = generateSlug(business_name);
         const slug = await ensureUniqueSlug(baseSlug);
 
-        // ── 1. Create the auth user (unconfirmed) and send the confirmation email ──
-        const origin = env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
-        const { data: authData, error: authError } = await createSupabaseAnonClient().auth.signUp({
+        // ── 1. Create the auth user (confirmed; the page signs in next) ──
+        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
             email,
             password,
-            options: { emailRedirectTo: `${origin}/login` },
+            email_confirm: true,
         });
 
         if (authError) {
-            if (authError.status === 429) {
+            // GoTrue answers "A user with this email address has already been
+            // registered" (code email_exists).
+            if (authError.code === 'email_exists' || /already (been )?registered|already exists/i.test(authError.message)) {
                 return NextResponse.json(
-                    { error: 'Too many signup attempts. Please try again later.' },
-                    { status: 429 },
+                    { error: 'An account with this email already exists' },
+                    { status: 409 },
                 );
             }
-            // With confirmations on, Supabase does not error for an existing
-            // address; this branch only runs if they are off. Answer the same
-            // as a new signup either way.
-            if (/already (registered|exists)/i.test(authError.message)) return accepted();
             return NextResponse.json({ error: authError.message }, { status: 400 });
         }
 
-        const user = authData.user;
-        if (!user) {
-            console.error('[Signup] auth.signUp returned no user and no error');
-            return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-        }
-
-        // An address that already has a confirmed account comes back as an
-        // obfuscated user with no identities, and nothing was created.
-        if (user.identities?.length === 0) return accepted();
-
-        // A session (or a confirmed address) here means the Supabase project
-        // has "Confirm email" turned off, so the address would never be
-        // verified. Refuse rather than create an unverified owner account.
-        if (authData.session || user.email_confirmed_at) {
-            console.error(
-                '[Signup] Supabase Auth "Confirm email" is disabled — refusing to create an unverified account.',
-            );
-            await adminClient.auth.admin.deleteUser(user.id);
-            return NextResponse.json(
-                { error: 'Signup is temporarily unavailable. Please try again shortly.' },
-                { status: 503 },
-            );
-        }
-
-        // An unconfirmed address that signs up again gets the same user back
-        // (Supabase resends the email). It is already provisioned; it must not
-        // get a second tenant, and the rollback below must never delete it.
-        const { data: existingProfile, error: profileLookupError } = await adminClient
-            .from('user_profiles')
-            .select('id')
-            .eq('id', user.id)
-            .maybeSingle();
-        if (profileLookupError) {
-            console.error('[Signup] Profile lookup failed:', profileLookupError.message);
-            return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-        }
-        if (existingProfile) return accepted();
-
-        const userId = user.id;
+        const userId = authData.user.id;
 
         // ── 2. Create tenant ──
         const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -243,6 +192,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Failed to create your account. Please try again.' }, { status: 500 });
         }
 
+        let partialFailure = false;
         // ── 4-7. Create supporting records (tenant_members, subscription, wallet, usage_tracking) ──
         // If any of these fail, mark the tenant as 'incomplete' for admin review.
         // We don't rollback — the user + tenant are already created and valuable.
@@ -307,6 +257,7 @@ export async function POST(request: NextRequest) {
                 throw new Error(`usage_tracking: ${usageError.message}`);
             }
         } catch (setupErr) {
+            partialFailure = true;
             const errMsg = setupErr instanceof Error ? setupErr.message : 'Unknown setup error';
             console.error('[Signup] Partial failure during tenant setup:', errMsg);
 
@@ -317,7 +268,18 @@ export async function POST(request: NextRequest) {
                 .eq('id', tenant.id);
         }
 
-        return accepted();
+        return NextResponse.json(
+            {
+                success: true,
+                partial_failure: partialFailure || undefined,
+                tenant_slug: tenant.slug,
+                trial_ends_at: trialEndsAt,
+                message: partialFailure
+                    ? 'Account created but some setup steps failed. An admin will review your account shortly.'
+                    : `Account created! You have a ${TRIAL_DAYS}-day free trial.`,
+            },
+            { status: 201 },
+        );
     } catch (err) {
         console.error('[Signup] Unexpected error:', err);
         return NextResponse.json(

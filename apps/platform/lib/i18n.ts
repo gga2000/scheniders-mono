@@ -3344,7 +3344,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.submitting": "Creating account...",
         "signup.haveAccount": "Already have an account?",
         "signup.signIn": "Sign in",
-        "signup.success": "Account created! Check your email to confirm it, then sign in. Your 14-day free trial starts now.",
+        "signup.success": "Account created! Taking you to your store…",
         "signup.signOutFailed": "Your account was created, but this browser is still signed in to another account and we could not sign it out. Sign out of it, then sign in with your new account.",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
@@ -6703,7 +6703,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.submitting": "جاري إنشاء الحساب...",
         "signup.haveAccount": "لديك حساب بالفعل؟",
         "signup.signIn": "تسجيل الدخول",
-        "signup.success": "تم إنشاء حسابك! تحقّق من بريدك الإلكتروني لتأكيده ثم سجّل الدخول. تبدأ تجربتك المجانية لمدة 14 يومًا الآن.",
+        "signup.success": "تم إنشاء حسابك! جاري نقلك إلى متجرك…",
         "signup.signOutFailed": "تم إنشاء حسابك، لكن هذا المتصفح ما زال مسجلاً بحساب آخر ولم نتمكن من تسجيل الخروج منه. سجّل الخروج منه ثم سجّل الدخول بحسابك الجديد.",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "أهلاً بعودتك",

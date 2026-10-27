@@ -17,6 +17,15 @@ import {
  *  packages/supabase/tests/wallet_topup_subscription_renew.sql.)
  */
 
+// requireCronAuth reads the validated env, which is built once at import;
+// read the secret this suite sets per test instead.
+vi.mock("@/lib/env", () => ({
+    env: {
+        get CRON_SECRET() {
+            return process.env.CRON_SECRET;
+        },
+    },
+}));
 vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
 
 const { GET } = await import("./route");
