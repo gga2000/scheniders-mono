@@ -272,7 +272,8 @@ BEGIN
         _paid := _paid || _amount;
     END LOOP;
 
-    -- Units and money already taken back per line, by live children.
+    -- Units and money already taken back per line, by live children. A child
+    -- that was cancelled, failed or rejected moved no goods and no money.
     _done_qty := array_fill(0, ARRAY[_n]);
     _done_amt := array_fill(0, ARRAY[_n]);
     FOR _l IN
@@ -280,7 +281,7 @@ BEGIN
           FROM public.after_sale_items a
           JOIN public.orders c ON c.id = a.order_id
          WHERE a.original_order_id = _orig.id AND a.direction = 'back'
-           AND c.status NOT IN ('cancelled')
+           AND c.status NOT IN ('cancelled', 'refund_failed', 'rejected')
          GROUP BY a.original_line_index
     LOOP
         _idx := (_l->>'i')::integer;
@@ -296,7 +297,7 @@ BEGIN
           FROM public.orders c
           CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(c.items) = 'array' THEN c.items ELSE '[]'::jsonb END) e
          WHERE c.original_order_id = _orig.id AND c.tenant_id = _tenant_id
-           AND c.status NOT IN ('cancelled')
+           AND c.status NOT IN ('cancelled', 'refund_failed', 'rejected')
            AND NOT EXISTS (SELECT 1 FROM public.after_sale_items a WHERE a.order_id = c.id)
            AND (c.is_return OR c.is_replacement)
     LOOP

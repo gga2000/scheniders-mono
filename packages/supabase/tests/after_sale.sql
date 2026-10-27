@@ -20,7 +20,8 @@
 --     * refund fee kept defaults from tenant settings and never exceeds the
 --       refund; replacement price = new - credit, fee charged or absorbed;
 --       a cheaper swap gives a negative courier amount;
---     * more units than are left on a line are refused.
+--     * more units than are left on a line are refused; a cancelled, failed
+--       or rejected child frees its units again.
 --   Reason
 --     * _reason_id is written to the child; another kind or tenant is refused.
 --   Tenancy
@@ -196,6 +197,11 @@ BEGIN
     INSERT INTO order_reasons(tenant_id, kind, label_ar) VALUES (tb, 'refund', 'y') RETURNING id INTO line;
     PERFORM pg_temp.refused('another tenant''s reason',
         format($q$SELECT create_after_sale_order(%L, %L, 'refund', '[{"original_line":0,"qty":1}]', '[]', 0, true, NULL, NULL, NULL, %L)$q$, ta, orig3, line));
+
+    -- A failed refund frees its units for a retry.
+    UPDATE orders SET status = 'refund_failed' WHERE id = (r->>'id')::uuid;
+    r := create_after_sale_order(ta, orig3, 'refund', '[{"original_line":0,"qty":2}]', '[]', 0);
+    PERFORM pg_temp.eq('retry after refund_failed takes both units', (r->'after_sale'->>'credit')::integer, 60000);
 
     -- ── Tenancy ────────────────────────────────────────────────────────────
     PERFORM pg_temp.refused('original of another tenant',
