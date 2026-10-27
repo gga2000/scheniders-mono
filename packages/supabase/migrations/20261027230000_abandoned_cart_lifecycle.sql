@@ -18,7 +18,7 @@
 --       contacted        staff moved it out of Abandoned (any next status)
 --       returned         the customer placed a real order themselves; also set
 --                        on that real order, which inherits abandoned_cart_at
---       already_ordered  the AC arrived after a real order (24 h) for the phone
+--       already_ordered  a real order for the phone exists within 24 h of the AC
 --       junk_phone       not a reachable Iraqi mobile
 --       junk_location    no governorate, city or address at all
 --       expired          untouched for 14 days (sweep_abandoned_carts)
@@ -134,15 +134,17 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- The customer already ordered in the last 24 h: this checkout is the
-    -- leftover of that order, not a lead.
+    -- The customer ordered within 24 h of this checkout: it is the leftover
+    -- of that order, not a lead. Measured from the checkout's own time, so a
+    -- LightFunnels sync importing old checkouts applies the same rule.
     SELECT o.id INTO _real
     FROM public.orders o
     WHERE o.tenant_id = NEW.tenant_id
       AND o.deleted_at IS NULL
       AND public.normalize_phone(o.phone) = public.normalize_phone(NEW.phone)
       AND o.status <> 'pending_checkout'
-      AND o.created_at >= now() - interval '24 hours'
+      AND o.created_at BETWEEN NEW.abandoned_cart_at - interval '24 hours'
+                           AND NEW.abandoned_cart_at + interval '24 hours'
     ORDER BY o.created_at DESC
     LIMIT 1;
 
