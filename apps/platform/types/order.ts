@@ -107,8 +107,13 @@ export interface Order {
     is_replacement: boolean;
     original_order_id?: string;
     original_created_at?: string;
-    /** Refund financial dimension. Independent of order status. */
-    refund_status?: 'none' | 'pending' | 'refunded' | 'failed';
+    /**
+     * Refund financial dimension. Independent of order status. Kept in step by
+     * the database from this order's refund orders: `pending` while one is
+     * open, `partial` when some of what was bought has been refunded,
+     * `refunded` when all of it has. Never written by the browser.
+     */
+    refund_status?: 'none' | 'pending' | 'partial' | 'refunded' | 'failed';
     refunded_at?: string;
     /** FK to order_reasons.id when the cancellation/rejection reason was picked from the managed list. */
     reason_id?: string;

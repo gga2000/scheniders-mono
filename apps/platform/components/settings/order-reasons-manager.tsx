@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { XCircle, PackageX, Truck } from "lucide-react";
+import { XCircle, PackageX, Truck, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOrderReasons, useReasonUsage } from "@/hooks/use-order-reasons";
 import { ReasonListEditor } from "@/components/orders/reason-list-editor";
 import type { ReasonKind } from "@/lib/order-reasons";
 
 /**
- * Settings panel for managing both cancel reasons (before shipping) and
- * reject reasons (after shipping / at delivery). Two tabs, one editor each.
+ * Settings panel for managing cancel reasons (before shipping), reject
+ * reasons (after shipping / at delivery) and refund reasons (after the
+ * customer has the order). One tab and one editor each.
  * Each reason can carry an emoji + color and tracks its own usage count so
  * the picker can surface the most-used reason first.
  */
@@ -17,6 +18,7 @@ import type { ReasonKind } from "@/lib/order-reasons";
 const TABS: { kind: ReasonKind; label: string; stage: string; accent: "rose" | "orange"; icon: typeof XCircle }[] = [
     { kind: "cancel", label: "أسباب الإلغاء", stage: "قبل الشحن", accent: "rose", icon: XCircle },
     { kind: "reject", label: "أسباب الرفض", stage: "بعد الشحن", accent: "orange", icon: PackageX },
+    { kind: "refund", label: "أسباب الاسترجاع", stage: "بعد الاستلام", accent: "rose", icon: Undo2 },
 ];
 
 export function OrderReasonsManager() {

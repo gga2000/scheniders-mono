@@ -25,6 +25,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@scheniders/ui/dropdown-menu";
+import { RefundOrderChip, OriginalRefundChip } from "@/components/orders/refund-chips";
 
 interface MobileOrderCardProps {
     order: Order;
@@ -229,6 +230,13 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                             </div>
                         )}
                     </div>
+
+                    {/* Refund identity: a refund order, or an original with a refund */}
+                    {(isReturn || (order.refund_status && order.refund_status !== "none" && order.refund_status !== "failed")) && (
+                        <div className="flex flex-wrap gap-1.5 items-center mt-1">
+                            {isReturn ? <RefundOrderChip /> : <OriginalRefundChip refundStatus={order.refund_status} />}
+                        </div>
+                    )}
 
                     {/* Other Tags (Risk, Duplicate) placed neatly below address & phone to save space */}
                     {((resolvedRiskLevel && resolvedRiskLevel !== "low") || hasManyOrders || duplicateAlert) && (

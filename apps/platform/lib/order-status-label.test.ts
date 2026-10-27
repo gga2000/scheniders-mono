@@ -50,10 +50,17 @@ describe("order status labels", () => {
         expect(getStatusLabel("refund_failed")).toBe("فشل الاسترجاع");
     });
 
-    it("keeps the return-specific wording for a return in transit", () => {
-        expect(getStatusLabel("in_transit", true)).toBe("استرجاع قيد التوصيل");
+    it("reads a refund order's statuses as a refund", () => {
+        expect(getStatusLabel("in_transit", true)).toBe("مع المندوب");
         expect(getStatusLabel("in_transit", false)).toBe("قيد التوصيل");
-        expect(getOrderStatusLabel("in_transit", "en", true)).toBe("Return In Transit");
+        expect(getOrderStatusLabel("in_transit", "en", true)).toBe("Courier collecting");
+        expect(getOrderStatusLabel("return_pending", "en", true)).toBe("Pickup pending");
+        expect(getOrderStatusLabel("refund_delivered", "en", true)).toBe("Refunded to customer");
+        // Older refund orders the courier could not complete were marked rejected.
+        expect(getOrderStatusLabel("rejected", "en", true)).toBe("Refund failed");
+        expect(getOrderStatusLabel("rejected", "en", false)).toBe("Rejected");
+        // Statuses a refund order never takes keep their normal label.
+        expect(getOrderStatusLabel("new", "en", true)).toBe("New");
     });
 
     it("returns the requested locale rather than always Arabic", () => {

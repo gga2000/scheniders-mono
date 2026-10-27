@@ -21,7 +21,7 @@ type Row = Pick<Order, "status" | "refund_status" | "is_replacement" | "is_retur
 function crossProduct(): Row[] {
     const rows: Row[] = [];
     for (const status of [...STATUSES, UNKNOWN_STATUS]) {
-        for (const refund_status of [undefined, "none", "pending", "refunded", "failed"] as const) {
+        for (const refund_status of [undefined, "none", "pending", "partial", "refunded", "failed"] as const) {
             for (const is_replacement of [undefined, false, true]) {
                 for (const order_id of ["LF-1", "RPL-1"]) {
                     for (const is_return of [undefined, false, true]) {
@@ -68,8 +68,17 @@ describe("order chip table", () => {
         expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: false, refund_status: "failed" })).toBe(true);
         expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: false, refund_status: "refunded" })).toBe(false);
         expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: false, refund_status: "pending" })).toBe(false);
+        // A partly refunded order is still a sale, counted net of the refund.
+        expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: false, refund_status: "partial" })).toBe(true);
         expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: true })).toBe(false);
         expect(p({ status: "completed", order_id: "RPL-9", is_return: false, is_replacement: false })).toBe(false);
+    });
+
+    it("refunded covers fully and partly refunded originals", () => {
+        const p = ORDER_CHIP_PREDICATES.refunded;
+        expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: false, refund_status: "refunded" })).toBe(true);
+        expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: false, refund_status: "partial" })).toBe(true);
+        expect(p({ status: "completed", order_id: "LF-1", is_return: false, is_replacement: false, refund_status: "pending" })).toBe(false);
     });
 
     it("confirmed includes return_pending", () => {

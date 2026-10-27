@@ -42,8 +42,8 @@ interface VirtualizedOrderListProps {
     getCustomerOrderCount: (phone: string, orderId: string) => number;
     getCustomerArchivedCount: (phone: string) => number;
     getCustomerHistory: (phone: string) => Order[];
-    getReturnOrderInfo: (orderId: string) => { returnOrderId: string; returnSequenceNumber?: number } | null;
-    getOriginalOrderInfo: (originalOrderId?: string) => { originalOrderId: string; originalSequenceNumber?: number } | null;
+    getReturnOrderInfo: (orderId: string) => { order?: Order; returnOrderId: string; returnSequenceNumber?: number } | null;
+    getOriginalOrderInfo: (originalOrderId?: string) => { order?: Order; originalOrderId: string; originalSequenceNumber?: number } | null;
     // Options
     /**
      * PERF-2: render the cards as a virtualized responsive grid rather than a

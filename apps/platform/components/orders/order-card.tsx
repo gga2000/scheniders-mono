@@ -78,6 +78,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@scheniders/ui/dropdown-menu";
+import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
 
 
 interface OrderCardProps {
@@ -197,6 +198,8 @@ export const OrderCard = memo(function OrderCard({
     const isReviewed = order.is_reviewed;
     const isDelivered = order.status === "delivered";
     const hasRefund = !!returnOrderInfo;
+    const linkedRefundOrder = returnOrderInfo?.order;
+    const linkedOriginalOrder = originalOrderInfo?.order;
 
     // Blacklist dialog state
     const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false);
@@ -1174,13 +1177,7 @@ export const OrderCard = memo(function OrderCard({
                             {isPinned && <Pin className="w-4 h-4 text-blue-500 -rotate-45" />}
                             {isNew && !isPinned && <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />}
 
-                            {/* Return Badge */}
-                            {order.is_return && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
-                                    <RotateCcw className="w-3 h-3" />
-                                    <span>مرفوض</span>
-                                </span>
-                            )}
+                            {order.is_return && <RefundOrderChip />}
 
                             <span className={cn(
                                 "font-bold tracking-tight",
@@ -1501,41 +1498,20 @@ export const OrderCard = memo(function OrderCard({
                                 }
                             })()}
 
-                            {/* Return Indicator - hidden in semi-compact */}
-                            {compact === 0 && !isReturn && hasRefund && returnOrderInfo && (
-                                <span
-                                    className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 border border-orange-200 cursor-pointer hover:bg-orange-200 transition-colors"
-                                    title={`تم الارجاع جزئياً في الطلب #${returnOrderInfo.returnOrderId}`}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (returnOrderInfo.order) onViewDetails(returnOrderInfo.order);
-                                    }}
-                                >
-                                    <Scissors className="w-3 h-3" />
-                                    مرتجع جزئياً → طلب #{(() => {
-                                        const orderId = returnOrderInfo.returnOrderId;
-                                        const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-                                        return lfMatch ? lfMatch[1] : orderId;
-                                    })()}
-                                </span>
+                            {/* Refund state of an original order - hidden in semi-compact */}
+                            {compact === 0 && !isReturn && (
+                                <OriginalRefundChip
+                                    refundStatus={order.refund_status}
+                                    onOpen={linkedRefundOrder ? () => onViewDetails(linkedRefundOrder) : undefined}
+                                />
                             )}
 
-                            {/* Return Source Indicator - hidden in semi-compact */}
+                            {/* Which order a refund order refunds - hidden in semi-compact */}
                             {compact === 0 && isReturn && originalOrderInfo && (
-                                <span
-                                    className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer hover:bg-rose-200 transition-colors"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (originalOrderInfo.order) onViewDetails(originalOrderInfo.order);
-                                    }}
-                                >
-                                    <RotateCcw className="w-3 h-3" />
-                                    راجع من طلب #{(() => {
-                                        const orderId = originalOrderInfo.originalOrderId;
-                                        const lfMatch = orderId.match(/LF-(\d+)-\d+$/);
-                                        return lfMatch ? lfMatch[1] : orderId;
-                                    })()}
-                                </span>
+                                <RefundOfLink
+                                    original={{ order_id: originalOrderInfo.originalOrderId }}
+                                    onOpen={linkedOriginalOrder ? () => onViewDetails(linkedOriginalOrder) : undefined}
+                                />
                             )}
 
                             {/* Returning Customer Indicator - hidden in semi-compact */}
