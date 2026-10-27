@@ -13,7 +13,10 @@ import type { Order } from "@/types/order";
  */
 
 // Provide an API key so sendTemplateMessage proceeds to the fetch.
-vi.mock("@/lib/env", () => ({ env: { INTERAKT_API_KEY: "test-key" } }));
+vi.mock("@/lib/env", () => ({
+    env: { INTERAKT_API_KEY: "test-key" },
+    providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
+}));
 
 import { sendTemplateMessage } from "./interakt";
 

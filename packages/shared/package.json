@@ -13,6 +13,7 @@
     "./preview-token": "./src/preview-token.ts",
     "./consent-version": "./src/consent-version.ts",
     "./health-rules": "./src/health-rules.ts",
+    "./provider-base-url": "./src/provider-base-url.ts",
     "./font-stack": "./src/font-stack.ts"
   },
   "scripts": {

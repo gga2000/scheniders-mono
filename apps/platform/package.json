@@ -83,6 +83,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@scheniders/provider-mock": "workspace:*",
     "@playwright/test": "^1.58.2",
     "@storybook/addon-a11y": "^10.1.11",
     "@storybook/addon-docs": "^10.1.11",
