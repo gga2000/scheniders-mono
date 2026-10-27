@@ -21,8 +21,9 @@ import { join } from "node:path";
 const ACTIONS_DIR = join(__dirname, "..", "..", "app", "actions");
 
 /**
- * Every helper that establishes the caller. `resolveCaller` is a file-local
- * helper in orders.ts; the rest are shared.
+ * Every helper that establishes the caller. `resolveCaller`
+ * (lib/auth/resolve-order-caller.ts) serves the order actions; the rest are
+ * shared.
  *
  * An earlier version of this list omitted `resolveCaller` and reported all five
  * of orders.ts's actions as unguarded — five false positives on code that was
