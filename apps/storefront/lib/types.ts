@@ -15,6 +15,11 @@ export interface Tenant extends BaseTenant {
   store_config_v2?: StoreConfigV2 | null;
   store_config_v2_draft?: StoreConfigV2 | null;
   address?: string | null;
+  /** Set to true ONLY by `withDraftView` (lib/tenant.ts) when this request
+   *  holds a valid draft-view preview token for the tenant. Not a DB column:
+   *  public loaders never set it. The render uses it to skip the merchant's
+   *  production ad pixels for their own preview traffic. */
+  is_draft_view?: boolean;
 }
 
 export interface Product extends BaseProduct {
@@ -47,6 +52,11 @@ export interface Product extends BaseProduct {
   /** Per-product feature cards (products.feature_cards jsonb, coerced to
    *  well-shaped entries). Rendered as note-highlight cards on the PDP. */
   feature_cards?: { image_url?: string; title: string; body: string }[];
+  /** Merchant-entered public identity shown on the PDP (null = hidden). */
+  brand?: string | null;
+  display_name?: string | null;
+  size_ml?: number | null;
+  gender?: "men" | "women" | "unisex" | null;
   /** Approved-review aggregates, merged in by lib/queries (real data only). */
   review_count?: number;
   avg_rating?: number;

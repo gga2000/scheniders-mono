@@ -108,4 +108,28 @@ describe("checkout_form loyalty", () => {
     });
     expect(screen.getByText(/لديك 40 نقطة/)).toBeTruthy();
   });
+
+  it("sends the proving order number with the redemption, for the server to re-check", async () => {
+    render(element());
+    fireEvent.change(document.querySelector('input[name="phone"]') as HTMLInputElement, {
+      target: { value: "07701234567" },
+    });
+    fireEvent.change(document.querySelector('input[name="loyalty_order_number"]') as HTMLInputElement, {
+      target: { value: " 4260910007 " },
+    });
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "استخدم الكل" }));
+    await act(async () => {
+      fireEvent.submit(document.querySelector("form") as HTMLFormElement);
+      await Promise.resolve();
+    });
+    const order = vi.mocked(fetch).mock.calls.find(([url]) => String(url) === "/api/checkout/orders") as
+      | [string, RequestInit]
+      | undefined;
+    expect(order).toBeDefined();
+    expect(JSON.parse(String(order?.[1].body))).toMatchObject({
+      redeem_points: 40,
+      loyalty_order_number: "4260910007",
+    });
+  });
 });

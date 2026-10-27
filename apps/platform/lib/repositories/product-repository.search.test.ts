@@ -20,20 +20,25 @@ beforeEach(() => {
 });
 
 describe("productRepository.searchByName", () => {
-    it("is tenant-scoped, name-only, narrow and capped", async () => {
+    it("is tenant-scoped, narrow and capped, and matches every name a product goes by", async () => {
         const rows = await productRepository.searchByName(TENANT, "rose", 8);
 
         expect(rows).toEqual([{ id: "p1", name: "Rose Oil", price: 1000 }]);
         const [q] = queriesOn("products");
         expect(hasEq(q, "tenant_id", TENANT)).toBe(true);
         expect(q.ops).toContainEqual({ op: "select", args: ["id, name, price"] });
-        expect(q.ops).toContainEqual({ op: "ilike", args: ["name", "%rose%"] });
+        expect(q.ops).toContainEqual({
+            op: "or",
+            args: ['name.ilike."*rose*",display_name.ilike."*rose*",short_name.ilike."*rose*",sku.ilike."*rose*",lightfunnels_aliases.cs.{"rose"}'],
+        });
         expect(q.ops).toContainEqual({ op: "limit", args: [8] });
     });
 
-    it("drops LIKE wildcards and escapes from the term", async () => {
-        await productRepository.searchByName(TENANT, "50%*\\ off", 8);
-        expect(queriesOn("products")[0].ops).toContainEqual({ op: "ilike", args: ["name", "%50 off%"] });
+    it("drops LIKE wildcards, quotes and escapes from the term, and quotes it", async () => {
+        await productRepository.searchByName(TENANT, '50%*"\\ off, (x)', 8);
+        const or = queriesOn("products")[0].ops.find((o) => o.op === "or")?.args[0] as string;
+        expect(or).toContain('name.ilike."*50 off, (x)*"');
+        expect(or).toContain('lightfunnels_aliases.cs.{"50 off, (x)"}');
     });
 
     it("makes no request for a term that is only wildcards or space", async () => {

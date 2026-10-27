@@ -89,7 +89,11 @@ export async function POST(request: NextRequest) {
         let failedCount = 0;
         const errors: string[] = [];
         const now = new Date().toISOString();
+        // Every audit row carries the caller's tenant: delivery_import_items is
+        // tenant-scoped by RLS, and rows written without it (1,201 live) are
+        // invisible to the merchant who imported them (NEW-P1-13).
         const auditItemsToInsert: Array<{
+            tenant_id: string;
             import_id: string;
             order_id: string | null;
             pdf_row_number: number;
@@ -192,6 +196,7 @@ export async function POST(request: NextRequest) {
                 processedCount++;
                 const { newStatus, pdfRow, resAction } = result.value;
                 auditItemsToInsert.push({
+                    tenant_id: caller.tenantId,
                     import_id: importRecord.id,
                     order_id: item.orderId,
                     pdf_row_number: item.pdfRowNumber,
@@ -221,6 +226,7 @@ export async function POST(request: NextRequest) {
 
                 const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
                 auditItemsToInsert.push({
+                    tenant_id: caller.tenantId,
                     import_id: importRecord.id,
                     order_id: item.orderId,
                     pdf_row_number: item.pdfRowNumber,
@@ -250,6 +256,7 @@ export async function POST(request: NextRequest) {
             for (const item of skippedItems) {
                 const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
                 auditItemsToInsert.push({
+                    tenant_id: caller.tenantId,
                     import_id: importRecord.id,
                     order_id: item.orderId || null,
                     pdf_row_number: item.pdfRowNumber,

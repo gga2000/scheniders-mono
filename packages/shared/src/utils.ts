@@ -1,5 +1,15 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+/** tailwind-merge, taught the storefront theme's custom border widths
+ *  (`borderWidth: { bk, "bk-bold" }`). Stock tailwind-merge files any
+ *  `border-<word>` under border COLOUR, so `border-bk border-bk-divider`
+ *  lost its width and the hairline silently disappeared. Extending the
+ *  `borderWidth` theme scale covers every group that reads it
+ *  (`border-*`, `border-t-*`, `divide-x-*` …). */
+const twMerge = extendTailwindMerge({
+  extend: { theme: { borderWidth: ["bk", "bk-bold"] } },
+});
 
 /** Merge Tailwind CSS classes (clsx + tailwind-merge). */
 export function cn(...inputs: ClassValue[]) {

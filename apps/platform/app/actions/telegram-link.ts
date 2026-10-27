@@ -2,6 +2,7 @@
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireTenantAdminFor } from "@/lib/auth/require-action-caller";
+import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import crypto from "node:crypto";
 
 /**
@@ -91,6 +92,13 @@ export async function generateTelegramLinkCodeAction(
 
     if (!tenantId) {
         return { success: false, error: "Tenant context required" };
+    }
+
+    // The service role bypasses telegram_link_codes' RLS, so its WITH CHECK
+    // (the code's user must be an active member with an active profile,
+    // F-087) is enforced here too: a code is a way to act as that user.
+    if (!(await activeTenantRole(targetUserProfileId, tenantId))) {
+        return { success: false, error: "That user is not an active member of this account." };
     }
 
     // Invalidate any previously-issued unused codes for this user/tenant

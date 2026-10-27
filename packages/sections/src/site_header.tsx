@@ -41,6 +41,11 @@ const schema = z.object({
   show_cart: z.boolean(),
   /** Stick to the top of the viewport on scroll. */
   sticky: z.boolean(),
+  /** floating_pill only. "overlay" = the header takes no space and floats
+   *  as two glass chips (menu, wordmark) over a page whose first section
+   *  is a full-bleed hero, turning solid once the hero scrolls away. Pages
+   *  without a hero mark render it solid. Absent = "solid" (unchanged). */
+  surface: z.enum(["solid", "overlay"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

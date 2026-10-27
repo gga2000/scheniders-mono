@@ -15,7 +15,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePrefetchCustomers } from "@/hooks/use-customers-query";
 import { usePrefetchProducts } from "@/hooks/use-products-query";
 import { useLanguage } from "@/hooks/use-language";
-import { useState, type ComponentType } from "react";
+import { useMemo, useState, type ComponentType } from "react";
+import { canAccessRoute, filterNavSections } from "@/lib/route-permissions";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { TransitionLink } from "./transition-link";
 import {
@@ -135,7 +136,10 @@ export function Sidebar({
     const currentTab =
         searchParams?.get("tab") ||
         (pathname.startsWith("/finances") ? "overview" : "products");
-    const { user, profile, signOut, isLoading: authLoading } = useAuth();
+    const { user, profile, role, permissions, signOut, isLoading: authLoading } = useAuth();
+    // Only the links this user may open: the same rules PageGuard enforces.
+    const navSections = useMemo(() => filterNavSections(NAV_SECTIONS, role, permissions), [role, permissions]);
+    const canOpenSettings = canAccessRoute("/settings", role, permissions);
     const prefetchCustomers = usePrefetchCustomers();
     const prefetchProducts = usePrefetchProducts();
     const { t } = useLanguage();
@@ -380,7 +384,7 @@ export function Sidebar({
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
-                    {NAV_SECTIONS.map((section, sectionIndex) => (
+                    {navSections.map((section, sectionIndex) => (
                         <div key={section.titleKey} className={sectionIndex > 0 ? (collapsed ? "mt-2" : "mt-5") : undefined}>
                             <motion.div
                                 initial={false}
@@ -457,8 +461,8 @@ export function Sidebar({
                                 )}>
                                     <NotificationCenter />
                                 </div>
-                                {!collapsed && <div className="w-px self-center h-5 bg-white/8" />}
-                                <Link
+                                {canOpenSettings && !collapsed && <div className="w-px self-center h-5 bg-white/8" />}
+                                {canOpenSettings && <Link
                                     href="/settings"
                                     className={cn(
                                         "flex items-center justify-center rounded-xl text-zinc-400 hover:text-white hover:bg-white/6 transition-all",
@@ -467,7 +471,7 @@ export function Sidebar({
                                     title={t("nav.settings")}
                                 >
                                     <Settings className="w-[18px] h-[18px]" />
-                                </Link>
+                                </Link>}
                                 {!collapsed && <div className="w-px self-center h-5 bg-white/8" />}
                                 <button
                                     onClick={() => setShowLogoutConfirm(true)}
@@ -565,7 +569,7 @@ export function Sidebar({
 
                         {/* Navigation */}
                         <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
-                            {NAV_SECTIONS.map((section, sectionIndex) => (
+                            {navSections.map((section, sectionIndex) => (
                                 <div key={section.titleKey} className={sectionIndex > 0 ? "mt-5" : undefined}>
                                     <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
                                         {t(section.titleKey)}

@@ -47,3 +47,16 @@ export function formatIraqiPhoneDisplay(raw: string): string {
   if (!local) return raw.trim();
   return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
 }
+
+/**
+ * The buyer's own number echoed back without exposing it whole: the
+ * operator prefix and the last four digits stay readable (`0770 ••• 4567`)
+ * so the buyer recognises it, the middle three are hidden so a screenshot
+ * or a shoulder-surfer does not carry the full number. Null when the input
+ * is not an Iraqi mobile — the caller then shows nothing.
+ */
+export function maskIraqiMobile(raw: string | null | undefined): string | null {
+  const local = normalizeIraqiMobile(raw);
+  if (!local) return null;
+  return `${local.slice(0, 4)} ••• ${local.slice(7)}`;
+}

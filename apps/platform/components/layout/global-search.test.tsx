@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Order } from "@/types/order";
+import { MAX_SEARCH_RESULTS } from "@/lib/order-server-search";
 
 /**
  * The top-bar search is rendered by the root layout on every route, above the
@@ -95,7 +96,7 @@ describe("GlobalSearch without an order book", () => {
         type("ahmed");
 
         await waitFor(() => expect(screen.getByText("Ahmed Kareem")).toBeTruthy(), { timeout: 2000 });
-        expect(H.search).toHaveBeenCalledWith("tenant-1", "ahmed", 50);
+        expect(H.search).toHaveBeenCalledWith("tenant-1", "ahmed", MAX_SEARCH_RESULTS);
         // Customers only: no order rows, no product search.
         expect(screen.queryByText("#LF-1 - Ahmed Ali")).toBeNull();
         expect(H.searchByName).not.toHaveBeenCalled();

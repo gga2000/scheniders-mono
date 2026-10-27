@@ -60,6 +60,9 @@ interface OrdersFilterBarProps {
     riskCountHidden?: boolean;
     showSubFilters: boolean;
     toggleSubFilters: () => void;
+    /** Whether the ad-channel chip row is shown; off by default (app/orders/page.tsx). */
+    showAdChannels: boolean;
+    toggleAdChannels: () => void;
     onOpenScanner: () => void;
 }
 
@@ -83,6 +86,8 @@ export function OrdersFilterBar({
     riskCountHidden = false,
     showSubFilters,
     toggleSubFilters,
+    showAdChannels,
+    toggleAdChannels,
     onOpenScanner,
 }: OrdersFilterBarProps) {
     const { t } = useLanguage();
@@ -159,7 +164,9 @@ export function OrdersFilterBar({
                                 onScannerOpen={() => onOpenScanner()}
                                 subFiltersOpen={showSubFilters}
                                 onToggleSubFilters={toggleSubFilters}
-                                inputClassName="w-full pl-12 pr-14 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
+                                adChannelsOpen={showAdChannels}
+                                onToggleAdChannels={toggleAdChannels}
+                                inputClassName="w-full pl-12 pr-28 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all dark:focus:ring-[rgba(0,255,255,0.4)] dark:focus:border-[rgba(0,255,255,0.5)] dark:focus:shadow-[0_0_15px_rgba(0,255,255,0.1)]"
                             />
                             {/* Sort dropdown removed in favor of column sorting */}
                         </div>
@@ -189,14 +196,18 @@ export function OrdersFilterBar({
                             />
                         )}
 
-                        {/* Which ad channel brought these orders in. */}
-                        <AdChannelFilter
-                            summary={adChannelSummary}
-                            selected={filters.adChannel}
-                            onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
-                            countsHidden={countsHidden}
-                            className="px-1"
-                        />
+                        {/* Which ad channel brought these orders in. Hidden until the
+                            search-bar toggle turns it on, except while a channel is
+                            pinned: a filter narrowing the list must stay visible. */}
+                        {(showAdChannels || filters.adChannel) && (
+                            <AdChannelFilter
+                                summary={adChannelSummary}
+                                selected={filters.adChannel}
+                                onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
+                                countsHidden={countsHidden}
+                                className="pl-8 pr-6"
+                            />
+                        )}
 
                         {/* Advanced Filters Panel */}
                         <AnimatePresence>

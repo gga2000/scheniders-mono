@@ -10,6 +10,11 @@
 // `ctx.product.reviews`, so the list + true distribution are in the SSR
 // HTML. The `/api/reviews` GET is only used (a) when that prop is absent
 // (other templates / pages) and (b) as revalidation after a submit.
+//
+// Opt-in `layout: "quiet"`: one hairline summary card, quiet review cards
+// (product_reviews/), and the form folded behind a modest «اكتب تقييمك»
+// button that #reviews opens by itself. Absent, the historical layout
+// renders byte-identically.
 // =====================================================================
 // Client half of `product_reviews` — the component (hooks / browser APIs). The
 // schema, defaults and registry entry live in `./product_reviews.tsx` so the
@@ -29,6 +34,10 @@ import { cn } from "./helpers/utils";
 import type { SectionRenderContext } from "./_types";
 import type { ReviewSummaryItem } from "./types";
 import type { Props } from "./product_reviews";
+import { readsRtl } from "./pdp_express/text";
+import { QuietReviewCard } from "./product_reviews/quiet-review-card";
+import { QuietSummary } from "./product_reviews/quiet-summary";
+import { rs } from "./product_reviews/strings";
 
 /** Mirrors `/api/reviews` POST's photo cap — over-picks are refused with a
  *  visible message instead of being silently sliced. */
@@ -186,18 +195,33 @@ export function ProductReviewsRender({
   const [rating, setRating] = React.useState(0);
   const formRef = React.useRef<HTMLFormElement>(null);
 
+  const quiet = props.layout === "quiet";
+  // The quiet layout folds the form behind an entry button; the
+  // historical layout always shows it and never reads this.
+  const [formOpen, setFormOpen] = React.useState(false);
+  // Set when something asks for the form (the #reviews hash, the entry
+  // button). The effect below scrolls to it once it is in the DOM.
+  const [focusForm, setFocusForm] = React.useState(false);
+
   // Arriving on #reviews means the shopper was SENT here to write one (the
-  // tracker's "rate your order"). Take them to the form and put focus on
-  // the first star, so the intent survives the page load. Only on the hash
-  // — a normal PDP visit is never scrolled.
+  // tracker's "rate your order"). Open the form, take them to it and put
+  // focus on the first star, so the intent survives the page load. Only on
+  // the hash: a normal PDP visit is never scrolled.
   React.useEffect(() => {
     if (typeof window === "undefined" || window.location.hash !== "#reviews") return;
+    setFormOpen(true);
+    setFocusForm(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!focusForm) return;
     const form = formRef.current;
     if (!form) return;
+    setFocusForm(false);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     form.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
     form.querySelector<HTMLElement>('[role="radiogroup"] button')?.focus({ preventScroll: true });
-  }, []);
+  }, [focusForm, formOpen]);
   const [name, setName] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
@@ -315,6 +339,231 @@ export function ProductReviewsRender({
     "w-full rounded-bk-input border-2 border-bk-ink/15 bg-bk-surface px-3 py-2 font-body text-bk-ink focus:border-bk-primary focus-visible:outline-none focus-visible:ring-2 ring-bk-focus focus-visible:ring-offset-2";
   const reviewPhotoAlt = (n: number) =>
     t(`Review photo ${n}`, `صورة التقييم ${n}`);
+
+  // Hoisted verbatim so both layouts share one form (the baseline
+  // snapshot pins the historical markup).
+  const formBlock = props.show_form && (
+    <div className="mt-bk-lg rounded-bk-card border-2 border-bk-ink/10 bg-bk-surface p-bk-md">
+      {submitted ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="font-label font-bold text-bk-ink"
+        >
+          {t(
+            "Thanks! Your review is pending approval.",
+            "شكرًا! تقييمك قيد المراجعة.",
+          )}
+        </p>
+      ) : (
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-bk-sm">
+          <p className="font-display font-bold text-bk-ink">
+            {t("Write a review", "اكتب تقييمًا")}
+          </p>
+          <div
+            className="flex items-center gap-1"
+            role="radiogroup"
+            aria-label={t("Your rating", "تقييمك")}
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-pressed={rating >= n}
+                onClick={() => setRating(n)}
+                className="inline-flex h-11 w-11 items-center justify-center transition-transform duration-bk-fast motion-reduce:transition-none active:scale-[0.9]"
+              >
+                <Stars
+                  value={rating >= n ? 1 : 0}
+                  max={1}
+                  size={28}
+                  label={`${n}`}
+                />
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("Your name", "اسمك")}
+            maxLength={80}
+            className={inputCls}
+          />
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("Title (optional)", "العنوان (اختياري)")}
+            maxLength={120}
+            className={inputCls}
+          />
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={t("Share your experience", "شارك تجربتك")}
+            maxLength={2000}
+            rows={3}
+            className={inputCls}
+          />
+
+          {/* Photo picker — the native "Choose Files" control is
+              visually hidden (still in the DOM + labelled); the styled
+              button is the single keyboard/touch target. */}
+          <div className="space-y-bk-xs">
+            <input
+              ref={fileInputRef}
+              id={fileInputId}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              tabIndex={-1}
+              aria-label={t(
+                `Add photos (up to ${MAX_PHOTOS})`,
+                `أضف صور (حتى ${MAX_PHOTOS})`,
+              )}
+              onChange={handlePickPhotos}
+              className="sr-only"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-bk-ink/15 bg-bk-surface px-4 py-2 font-label text-sm font-bold text-bk-ink",
+                "transition-[opacity,transform] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
+                "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
+              )}
+            >
+              <MaterialIcon name="add_a_photo" className="text-base" />
+              {t(
+                `Add photos (up to ${MAX_PHOTOS})`,
+                `أضف صور (حتى ${MAX_PHOTOS})`,
+              )}
+            </button>
+            {files.length > 0 && (
+              <ul
+                className="flex flex-wrap gap-bk-xs"
+                aria-label={photosAttachedLabel(files.length, locale)}
+              >
+                {files.map((f, i) => (
+                  <li
+                    key={`${f.name}-${i}`}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full bg-bk-ink/5 py-1 pe-1 ps-3 font-label text-xs text-bk-ink"
+                  >
+                    <span className="truncate" dir="auto">
+                      {f.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFiles((prev) => prev.filter((_, j) => j !== i))
+                      }
+                      aria-label={t(`Remove ${f.name}`, `إزالة ${f.name}`)}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-bk-ink/10"
+                    >
+                      <MaterialIcon name="close" className="text-sm" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {files.length > 0 && (
+              <p className="font-label text-xs text-bk-ink-soft tabular-nums">
+                {photosAttachedLabel(files.length, locale)}
+              </p>
+            )}
+            {photoError && (
+              <p role="alert" className="font-label text-sm text-bk-danger">
+                {photoError}
+              </p>
+            )}
+          </div>
+
+          {error && (
+            <p role="alert" className="font-label text-sm text-bk-danger">
+              {error}
+            </p>
+          )}
+          <ChunkyButton type="submit" disabled={submitting}>
+            {submitting
+              ? t("Sending…", "جارٍ الإرسال…")
+              : t("Submit review", "إرسال التقييم")}
+          </ChunkyButton>
+        </form>
+      )}
+    </div>
+  );
+
+  const rtl = readsRtl(locale);
+
+  if (quiet) {
+    return (
+      <Section id="reviews">
+        <CenteredSectionHeader
+          title={heading}
+          align="start"
+          titleField="heading_i18n"
+        />
+        {hasReviews ? (
+          <QuietSummary
+            summary={summary}
+            distributionKnown={distributionKnown}
+            locale={locale}
+          />
+        ) : (
+          <p
+            className={cn(
+              "mt-bk-md font-bk-body text-sm text-bk-ink-soft text-pretty",
+              rtl && "text-right",
+            )}
+          >
+            {rs("empty", locale)}
+          </p>
+        )}
+        {reviews.length > 0 && (
+          <ul className="mt-bk-md space-y-bk-sm">
+            {reviews.map((r) => (
+              <QuietReviewCard
+                key={r.id}
+                review={r}
+                locale={locale}
+                onOpenPhoto={setLightbox}
+              />
+            ))}
+          </ul>
+        )}
+        <PhotoLightbox
+          image={lightbox}
+          onClose={() => setLightbox(null)}
+          closeLabel={t("Close", "إغلاق")}
+        />
+        {props.show_form &&
+          (formOpen ? (
+            formBlock
+          ) : (
+            <div className={cn("mt-bk-md flex", rtl && "justify-end")}>
+              <button
+                type="button"
+                data-review-entry=""
+                onClick={() => {
+                  setFormOpen(true);
+                  setFocusForm(true);
+                }}
+                className={cn(
+                  "inline-flex min-h-11 items-center gap-2 rounded-bk-pill border-bk border-bk-divider bg-bk-surface px-bk-md font-bk-body text-sm font-bold text-bk-ink",
+                  "transition-[opacity,transform] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
+                  "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
+                  rtl && "flex-row-reverse",
+                )}
+              >
+                <MaterialIcon name="edit" className="text-base" />
+                {rs("writeEntry", locale)}
+              </button>
+            </div>
+          ))}
+      </Section>
+    );
+  }
 
   return (
     // `id="reviews"` is the landing point for "rate your order" — the
@@ -440,157 +689,7 @@ export function ProductReviewsRender({
       />
 
       {/* Submit form */}
-      {props.show_form && (
-        <div className="mt-bk-lg rounded-bk-card border-2 border-bk-ink/10 bg-bk-surface p-bk-md">
-          {submitted ? (
-            <p
-              role="status"
-              aria-live="polite"
-              className="font-label font-bold text-bk-ink"
-            >
-              {t(
-                "Thanks! Your review is pending approval.",
-                "شكرًا! تقييمك قيد المراجعة.",
-              )}
-            </p>
-          ) : (
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-bk-sm">
-              <p className="font-display font-bold text-bk-ink">
-                {t("Write a review", "اكتب تقييمًا")}
-              </p>
-              <div
-                className="flex items-center gap-1"
-                role="radiogroup"
-                aria-label={t("Your rating", "تقييمك")}
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={rating >= n}
-                    onClick={() => setRating(n)}
-                    className="inline-flex h-11 w-11 items-center justify-center transition-transform duration-bk-fast motion-reduce:transition-none active:scale-[0.9]"
-                  >
-                    <Stars
-                      value={rating >= n ? 1 : 0}
-                      max={1}
-                      size={28}
-                      label={`${n}`}
-                    />
-                  </button>
-                ))}
-              </div>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("Your name", "اسمك")}
-                maxLength={80}
-                className={inputCls}
-              />
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={t("Title (optional)", "العنوان (اختياري)")}
-                maxLength={120}
-                className={inputCls}
-              />
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder={t("Share your experience", "شارك تجربتك")}
-                maxLength={2000}
-                rows={3}
-                className={inputCls}
-              />
-
-              {/* Photo picker — the native "Choose Files" control is
-                  visually hidden (still in the DOM + labelled); the styled
-                  button is the single keyboard/touch target. */}
-              <div className="space-y-bk-xs">
-                <input
-                  ref={fileInputRef}
-                  id={fileInputId}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  tabIndex={-1}
-                  aria-label={t(
-                    `Add photos (up to ${MAX_PHOTOS})`,
-                    `أضف صور (حتى ${MAX_PHOTOS})`,
-                  )}
-                  onChange={handlePickPhotos}
-                  className="sr-only"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-bk-ink/15 bg-bk-surface px-4 py-2 font-label text-sm font-bold text-bk-ink",
-                    "transition-[opacity,transform] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
-                    "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
-                  )}
-                >
-                  <MaterialIcon name="add_a_photo" className="text-base" />
-                  {t(
-                    `Add photos (up to ${MAX_PHOTOS})`,
-                    `أضف صور (حتى ${MAX_PHOTOS})`,
-                  )}
-                </button>
-                {files.length > 0 && (
-                  <ul
-                    className="flex flex-wrap gap-bk-xs"
-                    aria-label={photosAttachedLabel(files.length, locale)}
-                  >
-                    {files.map((f, i) => (
-                      <li
-                        key={`${f.name}-${i}`}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full bg-bk-ink/5 py-1 pe-1 ps-3 font-label text-xs text-bk-ink"
-                      >
-                        <span className="truncate" dir="auto">
-                          {f.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFiles((prev) => prev.filter((_, j) => j !== i))
-                          }
-                          aria-label={t(`Remove ${f.name}`, `إزالة ${f.name}`)}
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-bk-ink/10"
-                        >
-                          <MaterialIcon name="close" className="text-sm" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {files.length > 0 && (
-                  <p className="font-label text-xs text-bk-ink-soft tabular-nums">
-                    {photosAttachedLabel(files.length, locale)}
-                  </p>
-                )}
-                {photoError && (
-                  <p role="alert" className="font-label text-sm text-bk-danger">
-                    {photoError}
-                  </p>
-                )}
-              </div>
-
-              {error && (
-                <p role="alert" className="font-label text-sm text-bk-danger">
-                  {error}
-                </p>
-              )}
-              <ChunkyButton type="submit" disabled={submitting}>
-                {submitting
-                  ? t("Sending…", "جارٍ الإرسال…")
-                  : t("Submit review", "إرسال التقييم")}
-              </ChunkyButton>
-            </form>
-          )}
-        </div>
-      )}
+      {formBlock}
     </Section>
   );
 }

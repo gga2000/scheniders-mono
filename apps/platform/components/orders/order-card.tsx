@@ -204,6 +204,9 @@ export const OrderCard = memo(function OrderCard({
 
     // More actions dropdown state
     const [actionsOpen, setActionsOpen] = useState(false);
+    // Remember which URLs failed to load so a dead link falls back to the placeholder instead of a broken image.
+    const [failedImageUrls, setFailedImageUrls] = useState<ReadonlySet<string>>(() => new Set());
+    const markImageFailed = (url: string) => setFailedImageUrls((prev) => new Set(prev).add(url));
     const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
     const actionsRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -424,6 +427,9 @@ export const OrderCard = memo(function OrderCard({
     };
 
     const items = getItemsDisplay(order.items || []);
+    const firstImageUrl = items[0]?.image_url;
+    const thumbnailUrl = firstImageUrl && !failedImageUrls.has(firstImageUrl) ? firstImageUrl : null;
+    const statusAvatarUrl = order.last_status_changed_by_avatar && !failedImageUrls.has(order.last_status_changed_by_avatar) ? order.last_status_changed_by_avatar : null;
 
     const ORDER_STATUSES = [
         "new",
@@ -1264,10 +1270,11 @@ export const OrderCard = memo(function OrderCard({
                                                     <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-sm">
                                                         <Bot className="w-3 h-3" />
                                                     </div>
-                                                ) : order.last_status_changed_by_avatar ? (
+                                                ) : statusAvatarUrl ? (
                                                     <img
-                                                        src={order.last_status_changed_by_avatar}
+                                                        src={statusAvatarUrl}
                                                         alt={order.last_status_changed_by_name}
+                                                        onError={() => markImageFailed(statusAvatarUrl)}
                                                         className="w-5 h-5 rounded-full border border-[var(--card-border)] bg-[var(--background)] object-cover shadow-sm"
                                                     />
                                                 ) : (
@@ -1585,10 +1592,11 @@ export const OrderCard = memo(function OrderCard({
                         {/* Product Row */}
                         <div className="flex items-center gap-3">
                             {/* Product Thumbnail - hidden in semi-compact */}
-                            {compact === 0 && (items[0]?.image_url ? (
+                            {compact === 0 && (thumbnailUrl ? (
                                 <img
-                                    src={items[0].image_url}
+                                    src={thumbnailUrl}
                                     alt={items[0].name}
+                                    onError={() => markImageFailed(thumbnailUrl)}
                                     className="w-12 h-12 rounded-xl object-cover border border-[var(--card-border)] flex-shrink-0 dark:border-white/10 dark:shadow-[0_0_10px_rgba(255,255,255,0.05)]"
                                 />
                             ) : (

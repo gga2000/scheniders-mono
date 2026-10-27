@@ -19,6 +19,9 @@ const H = vi.hoisted(() => {
     const held = new Map<string, Array<(r: Result) => void>>();
     const profile = { current: { id: "u-1", role: "employee", current_tenant_id: "t-a" } as Record<string, unknown> };
     const roles = { current: { "t-a": "admin", "t-b": "viewer" } as Record<string, string> };
+    const overrides = {
+        current: [] as Array<{ tenant_id: string; user_id: string; permission: string; is_granted: boolean }>,
+    };
     let authCallback: ((event: string, session: unknown) => void) | null = null;
     /** Reads of these tables wait until the test releases them. */
     const holdTables = new Set<string>();
@@ -27,6 +30,13 @@ const H = vi.hoisted(() => {
         if (table === "user_profiles") return { data: profile.current, error: null };
         if (table === "tenant_members") return { data: { role: roles.current[String(filters.tenant_id)] }, error: null };
         if (table === "role_permissions") return { data: [{ permission: `perm:${String(filters.role)}` }], error: null };
+        if (table === "user_permissions") {
+            // Overrides are per tenant; a read without a tenant filter sees every tenant's.
+            const rows = overrides.current.filter(
+                (o) => o.user_id === filters.user_id && (filters.tenant_id === undefined || o.tenant_id === filters.tenant_id),
+            );
+            return { data: rows.map(({ permission, is_granted }) => ({ permission, is_granted })), error: null };
+        }
         return { data: [], error: null };
     }
 
@@ -53,6 +63,7 @@ const H = vi.hoisted(() => {
     return {
         profile,
         roles,
+        overrides,
         holdTables,
         release(table: string) {
             for (const r of held.get(table) ?? []) r({ data: null, error: null });
@@ -99,6 +110,7 @@ const state = () => JSON.parse(screen.getByTestId("probe").textContent ?? "{}") 
 beforeEach(() => {
     H.holdTables.clear();
     H.profile.current = { id: USER, role: "employee", current_tenant_id: TENANT_A };
+    H.overrides.current = [];
 });
 afterEach(cleanup);
 
@@ -161,5 +173,23 @@ describe("AuthProvider publishes the tenant from the profile row", () => {
         await new Promise((r) => setTimeout(r, 20));
         expect(state()).toMatchObject({ tenantId: TENANT_A, role: "admin", profileLoaded: true });
         await act(async () => H.release("tenant_members"));
+    });
+});
+
+describe("AuthProvider applies only the current tenant's permission overrides", () => {
+    it("ignores an override granted in another tenant", async () => {
+        // A viewer in tenant B, granted financials by tenant A's admin: that
+        // grant means nothing in B (has_tenant_permission agrees).
+        H.profile.current = { id: USER, role: "employee", current_tenant_id: TENANT_B };
+        H.overrides.current = [
+            { tenant_id: TENANT_A, user_id: USER, permission: "system.financials.view", is_granted: true },
+            { tenant_id: TENANT_B, user_id: USER, permission: "orders.export", is_granted: true },
+        ];
+        render(<AuthProvider><Probe /></AuthProvider>);
+        act(() => H.emit("INITIAL_SESSION"));
+
+        await waitFor(() => expect(state().profileLoaded).toBe(true));
+        expect(state().role).toBe("viewer");
+        expect(state().permissions).toEqual(["perm:viewer", "orders.export"]);
     });
 });
