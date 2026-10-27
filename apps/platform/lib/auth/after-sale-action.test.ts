@@ -30,12 +30,19 @@ function asRole(role: string) {
 
 beforeEach(() => {
     rpc.mockReset().mockResolvedValue({ data: { id: CHILD, order_id: "RTN-3951-2" }, error: null });
-    const profileChain = {
-        select: () => profileChain,
-        eq: () => profileChain,
-        maybeSingle: async () => ({ data: { display_name: "Ali" }, error: null }),
+    const rows: Record<string, unknown> = {
+        user_profiles: { display_name: "Ali" },
+        tenants: { settings: { after_sale: { refund_courier_note: "Check the bottle before paying" } } },
     };
-    vi.mocked(createSupabaseServiceClient).mockReturnValue({ rpc, from: () => profileChain } as never);
+    const from = (table: string) => {
+        const chain = {
+            select: () => chain,
+            eq: () => chain,
+            maybeSingle: async () => ({ data: rows[table] ?? null, error: null }),
+        };
+        return chain;
+    };
+    vi.mocked(createSupabaseServiceClient).mockReturnValue({ rpc, from } as never);
 });
 
 describe("createAfterSaleOrderAction", () => {
@@ -51,6 +58,7 @@ describe("createAfterSaleOrderAction", () => {
             _kind: "refund",
             _lines: [{ original_line: 0, qty: 1, expects_back: true }],
             _fee_kept: null,
+            _notes: "Check the bottle before paying",
             _changed_by_name: "Ali",
         }));
     });
@@ -73,6 +81,15 @@ describe("createAfterSaleOrderAction", () => {
         );
         expect(result.success).toBe(false);
         expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("leaves the courier instruction off when nothing is picked up", async () => {
+        asRole("admin");
+        await createAfterSaleOrderAction(
+            { kind: "refund", originalOrderId: ORIGINAL, lines: [{ originalLine: 0, qty: 1, expectsBack: false }], notes: "Gift for a late order" },
+            "token",
+        );
+        expect(rpc).toHaveBeenCalledWith("create_after_sale_order", expect.objectContaining({ _notes: "Gift for a late order" }));
     });
 
     it("refuses viewers", async () => {

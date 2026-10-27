@@ -47,7 +47,6 @@ function context(over: Record<string, unknown>): Record<string, unknown> {
         getOrderNotes: vi.fn(),
         addOrderNote: vi.fn(),
         deleteOrder: vi.fn(),
-        createReturnOrder: vi.fn(),
         checkOrderIdExists: vi.fn(),
         messageTemplates: [],
         filters: { status: "all" },

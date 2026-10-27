@@ -112,7 +112,6 @@ export function OrderDialogs({
         updateOrderStatus,
         deleteOrder,
         createOrder,
-        createReturnOrder,
         createReplacementOrder,
         mergeOrders,
         markAsVerifiedCustomer,
@@ -190,7 +189,6 @@ export function OrderDialogs({
                 onGetTimeline={getOrderTimeline}
                 onGetNotes={getOrderNotes}
                 onDelete={deleteOrder}
-                onCreateReturn={createReturnOrder}
                 onCreateReplacement={createReplacementOrder}
                 checkOrderIdExists={checkOrderIdExists}
                 onOpenTemplatePanel={(o) => {

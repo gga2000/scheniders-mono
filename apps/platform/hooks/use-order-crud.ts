@@ -1340,65 +1340,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         return exportOrdersFromUtils(ordersToExport, format);
     }
 
-    // =============================================
-    // RETURN ORDERS
-    // =============================================
-
-    async function createReturnOrder(originalOrderId: string, returnData: {
-        return_amount: number;
-        reason: string;
-        items?: Order["items"];
-        deductDeliveryFee?: boolean;
-        notes?: string;
-    }) {
-        const originalOrder = orders.find((o) => o.id === originalOrderId);
-        if (!originalOrder) {
-            return { success: false, error: "Original order not found" };
-        }
-
-        if (!originalOrder.items || originalOrder.items.length === 0) {
-            return { success: false, error: "الطلب الأصلي لا يحتوي على منتجات" };
-        }
-
-        const existingReturns = orders.filter(o =>
-            o.is_return && o.original_order_id === originalOrderId
-        );
-        const returnCount = existingReturns.length + 1;
-
-        const sequenceNum = originalOrder.sequence_number || originalOrder.order_id;
-        const returnOrderId = `RTN-${sequenceNum}-${returnCount}`;
-
-        const deliveryFeeDeduction = returnData.deductDeliveryFee ? 5000 : 0;
-        const finalReturnAmount = returnData.return_amount - deliveryFeeDeduction;
-
-        // Default return note template with the actual refund amount
-        const defaultReturnNote = `استرجاع المنتج من الزبون والتأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها , ووجود كارت الضمان , مع إعطاء الزبون مبلغ قدره ${finalReturnAmount.toLocaleString()} دينار , خلافه يمنع الاسترجاع من الزبون.`;
-
-        const returnOrder: Omit<Order, "id" | "created_at" | "updated_at"> = {
-            order_id: returnOrderId,
-            customer_name: originalOrder.customer_name,
-            phone: originalOrder.phone,
-            city: originalOrder.city,
-            governorate_code: originalOrder.governorate_code,
-            address_details: originalOrder.address_details,
-            items: returnData.items || originalOrder.items,
-            price: -finalReturnAmount,
-            status: "return_pending",
-            notes: returnData.notes || defaultReturnNote,
-            is_return: true,
-            is_replacement: false,
-            original_order_id: originalOrderId,
-            priority: "high",
-            payment_status: "pending",
-            is_archived: false,
-            delivery_fee: deliveryFeeDeduction,
-            rejection_reason: returnData.reason,
-            source: originalOrder.source || "other",
-        };
-
-        return createOrder(returnOrder);
-    }
-
     async function createReplacementOrder(originalOrderId: string, replacementData: {
         old_items: OrderItem[];
         new_items: OrderItem[];
@@ -1876,7 +1817,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         createBatch,
 
         // Return orders
-        createReturnOrder,
         createReplacementOrder,
 
         // Merge

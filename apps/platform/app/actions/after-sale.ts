@@ -55,6 +55,10 @@ export type AfterSaleResult =
     | { success: true; orderId: string; orderNumber: string }
     | { success: false; error: string };
 
+const tenantAfterSaleSchema = z
+    .object({ after_sale: z.object({ refund_courier_note: z.string().trim().min(1) }).partial().optional() })
+    .loose();
+
 const createdSchema = z.object({ id: z.uuid(), order_id: z.string() });
 
 export async function createAfterSaleOrderAction(
@@ -87,11 +91,18 @@ export async function createAfterSaleOrderAction(
 
     const supabase = createSupabaseServiceClient();
 
-    const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("display_name")
-        .eq("id", userId)
-        .maybeSingle();
+    const [{ data: profile }, { data: tenant }] = await Promise.all([
+        supabase.from("user_profiles").select("display_name").eq("id", userId).maybeSingle(),
+        supabase.from("tenants").select("settings").eq("id", tenantId).maybeSingle(),
+    ]);
+
+    // The store's standing instruction to the courier on a pickup (what to
+    // check before handing over the money) leads the refund order's notes.
+    const settings = tenantAfterSaleSchema.safeParse((tenant as { settings: unknown } | null)?.settings ?? {});
+    const courierNote = req.kind === "refund" && req.lines.some((l) => l.expectsBack) && settings.success
+        ? settings.data.after_sale?.refund_courier_note ?? null
+        : null;
+    const notes = [courierNote, req.notes].filter((n): n is string => !!n).join("\n") || null;
 
     const { data, error } = await supabase.rpc("create_after_sale_order", {
         _tenant_id: tenantId,
@@ -103,7 +114,7 @@ export async function createAfterSaleOrderAction(
         _charge_fee: req.chargeFee,
         _reason_id: req.reasonId,
         _reason: req.reason,
-        _notes: req.notes,
+        _notes: notes,
         _changed_by_name: (profile as { display_name: string | null } | null)?.display_name ?? null,
     });
     if (error) return { success: false, error: error.message };
