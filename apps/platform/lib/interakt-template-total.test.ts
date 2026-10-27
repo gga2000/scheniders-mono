@@ -14,7 +14,10 @@ import type { Order } from "@/types/order";
  * Every other source keeps quoting `price` byte-for-byte.
  */
 
-vi.mock("@/lib/env", () => ({ env: { INTERAKT_API_KEY: "test-key" } }));
+vi.mock("@/lib/env", () => ({
+    env: { INTERAKT_API_KEY: "test-key" },
+    providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
+}));
 
 import { sendTemplateMessage, sendStaffAlertMessage } from "./interakt";
 
