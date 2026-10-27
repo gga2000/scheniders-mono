@@ -164,8 +164,8 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     });
 
     it("stamps the route's tenant on the history and inbound whatsapp_logs rows (NEW-P1-17)", async () => {
-        configure({}, { api_key: "k" });
-        await call();
+        configure({}, { api_key: "k", webhook_secret: SECRET });
+        await call({ query: `token=${SECRET}` });
         const history = state.inserts.filter(i => i.table === "order_status_history");
         const logs = state.inserts.filter(i => i.table === "whatsapp_logs");
         expect(history).toHaveLength(1);
