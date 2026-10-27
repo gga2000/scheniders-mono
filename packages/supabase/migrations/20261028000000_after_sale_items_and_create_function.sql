@@ -139,6 +139,7 @@ GRANT ALL ON public.after_sale_items, public.after_sale_adjustments TO service_r
 -- _out_lines [{product_id uuid?, variant_id uuid?, qty int}]      replacement only
 -- _fee_kept  IQD kept from the customer; NULL = the tenant's default
 -- _charge_fee false = the store absorbs the fee (replacement only)
+-- _reason_id  order_reasons row of this kind; _reason stays the label / note
 CREATE OR REPLACE FUNCTION public.create_after_sale_order(
     _tenant_id uuid,
     _original_order_id uuid,
@@ -149,7 +150,8 @@ CREATE OR REPLACE FUNCTION public.create_after_sale_order(
     _charge_fee boolean DEFAULT true,
     _reason text DEFAULT NULL,
     _notes text DEFAULT NULL,
-    _changed_by_name text DEFAULT NULL
+    _changed_by_name text DEFAULT NULL,
+    _reason_id uuid DEFAULT NULL
 )
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -214,6 +216,13 @@ BEGIN
     END IF;
     IF _kind = 'refund' AND jsonb_array_length(_out_lines) > 0 THEN
         RAISE EXCEPTION 'a refund has no new items' USING ERRCODE = '22023';
+    END IF;
+    IF _reason_id IS NOT NULL THEN
+        PERFORM 1 FROM public.order_reasons
+         WHERE id = _reason_id AND (tenant_id = _tenant_id OR tenant_id IS NULL) AND kind = _kind;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'reason % is not a % reason of this store', _reason_id, _kind USING ERRCODE = '22023';
+        END IF;
     END IF;
     IF _fee_kept IS NOT NULL AND _fee_kept < 0 THEN
         RAISE EXCEPTION 'fee kept cannot be negative' USING ERRCODE = '22023';
@@ -416,6 +425,11 @@ BEGIN
         'last_status_changed_by_name', _changed_by_name
     ), _tenant_id);
     _child_id := (_child->>'id')::uuid;
+    IF _reason_id IS NOT NULL THEN
+        -- create_order_atomic does not take reason_id; Settings counts reason usage from it.
+        UPDATE public.orders SET reason_id = _reason_id WHERE id = _child_id;
+        _child := _child || jsonb_build_object('reason_id', _reason_id);
+    END IF;
 
     INSERT INTO public.after_sale_items
         (tenant_id, order_id, original_order_id, direction, original_line_index, product_id, variant_id,
@@ -447,8 +461,8 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.create_after_sale_order(uuid, uuid, text, jsonb, jsonb, integer, boolean, text, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_after_sale_order(uuid, uuid, text, jsonb, jsonb, integer, boolean, text, text, text) TO service_role;
+REVOKE ALL ON FUNCTION public.create_after_sale_order(uuid, uuid, text, jsonb, jsonb, integer, boolean, text, text, text, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_after_sale_order(uuid, uuid, text, jsonb, jsonb, integer, boolean, text, text, text, uuid) TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- 3. receive_after_sale_item: intake of a line that came back (or never did)

@@ -27,3 +27,11 @@ CREATE OR REPLACE FUNCTION public.next_order_number(p_source text) RETURNS text
 LANGUAGE sql AS $$ SELECT p_source || nextval('public._fixture_order_no')::text $$;
 CREATE OR REPLACE FUNCTION public.mask_order_margin(_row jsonb, _tenant_id uuid) RETURNS jsonb
 LANGUAGE sql AS $$ SELECT _row $$;
+
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS reason_id uuid;
+CREATE TABLE IF NOT EXISTS public.order_reasons (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid REFERENCES public.tenants(id),
+    kind text NOT NULL,
+    label_ar text
+);

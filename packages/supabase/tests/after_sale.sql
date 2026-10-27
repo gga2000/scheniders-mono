@@ -21,6 +21,8 @@
 --       refund; replacement price = new - credit, fee charged or absorbed;
 --       a cheaper swap gives a negative courier amount;
 --     * more units than are left on a line are refused.
+--   Reason
+--     * _reason_id is written to the child; another kind or tenant is refused.
 --   Tenancy
 --     * another tenant's original or product is refused;
 --     * authenticated cannot call create_after_sale_order or write the tables.
@@ -180,6 +182,20 @@ BEGIN
             jsonb_build_array(jsonb_build_object('product_id', pcheap, 'qty', 1)), NULL, false);
     PERFORM pg_temp.eq('cheaper swap, fee absorbed: courier pays 19,333', (r->'after_sale'->>'courier_amount')::integer, -19333);
     PERFORM pg_temp.eq('absorbed fee -> delivery_fee 0', (r->>'delivery_fee')::numeric, 0::numeric);
+
+    -- ── Reason ────────────────────────────────────────────────────────────
+    INSERT INTO order_reasons(tenant_id, kind, label_ar) VALUES (ta, 'refund', 'x') RETURNING id INTO line;
+    INSERT INTO orders(order_id, sequence_number, customer_name, phone, items, price, status, tenant_id)
+    VALUES ('O-5', 5, 'Zed', '0773', jsonb_build_array(
+        jsonb_build_object('product_id', pa, 'name', 'Perfume 100ml', 'price', 30000, 'quantity', 2)),
+        60000, 'delivered', ta) RETURNING id INTO orig3;
+    r := create_after_sale_order(ta, orig3, 'refund', '[{"original_line":0,"qty":1}]', '[]', 0, true, NULL, NULL, NULL, line);
+    PERFORM pg_temp.eq('reason_id written on the child', (SELECT reason_id FROM orders WHERE id = (r->>'id')::uuid), line);
+    PERFORM pg_temp.refused('a refund reason cannot tag a replacement',
+        format($q$SELECT create_after_sale_order(%L, %L, 'replacement', '[{"original_line":0,"qty":1}]', jsonb_build_array(jsonb_build_object('product_id', %L::uuid, 'qty', 1)), NULL, true, NULL, NULL, NULL, %L)$q$, ta, orig3, pnew, line));
+    INSERT INTO order_reasons(tenant_id, kind, label_ar) VALUES (tb, 'refund', 'y') RETURNING id INTO line;
+    PERFORM pg_temp.refused('another tenant''s reason',
+        format($q$SELECT create_after_sale_order(%L, %L, 'refund', '[{"original_line":0,"qty":1}]', '[]', 0, true, NULL, NULL, NULL, %L)$q$, ta, orig3, line));
 
     -- ── Tenancy ────────────────────────────────────────────────────────────
     PERFORM pg_temp.refused('original of another tenant',
