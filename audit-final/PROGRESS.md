@@ -56,3 +56,6 @@ Each production migration and merge needs Ali's OK (§4 order). Backup: Ali chos
 - Vercel runtime errors (2h after apply): none on platform or storefront.
 - Default privileges now revoke EXECUTE on new public functions: every later migration adding an app-called function needs an explicit GRANT EXECUTE (check #175, #194, #196, #167, #172).
 - #204 `fix/p1-db-security-holes-applied`: replaces the 140100..140800 drafts with the applied files; pending policy parts in tests/p1_db_security_holes_storage_policies.sql. Merged 2026-10-25 22:01Z as 4d16354a (Ali OK).
+
+## 2026-10-27 #175 live
+- #175 merged by Ali 2026-10-26 14:25Z (5056967). Both migrations were applied from Ali's computer session as 20261026142859 / 20261026142948; files renamed in #210. Verified 2026-10-27: md5 of both repo files = schema_migrations, trigger trg_orders_order_id_server_only present, orders.tenant_id NOT NULL, prod (platform + storefront) at main 87925d8, 0 runtime errors in 36h. No orders since 2026-10-21, so the counter has not issued a number live yet.
