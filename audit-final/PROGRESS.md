@@ -59,3 +59,10 @@ Each production migration and merge needs Ali's OK (§4 order). Backup: Ali chos
 
 ## 2026-10-27 #175 live
 - #175 merged by Ali 2026-10-26 14:25Z (5056967). Both migrations were applied from Ali's computer session as 20261026142859 / 20261026142948; files renamed in #210. Verified 2026-10-27: md5 of both repo files = schema_migrations, trigger trg_orders_order_id_server_only present, orders.tenant_id NOT NULL, prod (platform + storefront) at main 87925d8, 0 runtime errors in 36h. No orders since 2026-10-21, so the counter has not issued a number live yet.
+
+## 2026-10-27 remaining fix PRs brought up to date
+- #199 fonts @ 0327327e: main merged (storefront layout keeps self-hosted brand fonts; shared exports keep consent-version, health-rules, font-stack). vitest 476/5597 pass; CI green.
+- #194 seed-cron unschedule @ 09ca457b: clean main merge, CI green. Live: jobs 3, 4 (seed_*) exist, inactive. Migration 20261021170000 unapplied, awaiting Ali.
+- #193 provider mock @ 87a24968: main merged; interakt-template-total mock gets providerBaseUrls. vitest 480/5629 pass; CI green.
+- #167 signup/webhooks @ 551b9098: main merged; Ali chose "keep instant login" (createUser email_confirm, 409 on duplicate, rate limit + server plan growth kept). vitest 478/5619 pass. Live prerequisites (names only): TELEGRAM_WEBHOOK_SECRET absent on platform (3 linked employees would get 503); Interakt integration has no webhook_secret (last inbound 2026-10-14). PR body lists both; do not merge before Ali sets them or INTERAKT_WEBHOOK_AUTH_MODE=monitor.
+- Merge card posted for #199, #193, #194 (+ cron migration). #199 and #193 both edit packages/shared/package.json exports; second merge needs re-resolve.
