@@ -7,13 +7,17 @@ import { describe, expect, it } from "vitest";
 const FILES = [
   "cart_line_items.client.tsx",
   "checkout_form.client.tsx",
+  "order_confirmation_call_card.client.tsx",
   "order_tracker.client.tsx",
   "pdp_direct_order.client.tsx",
+  "pdp_express/strings.ts",
+  "product_reviews/strings.ts",
   "search_results_grid.client.tsx",
 ];
 
 function stringsBlock(src: string): string {
-  const m = /const STRINGS\s*(?::[^=]*)?=\s*\{/.exec(src);
+  // `STRINGS` or a prefixed table such as the express layout's `EXPRESS_STRINGS`.
+  const m = /const (?:[A-Z]+_)?STRINGS\s*(?::[^=]*)?=\s*\{/.exec(src);
   if (!m) return "";
   let depth = 1;
   let i = m.index + m[0].length;

@@ -755,10 +755,17 @@ export function TeamSettings() {
     // Toggle user status
     const toggleUserStatus = async (userId: string, isActive: boolean) => {
         try {
-            await supabase.from("user_profiles").update({ is_active: !isActive }).eq("id", userId);
+            // Another user's profile row is not writable through RLS; the
+            // definer RPC checks that the caller administers the user's tenant.
+            const { error } = await supabase.rpc("set_team_member_active", {
+                p_user_id: userId,
+                p_is_active: !isActive,
+            });
+            if (error) throw error;
             setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_active: !isActive } : u)));
         } catch (err) {
             console.error("Error toggling status:", err);
+            toast.error("Failed to change the user's status");
         }
     };
 

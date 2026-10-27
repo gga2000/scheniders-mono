@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { resolveSchneidersConfig } from "@scheniders/shared";
 import type { SchneidersConfig } from "@scheniders/shared";
@@ -38,6 +38,10 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // EC17: one idempotency key per order attempt, reused if the shopper
+  // re-submits after a lost response so create_order_atomic returns the same
+  // order instead of creating a duplicate; cleared once the order succeeds.
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => setMounted(true), []);
@@ -87,9 +91,12 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
       setError("Your cart is empty.");
       return;
     }
+    idempotencyKeyRef.current ??= crypto.randomUUID();
+    const idempotencyKey = idempotencyKeyRef.current;
     startTransition(async () => {
       const result = await submitCheckout({
         tenantId,
+        idempotencyKey,
         customer: form,
         items: items.map((i) => ({
           product_id: i.product_id,
@@ -104,6 +111,7 @@ export function SchneidersCheckoutForm({ tenantId, whatsappNumber, schneidersCon
         setError(result.error ?? "Couldn't place order. Try again or message us on WhatsApp.");
         return;
       }
+      idempotencyKeyRef.current = null;
       clearCart();
       router.push(`${storeBase}/checkout/success?order=${result.orderId}`);
     });

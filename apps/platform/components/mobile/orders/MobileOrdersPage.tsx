@@ -328,8 +328,8 @@ export function MobileOrdersPage() {
                     selected={filters.adChannel}
                     onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
                     countsHidden={!countVis.chips}
-                    // One scrollable line: a wrapping row would grow the sticky header.
-                    className="-mx-4 flex-nowrap overflow-x-auto px-4 [scrollbar-width:none] [&>button]:shrink-0"
+                    // Edge to edge, so the single scrollable line runs to the screen edge.
+                    className="-mx-4 px-4"
                 />
             </div>
 

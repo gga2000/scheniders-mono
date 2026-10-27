@@ -43,6 +43,9 @@ export default defineConfig({
             "lib/**/*.test.ts",
             "lib/**/*.test.tsx",
             "app/api/**/*.test.ts",
+            // Server actions are public POST endpoints; their guard tests
+            // must be collected like the API routes'.
+            "app/actions/**/*.test.ts",
             // Root-document tests (layout / global-error) sit beside the files
             // they render, at the top of app/.
             "app/*.test.tsx",
@@ -57,6 +60,7 @@ export default defineConfig({
             "apps/platform/lib/**/*.test.ts",
             "apps/platform/lib/**/*.test.tsx",
             "apps/platform/app/api/**/*.test.ts",
+            "apps/platform/app/actions/**/*.test.ts",
             "apps/platform/app/*.test.tsx",
         ],
     },

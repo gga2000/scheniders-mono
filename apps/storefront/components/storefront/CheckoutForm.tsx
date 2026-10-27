@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useStoreBase } from "@/lib/store-context";
 import { useCart } from "@/lib/cart-store";
@@ -21,6 +21,10 @@ export function CheckoutForm({ tenantId }: Props) {
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // EC17: one idempotency key per order attempt, reused if the shopper
+  // re-submits after a lost response so create_order_atomic returns the same
+  // order instead of creating a duplicate; cleared once the order succeeds.
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
@@ -43,9 +47,12 @@ export function CheckoutForm({ tenantId }: Props) {
       return;
     }
 
+    idempotencyKeyRef.current ??= crypto.randomUUID();
+    const idempotencyKey = idempotencyKeyRef.current;
     startTransition(async () => {
       const result = await submitCheckout({
         tenantId,
+        idempotencyKey,
         customer: form,
         items: items.map((i) => ({
           product_id: i.product_id,
@@ -62,6 +69,7 @@ export function CheckoutForm({ tenantId }: Props) {
         return;
       }
 
+      idempotencyKeyRef.current = null;
       clearCart();
       router.push(`${storeBase}/checkout/success?order=${result.orderId}`);
     });

@@ -20,13 +20,13 @@ import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 import { CountdownAnnouncement } from "./countdown_announcement.client";
+import { countdownModeSchema } from "./helpers/countdown";
 
 export const barBg = z.enum(["secondary", "ink"]);
-const modeSchema = z.enum(["daily_reset", "fixed_end", "evergreen_minutes"]);
 
 const schema = z.object({
   label_i18n: i18nStringSchema,
-  mode: modeSchema,
+  mode: countdownModeSchema,
   /** ISO datetime the countdown targets — only read when mode is "fixed_end". */
   ends_at: z.string().describe("datetime").optional(),
   /** Loop length for "evergreen_minutes": the bar counts down this many
@@ -34,6 +34,10 @@ const schema = z.object({
   duration_minutes: z.number().int().min(1).max(1440).optional(),
   bg: barBg,
   show_flame: z.boolean(),
+  /** "evergreen_minutes" draws no clock by default (a deadline that
+   *  restarts for every visitor). A merchant who has reviewed that trade-off
+   *  and wants the ticking loop anyway opts in here; absent = no clock. */
+  evergreen_clock: z.boolean().optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

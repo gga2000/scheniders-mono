@@ -3,6 +3,10 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivityBatch } from "@/lib/activity-logger";
+import { hasPermission } from "@/lib/admin-permissions";
+import { topUpWallet, topupAmountSchema } from "@/lib/wallet-topup";
+
+const bulkTopupAmountSchema = topupAmountSchema.min(1000);
 
 const BulkActionSchema = z.object({
   action: z.enum([
@@ -150,76 +154,66 @@ export async function POST(request: NextRequest) {
       // 5. Top Up Wallets
       // -----------------------------------------------------------------
       case "top_up": {
-        const amount = params?.amount_iqd;
-        if (
-          typeof amount !== "number" ||
-          !Number.isFinite(amount) ||
-          amount < 1000 ||
-          amount > 10_000_000
-        ) {
+        // Crediting money needs the wallet permission on top of bulk_action.
+        if (!hasPermission(auth.role, "top_up_wallet")) {
           return NextResponse.json(
-            { error: "params.amount_iqd is required and must be a number between 1,000 and 10,000,000" },
-            { status: 400 }
+            { error: 'Forbidden: missing permission "top_up_wallet"' },
+            { status: 403 }
           );
         }
 
-        const description = typeof params?.description === "string"
-          ? params.description.trim()
-          : "Bulk top-up";
-
-        for (const tid of tenant_ids) {
-          try {
-            // Atomic balance increment (avoids read-then-write race condition)
-            const { error: walletUpdateError } = await supabase.rpc(
-              "increment_wallet_balance",
-              { p_tenant_id: tid, p_amount: amount }
-            ).single();
-
-            // Fallback: if RPC doesn't exist, use direct update
-            if (walletUpdateError?.code === "PGRST202") {
-              const { data: wallet, error: walletFetchError } = await supabase
-                .from("wallets")
-                .select("balance_iqd")
-                .eq("tenant_id", tid)
-                .single();
-
-              if (walletFetchError || !wallet) {
-                console.error(`Failed to fetch wallet for ${tid}:`, walletFetchError);
-                continue;
-              }
-
-              const { error: updateError } = await supabase
-                .from("wallets")
-                .update({ balance_iqd: wallet.balance_iqd + amount })
-                .eq("tenant_id", tid);
-
-              if (updateError) {
-                console.error(`Failed to update wallet for ${tid}:`, updateError);
-                continue;
-              }
-            } else if (walletUpdateError) {
-              console.error(`Failed to update wallet for ${tid}:`, walletUpdateError);
-              continue;
-            }
-
-            // Insert transaction record AFTER successful balance update
-            const { error: txError } = await supabase
-              .from("wallet_transactions")
-              .insert({
-                tenant_id: tid,
-                type: "top_up",
-                amount_iqd: amount,
-                description,
-              });
-
-            if (txError) {
-              console.error(`Failed to insert wallet transaction for ${tid}:`, txError);
-            }
-          } catch (err) {
-            console.error(`Top-up failed for tenant ${tid}:`, err);
-          }
+        const amountParsed = bulkTopupAmountSchema.safeParse(params?.amount_iqd);
+        if (!amountParsed.success) {
+          return NextResponse.json(
+            { error: "params.amount_iqd is required and must be a whole number between 1,000 and 10,000,000" },
+            { status: 400 }
+          );
         }
-        break;
+        const amount = amountParsed.data;
+
+        const description =
+          typeof params?.description === "string" && params.description.trim()
+            ? params.description.trim()
+            : "Bulk top-up";
+
+        const succeeded: { tenant_id: string; new_balance: number }[] = [];
+        const failed: { tenant_id: string; error: string }[] = [];
+        for (const tid of tenant_ids) {
+          const result = await topUpWallet({
+            tenantId: tid,
+            amount,
+            description,
+            adminUserId: auth.user.id,
+          });
+          if (result.ok) succeeded.push({ tenant_id: tid, new_balance: result.newBalance });
+          else failed.push({ tenant_id: tid, error: result.error });
+        }
+
+        // Audit only the wallets that were actually credited.
+        await logAdminActivityBatch({
+          adminUserId: auth.user.id,
+          actorEmail: auth.user.email ?? null,
+          tenantIds: succeeded.map((s) => s.tenant_id),
+          action: "bulk_top_up",
+          details: { tenant_ids: succeeded.map((s) => s.tenant_id), params: { amount_iqd: amount, description } },
+        });
+
+        if (failed.length > 0) {
+          console.error("[bulk top_up] failures:", failed);
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Top-up failed for ${failed.length} of ${tenant_ids.length} merchant(s)${
+                succeeded.length > 0 ? `; ${succeeded.length} were credited` : ""
+              }`,
+              succeeded,
+              failed,
+            },
+            { status: 500 }
+          );
+        }
+
+        return NextResponse.json({ success: true, affected: succeeded.length, succeeded });
       }
 
       // -----------------------------------------------------------------

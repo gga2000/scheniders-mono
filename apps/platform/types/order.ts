@@ -26,7 +26,7 @@ export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial' | 'paid';
 
 export type DeliverySlot = 'morning' | 'afternoon' | 'evening';
 
-export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'telegram' | 'other';
+export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'telegram' | 'storefront' | 'other';
 
 export type OrderTagColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | null;
 
@@ -158,6 +158,9 @@ export interface Order {
     last_followup_at?: string | null;
     last_followup_type?: 'reminder' | 'discount' | 'confirmation' | 'manual' | null;
     is_test?: boolean;
+    /** When /api/webhooks/storefront-order claimed this order's automatic
+     *  WhatsApp confirmation. Null = not claimed (every non-storefront order). */
+    confirmation_dispatched_at?: string | null;
     // Delivery company tracking
     delivery_company?: 'prime' | 'waseet' | null;
     // Al-Waseet specific fields

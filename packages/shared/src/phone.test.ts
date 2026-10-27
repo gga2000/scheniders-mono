@@ -3,6 +3,7 @@ import {
   normalizeIraqiMobile,
   isValidIraqiMobile,
   formatIraqiPhoneDisplay,
+  maskIraqiMobile,
 } from "./phone";
 
 describe("normalizeIraqiMobile (EC23)", () => {
@@ -54,5 +55,20 @@ describe("formatIraqiPhoneDisplay", () => {
   it("leaves non-mobile numbers untouched (trimmed)", () => {
     expect(formatIraqiPhoneDisplay(" 01 234 5678 ")).toBe("01 234 5678");
     expect(formatIraqiPhoneDisplay("+1 555 0100")).toBe("+1 555 0100");
+  });
+});
+
+describe("maskIraqiMobile", () => {
+  it("keeps the operator prefix and the last four digits and hides the middle three", () => {
+    expect(maskIraqiMobile("07701234567")).toBe("0770 ••• 4567");
+    expect(maskIraqiMobile("+964 770 123 4567")).toBe("0770 ••• 4567");
+    expect(maskIraqiMobile("00964-770-123-4567")).toBe("0770 ••• 4567");
+  });
+
+  it("returns null for anything that is not an Iraqi mobile", () => {
+    expect(maskIraqiMobile("")).toBeNull();
+    expect(maskIraqiMobile(null)).toBeNull();
+    expect(maskIraqiMobile(undefined)).toBeNull();
+    expect(maskIraqiMobile("0612345678")).toBeNull();
   });
 });

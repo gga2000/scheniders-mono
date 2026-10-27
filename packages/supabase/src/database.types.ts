@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       abandoned_carts: {
         Row: {
+          consent_at: string | null
+          consent_text_version: string | null
           created_at: string
           governorate: string | null
           id: string
@@ -23,12 +25,15 @@ export type Database = {
           locale: string | null
           phone: string
           recovered_at: string | null
+          recovery_kind: string | null
           reminded_at: string | null
           subtotal_iqd: number
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          consent_at?: string | null
+          consent_text_version?: string | null
           created_at?: string
           governorate?: string | null
           id?: string
@@ -36,12 +41,15 @@ export type Database = {
           locale?: string | null
           phone: string
           recovered_at?: string | null
+          recovery_kind?: never
           reminded_at?: string | null
           subtotal_iqd?: number
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          consent_at?: string | null
+          consent_text_version?: string | null
           created_at?: string
           governorate?: string | null
           id?: string
@@ -49,6 +57,7 @@ export type Database = {
           locale?: string | null
           phone?: string
           recovered_at?: string | null
+          recovery_kind?: never
           reminded_at?: string | null
           subtotal_iqd?: number
           tenant_id?: string
@@ -3888,6 +3897,7 @@ export type Database = {
           cancelled_at: string | null
           city: string | null
           completed_at: string | null
+          confirmation_dispatched_at: string | null
           contact_count: number | null
           created_at: string
           customer_name: string
@@ -3974,6 +3984,7 @@ export type Database = {
           cancelled_at?: string | null
           city?: string | null
           completed_at?: string | null
+          confirmation_dispatched_at?: string | null
           contact_count?: number | null
           created_at?: string
           customer_name: string
@@ -4060,6 +4071,7 @@ export type Database = {
           cancelled_at?: string | null
           city?: string | null
           completed_at?: string | null
+          confirmation_dispatched_at?: string | null
           contact_count?: number | null
           created_at?: string
           customer_name?: string
@@ -5423,6 +5435,7 @@ export type Database = {
           barcode: string | null
           bestseller_rank: number | null
           booking_enabled: boolean
+          brand: string | null
           category_id: string | null
           compare_at_price: number | null
           cost: number | null
@@ -5430,10 +5443,12 @@ export type Database = {
           created_at: string
           description: string | null
           dimensions_json: Json | null
+          display_name: string | null
           display_order: number
           download_url: string | null
           duration_minutes: number | null
           feature_cards: Json
+          gender: string | null
           file_size: string | null
           gallery_urls: Json
           id: string
@@ -5453,6 +5468,7 @@ export type Database = {
           reserved_quantity: number
           short_description: string | null
           short_name: string | null
+          size_ml: number | null
           sku: string | null
           slug: string | null
           status: string
@@ -5467,6 +5483,7 @@ export type Database = {
           barcode?: string | null
           bestseller_rank?: number | null
           booking_enabled?: boolean
+          brand?: string | null
           category_id?: string | null
           compare_at_price?: number | null
           cost?: number | null
@@ -5474,10 +5491,12 @@ export type Database = {
           created_at?: string
           description?: string | null
           dimensions_json?: Json | null
+          display_name?: string | null
           display_order?: number
           download_url?: string | null
           duration_minutes?: number | null
           feature_cards?: Json
+          gender?: string | null
           file_size?: string | null
           gallery_urls?: Json
           id?: string
@@ -5497,6 +5516,7 @@ export type Database = {
           reserved_quantity?: number
           short_description?: string | null
           short_name?: string | null
+          size_ml?: number | null
           sku?: string | null
           slug?: string | null
           status?: string
@@ -5511,6 +5531,7 @@ export type Database = {
           barcode?: string | null
           bestseller_rank?: number | null
           booking_enabled?: boolean
+          brand?: string | null
           category_id?: string | null
           compare_at_price?: number | null
           cost?: number | null
@@ -5518,10 +5539,12 @@ export type Database = {
           created_at?: string
           description?: string | null
           dimensions_json?: Json | null
+          display_name?: string | null
           display_order?: number
           download_url?: string | null
           duration_minutes?: number | null
           feature_cards?: Json
+          gender?: string | null
           file_size?: string | null
           gallery_urls?: Json
           id?: string
@@ -5541,6 +5564,7 @@ export type Database = {
           reserved_quantity?: number
           short_description?: string | null
           short_name?: string | null
+          size_ml?: number | null
           sku?: string | null
           slug?: string | null
           status?: string
@@ -8217,6 +8241,16 @@ export type Database = {
         }
         Returns: number
       }
+      admin_topup_wallet: {
+        Args: {
+          _amount: number
+          _created_by?: string
+          _description?: string
+          _payment_method?: string
+          _tenant_id: string
+        }
+        Returns: Json
+      }
       aggregate_experiment_stats: {
         Args: { p_experiment_id: string; p_tenant_id: string }
         Returns: {
@@ -8242,6 +8276,19 @@ export type Database = {
         Returns: undefined
       }
       calculate_lead_score: { Args: { p_lead_id: string }; Returns: number }
+      capture_abandoned_cart: {
+        Args: {
+          _consent_text_version?: string
+          _governorate?: string
+          _items: Json
+          _locale?: string
+          _phone: string
+          _reopen_after_seconds: number
+          _subtotal_iqd: number
+          _tenant_id: string
+        }
+        Returns: boolean
+      }
       charge_wallet_atomic: {
         Args: {
           _amount: number
@@ -8425,6 +8472,15 @@ export type Database = {
       create_order_atomic:
         | { Args: { _order_data: Json }; Returns: Json }
         | { Args: { _order_data: Json; _tenant_id?: string }; Returns: Json }
+      create_storefront_order: {
+        Args: {
+          _duplicate_window_minutes: number
+          _order_data: Json
+          _paid_product_ids: string[]
+          _tenant_id: string
+        }
+        Returns: Json
+      }
       generate_seed_orders: { Args: never; Returns: undefined }
       get_current_tenant_id: { Args: never; Returns: string }
       get_customer_dashboard_stats: {
@@ -8791,6 +8847,10 @@ export type Database = {
       }
       refresh_customer_aggregates: { Args: never; Returns: undefined }
       refresh_tenant_public_stats: { Args: never; Returns: undefined }
+      renew_subscription_atomic: {
+        Args: { _expected_period_end: string; _subscription_id: string }
+        Returns: Json
+      }
       resolve_order_creation_actor: {
         Args: { p_order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: Record<string, unknown>
@@ -8828,6 +8888,10 @@ export type Database = {
         Returns: boolean
       }
       send_notification_digests: { Args: { p_mode: string }; Returns: number }
+      set_team_member_active: {
+        Args: { p_is_active: boolean; p_user_id: string }
+        Returns: undefined
+      }
       split_order_atomic:
         | {
             Args: {
@@ -8846,6 +8910,10 @@ export type Database = {
             }
             Returns: Json
           }
+      storage_object_writable: {
+        Args: { p_bucket: string; p_name: string; p_owner_id: string }
+        Returns: boolean
+      }
       storefront_funnel: {
         Args: { _from: string; _tenant_id: string; _to: string }
         Returns: Json

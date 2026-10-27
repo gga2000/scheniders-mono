@@ -1,4 +1,5 @@
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import { NextResponse } from "next/server";
 import {
     assertNotBlocked,
@@ -53,16 +54,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "لم يتم العثور على المتجر" }, { status: 400 });
         }
 
-        // Check tenant-scoped admin role (not global user_profiles.role)
-        const { data: membership } = await supabaseAdmin
-            .from("tenant_members")
-            .select("role")
-            .eq("user_id", user.id)
-            .eq("tenant_id", resolvedTenantId)
-            .eq("status", "active")
-            .single();
-
-        if (membership?.role !== "admin") {
+        // Check tenant-scoped admin role (not global user_profiles.role), from
+        // an active membership AND an active profile (F-087).
+        if ((await activeTenantRole(user.id, resolvedTenantId)) !== "admin") {
             return NextResponse.json({ error: "هذا الإجراء مخصص للمسؤولين فقط" }, { status: 403 });
         }
 

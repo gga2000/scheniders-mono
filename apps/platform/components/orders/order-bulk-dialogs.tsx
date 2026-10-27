@@ -17,6 +17,7 @@ import {
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
 import type { OrderBulkOperations } from "@/hooks/use-order-bulk-operations";
 import type { Order } from "@/types/order";
+import { useResolvedOrders } from "@/hooks/use-resolved-orders";
 
 const FloatingActionBar = dynamic(
     () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
@@ -92,6 +93,11 @@ export function OrderBulkDialogs({
         handleConfirmMoveToTransit,
     } = bulk;
 
+    // Every selected order, including ones picked from a search (any date) or
+    // left selected after the search was cleared: the window alone listed none
+    // of those.
+    const toDelete = useResolvedOrders(selectedOrders, [orders, filteredOrders], deleteConfirmOpen);
+
     return (
         <>
             <FloatingActionBar
@@ -132,16 +138,21 @@ export function OrderBulkDialogs({
                     </DialogHeader>
                     <div className="py-2">
                         <div className="max-h-48 overflow-y-auto p-3 bg-rose-50 rounded-xl border border-rose-100">
-                            <ul className="space-y-2">
-                                {Array.from(selectedOrders).map(id => {
-                                    const order = orders.find(o => o.id === id);
-                                    return order ? (
-                                        <li key={id} className="text-sm text-rose-900 flex justify-between items-center bg-white/50 p-2 rounded-lg border border-rose-100/50">
-                                            <span className="font-medium truncate max-w-[200px]">{order.customer_name}</span>
-                                            <span className="text-rose-600 font-mono text-xs font-bold px-2 py-0.5 bg-rose-100 rounded-md">#{getBaseOrderId(order.order_id)}</span>
-                                        </li>
-                                    ) : null;
-                                })}
+                            <ul className="space-y-2" data-testid="delete-confirm-list">
+                                {toDelete.orders.map(order => (
+                                    <li key={order.id} className="text-sm text-rose-900 flex justify-between items-center bg-white/50 p-2 rounded-lg border border-rose-100/50">
+                                        <span className="font-medium truncate max-w-[200px]">{order.customer_name}</span>
+                                        <span className="text-rose-600 font-mono text-xs font-bold px-2 py-0.5 bg-rose-100 rounded-md">#{getBaseOrderId(order.order_id)}</span>
+                                    </li>
+                                ))}
+                                {toDelete.pending && (
+                                    <li className="text-sm text-rose-700/80 p-2">{t("common.loading")}</li>
+                                )}
+                                {toDelete.missing > 0 && (
+                                    <li className="text-sm text-rose-700/80 p-2">
+                                        {t("orders.deleteConfirm.missing").replace("{count}", String(toDelete.missing))}
+                                    </li>
+                                )}
                             </ul>
                         </div>
                     </div>

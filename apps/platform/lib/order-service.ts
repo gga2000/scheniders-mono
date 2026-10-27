@@ -4,6 +4,7 @@ import { Order } from "@/lib/supabase";
 import { canCreateOrder, getCurrentUsage, getPlanLimits, getWallet } from "@/lib/tenant";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { reportOrderError } from "@/lib/order-telemetry";
+import { findForeignCatalogRefs, hasNegativeQuantity } from "@/lib/order-items-tenant";
 
 /**
  * Trusted, server-side order creation.
@@ -54,6 +55,24 @@ export async function createOrderForTenant(
             return { success: false, error: limitCheck.reason };
         }
         const warning = limitCheck.warning;
+
+        // ── 1b. Every line's product / variant must be this tenant's (F-001) ──
+        const items = Array.isArray(orderData.items) ? orderData.items : [];
+        if (hasNegativeQuantity(items)) {
+            return { success: false, error: "Item quantity cannot be negative." };
+        }
+        const foreign = await findForeignCatalogRefs(
+            async (table, ids) => {
+                const { data, error } = await supabase.from(table).select("id, tenant_id").in("id", ids);
+                if (error) throw error;
+                return data ?? [];
+            },
+            tenantId,
+            items,
+        );
+        if (foreign.length > 0) {
+            return { success: false, error: "One or more items are not products of this store." };
+        }
 
         // ── 2. Create the order ──
         const payload = {
@@ -153,6 +172,9 @@ async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
     });
 
     // ── Charge wallet atomically (prevents race conditions) ──
+    // A zero price (the 'internal' plan) means nothing to charge;
+    // charge_wallet_atomic refuses non-positive amounts.
+    if (chargeAmount <= 0) return;
     try {
         const { data: chargeResult, error: chargeError } = await supabase
             .rpc('charge_wallet_atomic', {

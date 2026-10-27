@@ -178,6 +178,9 @@ export async function dispatchWhatsAppEvent({
             to_status: "contacted",
             changed_by: "whatsapp_bot",
             notes: `تم إرسال قالب التأكيد عبر واتساب تلقائياً`,
+            // order_status_history is tenant-scoped by RLS; without this the
+            // bot's timeline entry is invisible to the merchant (NEW-P1-17).
+            tenant_id: order.tenant_id,
         });
     }
 
