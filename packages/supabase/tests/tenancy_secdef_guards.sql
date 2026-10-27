@@ -13,7 +13,7 @@
 --       integration / settings write policies require is_tenant_admin;
 --     * anon holds no write privilege on those tables and nothing on orders;
 --     * no unscoped search_orders_v2(text, integer) overload exists.
---   Behaviour, as a real 'member' employee (JWT simulated, RLS enforced):
+--   Behaviour, as a real 'employee' member (JWT simulated, RLS enforced):
 --     * get_customer_percentile on a phone that exists only in ANOTHER tenant
 --       returns the not-found default {50, '', 0} (refuses the non-member);
 --     * on a phone of the member's own tenant it returns a real rank whose pool
@@ -44,12 +44,13 @@ BEGIN;
 
 SELECT set_config('tt.failures', '', true);
 
--- Fixture: an active, single-membership 'member' (an employee, not an admin).
+-- Fixture: an active, single-membership 'employee' (not an admin). The
+-- tenant_members.role vocabulary is admin | employee | viewer.
 SELECT set_config('tt.member_user', coalesce((
     SELECT tm.user_id::text
       FROM public.tenant_members tm
       JOIN public.user_profiles up ON up.id = tm.user_id
-     WHERE tm.role = 'member' AND tm.status = 'active' AND coalesce(up.is_active, true)
+     WHERE tm.role = 'employee' AND tm.status = 'active' AND coalesce(up.is_active, true)
        AND (SELECT count(*) FROM public.tenant_members x WHERE x.user_id = tm.user_id AND x.status = 'active') = 1
      ORDER BY tm.user_id
      LIMIT 1), ''), true);

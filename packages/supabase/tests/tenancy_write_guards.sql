@@ -4,7 +4,7 @@
 --
 -- WHAT THIS PROVES (after 20261019100000_secdef_rpc_tenant_guards.sql and
 -- 20261019100100_tenant_admin_only_writes.sql are applied)
---   As a plain 'member' (RLS enforced, JWT simulated) the guard REFUSES:
+--   As a plain 'employee' member (RLS enforced, JWT simulated) the guard REFUSES:
 --     * promoting themselves, demoting the tenant admin, deleting the admin's
 --       membership, and planting an outsider as admin in tenant_members;
 --     * rewriting payroll, integration, domain and settings rows;
@@ -35,22 +35,29 @@ BEGIN;
 SELECT set_config('tt.failures', '', true);
 
 -- Fixtures: a tenant with an active admin and an active plain member, an
--- outsider who is not in that tenant, and some other tenant.
+-- outsider who is not in that tenant, and some other tenant. tenant_members.role
+-- is admin | employee | viewer (tenant_members_role_check); the plain member is
+-- an 'employee'. Both personas need an active profile, so a deactivated admin
+-- (user_profiles.is_active = false) is never picked as the positive control.
 SELECT set_config('tt.tenant', coalesce((
     SELECT m.tenant_id::text
       FROM public.tenant_members m
+      JOIN public.user_profiles mp ON mp.id = m.user_id AND coalesce(mp.is_active, true)
       JOIN public.tenant_members a ON a.tenant_id = m.tenant_id AND a.role = 'admin' AND a.status = 'active'
-     WHERE m.role = 'member' AND m.status = 'active'
+      JOIN public.user_profiles ap ON ap.id = a.user_id AND coalesce(ap.is_active, true)
+     WHERE m.role = 'employee' AND m.status = 'active'
      ORDER BY m.tenant_id
      LIMIT 1), ''), true);
 SELECT set_config('tt.member', coalesce((
-    SELECT user_id::text FROM public.tenant_members
-     WHERE tenant_id::text = current_setting('tt.tenant') AND role = 'member' AND status = 'active'
-     ORDER BY user_id LIMIT 1), ''), true);
+    SELECT tm.user_id::text FROM public.tenant_members tm
+      JOIN public.user_profiles up ON up.id = tm.user_id AND coalesce(up.is_active, true)
+     WHERE tm.tenant_id::text = current_setting('tt.tenant') AND tm.role = 'employee' AND tm.status = 'active'
+     ORDER BY tm.user_id LIMIT 1), ''), true);
 SELECT set_config('tt.admin', coalesce((
-    SELECT user_id::text FROM public.tenant_members
-     WHERE tenant_id::text = current_setting('tt.tenant') AND role = 'admin' AND status = 'active'
-     ORDER BY user_id LIMIT 1), ''), true);
+    SELECT tm.user_id::text FROM public.tenant_members tm
+      JOIN public.user_profiles up ON up.id = tm.user_id AND coalesce(up.is_active, true)
+     WHERE tm.tenant_id::text = current_setting('tt.tenant') AND tm.role = 'admin' AND tm.status = 'active'
+     ORDER BY tm.user_id LIMIT 1), ''), true);
 SELECT set_config('tt.outsider', coalesce((
     SELECT up.id::text FROM public.user_profiles up
      WHERE NOT EXISTS (SELECT 1 FROM public.tenant_members x
@@ -63,7 +70,7 @@ DO $fixtures$
 BEGIN
     IF current_setting('tt.tenant') = '' OR current_setting('tt.member') = '' OR current_setting('tt.admin') = ''
        OR current_setting('tt.outsider') = '' OR current_setting('tt.foreign_tenant') = '' THEN
-        PERFORM set_config('tt.failures', 'fixture: need a tenant with an admin and a member, an outsider and a second tenant; ', true);
+        PERFORM set_config('tt.failures', 'fixture: need a tenant with an active admin and an active employee, an outsider and a second tenant; ', true);
     END IF;
 END;
 $fixtures$;
@@ -96,7 +103,7 @@ BEGIN
 
     -- Demoting / removing the real admin.
     BEGIN
-        UPDATE public.tenant_members SET role = 'member'
+        UPDATE public.tenant_members SET role = 'employee'
          WHERE tenant_id = tenant AND user_id = current_setting('tt.admin')::uuid;
         GET DIAGNOSTICS n = ROW_COUNT;
         IF n > 0 THEN fails := fails || 'member demoted the admin; '; END IF;
@@ -220,7 +227,7 @@ BEGIN
     IF n <> 1 THEN fails := fails || 'admin cannot update a member''s row; '; END IF;
 
     BEGIN
-        UPDATE public.tenant_members SET role = 'member' WHERE user_id = auth.uid() AND tenant_id = tenant;
+        UPDATE public.tenant_members SET role = 'employee' WHERE user_id = auth.uid() AND tenant_id = tenant;
         GET DIAGNOSTICS n = ROW_COUNT;
         IF n > 0 THEN fails := fails || 'admin changed their own membership; '; END IF;
         -- Undo the attempt whatever it did, so a guard that is missing here
