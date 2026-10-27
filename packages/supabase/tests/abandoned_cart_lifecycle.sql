@@ -47,11 +47,11 @@ SELECT set_config('tt.failures', '', true);
 SELECT set_config('tt.tenant', (SELECT id::text FROM public.tenants ORDER BY created_at, id LIMIT 1), true);
 SELECT set_config('tt.other', coalesce((SELECT id::text FROM public.tenants ORDER BY created_at, id OFFSET 1 LIMIT 1), ''), true);
 -- Without a second tenant, create one for the isolation check.
-INSERT INTO public.tenants (id, name, slug)
+INSERT INTO public.tenants (id, business_name, slug)
 SELECT gen_random_uuid(), 'tt-ac-other', 'tt-ac-other-' || substr(md5(random()::text), 1, 8)
 WHERE current_setting('tt.other') = '';
 SELECT set_config('tt.other', coalesce(NULLIF(current_setting('tt.other'), ''),
-    (SELECT id::text FROM public.tenants WHERE name = 'tt-ac-other' LIMIT 1)), true);
+    (SELECT id::text FROM public.tenants WHERE business_name = 'tt-ac-other' LIMIT 1)), true);
 
 -- Random 0799 numbers, one per scenario.
 SELECT set_config('tt.p' || g, '799' || lpad((floor(random() * 10000000))::int::text, 7, '0'), true)
