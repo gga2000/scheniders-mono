@@ -106,6 +106,43 @@ export interface NotificationFeedOptions {
     sound?: boolean;
 }
 
+/**
+ * The locale last written to notification_settings, per user and tenant. The
+ * feed hook runs in every mounted notifications dropdown (the top bar mounts
+ * more than one), and it wrote the locale on each mount of each: two writes on
+ * every page load for a value that almost never changes. Now a value is
+ * written once per page load, and not at all when this device already wrote
+ * it (remembered in localStorage).
+ */
+const syncedLocales = new Map<string, string>();
+const localeStorageKey = (scope: string) => `notificationLocale:${scope}`;
+
+function localeAlreadySynced(scope: string, locale: string): boolean {
+    if (syncedLocales.get(scope) === locale) return true;
+    try {
+        if (localStorage.getItem(localeStorageKey(scope)) === locale) {
+            syncedLocales.set(scope, locale);
+            return true;
+        }
+    } catch (err) {
+        diag.warn("[notifications] localStorage unreadable — syncing the locale once per page load", err);
+    }
+    return false;
+}
+
+function rememberSyncedLocale(scope: string, locale: string): void {
+    try {
+        localStorage.setItem(localeStorageKey(scope), locale);
+    } catch (err) {
+        diag.warn("[notifications] localStorage unwritable — the locale will be synced again next load", err);
+    }
+}
+
+/** Tests: forget what this page load has written. */
+export function resetLocaleSyncForTests(): void {
+    syncedLocales.clear();
+}
+
 export function useNotificationFeed(
     filter: NotificationFilter = "all",
     { live = true, sound = false }: NotificationFeedOptions = {},
@@ -184,17 +221,23 @@ export function useNotificationFeed(
     useEffect(() => {
         if (!userId || !tenantId) return;
         if (language !== "ar" && language !== "en") return;
-        let cancelled = false;
+        const scope = `${userId}:${tenantId}`;
+        if (localeAlreadySynced(scope, language)) return;
+        // Claimed before the request, so a second mount in the same render
+        // does not write too; released on failure so a later mount retries.
+        syncedLocales.set(scope, language);
         void (async () => {
             const { error } = await supabase.from("notification_settings").upsert(
                 { user_id: userId, tenant_id: tenantId, locale: language },
                 { onConflict: "user_id,tenant_id" },
             );
-            if (error && !cancelled) {
+            if (error) {
+                if (syncedLocales.get(scope) === language) syncedLocales.delete(scope);
                 diag.warn(`[notifications] locale sync failed: ${error.message}`);
+                return;
             }
+            rememberSyncedLocale(scope, language);
         })();
-        return () => { cancelled = true; };
     }, [userId, tenantId, language]);
 
     const invalidateAll = useCallback(() => {

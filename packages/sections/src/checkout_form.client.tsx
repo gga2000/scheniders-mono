@@ -111,6 +111,12 @@ const STRINGS = {
     ku: "لە جیاتی ئەوە داواکاری لە ڕێگەی واتسئاپ بکە",
   },
   orderReceived: { en: "Order received!", ar: "تم استلام طلبك!", ku: "داواکارییەکەت گەیشت!" },
+  /** The server's soft duplicate guard answered with an existing order. */
+  alreadyOrdered: {
+    en: "We already have your order — no need to order it again.",
+    ar: "طلبك واصلنا، لا تطلبه مرة ثانية",
+    ku: "داواکارییەکەت گەیشتووە، دووبارە داوای مەکەرەوە.",
+  },
   errGeneric: {
     en: "Something went wrong. Please try again.",
     ar: "حدث خطأ. حاول مرة أخرى.",
@@ -219,7 +225,7 @@ export function CheckoutFormRender({
   const base = useStoreBase();
   const phoneErrorId = useId();
   const submitErrorId = useId();
-  const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "error">(
+  const [status, setStatus] = useState<"idle" | "submitting" | "ok" | "duplicate" | "error">(
     "idle",
   );
   // EC24: specific, actionable error lines (which items changed and how)
@@ -434,14 +440,15 @@ export function CheckoutFormRender({
     cfg: loyaltyCfg,
   });
   const pointsDiscount = pointsRedemption.discount_iqd;
-  // Credited by the database on delivery, never at placement.
-  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
   const discountAmount = stackDiscounts(subtotal, [
     couponApplied,
     bundleApplied,
     referralAmount,
     pointsDiscount,
   ]).total;
+  // Credited by the database on delivery, never at placement, on the order's
+  // price — which is stored net of every discount (loyalty_order_changed).
+  const pointsToEarn = computePointsEarned(subtotal - discountAmount, loyaltyCfg);
   const total = subtotal - discountAmount + delivery;
   const returnsDays = commerce?.returns_policy?.window_days;
 
@@ -526,7 +533,10 @@ export function CheckoutFormRender({
           ...(purchaseEventIdRef.current
             ? { event_id: purchaseEventIdRef.current }
             : {}),
-          ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+          // The server re-checks the proving order number before it spends.
+          ...(redeemPoints > 0
+            ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
+            : {}),
           ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
             ? { referral_code: normalizeReferralCode(referralCode) }
             : {}),
@@ -541,7 +551,19 @@ export function CheckoutFormRender({
           /** Proof this browser placed it (server-minted, short-lived). */
           upsellToken?: string;
           total?: number;
+          /** The soft duplicate guard answered: this phone ordered these
+           *  products minutes ago, and no new order was created. */
+          duplicate?: boolean;
         } | null;
+        if (data?.duplicate === true) {
+          // That order was counted when it was placed, so no Purchase fires
+          // and there is no new order for the thank-you page; the cart stays
+          // as it is because nothing new was placed.
+          idempotencyKeyRef.current = null;
+          purchaseEventIdRef.current = null;
+          setStatus("duplicate");
+          return;
+        }
         const orderNumber = data?.orderNumber ?? "";
         if (referralState.kind === "valid") clearCapturedReferral(tenantId);
         // Remember the shopper for next time — in their browser only.
@@ -643,7 +665,10 @@ export function CheckoutFormRender({
         setStatus("error");
       }
     } catch {
-      // fetch() only throws on network failure — nothing was submitted.
+      // fetch() throws when no answer arrived (the network dropped). The
+      // request may still have reached the server and placed the order, so
+      // the idempotency key is kept: the shopper's next tap replays that
+      // order instead of placing a second one.
       setErrorLines([s("errNetwork")]);
       setStatus("error");
     }
@@ -1201,6 +1226,11 @@ export function CheckoutFormRender({
             {status === "ok" && (
               <p className="font-label font-bold text-sm text-bk-success">
                 {s("orderReceived")}
+              </p>
+            )}
+            {status === "duplicate" && (
+              <p role="status" className="font-label font-bold text-sm text-bk-success">
+                {s("alreadyOrdered")}
               </p>
             )}
             {status === "error" && errorLines.length > 0 && (

@@ -212,6 +212,7 @@ export async function POST(
             await supabaseAdmin().from("whatsapp_logs").insert({
                 order_id: order.order_id,
                 order_uuid: order.id,
+                tenant_id: tenantId,
                 phone: phone || "unknown",
                 template_name: "cod_order_confirm",
                 direction: "inbound",

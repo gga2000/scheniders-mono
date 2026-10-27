@@ -19,6 +19,11 @@
 // right before the redirect (paired with the server CAPI event id), so
 // this section deliberately fires nothing — a second event would double
 // count every order.
+//
+// Call card (opt-in, `show_call_card`): replaces the head card with the
+// brief for the confirmation call — see order_confirmation_call_card.
+// Off or absent, the section renders exactly as before (frozen in
+// _order-confirmation-baseline-snapshot).
 // =====================================================================
 
 import { z } from "zod";
@@ -73,6 +78,20 @@ const schema = z.object({
   referral_body_i18n: i18nStringOptional,
   referral_share_label_i18n: i18nStringOptional,
   referral_share_message_i18n: i18nStringOptional,
+  /** Thank-you call card (opt-in). On, the head card becomes the brief for
+   *  the confirmation call: the store's call number (copy + save to
+   *  contacts), the WhatsApp line once the platform logged the send, the
+   *  buyer's number masked with a "wrong number?" link, and "add a second
+   *  number". Absent or malformed (`.catch`) = off, markup unchanged. Not
+   *  in defaultProps: templates embed defaultProps, and every seeded store
+   *  would read as "customised" against them. */
+  show_call_card: z.boolean().optional().catch(undefined),
+  /** Call card heading without a name, and with `{name}` → the buyer's first
+   *  name. Unset = the card's own copy (order_confirmation_call_card STRINGS). */
+  call_card_heading_i18n: i18nStringOptional.catch(undefined),
+  call_card_heading_named_i18n: i18nStringOptional.catch(undefined),
+  /** Shown only once the WhatsApp confirmation is logged as sent. */
+  call_card_whatsapp_sent_i18n: i18nStringOptional.catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

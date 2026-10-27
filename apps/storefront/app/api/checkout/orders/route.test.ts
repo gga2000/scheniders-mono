@@ -208,6 +208,17 @@ describe("POST /api/checkout/orders", () => {
     expect(json.success).toBe(false);
   });
 
+  it("(h2) returns 429 with Retry-After when the checkout rate limit refuses (F-041)", async () => {
+    vi.mocked(submitCheckout).mockResolvedValue({
+      success: false,
+      error: "طلبات كثيرة خلال وقت قصير. حاول مرة أخرى بعد قليل.",
+      retryAfterSeconds: 240,
+    });
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("240");
+  });
+
   it("(i) returns 400 for an invalid body", async () => {
     const res = await POST(makeRequest({ tenant_id: "not-a-uuid" }));
     expect(res.status).toBe(400);
@@ -242,6 +253,16 @@ describe("POST /api/checkout/orders", () => {
     expect(res.status).toBe(200);
     expect(submitCheckout).toHaveBeenCalledWith(
       expect.objectContaining({ idempotencyKey: "ec17-key-abcdef12" }),
+    );
+  });
+
+  it("(k2b) forwards a redemption with its proving order number", async () => {
+    const res = await POST(
+      makeRequest({ ...validBody, redeem_points: 40, loyalty_order_number: " 4260910007 " }),
+    );
+    expect(res.status).toBe(200);
+    expect(submitCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ redeemPoints: 40, loyaltyOrderNumber: "4260910007" }),
     );
   });
 
@@ -407,5 +428,58 @@ describe("POST /api/checkout/orders", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
+  });
+
+  it("(p) answers a retryable failure with 503 so the client may resend the same key", async () => {
+    vi.mocked(submitCheckout).mockResolvedValue({
+      success: false,
+      error: "فشل إنشاء الطلب. حاول مرة أخرى.",
+      retryable: true,
+    });
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ success: false, retryable: true });
+  });
+
+  it("(q) keeps line issues on 422 — the new_price self-heal is unchanged", async () => {
+    vi.mocked(submitCheckout).mockResolvedValue({
+      success: false,
+      error: "تغيّرت أسعار بعض المنتجات — يرجى مراجعة سلتك وتأكيد الطلب.",
+      issues: [{ product_id: VALID_PRODUCT_ID, variant_id: null, reason: "price_changed", new_price: 6000 }],
+    });
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(422);
+    const json = (await res.json()) as { issues: Array<{ new_price: number }> };
+    expect(json.issues[0]?.new_price).toBe(6000);
+  });
+
+  it("(r) writes no experiment event for a replayed submit", async () => {
+    // The default store config carries one running experiment, so the
+    // pre-fix route inserts its attribution row even on a replay.
+    vi.mocked(submitCheckout).mockResolvedValue({
+      success: true,
+      orderId: "order-123",
+      orderNumber: "ORD-001",
+      total: 5000,
+      replayed: true,
+    });
+    vi.mocked(cookies).mockResolvedValue({
+      get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
+    } as never);
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+    expect(mockFrom).not.toHaveBeenCalledWith("store_config_experiment_events");
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it("(s) passes the duplicate-guard answer through as a 200 replay with no events", async () => {
+    vi.mocked(submitCheckout).mockResolvedValue({ success: true, replayed: true, duplicate: true });
+    vi.mocked(cookies).mockResolvedValue({
+      get: vi.fn().mockReturnValue({ value: "visitor-abc" }),
+    } as never);
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, replayed: true, duplicate: true });
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 });

@@ -102,10 +102,27 @@ export async function POST(request: NextRequest) {
                 const checkoutId = error.message.replace("fetch_checkout:", "");
                 const processAfter = new Date(Date.now() + CHECKOUT_DELAY_MINUTES * 60 * 1000).toISOString();
 
+                // checkout_queue is tenant-scoped: queue the row under the same
+                // tenant the order webhook (step 4) and the queue processor use,
+                // instead of leaving tenant_id NULL (487 such rows live).
+                const queueTenantId = env.LIGHTFUNNELS_TENANT_ID;
+                if (!queueTenantId) {
+                    console.error("[Webhook] LIGHTFUNNELS_TENANT_ID not configured");
+                    return NextResponse.json(
+                        { error: "Webhook receiver not configured (missing LIGHTFUNNELS_TENANT_ID)" },
+                        { status: 503 },
+                    );
+                }
+
                 const { error: queueErr } = await supabaseAdmin()
                     .from('checkout_queue')
                     .upsert(
-                        { checkout_id: checkoutId, process_after: processAfter, queued_at: new Date().toISOString() },
+                        {
+                            checkout_id: checkoutId,
+                            process_after: processAfter,
+                            queued_at: new Date().toISOString(),
+                            tenant_id: queueTenantId,
+                        },
                         { onConflict: 'checkout_id', ignoreDuplicates: false }
                     );
 

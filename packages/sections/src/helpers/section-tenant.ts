@@ -22,8 +22,11 @@
 //                           cart_summary, checkout_form, checkout_order_summary,
 //                           pdp_direct_order, product_bundles (delivery fees,
 //                           discounts, bundles), order_tracker
-//                           (order_status_narratives), helpers/whatsapp
-//                           (commerce.whatsapp_number: first choice for every
+//                           (order_status_narratives), pdp_direct_order
+//                           (contact: the "who contacts you" line),
+//                           order_confirmation (contact: the call card),
+//                           helpers/whatsapp (contact: resolveTrackerContact;
+//                           commerce.whatsapp_number: first choice for every
 //                           WhatsApp CTA, last fallback for call CTAs)
 //   store_config_v2.enabled_locales
 //                           helpers/locale-switch (site_header locale switch)

@@ -29,12 +29,15 @@
 
 import { useEffect, useId, useState } from "react";
 import { formatPoints, referralShareUrl, resolveI18n, resolveReferral } from "@scheniders/shared";
-import type { I18nString, LocaleCode } from "@scheniders/shared";
+import type { I18nString, LocaleCode, StoreConfigV2 } from "@scheniders/shared";
 import { EyebrowChip, MaterialIcon, Section, WhatsAppButton } from "./helpers/primitives";
 import { PRESSABLE } from "./helpers/utils";
 import { StoreLink, useStoreBase } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
+import { firstName } from "./pdp_express/text";
+import { CallCard, STRINGS as CALL_CARD_STRINGS } from "./order_confirmation_call_card.client";
+import { CARD_STYLE, INK_BORDER, LABEL_CLS } from "./order_confirmation.styles";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./order_confirmation";
 
@@ -118,20 +121,6 @@ function readStash(): StashedOrder | null {
   }
 }
 
-/* ─── Styles ────────────────────────────────────────────────────────── */
-
-const INK_BORDER =
-  "var(--bk-border-thickness, 3px) solid var(--bk-ink, #1a1a1a)";
-
-const CARD_STYLE = {
-  backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
-  borderRadius: "var(--bk-radius-card, 1rem)",
-  color: "var(--bk-ink, #1a1a1a)",
-} as const;
-
-const LABEL_CLS =
-  "font-label font-bold text-[11px] bk-caps tracking-[0.2em] text-bk-ink-soft";
-
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 
 /**
@@ -146,12 +135,23 @@ export function resolveGreeting(
   locale: LocaleCode,
   name?: string,
 ): string {
-  const generic = resolveI18n(props.heading_i18n, locale);
+  return greetingFrom(props.heading_i18n, props.heading_named_i18n, locale, name);
+}
+
+/** The greeting rule with the copy passed in — shared by the default
+ *  heading and the call card's, so both follow the same `{name}` rule. */
+export function greetingFrom(
+  generic: I18nString,
+  named: I18nString,
+  locale: LocaleCode,
+  name?: string,
+): string {
+  const fallback = resolveI18n(generic, locale);
   const trimmed = name?.trim() ?? "";
-  if (!trimmed) return generic;
-  const named = resolveI18n(props.heading_named_i18n, locale);
-  if (!named.includes("{name}")) return generic;
-  return named.replace("{name}", trimmed);
+  if (!trimmed) return fallback;
+  const template = resolveI18n(named, locale);
+  if (!template.includes("{name}")) return fallback;
+  return template.replace("{name}", trimmed);
 }
 
 function buildWhatsappHref(
@@ -317,6 +317,15 @@ export function OrderConfirmationRender({
     locale,
     stashIsThisOrder ? stash.customer_name : undefined,
   );
+  // The call card greets by FIRST name ("تم يا علي"), from the same stash
+  // under the same ownership rule as the default heading.
+  const callCardName =
+    stashIsThisOrder && stash.customer_name ? firstName(stash.customer_name) : undefined;
+  // P4's structured contact, read the way the PDP reads it; the call card
+  // takes its number and its "who contacts you" line from it.
+  const commerce = (
+    ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
+  )?.store_config_v2?.commerce;
 
   const phone = resolveTenantWhatsapp(ctx.tenant);
   const t = (s: I18nString) => resolveI18n(s, locale);
@@ -328,32 +337,64 @@ export function OrderConfirmationRender({
   return (
     <Section>
       <div className="mx-auto max-w-2xl">
-        <div className="p-bk-lg text-center sm:p-bk-xl" style={CARD_STYLE}>
-          <EyebrowChip glyph="sparkle" data-i18n-field="eyebrow_i18n">
-            {t(props.eyebrow_i18n)}
-          </EyebrowChip>
-          <h1
-            data-i18n-field="heading_i18n"
-            className="mt-bk-sm font-display text-bk-h1 font-black text-balance"
-            style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+        {props.show_call_card === true ? (
+          <CallCard
+            heading={greetingFrom(
+              props.call_card_heading_i18n ?? CALL_CARD_STRINGS.heading,
+              props.call_card_heading_named_i18n ?? CALL_CARD_STRINGS.headingNamed,
+              locale,
+              callCardName,
+            )}
+            whatsappSentCopy={t(
+              props.call_card_whatsapp_sent_i18n ?? CALL_CARD_STRINGS.whatsappSent,
+            )}
+            tenant={ctx.tenant}
+            contact={commerce?.contact}
+            now={ctx.runtime.now}
+            orderId={stashIsThisOrder ? stash.order_id : undefined}
+            proof={stashIsThisOrder ? stash.upsell_token : undefined}
+            orderNumber={orderNumber}
+            locale={locale}
+            copyLabel={t(props.copy_label_i18n)}
+            copiedLabel={t(props.copied_label_i18n)}
           >
-            {heading}
-          </h1>
-          <p
-            data-i18n-field="call_promise_i18n"
-            className="mx-auto mt-bk-xs max-w-prose font-body text-base text-pretty text-bk-ink-soft"
-          >
-            {t(props.call_promise_i18n)}
-          </p>
-          {orderNumber && (
-            <OrderNumber
-              value={orderNumber}
-              label={t(props.order_label_i18n)}
-              copyLabel={t(props.copy_label_i18n)}
-              copiedLabel={t(props.copied_label_i18n)}
-            />
-          )}
-        </div>
+            {orderNumber && (
+              <OrderNumber
+                value={orderNumber}
+                label={t(props.order_label_i18n)}
+                copyLabel={t(props.copy_label_i18n)}
+                copiedLabel={t(props.copied_label_i18n)}
+              />
+            )}
+          </CallCard>
+        ) : (
+          <div className="p-bk-lg text-center sm:p-bk-xl" style={CARD_STYLE}>
+            <EyebrowChip glyph="sparkle" data-i18n-field="eyebrow_i18n">
+              {t(props.eyebrow_i18n)}
+            </EyebrowChip>
+            <h1
+              data-i18n-field="heading_i18n"
+              className="mt-bk-sm font-display text-bk-h1 font-black text-balance"
+              style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+            >
+              {heading}
+            </h1>
+            <p
+              data-i18n-field="call_promise_i18n"
+              className="mx-auto mt-bk-xs max-w-prose font-body text-base text-pretty text-bk-ink-soft"
+            >
+              {t(props.call_promise_i18n)}
+            </p>
+            {orderNumber && (
+              <OrderNumber
+                value={orderNumber}
+                label={t(props.order_label_i18n)}
+                copyLabel={t(props.copy_label_i18n)}
+                copiedLabel={t(props.copied_label_i18n)}
+              />
+            )}
+          </div>
+        )}
 
         {recap && (
           <Recap

@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
             await supabaseAdmin().from("whatsapp_logs").insert({
                 order_id: order.order_id,
                 order_uuid: order.id,
+                tenant_id: order.tenant_id,
                 phone: overridePhone || order.phone,
                 template_name: templateName,
                 direction: "outbound",
@@ -168,6 +169,7 @@ export async function POST(request: NextRequest) {
                     from_status: previousStatus,
                     to_status: "contacted",
                     changed_by: "whatsapp_bot",
+                    tenant_id: order.tenant_id,
                     notes: `تم إرسال قالب ${templateType === 'confirmation' ? 'التأكيد' : templateType === 'reminder' ? 'التذكير' : 'العرض الخاص'} عبر واتساب`,
                 });
             }

@@ -76,8 +76,8 @@ export default async function ProductPage({ params }: Props) {
   const { tenant, product } = await requireProduct(tenantParam, slug);
 
   const [images, variants, categories] = await Promise.all([
-    getProductImages(product.id),
-    getProductVariants(product.id),
+    getProductImages(tenant.id, product.id),
+    getProductVariants(tenant.id, product.id),
     listCategories(tenant.id),
   ]);
 

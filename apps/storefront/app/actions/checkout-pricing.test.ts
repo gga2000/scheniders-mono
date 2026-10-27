@@ -6,7 +6,7 @@ import { createFakeSupabase, type Row } from "@/lib/testing/fake-supabase";
 // =====================================================================
 // Every test here posts what a browser could post — including prices it has
 // no business sending — and asserts on what the server RECORDS: the line
-// prices and totals handed to create_order_atomic, and the total returned to
+// prices and totals handed to create_storefront_order, and the total returned to
 // the client. Tenant filters are exercised for real: the in-memory double
 // applies `.eq("tenant_id", …)`, so another tenant's cheaper tier or offer
 // only stays out of the order if the checkout actually scoped its query.
@@ -16,6 +16,14 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
+// A real shopper, not a draft-view session: the check reads the request's
+// cookies, which do not exist outside a Next request scope.
+vi.mock("@/lib/draft-view", () => ({
+  isDraftViewRequest: vi.fn(async () => false),
+}));
+// The checkout rate limit has its own suite (checkout-rate-limit.test.ts).
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("@/lib/checkout-rate-limit", () => ({ checkoutRateLimited: async () => null }));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
@@ -71,7 +79,7 @@ function install(tables: Record<string, Row[]>, failingTables: string[] = []) {
   const fake = createFakeSupabase(tables, {
     failingTables,
     rpc: {
-      create_order_atomic: () => ({
+      create_storefront_order: () => ({
         data: { id: "11111111-1111-4111-8111-111111111111", order_id: "SH-0001" },
         error: null,
       }),
@@ -101,7 +109,7 @@ type OrderData = {
 };
 
 function recordedOrder(fake: ReturnType<typeof install>): OrderData | undefined {
-  const call = fake.rpcCalls.find((c) => c.fn === "create_order_atomic");
+  const call = fake.rpcCalls.find((c) => c.fn === "create_storefront_order");
   return call?.args._order_data as OrderData | undefined;
 }
 
@@ -401,7 +409,7 @@ describe("P2-3: an idempotent replay has no side effects", () => {
   const pointsCalls = (fake: ReturnType<typeof createFakeSupabase>) =>
     fake.rpcCalls.filter((c) => c.fn === "adjust_customer_points");
 
-  it("a retry of an order that already exists redeems, earns and mints nothing", async () => {
+  it("a retry of an order that already exists earns and mints nothing", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
     const fake = createFakeSupabase(
       loyaltyTables([
@@ -410,44 +418,44 @@ describe("P2-3: an idempotent replay has no side effects", () => {
           order_id: "SH-0007",
           tenant_id: TENANT,
           idempotency_key: KEY,
-          price: 35000,
+          // Stored net of the discount: 35,000 of lines less 2,000.
+          price: 33000,
           discount_amount: 2000,
           delivery_fee: 5000,
         },
       ]),
-      { rpc: { create_order_atomic: () => ({ data: null, error: { message: "must not be called" } }) } },
+      { rpc: { create_storefront_order: () => ({ data: null, error: { message: "must not be called" } }) } },
     );
     vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
     const res = await submitCheckout({
       tenantId: TENANT,
       customer,
       idempotencyKey: KEY,
-      redeemPoints: 2000,
       items: [line(PERFUME, 35000, 1)],
     });
     expect(res).toMatchObject({ success: true, orderId: EXISTING, orderNumber: "SH-0007", total: 38000 });
     expect(res.upsellToken).toBeUndefined();
     expect(pointsCalls(fake)).toEqual([]);
-    expect(fake.rpcCalls.some((c) => c.fn === "create_order_atomic")).toBe(false);
+    expect(fake.rpcCalls.some((c) => c.fn === "create_storefront_order")).toBe(false);
     vi.unstubAllEnvs();
   });
 
   it("another tenant's order with the same key is not a replay", async () => {
     const fake = createFakeSupabase(
       loyaltyTables([{ id: EXISTING, order_id: "X-1", tenant_id: OTHER_TENANT, idempotency_key: KEY, price: 1 }]),
-      { rpc: { create_order_atomic: () => ({ data: { id: "11111111-1111-4111-8111-111111111111", order_id: "SH-1" }, error: null }) } },
+      { rpc: { create_storefront_order: () => ({ data: { id: "11111111-1111-4111-8111-111111111111", order_id: "SH-1" }, error: null }) } },
     );
     vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
     const res = await submitCheckout({ tenantId: TENANT, customer, idempotencyKey: KEY, items: [line(PERFUME, 35000, 1)] });
     expect(res.orderId).toBe("11111111-1111-4111-8111-111111111111");
   });
 
-  it("losing a concurrent race refunds its redemption and earns nothing, when the RPC reports the replay", async () => {
+  it("losing a concurrent race reports the existing order and earns nothing, when the RPC reports the replay", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "proof-root");
     const fake = createFakeSupabase(loyaltyTables(), {
       rpc: {
-        create_order_atomic: () => ({
-          data: { id: EXISTING, order_id: "SH-0007", price: 35000, discount_amount: 2000, delivery_fee: 5000, idempotent_replay: true },
+        create_storefront_order: () => ({
+          data: { id: EXISTING, order_id: "SH-0007", price: 33000, discount_amount: 2000, delivery_fee: 5000, idempotent_replay: true },
           error: null,
         }),
       },
@@ -457,16 +465,11 @@ describe("P2-3: an idempotent replay has no side effects", () => {
       tenantId: TENANT,
       customer,
       idempotencyKey: KEY,
-      redeemPoints: 2000,
       items: [line(PERFUME, 35000, 1)],
     });
     expect(res).toMatchObject({ success: true, orderId: EXISTING, total: 38000 });
     expect(res.upsellToken).toBeUndefined();
-    const deltas = pointsCalls(fake).map((c) => [c.args._reason, c.args._delta]);
-    expect(deltas).toEqual([
-      ["redeem", -2000],
-      ["redeem_refund", 2000],
-    ]);
+    expect(pointsCalls(fake)).toEqual([]);
     vi.unstubAllEnvs();
   });
 });

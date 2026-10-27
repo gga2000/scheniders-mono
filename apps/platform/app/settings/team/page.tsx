@@ -354,10 +354,12 @@ export default function TeamSettingsPage() {
     // Toggle user active status
     const toggleUserStatus = async (userId: string, isActive: boolean) => {
         try {
-            const { error } = await supabase
-                .from("user_profiles")
-                .update({ is_active: !isActive })
-                .eq("id", userId);
+            // Another user's profile row is not writable through RLS; the
+            // definer RPC checks that the caller administers the user's tenant.
+            const { error } = await supabase.rpc("set_team_member_active", {
+                p_user_id: userId,
+                p_is_active: !isActive,
+            });
 
             if (error) throw error;
 
@@ -393,10 +395,10 @@ export default function TeamSettingsPage() {
     // Deactivate user (soft delete)
     const deactivateUser = async (userId: string) => {
         try {
-            const { error } = await supabase
-                .from("user_profiles")
-                .update({ is_active: false })
-                .eq("id", userId);
+            const { error } = await supabase.rpc("set_team_member_active", {
+                p_user_id: userId,
+                p_is_active: false,
+            });
 
             if (error) throw error;
 

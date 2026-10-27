@@ -68,15 +68,19 @@ export async function flagOrderForWhatsAppFailure(
     phone: string
 ): Promise<void> {
     const flags = categorizeWhatsAppFailure(result, orderId, phone);
+    // The order's tenant, stamped on the timeline row below: order_status_history
+    // is tenant-scoped by RLS, so a row without it is invisible (NEW-P1-17).
+    let tenantId: string | null = null;
 
     try {
         // Fetch existing attention_reasons to merge (not overwrite)
         const { data: current } = await supabaseAdmin
             .from("orders")
-            .select("attention_reasons")
+            .select("attention_reasons, tenant_id")
             .eq("id", orderUuid)
             .single();
 
+        tenantId = current?.tenant_id ?? null;
         const existing = (current?.attention_reasons as string[]) || [];
         const merged = [...new Set([...existing, ...flags.attention_reasons])];
 
@@ -103,6 +107,7 @@ export async function flagOrderForWhatsAppFailure(
             to_status: null,
             changed_by: "whatsapp_bot",
             notes: flags.delivery_note,
+            tenant_id: tenantId,
         });
     } catch (err) {
         console.error(`[WhatsApp Error Handler] Failed to log timeline for order ${orderId}:`, err);
