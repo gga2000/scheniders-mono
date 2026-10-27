@@ -84,6 +84,7 @@ import {
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useRecordContact } from "@/hooks/use-record-contact";
+import { RefundBanner } from "./refund-banner";
 
 interface OrderDetailsModalProps {
     order: Order | null;
@@ -630,7 +631,7 @@ export function OrderDetailsModal({
                                                 getStatusBadgeStyle()
                                             )}
                                         >
-                                            {orderStatusLabel(order.status)}
+                                            {orderStatusLabel(order.status, order.is_return)}
                                         </button>
 
                                         {/* Status Dropdown Menu */}
@@ -693,6 +694,7 @@ export function OrderDetailsModal({
                                     <Calendar className="h-3 w-3" />
                                     {toBaghdadDayKey(order.created_at)}
                                 </span>
+                                <RefundBanner order={order} />
                                 {/* Action Buttons Row - Reorder, Return, Replace */}
                                 {!isEditing && (
                                     <div className="flex items-center gap-2 mt-1">
