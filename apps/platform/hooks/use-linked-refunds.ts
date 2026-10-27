@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { Order } from "@/types/order";
 
-export type LinkedRefundOrder = Pick<Order, "id" | "order_id" | "status" | "price" | "created_at">;
+export type LinkedRefundOrder = Pick<Order, "id" | "order_id" | "status" | "price" | "delivery_fee" | "created_at">;
 
 /**
  * The orders on the other side of a refund link: for a refund order, the
@@ -23,7 +23,7 @@ export function useLinkedRefunds(order: Pick<Order, "id" | "is_return" | "origin
             if (!tenantId || !order) return [];
             const base = supabase
                 .from("orders")
-                .select("id, order_id, status, price, created_at")
+                .select("id, order_id, status, price, delivery_fee, created_at")
                 .eq("tenant_id", tenantId)
                 .is("deleted_at", null);
             const { data, error } = await (parentId

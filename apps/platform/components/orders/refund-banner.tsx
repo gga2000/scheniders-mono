@@ -6,6 +6,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useLinkedRefunds } from "@/hooks/use-linked-refunds";
 import { cn, formatIQD, getBaseOrderId } from "@/lib/utils";
+import { computeRefundPayout } from "@/lib/order-money";
 
 /**
  * Order details: says which order a refund order refunds, or which refund
@@ -24,7 +25,7 @@ export function RefundBanner({ order }: { order: Order }) {
                 <Undo2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="font-semibold">{t("refund.chip")}</span>
                 {original && <span>{t("refund.of", { number: getBaseOrderId(original.order_id) })}</span>}
-                <span className="ms-auto font-semibold tabular-nums">−{formatIQD(Math.abs(order.price))}</span>
+                <span className="ms-auto font-semibold tabular-nums">−{formatIQD(computeRefundPayout(order))}</span>
             </div>
         );
     }
@@ -38,7 +39,7 @@ export function RefundBanner({ order }: { order: Order }) {
                     <span className="font-medium">
                         {t("refund.original.by", {
                             id: refund.order_id,
-                            amount: formatIQD(Math.abs(refund.price)),
+                            amount: formatIQD(computeRefundPayout(refund)),
                         })}
                     </span>
                     <span className={cn("ms-auto text-xs", refund.status === "refund_delivered" ? "font-semibold" : "text-rose-700 dark:text-rose-300")}>

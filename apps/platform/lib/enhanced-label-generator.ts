@@ -7,6 +7,7 @@ import { Order } from "@/lib/supabase";
 import { formatIQD, formatIQDArabic, formatDate, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { computeRefundPayout } from "@/lib/order-money";
 import QRCode from "qrcode";
 
 // =============================================
@@ -215,7 +216,7 @@ export async function generateLabelHTML(
     const refundSection = `
                 <div style="text-align:center;margin-top:12px;padding:8px;border:3px solid #000;">
                     <div style="font-size:12px;font-weight:bold;">REFUND · استرجاع مبلغ</div>
-                    <div style="font-size:${options.size === "compact" ? "16px" : "22px"};font-weight:bold;font-family:monospace;">${formatIQD(Math.abs(Number(order.price) || 0))}</div>
+                    <div style="font-size:${options.size === "compact" ? "16px" : "22px"};font-weight:bold;font-family:monospace;">${formatIQD(computeRefundPayout(order))}</div>
                     <div style="font-size:10px;">Pay the customer · يُدفع للزبون</div>
                 </div>
             `;
@@ -1000,7 +1001,6 @@ export async function generateShippingLabelHTML(
     };
 
     // Use order.price as final total (already includes discounts, delivery, etc.)
-    // A refund order's price is negative: cash the courier hands TO the customer.
     const total = Number(order.price) || 0;
 
     // Format date/time
@@ -1059,7 +1059,7 @@ export async function generateShippingLabelHTML(
         </tr>
         <tr>
             <td class="sl-td-label">${order.is_return ? 'يُدفع للزبون' : 'المبلغ الكلي للفاتورة'}</td>
-            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(order.is_return ? Math.abs(total) : total)}</td>
+            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(order.is_return ? computeRefundPayout(order) : total)}</td>
         </tr>
         <tr>
             <td class="sl-td-label">الملاحظات</td>
