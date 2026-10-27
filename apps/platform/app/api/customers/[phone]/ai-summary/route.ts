@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { ANTHROPIC_MESSAGES_URL } from "@/lib/anthropic-api";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 
 export const dynamic = "force-dynamic";
@@ -103,7 +104,7 @@ Provide a brief, actionable summary that helps an operations team understand thi
         }
 
         // Call Anthropic API via fetch
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
+        const response = await fetch(ANTHROPIC_MESSAGES_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

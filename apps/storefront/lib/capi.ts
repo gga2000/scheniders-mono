@@ -10,6 +10,7 @@
 
 import { createHash } from "crypto";
 import type { AnalyticsConfig } from "@scheniders/shared";
+import { providerBaseUrls } from "./provider-env";
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
@@ -113,8 +114,8 @@ export function buildTikTokPurchaseEvent(input: CapiPurchaseInput): TikTokEvent 
   };
 }
 
-const META_API = "https://graph.facebook.com/v19.0";
-const TIKTOK_API = "https://business-api.tiktok.com/open_api/v1.3/event/track/";
+const META_API = `${providerBaseUrls.META_API_BASE_URL}/v19.0`;
+const TIKTOK_API = `${providerBaseUrls.TIKTOK_API_BASE_URL}/open_api/v1.3/event/track/`;
 
 /** Fire Purchase to whichever Conversions APIs are configured. Best-effort. */
 export async function sendPurchaseCapi(input: CapiPurchaseInput): Promise<void> {

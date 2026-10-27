@@ -3,6 +3,8 @@
 // so leaving `dir` off is what keeps every page LTR — and keeps an RTL `dir`
 // from ever being reintroduced on the document element.
 
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -12,9 +14,27 @@ const { Passthrough, Nothing } = vi.hoisted(() => ({
     Nothing: () => null,
 }));
 
-vi.mock("next/font/google", () => ({
-    Geist: () => ({ variable: "font-geist-sans" }),
-    Geist_Mono: () => ({ variable: "font-geist-mono" }),
+interface LocalFontCall {
+    src: string;
+    adjustFontFallback?: false | string;
+    declarations?: { prop: string; value: string }[];
+}
+
+const { fontCalls } = vi.hoisted(() => ({ fontCalls: [] as LocalFontCall[] }));
+
+// Each next/font/local call becomes a face named after its file
+// (`geist/latin`), plus `<name> Fallback` when it carries the size-adjusted
+// fallback — the same shape `style.fontFamily` has in a real build.
+vi.mock("next/font/local", () => ({
+    default: (options: LocalFontCall) => {
+        fontCalls.push(options);
+        const name = options.src.replace(/^\.\//, "").replace(/\.woff2$/, "");
+        return {
+            style: {
+                fontFamily: options.adjustFontFallback === false ? name : `${name}, ${name} Fallback`,
+            },
+        };
+    },
 }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/env", () => ({}));
@@ -37,6 +57,18 @@ vi.mock("@vercel/speed-insights/next", () => ({ SpeedInsights: Nothing }));
 
 import RootLayout from "./layout";
 import GlobalError from "./global-error";
+
+const appRoot = join(__dirname, "..");
+const fontsDir = join(__dirname, "fonts");
+
+function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        if (entry.name === "node_modules" || entry.name.startsWith(".")) return [];
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) return sourceFiles(path);
+        return /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry.name) ? [path] : [];
+    });
+}
 
 function htmlOpeningTag(markup: string): string {
     const tag = markup.match(/<html\b[^>]*>/)?.[0];
@@ -63,5 +95,52 @@ describe("platform root document", () => {
         );
         expect(tag).toMatch(/\slang="ar"/);
         expect(tag).not.toMatch(/\sdir=/);
+    });
+
+    it("defines the Geist variables as their subset faces, then one fallback", () => {
+        const body = renderToStaticMarkup(
+            <RootLayout>
+                <main>page</main>
+            </RootLayout>,
+        ).match(/<body\b[^>]*>/)?.[0];
+        expect(body).toContain(
+            "--font-geist-sans:geist/latin, geist/latin-ext, geist/vietnamese, geist/cyrillic, geist/cyrillic-ext, geist/latin Fallback",
+        );
+        expect(body).toContain(
+            "--font-geist-mono:geist-mono/latin, geist-mono/latin-ext, geist-mono/vietnamese, geist-mono/symbols2, geist-mono/cyrillic, geist-mono/cyrillic-ext, geist-mono/latin Fallback",
+        );
+    });
+
+    it("gives every face a unicode-range and a committed file, and declares every committed file", () => {
+        const declared = fontCalls.map((call) => {
+            expect(call.declarations?.find((d) => d.prop === "unicode-range")?.value).toMatch(/^U\+/);
+            expect(existsSync(join(fontsDir, call.src))).toBe(true);
+            return call.src.replace(/^\.\//, "");
+        });
+        const committed = ["geist", "geist-mono"].flatMap((dir) =>
+            readdirSync(join(fontsDir, dir))
+                .filter((file) => file.endsWith(".woff2"))
+                .map((file) => `${dir}/${file}`),
+        );
+        expect(declared.sort()).toEqual(committed.sort());
+    });
+
+    it("serves Geist Mono's box-drawing and block glyphs from its symbols2 subset", () => {
+        // Google's Geist Mono has a symbols2 subset (U+23B8-23BD, U+2500-259F);
+        // without it box-drawing text falls back to another monospace face.
+        const symbols2 = fontCalls.find((call) => call.src === "./geist-mono/symbols2.woff2");
+        expect(symbols2?.declarations).toEqual([
+            { prop: "unicode-range", value: "U+2000-2001, U+2004-2008, U+200A, U+23B8-23BD, U+2500-259F" },
+        ]);
+    });
+
+    it("no source file loads fonts from Google at build time", () => {
+        // next/font/google downloads every face during `next build`; one
+        // failed fetch fails the build. Geist is committed under app/fonts
+        // and loaded with next/font/local instead.
+        const offenders = sourceFiles(appRoot)
+            .filter((file) => /["']next\/font\/google["']/.test(readFileSync(file, "utf8")))
+            .map((file) => relative(appRoot, file));
+        expect(offenders).toEqual([]);
     });
 });

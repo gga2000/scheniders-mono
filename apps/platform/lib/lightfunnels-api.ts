@@ -5,6 +5,7 @@
  * API Docs: https://developers.lightfunnels.com
  */
 
+import { providerBaseUrls } from './env';
 import { createSupabaseServiceClient } from './supabase-server';
 import { formatPhoneToStandard } from './order-utils';
 import { generateWhatsAppLink } from './utils';
@@ -26,7 +27,7 @@ const supabase = new Proxy({} as ReturnType<typeof createSupabaseServiceClient>,
 });
 
 // API Configuration
-const LIGHTFUNNELS_API_URL = 'https://services.lightfunnels.com/api/v2';
+const LIGHTFUNNELS_API_URL = `${providerBaseUrls.LIGHTFUNNELS_API_BASE_URL}/api/v2`;
 
 /**
  * Lightfunnels Order structure from API

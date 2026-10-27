@@ -323,12 +323,13 @@ function buttonShadow(style: BrandShape["shadow_style"]): string {
 /* ─────────────────────────────────────────────────────────────────── */
 
 /**
- * Families the storefront root layout self-hosts through `next/font/google`
- * and exposes as CSS variables (RC3). The generated face gets a hashed
- * family name, so a stack must reference the variable to use it; the plain
- * name stays as the `var()` fallback for surfaces that do not mount the
- * root layout (platform live-preview, tests) — those resolve exactly as
- * before. Keep in sync with `apps/storefront/app/layout.tsx`.
+ * Families the storefront root layout self-hosts through `next/font/local`
+ * (committed woff2 files, see `apps/storefront/app/fonts/brand-fonts.ts`)
+ * and exposes as CSS variables (RC3). Each face gets a generated family
+ * name, so a stack must reference the variable to use it; the plain name
+ * stays as the `var()` fallback for surfaces that do not mount the root
+ * layout (platform live-preview, tests) — those resolve exactly as before.
+ * Keep in sync with `apps/storefront/app/fonts/brand-fonts.ts`.
  */
 export const SELF_HOSTED_FONT_VARS: Readonly<Record<string, string>> = {
   "Bricolage Grotesque": "--font-bricolage",
