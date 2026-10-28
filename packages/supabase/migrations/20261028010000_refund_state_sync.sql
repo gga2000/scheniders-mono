@@ -16,9 +16,14 @@
 --   * refunded_at: when the latest completed refund reached the customer.
 -- What a refund covered comes from after_sale_items (per original line);
 -- refund orders created before that table carry no rows there, and for
--- those the refund order's own items and price are used, which is what
--- the old flow wrote (all items, price = -(items - fee), fee in
--- delivery_fee).
+-- those the refund order's own items and price are used.
+--
+-- Money layout of a refund order: price = minus the items refunded,
+-- delivery_fee = the pickup fee kept, so the customer receives
+-- -(price + delivery_fee). The old flow stored price already net of the fee
+-- (price = -(items - fee)) while also keeping the fee in delivery_fee, which
+-- counts the fee twice; those rows are rewritten to the one layout below
+-- (approved by Ali 2026-10-28).
 --
 -- The three columns are owned by this function. A BEFORE UPDATE guard
 -- keeps them unchanged unless the write comes from here, so an app save
@@ -29,6 +34,25 @@ ALTER TABLE public.orders
     ADD COLUMN IF NOT EXISTS refunded_amount integer NOT NULL DEFAULT 0 CHECK (refunded_amount >= 0);
 
 GRANT SELECT (refunded_amount) ON public.orders TO authenticated;
+
+-- Old refund orders stored net of the fee: put the fee back into price.
+-- Only rows whose numbers prove that layout (fee - price = items) are
+-- touched; irregular rows are left for a person to read. This corrects
+-- history, so the order triggers (updated_at, version, notifications,
+-- loyalty, trust, inventory) stay out of it: updated_at is when the
+-- customer was paid and must not move.
+ALTER TABLE public.orders DISABLE TRIGGER USER;
+UPDATE public.orders o
+   SET price = o.price - o.delivery_fee
+ WHERE o.is_return
+   AND o.deleted_at IS NULL
+   AND coalesce(o.delivery_fee, 0) > 0
+   AND o.price < 0
+   AND -o.price + o.delivery_fee = (
+       SELECT coalesce(sum((i->>'price')::numeric * (i->>'quantity')::numeric), 0)
+         FROM jsonb_array_elements(CASE WHEN jsonb_typeof(o.items) = 'array' THEN o.items ELSE '[]'::jsonb END) i)
+   AND NOT EXISTS (SELECT 1 FROM public.after_sale_items a WHERE a.order_id = o.id);
+ALTER TABLE public.orders ENABLE TRIGGER USER;
 
 CREATE OR REPLACE FUNCTION public.refresh_original_refund_state(_original_id uuid)
 RETURNS void
@@ -60,7 +84,7 @@ BEGIN
       FROM jsonb_array_elements(COALESCE(v_items, '[]'::jsonb)) i;
 
     WITH refunds AS (
-        SELECT r.id, r.status, r.price, COALESCE(r.delivery_fee, 0) AS fee, r.items, r.updated_at
+        SELECT r.id, r.status, r.price, r.items, r.updated_at
           FROM public.orders r
          WHERE r.original_order_id = _original_id
            AND r.tenant_id = v_tenant
@@ -76,7 +100,7 @@ BEGIN
                , 0) AS qty,
                COALESCE(
                    (SELECT SUM(a.amount) FROM public.after_sale_items a WHERE a.order_id = f.id AND a.tenant_id = v_tenant AND a.direction = 'back'),
-                   round(abs(f.price) + f.fee)::integer
+                   greatest(0, round(-f.price))::integer
                ) AS amount
           FROM refunds f
     )
