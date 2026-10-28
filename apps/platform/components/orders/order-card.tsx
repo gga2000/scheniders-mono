@@ -1,6 +1,7 @@
 "use client";
 
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
+import { AbandonedCartBadge } from "@/components/orders/abandoned-cart-badge";
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -576,6 +577,7 @@ export const OrderCard = memo(function OrderCard({
                                 })()}
                             </span>
                             <OrderPlacementBadge order={order} />
+                            <AbandonedCartBadge order={order} />
                             {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse" />}
                             {isHighPriority && !isUrgent && <Flag className="w-2.5 h-2.5 text-amber-600" />}
                             {governorateCode && (
@@ -692,6 +694,7 @@ export const OrderCard = memo(function OrderCard({
                                 })()}
                             </span>
                             <OrderPlacementBadge order={order} />
+                            <AbandonedCartBadge order={order} />
                             <span className="text-[var(--card-border)]">·</span>
                             <span className="text-subtle">{formatShortDate(order.created_at)}</span>
                             <span className="text-subtle">{formatTime(order.created_at)}</span>
@@ -1179,6 +1182,8 @@ export const OrderCard = memo(function OrderCard({
                         >
                             {isPinned && <Pin className="w-4 h-4 text-blue-500 -rotate-45" />}
                             {isNew && !isPinned && <Sparkles className="w-4 h-4 text-orange-500 animate-pulse" />}
+
+                            <AbandonedCartBadge order={order} />
 
                             {/* Return Badge */}
                             {order.is_return && (
