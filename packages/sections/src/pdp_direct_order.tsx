@@ -175,6 +175,33 @@ const schema = z.object({
    *  `commerce.contact`. Hidden when the store has no usable contact
    *  config. Absent = no line, byte-identical for every existing config. */
   show_contact_line: z.boolean().optional().catch(undefined),
+
+  // ── Lower scent area (opt-in, express only) ─────────────────────────
+  /** Express: how the per-product feature cards (products.feature_cards)
+   *  render. "row" = one compact horizontal snap row — image, name, one
+   *  line; a tap shows that card's whole line. Absent/"stack" = the
+   *  vertical stack, byte-identical for every existing config. Classic
+   *  ignores it. */
+  feature_cards_layout: z.enum(["stack", "row"]).optional().catch(undefined),
+  /** Express: the «رحلة العطر» block above the feature cards, read from the
+   *  product's own merchant-defined attributes (Products → Attributes).
+   *  `pyramid_key` names a group_list attribute (its groups are the stages,
+   *  e.g. top/heart/base); `chip_keys` name enum or group_list attributes
+   *  shown as chip rows (e.g. occasions, season); `note_key` names a text
+   *  attribute shown as one plain staying-power line. Nothing is derived
+   *  and numeric ranges are never drawn: a product without those values
+   *  renders no block. Absent = no block, byte-identical for every
+   *  existing config. Classic ignores it. */
+  scent_journey: z
+    .object({
+      pyramid_key: z.string().min(1),
+      chip_keys: z.array(z.string().min(1)).max(4).optional(),
+      note_key: z.string().min(1).optional(),
+      /** Block heading. Empty = the chrome «رحلة العطر». */
+      title_i18n: i18nStringOptional,
+    })
+    .optional()
+    .catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

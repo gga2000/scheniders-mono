@@ -11,21 +11,18 @@ type Call = { op: "select" | "update"; filters: Array<[string, string, unknown]>
  * is under test, so the fake answers regardless of filters — a test asserts on
  * what was ASKED for.
  */
-function recorder(rows: { exact?: Array<{ id: string; order_id: string }>; phone?: Array<{ id: string; order_id: string }> }) {
+function recorder(rows: { exact?: Array<{ id: string; order_id: string }> }) {
     const calls: Call[] = [];
     const client = {
         from: () => {
             const call: Call = { op: "select", filters: [] };
             calls.push(call);
-            const answer = () => {
-                const byExact = call.filters.some(([, col]) => col === "order_id");
-                return { data: (byExact ? rows.exact : rows.phone) ?? [], error: null };
-            };
+            const answer = () => ({ data: rows.exact ?? [], error: null });
             const builder = {
                 select: () => builder,
                 update: () => { call.op = "update"; return builder; },
                 eq: (col: string, v: unknown) => { call.filters.push(["eq", col, v]); return builder; },
-                gte: (col: string, v: unknown) => { call.filters.push(["gte", col, v]); return builder; },
+                is: (col: string, v: unknown) => { call.filters.push(["is", col, v]); return builder; },
                 in: (col: string, v: unknown) => { call.filters.push(["in", col, v]); return builder; },
                 then: (resolve: (v: ReturnType<typeof answer>) => void) => resolve(call.op === "update" ? { data: [], error: null } : answer()),
             };
@@ -43,38 +40,35 @@ describe("cleanupAbandonedCheckouts — tenant scoping", () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    it("scopes the phone lookup and the soft-delete to the tenant", async () => {
-        const { calls, client } = recorder({ phone: [{ id: "c1", order_id: "checkout_1" }] });
-        const r = await cleanupAbandonedCheckouts(client, {
-            tenantId: "tenant-a", phone: "07700000000", orderNumber: "7455",
-        });
-
-        expect(r).toEqual({ method: "phone_time_window", deleted: ["checkout_1"] });
-        expect(calls).toHaveLength(2);
-        expect(calls.map(c => c.op)).toEqual(["select", "update"]);
-        for (const c of calls) expect(tenantOf(c)).toBe("tenant-a");
-        expect(calls[1]?.filters).toContainEqual(["in", "id", ["c1"]]);
-    });
-
-    it("scopes the exact checkout-id lookup to the tenant", async () => {
+    it("scopes the exact checkout-id lookup and the soft-delete to the tenant", async () => {
         const { calls, client } = recorder({ exact: [{ id: "c9", order_id: "checkout_9" }] });
         const r = await cleanupAbandonedCheckouts(client, {
-            tenantId: "tenant-b", phone: "07700000000", checkoutId: "checkout_9", orderNumber: "7456",
+            tenantId: "tenant-b", checkoutId: "checkout_9", orderNumber: "7456",
         });
 
-        expect(r.method).toBe("exact_checkout_id");
+        expect(r).toEqual({ deleted: ["checkout_9"] });
         expect(calls.map(c => c.op)).toEqual(["select", "update"]);
         for (const c of calls) expect(tenantOf(c)).toBe("tenant-b");
+        expect(calls[0]?.filters).toContainEqual(["is", "deleted_at", null]);
+        expect(calls[1]?.filters).toContainEqual(["in", "id", ["c9"]]);
     });
 
-    it("falls back to the scoped phone lookup when the exact id finds nothing", async () => {
-        const { calls, client } = recorder({ exact: [], phone: [] });
+    it("does nothing when the exact id finds no open checkout", async () => {
+        const { calls, client } = recorder({ exact: [] });
         const r = await cleanupAbandonedCheckouts(client, {
-            tenantId: "tenant-c", phone: "07700000000", checkoutId: "checkout_x", orderNumber: "7457",
+            tenantId: "tenant-c", checkoutId: "checkout_x", orderNumber: "7457",
         });
 
-        expect(r).toEqual({ method: null, deleted: [] });
-        expect(calls.map(c => c.op)).toEqual(["select", "select"]);
-        for (const c of calls) expect(tenantOf(c)).toBe("tenant-c");
+        expect(r).toEqual({ deleted: [] });
+        expect(calls.map(c => c.op)).toEqual(["select"]);
+        expect(tenantOf(calls[0] as Call)).toBe("tenant-c");
+    });
+
+    it("never touches the database without a checkout id (same-phone checkouts are the database's job)", async () => {
+        const { calls, client } = recorder({ exact: [{ id: "c1", order_id: "checkout_1" }] });
+        const r = await cleanupAbandonedCheckouts(client, { tenantId: "tenant-a", orderNumber: "7455" });
+
+        expect(r).toEqual({ deleted: [] });
+        expect(calls).toHaveLength(0);
     });
 });

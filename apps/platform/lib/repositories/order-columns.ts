@@ -110,7 +110,12 @@ export const ORDER_READ_COLUMNS = `
   last_followup_type,
   attribution,
   ad_channel,
-  confirmation_dispatched_at
+  confirmation_dispatched_at,
+  abandoned_cart_at,
+  abandoned_cart_outcome,
+  abandoned_cart_resolved_at,
+  abandoned_cart_resolved_by_name,
+  abandoned_cart_order_id
 `;
 
 /** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */
@@ -136,6 +141,12 @@ export function pickOrderWriteColumns(row: Record<string, unknown>): Record<stri
     }
     return picked;
 }
+
+/**
+ * Order rows per restoreOrdersAction call. Server Action bodies are capped at
+ * 1 MB, so the backup and vault restores send their orders in batches.
+ */
+export const RESTORE_ORDERS_BATCH_SIZE = 200;
 
 /**
  * Minimal column set for list/table/card views, read from `public.orders`.
@@ -208,7 +219,12 @@ export const LIST_COLUMNS = `
   completed_at,
   attribution,
   ad_channel,
-  is_verified_customer
+  is_verified_customer,
+  abandoned_cart_at,
+  abandoned_cart_outcome,
+  abandoned_cart_resolved_at,
+  abandoned_cart_resolved_by_name,
+  abandoned_cart_order_id
 `.trim();
 
 /** LIST_COLUMNS as names, for projecting a row that arrived with every column. */

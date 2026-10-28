@@ -71,6 +71,10 @@ const IraqMap = dynamic(
     () => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })),
     { ssr: false, loading: () => <div className="w-full h-[350px] animate-pulse bg-muted/20 rounded-2xl" /> }
 );
+const AbandonedCartRecoveryStrip = dynamic(
+    () => import("@/components/orders/abandoned-cart-recovery-strip").then(mod => ({ default: mod.AbandonedCartRecoveryStrip })),
+    { ssr: false, loading: () => null }
+);
 const StoreCapturesPanel = dynamic(
     () => import("@/components/orders/store-captures-panel").then(mod => ({ default: mod.StoreCapturesPanel })),
     { ssr: false, loading: () => null }
@@ -142,6 +146,20 @@ export default function OrdersPage() {
         setShowSubFilters((v) => {
             const next = !v;
             localStorage.setItem("ordersShowSubFilters", String(next));
+            return next;
+        });
+    }, []);
+    // Ad-channel chips — hidden by default, toggled from the search bar like the
+    // sub-filters above. Per-device pref.
+    const [showAdChannels, setShowAdChannels] = useState(false);
+    useEffect(() => {
+        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowAdChannels") : null;
+        if (stored !== null) setShowAdChannels(stored === "true");
+    }, []);
+    const toggleAdChannels = useCallback(() => {
+        setShowAdChannels((v) => {
+            const next = !v;
+            localStorage.setItem("ordersShowAdChannels", String(next));
             return next;
         });
     }, []);
@@ -1685,6 +1703,8 @@ export default function OrdersPage() {
                                                 riskCountHidden={!countVis.riskBadge}
                                                 showSubFilters={showSubFilters}
                                                 toggleSubFilters={toggleSubFilters}
+                                                showAdChannels={showAdChannels}
+                                                toggleAdChannels={toggleAdChannels}
                                                 onOpenScanner={() => setIsScannerOpen(true)}
                                             />
 
@@ -1750,6 +1770,7 @@ export default function OrdersPage() {
                                     {/* Store-form phones (abandoned_carts) sit beside, never inside,
                                         the pending_checkout rows: those rows, their statuses and their
                                         counts stay exactly as they are. Abandoned tab only. */}
+                                    {filters.status === "pending_checkout" && !showArchived && <AbandonedCartRecoveryStrip />}
                                     {filters.status === "pending_checkout" && !showArchived && <StoreCapturesPanel />}
                                     {/* While searching, the list is a lookup across every date and status. */}
                                     {!showArchived && <OrderSearchBanner count={filteredOrders.length} />}

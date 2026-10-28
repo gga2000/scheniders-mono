@@ -5,6 +5,7 @@
  * API Docs: https://developers.lightfunnels.com
  */
 
+import { providerBaseUrls } from './env';
 import { createSupabaseServiceClient } from './supabase-server';
 import { formatPhoneToStandard } from './order-utils';
 import { generateWhatsAppLink } from './utils';
@@ -26,7 +27,7 @@ const supabase = new Proxy({} as ReturnType<typeof createSupabaseServiceClient>,
 });
 
 // API Configuration
-const LIGHTFUNNELS_API_URL = 'https://services.lightfunnels.com/api/v2';
+const LIGHTFUNNELS_API_URL = `${providerBaseUrls.LIGHTFUNNELS_API_BASE_URL}/api/v2`;
 
 /**
  * Lightfunnels Order structure from API
@@ -803,58 +804,22 @@ export async function importOrder(lfOrder: LightfunnelsOrder, tenantId: string):
             throw error;
         }
 
-        // Clean up matching abandoned checkouts to prevent duplicates
-        // Priority 1: Exact match via order's checkout._id (search in notes)
-        // Priority 2: Fallback to phone + 24hr time window
-        try {
-            let cleaned = false;
-
-            // Priority 1: Exact checkout._id match by order_id
-            if (lfOrder.checkout?._id) {
-                const { data: exactMatch } = await supabase
-                    .from('orders')
-                    .select('id, order_id')
-                    .eq('tenant_id', tenantId)
-                    .eq('order_id', String(lfOrder.checkout._id))
-                    .eq('status', 'pending_checkout')
-                    .eq('source', 'lightfunnels')
-                    .single();
-
-                if (exactMatch) {
-                    await supabase.from('orders').update({ deleted_at: new Date().toISOString() }).eq('id', exactMatch.id).eq('tenant_id', tenantId);
-                    console.log(`Cleaned up abandoned checkout (exact match via notes): ${exactMatch.order_id}`);
-                    cleaned = true;
-                }
+        // The checkout this order came from goes to the trash, even when the
+        // customer typed a different phone on it. Same-phone checkouts are
+        // resolved by the database on insert (orders_abandoned_cart_after_insert).
+        // Non-fatal: the order already exists, so a failure is only logged.
+        if (lfOrder.checkout?._id) {
+            const { error: cleanupError } = await supabase
+                .from('orders')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('tenant_id', tenantId)
+                .eq('order_id', String(lfOrder.checkout._id))
+                .eq('status', 'pending_checkout')
+                .eq('source', 'lightfunnels')
+                .is('deleted_at', null);
+            if (cleanupError) {
+                console.error(`[importOrder] Checkout cleanup failed for ${lfOrder.name}:`, cleanupError);
             }
-
-            // Priority 2: Fallback — phone + 24hr time window
-            if (!cleaned) {
-                const phone = lfOrder.shipping_address?.phone || lfOrder.customer.phone || '';
-                const formattedPhone = formatPhoneToStandard(phone);
-                if (formattedPhone && lfOrder.created_at) {
-                    const orderDate = new Date(lfOrder.created_at);
-                    const windowStart = new Date(orderDate.getTime() - 24 * 60 * 60 * 1000).toISOString();
-                    const windowEnd = orderDate.toISOString();
-
-                    const { data: phoneMatches } = await supabase
-                        .from('orders')
-                        .select('id, order_id')
-                        .eq('tenant_id', tenantId)
-                        .eq('status', 'pending_checkout')
-                        .eq('phone', formattedPhone)
-                        .eq('source', 'lightfunnels')
-                        .gte('created_at', windowStart)
-                        .lte('created_at', windowEnd);
-
-                    if (phoneMatches && phoneMatches.length > 0) {
-                        await supabase.from('orders').update({ deleted_at: new Date().toISOString() }).in('id', phoneMatches.map(c => c.id)).eq('tenant_id', tenantId);
-                        console.log(`Cleaned up ${phoneMatches.length} abandoned checkout(s) by phone+time:`,
-                            phoneMatches.map(c => c.order_id).join(', '));
-                    }
-                }
-            }
-        } catch {
-            // Non-fatal: order was already created successfully
         }
 
         return {

@@ -1,17 +1,13 @@
 -- =============================================================================
 -- Local fixture for p1_db_security_holes.sql — a throwaway Postgres 16 database
--- shaped like the live objects the 20261020140100..140800 migrations touch.
+-- shaped like the live objects the p1_db_security_holes.sql migrations touch.
 -- =============================================================================
 --
 -- NEVER run this against Supabase: it creates roles, an auth/storage stub and
 -- tables. It exists so the migrations and their tests can run on a plain
 -- local cluster:
 --
---   createdb p1sec
---   psql -d p1sec -v ON_ERROR_STOP=1 -f packages/supabase/tests/p1_db_security_holes_local_fixture.sql
---   for f in packages/supabase/migrations/2026102014{01,02,03,04,05,06,07,08}00_*.sql; do
---     psql -d p1sec -v ON_ERROR_STOP=1 -f "$f"; done
---   psql -d p1sec -v ON_ERROR_STOP=1 -f packages/supabase/tests/p1_db_security_holes.sql
+--   createdb p1sec, then follow HOW TO RUN in p1_db_security_holes.sql.
 --
 -- Function bodies, policies, grants, bucket rows and default ACLs below are
 -- copied from the live project (pg_get_functiondef / pg_policies /

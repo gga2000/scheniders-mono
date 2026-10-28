@@ -57,6 +57,8 @@ export const checkoutOrderBodySchema = z.object({
   event_id: z.string().min(8).max(100).optional(),
   /** Loyalty: points the customer chose to redeem (server re-validates). */
   redeem_points: z.number().int().min(0).optional(),
+  /** Loyalty: a previous order number of this phone — the proof a redemption needs. */
+  loyalty_order_number: z.string().trim().min(1).max(40).optional(),
   /** Referral: a friend's code (server re-checks eligibility + prices it). */
   referral_code: z.string().min(1).max(32).optional(),
   // accepted and dropped — not forwarded to the order pipeline
@@ -105,6 +107,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       couponCode: data.coupon_code,
       purchaseEventId: data.event_id,
       redeemPoints: data.redeem_points,
+      loyaltyOrderNumber: data.loyalty_order_number,
       referralCode: data.referral_code,
       customer: {
         customer_name: data.customer_name,
@@ -209,6 +212,12 @@ export async function POST(req: Request): Promise<NextResponse> {
         httpOnly: true,
       });
       return res;
+    }
+    if (result.retryAfterSeconds !== undefined) {
+      return NextResponse.json(result, {
+        status: 429,
+        headers: { "Retry-After": String(result.retryAfterSeconds) },
+      });
     }
     // A platform failure (the database did not answer) is not the order's
     // fault: 503 tells the client the same request — same idempotency key —

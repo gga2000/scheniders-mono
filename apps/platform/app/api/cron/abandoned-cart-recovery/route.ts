@@ -17,6 +17,8 @@ export const maxDuration = 30;
 // its config) is applied on top, so this is just the cheapest pre-filter.
 const MIN_DELAY_MINUTES = 5;
 const BATCH_SIZE = 50;
+// Owner decision 2026-10-27: an abandoned checkout nobody contacted for 14 days goes to the trash.
+const CHECKOUT_EXPIRE_AFTER = "14 days";
 
 interface SweepResult {
     processed: number;
@@ -27,7 +29,7 @@ interface SweepResult {
 }
 
 /**
- * Sweep abandoned carts and send WhatsApp recovery nudges. Recovery is OPT-IN
+ * Sweep storefront phone captures (abandoned_carts) and send WhatsApp recovery nudges. Recovery is OPT-IN
  * per tenant: a cart is only nudged if its tenant enabled recovery AND the cart
  * has been idle past that tenant's configured delay. Sends stamp reminded_at;
  * failures stay eligible for the next sweep. Service role → bypasses RLS.
@@ -125,11 +127,38 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
     return { processed: carts.length, sent, failed, skipped };
 }
 
+/** Abandoned checkouts (orders in pending_checkout) moved to the trash by this run, per reason. */
+type CheckoutSweepResult = Record<string, number>;
+
+/**
+ * Move junk and stale abandoned checkouts to the 30-day trash. The rules
+ * (bad phone, no location, untouched for EXPIRE_AFTER) live in
+ * sweep_abandoned_carts so every caller applies the same ones.
+ */
+async function sweepAbandonedCheckouts(): Promise<CheckoutSweepResult> {
+    const db = createSupabaseServiceClient();
+    const { data, error } = await db.rpc("sweep_abandoned_carts", {
+        _expire_after: CHECKOUT_EXPIRE_AFTER,
+    });
+    if (error) throw new Error(error.message);
+    const removed: CheckoutSweepResult = {};
+    for (const row of data ?? []) {
+        removed[row.outcome] = (removed[row.outcome] ?? 0) + row.removed;
+    }
+    return removed;
+}
+
+async function runSweeps() {
+    const checkouts = await sweepAbandonedCheckouts();
+    const reminders = await sweepAbandonedCarts();
+    return { ...reminders, checkoutsRemoved: checkouts };
+}
+
 export async function GET(request: Request): Promise<NextResponse> {
     const denied = requireCronAuth(request);
     if (denied) return denied;
     try {
-        const result = await sweepAbandonedCarts();
+        const result = await runSweeps();
         return NextResponse.json({ success: true, ...result });
     } catch (e) {
         return NextResponse.json(
@@ -157,7 +186,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
     try {
-        const result = await sweepAbandonedCarts();
+        const result = await runSweeps();
         return NextResponse.json({ success: true, ...result });
     } catch (e) {
         return NextResponse.json(

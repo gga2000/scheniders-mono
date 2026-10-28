@@ -208,6 +208,17 @@ describe("POST /api/checkout/orders", () => {
     expect(json.success).toBe(false);
   });
 
+  it("(h2) returns 429 with Retry-After when the checkout rate limit refuses (F-041)", async () => {
+    vi.mocked(submitCheckout).mockResolvedValue({
+      success: false,
+      error: "طلبات كثيرة خلال وقت قصير. حاول مرة أخرى بعد قليل.",
+      retryAfterSeconds: 240,
+    });
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("240");
+  });
+
   it("(i) returns 400 for an invalid body", async () => {
     const res = await POST(makeRequest({ tenant_id: "not-a-uuid" }));
     expect(res.status).toBe(400);
@@ -242,6 +253,16 @@ describe("POST /api/checkout/orders", () => {
     expect(res.status).toBe(200);
     expect(submitCheckout).toHaveBeenCalledWith(
       expect.objectContaining({ idempotencyKey: "ec17-key-abcdef12" }),
+    );
+  });
+
+  it("(k2b) forwards a redemption with its proving order number", async () => {
+    const res = await POST(
+      makeRequest({ ...validBody, redeem_points: 40, loyalty_order_number: " 4260910007 " }),
+    );
+    expect(res.status).toBe(200);
+    expect(submitCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ redeemPoints: 40, loyaltyOrderNumber: "4260910007" }),
     );
   });
 

@@ -716,34 +716,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
             };
         }
 
-        // --- NEW LOGIC FOR ABANDONED CHECKOUT DEDUPLICATION ---
-        // If this is an abandoned checkout being processed, check if a real order
-        // has already been created for this phone number in the last 24 hours.
-        if (webhook.is_checkout && formattedPhone) {
-            const now = new Date();
-            const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-            // Same tenant only: a real order for this phone in ANOTHER tenant
-            // says nothing about this merchant's abandoned checkout.
-            const { data: existingRealOrders, error: checkErr } = await supabase
-                .from("orders")
-                .select("id")
-                .eq("tenant_id", tenantId)
-                .eq("phone", formattedPhone)
-                .neq("status", "pending_checkout")
-                .gte("created_at", windowStart)
-                .limit(1);
-
-            if (!checkErr && existingRealOrders && existingRealOrders.length > 0) {
-                console.log(`[Deduplication] Dropping abandoned checkout ${webhook.order_id || webhook.order_number} to prevent duplicate. Real order exists for phone: ${formattedPhone}`);
-                return {
-                    success: false,
-                    error: "A real order already exists; skipping abandoned checkout.",
-                    duplicate: true, // This tells the queue processor to mark it as processed and not retry
-                };
-            }
-        }
-        // ----------------------------------------------------
+        // A checkout that lands within 24 h of a real order for the same
+        // customer is trashed by the database as it is inserted
+        // (orders_abandoned_cart_before_insert, phones normalized), and a real
+        // order resolves the customer's open checkouts from every source
+        // (orders_abandoned_cart_after_insert).
 
         // Use Lightfunnels order ID directly
         const lightfunnelsOrderId = webhook.order_number;
@@ -906,12 +883,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
 
         console.log(`Order created successfully: ${webhook.order_number}`);
 
-        // A real order (not a checkout) supersedes the customer's abandoned
-        // checkouts for the same tenant — soft-delete them.
-        if (!webhook.is_checkout && formattedPhone) {
+        // The checkout this order came from goes too, even when the customer
+        // typed a different phone on it.
+        if (!webhook.is_checkout) {
             await cleanupAbandonedCheckouts(supabase, {
                 tenantId,
-                phone: formattedPhone,
                 checkoutId: webhook.checkout_id,
                 orderNumber: webhook.order_number,
             });
@@ -931,10 +907,11 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
 }
 
 /**
- * Soft-delete the abandoned LightFunnels checkouts a real order supersedes.
- *
- * Priority 1: the exact checkout id the order came from.
- * Priority 2: same phone within the last 24 hours (when no id is available).
+ * Soft-delete the abandoned LightFunnels checkout a real order came from, by
+ * its exact checkout id. That catches the customer who changed their phone
+ * between the checkout and the order; same-phone checkouts (from any source,
+ * any phone format) are already resolved by the database when the order is
+ * inserted (orders_abandoned_cart_after_insert).
  *
  * Every query is scoped to `tenantId`. This runs on the service-role client, so
  * RLS does not apply: before the scope was added, an order for a phone number
@@ -949,50 +926,25 @@ export async function createOrderFromWebhook(webhook: LightFunnelsWebhook, tenan
  */
 export async function cleanupAbandonedCheckouts(
     client: Pick<ReturnType<typeof createSupabaseServiceClient>, "from">,
-    args: { tenantId: string; phone: string; checkoutId?: string; orderNumber: string },
-): Promise<{ method: "exact_checkout_id" | "phone_time_window" | null; deleted: string[] }> {
-    const { tenantId, phone, checkoutId, orderNumber } = args;
+    args: { tenantId: string; checkoutId?: string; orderNumber: string },
+): Promise<{ deleted: string[] }> {
+    const { tenantId, checkoutId, orderNumber } = args;
+    if (!checkoutId) return { deleted: [] };
 
-    let matches: Array<{ id: string; order_id: string }> = [];
-    let method: "exact_checkout_id" | "phone_time_window" | null = null;
-
-    if (checkoutId) {
-        const { data, error } = await client
-            .from("orders")
-            .select("id, order_id")
-            .eq("tenant_id", tenantId)
-            .eq("order_id", checkoutId)
-            .eq("status", "pending_checkout")
-            .eq("source", "lightfunnels");
-        if (error) {
-            console.error(`[Cleanup] Exact checkout lookup failed for ${checkoutId}:`, error);
-        } else if (data && data.length > 0) {
-            matches = data;
-            method = "exact_checkout_id";
-        }
+    const { data: matches, error } = await client
+        .from("orders")
+        .select("id, order_id")
+        .eq("tenant_id", tenantId)
+        .eq("order_id", checkoutId)
+        .eq("status", "pending_checkout")
+        .eq("source", "lightfunnels")
+        .is("deleted_at", null);
+    if (error) {
+        console.error(`[Cleanup] Exact checkout lookup failed for ${checkoutId}:`, error);
+        return { deleted: [] };
     }
-
-    if (matches.length === 0) {
-        const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { data, error } = await client
-            .from("orders")
-            .select("id, order_id")
-            .eq("tenant_id", tenantId)
-            .eq("status", "pending_checkout")
-            .eq("phone", phone)
-            .eq("source", "lightfunnels")
-            .gte("created_at", windowStart);
-        if (error) {
-            console.error(`[Cleanup] Phone checkout lookup failed for order ${orderNumber}:`, error);
-        } else if (data && data.length > 0) {
-            matches = data;
-            method = "phone_time_window";
-        }
-    }
-
-    if (matches.length === 0) {
-        console.log(`[Cleanup] No abandoned checkouts found to clean up for order ${orderNumber}`);
-        return { method: null, deleted: [] };
+    if (!matches || matches.length === 0) {
+        return { deleted: [] };
     }
 
     const { error: deleteErr } = await client
@@ -1002,12 +954,12 @@ export async function cleanupAbandonedCheckouts(
         .in("id", matches.map(m => m.id));
     if (deleteErr) {
         console.error(`[Cleanup] Soft-delete failed for order ${orderNumber}:`, deleteErr);
-        return { method, deleted: [] };
+        return { deleted: [] };
     }
 
     const deleted = matches.map(m => m.order_id);
-    console.log(`[Cleanup] Soft-deleted ${deleted.length} abandoned checkout(s) via ${method}:`, deleted.join(", "));
-    return { method, deleted };
+    console.log(`[Cleanup] Soft-deleted abandoned checkout ${deleted.join(", ")} for order ${orderNumber}`);
+    return { deleted };
 }
 
 /**

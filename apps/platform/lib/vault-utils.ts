@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
-import { ORDER_READ_COLUMNS, pickOrderWriteColumns } from "@/lib/repositories/order-columns";
+import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { restoreOrderRows } from "@/lib/backup-utils";
 import { encryptVaultData, decryptVaultData } from "./crypto-utils";
 import * as XLSX from "xlsx";
 
@@ -304,14 +305,11 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
         // 3. Restore Orders (Dependent on Products)
         if (orders && orders.length > 0) {
             if (onProgress) onProgress(`Restoring ${orders.length} Orders...`);
-            // Only ORDER_READ_COLUMNS keys: vaults and XLSX files exported
-            // before migration 20261021090000 carry the margin columns, and
-            // upserting them is refused with 42501 once the caller holds no
-            // SELECT on them.
-            const { error: orderError } = await supabase
-                .from('orders')
-                .upsert(orders.map(pickOrderWriteColumns), { onConflict: 'id' });
-            if (orderError) throw new Error(`Orders Restore Failed: ${orderError.message}`);
+            try {
+                await restoreOrderRows(orders, (written, total) => onProgress?.(`Restored ${written} of ${total} Orders...`));
+            } catch (orderError) {
+                throw new Error(`Orders Restore Failed: ${orderError instanceof Error ? orderError.message : String(orderError)}`);
+            }
         }
 
         // Log the security event

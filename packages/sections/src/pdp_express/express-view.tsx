@@ -21,6 +21,7 @@ import { CheckoutRow } from "./checkout-row";
 import { DescriptionBlock } from "./description-block";
 import { ExpressForm } from "./express-form";
 import { ExpressMotion } from "./express-motion";
+import { EXPRESS_GUTTER } from "./gutter";
 import { HeroStage } from "./hero-stage";
 import { IdentityLabel, displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
@@ -29,6 +30,9 @@ import { OrderLine } from "./order-line";
 import { phoneDigits, phoneIssue } from "./phone";
 import { PricePlate } from "./price-plate";
 import { ScrollHint } from "./scroll-hint";
+import { buildScentJourney } from "./scent-journey";
+import { ScentJourneyBlock } from "./scent-journey-block";
+import { NoteRow } from "./note-row";
 import { readsRtl, xs } from "./text";
 import { expressWhatsappHref } from "./whatsapp-href";
 
@@ -46,6 +50,11 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
   // On in express unless the merchant turns it off; pointless without a
   // form to scroll to (sold out).
   const showScrollHint = props.show_scroll_hint !== false && !m.oos;
+  // Opt-in: the product's own attributes as the «رحلة العطر» block; null
+  // (no block) when the product carries none of the configured keys.
+  const journey = props.scent_journey
+    ? buildScentJourney(product.attributes, props.scent_journey, locale)
+    : null;
 
   return (
     <section className="pb-bk-md" data-pdp-layout="express">
@@ -59,7 +68,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
         />
       )}
 
-      <div className="mx-auto max-w-2xl space-y-bk-sm px-4 pt-bk-sm">
+      <div className={`mx-auto max-w-2xl space-y-bk-sm ${EXPRESS_GUTTER.pad} pt-bk-sm`}>
         <IdentityLabel
           product={product}
           locale={locale}
@@ -179,7 +188,21 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           <DescriptionBlock text={product.description} locale={locale} />
         )}
 
-        {m.featureCards.length > 0 && (
+        {journey && (
+          <ScentJourneyBlock
+            journey={journey}
+            title={
+              resolveI18n(props.scent_journey?.title_i18n, locale) || xs("scentJourney", locale)
+            }
+            locale={locale}
+          />
+        )}
+
+        {m.featureCards.length > 0 && props.feature_cards_layout === "row" && (
+          <NoteRow cards={m.featureCards} title={m.featureCardsTitle} locale={locale} />
+        )}
+
+        {m.featureCards.length > 0 && props.feature_cards_layout !== "row" && (
           <div className="space-y-bk-sm border-t border-bk-divider pt-bk-md">
             {m.featureCardsTitle && (
               <h2

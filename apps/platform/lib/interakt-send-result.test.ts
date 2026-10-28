@@ -11,7 +11,10 @@ import type { Order } from "@/types/order";
  * The response body below is copied verbatim from a live row.
  */
 
-vi.mock("@/lib/env", () => ({ env: { INTERAKT_API_KEY: "test-key" } }));
+vi.mock("@/lib/env", () => ({
+    env: { INTERAKT_API_KEY: "test-key" },
+    providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
+}));
 
 import { sendTemplateMessage } from "./interakt";
 

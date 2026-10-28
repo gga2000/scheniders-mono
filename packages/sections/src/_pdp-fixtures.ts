@@ -18,7 +18,7 @@
 
 import type { RuntimeContext } from "@scheniders/shared";
 import type { SectionRenderContext } from "./_types";
-import type { Product, ProductVariant, Tenant } from "./types";
+import type { Product, ProductVariant, ReviewSummaryItem, Tenant } from "./types";
 import type { Props as PdpDirectOrderProps } from "./pdp_direct_order";
 import type { Props as SiteHeaderProps } from "./site_header";
 import type { Props as StickyCtaBarProps } from "./sticky_cta_bar";
@@ -111,6 +111,51 @@ export const variantProduct: Product = {
   ...saleProduct,
   variants: [VARIANT_50, VARIANT_100],
 };
+
+/** Frozen review list: a named 5★, a 3★, an anonymous one with a title
+ *  and a photo, and a whitespace-only author with no body. */
+export const BASELINE_REVIEWS: ReviewSummaryItem[] = [
+  {
+    id: "r-1",
+    product_id: saleProduct.id,
+    rating: 5,
+    title: null,
+    body: "هذا ثاني عطر اطلبه منهم وهسة جربت الانتنس.",
+    author_name: "حازم السيد",
+    photo_urls: [],
+    created_at: "2026-02-24T00:00:00Z",
+  },
+  {
+    id: "r-2",
+    product_id: saleProduct.id,
+    rating: 3,
+    title: null,
+    body: "تأخر علية المندوب يومين بس العطر كلش راقي.",
+    author_name: "Ahmed",
+    photo_urls: [],
+    created_at: "2026-02-24T03:00:00Z",
+  },
+  {
+    id: "r-3",
+    product_id: saleProduct.id,
+    rating: 5,
+    title: "ثبات",
+    body: "بخيت منه الصبح لسه الريحة تفوح.",
+    author_name: null,
+    photo_urls: ["https://cdn.example.com/fixture/review-1.jpg"],
+    created_at: "2026-02-23T00:00:00Z",
+  },
+  {
+    id: "r-4",
+    product_id: saleProduct.id,
+    rating: 5,
+    title: null,
+    body: null,
+    author_name: "  ",
+    photo_urls: [],
+    created_at: "2026-02-22T00:00:00Z",
+  },
+];
 
 export function productCtx(
   product: Product | undefined,

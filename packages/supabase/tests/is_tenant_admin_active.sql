@@ -63,7 +63,7 @@
 --     keep them (0 have is_active NULL). The 3 existing telegram_link_codes rows
 --     all satisfy the new WITH CHECK (it only applies to new writes anyway).
 --
---   APPLY ORDER: before PR #168's 20261020140100..140800 so its new admin gates
+--   APPLY ORDER: before PR #168's p1_db_security_holes migrations so its new admin gates
 --     already exclude deactivated admins. No code depends on it.
 --
 --   VERIFY (production, after apply)

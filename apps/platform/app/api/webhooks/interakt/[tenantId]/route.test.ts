@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
     env: {} as Record<string, string | undefined>,
     credentials: {} as Record<string, unknown>,
     updates: [] as Array<Record<string, unknown>>,
+    inserts: [] as Array<Record<string, unknown>>,
 }));
 
 /**
@@ -25,7 +26,10 @@ function fakeClient() {
                 or: () => builder,
                 order: () => builder,
                 limit: () => builder,
-                insert: async () => ({ error: null }),
+                insert: async (values: Record<string, unknown>) => {
+                    state.inserts.push({ table, ...values });
+                    return { error: null };
+                },
                 update: (values: Record<string, unknown>) => {
                     state.updates.push({ table, ...values });
                     return { eq: async () => ({ error: null }) };
@@ -78,6 +82,7 @@ const confirmedOrder = () => state.updates.some(u => u.table === "orders" && u.s
 describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     beforeEach(() => {
         state.updates = [];
+        state.inserts = [];
         vi.spyOn(console, "info").mockImplementation(() => {});
         vi.spyOn(console, "warn").mockImplementation(() => {});
         vi.spyOn(console, "error").mockImplementation(() => {});
@@ -141,6 +146,16 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
         const res = await call({ headers: { "Interakt-Signature": `sha256=${sig}` } });
         expect(res.status).toBe(200);
         expect(confirmedOrder()).toBe(true);
+    });
+
+    it("stamps the route's tenant on the history and inbound whatsapp_logs rows (NEW-P1-17)", async () => {
+        configure({}, { api_key: "k" });
+        await call();
+        const history = state.inserts.filter(i => i.table === "order_status_history");
+        const logs = state.inserts.filter(i => i.table === "whatsapp_logs");
+        expect(history).toHaveLength(1);
+        expect(logs).toHaveLength(1);
+        for (const row of [...history, ...logs]) expect(row.tenant_id).toBe(TENANT);
     });
 
     it("enforce: the legacy x-interakt-secret header is accepted", async () => {

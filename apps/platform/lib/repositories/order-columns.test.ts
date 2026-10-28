@@ -14,7 +14,8 @@ import {
 /**
  * Checked-in copy of `public.orders`' columns on the NEW project
  * (sduvpgqwhxragxtxztur), pulled 2026-10-12 (plus confirmation_dispatched_at,
- * 20261021130000, live 2026-10-22) with:
+ * 20261021130000, live 2026-10-22, and the abandoned_cart_* columns,
+ * 20261027230000, live 2026-10-27) with:
  *
  *   select column_name from information_schema.columns
  *   where table_schema = 'public' and table_name = 'orders'
@@ -44,6 +45,8 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "idempotency_key", "waseet_submit_started_at", "whatsapp_contact_slot",
     "last_followup_by_name", "last_followup_by_avatar", "last_followup_at",
     "last_followup_type", "attribution", "ad_channel", "confirmation_dispatched_at",
+    "abandoned_cart_at", "abandoned_cart_outcome", "abandoned_cart_resolved_at",
+    "abandoned_cart_resolved_by_name", "abandoned_cart_order_id",
 ]);
 
 /** Masked by `v_orders_with_risk` for non-admins; the table does not mask them. */

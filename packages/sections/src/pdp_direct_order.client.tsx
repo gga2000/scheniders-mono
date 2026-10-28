@@ -794,8 +794,9 @@ export function PdpDirectOrderRender({
     pointsRedemption.discount_iqd,
   ]).applied;
   // Credited by the database when the order is delivered — never at
-  // placement — so this is a promise about delivery, worded as one.
-  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
+  // placement — so this is a promise about delivery, worded as one. Earned on
+  // the order's price, which is stored net of every discount.
+  const pointsToEarn = computePointsEarned(subtotal - referralAmount - pointsDiscount, loyaltyCfg);
   const total = subtotal - referralAmount - pointsDiscount + (displayedDelivery ?? 0);
   const totalExcludesDelivery = displayedDelivery === null;
 
@@ -1021,7 +1022,10 @@ export function PdpDirectOrderRender({
       subtotal,
       locale,
       idempotency_key: idempotencyKeyRef.current,
-      ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+      // The server re-checks the proving order number before it spends.
+      ...(redeemPoints > 0
+        ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
+        : {}),
       ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
         ? { referral_code: normalizeReferralCode(referralCode) }
         : {}),

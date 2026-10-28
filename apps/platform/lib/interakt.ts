@@ -9,7 +9,7 @@
  * Auth: Basic Auth with API Key from Interakt Dashboard → Settings → Developer Settings
  */
 
-import { env } from "./env";
+import { env, providerBaseUrls } from "./env";
 import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
@@ -61,7 +61,7 @@ export interface SendTemplateResult {
 // CONSTANTS
 // =============================================
 
-const INTERAKT_API_URL = "https://api.interakt.ai/v1/public/message/";
+const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
 const TEMPLATE_LANGUAGE = "en";
 const IRAQ_COUNTRY_CODE = "964";
 const MAX_RETRIES = 2;
@@ -126,22 +126,17 @@ export function formatPhoneForInterakt(phone: string): {
 /**
  * The total a {{7}} quotes: what the courier will collect.
  *
- * Storefront checkout records `price` as the line subtotal BEFORE discounts,
- * with `discount_amount` and `delivery_fee` stored beside it
- * (apps/storefront/app/actions/checkout.ts: `price: subtotal`), so the amount
- * the buyer agreed to pay is price - discount_amount + delivery_fee.
- *
- * Every other source keeps quoting `price` exactly as before. Those rows follow
- * lib/order-money's convention (`price` is already net of the discount), and a
- * Lightfunnels order carries no delivery fee when its confirmation goes out,
- * so applying the storefront formula to them would subtract the discount twice.
+ * Every source stores `price` net of the discount (lib/order-money). A
+ * storefront order also carries its `delivery_fee` from checkout, so its
+ * total is price + delivery_fee, the same as computeCodAmount. Every other
+ * source keeps quoting `price` exactly as before: a Lightfunnels order carries
+ * no delivery fee when its confirmation goes out.
  */
 function templateTotal(order: Order): number {
     if (order.source !== "storefront") return order.price;
     const price = Number(order.price) || 0;
-    const discount = Number(order.discount_amount) || 0;
     const deliveryFee = Number(order.delivery_fee) || 0;
-    return Math.max(0, Math.round(price - discount + deliveryFee));
+    return Math.max(0, Math.round(price + deliveryFee));
 }
 
 function getOrderHelpers(order: Order, overridePhone?: string) {

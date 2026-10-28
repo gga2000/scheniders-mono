@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyAccessToken } from "@/lib/supabase-server";
+import { ANTHROPIC_MESSAGES_URL } from "@/lib/anthropic-api";
 import {
     buildProductCopyMessages,
     parseProductCopy,
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     let res: Response;
     try {
-        res = await fetch("https://api.anthropic.com/v1/messages", {
+        res = await fetch(ANTHROPIC_MESSAGES_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

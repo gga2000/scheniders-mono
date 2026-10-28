@@ -3886,6 +3886,11 @@ export type Database = {
       }
       orders: {
         Row: {
+          abandoned_cart_at: string | null
+          abandoned_cart_order_id: string | null
+          abandoned_cart_outcome: string | null
+          abandoned_cart_resolved_at: string | null
+          abandoned_cart_resolved_by_name: string | null
           ad_channel: string | null
           address_details: string | null
           address_issues: string[] | null
@@ -3973,6 +3978,11 @@ export type Database = {
           whatsapp_link: string | null
         }
         Insert: {
+          abandoned_cart_at?: string | null
+          abandoned_cart_order_id?: string | null
+          abandoned_cart_outcome?: string | null
+          abandoned_cart_resolved_at?: string | null
+          abandoned_cart_resolved_by_name?: string | null
           ad_channel?: string | null
           address_details?: string | null
           address_issues?: string[] | null
@@ -4060,6 +4070,11 @@ export type Database = {
           whatsapp_link?: string | null
         }
         Update: {
+          abandoned_cart_at?: string | null
+          abandoned_cart_order_id?: string | null
+          abandoned_cart_outcome?: string | null
+          abandoned_cart_resolved_at?: string | null
+          abandoned_cart_resolved_by_name?: string | null
           ad_channel?: string | null
           address_details?: string | null
           address_issues?: string[] | null
@@ -4147,6 +4162,13 @@ export type Database = {
           whatsapp_link?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_abandoned_cart_order_id_fkey"
+            columns: ["abandoned_cart_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_reason_id_fkey"
             columns: ["reason_id"]
@@ -8071,6 +8093,11 @@ export type Database = {
       }
       v_orders_with_risk: {
         Row: {
+          abandoned_cart_at: string | null
+          abandoned_cart_order_id: string | null
+          abandoned_cart_outcome: string | null
+          abandoned_cart_resolved_at: string | null
+          abandoned_cart_resolved_by_name: string | null
           address_details: string | null
           address_issues: string[] | null
           address_status: string | null
@@ -8240,6 +8267,16 @@ export type Database = {
           _tenant_id: string
         }
         Returns: number
+      }
+      admin_topup_wallet: {
+        Args: {
+          _amount: number
+          _created_by?: string
+          _description?: string
+          _payment_method?: string
+          _tenant_id: string
+        }
+        Returns: Json
       }
       aggregate_experiment_stats: {
         Args: { p_experiment_id: string; p_tenant_id: string }
@@ -8473,6 +8510,10 @@ export type Database = {
       }
       generate_seed_orders: { Args: never; Returns: undefined }
       get_current_tenant_id: { Args: never; Returns: string }
+      get_abandoned_cart_recovery: {
+        Args: { _days?: number; _tenant_id: string }
+        Returns: Json
+      }
       get_customer_dashboard_stats: {
         Args: never
         Returns: {
@@ -8837,6 +8878,10 @@ export type Database = {
       }
       refresh_customer_aggregates: { Args: never; Returns: undefined }
       refresh_tenant_public_stats: { Args: never; Returns: undefined }
+      renew_subscription_atomic: {
+        Args: { _expected_period_end: string; _subscription_id: string }
+        Returns: Json
+      }
       resolve_order_creation_actor: {
         Args: { p_order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: Record<string, unknown>
@@ -8903,6 +8948,14 @@ export type Database = {
       storefront_funnel: {
         Args: { _from: string; _tenant_id: string; _to: string }
         Returns: Json
+      }
+      sweep_abandoned_carts: {
+        Args: { _expire_after?: unknown }
+        Returns: {
+          outcome: string
+          removed: number
+          tenant_id: string
+        }[]
       }
       tenant_block_active: {
         Args: { p_block: string; p_tenant_id: string }

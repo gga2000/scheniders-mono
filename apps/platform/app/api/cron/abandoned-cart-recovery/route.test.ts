@@ -26,7 +26,12 @@ type Cart = Record<string, unknown>;
 
 /** The carts query APPLIES its `is` / `not is` filters, so a cart is only
  *  kept out of the sweep if the route actually asked for that. */
-function makeClient(carts: Cart[], tenants: unknown[]) {
+function makeClient(
+    carts: Cart[],
+    tenants: unknown[],
+    sweptCheckouts: Array<{ tenant_id: string; outcome: string; removed: number }> = [],
+) {
+    const rpc = vi.fn(() => Promise.resolve({ data: sweptCheckouts, error: null }));
     const updateEq = vi.fn(() => Promise.resolve({ error: null }));
     const predicates: Array<(r: Cart) => boolean> = [];
     const cartsChain: Record<string, unknown> = {};
@@ -47,12 +52,13 @@ function makeClient(carts: Cart[], tenants: unknown[]) {
         in: () => Promise.resolve({ data: tenants, error: null }),
     };
     const client = {
+        rpc,
         from: (table: string) =>
             table === "tenants"
                 ? { select: () => tenantsChain }
                 : { select: () => cartsChain, update: () => ({ eq: updateEq }) },
     };
-    return { client, updateEq };
+    return { client, updateEq, rpc };
 }
 
 const OLD = "2020-01-01T00:00:00Z"; // safely past any delay
@@ -132,6 +138,20 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
         expect(json.sent).toBe(0);
         expect(json.skipped).toBe(1);
         expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
+    });
+
+    it("moves junk and 14-day-old abandoned checkouts to the trash and reports them by reason", async () => {
+        const { client, rpc } = makeClient([], [], [
+            { tenant_id: "t1", outcome: "expired", removed: 3 },
+            { tenant_id: "t2", outcome: "expired", removed: 2 },
+            { tenant_id: "t1", outcome: "junk_location", removed: 1 },
+        ]);
+        (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+
+        const res = await GET(authedRequest());
+        const json = await res.json();
+        expect(rpc).toHaveBeenCalledWith("sweep_abandoned_carts", { _expire_after: "14 days" });
+        expect(json.checkoutsRemoved).toEqual({ expired: 5, junk_location: 1 });
     });
 
     it("THE RISK: refuses an unauthenticated caller", async () => {

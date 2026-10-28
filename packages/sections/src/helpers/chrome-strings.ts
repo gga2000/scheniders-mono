@@ -37,6 +37,8 @@ const CHROME_STRINGS = {
   price_after_discount: { ar: "بعد الخصم", en: "Now", ku: "ئێستا" },
   /** Caption over the struck original price. */
   price_before_discount: { ar: "قبل الخصم", en: "Was", ku: "پێشتر" },
+  /** Pill on a product card whose stock is gone (or oversold). */
+  sold_out: { ar: "نفد المخزون", en: "Sold out", ku: "لە کۆگا نەماوە" },
   // ---- footer ---------------------------------------------------------
   phone_label: { ar: "رقم الهاتف:", en: "Phone:", ku: "ژمارەی تەلەفۆن:" },
   address_label: { ar: "العنوان:", en: "Address:", ku: "ناونیشان:" },

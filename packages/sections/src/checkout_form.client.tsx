@@ -440,14 +440,15 @@ export function CheckoutFormRender({
     cfg: loyaltyCfg,
   });
   const pointsDiscount = pointsRedemption.discount_iqd;
-  // Credited by the database on delivery, never at placement.
-  const pointsToEarn = computePointsEarned(subtotal, loyaltyCfg);
   const discountAmount = stackDiscounts(subtotal, [
     couponApplied,
     bundleApplied,
     referralAmount,
     pointsDiscount,
   ]).total;
+  // Credited by the database on delivery, never at placement, on the order's
+  // price — which is stored net of every discount (loyalty_order_changed).
+  const pointsToEarn = computePointsEarned(subtotal - discountAmount, loyaltyCfg);
   const total = subtotal - discountAmount + delivery;
   const returnsDays = commerce?.returns_policy?.window_days;
 
@@ -532,7 +533,10 @@ export function CheckoutFormRender({
           ...(purchaseEventIdRef.current
             ? { event_id: purchaseEventIdRef.current }
             : {}),
-          ...(redeemPoints > 0 ? { redeem_points: redeemPoints } : {}),
+          // The server re-checks the proving order number before it spends.
+          ...(redeemPoints > 0
+            ? { redeem_points: redeemPoints, loyalty_order_number: pointsOrderNumber.trim() }
+            : {}),
           ...(referralState.kind === "valid" && normalizeReferralCode(referralCode)
             ? { referral_code: normalizeReferralCode(referralCode) }
             : {}),
