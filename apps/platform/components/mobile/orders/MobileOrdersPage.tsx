@@ -37,7 +37,6 @@ export function MobileOrdersPage() {
         getOrderNotes,
         addOrderNote,
         deleteOrder,
-        createReturnOrder,
         checkOrderIdExists,
         messageTemplates,
         filters,
@@ -392,7 +391,6 @@ export function MobileOrdersPage() {
                     onGetTimeline={getOrderTimeline}
                     onGetNotes={getOrderNotes}
                     onDelete={deleteOrder}
-                    onCreateReturn={createReturnOrder}
                     checkOrderIdExists={checkOrderIdExists}
                     messageTemplates={messageTemplates}
                     onOpenTemplatePanel={(o) => {

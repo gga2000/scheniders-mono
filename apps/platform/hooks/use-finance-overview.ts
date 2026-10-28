@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { Order, Product } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import type { Granularity } from "./use-finance-period";
+import { isRefundRow, reportDate } from "@/lib/refunds/refund-reporting";
 
 export interface DateInterval {
     start: Date;
@@ -152,8 +153,13 @@ export function useFinanceOverview(
     return useMemo(() => {
         const toDate = (s: string) => new Date(s);
 
-        const currOrders = orders.filter((o) => withinInterval(toDate(o.created_at), current));
-        const prevOrders = previous ? orders.filter((o) => withinInterval(toDate(o.created_at), previous)) : [];
+        // Sales by the day they were placed, refunds by the day they were paid.
+        const inInterval = (o: Order, i: DateInterval) => {
+            const d = reportDate(o);
+            return d !== null && withinInterval(d, i);
+        };
+        const currOrders = orders.filter((o) => inInterval(o, current));
+        const prevOrders = previous ? orders.filter((o) => inInterval(o, previous)) : [];
         const currExpenses = expenses.filter((e) => {
             const d = toDate(e.expense_date);
             return withinInterval(d, current);
@@ -182,7 +188,7 @@ export function useFinanceOverview(
                     // excluded from gross
                     continue;
                 }
-                if (o.is_return || o.status === "refund_delivered") {
+                if (isRefundRow(o)) {
                     refund_value += Math.abs(value);
                     continue;
                 }

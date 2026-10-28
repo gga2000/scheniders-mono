@@ -3,15 +3,16 @@ import { supabase } from "@/lib/supabase";
 // =============================================
 // ORDER REASONS — shared types, defaults, repository
 // =============================================
-// Powers both the cancellation dialog (kind="cancel", BEFORE shipping) and the
-// rejection dialog (kind="reject", AFTER shipping). Backed by the tenant-scoped
+// Powers the cancellation dialog (kind="cancel", BEFORE shipping), the
+// rejection dialog (kind="reject", AFTER shipping) and the refund sheet
+// (kind="refund", after the customer has the order). Backed by the tenant-scoped
 // `order_reasons` table — RLS filters reads by membership. Writes inject
 // tenant_id explicitly so the policy WITH CHECK passes.
 //
 // Falls back to the DEFAULT_* lists if the live query returns no rows (e.g. a
 // tenant that somehow has no seeded reasons yet) so the dialog is never empty.
 
-export type ReasonKind = "cancel" | "reject";
+export type ReasonKind = "cancel" | "reject" | "refund";
 
 export interface OrderReason {
     id: string;
@@ -70,12 +71,28 @@ export const DEFAULT_REJECT_REASONS: OrderReason[] = [
     { id: "d-reject-other", kind: "reject", label_ar: "سبب آخر", label_en: "Other", sort_order: 100, is_active: true, is_system: true, requires_note: true },
 ];
 
+// Mirror of the seed in 20261027231943_refund_partial_status_and_refund_reasons.sql.
+export const DEFAULT_REFUND_REASONS: OrderReason[] = [
+    { id: "d-refund-didnt_like", kind: "refund", label_ar: "لم يعجب الزبون المنتج", label_en: "Customer didn't like it", sort_order: 0, is_active: true, is_system: false, requires_note: false },
+    { id: "d-refund-damaged", kind: "refund", label_ar: "المنتج تالف أو معيب", label_en: "Damaged or faulty", sort_order: 1, is_active: true, is_system: false, requires_note: false },
+    { id: "d-refund-wrong_item", kind: "refund", label_ar: "منتج خاطئ", label_en: "Wrong item sent", sort_order: 2, is_active: true, is_system: false, requires_note: false },
+    { id: "d-refund-not_as_described", kind: "refund", label_ar: "غير مطابق للوصف", label_en: "Not as described", sort_order: 3, is_active: true, is_system: false, requires_note: false },
+    { id: "d-refund-late", kind: "refund", label_ar: "تأخر التوصيل", label_en: "Late delivery", sort_order: 4, is_active: true, is_system: false, requires_note: false },
+    { id: "d-refund-other", kind: "refund", label_ar: "سبب آخر", label_en: "Other reason", sort_order: 5, is_active: true, is_system: true, requires_note: true },
+];
+
+const DEFAULT_REASONS: Record<ReasonKind, OrderReason[]> = {
+    cancel: DEFAULT_CANCEL_REASONS,
+    reject: DEFAULT_REJECT_REASONS,
+    refund: DEFAULT_REFUND_REASONS,
+};
+
 export function defaultReasons(kind: ReasonKind): OrderReason[] {
-    return kind === "reject" ? DEFAULT_REJECT_REASONS : DEFAULT_CANCEL_REASONS;
+    return DEFAULT_REASONS[kind];
 }
 
 export function isFallbackReason(reason: Pick<OrderReason, "id">): boolean {
-    return reason.id.startsWith("d-cancel-") || reason.id.startsWith("d-reject-");
+    return reason.id.startsWith("d-");
 }
 
 /**
@@ -176,14 +193,17 @@ export interface ReasonUsage {
 }
 
 export async function fetchReasonUsage(tenantId: string, kind: ReasonKind): Promise<ReasonUsage> {
-    const status = kind === "reject" ? "rejected" : "cancelled";
     try {
         type UsageRow = { reason_id: string | null; rejection_reason: string | null };
-        const { data, error } = await supabase
+        const base = supabase
             .from("orders")
             .select("reason_id, rejection_reason")
-            .eq("tenant_id", tenantId)
-            .eq("status", status);
+            .eq("tenant_id", tenantId);
+        // A refund reason lives on the refund order, whatever its status; cancel
+        // and reject reasons live on the order that reached that status.
+        const { data, error } = await (kind === "refund"
+            ? base.eq("is_return", true)
+            : base.eq("status", kind === "reject" ? "rejected" : "cancelled"));
         if (error) throw error;
         const rows = (data ?? []) as UsageRow[];
 

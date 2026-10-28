@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { Order, Product } from "@/lib/supabase";
 import type { DateInterval } from "./use-finance-overview";
 import type { Granularity } from "./use-finance-period";
+import { isRefundRow, refundPaidAt, reportDate } from "@/lib/refunds/refund-reporting";
 
 export interface RevenueDecomposition {
     revCurr: number;
@@ -137,8 +138,13 @@ export function useFinanceRevenue(
     topProductCount: number = 8,
 ): FinanceRevenueResult {
     return useMemo(() => {
-        const curr = orders.filter((o) => within(new Date(o.created_at), current));
-        const prev = previous ? orders.filter((o) => within(new Date(o.created_at), previous)) : [];
+        // Sales by the day they were placed, refunds by the day they were paid.
+        const inInterval = (o: Order, i: DateInterval) => {
+            const d = reportDate(o);
+            return d !== null && within(d, i);
+        };
+        const curr = orders.filter((o) => inInterval(o, current));
+        const prev = previous ? orders.filter((o) => inInterval(o, previous)) : [];
 
         // ── Decomposition (non-rejected orders, gross revenue) ──
         const countRevenue = (list: Order[]) => {
@@ -326,15 +332,14 @@ export function useFinanceRevenue(
         const refundByProduct = new Map<string, { count: number; value: number }>();
         const refundDaily = new Map<string, number>();
         for (const o of curr) {
-            const isRefund = o.is_return || o.status === "refund_delivered";
-            if (!isRefund) continue;
+            const paidAt = isRefundRow(o) ? refundPaidAt(o) : null;
+            if (!paidAt) continue;
             // Refund prices may be stored as negative (cash leaving). Use magnitude
             // so totals/charts/leaderboards display correct positive volumes.
             const value = Math.abs(o.price || 0);
             refund_value += value;
             refund_count++;
-            const d = new Date(o.updated_at || o.created_at);
-            const key = d.toISOString().split("T")[0];
+            const key = paidAt.toISOString().split("T")[0];
             refundDaily.set(key, (refundDaily.get(key) || 0) + value);
             for (const it of o.items || []) {
                 const name = it.name || "Unknown";

@@ -883,35 +883,27 @@ export default function OrdersPage() {
     // Check if any advanced filters are active
     const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority || filters.adChannel);
 
-    // Pre-compute maps for O(1) lookups and stable object references to prevent re-renders
+    // Pre-compute maps for O(1) lookups and stable object references to prevent re-renders.
+    // An original can have several refunds; the card links to the newest.
     const returnOrderInfoMap = useMemo(() => {
-        const map = new Map();
-        orders.forEach(o => {
-            if (o.is_return && o.original_order_id) {
-                map.set(o.original_order_id, {
-                    order: o,
-                    returnOrderId: o.order_id,
-                    returnSequenceNumber: o.sequence_number
-                });
-            }
-        });
+        const map = new Map<string, { order: Order; returnOrderId: string; returnSequenceNumber?: number }>();
+        for (const o of orders) {
+            if (!o.is_return || !o.original_order_id) continue;
+            const current = map.get(o.original_order_id);
+            if (current && current.order.created_at >= o.created_at) continue;
+            map.set(o.original_order_id, { order: o, returnOrderId: o.order_id, returnSequenceNumber: o.sequence_number });
+        }
         return map;
     }, [orders]);
 
+    // Keyed by the ORIGINAL's id: a refund order looks its original up by its own original_order_id.
     const originalOrderInfoMap = useMemo(() => {
-        const map = new Map();
-        orders.forEach(o => {
-            if (o.is_return && o.original_order_id) {
-                const originalOrder = orders.find(orig => orig.id === o.original_order_id);
-                if (originalOrder) {
-                    map.set(o.id, {
-                        order: originalOrder,
-                        originalOrderId: originalOrder.order_id,
-                        originalSequenceNumber: originalOrder.sequence_number
-                    });
-                }
-            }
-        });
+        const referenced = new Set<string>();
+        for (const o of orders) if (o.is_return && o.original_order_id) referenced.add(o.original_order_id);
+        const map = new Map<string, { order: Order; originalOrderId: string; originalSequenceNumber?: number }>();
+        for (const o of orders) {
+            if (referenced.has(o.id)) map.set(o.id, { order: o, originalOrderId: o.order_id, originalSequenceNumber: o.sequence_number });
+        }
         return map;
     }, [orders]);
 
@@ -920,10 +912,10 @@ export default function OrdersPage() {
         return returnOrderInfoMap.get(orderId) || null;
     }, [returnOrderInfoMap]);
 
-    // Helper function to find original order info for a return order
-    const getOriginalOrderInfo = useCallback((returnOrderId: string | undefined) => {
-        if (!returnOrderId) return null;
-        return originalOrderInfoMap.get(returnOrderId) || null;
+    // Helper function to find the original order of a refund order, by its original_order_id
+    const getOriginalOrderInfo = useCallback((originalOrderId: string | undefined) => {
+        if (!originalOrderId) return null;
+        return originalOrderInfoMap.get(originalOrderId) || null;
     }, [originalOrderInfoMap]);
 
     // Handle logging transition once

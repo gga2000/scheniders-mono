@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isCompletedInPeriod } from "./use-salaries";
+import { isCompletedInPeriod, keptShare } from "./use-salaries";
 
 /**
  * Payroll buckets completed orders by `completed_at` (when the order was MARKED
@@ -37,5 +37,22 @@ describe("isCompletedInPeriod", () => {
     it("includes the inclusive day boundaries (start 00:00:00 / end 23:59:59 UTC)", () => {
         expect(isCompletedInPeriod("2026-06-20T00:00:00Z", periodStart, periodEnd)).toBe(true);
         expect(isCompletedInPeriod("2026-06-30T23:59:59Z", periodStart, periodEnd)).toBe(true);
+    });
+});
+
+describe("keptShare (commission on a partly refunded order)", () => {
+    it("pays a whole order in full", () => {
+        expect(keptShare({ refund_status: "none", refunded_amount: 0, price: 36750 })).toBe(1);
+    });
+
+    it("pays the share the customer kept when part was refunded", () => {
+        // One of two 18,375 items refunded: half the order stays a sale.
+        expect(keptShare({ refund_status: "partial", refunded_amount: 18375, price: 36750 })).toBe(0.5);
+    });
+
+    it("never goes below zero or above one", () => {
+        expect(keptShare({ refund_status: "partial", refunded_amount: 50000, price: 36750 })).toBe(0);
+        expect(keptShare({ refund_status: "partial", refunded_amount: null, price: 36750 })).toBe(1);
+        expect(keptShare({ refund_status: "partial", refunded_amount: 100, price: 0 })).toBe(0);
     });
 });

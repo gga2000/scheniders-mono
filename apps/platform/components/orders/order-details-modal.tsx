@@ -85,6 +85,8 @@ import {
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useRecordContact } from "@/hooks/use-record-contact";
+import { RefundBanner } from "./refund-banner";
+import { RefundEntry } from "./refund-entry";
 
 interface OrderDetailsModalProps {
     order: Order | null;
@@ -95,7 +97,6 @@ interface OrderDetailsModalProps {
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
-    onCreateReturn?: (orderId: string, data: { return_amount: number; reason: string; deductDeliveryFee?: boolean }) => Promise<{ success: boolean; error?: string }>;
     onCreateReplacement?: (orderId: string, data: { old_items: OrderItem[]; new_items: OrderItem[]; deductDeliveryFee?: boolean; notes?: string }) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
     onOpenTemplatePanel?: (order: Order) => void;
@@ -111,7 +112,6 @@ export function OrderDetailsModal({
     onGetTimeline,
     onGetNotes,
     onDelete,
-    onCreateReturn,
     onCreateReplacement,
     checkOrderIdExists,
     onOpenTemplatePanel,
@@ -192,10 +192,6 @@ export function OrderDetailsModal({
         isUpdatingStatus, handleStatusChangeForm,
         showDeleteConfirm, deleteCountdown, isDeleting,
         handleDeleteClick, handleDeleteConfirm, handleCancelDelete,
-        showReturnModal, setShowReturnModal,
-        returnReason, setReturnReason,
-        deductDeliveryFee, setDeductDeliveryFee,
-        isCreatingReturn, setIsCreatingReturn,
         showReplacementModal, setShowReplacementModal,
         replacementDeductDeliveryFee, setReplacementDeductDeliveryFee,
         replacementNotes, setReplacementNotes,
@@ -632,7 +628,7 @@ export function OrderDetailsModal({
                                                 getStatusBadgeStyle()
                                             )}
                                         >
-                                            {orderStatusLabel(order.status)}
+                                            {orderStatusLabel(order.status, order.is_return)}
                                         </button>
 
                                         {/* Status Dropdown Menu */}
@@ -695,6 +691,7 @@ export function OrderDetailsModal({
                                     <Calendar className="h-3 w-3" />
                                     {toBaghdadDayKey(order.created_at)}
                                 </span>
+                                <RefundBanner order={order} />
                                 {/* Action Buttons Row - Reorder, Return, Replace */}
                                 {!isEditing && (
                                     <div className="flex items-center gap-2 mt-1">
@@ -706,15 +703,9 @@ export function OrderDetailsModal({
                                             <PackagePlus className="h-3.5 w-3.5" />
                                             {t("orderDetail.reorder")}
                                         </button>
-                                        {/* Return Button - Only for delivered/completed orders */}
-                                        {(order.status === "delivered" || order.status === "completed") && onCreateReturn && !order.is_return && !order.is_replacement && (
-                                            <button
-                                                onClick={() => setShowReturnModal(true)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all text-xs font-medium"
-                                            >
-                                                <RotateCcw className="h-3.5 w-3.5" />
-                                                {t("orderDetail.return")}
-                                            </button>
+                                        {/* Refund - only for delivered/completed orders */}
+                                        {(order.status === "delivered" || order.status === "completed") && !order.is_return && !order.is_replacement && (
+                                            <RefundEntry order={order} />
                                         )}
                                         {/* Replace Button - Only for delivered/completed orders */}
                                         {(order.status === "delivered" || order.status === "completed") && onCreateReplacement && !order.is_return && !order.is_replacement && (
@@ -1104,127 +1095,6 @@ export function OrderDetailsModal({
                             </div>
                         )}
 
-
-                        {/* Return Order Creation Modal */}
-                        {showReturnModal && (
-                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-                                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                                        <RotateCcw className="w-5 h-5 text-red-600" />
-                                        {t("orderDetail.createReturn")}
-                                    </h3>
-
-                                    <div className="space-y-4">
-                                        {/* Order Info */}
-                                        <div className="bg-gray-50 p-3 rounded-xl text-sm">
-                                            <p className="text-muted">{t("orderDetail.originalOrder")}</p>
-                                            <p className="font-bold">#{getBaseOrderId(order.order_id)} - {order.customer_name}</p>
-                                            <p className="text-muted">{t("orderDetail.amount")} {formatIQD(order.price)}</p>
-                                        </div>
-
-                                        {/* Reason Input */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                {t("orderDetail.returnReason")}
-                                            </label>
-                                            <select
-                                                value={returnReason}
-                                                onChange={(e) => setReturnReason(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100 bg-white"
-                                            >
-                                                <option value="">{t("orderDetail.selectReturnReason")}</option>
-                                                <option value="لم يعجب الزبون المنتج">{t("orderDetail.reason.didntLike")}</option>
-                                                <option value="المنتج تالف أو معيب">{t("orderDetail.reason.damaged")}</option>
-                                                <option value="المنتج خاطئ">{t("orderDetail.reason.wrong")}</option>
-                                                <option value="تأخر التوصيل">{t("orderDetail.reason.lateDelivery")}</option>
-                                                <option value="الزبون غير موجود">{t("orderDetail.reason.notFound")}</option>
-                                                <option value="الزبون ألغى الطلب">{t("orderDetail.reason.cancelled")}</option>
-                                                <option value="العنوان غير صحيح">{t("orderDetail.reason.wrongAddress")}</option>
-                                                <option value="سبب آخر">{t("orderDetail.reason.other")}</option>
-                                            </select>
-                                        </div>
-
-                                        {/* Deduct Delivery Fee Checkbox */}
-                                        <label className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-all">
-                                            <input
-                                                type="checkbox"
-                                                checked={deductDeliveryFee}
-                                                onChange={(e) => setDeductDeliveryFee(e.target.checked)}
-                                                className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-200"
-                                            />
-                                            <div>
-                                                <p className="font-medium text-amber-800">{t("orderDetail.deductDeliveryFee")}</p>
-                                                <p className="text-xs text-amber-600">{t("orderDetail.deductDeliveryDesc")}</p>
-                                            </div>
-                                        </label>
-
-                                        {/* Preview */}
-                                        <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                            <p className="text-sm text-red-700">{t("orderDetail.refundAmount")}</p>
-                                            <p className="text-2xl font-bold text-red-700">
-                                                -{formatIQD(Number(order.price) - (deductDeliveryFee ? 5000 : 0))}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="flex gap-3 mt-6">
-                                        <button
-                                            onClick={() => {
-                                                setShowReturnModal(false);
-                                                setReturnReason("");
-                                                setDeductDeliveryFee(false);
-                                            }}
-                                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all"
-                                        >
-                                            {t("orderDetail.cancel")}
-                                        </button>
-                                        <button
-                                            onClick={async () => {
-                                                if (!returnReason) {
-                                                    toast.warning(t("toast.missingReason"), t("orderDetail.selectReasonError"));
-                                                    return;
-                                                }
-                                                if (!onCreateReturn) {
-                                                    toast.error(t("toast.error"), t("orderDetail.noReturnContext"));
-                                                    return;
-                                                }
-                                                setIsCreatingReturn(true);
-                                                try {
-                                                    const result = await onCreateReturn(order.id, {
-                                                        return_amount: Number(order.price),
-                                                        reason: returnReason,
-                                                        deductDeliveryFee,
-                                                    });
-                                                    setIsCreatingReturn(false);
-                                                    if (result.success) {
-                                                        setShowReturnModal(false);
-                                                        setReturnReason("");
-                                                        setDeductDeliveryFee(false);
-                                                        onClose();
-                                                        toast.success(t("toast.returnCreated"), t("toast.returnCreatedDesc"));
-                                                    } else {
-                                                        toast.error(t("toast.returnFailed"), result.error || t("orderDetail.returnError"));
-                                                    }
-                                                } catch (err) {
-                                                    setIsCreatingReturn(false);
-                                                    toast.error(t("toast.returnError"), `${t("orderDetail.returnError")}: ${err instanceof Error ? err.message : "Unknown error"}`);
-                                                }
-                                            }}
-                                            disabled={isCreatingReturn || !returnReason}
-                                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                        >
-                                            {isCreatingReturn ? (
-                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                            ) : (
-                                                <RotateCcw className="w-4 h-4" />
-                                            )}
-                                            {t("orderDetail.confirmReturn")}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Replacement Order Creation Modal */}
                         {showReplacementModal && (

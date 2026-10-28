@@ -135,6 +135,8 @@ export interface CountedOrderDetail {
     /** When the order was marked completed — the date that placed it in this pay period. */
     completedAt: string | null;
     amount: number;
+    /** Share of the per-order bonus this order pays: 1, or less for a partly refunded order. */
+    share: number;
 }
 
 /** A return/refund order dated inside an already-paid period (advisory flag). */

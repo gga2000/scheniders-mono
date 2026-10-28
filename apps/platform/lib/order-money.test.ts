@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeCodAmount, toWholeIqd } from "./order-money";
+import { computeCodAmount, computeRefundPayout, toWholeIqd } from "./order-money";
 
 // Canonical convention, established from live data (2026-08-22):
 //   orders.price = line-item subtotal MINUS discount  (delivery NOT included)
@@ -43,6 +43,20 @@ describe("computeCodAmount", () => {
 
     it("never returns a negative amount", () => {
         expect(computeCodAmount({ price: -5000, delivery_fee: 0 })).toBe(0);
+    });
+});
+
+describe("computeRefundPayout", () => {
+    it("pays the items refunded less the pickup fee kept", () => {
+        expect(computeRefundPayout({ price: -18375, delivery_fee: 5000 })).toBe(13375);
+    });
+
+    it("pays the full items amount when no fee is kept", () => {
+        expect(computeRefundPayout({ price: -36750, delivery_fee: 0 })).toBe(36750);
+    });
+
+    it("never goes below zero", () => {
+        expect(computeRefundPayout({ price: -3000, delivery_fee: 5000 })).toBe(0);
     });
 });
 
