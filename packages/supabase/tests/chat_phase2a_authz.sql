@@ -76,11 +76,17 @@ SELECT user_admin,     'authz_admin_'     || user_admin     || '@t.test', tenant
 INSERT INTO public.user_profiles (id, email, current_tenant_id)
 SELECT user_outsider,  'authz_outsider_'  || user_outsider  || '@t.test', tenant_b FROM _ids;
 
-INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_owner,     'owner',  'active' FROM _ids;
-INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_member,    'member', 'active' FROM _ids;
-INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_nonmember, 'member', 'active' FROM _ids;
-INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_admin,     'admin',  'active' FROM _ids;
-INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_b, user_outsider,  'owner',  'active' FROM _ids;
+-- tenant_members.role uses the live vocabulary (tenant_members_role_check:
+-- admin | employee | viewer). Only user_admin is a tenant admin: the chat owner
+-- is a plain employee, so CASE 3 proves conversation ownership (not a tenant
+-- role) is what lets them manage it. The outsider administers ANOTHER tenant,
+-- so CASE 5 proves an admin elsewhere is still skipped as cross-tenant.
+-- chat_members.role below is a different column ('owner' | 'member').
+INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_owner,     'employee', 'active' FROM _ids;
+INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_member,    'employee', 'active' FROM _ids;
+INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_nonmember, 'employee', 'active' FROM _ids;
+INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_a, user_admin,     'admin',    'active' FROM _ids;
+INSERT INTO public.tenant_members (tenant_id, user_id, role, status) SELECT tenant_b, user_outsider,  'admin',    'active' FROM _ids;
 
 -- conv_channel: private channel in tenant_a; user_owner=owner, user_member=member
 INSERT INTO public.chat_conversations (id, tenant_id, kind, name, is_private, created_by)

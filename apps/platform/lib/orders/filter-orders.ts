@@ -3,6 +3,7 @@ import { windowFromDateFilter, orderInDateWindow } from "@/lib/order-window";
 import { orderMatchesAdChannel } from "@/lib/ad-channel-filter";
 import { ORDER_CHIP_PREDICATES, isOrderChipId, isReplacementOrder } from "./order-chips";
 import { orderMatchesProduct } from "./product-match";
+import { abandonedCartChip } from "./abandoned-cart";
 
 /**
  * The `OrderFilters` fields `filterOrders` reads. Everything else on the filter
@@ -46,12 +47,16 @@ export function filterOrders(rows: readonly Order[], f: OrderFilters): Order[] {
             }
         }
 
-        // Order-type sub-filter (refund / replacement) — narrows the
+        // Order-type sub-filter (refund / replacement / from a cart) — narrows the
         // Confirmed & All tabs to return or replacement orders.
         if (orderType === "refund") {
             if (!order.is_return) return false;
         } else if (orderType === "replacement") {
             if (!isReplacementOrder(order)) return false;
+        } else if (orderType === "abandoned_cart") {
+            // Orders that started as an abandoned cart and moved on: the ones
+            // carrying the «من سلة متروكة» / «رجع وطلب» chip.
+            if (!abandonedCartChip(order)) return false;
         }
 
         // Date range — the same rule the server fetch and realtime use

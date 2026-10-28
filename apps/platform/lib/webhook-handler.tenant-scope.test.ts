@@ -10,11 +10,9 @@ import {
 
 /*
  * createOrderFromWebhook runs on the service-role client, where RLS does not
- * apply, so every lookup must name the tenant. The abandoned-checkout dedup
- * matched the phone in EVERY tenant: a real order for that phone in tenant B
- * silently dropped tenant A's checkout. The blacklist and product lookups had
- * the same gap (another merchant's blacklist blocked the order; another
- * merchant's product was bound to it).
+ * apply, so every lookup must name the tenant. The blacklist and product
+ * lookups once matched across tenants (another merchant's blacklist blocked
+ * the order; another merchant's product was bound to it).
  */
 
 vi.mock("./supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
@@ -53,18 +51,19 @@ describe("createOrderFromWebhook tenant scoping", () => {
         expect(recorded).toEqual([]);
     });
 
-    it("dedups an abandoned checkout against the same tenant's real orders only", async () => {
+    it("hands an abandoned checkout to the database, which owns the same-customer rule", async () => {
         respond((q) => {
-            if (q.target === "orders") return { data: [{ id: "real-order" }], error: null };
-            return { data: null, error: null };
+            if (q.kind === "rpc") return { data: { id: "new-checkout" }, error: null };
+            if (q.target === "products" || q.target === "blacklist") return { data: null, error: null };
+            return { data: [], error: null };
         });
 
         const result = await createOrderFromWebhook(webhook({ is_checkout: true }), TENANT);
 
-        expect(result).toMatchObject({ success: false, duplicate: true });
-        const [dedup] = queriesOn("orders");
-        expect(hasEq(dedup, "tenant_id", TENANT)).toBe(true);
-        expect(dedup.ops.some((o) => o.op === "neq" && o.args[0] === "status" && o.args[1] === "pending_checkout")).toBe(true);
+        expect(result).toMatchObject({ success: true });
+        expect(queriesOn("create_order_atomic")[0]?.rpcArgs).toMatchObject({ _tenant_id: TENANT });
+        // No app-side phone lookup: exact phone text missed `07…` vs `+964…`.
+        expect(queriesOn("orders").some((q) => hasEq(q, "phone", "+9647801234567") || hasEq(q, "phone", "07801234567"))).toBe(false);
     });
 
     it("scopes the blacklist, product lookups, order creation and checkout cleanup", async () => {

@@ -1,4 +1,5 @@
 import { Client } from "@upstash/qstash";
+import { providerBaseUrls } from "./env";
 
 let qstashClient: Client | null = null;
 
@@ -7,7 +8,7 @@ function getQStashClient(): Client | null {
     if (!qstashClient) {
         qstashClient = new Client({
             token: process.env.QSTASH_TOKEN,
-            baseUrl: "https://qstash-us-east-1.upstash.io"
+            baseUrl: providerBaseUrls.QSTASH_URL,
         });
     }
     return qstashClient;

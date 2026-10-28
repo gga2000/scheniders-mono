@@ -20,6 +20,16 @@ import type { OrderRiskData } from '@/lib/customer-trust-risk';
 // - suspended: Confirmed order delayed due to stock/waiting time (طلب معلق)
 export type OrderStatus = 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'in_transit' | 'delivered' | 'rejected' | 'completed' | 'no_response' | 'return_pending' | 'refund_delivered' | 'refund_failed' | 'pending_checkout' | 'suspended';
 
+/** orders.abandoned_cart_outcome (CHECK orders_abandoned_cart_outcome_check). */
+export type AbandonedCartOutcome =
+    | 'contacted'
+    | 'returned'
+    | 'already_ordered'
+    | 'junk_phone'
+    | 'junk_location'
+    | 'expired'
+    | 'kept';
+
 export type OrderPriority = 'normal' | 'high' | 'urgent';
 
 export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial' | 'paid';
@@ -166,6 +176,16 @@ export interface Order {
     /** When /api/webhooks/storefront-order claimed this order's automatic
      *  WhatsApp confirmation. Null = not claimed (every non-storefront order). */
     confirmation_dispatched_at?: string | null;
+    /** When this order was captured as an abandoned cart; null = never was one.
+     *  All abandoned_cart_* columns are written by the database only. */
+    abandoned_cart_at?: string | null;
+    /** Null while the cart is still open in Abandoned. */
+    abandoned_cart_outcome?: AbandonedCartOutcome | null;
+    abandoned_cart_resolved_at?: string | null;
+    /** Staff member who took the cart out of Abandoned. */
+    abandoned_cart_resolved_by_name?: string | null;
+    /** The cart this order replaced, or the order that replaced this cart. */
+    abandoned_cart_order_id?: string | null;
     // Delivery company tracking
     delivery_company?: 'prime' | 'waseet' | null;
     // Al-Waseet specific fields
@@ -239,7 +259,7 @@ export interface OrderFilters {
     searchQuery?: string;
     riskLevel?: RiskLevel;
     /** Sub-filter for the Confirmed / All tabs to narrow to return or replacement orders. */
-    orderType?: 'refund' | 'replacement';
+    orderType?: 'refund' | 'replacement' | 'abandoned_cart';
     /** Ad channel (`orders.ad_channel`) the list is pinned to; undefined = every channel. */
     adChannel?: string;
 }
