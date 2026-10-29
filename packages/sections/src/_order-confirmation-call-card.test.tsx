@@ -190,6 +190,26 @@ describe("order_confirmation call card — the brief", () => {
     expect(save.getAttribute("download")).toBe("متجر شنايدر — تأكيد الطلبات.vcf");
   });
 
+  it("saves the number under commerce.contact.name_i18n when the store set one", async () => {
+    stash();
+    const named = {
+      ...tenantWithContact,
+      store_config_v2: {
+        ...tenantWithContact.store_config_v2,
+        commerce: {
+          contact: { ...tenantWithContact.store_config_v2.commerce.contact, name_i18n: { ar: "شنايدر" } },
+        },
+      },
+    };
+    await act(async () => {
+      mount({}, "ar", named);
+    });
+    const save = screen.getByTestId("call-card-save");
+    const href = save.getAttribute("href") ?? "";
+    expect(decodeURIComponent(href.slice(href.indexOf(",") + 1))).toContain("FN:شنايدر — تأكيد الطلبات");
+    expect(save.getAttribute("download")).toBe("شنايدر — تأكيد الطلبات.vcf");
+  });
+
   it("shows no contact line for a store without commerce.contact", async () => {
     stash();
     await act(async () => {

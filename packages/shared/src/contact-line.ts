@@ -72,9 +72,21 @@ export const callHoursSchema = z
   })
   .refine((h) => clockMinutes(h.from) < clockMinutes(h.to));
 
+/** `commerce.contact.name_i18n`: the store name the confirmation chrome
+ *  uses («رد {store}», the saved vCard contact). Written inline because
+ *  this package cannot import the sections' `i18nStringSchema`; the
+ *  sections' `storeDisplayName` parses the raw field with this same
+ *  object, so the two can never disagree. */
+export const storeContactNameSchema = z.object({
+  ar: z.string().optional(),
+  en: z.string().optional(),
+  ku: z.string().optional(),
+});
+
 /** Parses the stored `commerce.contact` jsonb. `call_number` comes out
- *  normalized to `07XXXXXXXXX`; a malformed `call_hours` or
- *  `whatsapp_confirm` degrades to absent instead of failing the parse. */
+ *  normalized to `07XXXXXXXXX`; a malformed `call_hours`,
+ *  `whatsapp_confirm` or `name_i18n` degrades to absent instead of failing
+ *  the parse. */
 export const storeContactConfigSchema = z.object({
   call_number: z
     .string()
@@ -82,12 +94,14 @@ export const storeContactConfigSchema = z.object({
     .pipe(z.string()),
   call_hours: callHoursSchema.optional().catch(undefined),
   whatsapp_confirm: z.boolean().optional().catch(undefined),
+  name_i18n: storeContactNameSchema.optional().catch(undefined),
 });
 
 type ParsedCallHours = Required<StoreCallHours>;
 type ParsedStoreContact = Required<Pick<StoreContactConfig, "call_number">> & {
   call_hours?: ParsedCallHours;
   whatsapp_confirm?: boolean;
+  name_i18n?: I18nString;
 };
 
 /** The stored contact block, validated — or null when there is no usable

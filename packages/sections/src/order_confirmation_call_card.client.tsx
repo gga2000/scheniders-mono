@@ -38,7 +38,7 @@ import type { I18nString, LocaleCode, StoreContactConfig } from "@scheniders/sha
 import { ContactLine } from "./helpers/contact-line";
 import { MaterialIcon } from "./helpers/primitives";
 import { PRESSABLE } from "./helpers/utils";
-import { buildVCard, vcardFileName, vcardHref } from "./helpers/vcard";
+import { buildVCard, vcardContactName, vcardFileName, vcardHref } from "./helpers/vcard";
 import { resolveTenantWhatsapp, resolveTrackerContact, whatsappDigits } from "./helpers/whatsapp";
 import { CARD_STYLE, INK_BORDER, LABEL_CLS } from "./order_confirmation.styles";
 
@@ -51,7 +51,6 @@ export const STRINGS = {
   whatsappSent: { en: "We just sent you a WhatsApp — tap Confirm", ar: "رسالة واتساب وصلتك هسه — اضغط تأكيد", ku: "ئێستا نامەیەکی واتسئاپت بۆ هات — پشتڕاستکردنەوە دابگرە" },
   callFrom: { en: "We'll call you from this number", ar: "راح نتصل بيك من هذا الرقم", ku: "لەم ژمارەیەوە پەیوەندیت پێوە دەکەین" },
   saveContact: { en: "Save to contacts", ar: "احفظه بجهات الاتصال", ku: "لە پەیوەندییەکان پاشەکەوتی بکە" },
-  contactName: { en: "{store} — order confirmation", ar: "{store} — تأكيد الطلبات", ku: "{store} — پشتڕاستکردنەوەی داواکاری" },
   yourNumber: { en: "Your number", ar: "رقمك", ku: "ژمارەکەت" },
   wrongNumber: { en: "Wrong number? Message us", ar: "الرقم غلط؟ راسلنا", ku: "ژمارەکە هەڵەیە؟ نامەمان بۆ بنێرە" },
   wrongNumberMessage: { en: "The number on my order {order} is wrong. The right one is: ", ar: "رقمي بالطلب {order} غلط، الرقم الصحيح: ", ku: "ژمارەکەم لە داواکاری {order} هەڵەیە، ژمارە دروستەکە: " },
@@ -161,9 +160,6 @@ function backupError(status: number, body: unknown): BackupError {
   return "failed";
 }
 
-const fill = (s: string, vars: Record<string, string>) =>
-  Object.entries(vars).reduce((out, [k, v]) => out.split(`{${k}}`).join(v), s);
-
 const PILL_CLS = `inline-flex min-h-11 items-center justify-center gap-1 px-4 font-label text-sm font-bold ${PRESSABLE} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus`;
 
 const PILL_STYLE = {
@@ -222,11 +218,10 @@ export function CallCard({
   // so the shared line is asked for its call-only lead here.
   const callOnlyContact = contact ? { ...contact, whatsapp_confirm: false } : undefined;
   const storeWhatsapp = resolveTenantWhatsapp(tenant);
-  const storeName =
-    (tenant as { business_name?: string | null } | null)?.business_name?.trim() ?? "";
   const callDisplay = callNumber ? formatIraqiPhoneDisplay(callNumber) : "";
   const callE164 = callNumber ? `+${whatsappDigits(callNumber)}` : "";
-  const contactName = fill(t(STRINGS.contactName), { store: storeName }).trim();
+  // One name for the PDP promise band and this card (D15).
+  const contactName = vcardContactName(tenant, locale);
 
   const wrongTemplate = t(STRINGS.wrongNumberMessage);
   const wrongMessage = orderNumber

@@ -17,7 +17,9 @@ import type { Props } from "./pdp_direct_order";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 import {
+  EXPRESS_IRAQ_DRAFT_PDP_PROPS,
   EXPRESS_IRAQ_PDP_PROPS,
+  IRAQ_DRAFT_TENANT,
   plainProduct,
   productCtx,
   productRuntime,
@@ -25,6 +27,7 @@ import {
   soldOutProduct,
   variantProduct,
 } from "./_pdp-fixtures";
+import { scentProduct } from "./_pdp-scent-fixtures";
 
 const Section = pdp_direct_order.render;
 
@@ -96,5 +99,35 @@ describe("pdp_direct_order express — frozen scheniders-iraq props", () => {
         render(EXPRESS_IRAQ_PDP_PROPS, saleProduct),
       );
     }
+  });
+});
+
+describe("pdp_direct_order express — scheniders-iraq draft as of 2026-10-29", () => {
+  const draft: Partial<SectionRenderContext> = { tenant: IRAQ_DRAFT_TENANT };
+  const draftProducts: [string, Product][] = [
+    ...products,
+    ["scent attributes", scentProduct],
+  ];
+
+  it("the draft props still satisfy the schema unchanged", () => {
+    const parsed = pdp_direct_order.schema.safeParse(EXPRESS_IRAQ_DRAFT_PDP_PROPS);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data).toEqual(EXPRESS_IRAQ_DRAFT_PDP_PROPS);
+  });
+
+  it.each(draftProducts)("%s", (_label, product) => {
+    expect(render(EXPRESS_IRAQ_DRAFT_PDP_PROPS, product, draft)).toMatchSnapshot();
+  });
+
+  it.each([
+    ["discounted, multi-image, reviewed", saleProduct],
+    ["scent attributes", scentProduct],
+  ] as [string, Product][])("english locale, %s", (_label, product) => {
+    expect(
+      render(EXPRESS_IRAQ_DRAFT_PDP_PROPS, product, {
+        ...draft,
+        runtime: { ...productRuntime, locale: "en" },
+      }),
+    ).toMatchSnapshot();
   });
 });

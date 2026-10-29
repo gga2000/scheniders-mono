@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "./utils";
+import { readingAlignClass } from "./reading";
 import type {
   CSSProperties,
   ReactNode,
@@ -745,6 +747,7 @@ export function CenteredSectionHeader({
   subtitle,
   as: As = "h2",
   align = "center",
+  locale,
   glyph = "none",
   eyebrowField,
   titleField,
@@ -755,7 +758,10 @@ export function CenteredSectionHeader({
   title: ReactNode;
   subtitle?: ReactNode;
   as?: "h1" | "h2";
-  align?: "center" | "start";
+  /** "reading" = the reading edge of `locale` (right for ar/ku, left for
+   *  en); without a locale it renders like "start". */
+  align?: "center" | "start" | "reading";
+  locale?: LocaleCode;
   glyph?: "none" | "sparkle";
   /** `data-i18n-field` hooks for the editor's inline text editing. */
   eyebrowField?: string;
@@ -764,13 +770,14 @@ export function CenteredSectionHeader({
   className?: string;
 }) {
   const centered = align === "center";
+  const alignClass = centered
+    ? "items-center text-center"
+    : align === "reading" && locale
+      ? readingAlignClass(locale)
+      : "items-start text-start";
   return (
     <div
-      className={cn(
-        "mb-bk-lg flex flex-col gap-bk-xs",
-        centered ? "items-center text-center" : "items-start text-start",
-        className,
-      )}
+      className={cn("mb-bk-lg flex flex-col gap-bk-xs", alignClass, className)}
     >
       {eyebrow ? (
         <EyebrowChip glyph={glyph} data-i18n-field={eyebrowField}>
@@ -809,6 +816,9 @@ export function CenteredSectionHeader({
   );
 }
 
+const STAR_PATH =
+  "M10 1.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L10 14.9l-5.3 2.8 1.1-5.9L1.5 7.7l5.9-.8z";
+
 /**
  * Five-star rating glyph row. One implementation for every rating surface
  * (rating chip, review cards, product cards) — previously `★` text glyphs,
@@ -820,17 +830,25 @@ export function Stars({
   max = 5,
   size = 16,
   label,
+  precision = "round",
   className,
 }: {
-  /** Rating 0..max; rounded to the nearest whole star. */
+  /** Rating 0..max. "round" draws the nearest whole star count; "exact"
+   *  fills the last star by the fraction (pass `displayRating(avg)`). */
   value: number;
   max?: number;
   /** Glyph size in px. */
   size?: number;
   /** Accessible label; defaults to "{value} / {max}". */
   label?: string;
+  precision?: "round" | "exact";
   className?: string;
 }) {
+  if (precision === "exact") {
+    return (
+      <ExactStars value={value} max={max} size={size} label={label} className={className} />
+    );
+  }
   const filled = Math.min(max, Math.max(0, Math.round(value)));
   return (
     <span
@@ -851,9 +869,79 @@ export function Stars({
               : "var(--bk-ink-faint, rgb(26 26 26 / 0.25))"
           }
         >
-          <path d="M10 1.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L10 14.9l-5.3 2.8 1.1-5.9L1.5 7.7l5.9-.8z" />
+          <path d={STAR_PATH} />
         </svg>
       ))}
+    </span>
+  );
+}
+
+/** Whole percent of star `index` (0-based) that `value` fills, 0..100. */
+function starFillPercent(value: number, index: number): number {
+  return Math.round(Math.min(1, Math.max(0, value - index)) * 100);
+}
+
+/** `Stars precision="exact"`: every star is an amber outline, and a
+ *  width-clipped amber copy on top fills it by the rating's fraction —
+ *  4.7 draws four full stars and a fifth filled to 70%. The clip runs from
+ *  the left edge: the document is LTR and so is the star row. */
+function ExactStars({
+  value,
+  max,
+  size,
+  label,
+  className,
+}: {
+  value: number;
+  max: number;
+  size: number;
+  label: string | undefined;
+  className: string | undefined;
+}) {
+  return (
+    <span
+      role="img"
+      aria-label={label ?? `${value} / ${max}`}
+      className={cn("inline-flex items-center gap-0.5", className)}
+    >
+      {Array.from({ length: max }, (_, i) => {
+        const pct = starFillPercent(value, i);
+        return (
+          <span
+            key={i}
+            className="relative inline-block shrink-0"
+            style={{ width: size, height: size }}
+          >
+            <svg
+              viewBox="0 0 20 20"
+              width={size}
+              height={size}
+              aria-hidden="true"
+              className="absolute inset-0 fill-none stroke-bk-accent"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+            >
+              <path d={STAR_PATH} />
+            </svg>
+            {pct > 0 && (
+              <span
+                className="absolute inset-y-0 left-0 overflow-hidden"
+                style={{ width: `${pct}%` }}
+              >
+                <svg
+                  viewBox="0 0 20 20"
+                  width={size}
+                  height={size}
+                  aria-hidden="true"
+                  className="fill-bk-accent"
+                >
+                  <path d={STAR_PATH} />
+                </svg>
+              </span>
+            )}
+          </span>
+        );
+      })}
     </span>
   );
 }

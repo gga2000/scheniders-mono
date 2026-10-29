@@ -80,7 +80,7 @@ const config: Config = {
     { pattern: /^ring-bk-focus$/ },
     { pattern: /^duration-bk-(fast|base)$/ },
     { pattern: /^(px|py|p|gap|gap-x|gap-y|space-y|space-x|mb|mt)-bk-(2xs|xs|sm|md|lg|xl|2xl|section|section-dense|section-generous)$/ },
-    { pattern: /^text-bk-(hero|h1|h2|h3)$/ },
+    { pattern: /^text-bk-(hero|h1|h2|h3|chapter)$/ },
     { pattern: /^font-(bk-display|bk-body)$/ },
   ],
   theme: {
@@ -102,6 +102,7 @@ const config: Config = {
         "bk-h1": ["var(--bk-text-h1)", { lineHeight: "1.1" }],
         "bk-h2": ["var(--bk-text-h2)", { lineHeight: "1.15" }],
         "bk-h3": ["var(--bk-text-h3)", { lineHeight: "1.25" }],
+        "bk-chapter": ["var(--bk-text-chapter)", { lineHeight: "1.2" }],
       },
       colors: {
         // Tenant-customizable colors driven by CSS variables (legacy).

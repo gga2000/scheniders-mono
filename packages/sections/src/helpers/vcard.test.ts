@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildVCard, vcardFileName, vcardHref } from "./vcard";
+import { buildVCard, vcardContactName, vcardFileName, vcardHref } from "./vcard";
 
 describe("buildVCard", () => {
   it("writes a vCard 3.0 with the name and the E.164 number, CRLF-separated", () => {
@@ -39,5 +39,35 @@ describe("vcardFileName", () => {
 
   it("never produces an empty name", () => {
     expect(vcardFileName("   ")).toBe("contact.vcf");
+  });
+});
+
+describe("vcardContactName", () => {
+  const plain = { business_name: "متجر شنايدر" };
+  const named = {
+    business_name: "Scheniders Iraq",
+    store_config_v2: {
+      commerce: {
+        contact: {
+          call_number: "07779703832",
+          name_i18n: { ar: "شنايدر", en: "Scheniders", ku: "شنایدەر" },
+        },
+      },
+    },
+  };
+
+  it("names the contact after business_name when no name_i18n is set", () => {
+    expect(vcardContactName(plain, "ar")).toBe("متجر شنايدر — تأكيد الطلبات");
+    expect(vcardContactName(plain, "en")).toBe("متجر شنايدر — order confirmation");
+    expect(vcardContactName(plain, "ku")).toBe("متجر شنايدر — پشتڕاستکردنەوەی داواکاری");
+  });
+
+  it("uses commerce.contact.name_i18n when the store set one", () => {
+    expect(vcardContactName(named, "ar")).toBe("شنايدر — تأكيد الطلبات");
+    expect(vcardContactName(named, "en")).toBe("Scheniders — order confirmation");
+  });
+
+  it("trims the template when the store has no name at all", () => {
+    expect(vcardContactName({}, "ar")).toBe("— تأكيد الطلبات");
   });
 });
