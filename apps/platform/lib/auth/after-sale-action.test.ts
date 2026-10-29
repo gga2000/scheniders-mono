@@ -15,7 +15,13 @@ vi.mock("@/lib/restrictions", () => ({
     TenantBlockedError: class extends Error {},
 }));
 
+vi.mock("@/lib/tenant", () => ({ canCreateOrder: vi.fn() }));
+vi.mock("@/lib/order-service", () => ({ chargeAndTrack: vi.fn(async () => undefined) }));
+vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: vi.fn() }));
+
 import { createAfterSaleOrderAction } from "@/app/actions/after-sale";
+import { canCreateOrder } from "@/lib/tenant";
+import { chargeAndTrack } from "@/lib/order-service";
 import { resolveCaller } from "@/lib/auth/resolve-order-caller";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
@@ -29,6 +35,8 @@ function asRole(role: string) {
 }
 
 beforeEach(() => {
+    vi.mocked(canCreateOrder).mockReset().mockResolvedValue({ allowed: true });
+    vi.mocked(chargeAndTrack).mockClear();
     rpc.mockReset().mockResolvedValue({ data: { id: CHILD, order_id: "RTN-3951-2" }, error: null });
     const rows: Record<string, unknown> = {
         user_profiles: { display_name: "Ali" },
@@ -100,5 +108,26 @@ describe("createAfterSaleOrderAction", () => {
         );
         expect(result.success).toBe(false);
         expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("charges the wallet and counts usage like a normal order", async () => {
+        asRole("employee");
+        await createAfterSaleOrderAction(
+            { kind: "replacement", originalOrderId: ORIGINAL, lines: [{ originalLine: 0, qty: 1 }] },
+            "token",
+        );
+        expect(chargeAndTrack).toHaveBeenCalledWith("tenant-a", expect.anything());
+    });
+
+    it("refuses when the plan's order limit is reached, before creating anything", async () => {
+        asRole("admin");
+        vi.mocked(canCreateOrder).mockResolvedValue({ allowed: false, reason: "Monthly order limit reached" });
+        const result = await createAfterSaleOrderAction(
+            { kind: "refund", originalOrderId: ORIGINAL, lines: [{ originalLine: 0, qty: 1 }] },
+            "token",
+        );
+        expect(result).toEqual({ success: false, error: "Monthly order limit reached" });
+        expect(rpc).not.toHaveBeenCalled();
+        expect(chargeAndTrack).not.toHaveBeenCalled();
     });
 });

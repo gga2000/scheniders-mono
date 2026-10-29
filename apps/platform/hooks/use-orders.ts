@@ -327,7 +327,6 @@ export function useOrders() {
         createBatch: crudHook.createBatch,
 
         // Return orders
-        createReplacementOrder: crudHook.createReplacementOrder,
 
         /** True while the cached list is the complete filtered set (see ORDERS_CACHE_IS_COMPLETE_SET). */
         ordersAreComplete,
