@@ -124,9 +124,9 @@ export const EXPRESS_STRINGS = {
   // After «احفظ رقمنا». None of them says the contact was saved: the page
   // cannot know.
   numberSaveHint: {
-    en: "We named it “{name}” — if it didn't open, save the number by hand",
-    ar: "سجّلناه باسم «{name}» — إذا ما انفتح، احفظ الرقم يدوياً",
-    ku: "بە ناوی «{name}» تۆمارمان کرد — ئەگەر نەکرایەوە، ژمارەکە بە دەست پاشەکەوت بکە",
+    en: "Save it as “{name}” on the screen that opened — if nothing opened, save the number by hand",
+    ar: "احفظه باسم «{name}» من الشاشة اللي انفتحت — إذا ما انفتحت، احفظ الرقم يدوياً",
+    ku: "بە ناوی «{name}» لەو پەڕەیەی کرایەوە پاشەکەوتی بکە — ئەگەر هیچ نەکرایەوە، ژمارەکە بە دەست پاشەکەوت بکە",
   },
   numberCopiedHint: {
     en: "Number copied — save it as “{name}”",

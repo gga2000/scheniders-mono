@@ -120,7 +120,7 @@ describe("«احفظ رقمنا»", () => {
     });
     expect(click.defaultPrevented).toBe(false);
     expect(q("[data-save-hint]").textContent).toBe(
-      "سجّلناه باسم «شنايدر — تأكيد الطلبات» — إذا ما انفتح، احفظ الرقم يدوياً",
+      "احفظه باسم «شنايدر — تأكيد الطلبات» من الشاشة اللي انفتحت — إذا ما انفتحت، احفظ الرقم يدوياً",
     );
   });
 
@@ -136,7 +136,7 @@ describe("«احفظ رقمنا»", () => {
     expect(data.files[0].name).toBe("شنايدر — تأكيد الطلبات.vcf");
     expect(data.files[0].type).toBe("text/vcard");
     await waitFor(() =>
-      expect(q("[data-save-hint]").textContent).toContain("سجّلناه باسم «شنايدر — تأكيد الطلبات»"),
+      expect(q("[data-save-hint]").textContent).toContain("احفظه باسم «شنايدر — تأكيد الطلبات»"),
     );
   });
 

@@ -130,6 +130,9 @@ export function PromiseBand({
 
   const onSave = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!line) return;
+    // Clear the last hint so a repeat result is announced again and a
+    // cancelled share doesn't leave a stale one on screen.
+    setOutcome(null);
     const nav = window.navigator;
     const file = new File([vcard], fileName, { type: "text/vcard" });
     const hasClipboard = "clipboard" in nav && typeof nav.clipboard.writeText === "function";
