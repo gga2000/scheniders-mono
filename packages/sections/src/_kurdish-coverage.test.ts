@@ -3,17 +3,7 @@
 // in the builder; this guards the code-owned chrome only.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
-const FILES = [
-  "cart_line_items.client.tsx",
-  "checkout_form.client.tsx",
-  "order_confirmation_call_card.client.tsx",
-  "order_tracker.client.tsx",
-  "pdp_direct_order.client.tsx",
-  "pdp_express/strings.ts",
-  "product_reviews/strings.ts",
-  "search_results_grid.client.tsx",
-];
+import { STRING_TABLE_FILES } from "./_string-tables";
 
 function stringsBlock(src: string): string {
   // `STRINGS` or a prefixed table such as the express layout's `EXPRESS_STRINGS`.
@@ -31,7 +21,23 @@ function stringsBlock(src: string): string {
 }
 
 describe("Kurdish coverage of UI strings", () => {
-  for (const f of FILES) {
+  it("covers today's eight tables plus the vCard table", () => {
+    expect(STRING_TABLE_FILES).toEqual(
+      expect.arrayContaining([
+        "cart_line_items.client.tsx",
+        "checkout_form.client.tsx",
+        "order_confirmation_call_card.client.tsx",
+        "order_tracker.client.tsx",
+        "pdp_direct_order.client.tsx",
+        "pdp_express/strings.ts",
+        "product_reviews/strings.ts",
+        "search_results_grid.client.tsx",
+        "helpers/vcard.ts",
+      ]),
+    );
+  });
+
+  for (const f of STRING_TABLE_FILES) {
     it(`${f}: every entry has ku`, () => {
       const block = stringsBlock(readFileSync(new URL(`./${f}`, import.meta.url), "utf8"));
       // Quoted strings are atoms so a `{points}` placeholder cannot end an entry early.
