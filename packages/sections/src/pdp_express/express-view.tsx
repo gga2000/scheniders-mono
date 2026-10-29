@@ -182,6 +182,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
               increaseLabel={m.s("increase")}
               soon={props.payment_soon ?? []}
               idBase={m.submitErrorId}
+              paymentTag={props.payment_tag}
             />
           )}
 

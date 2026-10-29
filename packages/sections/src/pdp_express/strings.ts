@@ -66,6 +66,8 @@ export const EXPRESS_STRINGS = {
   quantity: { en: "Quantity", ar: "الكمية", ku: "بڕ" },
   payment: { en: "Payment", ar: "الدفع", ku: "پارەدان" },
   cashOnDelivery: { en: "Cash on delivery", ar: "كاش عند الاستلام", ku: "پارەدان لە کاتی وەرگرتن" },
+  // payment_tag "statement": the payment method as plain text.
+  paymentStatement: { en: "Payment: {method}", ar: "الدفع: {method}", ku: "پارەدان: {method}" },
   soon: { en: "Soon", ar: "قريباً", ku: "بەم زووانە" },
   qi_card: { en: "Qi Card", ar: "كي كارد", ku: "کی کارد" },
   zain_cash: { en: "Zain Cash", ar: "زين كاش", ku: "زەین کاش" },
