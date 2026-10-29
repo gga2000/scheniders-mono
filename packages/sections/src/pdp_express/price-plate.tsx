@@ -19,6 +19,13 @@ const STRUCK_INK = "color-mix(in srgb, var(--bk-danger) 65%, var(--bk-ink))";
 /** The seal gives up a little size on the narrowest phones so the price
  *  column keeps its room; full size from ~400px. */
 const SEAL_SIZE = "clamp(56px, 17vw, 68px)";
+/** The seal's class list, with the percentage in yellow (today) or, under
+ *  `color_lock`, in the espresso partner colour. Two whole strings, so the
+ *  unlocked markup stays byte-identical. */
+const SEAL_CLS =
+  "relative flex shrink-0 flex-col items-center justify-center rounded-bk-pill bg-bk-secondary text-bk-primary shadow-bk-card motion-safe:animate-[bk-seal-in_var(--bk-duration-reveal)_cubic-bezier(.2,.9,.3,1.3)_both]";
+const SEAL_CLS_LOCKED =
+  "relative flex shrink-0 flex-col items-center justify-center rounded-bk-pill bg-bk-secondary text-bk-on-secondary shadow-bk-card motion-safe:animate-[bk-seal-in_var(--bk-duration-reveal)_cubic-bezier(.2,.9,.3,1.3)_both]";
 /** A row label never narrows below this: enough for two short words a
  *  line («السعر بعد / الخصم»), so a long price can't squeeze it to one word
  *  per line or past its longest word. */
@@ -45,10 +52,19 @@ export function paidSize(amount: string, withLabel: boolean): string {
 }
 const PAID_SIZE_FALLBACK = "text-[length:clamp(26px,8.5vw,36px)]";
 
-export function DiscountSeal({ pct, locale }: { pct: number; locale: LocaleCode }) {
+export function DiscountSeal({
+  pct,
+  locale,
+  colorLock = false,
+}: {
+  pct: number;
+  locale: LocaleCode;
+  /** `color_lock`: the percentage in the espresso partner colour, not yellow. */
+  colorLock?: boolean;
+}) {
   return (
     <span
-      className="relative flex shrink-0 flex-col items-center justify-center rounded-bk-pill bg-bk-secondary text-bk-primary shadow-bk-card motion-safe:animate-[bk-seal-in_var(--bk-duration-reveal)_cubic-bezier(.2,.9,.3,1.3)_both]"
+      className={colorLock ? SEAL_CLS_LOCKED : SEAL_CLS}
       style={{ width: SEAL_SIZE, height: SEAL_SIZE }}
     >
       <span
@@ -76,6 +92,7 @@ export function PricePlate({
   locale,
   flash,
   plateRef,
+  colorLock = false,
 }: {
   price: number;
   compareAt: number | null;
@@ -87,7 +104,10 @@ export function PricePlate({
   locale: LocaleCode;
   flash: boolean;
   plateRef: React.RefObject<HTMLDivElement | null>;
+  /** `color_lock` (D4): the paid price in ink, the seal off yellow. */
+  colorLock?: boolean;
 }) {
+  const paidInk = colorLock ? "var(--bk-ink)" : PAID_INK;
   const onSale = compareAt !== null && compareAt > price && discountPct !== null;
   const paid = formatPriceParts(price, locale);
   const rtl = readsRtl(locale);
@@ -148,7 +168,7 @@ export function PricePlate({
           <div className={row} aria-hidden={onSale ? true : undefined}>
             <bdi
               className="flex shrink-0 items-baseline gap-1 whitespace-nowrap font-bk-display font-black leading-none tabular-nums"
-              style={{ color: onSale ? PAID_INK : "var(--bk-ink)" }}
+              style={{ color: onSale ? paidInk : "var(--bk-ink)" }}
             >
               <span className={PAID_SIZE_FALLBACK} style={{ fontSize: paidSize(paid.amount, Boolean(priceLabel)) }}>
                 {paid.amount}
@@ -176,7 +196,7 @@ export function PricePlate({
                 !rtl && "self-start",
               )}
               style={{
-                color: PAID_INK,
+                color: paidInk,
                 backgroundColor: "color-mix(in srgb, var(--bk-success) 14%, var(--bk-surface))",
               }}
             >
@@ -185,7 +205,9 @@ export function PricePlate({
             </span>
           )}
         </div>
-        {onSale && discountPct !== null && <DiscountSeal pct={discountPct} locale={locale} />}
+        {onSale && discountPct !== null && (
+          <DiscountSeal pct={discountPct} locale={locale} colorLock={colorLock} />
+        )}
       </div>
     </div>
   );

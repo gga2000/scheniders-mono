@@ -93,9 +93,10 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
               locale={locale}
               flash={m.priceFlashAt !== null}
               plateRef={m.priceRowRef}
+              colorLock={props.color_lock === true}
             />
             {clock && m.onSale && m.discountPct !== null && (
-              <OfferClock clock={clock} locale={locale} />
+              <OfferClock clock={clock} locale={locale} colorLock={props.color_lock === true} />
             )}
           </div>
         )}

@@ -93,6 +93,8 @@ export function CheckoutRow({
 }) {
   const rtl = readsRtl(locale);
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
+  // color_lock (D4): green is for WhatsApp and success states only.
+  const freeInk = m.props.color_lock === true ? "text-bk-ink" : "text-bk-success";
   const idle = !m.oos && !m.submitting;
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
@@ -143,11 +145,11 @@ export function CheckoutRow({
             value={
               <span data-delivery-fee>
                 {freeEverywhere ? (
-                  <span className="text-bk-success">{xs("deliveryFreeEverywhere", locale)}</span>
+                  <span className={freeInk}>{xs("deliveryFreeEverywhere", locale)}</span>
                 ) : m.delivery === null ? (
                   <span className="font-normal text-bk-ink-faint">{xs("deliveryPending", locale)}</span>
                 ) : m.delivery === 0 ? (
-                  <span className="text-bk-success">{xs("deliveryFree", locale)}</span>
+                  <span className={freeInk}>{xs("deliveryFree", locale)}</span>
                 ) : (
                   <bdi>{formatPrice(m.delivery, locale)}</bdi>
                 )}
@@ -234,7 +236,10 @@ export function CheckoutRow({
           )}
           data-i18n-field="reassurance_i18n"
         >
-          <MaterialIcon name="verified_user" className="text-base text-bk-success" />
+          <MaterialIcon
+            name="verified_user"
+            className={m.props.color_lock === true ? "text-base text-bk-ink" : "text-base text-bk-success"}
+          />
           {m.reassurance}
         </p>
       )}

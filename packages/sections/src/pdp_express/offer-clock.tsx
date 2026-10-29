@@ -19,13 +19,30 @@ import { readsRtl, xs } from "./text";
 type OfferClockConfig = NonNullable<Props["offer_clock"]>;
 
 const pad = (n: number) => String(n).padStart(2, "0");
+// Whole class strings per state, so the unlocked markup stays
+// byte-identical; `color_lock` (D4) swaps yellow for the espresso partner.
+const DOT_CLS = "h-1.5 w-1.5 shrink-0 rounded-bk-pill bg-bk-primary motion-safe:animate-pulse";
+const DOT_CLS_LOCKED =
+  "h-1.5 w-1.5 shrink-0 rounded-bk-pill bg-bk-on-secondary/60 motion-safe:animate-pulse";
+const DIGITS_CLS =
+  "flex items-baseline font-bk-display text-[17px] font-black tabular-nums text-bk-primary";
+const DIGITS_CLS_LOCKED =
+  "flex items-baseline font-bk-display text-[17px] font-black tabular-nums text-bk-on-secondary";
+const BAR_CLS =
+  "absolute bottom-0 left-0 h-[2px] bg-bk-primary transition-[width] duration-1000 ease-linear motion-reduce:transition-none";
+const BAR_CLS_LOCKED =
+  "absolute bottom-0 left-0 h-[2px] bg-bk-on-secondary/60 transition-[width] duration-1000 ease-linear motion-reduce:transition-none";
 
 export const OfferClock = memo(function OfferClock({
   clock,
   locale,
+  colorLock = false,
 }: {
   clock: OfferClockConfig;
   locale: LocaleCode;
+  /** `color_lock` (D4): digits, dot and bar off yellow, in the espresso
+   *  partner colour. */
+  colorLock?: boolean;
 }) {
   // null until mounted: server and hydrating client both render "--".
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -89,14 +106,14 @@ export const OfferClock = memo(function OfferClock({
         >
           <span
             aria-hidden="true"
-            className="h-1.5 w-1.5 shrink-0 rounded-bk-pill bg-bk-primary motion-safe:animate-pulse"
+            className={colorLock ? DOT_CLS_LOCKED : DOT_CLS}
           />
           {label}
         </span>
         {/* Hours → minutes → seconds read left to right in every locale. */}
         <span
           aria-hidden="true"
-          className="flex items-baseline font-bk-display text-[17px] font-black tabular-nums text-bk-primary"
+          className={colorLock ? DIGITS_CLS_LOCKED : DIGITS_CLS}
         >
           <span>{tick ? pad(tick.hours) : "--"}</span>
           <span className="px-0.5 opacity-60">:</span>
@@ -116,7 +133,7 @@ export const OfferClock = memo(function OfferClock({
         // value, not a design duration).
         <span
           aria-hidden="true"
-          className="absolute bottom-0 left-0 h-[2px] bg-bk-primary transition-[width] duration-1000 ease-linear motion-reduce:transition-none"
+          className={colorLock ? BAR_CLS_LOCKED : BAR_CLS}
           style={{ width: `${share * 100}%` }}
         />
       )}
