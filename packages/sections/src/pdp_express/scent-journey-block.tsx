@@ -10,17 +10,8 @@ import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { ChapterHeading } from "../helpers/chapter-heading";
 import { MaterialIcon } from "../helpers/primitives";
-import type { ScentJourney } from "./scent-journey";
-import type { ExpressStringKey } from "./strings";
+import { STAGE_HINT, type ScentJourney } from "./scent-journey";
 import { readsRtl, xs } from "./text";
-
-/** Chrome hints for the three conventional pyramid group keys. A Map, not
- *  an object literal, so a merchant key like "constructor" finds nothing. */
-const STAGE_HINT = new Map<string, ExpressStringKey>([
-  ["top", "stageHintTop"],
-  ["heart", "stageHintHeart"],
-  ["base", "stageHintBase"],
-]);
 
 export function ScentJourneyBlock({
   journey,
