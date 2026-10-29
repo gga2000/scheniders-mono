@@ -13,6 +13,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
+import { ChapterHeading } from "../helpers/chapter-heading";
 import { isOptimizableImageHost } from "../helpers/image";
 import { MaterialIcon } from "../helpers/primitives";
 import { EXPRESS_GUTTER } from "./gutter";
@@ -23,10 +24,13 @@ export function NoteRow({
   cards,
   title,
   locale,
+  chapter = false,
 }: {
   cards: ExpressModel["featureCards"];
   title: string;
   locale: LocaleCode;
+  /** `heading_style: "chapter"`: the heading at the chapter step. */
+  chapter?: boolean;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   const rtl = readsRtl(locale);
@@ -34,14 +38,17 @@ export function NoteRow({
 
   return (
     <section data-layer="note-row" className="space-y-bk-sm border-t border-bk-divider pt-bk-md">
-      {title && (
-        <h2
-          className={cn("font-bk-display text-lg font-black text-bk-ink", align)}
-          data-i18n-field="feature_cards_title_i18n"
-        >
-          {title}
-        </h2>
-      )}
+      {title &&
+        (chapter ? (
+          <ChapterHeading title={title} locale={locale} titleField="feature_cards_title_i18n" />
+        ) : (
+          <h2
+            className={cn("font-bk-display text-lg font-black text-bk-ink", align)}
+            data-i18n-field="feature_cards_title_i18n"
+          >
+            {title}
+          </h2>
+        ))}
       <ul
         aria-label={xs("notesListLabel", locale)}
         className={cn(

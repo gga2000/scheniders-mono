@@ -8,15 +8,19 @@
 import { useId, useState } from "react";
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
+import { ChapterHeading } from "../helpers/chapter-heading";
 import { MaterialIcon } from "../helpers/primitives";
 import { readsRtl, xs } from "./text";
 
 export function DescriptionBlock({
   text,
   locale,
+  chapter = false,
 }: {
   text: string;
   locale: LocaleCode;
+  /** `heading_style: "chapter"`: the heading at the chapter step. */
+  chapter?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const bodyId = useId();
@@ -24,14 +28,18 @@ export function DescriptionBlock({
 
   return (
     <section className="border-t border-bk-divider pt-bk-md">
-      <h2
-        className={cn(
-          "mb-2 font-bk-display text-lg font-black text-bk-ink",
-          rtl ? "text-right" : "text-left",
-        )}
-      >
-        {xs("aboutScent", locale)}
-      </h2>
+      {chapter ? (
+        <ChapterHeading title={xs("aboutScent", locale)} locale={locale} />
+      ) : (
+        <h2
+          className={cn(
+            "mb-2 font-bk-display text-lg font-black text-bk-ink",
+            rtl ? "text-right" : "text-left",
+          )}
+        >
+          {xs("aboutScent", locale)}
+        </h2>
+      )}
       <p
         id={bodyId}
         dir="auto"
