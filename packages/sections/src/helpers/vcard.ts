@@ -8,6 +8,25 @@
 // in text values.
 // =====================================================================
 
+import { resolveI18n } from "@scheniders/shared";
+import type { I18nString, LocaleCode } from "@scheniders/shared";
+import { storeDisplayName } from "./store-name";
+
+/** Chrome strings (ar / en / ku — guarded by _kurdish-coverage through
+ *  _string-tables). `{store}` = `storeDisplayName`. */
+export const VCARD_STRINGS = {
+  contactName: { en: "{store} — order confirmation", ar: "{store} — تأكيد الطلبات", ku: "{store} — پشتڕاستکردنەوەی داواکاری" },
+} satisfies Record<string, I18nString>;
+
+/** The name the store's number is saved under, from every surface that
+ *  offers the save (the thank-you call card, the PDP promise band). */
+export function vcardContactName(tenant: unknown, locale: LocaleCode): string {
+  return resolveI18n(VCARD_STRINGS.contactName, locale)
+    .split("{store}")
+    .join(storeDisplayName(tenant, locale))
+    .trim();
+}
+
 /** Escape a vCard TEXT value (RFC 2426 §4). Backslash first, so the
  *  escapes added after it are not themselves escaped. */
 function escapeText(value: string): string {
