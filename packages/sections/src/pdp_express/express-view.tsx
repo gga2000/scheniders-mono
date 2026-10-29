@@ -74,7 +74,10 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           locale={locale}
           reviewCount={m.reviewCount}
           avgRating={m.avgRating}
-          showRating={!!resolveI18n(props.rating_chip_i18n, locale)}
+          showRating={
+            props.identity_rating === "summary_link" || !!resolveI18n(props.rating_chip_i18n, locale)
+          }
+          ratingLink={props.identity_rating === "summary_link"}
         />
 
         {props.show_price_row && (

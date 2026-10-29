@@ -99,6 +99,12 @@ export const EXPRESS_STRINGS = {
   morePhotos: { en: "See {count} photos", ar: "شوف {count} صور", ku: "{count} وێنە ببینە" },
   photoOf: { en: "Photo {n} of {total}", ar: "صورة {n} من {total}", ku: "وێنەی {n} لە {total}" },
   reviews: { en: "{count} reviews", ar: "{count} تقييم", ku: "{count} هەڵسەنگاندن" },
+  // `formatCount` forms of the review count (identity_rating
+  // "summary_link"). Kurdish resolves through the Arabic plural rules.
+  reviewCountOne: { en: "{count} review", ar: "تقييم واحد", ku: "یەک هەڵسەنگاندن" },
+  reviewCountTwo: { en: "{count} reviews", ar: "تقييمين", ku: "{count} هەڵسەنگاندن" },
+  reviewCountFew: { en: "{count} reviews", ar: "{count} تقييمات", ku: "{count} هەڵسەنگاندن" },
+  reviewCountMany: { en: "{count} reviews", ar: "{count} تقييم", ku: "{count} هەڵسەنگاندن" },
   sizeMl: { en: "{n} ml", ar: "{n} مل", ku: "{n} مل" },
   aboutScent: { en: "About the scent", ar: "عن العطر", ku: "دەربارەی بۆنەکە" },
   readMore: { en: "Read more", ar: "اقرأ المزيد", ku: "زیاتر بخوێنەوە" },
