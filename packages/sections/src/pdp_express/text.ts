@@ -22,8 +22,4 @@ export function firstName(full: string): string {
   return full.trim().split(/\s+/)[0] ?? "";
 }
 
-/** Arabic-script locales read right-to-left inside this LTR document, so
- *  rows that carry text flip their VISUAL order with a class — never `dir`. */
-export function readsRtl(locale: LocaleCode): boolean {
-  return locale !== "en";
-}
+export { readsRtl } from "../helpers/reading";

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Section, SectionHeader, Stars } from "./primitives";
+import { CenteredSectionHeader, Section, SectionHeader, Stars } from "./primitives";
 import { displayRating } from "./format";
 
 describe("Section primitive", () => {
@@ -84,5 +84,29 @@ describe("Stars precision", () => {
     );
     expect(html).toContain('aria-label="3 من 5"');
     expect(html).toContain('width="12"');
+  });
+});
+
+describe('CenteredSectionHeader align="reading"', () => {
+  it("aligns to the right edge for Arabic and Kurdish", () => {
+    for (const locale of ["ar", "ku"] as const) {
+      const html = renderToStaticMarkup(
+        <CenteredSectionHeader title="عنوان" align="reading" locale={locale} />,
+      );
+      expect(html).toContain("items-end text-right");
+    }
+  });
+
+  it("aligns to the left edge for English", () => {
+    const html = renderToStaticMarkup(
+      <CenteredSectionHeader title="Title" align="reading" locale="en" />,
+    );
+    expect(html).toContain("items-start text-left");
+  });
+
+  it('renders like "start" when no locale is given', () => {
+    expect(
+      renderToStaticMarkup(<CenteredSectionHeader title="عنوان" align="reading" />),
+    ).toBe(renderToStaticMarkup(<CenteredSectionHeader title="عنوان" align="start" />));
   });
 });

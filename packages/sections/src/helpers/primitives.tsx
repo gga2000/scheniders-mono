@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "./utils";
+import { readingAlignClass } from "./reading";
 import type {
   CSSProperties,
   ReactNode,
@@ -745,6 +747,7 @@ export function CenteredSectionHeader({
   subtitle,
   as: As = "h2",
   align = "center",
+  locale,
   glyph = "none",
   eyebrowField,
   titleField,
@@ -755,7 +758,10 @@ export function CenteredSectionHeader({
   title: ReactNode;
   subtitle?: ReactNode;
   as?: "h1" | "h2";
-  align?: "center" | "start";
+  /** "reading" = the reading edge of `locale` (right for ar/ku, left for
+   *  en); without a locale it renders like "start". */
+  align?: "center" | "start" | "reading";
+  locale?: LocaleCode;
   glyph?: "none" | "sparkle";
   /** `data-i18n-field` hooks for the editor's inline text editing. */
   eyebrowField?: string;
@@ -764,13 +770,14 @@ export function CenteredSectionHeader({
   className?: string;
 }) {
   const centered = align === "center";
+  const alignClass = centered
+    ? "items-center text-center"
+    : align === "reading" && locale
+      ? readingAlignClass(locale)
+      : "items-start text-start";
   return (
     <div
-      className={cn(
-        "mb-bk-lg flex flex-col gap-bk-xs",
-        centered ? "items-center text-center" : "items-start text-start",
-        className,
-      )}
+      className={cn("mb-bk-lg flex flex-col gap-bk-xs", alignClass, className)}
     >
       {eyebrow ? (
         <EyebrowChip glyph={glyph} data-i18n-field={eyebrowField}>
