@@ -75,7 +75,10 @@ describe("Stars precision", () => {
     expect(fillWidths(renderToStaticMarkup(<Stars value={7} precision="exact" />))).toEqual([
       "100", "100", "100", "100", "100",
     ]);
-    expect(fillWidths(renderToStaticMarkup(<Stars value={-1} precision="exact" />))).toEqual([]);
+    const empty = renderToStaticMarkup(<Stars value={-1} precision="exact" />);
+    expect(fillWidths(empty)).toEqual([]);
+    // Clamped to zero, not dropped: all five outlines still draw.
+    expect(empty.match(/stroke-bk-accent/g)).toHaveLength(5);
   });
 
   it("exact keeps the caller's size and label", () => {
