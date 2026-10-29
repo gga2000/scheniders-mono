@@ -13,6 +13,11 @@
 // `./accordion_richtext.client.tsx`. Unset (every existing config) keeps
 // the zero-JS cards render byte-identical. Opt-in `call_row` (quiet only)
 // ends the list with a tap-to-call row on the store's call number.
+// Opt-in `layout: "guarantee_card"` renders the terms as one always-open
+// espresso «كرت الضمان» (`./accordion_richtext.guarantee.tsx`, server
+// only) with an optional anchor id and one policy link; it ignores
+// `call_row`. Opt-in `heading_style: "chapter"` draws the cards and quiet
+// headings with ChapterHeading.
 // =====================================================================
 
 import { useId } from "react";
@@ -29,6 +34,7 @@ import {
   MaterialIcon,
   Section,
 } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
 import { whatsappDigits } from "./helpers/whatsapp";
 import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
@@ -36,6 +42,7 @@ import type { SectionDefinition, SectionRenderContext } from "./_types";
 import { readsRtl } from "./pdp_express/text";
 import { AccordionRichtextQuiet } from "./accordion_richtext.client";
 import type { QuietCallRow } from "./accordion_richtext.client";
+import { GuaranteeCard } from "./accordion_richtext.guarantee";
 
 const schema = z.object({
   heading_i18n: i18nStringOptional,
@@ -50,7 +57,7 @@ const schema = z.object({
    * "cards" (the default, and what every existing config renders) = bordered bento plates with a tinted +/x chip per row.
    * "quiet" = one hairline-ruled list with a single ink chevron and height-animated panels (client island). It is opt-in so the shared default stays byte-identical.
    */
-  layout: z.enum(["cards", "quiet"]).optional().catch(undefined),
+  layout: z.enum(["cards", "quiet", "guarantee_card"]).optional().catch(undefined),
   /**
    * Quiet layout only: one tinted row after the list — the merchant's prompt
    * over the store's call number, and a tap-to-call pill. The number is
@@ -68,6 +75,29 @@ const schema = z.object({
     })
     .optional()
     .catch(undefined),
+  /** Guarantee card: the small line above the title («ويا كل طلب من شنايدر»). */
+  eyebrow_i18n: i18nStringOptional.catch(undefined),
+  /** Guarantee card: the line under the title («حقك مكتوب هنا قبل ما تطلب»). */
+  sub_i18n: i18nStringOptional.catch(undefined),
+  /** Guarantee card: the card's in-page id, the target of
+   *  pdp_direct_order's `guarantee_anchor_id` («الشروط»). */
+  anchor_id: z
+    .string()
+    .regex(/^[a-z][a-z0-9-]{0,40}$/)
+    .optional()
+    .catch(undefined),
+  /** Guarantee card: one link to the full policy page. A store path only
+   *  ("/…", never "//…" or a full URL). */
+  policy_link: z
+    .object({
+      href: z.string().regex(/^\/(?!\/)\S*$/),
+      label_i18n: i18nStringSchema,
+    })
+    .optional()
+    .catch(undefined),
+  /** "chapter" renders the cards / quiet heading with ChapterHeading.
+   *  Absent = today's heading. */
+  heading_style: z.enum(["section", "chapter"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
@@ -158,10 +188,32 @@ function AccordionRichtextRender({
 
   const heading = resolveI18n(props.heading_i18n, locale);
 
+  if (props.layout === "guarantee_card") {
+    return (
+      <GuaranteeCard
+        locale={locale}
+        data={{
+          anchorId: props.anchor_id,
+          eyebrow: resolveI18n(props.eyebrow_i18n, locale),
+          title: heading,
+          sub: resolveI18n(props.sub_i18n, locale),
+          terms: props.items.map((it) => ({
+            title: resolveI18n(it.title_i18n, locale),
+            body: resolveI18n(it.body_i18n, locale),
+          })),
+          policy: props.policy_link
+            ? { href: props.policy_link.href, label: resolveI18n(props.policy_link.label_i18n, locale) }
+            : null,
+        }}
+      />
+    );
+  }
+
   if (props.layout === "quiet") {
     return (
       <AccordionRichtextQuiet
         heading={heading}
+        chapterLocale={props.heading_style === "chapter" ? locale : undefined}
         items={props.items.map((it) => ({
           title: resolveI18n(it.title_i18n, locale),
           body: resolveI18n(it.body_i18n, locale),
@@ -179,13 +231,16 @@ function AccordionRichtextRender({
 
   return (
     <Section>
-      {heading && (
-        <CenteredSectionHeader
-          title={heading}
-          align="start"
-          titleField="heading_i18n"
-        />
-      )}
+      {heading &&
+        (props.heading_style === "chapter" ? (
+          <ChapterHeading title={heading} locale={locale} titleField="heading_i18n" />
+        ) : (
+          <CenteredSectionHeader
+            title={heading}
+            align="start"
+            titleField="heading_i18n"
+          />
+        ))}
       <div className="space-y-bk-sm">
         {props.items.map((item, i) => {
           const title = resolveI18n(item.title_i18n, locale);

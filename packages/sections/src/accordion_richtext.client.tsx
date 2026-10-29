@@ -13,8 +13,10 @@
 
 import { useId, useState } from "react";
 import { cn } from "@scheniders/shared";
+import type { LocaleCode } from "@scheniders/shared";
 import { MaterialIcon, Section } from "./helpers/primitives";
 import { ActionPill, ActionRow } from "./helpers/action-row";
+import { ChapterHeading } from "./helpers/chapter-heading";
 
 export interface QuietItem {
   title: string;
@@ -55,6 +57,7 @@ export function AccordionRichtextQuiet({
   exclusive,
   rtl,
   call,
+  chapterLocale,
 }: {
   heading: string;
   items: readonly QuietItem[];
@@ -62,6 +65,9 @@ export function AccordionRichtextQuiet({
   rtl: boolean;
   /** Null = no row (the default). */
   call: QuietCallRow | null;
+  /** Set (`heading_style: "chapter"`) = the heading is a ChapterHeading in
+   *  this locale. Absent = today's h2. */
+  chapterLocale?: LocaleCode;
 }) {
   const [open, setOpen] = useState<readonly number[]>([]);
   const baseId = useId();
@@ -69,17 +75,20 @@ export function AccordionRichtextQuiet({
 
   return (
     <Section density="dense">
-      {heading && (
-        <h2
-          data-i18n-field="heading_i18n"
-          className={cn(
-            "mb-bk-sm font-bk-display text-lg font-black text-bk-ink",
-            textSide,
-          )}
-        >
-          {heading}
-        </h2>
-      )}
+      {heading &&
+        (chapterLocale ? (
+          <ChapterHeading title={heading} locale={chapterLocale} titleField="heading_i18n" />
+        ) : (
+          <h2
+            data-i18n-field="heading_i18n"
+            className={cn(
+              "mb-bk-sm font-bk-display text-lg font-black text-bk-ink",
+              textSide,
+            )}
+          >
+            {heading}
+          </h2>
+        ))}
       <div className="divide-y divide-bk-divider border-y border-bk-divider">
         {items.map((item, i) => {
           const isOpen = open.includes(i);
