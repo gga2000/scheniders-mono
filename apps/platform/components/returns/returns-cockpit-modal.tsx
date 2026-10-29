@@ -10,6 +10,11 @@ import { useReturnsSession, type ScannedReturn } from "@/hooks/use-returns-sessi
 import { primeOnFirstGesture } from "@/lib/returns/sounds";
 import { useProcessReturn, useUndoReturn } from "@/hooks/use-process-return";
 import { ReturnDetailPanel } from "./return-detail-panel";
+import { AfterSaleIntakePanel } from "./after-sale-intake-panel";
+import { useAfterSaleIntake } from "@/hooks/use-after-sale-intake";
+import { isOverdue } from "@/lib/after-sale/intake";
+import { orderRepository } from "@/lib/repositories/order-repository";
+import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import type { ReturnItemDestination, ReturnDestination } from "@/lib/returns/process-return";
 import { extractScannedOrderId } from "@/lib/scan-utils";
@@ -48,6 +53,19 @@ export function ReturnsCockpitModal({
     const [summary, setSummary] = useState({ restock: 0, open_box: 0, write_off: 0 });
     const [lastConfirm, setLastConfirm] = useState<{ orderId: string; deltas: { restock: number; open_box: number; write_off: number } } | null>(null);
     const [handledOpen, setHandledOpen] = useState(false);
+    const [tab, setTab] = useState<"parcels" | "after_sale">("parcels");
+    const { t } = useLanguage();
+    const { data: intake } = useAfterSaleIntake(open);
+    const intakeCount = intake?.items.length ?? 0;
+    const intakeOverdue = intake
+        ? intake.items.filter((i) => isOverdue(i.created_at, new Date(), intake.overdueDays)).length
+        : 0;
+
+    const openOrderById = async (id: string) => {
+        const order = await orderRepository.findById(id);
+        if (order) onOpenOrder?.(order);
+        else toast.error(t("intake.orderMissing"));
+    };
 
     const changedByName = profile?.display_name || user?.email || "System";
     const changedByAvatar = (profile as { avatar_url?: string | null } | null)?.avatar_url ?? null;
@@ -203,6 +221,38 @@ export function ReturnsCockpitModal({
                     </DialogTitle>
                 </DialogHeader>
 
+                <div role="tablist" className="mb-3 inline-flex self-start rounded-xl border border-(--card-border) p-1 text-sm">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === "parcels"}
+                        onClick={() => setTab("parcels")}
+                        className={cn("min-h-9 rounded-lg px-3", tab === "parcels" ? "bg-foreground/5 font-semibold text-foreground" : "text-muted")}
+                    >
+                        {t("intake.tab.parcels")}
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === "after_sale"}
+                        onClick={() => setTab("after_sale")}
+                        className={cn("flex min-h-9 items-center gap-1.5 rounded-lg px-3", tab === "after_sale" ? "bg-foreground/5 font-semibold text-foreground" : "text-muted")}
+                    >
+                        {t("intake.tab.afterSale")}
+                        {intakeCount > 0 && (
+                            <span className={cn(
+                                "rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+                                intakeOverdue > 0 ? "bg-rose-600 text-white" : "bg-foreground/10 text-foreground",
+                            )}>
+                                {intakeOverdue > 0 ? `${intakeOverdue}/${intakeCount}` : intakeCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {tab === "after_sale" ? (
+                    <AfterSaleIntakePanel onOpenOrder={(id) => void openOrderById(id)} />
+                ) : (<>
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
@@ -305,6 +355,7 @@ export function ReturnsCockpitModal({
                         </div>
                     </div>
                 )}
+                </>)}
             </DialogContent>
         </Dialog>
     );

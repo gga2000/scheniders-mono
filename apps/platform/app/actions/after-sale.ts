@@ -135,3 +135,48 @@ export async function createAfterSaleOrderAction(
     });
     return { success: true, orderId: created.data.id, orderNumber: created.data.order_id };
 }
+
+// =============================================
+// RECEIVE AN ITEM THAT CAME BACK
+// =============================================
+
+const receiveInputSchema = z.object({
+    itemId: z.uuid(),
+    condition: z.enum(["sealed", "opened_usable", "damaged", "missing"]),
+    note: z.string().trim().max(500).nullable().default(null),
+});
+
+export type ReceiveAfterSaleInput = z.input<typeof receiveInputSchema>;
+
+/**
+ * Records what came back on one after-sale line. receive_after_sale_item moves
+ * the stock (sealed → stock, opened → open box, damaged → written off,
+ * missing → not returned); this action only decides who may call it.
+ */
+export async function receiveAfterSaleItemAction(
+    input: ReceiveAfterSaleInput,
+    accessToken: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+    const { userId, tenantId, role } = resolved.caller;
+    if (!ORDER_WRITE_ROLES.includes(role)) {
+        return { success: false, error: "You do not have permission to receive returns" };
+    }
+
+    const parsed = receiveInputSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid request" };
+
+    const supabase = createSupabaseServiceClient();
+    const { data: profile } = await supabase.from("user_profiles").select("display_name").eq("id", userId).maybeSingle();
+
+    const { error } = await supabase.rpc("receive_after_sale_item", {
+        _tenant_id: tenantId,
+        _item_id: parsed.data.itemId,
+        _condition: parsed.data.condition,
+        _note: parsed.data.note,
+        _received_by: (profile as { display_name: string | null } | null)?.display_name ?? null,
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}

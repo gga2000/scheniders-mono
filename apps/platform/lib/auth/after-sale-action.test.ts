@@ -19,7 +19,7 @@ vi.mock("@/lib/tenant", () => ({ canCreateOrder: vi.fn() }));
 vi.mock("@/lib/order-service", () => ({ chargeAndTrack: vi.fn(async () => undefined) }));
 vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: vi.fn() }));
 
-import { createAfterSaleOrderAction } from "@/app/actions/after-sale";
+import { createAfterSaleOrderAction, receiveAfterSaleItemAction } from "@/app/actions/after-sale";
 import { canCreateOrder } from "@/lib/tenant";
 import { chargeAndTrack } from "@/lib/order-service";
 import { resolveCaller } from "@/lib/auth/resolve-order-caller";
@@ -129,5 +129,44 @@ describe("createAfterSaleOrderAction", () => {
         expect(result).toEqual({ success: false, error: "Monthly order limit reached" });
         expect(rpc).not.toHaveBeenCalled();
         expect(chargeAndTrack).not.toHaveBeenCalled();
+    });
+});
+
+describe("receiveAfterSaleItemAction", () => {
+    const ITEM = "33333333-3333-4333-8333-333333333333";
+
+    it("records the condition in the caller's own tenant", async () => {
+        asRole("employee");
+        rpc.mockResolvedValue({ data: {}, error: null });
+        const result = await receiveAfterSaleItemAction({ itemId: ITEM, condition: "damaged" }, "token");
+        expect(result).toEqual({ success: true });
+        expect(rpc).toHaveBeenCalledWith("receive_after_sale_item", {
+            _tenant_id: "tenant-a",
+            _item_id: ITEM,
+            _condition: "damaged",
+            _note: null,
+            _received_by: "Ali",
+        });
+    });
+
+    it("refuses viewers", async () => {
+        asRole("viewer");
+        const result = await receiveAfterSaleItemAction({ itemId: ITEM, condition: "sealed" }, "token");
+        expect(result.success).toBe(false);
+        expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("refuses an unknown condition", async () => {
+        asRole("admin");
+        const result = await receiveAfterSaleItemAction({ itemId: ITEM, condition: "lost" as never }, "token");
+        expect(result.success).toBe(false);
+        expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("passes a database refusal back", async () => {
+        asRole("admin");
+        rpc.mockResolvedValue({ data: null, error: { message: "this line was already received" } });
+        const result = await receiveAfterSaleItemAction({ itemId: ITEM, condition: "sealed" }, "token");
+        expect(result).toEqual({ success: false, error: "this line was already received" });
     });
 });
