@@ -41,7 +41,10 @@ function stagesOf(attr: GroupListAttribute, locale: LocaleCode): JourneyStage[] 
   });
 }
 
-function chipRowOf(attr: ResolvedProductAttribute, locale: LocaleCode): JourneyChipRow | null {
+/** One attribute as a chip row: an enum is one chip, a group_list is every
+ *  value across its groups (null when empty); any other kind is null.
+ *  Exported for the scent card, which shows the same rows. */
+export function chipRowOf(attr: ResolvedProductAttribute, locale: LocaleCode): JourneyChipRow | null {
   const label = resolveI18n(attr.def.name_i18n, locale) || attr.def.key;
   if (attr.kind === "enum") {
     const chip = resolveI18n(attr.option.label_i18n, locale) || attr.value;

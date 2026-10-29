@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveProductAttributes } from "@scheniders/shared";
-import { buildScentJourney } from "./scent-journey";
+import { buildScentJourney, chipRowOf } from "./scent-journey";
 import { SCENT_DEF_IDS, SCENT_DEFS, scentProduct } from "../_pdp-scent-fixtures";
 
 const attrs = scentProduct.attributes;
@@ -85,5 +85,27 @@ describe("buildScentJourney", () => {
     expect(j?.stages).toEqual([]);
     expect(j?.chipRows).toHaveLength(1);
     expect(j?.note).toBeNull();
+  });
+});
+
+describe("chipRowOf", () => {
+  const byKey = (key: string) => {
+    const attr = attrs?.find((a) => a.def.key === key);
+    if (!attr) throw new Error(`fixture has no ${key}`);
+    return attr;
+  };
+
+  it("makes one chip from an enum, with its localised label", () => {
+    expect(chipRowOf(byKey("season"), "ar")).toEqual({ key: "season", label: "الموسم", chips: ["صيفي"] });
+    expect(chipRowOf(byKey("season"), "en")).toEqual({ key: "season", label: "Season", chips: ["Summer"] });
+  });
+
+  it("flattens a group_list into one row", () => {
+    expect(chipRowOf(byKey("occasions"), "ar")?.chips).toEqual(["البحر", "السفرات", "الطلعات النهارية"]);
+  });
+
+  it("returns null for a range or a text attribute", () => {
+    expect(chipRowOf(byKey("longevity"), "ar")).toBeNull();
+    expect(chipRowOf(byKey("longevity_note"), "ar")).toBeNull();
   });
 });
