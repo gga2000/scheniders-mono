@@ -23,11 +23,13 @@ import {
   saleProduct,
 } from "./_pdp-fixtures";
 import { scentProduct } from "./_pdp-scent-fixtures";
+import { wayferProduct } from "./_pdp-wayfer-fixtures";
 import {
   IRAQ_REDESIGN_PDP_PROPS,
   IRAQ_REDESIGN_TENANT,
   SLICE_1B_CONTACT_PATCH,
   SLICE_1B_PDP_PATCH,
+  SLICE_1C_PDP_PATCH,
 } from "./_pdp-redesign-fixtures";
 
 const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
@@ -60,6 +62,11 @@ describe("redesign fixtures mirror the draft migrations", () => {
     expect(migrationJson(sql, "contact_patch")).toEqual(SLICE_1B_CONTACT_PATCH);
   });
 
+  it("slice 1c pdp_direct_order patch", () => {
+    const sql1c = migrationSql("scheniders_iraq_pdp_redesign_1c_draft");
+    expect(migrationJson(sql1c, "pdp_patch")).toEqual(SLICE_1C_PDP_PATCH);
+  });
+
   it("the patched props satisfy the schema unchanged", () => {
     const parsed = pdp_direct_order.schema.safeParse(IRAQ_REDESIGN_PDP_PROPS);
     expect(parsed.success).toBe(true);
@@ -71,6 +78,7 @@ describe("pdp_direct_order express — redesign draft", () => {
   const products: [string, Product][] = [
     ["discounted, multi-image, reviewed", saleProduct],
     ["scent attributes", scentProduct],
+    ["Wayfarer, live data", wayferProduct],
   ];
 
   function render(product: Product, overrides: Partial<SectionRenderContext> = {}): string {
@@ -102,6 +110,8 @@ describe("pdp_direct_order express — redesign draft", () => {
       </StoreBaseProvider>,
     );
     const dirs = (html: string) => html.split('dir="').length - 1;
-    expect(dirs(render(product))).toBe(dirs(before));
+    // Card mode (1c) drops the description block's one dir="auto"
+    // paragraph and adds none.
+    expect(dirs(render(product))).toBe(dirs(before) - 1);
   });
 });
