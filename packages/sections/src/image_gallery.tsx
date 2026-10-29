@@ -57,7 +57,11 @@ import type { SectionDefinition, SectionRenderContext } from "./_types";
 
 const schema = z.object({
   heading_i18n: i18nStringOptional,
-  layout: z.enum(["masonry", "grid", "carousel"]),
+  /** "stack" (opt-in) = the proof stack: lead comments with their doubt,
+   *  quote and author over a full-width screenshot, the rest behind one
+   *  expand button. An unknown stored value falls back to "grid" (the
+   *  default) instead of dropping the section. */
+  layout: z.enum(["masonry", "grid", "carousel", "stack"]).catch("grid"),
   images: z.array(
     z.object({
       url: z.string().describe("image"),
@@ -69,6 +73,25 @@ const schema = z.object({
        *  `order: "product_first"`. The name gives it the builder's
        *  product picker (section-field-widgets matches `*product_ids`). */
       product_ids: z.array(z.string()).optional().catch(undefined),
+      /** Stack only: the comment's strongest line, verbatim, shown as live
+       *  text in «». Absent → a screenshot-only row. */
+      quote_i18n: i18nStringOptional.catch(undefined),
+      /** Stack only: the buyer's doubt this comment answers (the eyebrow). */
+      doubt_i18n: i18nStringOptional.catch(undefined),
+      /** Stack only: the commenter's display name, as written. */
+      author: z.string().max(80).optional().catch(undefined),
+      /** Stack only: a business account (tagged «حساب شركة»). */
+      is_business: z.boolean().optional().catch(undefined),
+      /** Stack only: the stored file's pixel size. Both set → the picture
+       *  keeps its natural ratio (and `crop` applies); else a 4/1 box. */
+      width: z.number().int().min(1).max(4000).optional().catch(undefined),
+      height: z.number().int().min(1).max(4000).optional().catch(undefined),
+      /** Stack only: percent of the uncropped width cut from each side
+       *  (TikTok's avatar column, its scrollbar strip). */
+      crop: z
+        .object({ left: z.number().min(0).max(40), right: z.number().min(0).max(40) })
+        .optional()
+        .catch(undefined),
     }),
   ),
   /** Opt-in: show every picture WHOLE (object-contain, never cropped) in a
@@ -88,6 +111,23 @@ const schema = z.object({
    *  products; order inside each group is kept. Absent, or with nothing
    *  tagged, the merchant's order renders byte-identically. */
   order: z.enum(["product_first"]).optional().catch(undefined),
+  /** Stack: how many comments lead (with doubt and quote); the rest
+   *  open behind «شوف N تعليقات ثانية». Absent = 3. */
+  initial_count: z.number().int().min(1).max(12).optional().catch(undefined),
+  /** Stack: the source pill under the heading («تعليقات على إعلاناتنا بتيك توك»). */
+  source_label_i18n: i18nStringOptional.catch(undefined),
+  /** Stack: "store" adds the scope line «3 من أصل 9، على عطورنا بشكل
+   *  عام» (the comments are about the shop, not this product). */
+  scope: z.enum(["store", "product"]).optional().catch(undefined),
+  /** Stack: one line after the first comment explaining the
+   *  "liked by us" mark on the screenshots. */
+  legend_i18n: i18nStringOptional.catch(undefined),
+  /** Stack: the mark's picture beside the legend (the store logo as it
+   *  appears on TikTok). Absent → `branding.logo_url`; neither → text only. */
+  legend_image_url: z.string().describe("image").optional().catch(undefined),
+  /** "chapter" renders the heading at the redesign's one chapter scale
+   *  (ChapterHeading). Absent = today's heading, in every layout. */
+  heading_style: z.enum(["section", "chapter"]).optional().catch(undefined),
 });
 
 type Props = z.infer<typeof schema>;
@@ -124,6 +164,7 @@ function isUntouchedDefaultImages(images: GalleryImage[]): boolean {
  *  are 2/3/4 columns. Wrong hints made next/image ship 4× oversized
  *  srcset candidates for the screenshot carousel. */
 const SIZES: Record<Props["layout"], string> = {
+  stack: "(max-width: 640px) calc(100vw - 2rem), 600px",
   carousel: "280px",
   grid: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
   masonry: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
