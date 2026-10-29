@@ -31,6 +31,8 @@ import { OrderLine } from "./order-line";
 import { phoneDigits, phoneIssue } from "./phone";
 import { PricePlate } from "./price-plate";
 import { ScrollHint } from "./scroll-hint";
+import { buildScentCard } from "./scent-card";
+import { ScentCardBlock } from "./scent-card-block";
 import { buildScentJourney } from "./scent-journey";
 import { ScentJourneyBlock } from "./scent-journey-block";
 import { NoteRow } from "./note-row";
@@ -51,11 +53,24 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
   // On in express unless the merchant turns it off; pointless without a
   // form to scroll to (sold out).
   const showScrollHint = props.show_scroll_hint !== false && !m.oos;
+  // scent_layout "card" (F07): one «بصمة العطر» card replaces «عن العطر»,
+  // «رحلة العطر» and the note cards. Null (nothing drawn) when the product
+  // has no tiers, facts, lead or story.
+  const cardConfig = props.scent_layout === "card" ? props.scent_card : undefined;
+  const scentCard = cardConfig
+    ? buildScentCard({
+        product,
+        config: cardConfig,
+        locale,
+        description: props.show_description ? (product.description ?? null) : null,
+      })
+    : null;
   // Opt-in: the product's own attributes as the «رحلة العطر» block; null
   // (no block) when the product carries none of the configured keys.
-  const journey = props.scent_journey
-    ? buildScentJourney(product.attributes, props.scent_journey, locale)
-    : null;
+  const journey =
+    !cardConfig && props.scent_journey
+      ? buildScentJourney(product.attributes, props.scent_journey, locale)
+      : null;
   // heading_style "chapter": the lower blocks' headings at the chapter step.
   const chapter = props.heading_style === "chapter";
 
@@ -192,9 +207,24 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           <CheckoutRow m={m} locale={locale} waHref={waHref} waFallbackHref={waFallbackHref} />
         </form>
 
-        {props.show_description && product.description && (
-          <DescriptionBlock text={product.description} locale={locale} chapter={chapter} />
-        )}
+        {/* One child slot for the card or the description: React's useId
+            path counts sibling slots, so a new slot here would renumber
+            every id below it and change the baselines. */}
+        {cardConfig
+          ? scentCard && (
+              <ScentCardBlock
+                card={scentCard}
+                product={product}
+                locale={locale}
+                reviewCount={m.reviewCount}
+                avgRating={m.avgRating}
+                ratingLink={props.identity_rating === "summary_link"}
+              />
+            )
+          : props.show_description &&
+            product.description && (
+              <DescriptionBlock text={product.description} locale={locale} chapter={chapter} />
+            )}
 
         {journey && (
           <ScentJourneyBlock
@@ -207,7 +237,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           />
         )}
 
-        {m.featureCards.length > 0 && props.feature_cards_layout === "row" && (
+        {!cardConfig && m.featureCards.length > 0 && props.feature_cards_layout === "row" && (
           <NoteRow
             cards={m.featureCards}
             title={m.featureCardsTitle}
@@ -216,7 +246,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           />
         )}
 
-        {m.featureCards.length > 0 && props.feature_cards_layout !== "row" && (
+        {!cardConfig && m.featureCards.length > 0 && props.feature_cards_layout !== "row" && (
           <div className="space-y-bk-sm border-t border-bk-divider pt-bk-md">
             {m.featureCardsTitle &&
               (chapter ? (
