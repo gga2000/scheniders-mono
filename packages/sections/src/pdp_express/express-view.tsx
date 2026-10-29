@@ -12,6 +12,7 @@
 
 import { useState } from "react";
 import { cn, resolveI18n } from "@scheniders/shared";
+import { ChapterHeading } from "../helpers/chapter-heading";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon } from "../helpers/primitives";
 import { stockLeftFor } from "../helpers/variant-store";
@@ -55,6 +56,8 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
   const journey = props.scent_journey
     ? buildScentJourney(product.attributes, props.scent_journey, locale)
     : null;
+  // heading_style "chapter": the lower blocks' headings at the chapter step.
+  const chapter = props.heading_style === "chapter";
 
   return (
     <section className="pb-bk-md" data-pdp-layout="express">
@@ -74,7 +77,10 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           locale={locale}
           reviewCount={m.reviewCount}
           avgRating={m.avgRating}
-          showRating={!!resolveI18n(props.rating_chip_i18n, locale)}
+          showRating={
+            props.identity_rating === "summary_link" || !!resolveI18n(props.rating_chip_i18n, locale)
+          }
+          ratingLink={props.identity_rating === "summary_link"}
         />
 
         {props.show_price_row && (
@@ -90,9 +96,10 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
               locale={locale}
               flash={m.priceFlashAt !== null}
               plateRef={m.priceRowRef}
+              colorLock={props.color_lock === true}
             />
             {clock && m.onSale && m.discountPct !== null && (
-              <OfferClock clock={clock} locale={locale} />
+              <OfferClock clock={clock} locale={locale} colorLock={props.color_lock === true} />
             )}
           </div>
         )}
@@ -178,6 +185,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
               increaseLabel={m.s("increase")}
               soon={props.payment_soon ?? []}
               idBase={m.submitErrorId}
+              paymentTag={props.payment_tag}
             />
           )}
 
@@ -185,7 +193,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
         </form>
 
         {props.show_description && product.description && (
-          <DescriptionBlock text={product.description} locale={locale} />
+          <DescriptionBlock text={product.description} locale={locale} chapter={chapter} />
         )}
 
         {journey && (
@@ -195,23 +203,36 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
               resolveI18n(props.scent_journey?.title_i18n, locale) || xs("scentJourney", locale)
             }
             locale={locale}
+            chapter={chapter}
           />
         )}
 
         {m.featureCards.length > 0 && props.feature_cards_layout === "row" && (
-          <NoteRow cards={m.featureCards} title={m.featureCardsTitle} locale={locale} />
+          <NoteRow
+            cards={m.featureCards}
+            title={m.featureCardsTitle}
+            locale={locale}
+            chapter={chapter}
+          />
         )}
 
         {m.featureCards.length > 0 && props.feature_cards_layout !== "row" && (
           <div className="space-y-bk-sm border-t border-bk-divider pt-bk-md">
-            {m.featureCardsTitle && (
-              <h2
-                className="text-center font-bk-display text-lg font-black"
-                data-i18n-field="feature_cards_title_i18n"
-              >
-                {m.featureCardsTitle}
-              </h2>
-            )}
+            {m.featureCardsTitle &&
+              (chapter ? (
+                <ChapterHeading
+                  title={m.featureCardsTitle}
+                  locale={locale}
+                  titleField="feature_cards_title_i18n"
+                />
+              ) : (
+                <h2
+                  className="text-center font-bk-display text-lg font-black"
+                  data-i18n-field="feature_cards_title_i18n"
+                >
+                  {m.featureCardsTitle}
+                </h2>
+              ))}
             <div className="grid grid-cols-1 gap-bk-sm sm:grid-cols-2">
               {m.featureCards.map((c, i) => (
                 <div
@@ -239,7 +260,9 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           </div>
         )}
 
-        {m.trustChips.length > 0 && props.trust_chips_placement !== "under_cta" && (
+        {m.trustChips.length > 0 &&
+          props.trust_chips_placement !== "under_cta" &&
+          props.promise_layout !== "band" && (
           <div className="flex flex-wrap items-start justify-center gap-bk-md border-t border-bk-divider pt-bk-md">
             {m.trustChips.map((c, i) => (
               <div key={`${c.icon}-${i}`} className="flex w-20 flex-col items-center gap-1 text-center">

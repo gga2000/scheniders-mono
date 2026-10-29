@@ -66,6 +66,8 @@ export const EXPRESS_STRINGS = {
   quantity: { en: "Quantity", ar: "الكمية", ku: "بڕ" },
   payment: { en: "Payment", ar: "الدفع", ku: "پارەدان" },
   cashOnDelivery: { en: "Cash on delivery", ar: "كاش عند الاستلام", ku: "پارەدان لە کاتی وەرگرتن" },
+  // payment_tag "statement": the payment method as plain text.
+  paymentStatement: { en: "Payment: {method}", ar: "الدفع: {method}", ku: "پارەدان: {method}" },
   soon: { en: "Soon", ar: "قريباً", ku: "بەم زووانە" },
   qi_card: { en: "Qi Card", ar: "كي كارد", ku: "کی کارد" },
   zain_cash: { en: "Zain Cash", ar: "زين كاش", ku: "زەین کاش" },
@@ -99,11 +101,43 @@ export const EXPRESS_STRINGS = {
   morePhotos: { en: "See {count} photos", ar: "شوف {count} صور", ku: "{count} وێنە ببینە" },
   photoOf: { en: "Photo {n} of {total}", ar: "صورة {n} من {total}", ku: "وێنەی {n} لە {total}" },
   reviews: { en: "{count} reviews", ar: "{count} تقييم", ku: "{count} هەڵسەنگاندن" },
+  // `formatCount` forms of the review count (identity_rating
+  // "summary_link"). Kurdish resolves through the Arabic plural rules.
+  reviewCountOne: { en: "{count} review", ar: "تقييم واحد", ku: "یەک هەڵسەنگاندن" },
+  reviewCountTwo: { en: "{count} reviews", ar: "تقييمين", ku: "{count} هەڵسەنگاندن" },
+  reviewCountFew: { en: "{count} reviews", ar: "{count} تقييمات", ku: "{count} هەڵسەنگاندن" },
+  reviewCountMany: { en: "{count} reviews", ar: "{count} تقييم", ku: "{count} هەڵسەنگاندن" },
   sizeMl: { en: "{n} ml", ar: "{n} مل", ku: "{n} مل" },
   aboutScent: { en: "About the scent", ar: "عن العطر", ku: "دەربارەی بۆنەکە" },
   readMore: { en: "Read more", ar: "اقرأ المزيد", ku: "زیاتر بخوێنەوە" },
   readLess: { en: "Show less", ar: "أقل", ku: "کەمتر" },
   trustListLabel: { en: "Our promises", ar: "وعودنا إلك", ku: "بەڵێنەکانمان بۆت" },
+  // promise_layout "band" (F01). Row 2 without free delivery reuses `delivery`.
+  promiseListLabel: {
+    en: "What you get with your order",
+    ar: "شنو تحصل ويا طلبك",
+    ku: "چی وەردەگریت لەگەڵ داواکارییەکەت",
+  },
+  freeDeliveryTitle: { en: "Delivery is free.", ar: "التوصيل مجاني.", ku: "گەیاندن بەخۆڕاییە." },
+  termsLink: { en: "Terms", ar: "الشروط", ku: "مەرجەکان" },
+  saveNumber: { en: "Save our number", ar: "احفظ رقمنا", ku: "ژمارەکەمان پاشەکەوت بکە" },
+  // After «احفظ رقمنا». None of them says the contact was saved: the page
+  // cannot know.
+  numberSaveHint: {
+    en: "Save it as “{name}” on the screen that opened — if nothing opened, save the number by hand",
+    ar: "احفظه باسم «{name}» من الشاشة اللي انفتحت — إذا ما انفتحت، احفظ الرقم يدوياً",
+    ku: "بە ناوی «{name}» لەو پەڕەیەی کرایەوە پاشەکەوتی بکە — ئەگەر هیچ نەکرایەوە، ژمارەکە بە دەست پاشەکەوت بکە",
+  },
+  numberCopiedHint: {
+    en: "Number copied — save it as “{name}”",
+    ar: "نسخنا الرقم — احفظه باسم «{name}»",
+    ku: "ژمارەکەمان کۆپی کرد — بە ناوی «{name}» پاشەکەوتی بکە",
+  },
+  numberManualHint: {
+    en: "Save the number by hand as “{name}”",
+    ar: "احفظ الرقم يدوياً باسم «{name}»",
+    ku: "ژمارەکە بە دەست بە ناوی «{name}» پاشەکەوت بکە",
+  },
   clockAria: {
     en: "{label} {h} hours {m} minutes",
     ar: "{label} {h} ساعة و{m} دقيقة",

@@ -102,8 +102,13 @@ export interface ExpressModel {
   setVariantError: (v: boolean) => void;
   variantPillsRef: RefObject<HTMLDivElement | null>;
   reassurance: string;
-  /** The store's `commerce.contact` when the section opted into the
-   *  "who contacts you" line; undefined = no line. */
+  /** Promise band row 1's return line (`return_promise_i18n`); "" = none. */
+  returnPromise: string;
+  /** Promise band row 1's «الشروط» target id; undefined = no link. */
+  guaranteeAnchorId: string | undefined;
+  /** The store's `commerce.contact` when the section shows who calls —
+   *  the contact line (`show_contact_line`) or the express promise band's
+   *  row 3 (`promise_layout: "band"`); undefined = neither. */
   contactConfig: StoreContactConfig | undefined;
   deliverySla: string;
   featureCards: { image_url?: string; title: string; body: string }[];

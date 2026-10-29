@@ -74,6 +74,7 @@ export function OrderLine({
   increaseLabel,
   soon,
   idBase,
+  paymentTag,
 }: {
   locale: LocaleCode;
   qty: number;
@@ -85,6 +86,9 @@ export function OrderLine({
   increaseLabel: string;
   soon: NonNullable<Props["payment_soon"]>;
   idBase: string;
+  /** "statement" = the payment method as plain text, no panel and no
+   *  "soon" methods. Absent/"menu" = the tag that opens the panel. */
+  paymentTag?: Props["payment_tag"];
 }) {
   const rtl = readsRtl(locale);
   const [panel, setPanel] = useState<Panel>(null);
@@ -106,14 +110,23 @@ export function OrderLine({
           controls={qtyId}
           rtl={rtl}
         />
-        <TagButton
-          open={panel === "payment"}
-          onClick={() => toggle("payment")}
-          label={xs("payment", locale)}
-          value={xs("cashOnDelivery", locale)}
-          controls={payId}
-          rtl={rtl}
-        />
+        {paymentTag === "statement" ? (
+          <span
+            data-payment-statement="true"
+            className="inline-flex h-11 items-center px-1 font-bk-body text-[13px] font-bold text-bk-ink"
+          >
+            {xs("paymentStatement", locale, { method: xs("cashOnDelivery", locale) })}
+          </span>
+        ) : (
+          <TagButton
+            open={panel === "payment"}
+            onClick={() => toggle("payment")}
+            label={xs("payment", locale)}
+            value={xs("cashOnDelivery", locale)}
+            controls={payId}
+            rtl={rtl}
+          />
+        )}
       </div>
 
       <div

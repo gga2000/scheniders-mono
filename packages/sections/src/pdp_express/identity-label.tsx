@@ -5,6 +5,7 @@
 
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
+import { displayRating, formatCount } from "../helpers/format";
 import { MaterialIcon, Stars } from "../helpers/primitives";
 import type { Product } from "../types";
 import { readsRtl, xs } from "./text";
@@ -23,6 +24,53 @@ export function displayNameOf(product: Product): string {
     .replace(new RegExp(`^${brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`), "")
     .trim();
   return stripped || name;
+}
+
+/** «تقييم واحد» / «تقييمين» / «6 تقييمات» / «11 تقييم» — the review count
+ *  with the right Arabic plural form. */
+export function reviewCountLabel(count: number, locale: LocaleCode): string {
+  return formatCount(count, locale, {
+    one: xs("reviewCountOne", locale),
+    two: xs("reviewCountTwo", locale),
+    few: xs("reviewCountFew", locale),
+    many: xs("reviewCountMany", locale),
+    other: xs("reviewCountMany", locale),
+  });
+}
+
+/** The identity row's rating as a link to the reviews summary
+ *  (`#reviews-summary`, never `#reviews`, which opens the review form).
+ *  One number for the text and the stars: `displayRating(avg)`. The
+ *  before: layer stretches the 28px tag to a 44px hit area. */
+function RatingLink({
+  reviewCount,
+  avgRating,
+  locale,
+  rtl,
+}: {
+  reviewCount: number;
+  avgRating: number;
+  locale: LocaleCode;
+  rtl: boolean;
+}) {
+  const shown = displayRating(avgRating);
+  const label = shown.toFixed(1);
+  return (
+    <a
+      href="#reviews-summary"
+      data-rating-link="summary"
+      className={cn(
+        "relative inline-flex h-7 items-center gap-1 rounded-bk-pill border-bk border-bk-divider px-2.5 font-bk-body text-xs font-bold text-bk-ink",
+        "before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus",
+        rtl && "flex-row-reverse",
+      )}
+    >
+      <Stars value={shown} precision="exact" size={12} label={`${label} / 5`} />
+      <bdi className="tabular-nums">{label}</bdi>
+      <span className="font-normal text-bk-ink-soft">({reviewCountLabel(reviewCount, locale)})</span>
+    </a>
+  );
 }
 
 export const GENDER_ICON = { men: "man", women: "woman", unisex: "wc" } as const;
@@ -60,12 +108,16 @@ export function IdentityLabel({
   reviewCount,
   avgRating,
   showRating,
+  ratingLink = false,
 }: {
   product: Product;
   locale: LocaleCode;
   reviewCount: number;
   avgRating: number;
   showRating: boolean;
+  /** Render the rating as the summary link (identity_rating
+   *  "summary_link") instead of the plain tag. */
+  ratingLink?: boolean;
 }) {
   const rtl = readsRtl(locale);
   const brand = product.brand?.trim();
@@ -108,7 +160,10 @@ export function IdentityLabel({
               <bdi>{xs("sizeMl", locale, { n: size })}</bdi>
             </Tag>
           ) : null}
-          {rating && (
+          {rating && ratingLink && (
+            <RatingLink reviewCount={reviewCount} avgRating={avgRating} locale={locale} rtl={rtl} />
+          )}
+          {rating && !ratingLink && (
             <Tag className={cn("text-bk-ink", rtl && "flex-row-reverse")}>
               <Stars value={avgRating} size={12} label={`${avgRating.toFixed(1)} / 5`} />
               <bdi className="tabular-nums">{avgRating.toFixed(1)}</bdi>

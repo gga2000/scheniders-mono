@@ -8,6 +8,7 @@
 import { useId } from "react";
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
+import { ChapterHeading } from "../helpers/chapter-heading";
 import { MaterialIcon } from "../helpers/primitives";
 import type { ScentJourney } from "./scent-journey";
 import type { ExpressStringKey } from "./strings";
@@ -25,9 +26,12 @@ export function ScentJourneyBlock({
   journey,
   title,
   locale,
+  chapter = false,
 }: {
   journey: ScentJourney;
   title: string;
+  /** `heading_style: "chapter"`: the heading at the chapter step. */
+  chapter?: boolean;
   locale: LocaleCode;
 }) {
   const headingId = useId();
@@ -42,13 +46,22 @@ export function ScentJourneyBlock({
       aria-labelledby={headingId}
       className="border-t border-bk-divider pt-bk-md"
     >
-      <h2
-        id={headingId}
-        data-i18n-field="scent_journey.title_i18n"
-        className={cn("mb-bk-sm font-bk-display text-lg font-black text-bk-ink", align)}
-      >
-        {title}
-      </h2>
+      {chapter ? (
+        <ChapterHeading
+          id={headingId}
+          title={title}
+          locale={locale}
+          titleField="scent_journey.title_i18n"
+        />
+      ) : (
+        <h2
+          id={headingId}
+          data-i18n-field="scent_journey.title_i18n"
+          className={cn("mb-bk-sm font-bk-display text-lg font-black text-bk-ink", align)}
+        >
+          {title}
+        </h2>
+      )}
       <div className="space-y-bk-sm rounded-bk-card border-bk border-bk-divider bg-bk-surface-alt p-4">
         {stages.length > 0 && (
           <ol>

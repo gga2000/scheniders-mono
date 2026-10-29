@@ -202,6 +202,43 @@ const schema = z.object({
     })
     .optional()
     .catch(undefined),
+
+  // ── Lower-page redesign (opt-in, express only) ──────────────────────
+  // Each one is optional and `.catch`-guarded; absent renders today's
+  // markup byte-identically. Classic ignores all of them.
+  /** Express: "chapter" renders the lower blocks' headings (about the
+   *  scent, the scent journey, the feature cards) as `ChapterHeading`.
+   *  Absent/"section" = today's `text-lg` headings. */
+  heading_style: z.enum(["section", "chapter"]).optional().catch(undefined),
+  /** Express: "summary_link" shows the real rating in the identity row
+   *  whenever the product has reviews (no `rating_chip_i18n` needed), as a
+   *  link to the reviews summary that never opens the review form.
+   *  Absent/"chip" = today's `rating_chip_i18n`-gated tag. */
+  identity_rating: z.enum(["chip", "summary_link"]).optional().catch(undefined),
+  /** Express: keep yellow fills for the order actions only (D4). The paid
+   *  price and the free-delivery words move to ink, and the seal, the
+   *  clock digits, dot and bar to the espresso partner colour. */
+  color_lock: z.boolean().optional().catch(undefined),
+  /** Express: "statement" prints the payment method as plain text
+   *  («الدفع: كاش عند الاستلام») with no menu, and `payment_soon` is not
+   *  shown. Absent/"menu" = today's tag that opens the methods panel. */
+  payment_tag: z.enum(["menu", "statement"]).optional().catch(undefined),
+  /** Express: "band" replaces the reassurance line, the contact line and
+   *  the trust chips with one espresso promise band under the order
+   *  status messages (try before you pay, delivery, who calls + save our
+   *  number). `trust_chips` stays in config, unrendered. */
+  promise_layout: z.enum(["chips", "band"]).optional().catch(undefined),
+  /** Express band, row 1: the return line under the reassurance title.
+   *  A merchant claim, so empty = no line. */
+  return_promise_i18n: i18nStringOptional.catch(undefined),
+  /** Express band, row 1: the in-page id of the guarantee terms. Set =
+   *  a «الشروط» link to `#{id}`; the merchant sets the same id on the
+   *  section that carries the terms. */
+  guarantee_anchor_id: z
+    .string()
+    .regex(/^[a-z][a-z0-9-]{0,40}$/)
+    .optional()
+    .catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

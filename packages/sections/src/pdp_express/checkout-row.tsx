@@ -17,6 +17,7 @@ import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
+import { PromiseBand } from "./promise-band";
 import { readsRtl, xs } from "./text";
 import { ExpressTrustStrip } from "./trust-strip";
 
@@ -93,6 +94,12 @@ export function CheckoutRow({
 }) {
   const rtl = readsRtl(locale);
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
+  // color_lock (D4): green is for WhatsApp and success states only.
+  const freeInk = m.props.color_lock === true ? "text-bk-ink" : "text-bk-success";
+  // promise_layout "band": the band replaces the reassurance line, the
+  // contact line and the under-CTA chips, and renders after the status
+  // messages so they stay directly under the submit.
+  const band = m.props.promise_layout === "band";
   const idle = !m.oos && !m.submitting;
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
@@ -143,11 +150,11 @@ export function CheckoutRow({
             value={
               <span data-delivery-fee>
                 {freeEverywhere ? (
-                  <span className="text-bk-success">{xs("deliveryFreeEverywhere", locale)}</span>
+                  <span className={freeInk}>{xs("deliveryFreeEverywhere", locale)}</span>
                 ) : m.delivery === null ? (
                   <span className="font-normal text-bk-ink-faint">{xs("deliveryPending", locale)}</span>
                 ) : m.delivery === 0 ? (
-                  <span className="text-bk-success">{xs("deliveryFree", locale)}</span>
+                  <span className={freeInk}>{xs("deliveryFree", locale)}</span>
                 ) : (
                   <bdi>{formatPrice(m.delivery, locale)}</bdi>
                 )}
@@ -226,7 +233,7 @@ export function CheckoutRow({
         </button>
       </div>
 
-      {m.reassurance && (
+      {!band && m.reassurance && (
         <p
           className={cn(
             "flex items-center justify-center gap-1.5 text-center font-bk-body text-[13px] text-bk-ink-soft",
@@ -234,12 +241,15 @@ export function CheckoutRow({
           )}
           data-i18n-field="reassurance_i18n"
         >
-          <MaterialIcon name="verified_user" className="text-base text-bk-success" />
+          <MaterialIcon
+            name="verified_user"
+            className={m.props.color_lock === true ? "text-base text-bk-ink" : "text-base text-bk-success"}
+          />
           {m.reassurance}
         </p>
       )}
 
-      {m.contactConfig && (
+      {!band && m.contactConfig && (
         <ContactLine
           contact={m.contactConfig}
           locale={locale}
@@ -294,9 +304,11 @@ export function CheckoutRow({
         </p>
       )}
 
-      {m.props.trust_chips_placement === "under_cta" && m.trustChips.length > 0 && (
+      {!band && m.props.trust_chips_placement === "under_cta" && m.trustChips.length > 0 && (
         <ExpressTrustStrip chips={m.trustChips} locale={locale} />
       )}
+
+      {band && <PromiseBand m={m} locale={locale} freeEverywhere={freeEverywhere} />}
     </div>
   );
 }
