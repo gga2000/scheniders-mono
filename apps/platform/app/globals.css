@@ -50,6 +50,8 @@ body {
   --bk-text-h1: clamp(2rem, 5vw, 3rem);
   --bk-text-h2: clamp(1.5rem, 3.5vw, 2.25rem);
   --bk-text-h3: clamp(1.125rem, 2.5vw, 1.5rem);
+  /* PDP chapter heading: 22px at 360–392px, up to 26px. */
+  --bk-text-chapter: clamp(1.375rem, 5.6vw, 1.625rem);
 }
 
 /* Generate the bk-* spacing/type utilities (v4 CSS-first). `inline` makes each
@@ -74,6 +76,8 @@ body {
   --text-bk-h2--line-height: 1.15;
   --text-bk-h3: var(--bk-text-h3);
   --text-bk-h3--line-height: 1.25;
+  --text-bk-chapter: var(--bk-text-chapter);
+  --text-bk-chapter--line-height: 1.2;
 }
 
 /* ============================================

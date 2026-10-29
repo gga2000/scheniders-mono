@@ -49,6 +49,9 @@
   --bk-text-h1: clamp(2rem, 5vw, 3rem);
   --bk-text-h2: clamp(1.5rem, 3.5vw, 2.25rem);
   --bk-text-h3: clamp(1.125rem, 2.5vw, 1.5rem);
+  /* PDP chapter heading: 22px at 360–392px, up to 26px. h3 (18px) and h2
+     (24px) at 390px are both off the approved 22/900 scale. */
+  --bk-text-chapter: clamp(1.375rem, 5.6vw, 1.625rem);
 }
 
 html,
