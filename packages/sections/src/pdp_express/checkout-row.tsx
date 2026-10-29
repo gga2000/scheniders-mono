@@ -17,6 +17,7 @@ import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
+import { PromiseBand } from "./promise-band";
 import { readsRtl, xs } from "./text";
 import { ExpressTrustStrip } from "./trust-strip";
 
@@ -95,6 +96,10 @@ export function CheckoutRow({
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
   // color_lock (D4): green is for WhatsApp and success states only.
   const freeInk = m.props.color_lock === true ? "text-bk-ink" : "text-bk-success";
+  // promise_layout "band": the band replaces the reassurance line, the
+  // contact line and the under-CTA chips, and renders after the status
+  // messages so they stay directly under the submit.
+  const band = m.props.promise_layout === "band";
   const idle = !m.oos && !m.submitting;
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
@@ -228,7 +233,7 @@ export function CheckoutRow({
         </button>
       </div>
 
-      {m.reassurance && (
+      {!band && m.reassurance && (
         <p
           className={cn(
             "flex items-center justify-center gap-1.5 text-center font-bk-body text-[13px] text-bk-ink-soft",
@@ -244,7 +249,7 @@ export function CheckoutRow({
         </p>
       )}
 
-      {m.contactConfig && (
+      {!band && m.contactConfig && (
         <ContactLine
           contact={m.contactConfig}
           locale={locale}
@@ -299,9 +304,11 @@ export function CheckoutRow({
         </p>
       )}
 
-      {m.props.trust_chips_placement === "under_cta" && m.trustChips.length > 0 && (
+      {!band && m.props.trust_chips_placement === "under_cta" && m.trustChips.length > 0 && (
         <ExpressTrustStrip chips={m.trustChips} locale={locale} />
       )}
+
+      {band && <PromiseBand m={m} locale={locale} freeEverywhere={freeEverywhere} />}
     </div>
   );
 }

@@ -749,9 +749,13 @@ export function PdpDirectOrderRender({
   const commerce = (
     ctx.tenant as { store_config_v2?: StoreConfigV2 | null } | undefined
   )?.store_config_v2?.commerce;
-  // "Who contacts you" line: opt-in per section, and only for a store that
-  // configured `commerce.contact` (the resolver validates what is stored).
-  const contactConfig = props.show_contact_line ? commerce?.contact : undefined;
+  // "Who contacts you": opt-in per section — the contact line, or the
+  // express promise band's row 3 (classic ignores promise_layout) — and
+  // only for a store that configured `commerce.contact` (the resolver
+  // validates what is stored).
+  const bandShowsContact = props.layout === "express" && props.promise_layout === "band";
+  const contactConfig =
+    props.show_contact_line || bandShowsContact ? commerce?.contact : undefined;
   const chosenGovernorate = isGovernorateCode(form.governorate_code)
     ? form.governorate_code
     : null;
@@ -1315,6 +1319,8 @@ export function PdpDirectOrderRender({
           setVariantError,
           variantPillsRef,
           reassurance,
+          returnPromise: resolveI18n(props.return_promise_i18n, locale),
+          guaranteeAnchorId: props.guarantee_anchor_id,
           contactConfig,
           deliverySla,
           featureCards,

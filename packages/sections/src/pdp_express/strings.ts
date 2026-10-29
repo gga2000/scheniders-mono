@@ -112,6 +112,32 @@ export const EXPRESS_STRINGS = {
   readMore: { en: "Read more", ar: "اقرأ المزيد", ku: "زیاتر بخوێنەوە" },
   readLess: { en: "Show less", ar: "أقل", ku: "کەمتر" },
   trustListLabel: { en: "Our promises", ar: "وعودنا إلك", ku: "بەڵێنەکانمان بۆت" },
+  // promise_layout "band" (F01). Row 2 without free delivery reuses `delivery`.
+  promiseListLabel: {
+    en: "What you get with your order",
+    ar: "شنو تحصل ويا طلبك",
+    ku: "چی وەردەگریت لەگەڵ داواکارییەکەت",
+  },
+  freeDeliveryTitle: { en: "Delivery is free.", ar: "التوصيل مجاني.", ku: "گەیاندن بەخۆڕاییە." },
+  termsLink: { en: "Terms", ar: "الشروط", ku: "مەرجەکان" },
+  saveNumber: { en: "Save our number", ar: "احفظ رقمنا", ku: "ژمارەکەمان پاشەکەوت بکە" },
+  // After «احفظ رقمنا». None of them says the contact was saved: the page
+  // cannot know.
+  numberSaveHint: {
+    en: "We named it “{name}” — if it didn't open, save the number by hand",
+    ar: "سجّلناه باسم «{name}» — إذا ما انفتح، احفظ الرقم يدوياً",
+    ku: "بە ناوی «{name}» تۆمارمان کرد — ئەگەر نەکرایەوە، ژمارەکە بە دەست پاشەکەوت بکە",
+  },
+  numberCopiedHint: {
+    en: "Number copied — save it as “{name}”",
+    ar: "نسخنا الرقم — احفظه باسم «{name}»",
+    ku: "ژمارەکەمان کۆپی کرد — بە ناوی «{name}» پاشەکەوتی بکە",
+  },
+  numberManualHint: {
+    en: "Save the number by hand as “{name}”",
+    ar: "احفظ الرقم يدوياً باسم «{name}»",
+    ku: "ژمارەکە بە دەست بە ناوی «{name}» پاشەکەوت بکە",
+  },
   clockAria: {
     en: "{label} {h} hours {m} minutes",
     ar: "{label} {h} ساعة و{m} دقيقة",

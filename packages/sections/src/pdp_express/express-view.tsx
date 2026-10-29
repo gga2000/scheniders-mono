@@ -260,7 +260,9 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           </div>
         )}
 
-        {m.trustChips.length > 0 && props.trust_chips_placement !== "under_cta" && (
+        {m.trustChips.length > 0 &&
+          props.trust_chips_placement !== "under_cta" &&
+          props.promise_layout !== "band" && (
           <div className="flex flex-wrap items-start justify-center gap-bk-md border-t border-bk-divider pt-bk-md">
             {m.trustChips.map((c, i) => (
               <div key={`${c.icon}-${i}`} className="flex w-20 flex-col items-center gap-1 text-center">
