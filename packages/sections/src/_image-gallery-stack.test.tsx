@@ -168,6 +168,27 @@ describe("image_gallery stack", () => {
     expect(ar).toContain('aria-label="كبّر الصورة: تعليق زياد: وصلني العطر فعلاً راقي"');
   });
 
+  it("a linked comment mid-stack opens no viewer; later ones still open their own slide", () => {
+    // Linked rows are left out of the viewer, so every later screenshot's
+    // slot is one less than its row; each button's label must name the
+    // picture at that slot.
+    const linked = new Set([1, 3]);
+    const images = STACK.images.map((img, i) =>
+      linked.has(i) ? { ...img, link_href: `/products/linked-${i}` } : img,
+    );
+    const html = render({ ...STACK, images });
+    const unlinkedAlts = STACK.images.filter((_, i) => !linked.has(i)).map((img) => img.alt_i18n.ar);
+    const opens = [...html.matchAll(/data-gallery-open="(\d)"[^>]*aria-label="كبّر الصورة: ([^"]*)"/g)].map(
+      (m) => [Number(m[1]), m[2]] as const,
+    );
+    expect(opens.map(([slot]) => slot)).toEqual([0, 1, 2]);
+    for (const [slot, alt] of opens) expect(alt).toBe(unlinkedAlts[slot]);
+    expect(html).toContain('href="/s/fixture-store/products/linked-1"');
+    expect(html).toContain('href="/s/fixture-store/products/linked-3"');
+    // Rendering twice gives the same slots: nothing leaks between renders.
+    expect(render({ ...STACK, images })).toBe(html);
+  });
+
   it("ignores display, frame and order", () => {
     const tagged = {
       ...STACK,

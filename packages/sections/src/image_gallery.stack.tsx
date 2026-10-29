@@ -3,12 +3,13 @@
 // =====================================================================
 // image_gallery — the proof stack's expand/collapse island
 // =====================================================================
-// The comments are server-rendered (lead and rest alike, so every one is
-// in the HTML for crawlers and find-in-page). This island only owns the
-// open state: the rest list stays `hidden` until «شوف N تعليقات ثانية»
-// is tapped, and the same button then reads «سدّ التعليقات». A hidden
-// list's lazy screenshots are not fetched until it opens. Labels arrive
-// resolved from the server module.
+// The comments are server-rendered, lead and rest alike, so every one is
+// in the HTML for crawlers. This island only owns the open state: the
+// rest list stays `hidden` until «شوف N تعليقات ثانية» is tapped, and the
+// same button then reads «سدّ التعليقات». While collapsed the rest are
+// not rendered (`hidden` is display: none), so find-in-page cannot reach
+// them until the list is opened. A hidden list's lazy screenshots are not
+// fetched until it opens. Labels arrive resolved from the server module.
 // =====================================================================
 
 import { useState } from "react";

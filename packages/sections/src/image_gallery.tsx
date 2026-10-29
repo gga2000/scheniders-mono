@@ -33,7 +33,8 @@
 // height. A legend explains the "liked by us" mark once, after the first
 // comment. The rest stay in the HTML, hidden behind one expand button
 // (image_gallery.stack.tsx). Every screenshot opens the viewer. `display`,
-// `frame` and `order` are ignored by the stack.
+// `frame` and `order` are ignored by the stack. Its server markup lives in
+// image_gallery.proofstack.tsx.
 //
 // Opt-in `heading_style: "chapter"` draws the heading with ChapterHeading
 // in every layout. Absent, today's CenteredSectionHeader.
@@ -59,15 +60,14 @@ import {
 } from "./helpers/primitives";
 import { ChapterHeading } from "./helpers/chapter-heading";
 import { isOptimizableImageHost } from "./helpers/image";
-import { readsRtl } from "./helpers/reading";
 import { CarouselArrows } from "./helpers/carousel-arrows";
 import { cn, PRESSABLE } from "./helpers/utils";
 import { chromeString } from "./helpers/chrome-strings";
 import { i18nStringOptional } from "./_schema";
 import { GalleryViewer } from "./image_gallery.client";
-import { ProofStackMore } from "./image_gallery.stack";
-import { gs, proofMoreLabel } from "./image_gallery.strings";
-import { STACK_SIZES, stackFrame } from "./image-gallery-crop";
+import { ProofStack } from "./image_gallery.proofstack";
+import { STACK_SIZES } from "./image-gallery-crop";
+import { VIEWER_STRINGS, fillAlt, fillCount } from "./image-gallery-viewer-strings";
 import { orderGalleryImages } from "./image-gallery-order";
 import type { GalleryViewerImage } from "./image_gallery.client";
 import { registerSection } from "./_registry";
@@ -148,8 +148,8 @@ const schema = z.object({
   heading_style: z.enum(["section", "chapter"]).optional().catch(undefined),
 });
 
-type Props = z.infer<typeof schema>;
-type GalleryImage = Props["images"][number];
+export type Props = z.infer<typeof schema>;
+export type GalleryImage = Props["images"][number];
 type Frame = NonNullable<Props["frame"]>;
 
 const SECTION_NAME = { en: "Image gallery", ar: "ألبوم صور" } as const;
@@ -220,38 +220,6 @@ const WHOLE_FRAME: Record<Frame, { aspect: string; width: string; sizes: string 
     sizes: "(max-width: 640px) calc(100vw - 4.5rem), 420px",
   },
 };
-
-/** Chrome strings for the whole-picture viewer; `{n}` / `{total}` /
- *  `{alt}` are filled here on the server. Kurdish falls back to Arabic. Kept in this
- *  server module: a plain value exported from the "use client" viewer
- *  would reach a server import as a reference proxy, not the strings. */
-const VIEWER_STRINGS = {
-  ar: {
-    open: "كبّر الصورة {n} من {total}",
-    openNamed: "كبّر الصورة: {alt}",
-    viewer: "عرض الصور",
-    prev: "الصورة السابقة",
-    next: "الصورة التالية",
-    counter: "{n} من {total}",
-  },
-  en: {
-    open: "Enlarge image {n} of {total}",
-    openNamed: "Enlarge image: {alt}",
-    viewer: "Image viewer",
-    prev: "Previous image",
-    next: "Next image",
-    counter: "{n} of {total}",
-  },
-} as const;
-
-function fillCount(template: string, n: number, total: number): string {
-  return template.replace("{n}", String(n)).replace("{total}", String(total));
-}
-
-/** A function replacer, so `$&` / `$1` in merchant text stay literal. */
-function fillAlt(template: string, alt: string): string {
-  return template.replace("{alt}", () => alt);
-}
 
 const WHOLE_FRAME_CLS =
   "relative block w-full overflow-hidden rounded-bk-card border-bk border-bk-divider bg-bk-surface";
@@ -403,270 +371,6 @@ function WholeCarousel({
       dialogLabel={heading || strings.viewer}
     >
       {row}
-    </GalleryViewer>
-  );
-}
-
-/** One screenshot of the stack: a full-width box at the file's natural
- *  height, cropped to the comment column when its size is known (else a
- *  4/1 box), as a viewer button (or the merchant's link). */
-function StackShot({
-  img,
-  alt,
-  viewer,
-}: {
-  img: GalleryImage;
-  alt: string;
-  viewer: { index: number; label: string } | null;
-}) {
-  const frame = stackFrame(img);
-  const picture =
-    frame.kind === "sized" && img.width && img.height ? (
-      <Image
-        src={img.url}
-        alt={alt}
-        width={img.width}
-        height={img.height}
-        unoptimized={!isOptimizableImageHost(img.url)}
-        sizes={frame.sizes}
-        className="absolute top-0 h-auto max-w-none"
-        style={{ width: frame.imageWidth, left: frame.imageLeft }}
-      />
-    ) : (
-      <Image
-        src={img.url}
-        alt={alt}
-        fill
-        unoptimized={!isOptimizableImageHost(img.url)}
-        sizes={SIZES.stack}
-        className="absolute inset-0 h-full w-full object-contain"
-      />
-    );
-  const boxCls = cn(
-    "relative block w-full overflow-hidden rounded-bk-card bg-bk-surface-alt",
-    frame.kind === "fill" && "aspect-[4/1]",
-  );
-  const boxStyle = frame.kind === "sized" ? { aspectRatio: frame.aspectRatio } : undefined;
-  if (img.link_href) {
-    return (
-      <StoreLink href={img.link_href} className={cn("block", PRESSABLE)}>
-        <span className={boxCls} style={boxStyle}>
-          {picture}
-        </span>
-      </StoreLink>
-    );
-  }
-  if (!viewer) return null;
-  return (
-    <button
-      type="button"
-      data-gallery-open={viewer.index}
-      aria-haspopup="dialog"
-      aria-label={viewer.label}
-      className={cn(
-        boxCls,
-        "cursor-zoom-in text-start focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
-        PRESSABLE,
-      )}
-      style={boxStyle}
-    >
-      {picture}
-    </button>
-  );
-}
-
-/** The author line: the name as written (<bdi>), and the business tag. */
-function StackAuthor({
-  img,
-  locale,
-  rtl,
-}: {
-  img: GalleryImage;
-  locale: LocaleCode;
-  rtl: boolean;
-}) {
-  if (!img.author && !img.is_business) return null;
-  return (
-    <p
-      className={cn(
-        "mb-bk-xs flex items-center gap-2 font-bk-body text-[13px] font-bold text-bk-ink [overflow-wrap:anywhere]",
-        rtl ? "flex-row-reverse text-right" : "text-left",
-      )}
-    >
-      {img.author && <bdi>{img.author}</bdi>}
-      {img.is_business && (
-        <span
-          data-proof-business="true"
-          className="shrink-0 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt px-2 text-xs font-bold text-bk-ink-soft"
-        >
-          {gs("business", locale)}
-        </span>
-      )}
-    </p>
-  );
-}
-
-/** The opt-in `layout: "stack"` proof stack. `images` arrive filtered and
- *  in the merchant's order (never re-ordered). */
-function ProofStack({
-  props,
-  images,
-  ctx,
-  listId,
-  heading,
-}: {
-  props: Props;
-  images: GalleryImage[];
-  ctx: SectionRenderContext;
-  listId: string;
-  heading: string;
-}) {
-  const locale = ctx.runtime.locale;
-  const rtl = readsRtl(locale);
-  const strings = locale === "en" ? VIEWER_STRINGS.en : VIEWER_STRINGS.ar;
-  const leadCount = Math.min(props.initial_count ?? 3, images.length);
-  const source = resolveI18n(props.source_label_i18n, locale);
-  const legend = resolveI18n(props.legend_i18n, locale);
-  const legendImage = props.legend_image_url || ctx.tenant.branding?.logo_url || "";
-  const altOf = (img: GalleryImage) =>
-    resolveI18n(img.alt_i18n, locale) || resolveI18n(img.caption_i18n, locale);
-
-  const unlinked = images.filter((img) => !img.link_href);
-  const total = unlinked.length;
-  const viewerImages: GalleryViewerImage[] = unlinked.map((img, i) => ({
-    url: img.url,
-    alt: altOf(img),
-    counter: fillCount(strings.counter, i + 1, total),
-  }));
-  let nextSlot = 0;
-  const viewerOf = (img: GalleryImage) => {
-    if (img.link_href) return null;
-    const slot = nextSlot++;
-    const alt = viewerImages[slot]?.alt;
-    return {
-      index: slot,
-      label: alt ? fillAlt(strings.openNamed, alt) : fillCount(strings.open, slot + 1, total),
-    };
-  };
-  const side = rtl ? "text-right" : "text-left";
-
-  const lead = images.slice(0, leadCount).map((img, i) => {
-    const quote = resolveI18n(img.quote_i18n, locale);
-    const doubt = quote ? resolveI18n(img.doubt_i18n, locale) : "";
-    return (
-      <li key={i} data-proof-item={i} className="flex flex-col">
-        {doubt && (
-          <p
-            data-proof-doubt={i + 1}
-            className={cn(
-              "mb-1.5 flex items-center gap-2.5 font-bk-body text-sm font-extrabold text-bk-ink-soft",
-              rtl ? "flex-row-reverse text-right" : "text-left",
-            )}
-          >
-            <span
-              aria-hidden="true"
-              className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-bk-pill bg-bk-secondary text-[13px] font-black tabular-nums text-bk-primary"
-            >
-              {i + 1}
-            </span>
-            <span>{doubt}</span>
-          </p>
-        )}
-        {quote && (
-          <p
-            data-proof-quote="true"
-            className={cn("mb-1 font-bk-display text-[20px] font-black leading-snug text-bk-ink text-pretty", side)}
-          >
-            «{quote}»
-          </p>
-        )}
-        <StackAuthor img={img} locale={locale} rtl={rtl} />
-        <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
-        {i === 0 && legend && (
-          <div
-            data-proof-legend="true"
-            className={cn(
-              "mt-bk-sm flex items-center gap-2.5 rounded-bk-card bg-bk-surface-alt px-3 py-2.5",
-              rtl && "flex-row-reverse",
-            )}
-          >
-            {legendImage && (
-              <span aria-hidden="true" className="relative size-[26px] shrink-0">
-                <Image
-                  src={legendImage}
-                  alt=""
-                  width={26}
-                  height={26}
-                  unoptimized={!isOptimizableImageHost(legendImage)}
-                  className="size-[26px] rounded-bk-pill object-cover"
-                />
-                <MaterialIcon name="favorite" className="absolute -bottom-1 -right-1 text-[13px] text-bk-ink" />
-              </span>
-            )}
-            <p className={cn("min-w-0 flex-1 font-bk-body text-sm font-bold text-bk-ink", side)}>{legend}</p>
-          </div>
-        )}
-      </li>
-    );
-  });
-
-  const rest = images.slice(leadCount).map((img, i) => (
-    <li key={i} data-proof-item={leadCount + i} className="py-bk-md first:pt-0">
-      <StackAuthor img={img} locale={locale} rtl={rtl} />
-      <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
-    </li>
-  ));
-
-  const body = (
-    <div>
-      {(source || props.scope === "store") && (
-        <div className={cn("mb-bk-lg flex flex-col gap-bk-xs", rtl ? "items-end" : "items-start")}>
-          {source && (
-            <span
-              data-proof-source="true"
-              data-i18n-field="source_label_i18n"
-              className={cn(
-                "inline-flex min-h-7 items-center gap-1.5 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt px-2.5 py-0.5 font-bk-body text-[13px] font-bold text-bk-ink",
-                rtl && "flex-row-reverse",
-              )}
-            >
-              <MaterialIcon name="forum" className="text-base" />
-              {source}
-            </span>
-          )}
-          {props.scope === "store" && (
-            <p className={cn("font-bk-body text-[13px] font-semibold text-bk-ink-soft", side)}>
-              {gs("proofScope", locale, { shown: leadCount, total: images.length })}
-            </p>
-          )}
-        </div>
-      )}
-      <ol className="flex flex-col gap-bk-xl">{lead}</ol>
-      {rest.length > 0 && (
-        <ProofStackMore
-          listId={listId}
-          moreLabel={proofMoreLabel(rest.length, locale)}
-          lessLabel={gs("proofLess", locale)}
-          rtl={rtl}
-        >
-          {rest}
-        </ProofStackMore>
-      )}
-    </div>
-  );
-
-  if (!viewerImages.length) return body;
-  return (
-    <GalleryViewer
-      images={viewerImages}
-      labels={{
-        close: chromeString("close", locale),
-        prev: strings.prev,
-        next: strings.next,
-      }}
-      dialogLabel={heading || strings.viewer}
-    >
-      {body}
     </GalleryViewer>
   );
 }
