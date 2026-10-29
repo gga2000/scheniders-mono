@@ -58,6 +58,17 @@ export function computeRefundPayout(order: OrderMoneyFields): number {
 }
 
 /**
+ * Cash that changes hands at the door on a replacement, in whole IQD, signed:
+ * positive when the courier collects it, negative when the courier hands it
+ * to the customer (the new item is cheaper than the credit for the old one).
+ * The same `price + delivery_fee` as computeCodAmount, without the clamp.
+ */
+export function courierAmount(order: OrderMoneyFields): number {
+    if (isPrepaid(order.payment_status)) return 0;
+    return Math.round((Number(order.price) || 0) + (Number(order.delivery_fee) || 0));
+}
+
+/**
  * Round a money input to a whole IQD amount.
  *
  * The dinar has no circulating subunit, so a fractional amount is never a real

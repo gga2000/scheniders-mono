@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeCodAmount, computeRefundPayout, toWholeIqd } from "./order-money";
+import { computeCodAmount, computeRefundPayout, courierAmount, toWholeIqd } from "./order-money";
 
 // Canonical convention, established from live data (2026-08-22):
 //   orders.price = line-item subtotal MINUS discount  (delivery NOT included)
@@ -57,6 +57,18 @@ describe("computeRefundPayout", () => {
 
     it("never goes below zero", () => {
         expect(computeRefundPayout({ price: -3000, delivery_fee: 5000 })).toBe(0);
+    });
+});
+
+describe("courierAmount", () => {
+    it("collects the difference plus the fee on a dearer swap", () => {
+        expect(courierAmount({ price: 5333, delivery_fee: 5000 })).toBe(10333);
+    });
+    it("is negative when the courier pays the customer", () => {
+        expect(courierAmount({ price: -19333, delivery_fee: 0 })).toBe(-19333);
+    });
+    it("is 0 on a prepaid order", () => {
+        expect(courierAmount({ price: 5000, delivery_fee: 5000, payment_status: "paid" })).toBe(0);
     });
 });
 

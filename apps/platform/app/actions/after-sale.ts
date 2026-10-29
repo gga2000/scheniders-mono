@@ -5,6 +5,9 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { ORDER_WRITE_ROLES, resolveCaller } from "@/lib/auth/resolve-order-caller";
 import { isAdminRole } from "@/lib/permissions";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
+import { canCreateOrder } from "@/lib/tenant";
+import { chargeAndTrack } from "@/lib/order-service";
+import { reportOrderError } from "@/lib/order-telemetry";
 
 // =============================================
 // AFTER-SALE ORDERS (refunds and replacements)
@@ -89,6 +92,11 @@ export async function createAfterSaleOrderAction(
         throw e;
     }
 
+    // Refund and replacement orders count toward the plan and charge the
+    // wallet like any other order (Ali, 2026-10-29).
+    const limitCheck = await canCreateOrder(tenantId);
+    if (!limitCheck.allowed) return { success: false, error: limitCheck.reason ?? "Order limit reached" };
+
     const supabase = createSupabaseServiceClient();
 
     const [{ data: profile }, { data: tenant }] = await Promise.all([
@@ -121,5 +129,9 @@ export async function createAfterSaleOrderAction(
 
     const created = createdSchema.safeParse(data);
     if (!created.success) return { success: false, error: "The order was created but could not be read back" };
+
+    chargeAndTrack(tenantId, supabase).catch((err) => {
+        reportOrderError(err, { operation: "chargeAndTrack", tenantId });
+    });
     return { success: true, orderId: created.data.id, orderNumber: created.data.order_id };
 }

@@ -7,7 +7,7 @@ import { Order } from "@/lib/supabase";
 import { formatIQD, formatIQDArabic, formatDate, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
-import { computeRefundPayout } from "@/lib/order-money";
+import { computeRefundPayout, courierAmount } from "@/lib/order-money";
 import QRCode from "qrcode";
 
 // =============================================
@@ -221,9 +221,23 @@ export async function generateLabelHTML(
                 </div>
             `;
 
+    // A replacement: the courier swaps the items and either collects the
+    // difference plus the fee or hands the customer the difference.
+    const swapAmount = courierAmount(order);
+    const replacementSection = `
+                <div style="text-align:center;margin-top:12px;padding:8px;border:3px solid #000;">
+                    <div style="font-size:12px;font-weight:bold;">REPLACEMENT · استبدال</div>
+                    <div style="font-size:${options.size === "compact" ? "16px" : "22px"};font-weight:bold;font-family:monospace;">${formatIQD(Math.abs(swapAmount))}</div>
+                    <div style="font-size:10px;">${swapAmount >= 0 ? "Collect from the customer · يُستلم من الزبون" : "Pay the customer · يُدفع للزبون"}</div>
+                    <div style="font-size:10px;">Take back the old item · استلم المنتج القديم</div>
+                </div>
+            `;
+
     // Gift mode styling
     const priceSection = order.is_return
         ? refundSection
+        : order.is_replacement
+        ? replacementSection
         : options.isGift
         ? '<div style="text-align:center;padding:10px;background:#fdf2f8;border-radius:8px;margin-top:10px;"><span style="font-size:16px;">🎁</span> <span style="font-size:12px;color:#be185d;font-weight:bold;">GIFT - No Price Display</span></div>'
         : options.showPrice
@@ -309,6 +323,7 @@ export async function generateLabelHTML(
             </div>
             <div style="text-align:left;">
                 ${order.is_return ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:bold;">↩ REFUND</span>' : ''}
+                ${order.is_replacement ? '<span style="background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:bold;">⇄ REPLACEMENT</span>' : ''}
                 ${orderCountBadge}
             </div>
         </div>
@@ -1021,6 +1036,7 @@ export async function generateShippingLabelHTML(
     </div>
 
     ${order.is_return ? `<div style="border:3px solid #000;text-align:center;font-weight:900;font-size:16px;padding:4px;margin:4px 0;">استرجاع مبلغ · REFUND — لا تستلم مبلغاً من الزبون</div>` : ''}
+    ${order.is_replacement ? `<div style="border:3px solid #000;text-align:center;font-weight:900;font-size:16px;padding:4px;margin:4px 0;">استبدال · REPLACEMENT — استلم المنتج القديم من الزبون</div>` : ''}
 
     <div class="sl-shipment">
         <span class="sl-shipment-label">رقم الشحنة:</span>
@@ -1058,8 +1074,8 @@ export async function generateShippingLabelHTML(
             <td class="sl-td-value" style="text-align:center;font-weight:700;">${productCount}</td>
         </tr>
         <tr>
-            <td class="sl-td-label">${order.is_return ? 'يُدفع للزبون' : 'المبلغ الكلي للفاتورة'}</td>
-            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(order.is_return ? computeRefundPayout(order) : total)}</td>
+            <td class="sl-td-label">${order.is_return ? 'يُدفع للزبون' : order.is_replacement ? (courierAmount(order) >= 0 ? 'يُستلم من الزبون' : 'يُدفع للزبون') : 'المبلغ الكلي للفاتورة'}</td>
+            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(order.is_return ? computeRefundPayout(order) : order.is_replacement ? Math.abs(courierAmount(order)) : total)}</td>
         </tr>
         <tr>
             <td class="sl-td-label">الملاحظات</td>

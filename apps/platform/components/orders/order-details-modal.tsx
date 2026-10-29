@@ -18,7 +18,7 @@ import { getAllGovernorateCodes, extractGovernorate } from "@/lib/address-valida
 import { cn } from "@/lib/utils";
 import { scheduleDayFromToday } from "@/lib/order-format-utils";
 import { toBaghdadDayKey } from "@/lib/order-window";
-import type { Order, OrderStatusHistory, OrderNote, MessageTemplate, OrderItem } from "@/lib/supabase";
+import type { Order, OrderStatusHistory, OrderNote, MessageTemplate } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { usePrompt } from "@scheniders/ui/prompt-dialog";
@@ -27,7 +27,6 @@ import { PresenceAvatarGroup } from "./presence-avatar-group";
 import { ProductPicker } from "./product-picker";
 import { OrderCustomerCard } from "./order-customer-card";
 import { OrderItemsEditor } from "./order-items-editor";
-import { mergeOrderItems } from "@/lib/merge-order-items";
 import { OrderNotes } from "./order-notes";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
@@ -49,7 +48,6 @@ import {
     Phone,
     User,
     Calendar,
-    Package,
     MessageCircle,
     Edit2,
     Save,
@@ -87,6 +85,8 @@ import { useStatusLabel } from "@/hooks/use-status-label";
 import { useRecordContact } from "@/hooks/use-record-contact";
 import { RefundBanner } from "./refund-banner";
 import { RefundEntry } from "./refund-entry";
+import { ReplaceEntry } from "./replace-entry";
+import { ReplacementBanner } from "./replacement-banner";
 
 interface OrderDetailsModalProps {
     order: Order | null;
@@ -97,7 +97,6 @@ interface OrderDetailsModalProps {
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
-    onCreateReplacement?: (orderId: string, data: { old_items: OrderItem[]; new_items: OrderItem[]; deductDeliveryFee?: boolean; notes?: string }) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
     onOpenTemplatePanel?: (order: Order) => void;
     messageTemplates?: MessageTemplate[];
@@ -112,7 +111,6 @@ export function OrderDetailsModal({
     onGetTimeline,
     onGetNotes,
     onDelete,
-    onCreateReplacement,
     checkOrderIdExists,
     onOpenTemplatePanel,
     messageTemplates,
@@ -192,11 +190,6 @@ export function OrderDetailsModal({
         isUpdatingStatus, handleStatusChangeForm,
         showDeleteConfirm, deleteCountdown, isDeleting,
         handleDeleteClick, handleDeleteConfirm, handleCancelDelete,
-        showReplacementModal, setShowReplacementModal,
-        replacementDeductDeliveryFee, setReplacementDeductDeliveryFee,
-        replacementNotes, setReplacementNotes,
-        replacementNewItems, setReplacementNewItems,
-        isCreatingReplacement, setIsCreatingReplacement,
         showSplitDialog, setShowSplitDialog, handleSplitOrder,
     } = useOrderDetailsState({
         order,
@@ -327,17 +320,6 @@ export function OrderDetailsModal({
             borderColor: "border-purple-200",
         },
     ];
-
-    // Handle product selection - add to replacement items if in replacement mode
-    const handleProductSelectWrapper = (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; tag_color?: string }) => {
-        if (showReplacementModal) {
-            // Add to replacement new items
-            setReplacementNewItems(prev => [...prev, product]);
-        } else {
-            // Normal product selection for editing
-            handleProductSelect(product);
-        }
-    };
 
     // Reorder functionality
     const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
@@ -692,6 +674,7 @@ export function OrderDetailsModal({
                                     {toBaghdadDayKey(order.created_at)}
                                 </span>
                                 <RefundBanner order={order} />
+                                <ReplacementBanner order={order} />
                                 {/* Action Buttons Row - Reorder, Return, Replace */}
                                 {!isEditing && (
                                     <div className="flex items-center gap-2 mt-1">
@@ -707,15 +690,8 @@ export function OrderDetailsModal({
                                         {(order.status === "delivered" || order.status === "completed") && !order.is_return && !order.is_replacement && (
                                             <RefundEntry order={order} />
                                         )}
-                                        {/* Replace Button - Only for delivered/completed orders */}
-                                        {(order.status === "delivered" || order.status === "completed") && onCreateReplacement && !order.is_return && !order.is_replacement && (
-                                            <button
-                                                onClick={() => setShowReplacementModal(true)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100 transition-all text-xs font-medium dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-900/40"
-                                            >
-                                                <Package className="h-3.5 w-3.5" />
-                                                {t("orderDetail.replace")}
-                                            </button>
+                                        {(order.status === "delivered" || order.status === "completed") && !order.is_return && !order.is_replacement && (
+                                            <ReplaceEntry order={order} />
                                         )}
                                     </div>
                                 )}
@@ -1096,182 +1072,6 @@ export function OrderDetailsModal({
                         )}
 
 
-                        {/* Replacement Order Creation Modal */}
-                        {showReplacementModal && (
-                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
-                                    <div className="p-6 border-b border-gray-100">
-                                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                                            <Package className="w-5 h-5 text-blue-600" />
-                                            {t("orderDetail.createReplacement")}
-                                        </h3>
-                                    </div>
-
-                                    <div className="space-y-4 p-6 overflow-y-auto flex-1">
-                                        {/* Order Info */}
-                                        <div className="bg-gray-50 p-3 rounded-xl text-sm">
-                                            <p className="text-muted">{t("orderDetail.originalOrderLabel")}</p>
-                                            <p className="font-bold">#{getBaseOrderId(order.order_id)} - {order.customer_name}</p>
-                                            <p className="text-muted">{t("orderDetail.amountLabel")} {formatIQD(order.price)}</p>
-                                        </div>
-
-                                        {/* Old Items */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                {t("orderDetail.oldProducts")}
-                                            </label>
-                                            <div className="space-y-2">
-                                                {mergeOrderItems(order.items).map((item, index) => (
-                                                    <div key={index} className="bg-gray-50 p-3 rounded-lg flex justify-between items-center text-sm">
-                                                        <span className="font-medium">{item.name}</span>
-                                                        <span className="text-muted">x{item.quantity} - {formatIQD(item.price * item.quantity)}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* New Items Selection */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                {t("orderDetail.newProducts")}
-                                            </label>
-                                            {replacementNewItems.length > 0 ? (
-                                                <div className="space-y-2 mb-2">
-                                                    {replacementNewItems.map((item, index) => (
-                                                        <div key={index} className="bg-blue-50 p-3 rounded-lg flex justify-between items-center text-sm">
-                                                            <span className="font-medium text-blue-900">{item.name}</span>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-blue-700">x{item.quantity} - {formatIQD(item.price * item.quantity)}</span>
-                                                                <button
-                                                                    onClick={() => setReplacementNewItems(prev => prev.filter((_, i) => i !== index))}
-                                                                    className="text-red-600 hover:text-red-800"
-                                                                >
-                                                                    <X className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="bg-gray-50 p-4 rounded-lg text-center text-sm text-muted mb-2">
-                                                    {t("orderDetail.noNewProducts")}
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={() => setShowProductPicker(true)}
-                                                className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-all flex items-center justify-center gap-2"
-                                            >
-                                                <PackagePlus className="w-4 h-4" />
-                                                {t("orderDetail.addNewProduct")}
-                                            </button>
-                                        </div>
-
-                                        {/* Price Difference */}
-                                        {replacementNewItems.length > 0 && (
-                                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                                <p className="text-sm text-blue-700 mb-1">{t("orderDetail.priceDifference")}</p>
-                                                <p className="text-xl font-bold text-blue-900">
-                                                    {(() => {
-                                                        const oldTotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
-                                                        const newTotal = replacementNewItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                                                        const diff = newTotal - oldTotal;
-                                                        return diff >= 0 ? `+${formatIQD(diff)}` : formatIQD(diff);
-                                                    })()}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {/* Notes Input - Editable */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                                {t("orderDetail.replacementNotes")}
-                                            </label>
-                                            <textarea
-                                                value={replacementNotes}
-                                                onChange={(e) => setReplacementNotes(e.target.value)}
-                                                rows={5}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white"
-                                                placeholder={t("orderDetail.replacementNotesPlaceholder")}
-                                            />
-                                        </div>
-
-                                        {/* Deduct Delivery Fee Checkbox */}
-                                        <label className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-all">
-                                            <input
-                                                type="checkbox"
-                                                checked={replacementDeductDeliveryFee}
-                                                onChange={(e) => setReplacementDeductDeliveryFee(e.target.checked)}
-                                                className="w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-200"
-                                            />
-                                            <div>
-                                                <p className="font-medium text-amber-800">{t("orderDetail.deductDeliveryReplacement")}</p>
-                                                <p className="text-xs text-amber-600">{t("orderDetail.deductDeliveryReplacementDesc")}</p>
-                                            </div>
-                                        </label>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="p-6 border-t border-gray-100 flex gap-3">
-                                        <button
-                                            onClick={() => {
-                                                setShowReplacementModal(false);
-                                                setReplacementDeductDeliveryFee(false);
-                                                setReplacementNotes("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
-                                                setReplacementNewItems([]);
-                                            }}
-                                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all"
-                                        >
-                                            {t("orderDetail.cancelAction")}
-                                        </button>
-                                        <button
-                                            onClick={async () => {
-                                                if (!onCreateReplacement) {
-                                                    toast.error(t("orderDetail.replacementError"), t("orderDetail.noReplacementContext"));
-                                                    return;
-                                                }
-                                                if (replacementNewItems.length === 0) {
-                                                    toast.error(t("orderDetail.replacementError"), t("orderDetail.selectNewProducts"));
-                                                    return;
-                                                }
-                                                setIsCreatingReplacement(true);
-                                                try {
-                                                    const result = await onCreateReplacement(order.id, {
-                                                        old_items: order.items || [],
-                                                        new_items: replacementNewItems,
-                                                        deductDeliveryFee: replacementDeductDeliveryFee,
-                                                        notes: replacementNotes,
-                                                    });
-                                                    setIsCreatingReplacement(false);
-                                                    if (result.success) {
-                                                        setShowReplacementModal(false);
-                                                        setReplacementDeductDeliveryFee(false);
-                                                        setReplacementNotes("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
-                                                        setReplacementNewItems([]);
-                                                        onClose();
-                                                        toast.success(t("orderDetail.replacementCreated"), t("orderDetail.replacementCreated"));
-                                                    } else {
-                                                        toast.error(t("orderDetail.replacementFailed"), result.error || t("orderDetail.replacementFailed"));
-                                                    }
-                                                } catch (err) {
-                                                    setIsCreatingReplacement(false);
-                                                    toast.error(t("orderDetail.replacementError"), `${t("orderDetail.replacementFailed")}: ${err instanceof Error ? err.message : "Unknown error"}`);
-                                                }
-                                            }}
-                                            disabled={isCreatingReplacement}
-                                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                        >
-                                            {isCreatingReplacement ? (
-                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                            ) : (
-                                                <Package className="w-4 h-4" />
-                                            )}
-                                            {t("orderDetail.createReplacementBtn")}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         <DialogDescription className="sr-only">
                             Order details for {order.order_id}
                         </DialogDescription>
@@ -1484,7 +1284,7 @@ export function OrderDetailsModal({
                 open={showProductPicker}
                 onClose={() => setShowProductPicker(false)
                 }
-                onSelect={handleProductSelectWrapper}
+                onSelect={handleProductSelect}
             />
 
             {/* Create Order Modal for Reorder */}

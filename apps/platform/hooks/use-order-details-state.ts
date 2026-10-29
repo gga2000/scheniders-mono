@@ -50,11 +50,6 @@ export function useOrderDetailsState({
     // Return State
 
     // Replacement State
-    const [showReplacementModal, setShowReplacementModal] = useState(false);
-    const [replacementDeductDeliveryFee, setReplacementDeductDeliveryFee] = useState(false);
-    const [replacementNotes, setReplacementNotes] = useState("استبدال المنتج القديم بعد التأكد من سلامته وعدم تضرر زجاجة العطر او نقصانها خلافه يمنع الاستبدال قطعاً, ثم إعطاء الزبون المنتج الجديد . 5000 دينار توصيل مقطوعة من الحساب");
-    const [replacementNewItems, setReplacementNewItems] = useState<any[]>([]);
-    const [isCreatingReplacement, setIsCreatingReplacement] = useState(false);
 
     // Split Order State
     const [showSplitDialog, setShowSplitDialog] = useState(false);
@@ -86,8 +81,6 @@ export function useOrderDetailsState({
             setNotes([]);
             setShowDeleteConfirm(false);
             setDeleteCountdown(5);
-            setShowReplacementModal(false);
-            setReplacementNewItems([]);
             setShowSplitDialog(false);
         }
     }, [open]);
@@ -188,11 +181,6 @@ export function useOrderDetailsState({
         isUpdatingStatus, handleStatusChangeForm,
         showDeleteConfirm, deleteCountdown, isDeleting,
         handleDeleteClick, handleDeleteConfirm, handleCancelDelete,
-        showReplacementModal, setShowReplacementModal,
-        replacementDeductDeliveryFee, setReplacementDeductDeliveryFee,
-        replacementNotes, setReplacementNotes,
-        replacementNewItems, setReplacementNewItems,
-        isCreatingReplacement, setIsCreatingReplacement,
         showSplitDialog, setShowSplitDialog, handleSplitOrder,
     };
 }

@@ -138,7 +138,7 @@ export async function createOrderForTenant(
 // POST-CREATION: Charge wallet + increment usage
 // =============================================
 
-async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
+export async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
