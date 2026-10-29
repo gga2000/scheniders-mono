@@ -6,6 +6,16 @@
 
 import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode, ResolvedProductAttribute } from "@scheniders/shared";
+import type { ExpressStringKey } from "./strings";
+
+/** Chrome hints for the three conventional pyramid group keys. A Map, not
+ *  an object literal, so a merchant key like "constructor" finds nothing.
+ *  Shared by «رحلة العطر» and the scent card. */
+export const STAGE_HINT = new Map<string, ExpressStringKey>([
+  ["top", "stageHintTop"],
+  ["heart", "stageHintHeart"],
+  ["base", "stageHintBase"],
+]);
 
 export interface ScentJourneyConfig {
   pyramid_key: string;

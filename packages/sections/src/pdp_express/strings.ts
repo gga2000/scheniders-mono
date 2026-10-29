@@ -151,6 +151,16 @@ export const EXPRESS_STRINGS = {
   stageHintBase: { en: "what stays with you", ar: "اللي يبقى عليك", ku: "ئەوەی لەسەرت دەمێنێتەوە" },
   noteSep: { en: ", ", ar: "، ", ku: "، " },
   notesListLabel: { en: "Scent notes", ar: "مكونات العطر", ku: "پێکهاتەکانی بۆنەکە" },
+  // scent_layout "card" (F07): the «بصمة العطر» card.
+  scentEyebrow: { en: "Scent profile", ar: "بصمة العطر", ku: "ناسنامەی بۆن" },
+  stayInCustomerWords: {
+    en: "Staying power, in a customer’s words",
+    ar: "الثبات، بكلام زبون",
+    ku: "مانەوەی بۆن، بە قسەی کڕیارێک",
+  },
+  scentStory: { en: "The scent’s story", ar: "قصة العطر", ku: "چیرۆکی بۆنەکە" },
+  meterValue: { en: "{value} of {max}", ar: "{value} من {max}", ku: "{value} لە {max}" },
+  closeSheet: { en: "Close", ar: "إغلاق", ku: "داخستن" },
 } as const;
 
 export type ExpressStringKey = keyof typeof EXPRESS_STRINGS;
