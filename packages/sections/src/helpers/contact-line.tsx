@@ -14,11 +14,49 @@
 
 import { useEffect, useState } from "react";
 import { resolveContactLine } from "@scheniders/shared";
-import type { LocaleCode, StoreContactConfig } from "@scheniders/shared";
+import type { LocaleCode, ResolvedContactLine, StoreContactConfig } from "@scheniders/shared";
 import { MaterialIcon } from "./primitives";
 
 /** How often a timed line re-reads the clock. */
 export const CONTACT_LINE_TICK_MS = 60_000;
+
+/** The resolved line for `contact`, from the request moment on the server
+ *  and the first paint, then from the browser clock; a timed line re-reads
+ *  it every minute. Null = render nothing. Shared by <ContactLine> and the
+ *  express promise band, so both say the same sentence at the same time. */
+export function useContactLine(
+  contact: StoreContactConfig | undefined,
+  locale: LocaleCode,
+  initialNow: Date,
+): ResolvedContactLine | null {
+  const [now, setNow] = useState(() => new Date(initialNow));
+  const line = resolveContactLine(contact, locale, now);
+  const timed = line !== null && line.variant !== "channel";
+
+  useEffect(() => {
+    if (!timed) return;
+    const tick = () => setNow(new Date());
+    tick();
+    const id = setInterval(tick, CONTACT_LINE_TICK_MS);
+    return () => clearInterval(id);
+  }, [timed]);
+
+  return line;
+}
+
+/** The sentence with its number isolated in a <bdi>, so the digits keep
+ *  their order inside Arabic text on this LTR page. */
+export function ContactLineText({ line }: { line: ResolvedContactLine }) {
+  const at = line.text.indexOf(line.number);
+  if (at === -1) return <>{line.text}</>;
+  return (
+    <>
+      {line.text.slice(0, at)}
+      <bdi className="whitespace-nowrap">{line.number}</bdi>
+      {line.text.slice(at + line.number.length)}
+    </>
+  );
+}
 
 export function ContactLine({
   contact,
@@ -35,33 +73,13 @@ export function ContactLine({
   className: string;
   iconClassName: string;
 }) {
-  const [now, setNow] = useState(() => new Date(initialNow));
-  const line = resolveContactLine(contact, locale, now);
-  const timed = line !== null && line.variant !== "channel";
-
-  useEffect(() => {
-    if (!timed) return;
-    const tick = () => setNow(new Date());
-    tick();
-    const id = setInterval(tick, CONTACT_LINE_TICK_MS);
-    return () => clearInterval(id);
-  }, [timed]);
-
+  const line = useContactLine(contact, locale, initialNow);
   if (!line) return null;
-  const at = line.text.indexOf(line.number);
   return (
     <p className={className} data-contact-line={line.variant}>
       <MaterialIcon name="call" className={iconClassName} />
       <span>
-        {at === -1 ? (
-          line.text
-        ) : (
-          <>
-            {line.text.slice(0, at)}
-            <bdi className="whitespace-nowrap">{line.number}</bdi>
-            {line.text.slice(at + line.number.length)}
-          </>
-        )}
+        <ContactLineText line={line} />
       </span>
     </p>
   );
