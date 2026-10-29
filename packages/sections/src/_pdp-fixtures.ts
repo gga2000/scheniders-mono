@@ -337,3 +337,45 @@ export const EXPRESS_IRAQ_PDP_PROPS: PdpDirectOrderProps = {
   compare_label_i18n: { ar: "السعر قبل الخصم", en: "Before discount" },
   price_label_i18n: { ar: "السعر بعد الخصم", en: "After discount" },
 };
+
+/** scheniders-iraq's draft pdp_direct_order base as read live on
+ *  2026-10-29 (draft md5 f62c823bf8e3205266a73a0e33b6a2d7), merged with the
+ *  section defaults: the 2026-10-20 freeze above plus the five opt-in fields
+ *  the draft gained since. Frozen like the rest: the PDP lower-page
+ *  redesign must leave this render byte-identical until a slice opts in. */
+export const EXPRESS_IRAQ_DRAFT_PDP_PROPS: PdpDirectOrderProps = {
+  ...EXPRESS_IRAQ_PDP_PROPS,
+  show_contact_line: true,
+  show_capture_consent: true,
+  trust_chips_placement: "under_cta",
+  feature_cards_layout: "row",
+  scent_journey: {
+    pyramid_key: "notes",
+    chip_keys: ["occasions", "season"],
+    note_key: "longevity_note",
+  },
+};
+
+/** The fixture store with scheniders-iraq's draft `commerce.contact` and
+ *  locales as read on 2026-10-29, so `show_contact_line` has a number to
+ *  name. */
+export const IRAQ_DRAFT_TENANT: Tenant = {
+  ...fixtureTenant,
+  store_config_v2: {
+    commerce: { contact: { call_number: "07779703832", whatsapp_confirm: true } },
+    enabled_locales: ["ar", "en"],
+  },
+};
+
+/** scheniders-iraq's draft PDP sticky_cta_bar base as read on 2026-10-29.
+ *  The stored base already sets every default explicitly. */
+export const IRAQ_DRAFT_STICKY_PROPS: StickyCtaBarProps = {
+  primary_label_i18n: { ar: "اطلب الآن", en: "Order now" },
+  primary_href: "/checkout",
+  primary_kind: "scroll_to_form",
+  secondary_label_i18n: { ar: "واتساب", en: "WhatsApp" },
+  secondary_kind: "whatsapp",
+  show_total: false,
+  show_product_price: true,
+  hide_while: "form",
+};

@@ -34,6 +34,7 @@ function render(
   locale: "ar" | "en" | "ku",
   orderNumber: string | undefined,
   props: Partial<typeof order_confirmation.defaultProps> = {},
+  tenantRow: object = tenant,
 ): string {
   return renderToStaticMarkup(
     React.createElement(
@@ -42,7 +43,7 @@ function render(
       React.createElement(order_confirmation.render, {
         props: { ...order_confirmation.defaultProps, ...props },
         ctx: {
-          tenant: tenant as never,
+          tenant: tenantRow as never,
           runtime: {
             ...runtime,
             locale,
@@ -71,6 +72,29 @@ describe("order_confirmation default markup (frozen)", () => {
       render("ar", "SH-0001", {
         eta_i18n: { ar: "خلال ٢٤ ساعة من تثبيت الطلب", en: "Within 24 hours" },
       }),
+    ).toMatchSnapshot();
+  });
+});
+
+// PDP redesign 1a moves the vCard contact name into helpers/vcard.ts and
+// lets `commerce.contact.name_i18n` override it. With no name_i18n the
+// thank-you call card — the vCard link and its download name included —
+// must render exactly as below.
+describe("order_confirmation call card markup (frozen)", () => {
+  const contactTenant = {
+    ...tenant,
+    store_config_v2: {
+      commerce: { contact: { call_number: "07801234567", whatsapp_confirm: true } },
+    },
+  };
+
+  it.each(["ar", "en", "ku"] as const)("%s, store phone number", (locale) => {
+    expect(render(locale, "SH-0001", { show_call_card: true })).toMatchSnapshot();
+  });
+
+  it("ar, commerce.contact call number", () => {
+    expect(
+      render("ar", "SH-0001", { show_call_card: true }, contactTenant),
     ).toMatchSnapshot();
   });
 });
