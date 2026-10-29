@@ -239,6 +239,63 @@ const schema = z.object({
     .regex(/^[a-z][a-z0-9-]{0,40}$/)
     .optional()
     .catch(undefined),
+  /** Express: "card" renders the one «بصمة العطر» card (lead line, the
+   *  note pyramid with the note photos, facts, a customer's staying-power
+   *  quote, the story sheet) in place of «عن العطر», «رحلة العطر» and the
+   *  note cards — only together with `scent_card`. Absent/"journey" =
+   *  today's blocks. */
+  scent_layout: z.enum(["journey", "card"]).optional().catch(undefined),
+  /** Express scent card: which product attributes it reads. Nothing is
+   *  derived: a meter renders only from a range value the merchant
+   *  entered, a chip or note line only from a stored value. */
+  scent_card: z
+    .object({
+      /** group_list attribute whose groups are the pyramid tiers. */
+      pyramid_key: z.string().min(1),
+      /** enum / group_list attributes shown as chip rows (season, occasions). */
+      chip_keys: z.array(z.string().min(1)).max(4).optional(),
+      /** text attribute shown as one staying-power line. */
+      note_key: z.string().min(1).optional(),
+      /** range attributes drawn as segment meters (longevity, sillage). */
+      meter_keys: z.array(z.string().min(1)).max(3).optional(),
+      /** text attribute holding the one-line lead. */
+      lead_key: z.string().min(1).optional(),
+      /** Words that make a review clause a staying-power quote (folded
+       *  substring match). */
+      quote_terms: z.array(z.string().min(2)).max(8).optional(),
+      /** The source tag beside the meters (e.g. «حسب تجربتنا»). */
+      facts_source_i18n: i18nStringOptional,
+      /** The merchant's pick of the quote, per product. Shown only while
+       *  the review is approved, rated 4★ or more and still contains the
+       *  text word for word; otherwise the card picks one itself. */
+      quote_picks: z
+        .array(
+          z.object({
+            product_id: z.uuid(),
+            review_id: z.string().min(1).max(64),
+            text: z.string().min(3).max(200),
+          }),
+        )
+        .max(40)
+        .optional()
+        .catch(undefined),
+      /** Draft-period copy that must not reach published data (spec D9).
+       *  Removed on publish day by packages/supabase/go-live/
+       *  scheniders-iraq-pdp-redesign.sql. */
+      product_copy: z
+        .array(
+          z.object({
+            product_id: z.uuid(),
+            lead_i18n: i18nStringOptional,
+            story_i18n: i18nStringOptional,
+          }),
+        )
+        .max(40)
+        .optional()
+        .catch(undefined),
+    })
+    .optional()
+    .catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
