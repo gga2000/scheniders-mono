@@ -28,4 +28,5 @@ export const STRING_TABLE_FILES: readonly string[] = [
   "product_reviews/strings.ts",
   "search_results_grid.client.tsx",
   "helpers/vcard.ts",
+  "image_gallery.strings.ts",
 ];
