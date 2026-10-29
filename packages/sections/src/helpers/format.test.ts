@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatPrice, formatSavings } from "./format";
+import { displayRating, formatPrice, formatSavings } from "./format";
 
 describe("formatPrice (EC35 — locale-aware currency)", () => {
   it("uses the Arabic glyph for ar/ku and when locale is omitted", () => {
@@ -21,5 +21,15 @@ describe("formatPrice (EC35 — locale-aware currency)", () => {
     expect(formatSavings(100000, 75000, "en")).toBe("25,000 IQD");
     expect(formatSavings(100000, 75000, "ar")).toBe("25,000 د.ع");
     expect(formatSavings(50000, 75000, "en")).toBeNull();
+  });
+});
+
+describe("displayRating", () => {
+  it("rounds to one decimal, like computeRatingSummary", () => {
+    expect(displayRating(4.667)).toBe(4.7);
+    expect(displayRating(4.65)).toBe(4.7);
+    expect(displayRating(4.64)).toBe(4.6);
+    expect(displayRating(5)).toBe(5);
+    expect(displayRating(0)).toBe(0);
   });
 });

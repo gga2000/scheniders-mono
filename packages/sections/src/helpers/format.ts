@@ -109,3 +109,14 @@ export function formatCount(
   const form = forms[category] ?? forms.other;
   return form.replace("{count}", String(count));
 }
+
+/**
+ * The one rating number every surface prints and draws: one decimal, the
+ * same rounding `computeRatingSummary` applies to its average. The identity
+ * chip, the scent card and the reviews summary pass this to
+ * `<Stars precision="exact">`, so «4.7» and a 70% fifth star always come
+ * from the same value.
+ */
+export function displayRating(avg: number): number {
+  return Math.round(avg * 10) / 10;
+}
