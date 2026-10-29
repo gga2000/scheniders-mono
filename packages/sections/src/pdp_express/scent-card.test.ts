@@ -92,6 +92,23 @@ describe("note photos", () => {
       { name: "الباتشولي الساحرة", image: null },
     ]);
   });
+
+  it("gives the photo to the more specific note even when it comes later", () => {
+    const product: Product = {
+      ...wayferProduct,
+      attributes: resolveProductAttributes(SCENT_DEFS, [
+        {
+          product_id: WAYFER_ID,
+          attribute_def_id: SCENT_DEF_IDS.notes,
+          value: { top: ["التوت"], heart: ["التوت الفاخر"] },
+        },
+      ]),
+    };
+    expect(card(product)?.tiers.flatMap((t) => t.notes)).toEqual([
+      { name: "التوت", image: null },
+      { name: "التوت الفاخر", image: `${IMG}0.jpg` },
+    ]);
+  });
 });
 
 describe("lead and story", () => {

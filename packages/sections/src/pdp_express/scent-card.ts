@@ -110,24 +110,32 @@ function pairPhotos(
   cards: FeatureCard[],
   locale: LocaleCode,
 ): ScentTier[] {
+  // Pair the most specific note names first, so «التوت البري» keeps the
+  // «التوت البري الفاخر» photo even when «التوت» comes earlier in the
+  // pyramid. Each photo is used once.
   const usedUrls = new Set<string>();
-  return stages.map((s) => {
+  const photoAt = new Map<string, string>();
+  const slots = stages.flatMap((s, si) => s.notes.map((name, ni) => ({ at: `${si}:${ni}`, name })));
+  const wordCount = (n: string) => n.trim().split(/\s+/).length;
+  // Array.prototype.sort is stable, so equal lengths keep pyramid order.
+  for (const { at, name } of [...slots].sort((a, b) => wordCount(b.name) - wordCount(a.name))) {
+    const card = cards.find(
+      (c) =>
+        !!c.image_url &&
+        !usedUrls.has(c.image_url) &&
+        hasWholeWords(stripLeadingEmoji(c.title), name),
+    );
+    if (!card?.image_url) continue;
+    usedUrls.add(card.image_url);
+    photoAt.set(at, card.image_url);
+  }
+  return stages.map((s, si) => {
     const hintKey = STAGE_HINT.get(s.key);
     return {
       key: s.key,
       label: s.label,
       hint: hintKey ? xs(hintKey, locale) : "",
-      notes: s.notes.map((name) => {
-        const card = cards.find(
-          (c) =>
-            !!c.image_url &&
-            !usedUrls.has(c.image_url) &&
-            hasWholeWords(stripLeadingEmoji(c.title), name),
-        );
-        if (!card?.image_url) return { name, image: null };
-        usedUrls.add(card.image_url);
-        return { name, image: card.image_url };
-      }),
+      notes: s.notes.map((name, ni) => ({ name, image: photoAt.get(`${si}:${ni}`) ?? null })),
     };
   });
 }

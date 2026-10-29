@@ -112,7 +112,7 @@ BEGIN
   SELECT jsonb_agg(
            CASE
              WHEN x.sec->>'id' = c_pdp_id
-               THEN jsonb_set(x.sec, '{base}', (x.sec->'base') || c_pdp_patch)
+               THEN jsonb_set(x.sec, '{base}', coalesce(x.sec->'base', '{}'::jsonb) || c_pdp_patch)
              ELSE x.sec
            END
            ORDER BY x.ord
