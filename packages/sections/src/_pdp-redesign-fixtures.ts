@@ -10,9 +10,13 @@
 // =====================================================================
 
 import type { StoreContactConfig } from "@scheniders/shared";
+import type { Props as AccordionProps } from "./accordion_richtext";
+import image_gallery from "./image_gallery";
 import type { Props as PdpDirectOrderProps } from "./pdp_direct_order";
 import type { Tenant } from "./types";
 import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, fixtureTenant } from "./_pdp-fixtures";
+
+export type GalleryProps = typeof image_gallery.defaultProps;
 
 /** Slice 1b: the keys the 1b draft migration merges into pdp_direct_order's base. */
 export const SLICE_1B_PDP_PATCH = {
@@ -106,5 +110,76 @@ export const IRAQ_REDESIGN_TENANT: Tenant = {
       shipping: { default_rate: { fee_iqd: 0 } },
     },
     enabled_locales: ["ar", "en"],
+  },
+};
+
+const REVIEW_SHOTS =
+  "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/reviews/";
+
+/** The nine TikTok comment screenshots, in the draft's stored order (p1–p9). */
+export const IRAQ_PROOF_SHOT_IDS = [
+  "1ebf499e-fb7d-4325-a2fe-0b98e8530932",
+  "cba26e5e-7ad0-4213-b804-d535b7c0d7e6",
+  "8f742152-1b1a-4d65-a543-331196fc6830",
+  "6bf95f17-026a-400d-9067-08894b88a4a0",
+  "536e8d88-e55a-49f0-a9b3-305b69cbfbf5",
+  "abf3f504-d358-4888-bd0f-eafd1136d248",
+  "2f8ae556-1a0c-4cdb-b4e2-b30c2808755e",
+  "13ec2385-384c-4d1f-af39-793949cce8df",
+  "8e208e9b-b896-430d-839d-44d2a010b588",
+] as const;
+
+/** scheniders-iraq's draft image_gallery e5da8997 base before slice 1d
+ *  (read 2026-10-30): the whole-picture carousel in 16/5 strips. */
+export const IRAQ_DRAFT_GALLERY_BASE: GalleryProps = {
+  heading_i18n: { ar: "كلامهم مو كلامنا", en: "Their words, not ours" },
+  layout: "carousel",
+  display: "whole",
+  frame: "strip",
+  order: "product_first",
+  images: IRAQ_PROOF_SHOT_IDS.map((id, i) => ({
+    url: `${REVIEW_SHOTS}${id}.jpeg`,
+    alt_i18n: { ar: `رسالة من زبون ${i + 1} من 9`, en: `Customer message ${i + 1} of 9` },
+  })),
+};
+
+/** scheniders-iraq's draft accordion_richtext 370f9b04 base before slice 1d
+ *  (read 2026-10-30): four quiet policy rows and the «تحب تحچي ويانا؟» call row. */
+export const IRAQ_DRAFT_ACCORDION_BASE: AccordionProps = {
+  allow_multiple: false,
+  layout: "quiet",
+  items: [
+    {
+      title_i18n: { ar: "سياسة الدفع عند الاستلام", en: "Cash-on-delivery policy" },
+      body_i18n: {
+        ar: "يتم الدفع حصراً بعد استلام العطر واختباره من خلال العينة الزجاجية المرفقة مجاناُ مع كل طلب.",
+        en: "Payment happens only after receiving the perfume and testing it via the free glass sample included with every order.",
+      },
+    },
+    {
+      title_i18n: { ar: "شحن فائق السرعة", en: "Ultra-fast shipping" },
+      body_i18n: {
+        ar: "أغلب الطلبات توصل خلال ٢٤ ساعة من تثبيت الطلب.",
+        en: "Most orders arrive within 24 hours of confirmation.",
+      },
+    },
+    {
+      title_i18n: { ar: "كرت الضمان المميز و سياسة الاسترجاع", en: "Premium warranty card & return policy" },
+      body_i18n: {
+        ar: "عند استلام المنتج يتم التأكد من الجودة والمواصفات والفوحان والثبات بحضور المندوب, اي اختلاف يحق للزبون رفض المنتج ويتم ارجاع قيمته كاملة.\n\nويحق للزبون استعمال العطر والاحتفاظ به لمدة اسبوع كامل من تاريخ استلام الطلب واختباره من راحة منزله. ان لم تعجبه التجربة العطرية او اكتشافه لفرق بالمواصفات المذكورة يحق له ارجاع العطر واستلام قيمته من قبلنا.",
+        en: "On delivery, quality, projection and longevity are verified with the courier present — any mismatch entitles you to refuse the product for a full refund.\n\nYou may keep and test the perfume for a full week from delivery; if the experience disappoints or the specs differ, return it for a full refund.",
+      },
+    },
+    {
+      title_i18n: { ar: "عطور اصلية", en: "Authentic perfumes" },
+      body_i18n: {
+        ar: "جميع عطورنا مختارة يدوياً وبعناية من افخم المصادر العالمية, ومن اجود انواع العطور والخامات العطرية. لا نتعامل بالعطور التركية المصنعة بالجملة او العطور الصينية الرديئة",
+        en: "Every perfume is hand-picked from premium global sources and the finest aromatic materials. We never deal in bulk-made or low-grade imitations.",
+      },
+    },
+  ],
+  call_row: {
+    prompt_i18n: { ar: "تحب تحچي ويانا؟", en: "Rather talk to us?" },
+    action_i18n: { ar: "اتصل", en: "Call" },
   },
 };
