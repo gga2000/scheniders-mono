@@ -1,0 +1,13 @@
+# Every change to this repo needs a review from the owner before it can merge.
+# Enforced by the "Require review from Code Owners" rule on `main`.
+* @gga2000
+
+# Called out separately so the intent survives if the default line above is
+# ever widened: these paths reach production data, deploys, or CI secrets.
+/packages/supabase/   @gga2000
+/.github/             @gga2000
+/vercel.json          @gga2000
+/apps/*/vercel.json   @gga2000
+/apps/*/.env.example  @gga2000
+/.mcp.json            @gga2000
+/CLAUDE.md            @gga2000
