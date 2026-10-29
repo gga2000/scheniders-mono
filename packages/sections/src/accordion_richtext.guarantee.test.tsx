@@ -65,12 +65,26 @@ describe("accordion_richtext slice 1d props", () => {
     ["anchor_id", "1guarantee"],
     ["policy_link", { href: "https://example.com/returns", label_i18n: { ar: "x" } }],
     ["policy_link", { href: "//example.com/returns", label_i18n: { ar: "x" } }],
+    // Browsers read `\` as `/`: `/\evil.com` is protocol-relative.
+    ["policy_link", { href: "/\\evil.example", label_i18n: { ar: "x" } }],
+    ["policy_link", { href: "/\\x", label_i18n: { ar: "x" } }],
+    ["policy_link", { href: "/policies\\returns", label_i18n: { ar: "x" } }],
+    ["policy_link", { href: "/policies/ returns", label_i18n: { ar: "x" } }],
     ["policy_link", { href: "/policies/returns" }],
     ["heading_style", "huge"],
   ])("a bad %s (%j) falls back to absent", (key, value) => {
     const parsed = schema.parse({ ...CARD, [key]: value });
     expect(parsed[key as keyof typeof parsed]).toBeUndefined();
     expect(parsed.items).toHaveLength(3);
+  });
+
+  it("policy_link: a store path is kept; a rejected href is dropped, never thrown", () => {
+    expect(schema.parse(CARD).policy_link?.href).toBe("/policies/returns");
+    for (const href of ["/\\x", "//x"]) {
+      const input = { ...CARD, policy_link: { ...CARD.policy_link, href } };
+      expect(() => schema.parse(input)).not.toThrow();
+      expect(schema.parse(input).policy_link).toBeUndefined();
+    }
   });
 });
 
@@ -130,6 +144,20 @@ describe("guarantee card", () => {
     expect(bare).not.toContain('id="');
     expect(bare).not.toContain("<a ");
     expect(bare).toContain("data-guarantee-card");
+  });
+
+  it("a label that resolves for the locale keeps the link (ku falls back to ar)", () => {
+    const ku = render(CARD, "ku");
+    expect(count(ku, "<a ")).toBe(1);
+    expect(ku).toMatch(/<a [^>]*>.*سياسة الإرجاع الكاملة.*<\/a>/);
+  });
+
+  it("a label that resolves empty: no stub, no text-less arrow link", () => {
+    const blank = render({ ...CARD, policy_link: { href: "/policies/returns", label_i18n: { ar: " ", en: "" } } }, "ku");
+    expect(blank).not.toContain("<a ");
+    expect(blank).not.toContain("arrow_back");
+    expect(blank).not.toContain("border-dashed");
+    expect(blank).toContain("data-guarantee-card");
   });
 
   it("no items: no card", () => {

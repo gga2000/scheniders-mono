@@ -87,10 +87,11 @@ const schema = z.object({
     .optional()
     .catch(undefined),
   /** Guarantee card: one link to the full policy page. A store path only
-   *  ("/…", never "//…" or a full URL). */
+   *  ("/…", never "//…" or a full URL). No backslash anywhere: browsers
+   *  read `\` as `/`, so "/\host" would be protocol-relative too. */
   policy_link: z
     .object({
-      href: z.string().regex(/^\/(?!\/)\S*$/),
+      href: z.string().regex(/^\/(?![\/\\])[^\s\\]*$/),
       label_i18n: i18nStringSchema,
     })
     .optional()
@@ -189,6 +190,9 @@ function AccordionRichtextRender({
   const heading = resolveI18n(props.heading_i18n, locale);
 
   if (props.layout === "guarantee_card") {
+    // A label that resolves empty for this locale would leave a bare arrow
+    // link: no stub at all then.
+    const policyLabel = props.policy_link ? resolveI18n(props.policy_link.label_i18n, locale) : "";
     return (
       <GuaranteeCard
         locale={locale}
@@ -201,9 +205,7 @@ function AccordionRichtextRender({
             title: resolveI18n(it.title_i18n, locale),
             body: resolveI18n(it.body_i18n, locale),
           })),
-          policy: props.policy_link
-            ? { href: props.policy_link.href, label: resolveI18n(props.policy_link.label_i18n, locale) }
-            : null,
+          policy: props.policy_link && policyLabel ? { href: props.policy_link.href, label: policyLabel } : null,
         }}
       />
     );
