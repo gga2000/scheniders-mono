@@ -57,7 +57,9 @@ export const ORDER_CHIP_PREDICATES: { readonly [K in OrderChipId]: (o: ChipRow) 
     // Owner decision (default): every return transaction, at any point in its
     // lifecycle — the same rule as the `orderType: 'refund'` and `isReturn` filters.
     refunds: (o) => o.is_return === true,
-    refunded: (o) => refundOf(o) === "refunded",
+    // Fully or partly refunded originals. A partly refunded order is still a
+    // sale (net of the refund), so it also stays in "completed".
+    refunded: (o) => refundOf(o) === "refunded" || refundOf(o) === "partial",
     refund_pending: (o) => refundOf(o) === "pending",
     replacements: isReplacementOrder,
     suspended: (o) => o.status === "suspended",

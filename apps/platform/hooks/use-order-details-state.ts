@@ -48,10 +48,6 @@ export function useOrderDetailsState({
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Return State
-    const [showReturnModal, setShowReturnModal] = useState(false);
-    const [returnReason, setReturnReason] = useState("");
-    const [deductDeliveryFee, setDeductDeliveryFee] = useState(false);
-    const [isCreatingReturn, setIsCreatingReturn] = useState(false);
 
     // Replacement State
     const [showReplacementModal, setShowReplacementModal] = useState(false);
@@ -90,7 +86,6 @@ export function useOrderDetailsState({
             setNotes([]);
             setShowDeleteConfirm(false);
             setDeleteCountdown(5);
-            setShowReturnModal(false);
             setShowReplacementModal(false);
             setReplacementNewItems([]);
             setShowSplitDialog(false);
@@ -193,10 +188,6 @@ export function useOrderDetailsState({
         isUpdatingStatus, handleStatusChangeForm,
         showDeleteConfirm, deleteCountdown, isDeleting,
         handleDeleteClick, handleDeleteConfirm, handleCancelDelete,
-        showReturnModal, setShowReturnModal,
-        returnReason, setReturnReason,
-        deductDeliveryFee, setDeductDeliveryFee,
-        isCreatingReturn, setIsCreatingReturn,
         showReplacementModal, setShowReplacementModal,
         replacementDeductDeliveryFee, setReplacementDeductDeliveryFee,
         replacementNotes, setReplacementNotes,

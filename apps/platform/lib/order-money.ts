@@ -45,6 +45,19 @@ export function computeCodAmount(order: OrderMoneyFields): number {
 }
 
 /**
+ * Cash the courier hands TO the customer on a refund order, in whole IQD.
+ * A refund order stores `price` = minus the items refunded and
+ * `delivery_fee` = the pickup fee the store keeps, so the customer receives
+ * `-(price + delivery_fee)`: the same sum computeCodAmount takes, read the
+ * other way round.
+ */
+export function computeRefundPayout(order: OrderMoneyFields): number {
+    const price = Number(order.price) || 0;
+    const deliveryFee = Number(order.delivery_fee) || 0;
+    return Math.max(0, Math.round(-(price + deliveryFee)));
+}
+
+/**
  * Round a money input to a whole IQD amount.
  *
  * The dinar has no circulating subunit, so a fractional amount is never a real

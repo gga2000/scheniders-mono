@@ -7,6 +7,7 @@ import { Order } from "@/lib/supabase";
 import { formatIQD, formatIQDArabic, formatDate, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { computeRefundPayout } from "@/lib/order-money";
 import QRCode from "qrcode";
 
 // =============================================
@@ -210,8 +211,20 @@ export async function generateLabelHTML(
         ? `<span style="background:#8b5cf6;color:white;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:bold;margin-left:6px;">🔄 Order #${options.customerOrderCount}</span>`
         : "";
 
+    // A refund order: the courier pays the customer and collects nothing, so
+    // the label must never show the item total with a COD badge.
+    const refundSection = `
+                <div style="text-align:center;margin-top:12px;padding:8px;border:3px solid #000;">
+                    <div style="font-size:12px;font-weight:bold;">REFUND · استرجاع مبلغ</div>
+                    <div style="font-size:${options.size === "compact" ? "16px" : "22px"};font-weight:bold;font-family:monospace;">${formatIQD(computeRefundPayout(order))}</div>
+                    <div style="font-size:10px;">Pay the customer · يُدفع للزبون</div>
+                </div>
+            `;
+
     // Gift mode styling
-    const priceSection = options.isGift
+    const priceSection = order.is_return
+        ? refundSection
+        : options.isGift
         ? '<div style="text-align:center;padding:10px;background:#fdf2f8;border-radius:8px;margin-top:10px;"><span style="font-size:16px;">🎁</span> <span style="font-size:12px;color:#be185d;font-weight:bold;">GIFT - No Price Display</span></div>'
         : options.showPrice
             ? `
@@ -295,7 +308,7 @@ export async function generateLabelHTML(
                 <div class="date">${formatDate(order.created_at)}</div>
             </div>
             <div style="text-align:left;">
-                ${order.is_return ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:bold;">RETURN</span>' : ''}
+                ${order.is_return ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:bold;">↩ REFUND</span>' : ''}
                 ${orderCountBadge}
             </div>
         </div>
@@ -988,7 +1001,6 @@ export async function generateShippingLabelHTML(
     };
 
     // Use order.price as final total (already includes discounts, delivery, etc.)
-    // For refunded orders, this will be negative
     const total = Number(order.price) || 0;
 
     // Format date/time
@@ -1007,6 +1019,8 @@ export async function generateShippingLabelHTML(
         <div class="sl-brand">Schneiders Perfumes</div>
         <div class="sl-qr">${qrCodePng ? `<img src="${qrCodePng}" width="55" height="55" style="display:block;" />` : ''}</div>
     </div>
+
+    ${order.is_return ? `<div style="border:3px solid #000;text-align:center;font-weight:900;font-size:16px;padding:4px;margin:4px 0;">استرجاع مبلغ · REFUND — لا تستلم مبلغاً من الزبون</div>` : ''}
 
     <div class="sl-shipment">
         <span class="sl-shipment-label">رقم الشحنة:</span>
@@ -1044,8 +1058,8 @@ export async function generateShippingLabelHTML(
             <td class="sl-td-value" style="text-align:center;font-weight:700;">${productCount}</td>
         </tr>
         <tr>
-            <td class="sl-td-label">المبلغ الكلي للفاتورة</td>
-            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(total)}</td>
+            <td class="sl-td-label">${order.is_return ? 'يُدفع للزبون' : 'المبلغ الكلي للفاتورة'}</td>
+            <td class="sl-td-value sl-amount" colspan="3">${formatIQD(order.is_return ? computeRefundPayout(order) : total)}</td>
         </tr>
         <tr>
             <td class="sl-td-label">الملاحظات</td>

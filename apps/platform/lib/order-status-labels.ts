@@ -73,12 +73,27 @@ export const ORDER_STATUS_LABELS: Record<Locale, Record<OrderStatusKey, string>>
 };
 
 /**
- * A return order in transit is going the other way, and saying only "In Transit"
- * on it has misled staff into treating it as an outbound delivery.
+ * A refund order (RTN) moves the other way: the courier takes cash to the
+ * customer and brings the item back. Its statuses are the ordinary ones, but
+ * read as a refund — "In Transit" alone has misled staff into treating it as
+ * an outbound delivery. A refund order the courier could not complete is
+ * marked `rejected` (older rows) or `refund_failed`; both read as failed.
  */
-export const RETURN_IN_TRANSIT_LABEL: Record<Locale, string> = {
-    en: "Return In Transit",
-    ar: "استرجاع قيد التوصيل",
+export const REFUND_ORDER_STATUS_LABELS: Record<Locale, Partial<Record<OrderStatusKey, string>>> = {
+    en: {
+        return_pending: "Pickup pending",
+        in_transit: "Courier collecting",
+        refund_delivered: "Refunded to customer",
+        refund_failed: "Refund failed",
+        rejected: "Refund failed",
+    },
+    ar: {
+        return_pending: "بانتظار الاستلام",
+        in_transit: "مع المندوب",
+        refund_delivered: "تم إرجاع المبلغ",
+        refund_failed: "فشل الاسترجاع",
+        rejected: "فشل الاسترجاع",
+    },
 };
 
 /** camelCase spelling of a status key, for the `orders.status.*` i18n keys. */
@@ -115,9 +130,8 @@ export function getOrderStatusLabel(
     locale: Locale,
     isReturn?: boolean,
 ): string {
-    if (status === "in_transit" && isReturn) {
-        return RETURN_IN_TRANSIT_LABEL[locale];
-    }
+    const refundLabel = isReturn ? REFUND_ORDER_STATUS_LABELS[locale][status as OrderStatusKey] : undefined;
+    if (refundLabel) return refundLabel;
     const labels = ORDER_STATUS_LABELS[locale];
     return labels[status as OrderStatusKey] ?? status;
 }

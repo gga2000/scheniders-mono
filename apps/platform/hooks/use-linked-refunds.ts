@@ -1,0 +1,36 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
+import type { Order } from "@/types/order";
+
+export type LinkedRefundOrder = Pick<Order, "id" | "order_id" | "status" | "price" | "delivery_fee" | "created_at">;
+
+/**
+ * The orders on the other side of a refund link: for a refund order, the
+ * order it refunds; for any other order, its refund orders, newest first.
+ */
+export function useLinkedRefunds(order: Pick<Order, "id" | "is_return" | "original_order_id"> | null) {
+    const { tenantId } = useAuth();
+    const parentId = order?.is_return ? order.original_order_id ?? null : null;
+
+    return useQuery({
+        queryKey: ["linked-refunds", tenantId, order?.id, parentId],
+        enabled: !!tenantId && !!order && (!order.is_return || !!parentId),
+        staleTime: 30 * 1000,
+        queryFn: async (): Promise<LinkedRefundOrder[]> => {
+            if (!tenantId || !order) return [];
+            const base = supabase
+                .from("orders")
+                .select("id, order_id, status, price, delivery_fee, created_at")
+                .eq("tenant_id", tenantId)
+                .is("deleted_at", null);
+            const { data, error } = await (parentId
+                ? base.eq("id", parentId)
+                : base.eq("original_order_id", order.id).eq("is_return", true).order("created_at", { ascending: false }));
+            if (error) throw error;
+            return (data ?? []) as LinkedRefundOrder[];
+        },
+    });
+}

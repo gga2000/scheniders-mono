@@ -31,6 +31,8 @@ interface CompletedOrderRow {
     price: number | null;
     sequence_number: number | null;
     refund_status: string | null;
+    /** IQD paid back for items on this order's completed refunds (kept by the database). */
+    refunded_amount: number | null;
 }
 
 /**
@@ -81,6 +83,10 @@ interface RefundedOriginals {
  *    delivery would be wrongly paid as genuine revenue.)
  */
 function classifyOrder(o: CompletedOrderRow, refunded: RefundedOriginals): OrderBucket {
+    // Partly refunded: still a sale, paid in proportion to what was kept
+    // (keptShare). Checked before the link fallbacks, which would otherwise
+    // see its refund order and drop it whole.
+    if (o.refund_status === "partial") return "genuine";
     if (
         // Primary signal: the order's own refund dimension (pending or completed refund).
         o.refund_status === "refunded" ||
@@ -94,6 +100,18 @@ function classifyOrder(o: CompletedOrderRow, refunded: RefundedOriginals): Order
     // Replacement (re-ship, not a new sale). Fall back to the RPL- code in case the flag is unset.
     if (o.is_replacement || o.order_id?.startsWith("RPL-")) return "replacement";
     return "genuine";
+}
+
+/**
+ * Share of a genuine order that still pays the per-order bonus: 1, or for a
+ * partly refunded order the part of its price the customer kept (owner
+ * decision 2026-10-27: commission on a partial refund is reduced in proportion).
+ */
+export function keptShare(o: Pick<CompletedOrderRow, "refund_status" | "refunded_amount" | "price">): number {
+    if (o.refund_status !== "partial") return 1;
+    const price = Number(o.price) || 0;
+    if (price <= 0) return 0;
+    return Math.min(1, Math.max(0, 1 - (Number(o.refunded_amount) || 0) / price));
 }
 
 const EMPTY_BREAKDOWN: OrderBreakdown = {
@@ -316,7 +334,7 @@ export function useSalaries(
             fetchAllRows<CompletedOrderRow>((from, to) =>
                 supabase
                     .from("orders")
-                    .select("id, created_at, completed_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status")
+                    .select("id, created_at, completed_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status, refunded_amount")
                     .eq("tenant_id", tenantId)
                     .eq("status", "completed")
                     .gte("completed_at", wStart)
@@ -494,7 +512,9 @@ export function useSalaries(
                     bucket: classifyOrder(o, refundedOriginals),
                     createdAt: o.created_at,
                     completedAt: o.completed_at,
-                    amount: o.price ?? 0,
+                    // Net of any partial refund, so the drill-down shows what the sale is worth.
+                    amount: (o.price ?? 0) - (o.refund_status === "partial" ? (o.refunded_amount ?? 0) : 0),
+                    share: keptShare(o),
                 }))
                 // Flagged orders (refunds, then replacements) first so they stay visible if the list is
                 // capped; then most-recently-completed first (the date that placed it in this period).
@@ -517,8 +537,10 @@ export function useSalaries(
                 refunds,
                 qualityScore: completedTotal > 0 ? genuine / completedTotal : 0,
             };
-            // Only genuine deliveries earn the per-order bonus.
+            // Only genuine deliveries earn the per-order bonus; a partly refunded
+            // one earns the share the customer kept.
             const completedOrdersCount = genuine;
+            const payableUnits = orderDetails.reduce((sum, d) => sum + (d.bucket === "genuine" ? d.share : 0), 0);
 
             // Advisory: returns/refunds dated inside an already-paid period for this employee.
             const lastPaid = lastPayrollDates.get(emp.id) ?? null;
@@ -548,7 +570,7 @@ export function useSalaries(
             const advancesTotal = pendingAdvances.reduce((s, a) => s + a.amount, 0);
             const penaltiesTotal = pendingPenalties.reduce((s, p) => s + p.amount, 0);
             const performanceBonusesTotal = pendingBonuses.reduce((s, b) => s + b.amount, 0);
-            const orderBonus = completedOrdersCount * effectiveRate.perOrderBonus;
+            const orderBonus = Math.round(payableUnits * effectiveRate.perOrderBonus);
 
             const grossSalary = effectiveRate.baseMonthlySalary + orderBonus + performanceBonusesTotal;
             const netSalary = Math.max(0, grossSalary - absenceDeduction - advancesTotal - penaltiesTotal);
