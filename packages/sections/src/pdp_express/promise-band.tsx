@@ -174,7 +174,7 @@ export function PromiseBand({
                 {trust.anchorId && (
                   <a
                     href={`#${trust.anchorId}`}
-                    className="relative inline-block font-bold text-bk-on-secondary underline underline-offset-2 before:absolute before:-inset-x-2 before:-inset-y-[13px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+                    className="relative inline-block font-bold text-bk-on-secondary underline underline-offset-2 before:absolute before:-inset-x-2 before:-inset-y-[14px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
                   >
                     {xs("termsLink", locale)}
                   </a>
