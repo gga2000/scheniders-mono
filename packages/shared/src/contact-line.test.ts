@@ -5,6 +5,7 @@ import {
   formatClock,
   parseStoreContact,
   resolveContactLine,
+  storeContactNameSchema,
 } from "./contact-line";
 import type { StoreCallHours, StoreContactConfig } from "./types/store-config-v2";
 
@@ -190,5 +191,30 @@ describe("contact-line strings", () => {
         expect(entry[locale].trim()).not.toBe("");
       }
     }
+  });
+});
+
+describe("commerce.contact.name_i18n", () => {
+  it("parses a per-locale store name beside the call number", () => {
+    expect(
+      parseStoreContact({ call_number: NUMBER, name_i18n: { ar: "شنايدر", en: "Scheniders" } })?.name_i18n,
+    ).toEqual({ ar: "شنايدر", en: "Scheniders" });
+  });
+
+  it("is absent when not set", () => {
+    expect(parseStoreContact({ call_number: NUMBER })?.name_i18n).toBeUndefined();
+  });
+
+  it("a malformed name degrades to absent and never costs the call number", () => {
+    for (const bad of ["شنايدر", { ar: 5 }, null, []]) {
+      const parsed = parseStoreContact({ call_number: NUMBER, name_i18n: bad });
+      expect(parsed?.call_number).toBe(NUMBER);
+      expect(parsed?.name_i18n).toBeUndefined();
+    }
+  });
+
+  it("the exported name schema is the one the contact schema uses", () => {
+    expect(storeContactNameSchema.safeParse({ ku: "شنایدەر" }).success).toBe(true);
+    expect(storeContactNameSchema.safeParse("شنايدر").success).toBe(false);
   });
 });

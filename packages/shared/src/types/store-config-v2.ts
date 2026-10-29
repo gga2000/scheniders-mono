@@ -447,6 +447,9 @@ export interface StoreContactConfig {
   /** The store sends the instant WhatsApp confirmation for storefront
    *  orders, so the line may announce it. Off unless set. */
   whatsapp_confirm?: boolean;
+  /** The store's name as the buyer should save and recognise it (the
+   *  vCard contact, «رد {store}»). Absent = `tenants.business_name`. */
+  name_i18n?: I18nString;
 }
 
 /**
