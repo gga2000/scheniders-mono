@@ -67,7 +67,7 @@ import { i18nStringOptional } from "./_schema";
 import { GalleryViewer } from "./image_gallery.client";
 import { ProofStackMore } from "./image_gallery.stack";
 import { gs, proofMoreLabel } from "./image_gallery.strings";
-import { stackFrame } from "./image-gallery-crop";
+import { STACK_SIZES, stackFrame } from "./image-gallery-crop";
 import { orderGalleryImages } from "./image-gallery-order";
 import type { GalleryViewerImage } from "./image_gallery.client";
 import { registerSection } from "./_registry";
@@ -182,7 +182,7 @@ function isUntouchedDefaultImages(images: GalleryImage[]): boolean {
  *  are 2/3/4 columns. Wrong hints made next/image ship 4× oversized
  *  srcset candidates for the screenshot carousel. */
 const SIZES: Record<Props["layout"], string> = {
-  stack: "(max-width: 640px) calc(100vw - 2rem), 600px",
+  stack: STACK_SIZES,
   carousel: "280px",
   grid: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
   masonry: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
@@ -428,7 +428,7 @@ function StackShot({
         width={img.width}
         height={img.height}
         unoptimized={!isOptimizableImageHost(img.url)}
-        sizes={SIZES.stack}
+        sizes={frame.sizes}
         className="absolute top-0 h-auto max-w-none"
         style={{ width: frame.imageWidth, left: frame.imageLeft }}
       />

@@ -110,6 +110,19 @@ describe("image_gallery stack", () => {
     expect(ar).toContain("aspect-ratio:828 / 163");
   });
 
+  it("sizes follow each screenshot's crop; uncropped and unsized keep the column hint", () => {
+    const sizesOf = (alt: string): string | undefined =>
+      ar.match(new RegExp(`<img alt="${alt}"[^>]*sizes="([^"]*)"`))?.[1];
+    // Cropped 12/2: the image is 100/86 of its box.
+    expect(sizesOf("تعليق زياد: وصلني العطر فعلاً راقي")).toBe(
+      "(max-width: 640px) calc((100vw - 2rem) * 100 / 86), calc(600px * 100 / 86)",
+    );
+    // Sized, no crop.
+    expect(sizesOf("تعليق Alpha")).toBe("(max-width: 640px) calc(100vw - 2rem), 600px");
+    // Unsized: the 4/1 fill box.
+    expect(sizesOf("تعليق Nano")).toBe("(max-width: 640px) calc(100vw - 2rem), 600px");
+  });
+
   it("an unsized screenshot sits in a 4/1 box", () => {
     expect(count(ar, "aspect-[4/1]")).toBe(1);
   });
