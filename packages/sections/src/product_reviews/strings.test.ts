@@ -29,6 +29,18 @@ describe("REVIEW_STRINGS — highlights", () => {
     expect(rs("storeReply", "en", { store: "Scheniders" })).toBe("Reply from Scheniders");
   });
 
+  it("announces a pressed topic with the plural-correct count", () => {
+    expect(rs("themeAnnounce", "ar", { topic: "الثبات", count: "4 تقييمات" })).toBe(
+      "ذكروا «الثبات» في 4 تقييمات",
+    );
+    expect(rs("themeAnnounce", "en", { topic: "Longevity", count: "4 reviews" })).toBe(
+      "“Longevity” is mentioned in 4 reviews",
+    );
+    expect(rs("themeAnnounce", "ku", { topic: "بۆن", count: "4 هەڵسەنگاندن" })).toBe(
+      "باسی «بۆن» کراوە لە 4 هەڵسەنگاندن",
+    );
+  });
+
   it("every entry has ar, en and ku", () => {
     for (const entry of Object.values(REVIEW_STRINGS)) {
       expect(Object.keys(entry).sort()).toEqual(["ar", "en", "ku"]);

@@ -116,6 +116,32 @@ describe("word buttons", () => {
   });
 });
 
+describe("the press announcement", () => {
+  function status(container: HTMLElement): HTMLElement {
+    const el = container.querySelector<HTMLElement>('[role="status"]');
+    if (!el) throw new Error("no status line");
+    return el;
+  }
+
+  it("is one polite status line, empty until a topic is pressed", () => {
+    const { container } = mount();
+    expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(status(container).getAttribute("aria-live")).toBe("polite");
+    expect(status(container).textContent).toBe("");
+  });
+
+  it("reads the pressed topic's count, and empties on un-press", () => {
+    const { container } = mount();
+    expect(button(container, "longevity").querySelector("bdi")?.textContent).toBe("3");
+    fireEvent.click(button(container, "longevity"));
+    expect(status(container).textContent).toBe("ذكروا «الثبات» في 3 تقييمات");
+    fireEvent.click(button(container, "luxury"));
+    expect(status(container).textContent).toBe("ذكروا «فخامة» في تقييمين");
+    fireEvent.click(button(container, "luxury"));
+    expect(status(container).textContent).toBe("");
+  });
+});
+
 describe("«شوف كل التقييمات»", () => {
   it("inserts the rest before Ahmed and goes away", () => {
     const { container, getByText } = mount();

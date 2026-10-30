@@ -7,11 +7,12 @@
 // card (#reviews-summary), the word buttons, the cards in D10 order, and
 // «شوف كل التقييمات (N)». A word button HIGHLIGHTS, never filters: the
 // list keeps every card in its place, the matching words get a mark, a
-// hidden matching review brings the rest into view, and the page scrolls
-// to the first mark (only a press scrolls). A second tap clears. Topic
-// counts, order, key phrases and replies are all computed here from the
-// rendered reviews and the merchant's props (`review_curation`, until
-// Phase 2's columns).
+// hidden matching review brings the rest into view, the page scrolls to
+// the first mark (only a press scrolls), and one polite status line reads
+// the result to a screen reader. A second tap clears. Topic counts,
+// order, key phrases and replies are all computed here from the rendered
+// reviews and the merchant's props (`review_curation`, until Phase 2's
+// columns).
 // =====================================================================
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +20,7 @@ import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode, RatingSummary } from "@scheniders/shared";
 import { readsRtl } from "../helpers/reading";
 import { cn } from "../helpers/utils";
+import { reviewCountLabel } from "../pdp_express/identity-label";
 import type { Props } from "../product_reviews";
 import type { ReviewSummaryItem } from "../types";
 import { featuredOrder } from "./featured-order";
@@ -73,6 +75,13 @@ export function HighlightsView({
   const allTerms = themes.flatMap((t) => t.match_terms ?? []);
   const activeTheme = themes.find((t) => t.key === active);
   const shown = expanded ? all : visible;
+  const activeCount = counts.find((t) => t.key === active);
+  const announcement = activeCount
+    ? rs("themeAnnounce", locale, {
+        topic: resolveI18n(activeCount.label_i18n, locale),
+        count: reviewCountLabel(activeCount.count, locale),
+      })
+    : "";
 
   useEffect(() => {
     if (!scrollPending.current) return;
@@ -145,6 +154,9 @@ export function HighlightsView({
               );
             })}
           </div>
+          <p role="status" aria-live="polite" data-theme-status="" className="sr-only">
+            {announcement}
+          </p>
         </div>
       )}
 

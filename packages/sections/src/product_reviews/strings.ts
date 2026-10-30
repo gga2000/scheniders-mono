@@ -44,6 +44,15 @@ export const REVIEW_STRINGS = {
   // plural-correct count («6 تقييمات»), not a bare number.
   ofReviews: { en: "from {count}", ar: "من {count}", ku: "لە {count}" },
   themesLabel: { en: "Mentioned most", ar: "أكثر شي ذكروه", ku: "زۆرترین شت کە باسیان کرد" },
+  // The screen-reader line after a word button is pressed. `{count}` is
+  // the plural-correct count («تقييم واحد» / «تقييمين» / «3 تقييمات»);
+  // the subject is the reviewers, so neither the topic's gender nor the
+  // count changes the verb.
+  themeAnnounce: {
+    en: "“{topic}” is mentioned in {count}",
+    ar: "ذكروا «{topic}» في {count}",
+    ku: "باسی «{topic}» کراوە لە {count}",
+  },
   showAll: {
     en: "See all reviews ({count})",
     ar: "شوف كل التقييمات ({count})",
