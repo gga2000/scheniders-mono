@@ -25,6 +25,20 @@
 // their order, others' go last (image-gallery-order.ts). Absent, or with
 // no tags, the list renders as entered, byte-identically.
 //
+// Opt-in `layout: "stack"` (the PDP proof stack, spec §1.5): a source
+// pill and an optional scope line under the heading, then the first
+// `initial_count` comments as live text — a numbered doubt, the quote in
+// «», the author — each over its full-width screenshot, cropped to the
+// comment column by `crop` (image-gallery-crop.ts) at the file's natural
+// height. A legend explains the "liked by us" mark once, after the first
+// comment. The rest stay in the HTML, hidden behind one expand button
+// (image_gallery.stack.tsx). Every screenshot opens the viewer. `display`,
+// `frame` and `order` are ignored by the stack. Its server markup lives in
+// image_gallery.proofstack.tsx.
+//
+// Opt-in `heading_style: "chapter"` draws the heading with ChapterHeading
+// in every layout. Absent, today's CenteredSectionHeader.
+//
 // Empty state: a freshly added section still carries the untouched
 // default image list (four empty urls). That renders one neutral
 // placeholder frame naming the section so the editor canvas is not
@@ -44,12 +58,16 @@ import {
   MaterialIcon,
   Section,
 } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
 import { isOptimizableImageHost } from "./helpers/image";
 import { CarouselArrows } from "./helpers/carousel-arrows";
 import { cn, PRESSABLE } from "./helpers/utils";
 import { chromeString } from "./helpers/chrome-strings";
 import { i18nStringOptional } from "./_schema";
 import { GalleryViewer } from "./image_gallery.client";
+import { ProofStack } from "./image_gallery.proofstack";
+import { STACK_SIZES } from "./image-gallery-crop";
+import { VIEWER_STRINGS, fillAlt, fillCount } from "./image-gallery-viewer-strings";
 import { orderGalleryImages } from "./image-gallery-order";
 import type { GalleryViewerImage } from "./image_gallery.client";
 import { registerSection } from "./_registry";
@@ -57,7 +75,11 @@ import type { SectionDefinition, SectionRenderContext } from "./_types";
 
 const schema = z.object({
   heading_i18n: i18nStringOptional,
-  layout: z.enum(["masonry", "grid", "carousel"]),
+  /** "stack" (opt-in) = the proof stack: lead comments with their doubt,
+   *  quote and author over a full-width screenshot, the rest behind one
+   *  expand button. An unknown stored value falls back to "grid" (the
+   *  default) instead of dropping the section. */
+  layout: z.enum(["masonry", "grid", "carousel", "stack"]).catch("grid"),
   images: z.array(
     z.object({
       url: z.string().describe("image"),
@@ -69,6 +91,25 @@ const schema = z.object({
        *  `order: "product_first"`. The name gives it the builder's
        *  product picker (section-field-widgets matches `*product_ids`). */
       product_ids: z.array(z.string()).optional().catch(undefined),
+      /** Stack only: the comment's strongest line, verbatim, shown as live
+       *  text in «». Absent → a screenshot-only row. */
+      quote_i18n: i18nStringOptional.catch(undefined),
+      /** Stack only: the buyer's doubt this comment answers (the eyebrow). */
+      doubt_i18n: i18nStringOptional.catch(undefined),
+      /** Stack only: the commenter's display name, as written. */
+      author: z.string().max(80).optional().catch(undefined),
+      /** Stack only: a business account (tagged «حساب شركة»). */
+      is_business: z.boolean().optional().catch(undefined),
+      /** Stack only: the stored file's pixel size. Both set → the picture
+       *  keeps its natural ratio (and `crop` applies); else a 4/1 box. */
+      width: z.number().int().min(1).max(4000).optional().catch(undefined),
+      height: z.number().int().min(1).max(4000).optional().catch(undefined),
+      /** Stack only: percent of the uncropped width cut from each side
+       *  (TikTok's avatar column, its scrollbar strip). */
+      crop: z
+        .object({ left: z.number().min(0).max(40), right: z.number().min(0).max(40) })
+        .optional()
+        .catch(undefined),
     }),
   ),
   /** Opt-in: show every picture WHOLE (object-contain, never cropped) in a
@@ -88,10 +129,27 @@ const schema = z.object({
    *  products; order inside each group is kept. Absent, or with nothing
    *  tagged, the merchant's order renders byte-identically. */
   order: z.enum(["product_first"]).optional().catch(undefined),
+  /** Stack: how many comments lead (with doubt and quote); the rest
+   *  open behind «شوف N تعليقات ثانية». Absent = 3. */
+  initial_count: z.number().int().min(1).max(12).optional().catch(undefined),
+  /** Stack: the source pill under the heading («تعليقات على إعلاناتنا بتيك توك»). */
+  source_label_i18n: i18nStringOptional.catch(undefined),
+  /** Stack: "store" adds the scope line «3 من أصل 9، على عطورنا بشكل
+   *  عام» (the comments are about the shop, not this product). */
+  scope: z.enum(["store", "product"]).optional().catch(undefined),
+  /** Stack: one line after the first comment explaining the
+   *  "liked by us" mark on the screenshots. */
+  legend_i18n: i18nStringOptional.catch(undefined),
+  /** Stack: the mark's picture beside the legend (the store logo as it
+   *  appears on TikTok). Absent → `branding.logo_url`; neither → text only. */
+  legend_image_url: z.string().describe("image").optional().catch(undefined),
+  /** "chapter" renders the heading at the redesign's one chapter scale
+   *  (ChapterHeading). Absent = today's heading, in every layout. */
+  heading_style: z.enum(["section", "chapter"]).optional().catch(undefined),
 });
 
-type Props = z.infer<typeof schema>;
-type GalleryImage = Props["images"][number];
+export type Props = z.infer<typeof schema>;
+export type GalleryImage = Props["images"][number];
 type Frame = NonNullable<Props["frame"]>;
 
 const SECTION_NAME = { en: "Image gallery", ar: "ألبوم صور" } as const;
@@ -124,6 +182,7 @@ function isUntouchedDefaultImages(images: GalleryImage[]): boolean {
  *  are 2/3/4 columns. Wrong hints made next/image ship 4× oversized
  *  srcset candidates for the screenshot carousel. */
 const SIZES: Record<Props["layout"], string> = {
+  stack: STACK_SIZES,
   carousel: "280px",
   grid: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
   masonry: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
@@ -161,38 +220,6 @@ const WHOLE_FRAME: Record<Frame, { aspect: string; width: string; sizes: string 
     sizes: "(max-width: 640px) calc(100vw - 4.5rem), 420px",
   },
 };
-
-/** Chrome strings for the whole-picture viewer; `{n}` / `{total}` /
- *  `{alt}` are filled here on the server. Kurdish falls back to Arabic. Kept in this
- *  server module: a plain value exported from the "use client" viewer
- *  would reach a server import as a reference proxy, not the strings. */
-const VIEWER_STRINGS = {
-  ar: {
-    open: "كبّر الصورة {n} من {total}",
-    openNamed: "كبّر الصورة: {alt}",
-    viewer: "عرض الصور",
-    prev: "الصورة السابقة",
-    next: "الصورة التالية",
-    counter: "{n} من {total}",
-  },
-  en: {
-    open: "Enlarge image {n} of {total}",
-    openNamed: "Enlarge image: {alt}",
-    viewer: "Image viewer",
-    prev: "Previous image",
-    next: "Next image",
-    counter: "{n} of {total}",
-  },
-} as const;
-
-function fillCount(template: string, n: number, total: number): string {
-  return template.replace("{n}", String(n)).replace("{total}", String(total));
-}
-
-/** A function replacer, so `$&` / `$1` in merchant text stay literal. */
-function fillAlt(template: string, alt: string): string {
-  return template.replace("{alt}", () => alt);
-}
 
 const WHOLE_FRAME_CLS =
   "relative block w-full overflow-hidden rounded-bk-card border-bk border-bk-divider bg-bk-surface";
@@ -424,11 +451,11 @@ function ImageGallery({
   const trackId = useId();
   // An empty-url entry (fresh editor placeholder, deleted upload) is not a
   // picture — skip it rather than framing a blank tile.
-  const images = orderGalleryImages(
-    props.images.filter((img) => img.url.trim().length > 0),
-    props.order,
-    ctx.product?.id,
-  );
+  const withUrl = props.images.filter((img) => img.url.trim().length > 0);
+  // The stack keeps the merchant's order: it is chosen by the doubt each
+  // comment answers, not by product.
+  const images =
+    props.layout === "stack" ? withUrl : orderGalleryImages(withUrl, props.order, ctx.product?.id);
   if (!images.length) {
     if (!isUntouchedDefaultImages(props.images)) return null;
     return (
@@ -457,12 +484,18 @@ function ImageGallery({
 
   return (
     <Section>
-      {heading && (
-        <CenteredSectionHeader
-          title={heading}
-          align="start"
-          titleField="heading_i18n"
-        />
+      {heading &&
+        (props.heading_style === "chapter" ? (
+          <ChapterHeading title={heading} locale={locale} titleField="heading_i18n" />
+        ) : (
+          <CenteredSectionHeader
+            title={heading}
+            align="start"
+            titleField="heading_i18n"
+          />
+        ))}
+      {props.layout === "stack" && (
+        <ProofStack props={props} images={images} ctx={ctx} listId={trackId} heading={heading} />
       )}
       {props.layout === "masonry" && (
         <div className="columns-2 sm:columns-3 lg:columns-4 gap-bk-sm sm:gap-bk-md [column-fill:_balance]">

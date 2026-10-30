@@ -35,15 +35,18 @@ export function unwrap(schema: z.ZodType<unknown>): UnwrappedSchema {
     let optional = false;
     let description: string | undefined = current.description;
 
-    // z.optional / z.nullable / z.default produce wrappers with an inner
-    // type. Walk through them until we hit something concrete.
+    // z.optional / z.nullable / z.default / z.catch produce wrappers with an
+    // inner type. Walk through them until we hit something concrete. A
+    // `.catch()` only changes how a bad stored value parses, so the field
+    // keeps the control of the type it wraps.
     let safety = 0;
     while (safety++ < 8) {
         const defAny = current._def as { type?: string; innerType?: z.ZodType<unknown> };
         if (
             (defAny.type === "optional" ||
                 defAny.type === "nullable" ||
-                defAny.type === "default") &&
+                defAny.type === "default" ||
+                defAny.type === "catch") &&
             defAny.innerType
         ) {
             optional = optional || defAny.type === "optional";
