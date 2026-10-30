@@ -25,6 +25,8 @@ describe("MCP server", () => {
         const { result } = await rpc(handler, "tools/list");
         const tools = result?.tools ?? [];
         expect(tools.map((t) => t.name).sort()).toEqual([
+            "abandoned_carts",
+            "add_customer_note",
             "add_order_note",
             "adjust_stock",
             "blacklist_customer",
@@ -41,6 +43,7 @@ describe("MCP server", () => {
             "search_orders",
             "set_stock_count",
             "ship_orders",
+            "tag_customer",
             "update_order",
             "update_order_status",
             "update_product",
@@ -48,6 +51,7 @@ describe("MCP server", () => {
         for (const t of tools) expect(t.inputSchema).toBeTruthy();
         const writes = tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name).sort();
         expect(writes).toEqual([
+            "add_customer_note",
             "add_order_note",
             "adjust_stock",
             "blacklist_customer",
@@ -57,6 +61,7 @@ describe("MCP server", () => {
             "replace_order",
             "set_stock_count",
             "ship_orders",
+            "tag_customer",
             "update_order",
             "update_order_status",
             "update_product",
