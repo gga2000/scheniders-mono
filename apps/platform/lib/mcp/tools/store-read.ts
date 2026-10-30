@@ -4,6 +4,7 @@ import { registerTool, canSeeMoney, McpToolError } from "@/lib/mcp/tool";
 import { ORDER_STATUSES } from "@/lib/order-status-labels";
 import { normalizeIraqiPhone } from "@/lib/order-utils";
 import { normalizePhoneLikeDb } from "@/lib/customer-trust-risk";
+import { SEARCH_LIMIT } from "@/lib/mcp/orders";
 import {
     baghdadDayEnd,
     baghdadDayStart,
@@ -18,6 +19,8 @@ const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const PAGE = 1000;
 const MAX_SUMMARY_DAYS = 93;
 const DEFAULT_LOW_STOCK = 5;
+/** Product ids per variant lookup, to keep the request URL short. */
+const ID_CHUNK = 200;
 
 type ProductRow = {
     id: string;
@@ -133,25 +136,35 @@ export function registerStoreReadTools(server: McpServer): void {
             const { data, error } = await caller.db.rpc("search_orders_v2", {
                 p_tenant_id: caller.tenantId,
                 p_term: term,
-                p_limit: 200,
+                p_limit: SEARCH_LIMIT,
             });
             if (error) throw error;
-            const orders = (data ?? []) as OrderSummaryRow[];
+            const matched = (data ?? []) as (OrderSummaryRow & { deleted_at: string | null })[];
+            // The search RPC also returns orders in the trash; they are not the customer's history.
+            const orders = matched.filter((o) => o.deleted_at === null);
             if (orders.length === 0) return `No orders for ${term}.`;
+            const capped = matched.length >= SEARCH_LIMIT
+                ? `Note: the search stops at the ${SEARCH_LIMIT} closest matches; older orders may be missing.`
+                : null;
 
             const byPhone = new Map<string, OrderSummaryRow[]>();
             for (const o of orders) {
                 const key = normalizePhoneLikeDb(o.phone);
                 byPhone.set(key, [...(byPhone.get(key) ?? []), o]);
             }
-            if (!input.phone && byPhone.size > 1) {
+            // A phone must name one customer exactly; a partial number or a name
+            // that matches several customers gets the candidates instead.
+            const wanted = input.phone ? normalizePhoneLikeDb(input.phone) : null;
+            const exact = wanted !== null ? byPhone.get(wanted) : byPhone.size === 1 ? [...byPhone.values()][0] : undefined;
+            if (!exact) {
                 return [
-                    `${byPhone.size} customers match "${term}". Ask again with one phone:`,
+                    `${byPhone.size} customer(s) match "${term}". Ask again with one full phone:`,
                     ...[...byPhone.values()].slice(0, 15).map((list) => `  ${list[0].customer_name} ${list[0].phone} — ${list.length} order(s)`),
                 ].join("\n");
             }
 
-            const [phoneKey, list] = [...byPhone.entries()][0];
+            const list = exact;
+            const phoneKey = normalizePhoneLikeDb(list[0].phone);
             const last10 = phoneKey.slice(-10);
             const [trust, blacklist] = await Promise.all([
                 caller.db
@@ -176,6 +189,7 @@ export function registerStoreReadTools(server: McpServer): void {
                     ? `Trust: ${t.trust_tier} (score ${t.trust_score}, delivery success ${t.delivery_success_rate}%)${canSeeMoney(caller) ? `, total spent ${iqd(t.total_spent)}` : ""}`
                     : "Trust: not scored yet",
                 blacklist.data && blacklist.data.length > 0 ? `BLACKLISTED: ${blacklist.data[0].reason}` : "Not blacklisted",
+                ...(capped ? [capped] : []),
                 "",
                 "Orders (newest first):",
                 ...list
@@ -210,19 +224,27 @@ export function registerStoreReadTools(server: McpServer): void {
                 const s = input.search.replace(/[%,()]/g, " ");
                 q = q.or(`name.ilike.%${s}%,sku.ilike.%${s}%`);
             }
-            const { data: products, error } = await q.order("name").limit(500);
-            if (error) throw error;
-            const list = (products ?? []) as ProductRow[];
+            const list: ProductRow[] = [];
+            for (let from = 0; ; from += PAGE) {
+                const { data: page, error } = await q.order("name").order("id").range(from, from + PAGE - 1);
+                if (error) throw error;
+                list.push(...((page ?? []) as ProductRow[]));
+                if (!page || page.length < PAGE) break;
+            }
             if (list.length === 0) return "No products match.";
 
-            const { data: variantData, error: vErr } = await caller.db
-                .from("product_variants")
-                .select("id, product_id, name, sku, price, stock_quantity, reserved_quantity, low_stock_threshold, is_enabled")
-                .eq("tenant_id", caller.tenantId)
-                .in("product_id", list.map((p) => p.id));
-            if (vErr) throw vErr;
+            const variantData: VariantRow[] = [];
+            for (let i = 0; i < list.length; i += ID_CHUNK) {
+                const { data, error } = await caller.db
+                    .from("product_variants")
+                    .select("id, product_id, name, sku, price, stock_quantity, reserved_quantity, low_stock_threshold, is_enabled")
+                    .eq("tenant_id", caller.tenantId)
+                    .in("product_id", list.slice(i, i + ID_CHUNK).map((p) => p.id));
+                if (error) throw error;
+                variantData.push(...((data ?? []) as VariantRow[]));
+            }
             const variants = new Map<string, VariantRow[]>();
-            for (const v of (variantData ?? []) as VariantRow[]) {
+            for (const v of variantData) {
                 variants.set(v.product_id, [...(variants.get(v.product_id) ?? []), v]);
             }
 

@@ -58,7 +58,7 @@ export async function verifyMcpToken(_req: Request, bearerToken?: string): Promi
     const claims = oauthClaimsSchema.safeParse(decodeClaims(bearerToken));
     if (!claims.success) return undefined;
 
-    const { user, error } = await verifyAccessToken(bearerToken);
+    const { user, error } = await verifyAccessToken(bearerToken, { allowOAuthClient: true });
     if (error || !user || user.id !== claims.data.sub) return undefined;
 
     if (!(await hasMcpAccess(user.id))) return undefined;
@@ -98,7 +98,7 @@ export async function resolveMcpCaller(authInfo: AuthInfo | undefined): Promise<
     const active = await resolveActiveTenant(extra.data.userId);
     if (!active.ok) return { ok: false, error: active.error };
 
-    const db = createSupabaseServerClientWithToken(authInfo.token);
+    const db = createSupabaseServerClientWithToken(authInfo.token, { allowOAuthClient: true });
     const { data: profile } = await db
         .from("user_profiles")
         .select("display_name")

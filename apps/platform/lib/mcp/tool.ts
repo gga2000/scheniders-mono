@@ -3,6 +3,7 @@ import type { CallToolResult, McpServer, ServerContext, ToolAnnotations } from "
 import type { z } from "zod";
 import { resolveMcpCaller, type McpCaller } from "@/lib/mcp/caller";
 import { isAdminRole } from "@/lib/permissions";
+import { ORDER_WRITE_ROLES } from "@/lib/auth/resolve-order-caller";
 
 /**
  * A failure the caller should read as-is: no access, not found, invalid
@@ -11,11 +12,9 @@ import { isAdminRole } from "@/lib/permissions";
  */
 export class McpToolError extends Error {}
 
-/** Roles that may change orders — the same list the order server actions use. */
-const WRITE_ROLES = new Set(["admin", "super_admin", "employee"]);
-
+/** Roles that may change orders: the list the order server actions use. */
 export function requireWriter(caller: McpCaller): void {
-    if (!WRITE_ROLES.has(caller.role)) {
+    if (!ORDER_WRITE_ROLES.includes(caller.role)) {
         throw new McpToolError("Your role in this store is read-only.");
     }
 }

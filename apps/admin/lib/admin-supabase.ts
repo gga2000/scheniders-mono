@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./admin-env";
+import { isOAuthClientToken } from "@scheniders/shared";
 import { AdminAuthError, isCredentialRejection } from "./admin-auth-error";
 import type { AdminRole } from "@/types/admin";
 
@@ -79,6 +80,10 @@ export async function resolveAdminRole(userId: string): Promise<AdminRole> {
  * (lib/api-auth.ts), which map those to the right status.
  */
 export async function requireAdmin(accessToken: string) {
+  // The Claude connector's OAuth tokens are for the platform's /api/mcp only.
+  if (isOAuthClientToken(accessToken)) {
+    throw new AdminAuthError(401, "Claude connector tokens cannot be used in the admin console");
+  }
   // Create a client authenticated as the user to validate the JWT
   const userClient = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
     global: {

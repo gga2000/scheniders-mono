@@ -76,6 +76,43 @@ describe("read tools", () => {
         expect(text).not.toContain("30,000");
     });
 
+    it("search and customer lookup leave out orders in the trash", async () => {
+        const live = { ...row("10", STORE, "delivered", 30000), phone: "07701112222", customer_name: "Zainab" };
+        const trashed = { ...row("11", STORE, "rejected", 20000), phone: "07701112222", customer_name: "Zainab", deleted_at: "2026-10-29T10:00:00Z" };
+        env = fakeDb({ activity_logs: [] }, { search_orders_v2: () => [live, trashed] });
+        asCaller("admin");
+
+        const search = await call("search_orders", { query: "Zainab", include_archived: false, limit: 20 });
+        expect(search).toContain("1 order(s) match");
+        expect(search).not.toContain("#11");
+
+        const customer = await call("find_customer", { phone: "+964 770 111 2222" });
+        expect(customer).toContain("Orders: 1 (delivered 1, rejected 0, returns 0)");
+    });
+
+    it("find_customer lists candidates when a phone matches no customer exactly", async () => {
+        const a = { ...row("20", STORE, "new", 1000), phone: "07701112222", customer_name: "Ali" };
+        const b = { ...row("21", STORE, "new", 1000), phone: "07701113333", customer_name: "Huda" };
+        env = fakeDb({ activity_logs: [] }, { search_orders_v2: () => [a, b] });
+        asCaller("admin");
+        const text = await call("find_customer", { phone: "0770111" });
+        expect(text).toContain('2 customer(s) match');
+        expect(text).toContain("Huda 07701113333");
+    });
+
+    it("list_products finds low stock past the first page of the catalog", async () => {
+        const products = Array.from({ length: 1205 }, (_, i) => ({
+            id: `p${i}`, tenant_id: STORE, name: `P${String(i).padStart(4, "0")}`, sku: null, price: 1000,
+            stock_quantity: i === 1204 ? 1 : 100, reserved_quantity: 0, low_stock_threshold: null,
+            is_visible: true, is_archived: false, is_supply: false,
+        }));
+        env = fakeDb({ products, product_variants: [], activity_logs: [] });
+        asCaller("admin");
+        const text = await call("list_products", { low_stock: true, include_hidden: true, limit: 50 });
+        expect(text).toContain("1 product(s)");
+        expect(text).toContain("P1204");
+    });
+
     it("every call is written to the activity log as a Claude tool call", async () => {
         await call("search_orders", { include_archived: false, limit: 5 });
         expect(env.tables.activity_logs).toEqual([

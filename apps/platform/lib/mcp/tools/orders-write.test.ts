@@ -11,8 +11,8 @@ vi.mock("@/lib/orders/status-side-effects", () => ({
     applyStatusSideEffect: (...a: unknown[]) => applyStatusSideEffect(...a),
 }));
 
-const createOrderAction = vi.fn();
-vi.mock("@/app/actions/orders", () => ({ createOrderAction: (...a: unknown[]) => createOrderAction(...a) }));
+const createOrderForTenant = vi.fn();
+vi.mock("@/lib/order-service", () => ({ createOrderForTenant: (...a: unknown[]) => createOrderForTenant(...a) }));
 
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
@@ -171,6 +171,23 @@ describe("update_order", () => {
     });
 });
 
+describe("update_order validation", () => {
+    it("refuses a phone the courier cannot call", async () => {
+        const res = await call("update_order", { order: "1001", phone: "call me later" });
+        expect(res).toEqual({ isError: true, text: 'Phone "call me later" is not an Iraqi mobile number (07XX XXX XXXX).' });
+        expect(env.calls.some((c) => c.op === "update")).toBe(false);
+    });
+});
+
+describe("update_order_status lookups", () => {
+    it("finds every order of a bulk change in one query, and names all missing ones", async () => {
+        const res = await call("update_order_status", { orders: ["1001", "9998", "1002", "9999"], status: "cancelled", confirm: true });
+        expect(res).toEqual({ isError: true, text: "No order 9998, 9999 in this store." });
+        expect(env.calls.filter((c) => c.table === "orders" && c.op === "select")).toHaveLength(1);
+        expect(env.tables.orders.slice(0, 2).map((o) => o.status)).toEqual(["confirmed", "new"]);
+    });
+});
+
 describe("create_order", () => {
     beforeEach(() => {
         env.tables.products = [
@@ -192,23 +209,30 @@ describe("create_order", () => {
     it("prices from the catalog and previews before creating", async () => {
         const res = await call("create_order", { ...base, items: [{ product_id: "11111111-1111-4111-8111-111111111111", quantity: 2 }], confirm: false });
         expect(res.text).toContain("Items total 50,000 IQD − discount 5,000 IQD = 45,000 IQD");
-        expect(createOrderAction).not.toHaveBeenCalled();
+        expect(createOrderForTenant).not.toHaveBeenCalled();
     });
 
-    it("creates through the New order server action with the caller's token", async () => {
-        createOrderAction.mockResolvedValue({ success: true, data: { ...order("o9", "1009", STORE), price: 45000 } });
+    it("creates through the New order service in the caller's verified store", async () => {
+        createOrderForTenant.mockResolvedValue({ success: true, data: { ...order("o9", "1009", STORE), price: 45000 } });
         const res = await call("create_order", { ...base, items: [{ product_id: "11111111-1111-4111-8111-111111111111", quantity: 2 }], confirm: true });
         expect(res.text).toContain("Created order #1009");
-        expect(createOrderAction).toHaveBeenCalledWith(
+        expect(createOrderForTenant).toHaveBeenCalledWith(
             expect.objectContaining({ phone: "07801234567", city: "النجف", price: 45000, discount_amount: 5000, delivery_fee: 5000, status: "confirmed" }),
-            "tok",
+            STORE,
         );
+    });
+
+    it("refuses a discount larger than the items", async () => {
+        const res = await call("create_order", { ...base, discount: 60000, items: [{ product_id: "11111111-1111-4111-8111-111111111111", quantity: 2 }], confirm: true });
+        expect(res.isError).toBe(true);
+        expect(res.text).toContain("is more than the items total");
+        expect(createOrderForTenant).not.toHaveBeenCalled();
     });
 
     it("refuses a product from another store", async () => {
         const res = await call("create_order", { ...base, items: [{ product_id: "22222222-2222-4222-8222-222222222222", quantity: 1 }], confirm: true });
         expect(res.isError).toBe(true);
         expect(res.text).toContain("is not in this store's catalog");
-        expect(createOrderAction).not.toHaveBeenCalled();
+        expect(createOrderForTenant).not.toHaveBeenCalled();
     });
 });
