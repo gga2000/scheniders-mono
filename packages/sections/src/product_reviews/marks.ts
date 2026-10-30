@@ -4,10 +4,11 @@
 // Two kinds of mark land on the same text (spec §1.6, concept g3 A + B):
 //   - the key phrase: one stretch per review, a low-alpha tint that is
 //     always on. The merchant's pick (`review_curation[].highlight`) wins
-//     when it is a verbatim part of the body; else the first clause that
-//     names a topic, when that clause is 3–14 words (the scent quote's
-//     rule: a body with no punctuation is one clause, and marking a whole
-//     review is not a key phrase); else nothing;
+//     when it is a verbatim part of the body (grown to whole words);
+//     else the first clause that names a topic, when that clause is 3–14
+//     words (the scent quote's rule: a body with no punctuation is one
+//     clause, and marking a whole review is not a key phrase); else
+//     nothing;
 //   - topic marks: while a word button is pressed, every word that
 //     contains one of its terms. A hit is widened to the whole word, so a
 //     <mark> never splits an Arabic word (and its joined letters) in two.
@@ -31,8 +32,11 @@ export interface MarkSegment {
   term: boolean;
 }
 
-/** Characters that end a word: whitespace and the punctuation reviews use. */
-const WORD_BREAK = /[\s.,!?؟،؛:«»()"'…]/u;
+/** Characters that end a word: whitespace, the separators
+ *  `helpers/arabic-text.ts` folds (« ، ؛ ؟ ۔ »), the punctuation reviews
+ *  use, and «-» «/» («ثبات-ممتاز» is two words). Tatweel «ـ» is NOT here:
+ *  it stretches letters inside a word. */
+const WORD_BREAK = /[\s.,!?؟،؛۔:«»()"'…\-/]/u;
 
 /** Characters that end a clause. */
 const CLAUSE_BREAK = /[.،!؟\n]/u;
@@ -88,7 +92,8 @@ export function keyPhraseRange(
   const pick = curated?.trim();
   if (pick) {
     const at = body.indexOf(pick);
-    if (at >= 0) return { start: at, end: at + pick.length };
+    // Widened, so a pick cut mid-word never starts or ends a <mark> inside one.
+    if (at >= 0) return widenToWords(body, { start: at, end: at + pick.length });
   }
   if (terms.length === 0) return null;
   for (const clause of clauseRanges(body)) {

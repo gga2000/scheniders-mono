@@ -44,6 +44,12 @@ describe("keyPhraseRange", () => {
     expect(keyPhraseRange(bodyOf("Ahmed"), undefined, TERMS)).toBeNull();
   });
 
+  it("a pick that starts or ends mid-word is widened to whole words", () => {
+    const body = "العطر صدمني بثباته اهنيكم عليه";
+    // «ثباته اهني» cuts «بثباته» and «اهنيكم» in two.
+    expect(slice(body, keyPhraseRange(body, "ثباته اهني", TERMS))).toBe("بثباته اهنيكم");
+  });
+
   it("no topic word and no pick: no mark", () => {
     expect(keyPhraseRange(bodyOf("ياسين"), undefined, TERMS)).toBeNull();
     expect(keyPhraseRange(bodyOf("ياسين"), undefined, [])).toBeNull();
@@ -68,6 +74,17 @@ describe("widenToWords / mergeRanges", () => {
     const text = "العطر صدمني بثباته اهنيكم";
     const at = text.indexOf("ثبات");
     expect(slice(text, widenToWords(text, { start: at, end: at + 4 }))).toBe("بثباته");
+  });
+
+  it("a hyphen, a slash and «۔» end a word; tatweel does not", () => {
+    const hyphen = "ثبات-ممتاز";
+    expect(slice(hyphen, widenToWords(hyphen, { start: 0, end: 2 }))).toBe("ثبات");
+    const slash = "ريحة/ثبات";
+    expect(slice(slash, widenToWords(slash, { start: 6, end: 8 }))).toBe("ثبات");
+    const urdu = "فخم۔حلو";
+    expect(slice(urdu, widenToWords(urdu, { start: 0, end: 1 }))).toBe("فخم");
+    const tatweel = "ثبـات قوي";
+    expect(slice(tatweel, widenToWords(tatweel, { start: 0, end: 1 }))).toBe("ثبـات");
   });
 
   it("joins overlapping and touching ranges", () => {
