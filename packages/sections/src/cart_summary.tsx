@@ -18,6 +18,11 @@ const schema = z.object({
   heading_i18n: i18nStringSchema,
   checkout_label_i18n: i18nStringSchema,
   show_promo_input: z.boolean(),
+  /** "chunky" (default): today's outlined card and pill button. "soft"
+   *  (slice 1h): the express receipt and its order button — hairline card,
+   *  ink figures (D4), the token-radius yellow action, WhatsApp as the soft
+   *  green row, no fine print (the page's trust strip states the terms). */
+  style: z.enum(["chunky", "soft"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
