@@ -97,24 +97,27 @@ class CustomerDataExportService {
         const reliability = ((reliabilityRes.data ?? []) as ReliabilityRow[])[0];
 
         // Check blacklist status
-        const { data: blacklistEntry } = await supabase
+        const { data: blacklistEntry, error: blacklistError } = await supabase
             .from("blacklist")
             .select("*")
             .eq("tenant_id", tenantId)
             .eq("phone", normalizedPhone)
             .maybeSingle();
+        if (blacklistError) throw blacklistError;
 
         // Fetch activity log entries for this customer's orders
         const orderIds = orders.map(o => o.id);
         let activityLog: ActivityExport[] = [];
 
         if (orderIds.length > 0) {
-            const { data: activities } = await supabase
-                .from("activity_log")
-                .select("*")
+            const { data: activities, error: activityError } = await supabase
+                .from("activity_logs")
+                .select("action, created_at, details")
+                .eq("tenant_id", tenantId)
                 .in("entity_id", orderIds)
                 .order("created_at", { ascending: false })
                 .limit(100);
+            if (activityError) throw activityError;
 
             activityLog = (activities || []).map(a => ({
                 action: a.action,
@@ -194,90 +197,6 @@ class CustomerDataExportService {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-    }
-
-    /**
-     * Generate downloadable CSV file with orders
-     */
-    async downloadAsCSV(tenantId: string, phone: string): Promise<void> {
-        const data = await this.exportCustomerData(tenantId, phone);
-
-        // CSV header
-        const headers = [
-            "Order ID",
-            "Date",
-            "Status",
-            "Items",
-            "Total",
-            "City",
-            "Address",
-            "Notes",
-        ];
-
-        // CSV rows
-        const rows = data.orders.map(o => [
-            o.orderId,
-            new Date(o.createdAt).toLocaleDateString(),
-            o.status,
-            o.items.map(i => `${i.name} x${i.quantity}`).join("; "),
-            o.total.toString(),
-            o.city,
-            o.address || "",
-            o.notes || "",
-        ]);
-
-        // Build CSV content
-        const csvContent = [
-            headers.join(","),
-            ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(",")),
-        ].join("\n");
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `customer-orders-${phone}-${new Date().toISOString().split("T")[0]}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }
-
-    /**
-     * Request customer data deletion (soft delete / anonymize)
-     */
-    async requestDeletion(phone: string): Promise<{ success: boolean; message: string }> {
-        const normalizedPhone = normalizePhoneForSearch(phone);
-
-        try {
-            // Log the deletion request
-            await supabase.from("activity_log").insert({
-                user_id: null,
-                user_email: null,
-                action: "customer.deletion_request",
-                entity_type: "customer",
-                entity_id: normalizedPhone,
-                details: {
-                    requested_at: new Date().toISOString(),
-                    phone: normalizedPhone,
-                },
-            });
-
-            // Note: Actual deletion should be handled by admin review
-            // This just logs the request
-
-            return {
-                success: true,
-                message: "تم تسجيل طلب حذف البيانات. سيتم مراجعته خلال 30 يوم.",
-            };
-        } catch (err) {
-            console.error("Error requesting deletion:", err);
-            return {
-                success: false,
-                message: "حدث خطأ أثناء تسجيل الطلب",
-            };
-        }
     }
 }
 
