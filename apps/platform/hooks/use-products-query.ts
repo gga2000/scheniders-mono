@@ -86,9 +86,9 @@ export function useAddProductMutation() {
 export function useUpdateProductMutation() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: ProductUpdate }) => {
-            await productRepository.update(id, data);
-            return { id, data };
+        mutationFn: async ({ id, data, expectedUpdatedAt }: { id: string; data: ProductUpdate; expectedUpdatedAt?: string }) => {
+            const updatedAt = await productRepository.update(id, data, { expectedUpdatedAt });
+            return { id, data, updatedAt };
         },
         onMutate: async ({ id, data }) => {
             // Optimistic Update

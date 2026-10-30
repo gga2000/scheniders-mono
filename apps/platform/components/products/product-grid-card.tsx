@@ -193,6 +193,12 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     <h3 className="text-base font-bold text-foreground leading-tight line-clamp-2 flex-1 min-w-0">
                         {product.name}
                         <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
+                        {/* A draft is not on the store even when its eye says visible. */}
+                        {product.status === "draft" && (
+                            <span className="align-middle ms-1.5 inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-800">
+                                {t("products.ed.status.draft")}
+                            </span>
+                        )}
                     </h3>
                     <div className="flex items-center gap-1.5 shrink-0">
                         {product.cost && product.cost > 0 && product.price > 0 && (
@@ -210,9 +216,17 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                                 {(((product.price - product.cost) / product.price) * 100).toFixed(0)}%
                             </span>
                         )}
-                        <p className="text-[15px] font-bold text-foreground whitespace-nowrap leading-tight">
-                            {formatIQD(product.price)}
-                        </p>
+                        <div className="flex flex-col items-end">
+                            <p className="text-[15px] font-bold text-foreground whitespace-nowrap leading-tight">
+                                {formatIQD(product.price)}
+                            </p>
+                            {/* The storefront sells at its own price when one is set. */}
+                            {product.website_price != null && product.website_price !== product.price && (
+                                <p className="text-[11px] text-muted whitespace-nowrap tabular-nums">
+                                    {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -431,6 +445,8 @@ export const ProductGridCard = React.memo(function ProductGridCard({
         prev.product.id === next.product.id &&
         prev.product.name === next.product.name &&
         prev.product.price === next.product.price &&
+        prev.product.website_price === next.product.website_price &&
+        prev.product.status === next.product.status &&
         prev.product.cost === next.product.cost &&
         prev.product.stock_quantity === next.product.stock_quantity &&
         prev.product.reserved_quantity === next.product.reserved_quantity &&

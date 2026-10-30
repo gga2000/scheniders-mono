@@ -481,6 +481,15 @@ function productToFormData(product: Product): ProductEditorFormData {
     };
 }
 
+/**
+ * website_price is the storefront's override of price. Empty, 0 or the same
+ * as price means "sell at price" and is stored as null, so a later price
+ * change reaches the store instead of leaving a stale copy behind.
+ */
+function storeOverride(websitePrice: number | null, price: number): number | null {
+    return websitePrice && websitePrice > 0 && websitePrice !== price ? websitePrice : null;
+}
+
 interface UseProductEditorOptions {
     product?: Product | null; // null for new product mode
     mode: "create" | "edit";
@@ -505,6 +514,9 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     const [formData, setFormData] = useState<ProductEditorFormData>(initialData);
     const [saving, setSaving] = useState(false);
     const initialDataRef = useRef(initialData);
+    // The product's updated_at when this editor loaded it (then after each of
+    // its own saves). A save only applies if the row still carries it.
+    const baseUpdatedAtRef = useRef<string | null>(product?.updated_at ?? null);
 
     // Reset form only when navigating to a different product — NOT on every
     // refetch. TanStack invalidation returns a new `products` array reference
@@ -515,6 +527,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         const newData = product ? productToFormData(product) : emptyForm;
         setFormData(newData);
         initialDataRef.current = newData;
+        baseUpdatedAtRef.current = product?.updated_at ?? null;
     }, [product?.id, emptyForm]);
 
     const [pendingVariantDiff, setPendingVariantDiff] = useState<VariantDiff | null>(null);
@@ -643,16 +656,19 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         ? "product-editor-new"
         : `product-editor-${product?.id}`;
 
-    const { hasDraft, restoreDraft, clearDraft } = useAutoSave({
-        key: autoSaveKey,
-        data: formData,
-        enabled: true,
-    });
-
     // Dirty detection
     const isDirty = useMemo(() => {
         return JSON.stringify(formData) !== JSON.stringify(initialDataRef.current);
     }, [formData]);
+
+    // Only unsaved edits are kept as a draft, tied to the product version they
+    // were made on, so an old draft can never be offered over newer changes.
+    const { hasDraft, restoreDraft, clearDraft } = useAutoSave({
+        key: autoSaveKey,
+        data: formData,
+        enabled: isDirty,
+        version: product?.updated_at ?? null,
+    });
 
     // Navigation guard
     useEffect(() => {
@@ -837,7 +853,18 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     const handleRestoreDraft = useCallback(() => {
         const draft = restoreDraft();
         if (draft) {
-            setFormData(draft);
+            // Stock is never restored: it moves with every order, and the
+            // editor saves a changed stock as a shelf count. The draft's
+            // number would overwrite today's stock.
+            const loaded = initialDataRef.current;
+            const loadedVariantStock = new Map(loaded.variants.flatMap((v) => (v.id ? [[v.id, v.stock_quantity] as const] : [])));
+            setFormData({
+                ...draft,
+                stock_quantity: loaded.stock_quantity,
+                variants: draft.variants.map((v) =>
+                    v.id && loadedVariantStock.has(v.id) ? { ...v, stock_quantity: loadedVariantStock.get(v.id) ?? 0 } : v,
+                ),
+            });
             toast.success(t("products.ed.draftRestored"));
         }
     }, [restoreDraft, t]);
@@ -972,7 +999,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
                     category_id: formData.category_id,
-                    website_price: formData.website_price,
+                    website_price: storeOverride(formData.website_price, formData.price),
                     short_description: formData.short_description || undefined,
                     status: formData.status,
                     product_type: formData.product_type,
@@ -1028,19 +1055,20 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     router.push(`/products/${newProduct.id}/edit`);
                 }
             } else if (product) {
-                await updateProduct(product.id, {
+                const savedUpdatedAt = await updateProduct(product.id, {
                     name: formData.name,
                     short_name: formData.short_name.trim() || null,
                     description: formData.description,
-                    sku: formData.sku || undefined,
+                    // Cleared fields are saved as cleared (null), not skipped.
+                    sku: formData.sku.trim() || null,
                     price: formData.price,
-                    compare_at_price: formData.compare_at_price || undefined,
+                    compare_at_price: formData.compare_at_price || null,
                     cost: formData.cost,
                     low_stock_threshold: formData.low_stock_threshold,
                     reorder_point: formData.reorder_point,
                     image_url: formData.image_url,
                     tag_color: formData.tag_color,
-                    barcode: formData.barcode || undefined,
+                    barcode: formData.barcode.trim() || null,
                     cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
                     is_filler: formData.is_filler,
@@ -1048,8 +1076,8 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
                     category_id: formData.category_id,
-                    website_price: formData.website_price,
-                    short_description: formData.short_description || undefined,
+                    website_price: storeOverride(formData.website_price, formData.price),
+                    short_description: formData.short_description,
                     status: formData.status,
                     product_type: formData.product_type,
                     weight: formData.weight,
@@ -1062,7 +1090,8 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
                     feature_cards: serializeFeatureCards(formData.feature_cards),
-                } as any);
+                } as any, { expectedUpdatedAt: baseUpdatedAtRef.current ?? undefined });
+                baseUpdatedAtRef.current = savedUpdatedAt;
 
                 // Stock is saved only when the merchant changed it, as a shelf
                 // count applied to the current row, so orders that shipped
@@ -1198,7 +1227,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 is_visible: false,
                 display_order: formData.display_order,
                 category_id: formData.category_id,
-                website_price: formData.website_price,
+                website_price: storeOverride(formData.website_price, formData.price),
                 short_description: formData.short_description || undefined,
                 status: "draft" as const,
                 product_type: formData.product_type,

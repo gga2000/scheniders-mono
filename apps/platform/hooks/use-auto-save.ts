@@ -7,6 +7,12 @@ interface UseAutoSaveOptions<T> {
     data: T;
     interval?: number; // ms, default 30000 (30s)
     enabled?: boolean;
+    /**
+     * What the draft was based on (the record's updated_at). A stored draft
+     * from a different version is discarded instead of offered: restoring it
+     * would write back values someone has since changed.
+     */
+    version?: string | null;
 }
 
 interface UseAutoSaveReturn<T> {
@@ -17,11 +23,25 @@ interface UseAutoSaveReturn<T> {
     saveDraft: () => void;
 }
 
-export function useAutoSave<T>({ key, data, interval = 30000, enabled = true }: UseAutoSaveOptions<T>): UseAutoSaveReturn<T> {
+export function useAutoSave<T>({ key, data, interval = 30000, enabled = true, version = null }: UseAutoSaveOptions<T>): UseAutoSaveReturn<T> {
     const [hasDraft, setHasDraft] = useState(false);
     const [draftData, setDraftData] = useState<T | null>(null);
     const dataRef = useRef(data);
     dataRef.current = data;
+    const versionRef = useRef(version);
+    versionRef.current = version;
+
+    const write = useCallback(() => {
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                data: dataRef.current,
+                version: versionRef.current,
+                savedAt: new Date().toISOString(),
+            }));
+        } catch {
+            // localStorage full or unavailable: the draft is a convenience only.
+        }
+    }, [key]);
 
     // Check for existing draft on mount
     useEffect(() => {
@@ -29,6 +49,10 @@ export function useAutoSave<T>({ key, data, interval = 30000, enabled = true }: 
             const stored = localStorage.getItem(key);
             if (stored) {
                 const parsed = JSON.parse(stored);
+                if ((parsed.version ?? null) !== versionRef.current) {
+                    localStorage.removeItem(key);
+                    return;
+                }
                 setDraftData(parsed.data);
                 setHasDraft(true);
             }
@@ -42,38 +66,17 @@ export function useAutoSave<T>({ key, data, interval = 30000, enabled = true }: 
     useEffect(() => {
         if (!enabled) return;
 
-        const timer = setInterval(() => {
-            try {
-                localStorage.setItem(key, JSON.stringify({
-                    data: dataRef.current,
-                    savedAt: new Date().toISOString(),
-                }));
-            } catch {
-                // localStorage full or unavailable
-            }
-        }, interval);
-
+        const timer = setInterval(write, interval);
         return () => clearInterval(timer);
-    }, [key, interval, enabled]);
+    }, [write, interval, enabled]);
 
     // Save before unload
     useEffect(() => {
         if (!enabled) return;
 
-        const handleBeforeUnload = () => {
-            try {
-                localStorage.setItem(key, JSON.stringify({
-                    data: dataRef.current,
-                    savedAt: new Date().toISOString(),
-                }));
-            } catch {
-                // Ignore
-            }
-        };
-
-        window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-    }, [key, enabled]);
+        window.addEventListener("beforeunload", write);
+        return () => window.removeEventListener("beforeunload", write);
+    }, [write, enabled]);
 
     const restoreDraft = useCallback(() => {
         if (draftData) {
@@ -89,16 +92,5 @@ export function useAutoSave<T>({ key, data, interval = 30000, enabled = true }: 
         setDraftData(null);
     }, [key]);
 
-    const saveDraft = useCallback(() => {
-        try {
-            localStorage.setItem(key, JSON.stringify({
-                data: dataRef.current,
-                savedAt: new Date().toISOString(),
-            }));
-        } catch {
-            // Ignore
-        }
-    }, [key]);
-
-    return { hasDraft, draftData, restoreDraft, clearDraft, saveDraft };
+    return { hasDraft, draftData, restoreDraft, clearDraft, saveDraft: write };
 }
