@@ -567,7 +567,13 @@ export const SLICE_1G_PDP_PATCH = {
   add_to_cart: true,
 } satisfies Partial<PdpDirectOrderProps>;
 
-/** The draft pdp_direct_order after slices 1b, 1c, 1d, 1e, 1f and 1g. */
+/** Slice 1i (Ali, 2026-10-30): concept A «الكبسولة» / The Espresso Dock —
+ *  the order buttons in one espresso capsule. */
+export const SLICE_1I_PDP_PATCH = {
+  cta_layout: "dock",
+} satisfies Partial<PdpDirectOrderProps>;
+
+/** The draft pdp_direct_order after slices 1b, 1c, 1d, 1e, 1f, 1g and 1i. */
 export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
   ...EXPRESS_IRAQ_DRAFT_PDP_PROPS,
   ...SLICE_1B_PDP_PATCH,
@@ -576,6 +582,7 @@ export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
   ...SLICE_1E_PDP_PATCH,
   ...SLICE_1F_PDP_PATCH,
   ...SLICE_1G_PDP_PATCH,
+  ...SLICE_1I_PDP_PATCH,
 };
 
 /** Slice 1f: the keys the 1f draft migration merges into sticky_cta_bar's

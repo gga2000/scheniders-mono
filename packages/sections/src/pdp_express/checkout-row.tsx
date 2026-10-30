@@ -4,6 +4,8 @@
 // an arrow that nudges and a light sweep every few seconds, a spinner while
 // placing), so the one price on the button can never disagree with the
 // receipt or leave delivery out.
+// With `cta_layout: "dock"` (slice 1i) the same buttons sit in one espresso
+// capsule instead (dock.tsx), in the row's place.
 
 import { useState } from "react";
 import {
@@ -17,7 +19,8 @@ import { ContactLine } from "../helpers/contact-line";
 import { EXPRESS_SUBMIT_ID, useFormWatched } from "../helpers/express-order-store";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
-import { CartAddedStatus, CartTile, type CartNote } from "./cart-action";
+import { CartAddedStatus, CartTile, type CartAddOutcome, type CartNote } from "./cart-action";
+import { ExpressDock } from "./dock";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
 import { PromiseBand } from "./promise-band";
@@ -114,6 +117,11 @@ export function CheckoutRow({
   // block below keep their place (and React's useId paths).
   const cart = m.props.add_to_cart === true && !m.oos;
   const [cartNote, setCartNote] = useState<CartNote | null>(null);
+  const onCartAdded = (outcome: CartAddOutcome) =>
+    setCartNote((prev) => ({ ...outcome, seq: (prev?.seq ?? 0) + 1 }));
+  // cta_layout "dock" (slice 1i): the same buttons in one espresso capsule,
+  // in this row's place, so nothing above or below it moves.
+  const dock = m.props.cta_layout === "dock";
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
       ? (m.compareAt - m.price) * m.qty
@@ -186,78 +194,91 @@ export function CheckoutRow({
         />
       </div>
 
-      <div
-        className={cn("flex items-stretch gap-2", cart && "flex-wrap")}
-        data-layer="submit"
-        data-layer-label="Order buttons"
-      >
-        {waHref && (
-          <a
-            href={waHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={xs("whatsapp", locale)}
-            className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-bk-input border-bk border-bk-success/25 bg-bk-success/10 text-bk-success transition-[transform,background-color] duration-bk-fast hover:bg-bk-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus active:scale-95 active:bg-bk-success/25 motion-reduce:transition-none"
-          >
-            <WhatsAppIcon shadow={false} className="h-7 w-7" />
-            <span className="font-bk-body text-[11px] font-bold leading-none text-bk-ink-soft">
-              {xs("whatsappShort", locale)}
-            </span>
-          </a>
-        )}
-        {cart && <CartTile m={m} locale={locale} onAdded={(outcome) => setCartNote((prev) => ({ ...outcome, seq: (prev?.seq ?? 0) + 1 }))} />}
-        <button
-          type="submit"
-          id={watched ? EXPRESS_SUBMIT_ID : undefined}
-          disabled={m.oos || m.submitting}
-          aria-busy={m.submitting || undefined}
-          aria-describedby={
-            m.status === "error" || m.status === "unconfirmed" ? m.submitErrorId : undefined
-          }
-          className={cn(
-            "relative isolate flex min-h-[60px] flex-1 items-center justify-center gap-3 overflow-hidden rounded-bk-input bg-bk-primary px-5 text-bk-on-primary shadow-bk-button",
-            "transition-[transform,background-color,box-shadow] duration-bk-fast motion-reduce:transition-none",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bk-surface",
-            "disabled:cursor-not-allowed disabled:bg-bk-primary-disabled disabled:shadow-none",
-            idle && "hover:bg-bk-primary-hover active:scale-[0.97] active:bg-bk-primary-active active:shadow-none",
-            m.submitting && "cursor-progress",
-            rtl && "flex-row-reverse",
-            // Three targets in one row: the submit gives up side padding,
-            // never its label, down to 360px.
-            cart && "min-w-0 gap-2 px-3",
-          )}
+      {dock ? (
+        <ExpressDock
+          m={m}
+          locale={locale}
+          waHref={waHref}
+          submitId={watched ? EXPRESS_SUBMIT_ID : undefined}
+          submitLabel={submitLabel}
+          cart={cart}
+          note={cartNote}
+          onAdded={onCartAdded}
+        />
+      ) : (
+        <div
+          className={cn("flex items-stretch gap-2", cart && "flex-wrap")}
+          data-layer="submit"
+          data-layer-label="Order buttons"
         >
-          {idle && (
-            <span
-              aria-hidden="true"
-              className={cn(
-                "bk-xp-sheen pointer-events-none absolute inset-y-0 left-0 -z-10 w-2/5",
-                rtl && "bk-xp-sheen-rtl",
-              )}
-            />
-          )}
-          <span className="font-bk-display text-[19px] font-black leading-tight">{submitLabel}</span>
-          {!m.oos && (
-            <span
-              aria-hidden="true"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-bk-pill bg-bk-on-primary/15"
+          {waHref && (
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={xs("whatsapp", locale)}
+              className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-bk-input border-bk border-bk-success/25 bg-bk-success/10 text-bk-success transition-[transform,background-color] duration-bk-fast hover:bg-bk-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus active:scale-95 active:bg-bk-success/25 motion-reduce:transition-none"
             >
-              {m.submitting ? (
-                <MaterialIcon
-                  name="progress_activity"
-                  className="animate-spin text-xl motion-reduce:animate-none"
-                />
-              ) : (
-                <MaterialIcon
-                  name={rtl ? "arrow_back" : "arrow_forward"}
-                  className={cn("text-xl", rtl ? "bk-xp-nudge-rtl" : "bk-xp-nudge")}
-                />
-              )}
-            </span>
+              <WhatsAppIcon shadow={false} className="h-7 w-7" />
+              <span className="font-bk-body text-[11px] font-bold leading-none text-bk-ink-soft">
+                {xs("whatsappShort", locale)}
+              </span>
+            </a>
           )}
-        </button>
-        {cart && <CartAddedStatus note={cartNote} locale={locale} />}
-      </div>
+          {cart && <CartTile m={m} locale={locale} onAdded={onCartAdded} />}
+          <button
+            type="submit"
+            id={watched ? EXPRESS_SUBMIT_ID : undefined}
+            disabled={m.oos || m.submitting}
+            aria-busy={m.submitting || undefined}
+            aria-describedby={
+              m.status === "error" || m.status === "unconfirmed" ? m.submitErrorId : undefined
+            }
+            className={cn(
+              "relative isolate flex min-h-[60px] flex-1 items-center justify-center gap-3 overflow-hidden rounded-bk-input bg-bk-primary px-5 text-bk-on-primary shadow-bk-button",
+              "transition-[transform,background-color,box-shadow] duration-bk-fast motion-reduce:transition-none",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bk-surface",
+              "disabled:cursor-not-allowed disabled:bg-bk-primary-disabled disabled:shadow-none",
+              idle && "hover:bg-bk-primary-hover active:scale-[0.97] active:bg-bk-primary-active active:shadow-none",
+              m.submitting && "cursor-progress",
+              rtl && "flex-row-reverse",
+              // Three targets in one row: the submit gives up side padding,
+              // never its label, down to 360px.
+              cart && "min-w-0 gap-2 px-3",
+            )}
+          >
+            {idle && (
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "bk-xp-sheen pointer-events-none absolute inset-y-0 left-0 -z-10 w-2/5",
+                  rtl && "bk-xp-sheen-rtl",
+                )}
+              />
+            )}
+            <span className="font-bk-display text-[19px] font-black leading-tight">{submitLabel}</span>
+            {!m.oos && (
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-bk-pill bg-bk-on-primary/15"
+              >
+                {m.submitting ? (
+                  <MaterialIcon
+                    name="progress_activity"
+                    className="animate-spin text-xl motion-reduce:animate-none"
+                  />
+                ) : (
+                  <MaterialIcon
+                    name={rtl ? "arrow_back" : "arrow_forward"}
+                    className={cn("text-xl", rtl ? "bk-xp-nudge-rtl" : "bk-xp-nudge")}
+                  />
+                )}
+              </span>
+            )}
+          </button>
+          {cart && <CartAddedStatus note={cartNote} locale={locale} />}
+        </div>
+      )}
 
       {!band && m.reassurance && (
         <p

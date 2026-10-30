@@ -304,6 +304,16 @@ const schema = z.object({
    *  buttons with a «شوف السلة» link, and never submits the order.
    *  Absent = today's row, byte-identical. Classic ignores it. */
   add_to_cart: z.boolean().optional().catch(undefined),
+
+  // ── Order-button layout (opt-in, express only) ──────────────────────
+  /** Express: "dock" puts the order buttons in one espresso capsule (Ali's
+   *  concept A «الكبسولة», 2026-10-30): «ثبّت طلبي» as a yellow pill with
+   *  an espresso arrow disc, then «أضف للسلة» (with add_to_cart) and
+   *  WhatsApp as cream icon-over-label segments; an add slides the
+   *  confirmation drawer out from under it. Same submit, same cart tap,
+   *  same WhatsApp link. Absent/"row" = today's row, byte-identical.
+   *  Classic ignores it. */
+  cta_layout: z.enum(["row", "dock"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

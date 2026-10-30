@@ -1,6 +1,8 @@
 // Express add to cart (`add_to_cart`, slice 1g): the «أضف للسلة» tile that
 // sits between the WhatsApp tile and the submit, and the line under the
 // order buttons that confirms an add and links to the cart.
+// `useExpressCartAdd` is the one add path: the tile here and the dock's
+// cart segment (`cta_layout: "dock"`, slice 1i) both call it.
 //
 // The tile is a `type="button"` inside the order form: it never submits
 // the order and never runs the form's validation. It adds what the form
@@ -33,20 +35,18 @@ export type CartAddOutcome = { added: boolean; inCart: number };
 /** The confirmation's state; `seq` counts taps so each one re-announces. */
 export type CartNote = CartAddOutcome & { seq: number };
 
-export function CartTile({
-  m,
-  locale,
-  onAdded,
-}: {
-  m: ExpressModel;
-  locale: LocaleCode;
-  /** Called after each tap that is not asking for a variant, for the
-   *  confirmation line. */
-  onAdded: (outcome: CartAddOutcome) => void;
-}) {
+/** The «أضف للسلة» tap, shared by the row's tile and the dock's segment
+ *  (`cta_layout: "dock"`). While a variant is owed it asks for it, exactly
+ *  as a submit would. It adds what the form would order, capped at what is
+ *  left of `m.maxQty` (nothing left → nothing added, and the outcome says
+ *  so), and fires AddToCart like pdp_add_to_cart. */
+export function useExpressCartAdd(
+  m: ExpressModel,
+  onAdded: (outcome: CartAddOutcome) => void,
+): () => void {
   const addItem = useCart((s) => s.addItem);
 
-  function add() {
+  return function add() {
     if (m.chosen.needsVariant) {
       m.focusVariantChoice();
       return;
@@ -71,7 +71,21 @@ export function CartTile({
       pixelContentsFromItems([{ product_id: line.product_id, price: line.price, quantity: line.quantity }]),
     );
     onAdded({ added: true, inCart: inCart + qty });
-  }
+  };
+}
+
+export function CartTile({
+  m,
+  locale,
+  onAdded,
+}: {
+  m: ExpressModel;
+  locale: LocaleCode;
+  /** Called after each tap that is not asking for a variant, for the
+   *  confirmation line. */
+  onAdded: (outcome: CartAddOutcome) => void;
+}) {
+  const add = useExpressCartAdd(m, onAdded);
 
   return (
     <button
