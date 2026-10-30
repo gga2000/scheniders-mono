@@ -18,10 +18,11 @@ export interface CategoriesFilters {
     statuses?: CategoryStatus[];
 }
 
-async function fetchCategories(filters: CategoriesFilters = {}): Promise<Category[]> {
+async function fetchCategories(tenantId: string, filters: CategoriesFilters = {}): Promise<Category[]> {
     let query = supabase
         .from("categories")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("display_order", { ascending: true })
         .order("name", { ascending: true });
 
@@ -37,12 +38,12 @@ async function fetchCategories(filters: CategoriesFilters = {}): Promise<Categor
 }
 
 export function useCategoriesQuery(filters: CategoriesFilters = {}) {
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
 
     return useQuery({
-        queryKey: categoryKeys.list(filters),
-        queryFn: () => fetchCategories(filters),
-        enabled: !!session && clientReady,
+        queryKey: [...categoryKeys.list(filters), tenantId] as const,
+        queryFn: () => (tenantId ? fetchCategories(tenantId, filters) : Promise.resolve([])),
+        enabled: !!session && clientReady && !!tenantId,
         staleTime: CACHE_PRESETS.STANDARD.staleTime * 2,
         gcTime: CACHE_PRESETS.STANDARD.gcTime * 2,
     });

@@ -83,6 +83,10 @@ export const PERMISSIONS = {
     EDIT_CUSTOMERS: "customers.edit",
     BLOCK_CUSTOMERS: "customers.block",
 
+    // Products
+    EDIT_PRODUCTS: "products.edit", // create/edit products, variants, categories and stock
+    MANAGE_PRODUCTS: "products.manage", // delete products, bulk price changes, inventory tools
+
     // System
     MANAGE_USERS: "system.users.manage",
     VIEW_ANALYTICS: "system.analytics.view",
@@ -110,6 +114,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
         PERMISSIONS.VIEW_CUSTOMERS,
         PERMISSIONS.EDIT_CUSTOMERS,
         PERMISSIONS.BLOCK_CUSTOMERS,
+        PERMISSIONS.EDIT_PRODUCTS,
         // No Analytics, No Financials, No Settings
     ],
     viewer: [
@@ -153,6 +158,13 @@ export const PERMISSION_CATEGORIES = [
             { key: PERMISSIONS.VIEW_CUSTOMERS, label: "View Customers" },
             { key: PERMISSIONS.EDIT_CUSTOMERS, label: "Edit Customer Details" },
             { key: PERMISSIONS.BLOCK_CUSTOMERS, label: "Block Customers" },
+        ]
+    },
+    {
+        category: "Products",
+        items: [
+            { key: PERMISSIONS.EDIT_PRODUCTS, label: "Add and Edit Products and Stock" },
+            { key: PERMISSIONS.MANAGE_PRODUCTS, label: "Delete Products, Bulk Prices, Inventory Tools" },
         ]
     },
     {

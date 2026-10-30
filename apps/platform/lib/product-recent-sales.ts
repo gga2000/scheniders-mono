@@ -36,8 +36,7 @@ const key = (value: string | null | undefined) => (value ?? "").trim().toLowerCa
 
 /**
  * Units sold per product id. A line is attributed by product_id when it names a
- * catalogue product, else by SKU, else by name (the same fallbacks get_product_sales
- * uses for lines that predate product_id).
+ * catalogue product, else by SKU, else by name (for lines that predate product_id).
  */
 export function foldUnitsSold(
     lines: RecentSaleLine[],

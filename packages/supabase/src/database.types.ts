@@ -8679,12 +8679,14 @@ export type Database = {
         }[]
       }
       get_product_sales: {
-        Args: never
+        Args: { p_tenant_id: string }
         Returns: {
-          line_count: number
+          order_count: number
           product_id: string
-          times_sold: number
-          total_revenue: number
+          revenue: number
+          revenue_30d: number
+          units_sold: number
+          units_sold_30d: number
         }[]
       }
       get_seed_automation_status: { Args: never; Returns: Json }

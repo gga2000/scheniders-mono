@@ -57,7 +57,7 @@ interface CategoryGroupedViewProps {
     onArchive: (id: string) => void;
     onRestore: (id: string) => void;
     onDuplicate: (product: Product) => void;
-    onDelete: (product: Product) => void;
+    onDelete?: (product: Product) => void;
     onVisibilityToggle: (product: Product) => void;
 }
 
@@ -709,7 +709,7 @@ interface MiniProductCardProps {
     onArchive: (id: string) => void;
     onRestore: (id: string) => void;
     onDuplicate: (product: Product) => void;
-    onDelete: (product: Product) => void;
+    onDelete?: (product: Product) => void;
     onVisibilityToggle: (product: Product) => void;
 }
 
@@ -785,7 +785,7 @@ function MiniProductCard({
                     onViewDetails={() => onViewDetails(product)}
                     onViewOrders={() => {}}
                     onDuplicate={() => onDuplicate(product)}
-                    onDelete={() => onDelete(product)}
+                    onDelete={onDelete ? () => onDelete(product) : undefined}
                 />
             </div>
 

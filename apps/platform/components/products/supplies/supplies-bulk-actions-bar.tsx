@@ -32,7 +32,7 @@ interface SuppliesBulkActionsBarProps {
     selected: Product[];
     categories: Category[];
     onClear: () => void;
-    updateProduct: (id: string, patch: SupplyPatch) => Promise<boolean>;
+    updateProduct: (id: string, patch: SupplyPatch) => Promise<void>;
 }
 
 export function SuppliesBulkActionsBar({
@@ -67,14 +67,14 @@ export function SuppliesBulkActionsBar({
             const results = await Promise.allSettled(
                 selected.map((supply) => {
                     const patch = patchFor(supply);
-                    if (!patch) return Promise.resolve(true);
+                    if (!patch) return Promise.resolve();
                     return updateProduct(supply.id, patch);
                 }),
             );
             let ok = 0;
             let fail = 0;
             for (const r of results) {
-                if (r.status === "fulfilled" && r.value) ok++;
+                if (r.status === "fulfilled") ok++;
                 else fail++;
             }
             if (fail === 0) {

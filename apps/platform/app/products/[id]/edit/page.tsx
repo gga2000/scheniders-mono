@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useLanguage } from "@/hooks/use-language";
 import { ProductEditorPage } from "@/components/products/editor/product-editor-page";
 
 export default function EditProductPage() {
@@ -17,7 +18,8 @@ function EditProductContent() {
     const params = useParams();
     const router = useRouter();
     const productId = params.id as string;
-    const { products, loading } = useProductsCrud();
+    const { products, loading } = useProductsCrud({ withSales: true });
+    const { t } = useLanguage();
 
     const product = products.find((p) => p.id === productId);
 
@@ -29,13 +31,13 @@ function EditProductContent() {
         return (
             <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-xl font-bold text-foreground mb-2">Product not found</h2>
-                    <p className="text-muted mb-4">This product may have been deleted.</p>
+                    <h2 className="text-xl font-bold text-foreground mb-2">{t("products.editor.notFound")}</h2>
+                    <p className="text-muted mb-4">{t("products.editor.notFoundHint")}</p>
                     <button
                         onClick={() => router.push("/products")}
                         className="px-6 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                     >
-                        Back to Products
+                        {t("products.editor.backToProducts")}
                     </button>
                 </div>
             </div>

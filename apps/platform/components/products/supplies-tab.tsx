@@ -2,6 +2,8 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import {
     Box,
     Plus,
@@ -64,7 +66,8 @@ const VIEW_MODE_KEY = "supplies.viewMode";
 const SECTION_KEY = "supplies.section";
 
 export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
-    const { products, loading, updateProduct } = useProductsCrud();
+    const { products, loading, updateProduct } = useProductsCrud({ withSales: true });
+    const { t } = useLanguage();
     const { data: categories = [] } = useCategoriesQuery();
     const { data: openPoBySupply } = useOpenPosBySupply();
     const { data: supplierPos = [] } = useSupplierPos();
@@ -350,11 +353,11 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         const current = product.stock_quantity ?? 0;
         const next = Math.max(0, current + delta);
         if (next === current) return;
-        const ok = await updateProduct(product.id, { stock_quantity: next });
-        if (ok) {
+        try {
+            await updateProduct(product.id, { stock_quantity: next });
             toast.success(`${product.name}: ${current} → ${next}`);
-        } else {
-            toast.error("Could not update stock");
+        } catch (err) {
+            toast.error(t(productWriteErrorKey(err)));
         }
     };
 

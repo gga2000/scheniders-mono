@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { withRetry } from "./with-retry";
+import { withRetry, NonRetryableError } from "./with-retry";
 import type { Product, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
 
@@ -7,11 +7,27 @@ import { diag } from "@/lib/diag";
 export type ProductSearchMatch = Pick<Product, "id" | "name" | "price">;
 
 /**
+ * A product write that RLS filtered out. Postgres reports an UPDATE or DELETE
+ * whose rows the policy hides as "0 rows affected", not as an error, so a
+ * write the user's role may not make would otherwise look like a success.
+ */
+export class ProductWriteDeniedError extends NonRetryableError {
+    constructor(operation: string) {
+        super(`${operation}: no row was changed (not permitted for this role)`);
+        this.name = "ProductWriteDeniedError";
+    }
+}
+
+function assertChanged(operation: string, rows: unknown[] | null, expected: number): void {
+    if ((rows?.length ?? 0) < expected) throw new ProductWriteDeniedError(operation);
+}
+
+/**
  * ProductRepository — Centralized data access for products.
  */
 export const productRepository = {
-    /** Fetch all products with variants, newest first. */
-    async findAll(): Promise<Product[]> {
+    /** Fetch the tenant's products with variants, newest first. */
+    async findAll(tenantId: string): Promise<Product[]> {
         return withRetry('productRepository.findAll', async () => {
             const _t = performance.now();
             diag.log(`[Diag:ProductRepo] findAll query START`);
@@ -19,6 +35,7 @@ export const productRepository = {
             const { data, error } = await supabase
                 .from("products")
                 .select(`*, variants:product_variants(*)`)
+                .eq("tenant_id", tenantId)
                 .order("created_at", { ascending: false });
 
             diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
@@ -90,7 +107,7 @@ export const productRepository = {
             // Strip computed/joined fields that have no column on `products`.
             // NOTE: `sku` is a real, writable column (used by LightFunnels order
             // matching) — it must stay in the payload, not be stripped here.
-            const { variants: _variants, times_sold: _ts, total_revenue: _tr, profit_margin: _pm, average_order_value: _aov, ...data } = productData as any;
+            const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, ...data } = productData as any;
             const { data: newProduct, error } = await supabase
                 .from("products")
                 .insert([{ ...data, is_archived: false, tenant_id: tenantId }])
@@ -107,121 +124,141 @@ export const productRepository = {
         return withRetry('productRepository.update', async () => {
             // Strip computed/joined fields and immutable keys. `sku` is a real,
             // writable column (LightFunnels order matching depends on it) — keep it.
-            const { variants: _variants, times_sold: _ts, total_revenue: _tr, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as any;
-            const { error } = await supabase
+            const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as any;
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update(updateData)
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.update", changed, 1);
         });
     },
 
     /** Archive a product. */
     async archive(id: string): Promise<void> {
         return withRetry('productRepository.archive', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update({ is_archived: true })
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.archive", changed, 1);
         });
     },
 
     /** Restore an archived product. */
     async restore(id: string): Promise<void> {
         return withRetry('productRepository.restore', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update({ is_archived: false })
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.restore", changed, 1);
         });
     },
 
     /** Hard-delete a product. */
     async delete(id: string): Promise<void> {
         return withRetry('productRepository.delete', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .delete()
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.delete", changed, 1);
         });
     },
 
     /** Bulk-update price for multiple products. */
     async bulkUpdatePrice(ids: string[], price: number): Promise<void> {
         return withRetry('productRepository.bulkUpdatePrice', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update({ price })
-                .in("id", ids);
+                .in("id", ids)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.bulkUpdatePrice", changed, ids.length);
         });
     },
 
     /** Bulk-archive multiple products. */
     async bulkArchive(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkArchive', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update({ is_archived: true })
-                .in("id", ids);
+                .in("id", ids)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.bulkArchive", changed, ids.length);
         });
     },
 
     /** Bulk-restore multiple archived products. */
     async bulkRestore(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkRestore', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update({ is_archived: false })
-                .in("id", ids);
+                .in("id", ids)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.bulkRestore", changed, ids.length);
         });
     },
 
     /** Bulk-delete multiple products permanently. */
     async bulkDelete(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkDelete', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .delete()
-                .in("id", ids);
+                .in("id", ids)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.bulkDelete", changed, ids.length);
         });
     },
 
     /** Bulk-update storefront visibility for multiple products. */
     async bulkUpdateVisibility(ids: string[], isVisible: boolean): Promise<void> {
         return withRetry('productRepository.bulkUpdateVisibility', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update({ is_visible: isVisible })
-                .in("id", ids);
+                .in("id", ids)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.bulkUpdateVisibility", changed, ids.length);
         });
     },
 
     /** Bulk-update category for multiple products. Pass null to clear category. */
     async bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<void> {
         return withRetry('productRepository.bulkUpdateCategory', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("products")
                 .update({ category_id: categoryId })
-                .in("id", ids);
+                .in("id", ids)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.bulkUpdateCategory", changed, ids.length);
         });
     },
 
@@ -235,10 +272,12 @@ export const productRepository = {
                     .from("products")
                     .update({ display_order })
                     .eq("id", id)
+                    .select("id")
             );
             const results = await Promise.all(promises);
             const firstError = results.find((r) => r.error);
             if (firstError?.error) throw firstError.error;
+            for (const r of results) assertChanged("productRepository.bulkUpdateDisplayOrder", r.data, 1);
         });
     },
 
@@ -277,24 +316,28 @@ export const productRepository = {
     /** Update a variant. */
     async updateVariant(id: string, data: Partial<ProductVariant>): Promise<void> {
         return withRetry('productRepository.updateVariant', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("product_variants")
                 .update(data)
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.updateVariant", changed, 1);
         });
     },
 
     /** Delete a variant. */
     async deleteVariant(id: string): Promise<void> {
         return withRetry('productRepository.deleteVariant', async () => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("product_variants")
                 .delete()
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
 
             if (error) throw error;
+            assertChanged("productRepository.deleteVariant", changed, 1);
         });
     },
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase, type Product, type ProductVariant, type ProductPriceHistory, getStockStatus } from "@/lib/supabase";
+import type { Product, ProductVariant } from "@/lib/supabase";
 import { useProductSalesQuery } from "@/hooks/use-product-sales-query";
 import {
     useProductsQuery,
@@ -20,7 +20,6 @@ import {
     useAddVariantMutation,
     useUpdateVariantMutation,
     useDeleteVariantMutation,
-    usePriceHistoryQuery,
 } from "@/hooks/use-products-query";
 
 interface ProductFormData {
@@ -54,10 +53,25 @@ interface VariantFormData {
     sku?: string;
 }
 
-export function useProductsCrud() {
+interface UseProductsCrudOptions {
+    /**
+     * Fold in per-product sales (`times_sold`, revenue…). Only screens that
+     * show them ask: the sales RPC scans every delivered order line, so the
+     * orders, finances and analytics pages, which only need the catalogue,
+     * don't pay for it.
+     */
+    withSales?: boolean;
+}
+
+/**
+ * Products plus their mutations. Every mutation rejects when the write fails
+ * (RLS denial, paused tenant, network): callers report the failure, and never
+ * claim success for a write that didn't happen.
+ */
+export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = {}) {
     const queryClient = useQueryClient();
     const { data: rawProducts, isLoading: loading, error: queryError } = useProductsQuery();
-    const salesByProductId = useProductSalesQuery();
+    const salesByProductId = useProductSalesQuery(withSales);
 
     // Mutations
     const addProductMutation = useAddProductMutation();
@@ -79,7 +93,7 @@ export function useProductsCrud() {
     const products = useMemo(() => {
         return (rawProducts || []).map((product) => {
             const salesData = salesByProductId.get(product.id)
-                ?? { timesSold: 0, totalRevenue: 0, averageOrderValue: 0 };
+                ?? { timesSold: 0, totalRevenue: 0, averageOrderValue: 0, timesSold30d: 0, revenue30d: 0 };
             const profitMargin = product.cost
                 ? ((product.price - product.cost) / product.price) * 100
                 : undefined;
@@ -89,6 +103,8 @@ export function useProductsCrud() {
                 times_sold: salesData.timesSold,
                 total_revenue: salesData.totalRevenue,
                 average_order_value: salesData.averageOrderValue,
+                times_sold_30d: salesData.timesSold30d,
+                revenue_30d: salesData.revenue30d,
                 profit_margin: profitMargin,
             };
         });
@@ -98,208 +114,62 @@ export function useProductsCrud() {
     // CRUD Operations Wrappers
     // =============================================
 
-    const addProduct = async (data: ProductFormData): Promise<Product | null> => {
-        try {
-            return await addProductMutation.mutateAsync(data);
-        } catch (err) {
-            console.error("Error adding product:", err);
-            return null;
-        }
+    const addProduct = (data: ProductFormData): Promise<Product> =>
+        addProductMutation.mutateAsync(data);
+
+    const updateProduct = async (id: string, data: Partial<ProductFormData>): Promise<void> => {
+        await updateProductMutation.mutateAsync({ id, data });
     };
 
-    const updateProduct = async (id: string, data: Partial<ProductFormData>): Promise<boolean> => {
-        try {
-            await updateProductMutation.mutateAsync({ id, data });
-            return true;
-        } catch (err) {
-            console.error("Error updating product:", err);
-            return false;
-        }
+    const archiveProduct = async (id: string): Promise<void> => {
+        await archiveProductMutation.mutateAsync(id);
     };
 
-    const archiveProduct = async (id: string): Promise<boolean> => {
-        try {
-            await archiveProductMutation.mutateAsync(id);
-            return true;
-        } catch (err) {
-            console.error("Error archiving product:", err);
-            return false;
-        }
+    const restoreProduct = async (id: string): Promise<void> => {
+        await restoreProductMutation.mutateAsync(id);
     };
 
-    const restoreProduct = async (id: string): Promise<boolean> => {
-        try {
-            await restoreProductMutation.mutateAsync(id);
-            return true;
-        } catch (err) {
-            console.error("Error restoring product:", err);
-            return false;
-        }
+    const deleteProduct = async (id: string): Promise<void> => {
+        await deleteProductMutation.mutateAsync(id);
     };
 
-    const deleteProduct = async (id: string): Promise<boolean> => {
-        try {
-            await deleteProductMutation.mutateAsync(id);
-            return true;
-        } catch (err) {
-            console.error("Error deleting product:", err);
-            return false;
-        }
+    const bulkUpdatePrices = async (productIds: string[], newPrice: number): Promise<void> => {
+        await bulkUpdatePricesMutation.mutateAsync({ ids: productIds, price: newPrice });
     };
 
-    const bulkUpdatePrices = async (productIds: string[], newPrice: number): Promise<boolean> => {
-        try {
-            await bulkUpdatePricesMutation.mutateAsync({ ids: productIds, price: newPrice });
-            return true;
-        } catch (err) {
-            console.error("Error bulk updating prices:", err);
-            return false;
-        }
+    const bulkArchive = async (productIds: string[]): Promise<void> => {
+        await bulkArchiveMutation.mutateAsync(productIds);
     };
 
-    const bulkArchive = async (productIds: string[]): Promise<boolean> => {
-        try {
-            await bulkArchiveMutation.mutateAsync(productIds);
-            return true;
-        } catch (err) {
-            console.error("Error bulk archiving:", err);
-            return false;
-        }
+    const bulkRestore = async (productIds: string[]): Promise<void> => {
+        await bulkRestoreMutation.mutateAsync(productIds);
     };
 
-    const bulkRestore = async (productIds: string[]): Promise<boolean> => {
-        try {
-            await bulkRestoreMutation.mutateAsync(productIds);
-            return true;
-        } catch (err) {
-            console.error("Error bulk restoring:", err);
-            return false;
-        }
+    const bulkDelete = async (productIds: string[]): Promise<void> => {
+        await bulkDeleteMutation.mutateAsync(productIds);
     };
 
-    const bulkDelete = async (productIds: string[]): Promise<boolean> => {
-        try {
-            await bulkDeleteMutation.mutateAsync(productIds);
-            return true;
-        } catch (err) {
-            console.error("Error bulk deleting:", err);
-            return false;
-        }
-    };
-
-    const bulkUpdateVisibility = async (productIds: string[], isVisible: boolean): Promise<boolean> => {
-        try {
-            await bulkUpdateVisibilityMutation.mutateAsync({ ids: productIds, isVisible });
-            return true;
-        } catch (err) {
-            console.error("Error bulk updating visibility:", err);
-            return false;
-        }
+    const bulkUpdateVisibility = async (productIds: string[], isVisible: boolean): Promise<void> => {
+        await bulkUpdateVisibilityMutation.mutateAsync({ ids: productIds, isVisible });
     };
 
     // =============================================
     // Variant Operations Wrappers
     // =============================================
 
-    const addVariant = async (productId: string, data: VariantFormData): Promise<ProductVariant | null> => {
-        try {
-            return await addVariantMutation.mutateAsync({ productId, data });
-        } catch (err) {
-            console.error("Error adding variant:", err);
-            return null;
-        }
+    const addVariant = (productId: string, data: VariantFormData): Promise<ProductVariant> =>
+        addVariantMutation.mutateAsync({ productId, data });
+
+    const updateVariant = async (variantId: string, data: Partial<VariantFormData>): Promise<void> => {
+        await updateVariantMutation.mutateAsync({ id: variantId, data });
     };
 
-    const updateVariant = async (variantId: string, data: Partial<VariantFormData>): Promise<boolean> => {
-        try {
-            await updateVariantMutation.mutateAsync({ id: variantId, data });
-            return true;
-        } catch (err) {
-            console.error("Error updating variant:", err);
-            return false;
-        }
+    const deleteVariant = async (variantId: string): Promise<void> => {
+        await deleteVariantMutation.mutateAsync(variantId);
     };
 
-    const deleteVariant = async (variantId: string): Promise<boolean> => {
-        try {
-            await deleteVariantMutation.mutateAsync(variantId);
-            return true;
-        } catch (err) {
-            console.error("Error deleting variant:", err);
-            return false;
-        }
-    };
-
-    const reorderProducts = async (updates: { id: string; display_order: number }[]): Promise<boolean> => {
-        try {
-            await bulkUpdateDisplayOrderMutation.mutateAsync(updates);
-            return true;
-        } catch (err) {
-            console.error("Error reordering products:", err);
-            return false;
-        }
-    };
-
-    // Note: getPriceHistory still calls supabase directly in original?
-    // We added usePriceHistoryQuery, but the original returned a Promise array.
-    // To match interface, we can keep the manual fetch OR change consumers.
-    // Consumers likely await it.
-    // Let's keep the manual fetch wrapper for now to verify compatibility,
-    // or just re-implement the fetch here.
-    // Actually, `usePriceHistoryQuery` is a hook, can't be called inside a function.
-    // So `getPriceHistory` helper function must remain "pessimistic" or standard fetch.
-    const getPriceHistory = async (productId: string): Promise<ProductPriceHistory[]> => {
-        try {
-            const { data, error: fetchError } = await supabase
-                .from("product_price_history")
-                .select("*")
-                .eq("product_id", productId)
-                .order("created_at", { ascending: false });
-
-            if (fetchError) throw fetchError;
-            return data || [];
-        } catch (err) {
-            console.error("Error fetching price history:", err);
-            return [];
-        }
-    };
-
-    // Upload product image
-    const uploadProductImage = async (productId: string, file: File): Promise<string | null> => {
-        try {
-            const fileExt = file.name.split(".").pop();
-            const fileName = `${productId}-${Date.now()}.${fileExt}`;
-            const filePath = `products/${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from("product-images")
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data: urlData } = supabase.storage
-                .from("product-images")
-                .getPublicUrl(filePath);
-
-            // Update product with image URL via mutation
-            await updateProductMutation.mutateAsync({ id: productId, data: { image_url: urlData.publicUrl } });
-
-            return urlData.publicUrl;
-        } catch (err) {
-            console.error("Error uploading image:", err);
-            return null;
-        }
-    };
-
-    const getLowStockProducts = useCallback(() => {
-        return (products || []).filter((p) => !p.is_archived && getStockStatus(p) !== "in_stock");
-    }, [products]);
-
-    // Refetch wrapper
-    const refetch = async () => {
-        // useProductsQuery handles automatic refetching, but if we need manual:
-        // we can return the refetch function from query
-        // But query.refetch returns QueryResult, here we expect void or Promise
+    const reorderProducts = async (updates: { id: string; display_order: number }[]): Promise<void> => {
+        await bulkUpdateDisplayOrderMutation.mutateAsync(updates);
     };
 
     return {
@@ -323,10 +193,6 @@ export function useProductsCrud() {
         addVariant,
         updateVariant,
         deleteVariant,
-        // Utilities
-        getPriceHistory,
-        uploadProductImage,
-        getLowStockProducts,
         refetch: () => { queryClient.invalidateQueries({ queryKey: ['products'] }); },
     };
 }

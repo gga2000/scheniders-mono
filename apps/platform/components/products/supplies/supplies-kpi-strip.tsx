@@ -155,7 +155,7 @@ function Tile({
 
 function daysOfSupplyFor(p: Product): number | null {
     if (p.stock_quantity <= 0) return null;
-    const timesSold = p.times_sold ?? 0;
+    const timesSold = p.times_sold_30d ?? 0;
     if (timesSold <= 0) return null;
     const daily = timesSold / 30;
     if (daily <= 0) return null;
@@ -187,7 +187,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
             else if (stock <= threshold) atRisk++;
 
             const days = daysOfSupplyFor(p);
-            const rate = (p.times_sold ?? 0) / 30;
+            const rate = (p.times_sold_30d ?? 0) / 30;
             if (days !== null && rate > 0) {
                 daysSum += days * rate;
                 daysDenom += rate;

@@ -3,7 +3,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
-import { useRecomputeInventoryMutation, useZeroOversoldMutation } from "@/hooks/use-products-query";
+import { useRecomputeInventoryMutation, useZeroOversoldMutation, usePriceHistoryQuery } from "@/hooks/use-products-query";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import { Product, getStockStatus, supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
@@ -117,13 +120,17 @@ function ProductsContent() {
         addVariant,
         updateVariant,
         deleteVariant,
-        getPriceHistory,
         bulkUpdateVisibility,
         deleteProduct,
         reorderProducts,
-    } = useProductsCrud();
+    } = useProductsCrud({ withSales: true });
     const recomputeInventory = useRecomputeInventoryMutation();
     const zeroOversold = useZeroOversoldMutation();
+    // The database enforces these (RLS + RPC checks); the UI only hides what
+    // the role can't do so nobody taps a button that is bound to fail.
+    const { can } = usePermission();
+    const canEditProducts = can(PERMISSIONS.EDIT_PRODUCTS);
+    const canManageProducts = can(PERMISSIONS.MANAGE_PRODUCTS);
     const { revealed: showFinancials } = useFinancialVisibility();
 
     const { data: categories } = useCategoriesQuery();
@@ -238,7 +245,7 @@ function ProductsContent() {
     const [formDefaultIsSupply, setFormDefaultIsSupply] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [priceHistory, setPriceHistory] = useState<any[]>([]);
+    const { data: priceHistory = [] } = usePriceHistoryQuery(isDetailModalOpen && selectedProduct ? selectedProduct.id : "");
 
     // Filter and sort products — memoized with stable deps
     // Filler products are catalogue depth, not shelf stock. They stay out of the
@@ -363,15 +370,20 @@ function ProductsContent() {
         router.push(`/products/${product.id}/edit`);
     }, [router]);
 
-    const handleViewDetails = useCallback(async (product: Product) => {
+    // Opens at once; the price history loads inside the modal.
+    const handleViewDetails = useCallback((product: Product) => {
         setSelectedProduct(product);
-        const history = await getPriceHistory(product.id);
-        setPriceHistory(history);
         setIsDetailModalOpen(true);
-    }, [getPriceHistory]);
+    }, []);
+
+    const reportWriteError = useCallback((err: unknown) => {
+        toast.error(t(productWriteErrorKey(err)));
+    }, [t]);
 
     const handleDuplicateProduct = useCallback(async (product: Product) => {
-        const newProduct = await addProduct({
+        let newProduct: Product;
+        try {
+        newProduct = await addProduct({
             name: `Copy of ${product.name}`,
             sku: product.sku ? `${product.sku}-copy` : undefined,
             description: product.description,
@@ -390,33 +402,68 @@ function ProductsContent() {
             website_price: product.website_price,
             short_description: product.short_description || undefined,
         });
-        if (newProduct) {
-            router.push(`/products/${newProduct.id}/edit`);
+        } catch (err) {
+            reportWriteError(err);
+            return;
         }
-    }, [addProduct, router]);
+        router.push(`/products/${newProduct.id}/edit`);
+    }, [addProduct, router, reportWriteError]);
 
     const handleDeleteProduct = useCallback(async (product: Product) => {
-        await deleteProduct(product.id);
-    }, [deleteProduct]);
-
-    const handleArchive = useCallback(async (id: string) => {
-        await archiveProduct(id);
-    }, [archiveProduct]);
+        try {
+            await deleteProduct(product.id);
+            toast.success(t("products.deleted"));
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [deleteProduct, reportWriteError, t]);
 
     const handleRestore = useCallback(async (id: string) => {
-        await restoreProduct(id);
-    }, [restoreProduct]);
+        try {
+            await restoreProduct(id);
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [restoreProduct, reportWriteError]);
+
+    // Archive (card menu or a swipe on mobile) hides the product from the
+    // store at once, so it always says so and offers the way back.
+    const handleArchive = useCallback(async (id: string) => {
+        try {
+            await archiveProduct(id);
+        } catch (err) {
+            reportWriteError(err);
+            return;
+        }
+        toast({
+            title: t("products.archived"),
+            variant: "success",
+            duration: 8000,
+            action: {
+                label: t("products.bulk.undo"),
+                onClick: () => { void handleRestore(id); },
+            },
+        });
+    }, [archiveProduct, reportWriteError, handleRestore, t]);
 
     const handleReorder = useCallback(async (updates: { id: string; display_order: number }[]) => {
-        await reorderProducts(updates);
-        toast.success(t("products.reorderSuccess"));
-    }, [reorderProducts, t]);
+        try {
+            await reorderProducts(updates);
+            toast.success(t("products.reorderSuccess"));
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [reorderProducts, reportWriteError, t]);
 
     const handleVisibilityToggle = useCallback(async (product: Product) => {
-        await updateProduct(product.id, { is_visible: !product.is_visible });
-    }, [updateProduct]);
+        try {
+            await updateProduct(product.id, { is_visible: !product.is_visible });
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [updateProduct, reportWriteError]);
 
-    const handleFormSubmit = useCallback(async (data: ProductFormData) => {
+    const submitProductForm = useCallback(async (data: ProductFormData) => {
         if (formModalMode === "add") {
             const newProduct = await addProduct({
                 name: data.name,
@@ -494,6 +541,16 @@ function ProductsContent() {
         }
     }, [formModalMode, selectedProduct, addProduct, updateProduct, addVariant, updateVariant]);
 
+    const handleFormSubmit = useCallback(async (data: ProductFormData) => {
+        try {
+            await submitProductForm(data);
+        } catch (err) {
+            // Rethrown so the form stays open with what the merchant typed.
+            reportWriteError(err);
+            throw err;
+        }
+    }, [submitProductForm, reportWriteError]);
+
     // Shift-click range selection over the currently visible filtered list.
     const handleToggleSelection = useCallback((id: string, event?: React.MouseEvent) => {
         if (event?.shiftKey && lastSelectedRef.current && lastSelectedRef.current !== id) {
@@ -519,7 +576,9 @@ function ProductsContent() {
         }
     }, [selectedIds.size, filteredProducts, selectAll, clearSelection]);
 
-    // Bulk action handlers
+    // Bulk action handlers. BulkActionsBar reports success (with its own undo
+    // countdown for archive) or the failure, so these only do the work and let
+    // a failed write reject.
     const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
         await bulkUpdatePrices(Array.from(selectedIds), newPrice);
         clearSelection();
@@ -530,33 +589,21 @@ function ProductsContent() {
     const handleBulkArchiveUndo = useCallback(async () => {
         if (lastArchivedIdsRef.current.length === 0) return;
         const ids = lastArchivedIdsRef.current;
-        lastArchivedIdsRef.current = [];
         await bulkRestore(ids);
-        toast.success(t("products.bulk.undone"));
-    }, [bulkRestore, t]);
+        lastArchivedIdsRef.current = [];
+    }, [bulkRestore]);
 
     const handleBulkArchive = useCallback(async () => {
         const ids = Array.from(selectedIds);
-        lastArchivedIdsRef.current = ids;
         await bulkArchive(ids);
+        lastArchivedIdsRef.current = ids;
         clearSelection();
-        toast({
-            title: t("products.bulk.archiveSuccess").replace("{count}", String(ids.length)),
-            variant: "success",
-            duration: 8000,
-            action: {
-                label: t("products.bulk.undo"),
-                onClick: () => { void handleBulkArchiveUndo(); },
-            },
-        });
-    }, [selectedIds, bulkArchive, clearSelection, t, handleBulkArchiveUndo]);
+    }, [selectedIds, bulkArchive, clearSelection]);
 
     const handleBulkDelete = useCallback(async () => {
-        const ids = Array.from(selectedIds);
-        await bulkDelete(ids);
+        await bulkDelete(Array.from(selectedIds));
         clearSelection();
-        toast.success(t("products.bulk.deleteSuccess").replace("{count}", String(ids.length)));
-    }, [selectedIds, bulkDelete, clearSelection, t]);
+    }, [selectedIds, bulkDelete, clearSelection]);
 
     const handleBulkShow = useCallback(async () => {
         await bulkUpdateVisibility(Array.from(selectedIds), true);
@@ -818,36 +865,41 @@ function ProductsContent() {
                                 onExportExcel={handleExportExcel}
                                 onPrintReport={handlePrintReport}
                             />
+                            {canManageProducts && (
+                            <>
                             <button
                                 onClick={() => recomputeInventory.mutate(undefined, {
-                                    onSuccess: () => toast.success("تمت إعادة حساب المخزون"),
-                                    onError: () => toast.error("فشلت إعادة حساب المخزون"),
+                                    onSuccess: () => toast.success(t("products.tools.recalculateDone")),
+                                    onError: reportWriteError,
                                 })}
                                 disabled={recomputeInventory.isPending}
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all",
                                     recomputeInventory.isPending && "opacity-50 cursor-not-allowed"
                                 )}
-                                title="إعادة حساب الكميات المحجوزة من الطلبات النشطة"
+                                title={t("products.tools.recalculateHint")}
                             >
                                 <RefreshCw className={cn("w-4 h-4", recomputeInventory.isPending && "animate-spin")} />
-                                Recalculate
+                                {t("products.tools.recalculate")}
                             </button>
                             <button
                                 onClick={() => zeroOversold.mutate(undefined, {
-                                    onSuccess: () => toast.success("تم تصفير الكمية الزائدة"),
-                                    onError: () => toast.error("فشل تصفير الكمية الزائدة"),
+                                    onSuccess: () => toast.success(t("products.tools.zeroOversoldDone")),
+                                    onError: reportWriteError,
                                 })}
                                 disabled={zeroOversold.isPending}
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all",
                                     zeroOversold.isPending && "opacity-50 cursor-not-allowed"
                                 )}
-                                title="Top on-hand up to reserved for oversold products (oversold → 0)"
+                                title={t("products.tools.zeroOversoldHint")}
                             >
                                 <AlertTriangle className="w-4 h-4" />
-                                Zero oversold
+                                {t("products.tools.zeroOversold")}
                             </button>
+                            </>
+                            )}
+                            {canEditProducts && (
                             <button
                                 onClick={handleAddProduct}
                                 className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg"
@@ -855,6 +907,7 @@ function ProductsContent() {
                                 <Plus className="w-5 h-5" />
                                 {t("products.addProduct")}
                             </button>
+                            )}
                         </div>
                     </motion.div>
 
@@ -1112,7 +1165,7 @@ function ProductsContent() {
                                     onArchive={handleArchive}
                                     onRestore={handleRestore}
                                     onDuplicate={handleDuplicateProduct}
-                                    onDelete={handleDeleteProduct}
+                                    onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
                                     onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
                                     density={gridDensity}
@@ -1132,7 +1185,7 @@ function ProductsContent() {
                                     onArchive={handleArchive}
                                     onRestore={handleRestore}
                                     onDuplicate={handleDuplicateProduct}
-                                    onDelete={handleDeleteProduct}
+                                    onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
                                     onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
                                 />
@@ -1149,7 +1202,7 @@ function ProductsContent() {
                                     onArchive={handleArchive}
                                     onRestore={handleRestore}
                                     onDuplicate={handleDuplicateProduct}
-                                    onDelete={handleDeleteProduct}
+                                    onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
                                 />
                                 </AbcTierProvider>
@@ -1197,21 +1250,21 @@ function ProductsContent() {
             />
 
             {/* Bulk Actions Bar */}
-            {activeTab === "products" && (
+            {activeTab === "products" && canEditProducts && (
                 <BulkActionsBar
                     selectedCount={selectedIds.size}
                     totalCount={filteredProducts.length}
                     selectedProductNames={products
                         .filter((p) => selectedIds.has(p.id))
                         .map((p) => p.name)}
-                    onUpdatePrice={handleBulkUpdatePrice}
+                    onUpdatePrice={canManageProducts ? handleBulkUpdatePrice : undefined}
                     onArchive={handleBulkArchive}
                     onExport={handleBulkExport}
                     onShowOnStore={handleBulkShow}
                     onHideFromStore={handleBulkHide}
                     onClearSelection={clearSelection}
                     onUndo={handleBulkArchiveUndo}
-                    onDelete={handleBulkDelete}
+                    onDelete={canManageProducts ? handleBulkDelete : undefined}
                 />
             )}
 

@@ -9,6 +9,8 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 
 export interface ProductOptionFormData {
     id?: string;
@@ -488,6 +490,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     const router = useRouter();
     const { addProduct, updateProduct, addVariant, updateVariant, deleteVariant } = useProductsCrud();
     const { tenantId } = useAuth();
+    const { t } = useLanguage();
 
     const initialData = useMemo(() =>
         product ? productToFormData(product) : DEFAULT_FORM_DATA,
@@ -1017,7 +1020,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 }
 
                 clearDraft();
-                toast.success("Product created successfully");
+                toast.success(t("products.created"));
                 if (newProduct) {
                     router.push(`/products/${newProduct.id}/edit`);
                 }
@@ -1146,18 +1149,17 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 clearDraft();
                 // Update initial data ref to new saved state
                 initialDataRef.current = { ...formData };
-                toast.success("Product updated successfully");
+                toast.success(t("products.updated"));
             }
 
             return true;
         } catch (error) {
-            console.error("Error saving product:", error);
-            toast.error("Failed to save product");
+            toast.error(t(productWriteErrorKey(error)));
             return false;
         } finally {
             setSaving(false);
         }
-    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId]);
+    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t]);
 
     // Duplicate product
     const duplicateProduct = useCallback(async () => {
@@ -1223,17 +1225,16 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 }, tenantId);
             }
 
-            toast.success("Product duplicated successfully");
+            toast.success(t("products.duplicated"));
             if (newProduct) {
                 router.push(`/products/${newProduct.id}/edit`);
             }
         } catch (error) {
-            console.error("Error duplicating product:", error);
-            toast.error("Failed to duplicate product");
+            toast.error(t(productWriteErrorKey(error)));
         } finally {
             setSaving(false);
         }
-    }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId]);
+    }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId, t]);
 
     return {
         formData,
