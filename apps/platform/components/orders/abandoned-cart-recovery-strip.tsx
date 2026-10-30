@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { useLanguage } from "@/hooks/use-language";
-import { useAbandonedCartRecovery, type AbandonedCartRecovery } from "@/hooks/use-abandoned-cart-recovery";
+import { useAbandonedCartRecovery } from "@/hooks/use-abandoned-cart-recovery";
+import type { AbandonedCartRecovery } from "@/lib/orders/abandoned-cart-recovery";
 import { cn } from "@/lib/utils";
 
 /** changed_by the WhatsApp dispatcher writes; shown as a label, not a person. */

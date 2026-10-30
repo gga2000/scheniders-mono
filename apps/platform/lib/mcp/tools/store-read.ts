@@ -2,11 +2,13 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { registerTool, canSeeMoney, McpToolError } from "@/lib/mcp/tool";
 import { ORDER_STATUSES } from "@/lib/order-status-labels";
-import { normalizeIraqiPhone } from "@/lib/order-utils";
+import { normalizeIraqiPhone, normalizePhoneForSearch } from "@/lib/order-utils";
+import { storedPhoneVariants } from "@/lib/order-server-search";
 import { normalizePhoneLikeDb } from "@/lib/customer-trust-risk";
 import { SEARCH_LIMIT } from "@/lib/mcp/orders";
 import {
     baghdadDayEnd,
+    baghdadTime,
     baghdadDayStart,
     baghdadToday,
     iqd,
@@ -127,7 +129,7 @@ export function registerStoreReadTools(server: McpServer): void {
         title: "Look up a customer",
         kind: "read",
         description:
-            "A customer's orders and reliability by phone (any format) or by name: order history, delivered/returned counts, trust tier and blacklist status.",
+            "A customer's orders and reliability by phone (any format) or by name: order history, delivered/returned counts, trust tier, blacklist status, tags and latest notes.",
         input: z
             .object({ phone: z.string().trim().min(6).max(30).optional(), name: z.string().trim().min(2).max(80).optional() })
             .refine((v) => v.phone || v.name, "Give a phone or a name"),
@@ -166,7 +168,8 @@ export function registerStoreReadTools(server: McpServer): void {
             const list = exact;
             const phoneKey = normalizePhoneLikeDb(list[0].phone);
             const last10 = phoneKey.slice(-10);
-            const [trust, blacklist] = await Promise.all([
+            const variants = storedPhoneVariants(normalizePhoneForSearch(list[0].phone));
+            const [trust, blacklist, tags, notes] = await Promise.all([
                 caller.db
                     .from("customer_trust")
                     .select("trust_tier, trust_score, delivery_success_rate, total_orders, delivered_count, total_spent")
@@ -174,9 +177,27 @@ export function registerStoreReadTools(server: McpServer): void {
                     .eq("phone", phoneKey)
                     .maybeSingle(),
                 caller.db.from("blacklist").select("reason").eq("tenant_id", caller.tenantId).like("phone", `%${last10}`).limit(1),
+                caller.db
+                    .from("customer_tag_assignments")
+                    .select("tag:customer_tags(name)")
+                    .eq("tenant_id", caller.tenantId)
+                    .in("customer_phone", variants),
+                caller.db
+                    .from("customer_notes")
+                    .select("note, created_at")
+                    .eq("tenant_id", caller.tenantId)
+                    .in("customer_phone", variants)
+                    .order("created_at", { ascending: false })
+                    .limit(5),
             ]);
             if (trust.error) throw trust.error;
             if (blacklist.error) throw blacklist.error;
+            if (tags.error) throw tags.error;
+            if (notes.error) throw notes.error;
+            const tagNames = ((tags.data ?? []) as unknown as Array<{ tag: { name: string } | null }>)
+                .map((t) => t.tag?.name)
+                .filter((n): n is string => !!n);
+            const noteRows = (notes.data ?? []) as Array<{ note: string; created_at: string }>;
 
             const sales = list.filter((o) => !o.is_return);
             const delivered = sales.filter((o) => o.status === "delivered" || o.status === "completed").length;
@@ -189,6 +210,10 @@ export function registerStoreReadTools(server: McpServer): void {
                     ? `Trust: ${t.trust_tier} (score ${t.trust_score}, delivery success ${t.delivery_success_rate}%)${canSeeMoney(caller) ? `, total spent ${iqd(t.total_spent)}` : ""}`
                     : "Trust: not scored yet",
                 blacklist.data && blacklist.data.length > 0 ? `BLACKLISTED: ${blacklist.data[0].reason}` : "Not blacklisted",
+                `Tags: ${tagNames.length > 0 ? tagNames.join(", ") : "none"}`,
+                ...(noteRows.length > 0
+                    ? ["Notes (newest first):", ...noteRows.map((n) => `  ${baghdadTime(n.created_at)}: ${n.note}`)]
+                    : []),
                 ...(capped ? [capped] : []),
                 "",
                 "Orders (newest first):",

@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { parseRecovery } from "@/hooks/use-abandoned-cart-recovery";
+import { parseRecovery } from "@/lib/orders/abandoned-cart-recovery";
 
 const H = vi.hoisted(() => ({
   state: { data: undefined as unknown, isError: false },
