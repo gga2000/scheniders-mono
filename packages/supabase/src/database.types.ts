@@ -8914,6 +8914,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_product_children: {
+        Args: { p_children: Json; p_product_id: string }
+        Returns: undefined
+      }
       set_counted_stock: {
         Args: {
           p_counted: number

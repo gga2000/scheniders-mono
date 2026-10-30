@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { withRetry, NonRetryableError } from "./with-retry";
 import type { Product, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
+import type { Json } from "@scheniders/supabase";
 
 /**
  * Stock is never part of a generic update. A product edit carries the stock it
@@ -14,6 +15,19 @@ export type VariantUpdate = Omit<Partial<ProductVariant>, "stock_quantity">;
 
 /** A product as the top-bar search lists it. */
 export type ProductSearchMatch = Pick<Product, "id" | "name" | "price">;
+
+/**
+ * The rows that replace a product's extras, by table. A table that is left out
+ * is not touched; an empty array clears it.
+ */
+export interface ProductChildren {
+    product_options?: { name: string; values: string[]; display_order: number; option_type: string; values_metadata: unknown }[];
+    product_tiered_pricing?: { min_quantity: number; max_quantity: number | null; price: number }[];
+    product_order_bumps?: { bump_product_id: string; discount_percentage: number; headline?: string | null; description?: string | null; display_order: number; is_active: boolean }[];
+    product_related?: { related_product_id: string; relation_type: string; display_order: number }[];
+    product_suppliers?: { supplier_name: string; supplier_contact?: string; supplier_email?: string; lead_time_days?: number | null; minimum_order_quantity?: number | null; unit_cost?: number | null; notes?: string; is_primary: boolean }[];
+    product_bundle_items?: { child_product_id: string; quantity: number; display_order: number }[];
+}
 
 /**
  * A product write that RLS filtered out. Postgres reports an UPDATE or DELETE
@@ -44,6 +58,13 @@ export class ProductChangedElsewhereError extends NonRetryableError {
         this.name = "ProductChangedElsewhereError";
     }
 }
+
+/**
+ * Inserts and the guarded update run once. withRetry's timeout does not abort
+ * the request, so a retry after a slow-but-successful attempt would insert a
+ * second row, or report "changed elsewhere" against its own write.
+ */
+const WRITE_ONCE = { maxRetries: 0 } as const;
 
 function assertChanged(operation: string, rows: unknown[] | null, expected: number): void {
     if ((rows?.length ?? 0) < expected) throw new ProductWriteDeniedError(operation);
@@ -165,7 +186,7 @@ export const productRepository = {
 
             if (error) throw error;
             return newProduct;
-        });
+        }, WRITE_ONCE);
     },
 
     /**
@@ -193,7 +214,7 @@ export const productRepository = {
             }
             assertChanged("productRepository.update", changed, 1);
             return (changed?.[0] as { updated_at: string | null } | undefined)?.updated_at ?? null;
-        });
+        }, WRITE_ONCE);
     },
 
     /** Archive a product. */
@@ -370,7 +391,7 @@ export const productRepository = {
 
             if (error) throw error;
             return newVariant;
-        });
+        }, WRITE_ONCE);
     },
 
     /** Update a variant. */
@@ -406,6 +427,19 @@ export const productRepository = {
     // PRODUCT OPTIONS
     // =============================================
 
+    /**
+     * Replace a product's options, price tiers, order bumps, related products,
+     * suppliers and bundle items in one transaction (save_product_children):
+     * either every table given is replaced or none is.
+     */
+    async saveChildren(productId: string, children: ProductChildren): Promise<void> {
+        const { error } = await supabase.rpc("save_product_children", {
+            p_product_id: productId,
+            p_children: children as unknown as Json,
+        });
+        if (error) throw error;
+    },
+
     /** Fetch all options for a product, ordered by display_order. */
     async getProductOptions(productId: string): Promise<any[]> {
         return withRetry('productRepository.getProductOptions', async () => {
@@ -420,26 +454,6 @@ export const productRepository = {
         });
     },
 
-    /** Replace all options for a product (delete existing, insert new). */
-    async saveProductOptions(productId: string, options: { name: string; values: string[]; display_order: number; option_type?: string; values_metadata?: any }[], tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.saveProductOptions', async () => {
-            const { error: deleteError } = await supabase
-                .from("product_options")
-                .delete()
-                .eq("product_id", productId);
-
-            if (deleteError) throw deleteError;
-
-            if (options.length > 0) {
-                const rows = options.map((o) => ({ product_id: productId, tenant_id: tenantId, ...o }));
-                const { error: insertError } = await supabase
-                    .from("product_options")
-                    .insert(rows);
-
-                if (insertError) throw insertError;
-            }
-        });
-    },
 
     // =============================================
     // TIERED PRICING
@@ -459,26 +473,6 @@ export const productRepository = {
         });
     },
 
-    /** Replace all tiered prices for a product. */
-    async saveTieredPrices(productId: string, tiers: { min_quantity: number; max_quantity: number | null; price: number }[], tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.saveTieredPrices', async () => {
-            const { error: deleteError } = await supabase
-                .from("product_tiered_pricing")
-                .delete()
-                .eq("product_id", productId);
-
-            if (deleteError) throw deleteError;
-
-            if (tiers.length > 0) {
-                const rows = tiers.map((t) => ({ product_id: productId, tenant_id: tenantId, ...t }));
-                const { error: insertError } = await supabase
-                    .from("product_tiered_pricing")
-                    .insert(rows);
-
-                if (insertError) throw insertError;
-            }
-        });
-    },
 
     // =============================================
     // ORDER BUMPS
@@ -498,26 +492,6 @@ export const productRepository = {
         });
     },
 
-    /** Replace all order bumps for a product. */
-    async saveOrderBumps(productId: string, bumps: { bump_product_id: string; discount_percentage: number; headline: string; description: string; display_order: number; is_active: boolean }[], tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.saveOrderBumps', async () => {
-            const { error: deleteError } = await supabase
-                .from("product_order_bumps")
-                .delete()
-                .eq("product_id", productId);
-
-            if (deleteError) throw deleteError;
-
-            if (bumps.length > 0) {
-                const rows = bumps.map((b) => ({ product_id: productId, tenant_id: tenantId, ...b }));
-                const { error: insertError } = await supabase
-                    .from("product_order_bumps")
-                    .insert(rows);
-
-                if (insertError) throw insertError;
-            }
-        });
-    },
 
     // =============================================
     // RELATED PRODUCTS
@@ -537,26 +511,6 @@ export const productRepository = {
         });
     },
 
-    /** Replace all related products for a product. */
-    async saveRelatedProducts(productId: string, related: { related_product_id: string; relation_type: string; display_order: number }[], tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.saveRelatedProducts', async () => {
-            const { error: deleteError } = await supabase
-                .from("product_related")
-                .delete()
-                .eq("product_id", productId);
-
-            if (deleteError) throw deleteError;
-
-            if (related.length > 0) {
-                const rows = related.map((r) => ({ product_id: productId, tenant_id: tenantId, ...r }));
-                const { error: insertError } = await supabase
-                    .from("product_related")
-                    .insert(rows);
-
-                if (insertError) throw insertError;
-            }
-        });
-    },
 
     // =============================================
     // INVENTORY HISTORY (immutable log — insert only)
@@ -584,7 +538,7 @@ export const productRepository = {
                 .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
 
             if (error) throw error;
-        });
+        }, WRITE_ONCE);
     },
 
     // =============================================
@@ -606,26 +560,6 @@ export const productRepository = {
         });
     },
 
-    /** Replace all suppliers for a product. */
-    async saveSuppliers(productId: string, suppliers: { supplier_name: string; supplier_contact?: string; supplier_email?: string; lead_time_days?: number | null; minimum_order_quantity?: number | null; unit_cost?: number | null; notes?: string; is_primary: boolean }[], tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.saveSuppliers', async () => {
-            const { error: deleteError } = await supabase
-                .from("product_suppliers")
-                .delete()
-                .eq("product_id", productId);
-
-            if (deleteError) throw deleteError;
-
-            if (suppliers.length > 0) {
-                const rows = suppliers.map((s) => ({ product_id: productId, tenant_id: tenantId, ...s }));
-                const { error: insertError } = await supabase
-                    .from("product_suppliers")
-                    .insert(rows);
-
-                if (insertError) throw insertError;
-            }
-        });
-    },
 
     // =============================================
     // ACTIVITY LOG (immutable log — insert only)
@@ -690,24 +624,4 @@ export const productRepository = {
         });
     },
 
-    /** Replace all bundle items for a product. */
-    async saveBundleItems(productId: string, items: { child_product_id: string; quantity: number; display_order: number }[], tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.saveBundleItems', async () => {
-            const { error: deleteError } = await supabase
-                .from("product_bundle_items")
-                .delete()
-                .eq("product_id", productId);
-
-            if (deleteError) throw deleteError;
-
-            if (items.length > 0) {
-                const rows = items.map((i) => ({ product_id: productId, tenant_id: tenantId, ...i }));
-                const { error: insertError } = await supabase
-                    .from("product_bundle_items")
-                    .insert(rows);
-
-                if (insertError) throw insertError;
-            }
-        });
-    },
 };

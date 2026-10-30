@@ -62,20 +62,13 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
     const save = async () => {
         if (entered.length === 0 || invalid) return;
         setSaving(true);
-        let saved = 0;
-        let firstError: unknown = null;
-        const failed: Record<string, string> = {};
-        for (const [productId, value] of entered) {
-            try {
-                await setCounted.mutateAsync({ productId, counted: parseWholeNumber(value) ?? 0, notes: "Stock count" });
-                saved++;
-            } catch (err) {
-                firstError ??= err;
-                failed[productId] = value;
-            }
-        }
+        const { saved, failed: failedIds } = await setCounted.mutateAsync(
+            entered.map(([productId, value]) => ({ productId, counted: parseWholeNumber(value) ?? 0, notes: "Stock count" })),
+        );
         setSaving(false);
-        if (firstError) {
+        const firstError = failedIds.values().next().value;
+        const failed = Object.fromEntries(entered.filter(([productId]) => failedIds.has(productId)));
+        if (failedIds.size > 0) {
             // Keep the counts that did not save so they can be retried.
             setCounts(failed);
             toast.error(
