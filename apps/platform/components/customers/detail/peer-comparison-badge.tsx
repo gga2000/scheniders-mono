@@ -22,7 +22,6 @@ export function PeerComparisonBadge({ phone, city }: PeerComparisonBadgeProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            dir="ltr"
             className="inline-flex items-center bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-full px-3 py-1 text-xs font-medium"
         >
             <bdi>

@@ -146,8 +146,9 @@ function useCustomerDialogData(phone: string | null, limit = 60) {
             return {
                 orders,
                 totalOrders: Number(reliabilityRes.data?.[0]?.total_orders ?? 0),
+                completedCount: Number(reliabilityRes.data?.[0]?.completed_count ?? 0),
+                totalSpent: Number(reliabilityRes.data?.[0]?.total_spent ?? 0),
                 hasMore: orders.length >= limit,
-                avgBasket: Number(trustRes.data?.avg_basket ?? 0),
                 community: Number(trustRes.data?.community_avg_rating ?? 0),
                 firstOrderDate: trustRes.data?.first_order_date as string | null | undefined,
                 tags: ((tagRes.data ?? []) as unknown as { tag: { name: string } | null }[]).map((r) => r.tag?.name).filter(Boolean) as string[],
@@ -310,6 +311,8 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     customer={customer}
                     data={data.data}
                     loading={data.isLoading}
+                    failed={data.isError}
+                    onRetry={() => data.refetch()}
                     fetchingMore={data.isFetching && !data.isLoading}
                     canLoadMore={!loadedAll}
                     onLoadMore={() => setLimit((l) => l + 60)}
@@ -351,11 +354,13 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
 }
 
 function Body({
-    customer, data, loading, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, onNewOrder, onToggleBlock, t, locale,
+    customer, data, loading, failed, onRetry, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, onNewOrder, onToggleBlock, t, locale,
 }: {
     customer: PaginatedCustomer;
     data: ReturnType<typeof useCustomerDialogData>["data"];
     loading: boolean;
+    failed: boolean;
+    onRetry: () => void;
     fetchingMore: boolean;
     canLoadMore: boolean;
     onLoadMore: () => void;
@@ -372,16 +377,22 @@ function Body({
     const meta = VALUE_META[value];
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, locale) || customer.governorate : null;
-    const avgBasket = data?.avgBasket || (customer.total_orders ? Math.round(customer.total_spent / customer.total_orders) : 0);
     const codKey = codRiskKey(risk);
+    // Once the live read is in, every stat comes from it, not from the list's cached row.
     const totalOrders = data?.totalOrders ?? customer.total_orders;
+    const completed = data?.completedCount ?? customer.completed_count;
+    const spent = data?.totalSpent ?? customer.total_spent;
+    const avgBasket = completed > 0 ? Math.round(spent / completed) : 0;
+    const successRate = data
+        ? (totalOrders > 0 ? Math.round((completed / totalOrders) * 100) : 0)
+        : effectiveSuccessRate(customer);
 
     const stats: { v: string; k: string }[] = [
         { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders") },
-        { v: customer.completed_count.toLocaleString("en-US"), k: t("customers.card.delivered") },
-        { v: formatIQD(customer.total_spent), k: t("customers.drawer.lifetime") },
+        { v: completed.toLocaleString("en-US"), k: t("customers.card.delivered") },
+        { v: formatIQD(spent), k: t("customers.drawer.lifetime") },
         { v: formatIQD(avgBasket), k: t("customers.drawer.avgBasket") },
-        { v: `${effectiveSuccessRate(customer)}%`, k: t("customers.table.success", "Success") },
+        { v: `${successRate}%`, k: t("customers.table.success", "Success") },
     ];
 
     return (
@@ -417,7 +428,7 @@ function Body({
                             <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", { date: monthYear(locale, data?.firstOrderDate ?? customer.first_order_date) })}</span>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-9 h-9 rounded-xl border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40 shrink-0" aria-label={t("common.close")}>
+                    <button onClick={onClose} className="w-11 h-11 rounded-xl border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40 shrink-0" aria-label={t("common.close")}>
                         <X className="w-4 h-4" />
                     </button>
                 </div>
@@ -529,6 +540,13 @@ function Body({
                                             {fetchingMore ? "…" : t("common.loadMore", "Load more")}
                                         </button>
                                     )}
+                                </div>
+                            ) : failed ? (
+                                <div className="rounded-2xl border border-(--card-border) p-8 text-center">
+                                    <p className="text-sm text-foreground mb-4">{t("customers.dialog.loadFailed")}</p>
+                                    <button onClick={onRetry} className="h-11 px-5 rounded-xl bg-foreground text-background text-sm font-semibold">
+                                        {t("customers.profile.retry")}
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="rounded-2xl border border-(--card-border) p-8 text-center text-sm text-muted-foreground">{t("customers.dialog.noOrders", "No orders found.")}</div>

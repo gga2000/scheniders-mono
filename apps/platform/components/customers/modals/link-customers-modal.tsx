@@ -60,7 +60,10 @@ export function LinkCustomersModal() {
                 toast({ variant: "success", title: t("customers.link.done") });
                 handleClose();
             },
-            onError: () => toast({ variant: "error", title: t("customers.link.failed") }),
+            onError: (error) => toast({
+                variant: "error",
+                title: t((error as { code?: string }).code === "23505" ? "customers.link.alreadyLinked" : "customers.link.failed"),
+            }),
         });
     };
 

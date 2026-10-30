@@ -1,10 +1,13 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Plus, UserPlus, Home, Users, Copy } from "lucide-react";
+import Link from "next/link";
+import { Link2, Plus, UserPlus, Home, Users, Copy, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import { useCustomerLinks } from "@/hooks/use-customer-links";
+import { useCustomerLinks, useUnlinkCustomers } from "@/hooks/use-customer-links";
+import { formatPhoneDisplay } from "@/lib/customer-format";
+import { toast } from "@/hooks/use-toast";
 import { useCustomerStore } from "@/store/use-customer-store";
 
 interface LinkedPeopleSectionProps {
@@ -25,17 +28,10 @@ const RELATIONSHIP_I18N: Record<string, string> = {
     duplicate: "customers.link.duplicate",
 };
 
-function formatPhone(phone: string) {
-    // Simple formatting: add spaces for readability
-    if (phone.length >= 11) {
-        return `${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`;
-    }
-    return phone;
-}
-
 export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
     const { t } = useLanguage();
     const { data: links = [] } = useCustomerLinks(phone);
+    const unlink = useUnlinkCustomers();
     const { setLinkCustomersModalOpen, setLinkCustomersPhone } = useCustomerStore();
 
     const handleLinkCustomer = () => {
@@ -60,7 +56,8 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
                 </div>
                 <button
                     onClick={handleLinkCustomer}
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                    aria-label={t("customers.link.title")}
+                    className="w-11 h-11 -m-2 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
                 >
                     <UserPlus className="w-4 h-4" />
                 </button>
@@ -117,9 +114,13 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
                                     <div className="w-8 h-8 rounded-full bg-muted/20 flex items-center justify-center shrink-0">
                                         <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                                     </div>
-                                    <div className="flex-1 min-w-0">
+                                    <Link
+                                        href={`/customers/${linkedPhone}`}
+                                        aria-label={t("customers.link.open")}
+                                        className="flex-1 min-w-0 rounded-lg hover:bg-muted/20 transition-colors"
+                                    >
                                         <p className="text-sm font-medium text-foreground font-mono tabular-nums truncate">
-                                            {formatPhone(linkedPhone)}
+                                            {formatPhoneDisplay(linkedPhone)}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
                                             {t(RELATIONSHIP_I18N[link.relationship_type] || "customers.link.family")}
@@ -129,7 +130,21 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
                                                 {link.similarity_hint}
                                             </p>
                                         )}
-                                    </div>
+                                    </Link>
+                                    <button
+                                        onClick={() => unlink.mutate(
+                                            { linkId: link.id, phoneA: link.phone_a, phoneB: link.phone_b },
+                                            {
+                                                onSuccess: () => toast({ variant: "success", title: t("customers.link.unlinked") }),
+                                                onError: () => toast({ variant: "error", title: t("customers.link.unlinkFailed") }),
+                                            },
+                                        )}
+                                        disabled={unlink.isPending}
+                                        aria-label={t("customers.link.unlink")}
+                                        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 </motion.div>
                             );
                         })}

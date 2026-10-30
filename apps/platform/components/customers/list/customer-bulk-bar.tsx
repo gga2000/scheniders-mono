@@ -34,7 +34,7 @@ export function CustomerBulkBar({
           <div className="flex flex-wrap items-center justify-center gap-1 rounded-3xl border border-(--card-border) bg-(--card-bg)/95 px-2 py-1.5 backdrop-blur-md" style={{ boxShadow: "var(--card-shadow-hover)" }}>
             {/* Count chip */}
             <div className="flex items-center gap-2 rounded-2xl bg-(--pastel-blue)/40 px-3 py-1.5 text-sm font-semibold text-foreground">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+              <span className="flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full tabular-nums bg-blue-500 text-[10px] font-bold text-white">
                 {selectedCount}
               </span>
               {t("customers.bulk.selected")}

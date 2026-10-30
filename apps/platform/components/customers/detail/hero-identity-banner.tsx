@@ -127,10 +127,10 @@ export function HeroIdentityBanner({
 
                     {/* Subtitle */}
                     <p className="text-muted-foreground font-medium text-sm mt-1">
-                        {city ? `${city}, Iraq` : "Iraq"}
+                        {city}
                         {memberSince && (
                             <>
-                                {" • "}
+                                {city && " • "}
                                 {t("customers.profile.memberSince")} {memberSince}
                             </>
                         )}
