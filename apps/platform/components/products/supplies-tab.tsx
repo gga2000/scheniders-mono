@@ -761,7 +761,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     selected={selectedSupplies}
                     categories={categories}
                     onClear={clearSelection}
-                    updateProduct={updateProduct}
+                    updateProduct={async (id, patch) => { await updateProduct(id, patch); }}
                     adjustStock={async (id, delta) => {
                         await adjustSupplyStock(id, delta);
                         await queryClient.invalidateQueries({ queryKey: productKeys.lists() });

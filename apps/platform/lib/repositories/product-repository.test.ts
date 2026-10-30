@@ -19,7 +19,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const insertSpy = vi.fn<(rows: Record<string, unknown>[]) => void>();
 const updateSpy = vi.fn<(patch: Record<string, unknown>) => void>();
 // Rows the UPDATE reports back; RLS that hides the row makes this empty.
-let updatedRows: { id: string }[] = [{ id: "prod-1" }];
+let updatedRows: { id: string; updated_at?: string }[] = [{ id: "prod-1" }];
+// The row as a plain SELECT sees it (for telling a lost race from a denial).
+let currentRow: { updated_at: string } | null = null;
+const updateFilters: [string, unknown][] = [];
 
 vi.mock("@/lib/supabase", () => ({
     supabase: {
@@ -34,13 +37,23 @@ vi.mock("@/lib/supabase", () => ({
             },
             update: (patch: Record<string, unknown>) => {
                 updateSpy(patch);
-                return { eq: () => ({ select: async () => ({ data: updatedRows, error: null }) }) };
+                const chain = {
+                    eq: (col: string, val: unknown) => {
+                        updateFilters.push([col, val]);
+                        return chain;
+                    },
+                    select: async () => ({ data: updatedRows, error: null }),
+                };
+                return chain;
             },
+            select: () => ({
+                eq: () => ({ maybeSingle: async () => ({ data: currentRow, error: null }) }),
+            }),
         }),
     },
 }));
 
-import { productRepository, ProductWriteDeniedError } from "./product-repository";
+import { productRepository, ProductWriteDeniedError, ProductChangedElsewhereError } from "./product-repository";
 
 type CreateArg = Parameters<typeof productRepository.create>[0];
 type UpdateArg = Parameters<typeof productRepository.update>[1];
@@ -49,6 +62,33 @@ beforeEach(() => {
     insertSpy.mockClear();
     updateSpy.mockClear();
     updatedRows = [{ id: "prod-1" }];
+    currentRow = null;
+    updateFilters.length = 0;
+});
+
+describe("productRepository.update edit-conflict guard", () => {
+    it("only writes over the version the editor loaded, and returns the new one", async () => {
+        updatedRows = [{ id: "prod-1", updated_at: "2026-10-30T13:00:00Z" }];
+        const next = await productRepository.update("prod-1", { name: "x" } as UpdateArg, { expectedUpdatedAt: "2026-10-30T12:00:00Z" });
+        expect(updateFilters).toContainEqual(["updated_at", "2026-10-30T12:00:00Z"]);
+        expect(next).toBe("2026-10-30T13:00:00Z");
+    });
+
+    it("reports a save that lost the race, not a permission problem", async () => {
+        updatedRows = [];
+        currentRow = { updated_at: "2026-10-30T12:30:00Z" };
+        await expect(
+            productRepository.update("prod-1", { name: "x" } as UpdateArg, { expectedUpdatedAt: "2026-10-30T12:00:00Z" }),
+        ).rejects.toBeInstanceOf(ProductChangedElsewhereError);
+    });
+
+    it("still reports a denial when the row is unchanged but RLS refused", async () => {
+        updatedRows = [];
+        currentRow = { updated_at: "2026-10-30T12:00:00Z" };
+        await expect(
+            productRepository.update("prod-1", { name: "x" } as UpdateArg, { expectedUpdatedAt: "2026-10-30T12:00:00Z" }),
+        ).rejects.toBeInstanceOf(ProductWriteDeniedError);
+    });
 });
 
 describe("productRepository SKU persistence", () => {
