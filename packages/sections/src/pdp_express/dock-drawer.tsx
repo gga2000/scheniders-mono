@@ -1,6 +1,6 @@
 // The dock's confirmation drawer (`cta_layout: "dock"` with add_to_cart):
 // after an add, a cream tray slides out from under the espresso capsule —
-// inset from its ends and tucked beneath it — with ✓ «انضافت للسلة · {n}
+// inset 16px from its ends and tucked beneath it — with ✓ «انضافت للسلة · {n}
 // بالسلة» and an underlined «شوف السلة» link (or, when the cart already
 // holds the most that can be ordered, that message).
 //
@@ -25,8 +25,8 @@ export function DockDrawer({ note, locale }: { note: CartNote | null; locale: Lo
       data-cart-drawer=""
       data-open={note ? "" : undefined}
       className={cn(
-        "bk-xp-dock-drawer relative z-0 mx-5 -mt-8 rounded-b-[22px] bg-bk-surface-alt pt-8",
-        rtl ? "pl-3.5 pr-1.5" : "pl-1.5 pr-3.5",
+        "bk-xp-dock-drawer relative z-0 mx-4 -mt-8 rounded-b-[22px] bg-bk-surface-alt pt-8",
+        rtl ? "pl-2.5 pr-1.5" : "pl-1.5 pr-2.5",
       )}
     >
       <div className="min-h-0 overflow-hidden">
@@ -51,7 +51,7 @@ export function DockDrawer({ note, locale }: { note: CartNote | null; locale: Lo
               <StoreLink
                 href="/cart"
                 className={cn(
-                  "bk-xp-dock-go inline-flex min-h-11 shrink-0 items-center gap-0.5 rounded-[22px] px-2 font-extrabold text-bk-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus",
+                  "bk-xp-dock-go inline-flex min-h-11 shrink-0 items-center gap-0.5 rounded-[22px] px-1.5 font-extrabold text-bk-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus",
                   rtl && "flex-row-reverse",
                 )}
               >

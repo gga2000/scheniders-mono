@@ -103,7 +103,7 @@ const CSS = `
 
 /** A cream icon-over-label segment of the capsule (cart, WhatsApp). */
 export const DOCK_SEGMENT =
-  "bk-xp-dock-seg relative flex shrink-0 flex-col items-center justify-center gap-[5px] rounded-[28px] px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
+  "bk-xp-dock-seg relative flex shrink-0 flex-col items-center justify-center gap-[5px] rounded-[28px] px-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
 
 /** A segment's label: 12px bold, wrapping (never overflowing) when long. */
 export const DOCK_LABEL = "text-center font-bk-body text-xs font-bold leading-tight";
