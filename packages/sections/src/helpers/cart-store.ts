@@ -17,6 +17,8 @@ interface CartState {
   setCouponCode: (code: string | null) => void;
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, variantId: string | null) => void;
+  /** Drop every line of one product, whatever its variant. */
+  removeProduct: (productId: string) => void;
   updateQuantity: (productId: string, variantId: string | null, qty: number) => void;
   /** EC24: correct a line's unit price after the server reports a reprice. */
   updatePrice: (productId: string, variantId: string | null, price: number) => void;
@@ -134,6 +136,10 @@ export const useCart = create<CartState>()(
           items: state.items.filter(
             (i) => !(i.product_id === productId && i.variant_id === variantId),
           ),
+        })),
+      removeProduct: (productId) =>
+        set((state) => ({
+          items: state.items.filter((i) => i.product_id !== productId),
         })),
       updateQuantity: (productId, variantId, qty) =>
         set((state) => ({

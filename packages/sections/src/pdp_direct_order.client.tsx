@@ -56,6 +56,7 @@ import {
   stackDiscounts,
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
+import { useCart } from "./helpers/cart-store";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import { focusVariantPicker, stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
@@ -939,6 +940,17 @@ export function PdpDirectOrderRender({
     }
   }
 
+  /** add_to_cart (slice 1g): once the direct order for this product is in
+   *  (placed now, or the server's duplicate answer for one placed before),
+   *  every cart line of it — any variant — is retired, so a later cart
+   *  checkout cannot order the same product a second time. Other products
+   *  stay. Only with the cart tile opted in (express), so every other
+   *  store's cart is untouched. */
+  function retireCartLines(productId: string) {
+    if (props.layout !== "express" || props.add_to_cart !== true) return;
+    useCart.getState().removeProduct(productId);
+  }
+
   async function onSubmit(
     e: React.FormEvent<HTMLFormElement>,
     opts?: SubmitOptions,
@@ -1069,6 +1081,7 @@ export function PdpDirectOrderRender({
         // nothing fires again, and there is no new order to thank them for —
         // the form says so instead.
         clearOrderDraft(ctx.tenant.id, product.id);
+        retireCartLines(product.id);
         idempotencyKeyRef.current = null;
         purchaseEventIdRef.current = null;
         setStatus("duplicate");
@@ -1128,6 +1141,7 @@ export function PdpDirectOrderRender({
         purchaseEventIdRef.current ?? undefined,
       );
       clearOrderDraft(ctx.tenant.id, product.id);
+      retireCartLines(product.id);
       idempotencyKeyRef.current = null;
       purchaseEventIdRef.current = null;
       setStatus("ok");

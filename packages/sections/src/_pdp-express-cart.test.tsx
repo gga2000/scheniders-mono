@@ -11,8 +11,10 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import type { CartItem } from "@scheniders/shared";
 import { useCart } from "./helpers/cart-store";
+import { orderDraftKey, writeOrderDraft } from "./helpers/order-draft";
 import { setFunnelSink, type FunnelEvent } from "./helpers/pixels";
 import { StoreBaseProvider } from "./helpers/store-context";
 import { useVariantStore } from "./helpers/variant-store";
@@ -21,6 +23,7 @@ import type { Product } from "./types";
 import {
   EXPRESS_IRAQ_PDP_PROPS,
   VARIANT_100,
+  fixtureTenant,
   plainProduct,
   productCtx,
   soldOutProduct,
@@ -224,5 +227,120 @@ describe("tapping «أضف للسلة»", () => {
     fireEvent.click(tile());
     expect(useCart.getState().items).toHaveLength(1);
     expect(fbq).not.toHaveBeenCalled();
+  });
+});
+
+// Merchant-protective (Ali, 2026-10-30): a shopper who put the perfume in
+// the cart and then places the direct order for it must not be able to
+// order it again from the cart later. A placed (or already-counted) direct
+// order retires every cart line of that product; other products stay.
+describe("a placed direct order retires the product's cart lines", () => {
+  const OTHER: CartItem = {
+    product_id: "44444444-4444-4444-8444-444444444444",
+    variant_id: null,
+    name: "عطر آخر",
+    variant_name: null,
+    price: 30000,
+    quantity: 1,
+    image_url: null,
+    base_price: 30000,
+  };
+  const SAME_PRODUCT_OTHER_VARIANT: CartItem = {
+    product_id: plainProduct.id,
+    variant_id: "55555555-5555-4555-8555-555555555555",
+    name: "عطر تجريبي",
+    variant_name: "100ml",
+    price: 18000,
+    quantity: 1,
+    image_url: null,
+    base_price: 18000,
+  };
+
+  function json(body: unknown): Response {
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  }
+
+  function placeOrder(props: Props, answer: unknown) {
+    window.sessionStorage.clear();
+    writeOrderDraft(fixtureTenant.id, plainProduct.id, {
+      form: {
+        customer_name: "زبون تجريبي",
+        phone: "07802301677",
+        alt_phone: "",
+        governorate_code: "BG",
+        address_details: "الكرادة قرب الجسر",
+      },
+      idempotencyKey: null,
+      purchaseEventId: null,
+    });
+    const orders = vi.fn((url: string) => Promise.resolve(url === "/api/checkout/orders" ? json(answer) : json({})));
+    vi.stubGlobal("fetch", orders);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const Pdp = pdp_direct_order.render;
+    const view = render(
+      <StoreBaseProvider base="/s/fixture-store">
+        <Pdp props={props} ctx={productCtx(plainProduct)} />
+      </StoreBaseProvider>,
+    );
+    const form = view.container.querySelector<HTMLFormElement>("form#direct-order");
+    if (!form) throw new Error("missing the order form");
+    return { view, form, orders };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("add to cart, then order directly: every line of that product leaves the cart, the other product stays", async () => {
+    useCart.setState({ items: [OTHER, SAME_PRODUCT_OTHER_VARIANT] });
+    const { view, form, orders } = placeOrder(CART, {
+      success: true,
+      orderNumber: "SH-0001",
+      orderId: "order-1",
+      total: 18000,
+    });
+    const tile = view.container.querySelector<HTMLButtonElement>("[data-cart-add]");
+    if (!tile) throw new Error("missing the cart tile");
+    fireEvent.click(tile);
+    expect(useCart.getState().items.map((i) => i.product_id)).toEqual([
+      OTHER.product_id,
+      plainProduct.id,
+      plainProduct.id,
+    ]);
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(orderDraftKey(fixtureTenant.id, plainProduct.id))).toBeNull(),
+    );
+    expect(orders.mock.calls.filter(([url]) => url === "/api/checkout/orders")).toHaveLength(1);
+    expect(useCart.getState().items).toEqual([OTHER]);
+  });
+
+  it("the server's duplicate answer (the order is already in) retires them too", async () => {
+    useCart.setState({ items: [OTHER, SAME_PRODUCT_OTHER_VARIANT] });
+    const { view, form } = placeOrder(CART, { success: true, replayed: true, duplicate: true });
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+    await waitFor(() => expect(view.container.textContent).toContain("طلبك واصلنا، لا تطلبه مرة ثانية"));
+    expect(useCart.getState().items).toEqual([OTHER]);
+  });
+
+  it("without add_to_cart the cart is never touched (every other store)", async () => {
+    useCart.setState({ items: [OTHER, SAME_PRODUCT_OTHER_VARIANT] });
+    const { form } = placeOrder(EXPRESS_IRAQ_PDP_PROPS, {
+      success: true,
+      orderNumber: "SH-0002",
+      orderId: "order-2",
+      total: 18000,
+    });
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(orderDraftKey(fixtureTenant.id, plainProduct.id))).toBeNull(),
+    );
+    expect(useCart.getState().items).toEqual([OTHER, SAME_PRODUCT_OTHER_VARIANT]);
   });
 });
