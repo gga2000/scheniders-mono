@@ -37,7 +37,7 @@ describe("useExpressOrderStore", () => {
     store().registerForm(P1, "direct-order");
     const form = expressFormOf(store(), P1);
     expect(form.registered).toBe(true);
-    expect(form.formId).toBe("direct-order");
+    expect(form.owner).toBe("direct-order");
     expect(form.missing).toEqual(EXPRESS_REQUIRED_FIELDS);
     expect(expressFormStage(form)).toBe("untouched");
   });
@@ -86,7 +86,7 @@ describe("useExpressOrderStore", () => {
     const first = store().registerForm(P1, "form-a");
     store().registerForm(P1, "form-b");
     first();
-    expect(expressFormOf(store(), P1).formId).toBe("form-b");
+    expect(expressFormOf(store(), P1).owner).toBe("form-b");
     const second = store().registerForm(P1, "form-c");
     second();
     expect(expressFormOf(store(), P1)).toBe(UNREGISTERED);

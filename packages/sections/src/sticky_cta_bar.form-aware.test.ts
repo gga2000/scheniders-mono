@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UNREGISTERED, type ExpressFormProgress } from "./helpers/express-order-store";
 import { handOffToForm, stickyPrimary, stickyWhatsappHref } from "./sticky_cta_bar.form-aware";
 
+const PID = "11111111-1111-4111-8111-111111111111";
+
 const registered = (over: Partial<ExpressFormProgress>): ExpressFormProgress => ({
   ...UNREGISTERED,
   registered: true,
-  formId: "direct-order",
+  owner: "form-1",
   ...over,
 });
 
@@ -60,6 +62,31 @@ describe("stickyPrimary", () => {
   });
 });
 
+describe("stickyPrimary: an option still to choose", () => {
+  it("partial: «باقي اختار الخيار», aimed at the option group, not a field", () => {
+    const p = registered({
+      missing: ["variant"],
+      firstMissingId: "direct-order-variants",
+      firstMissingLabel: "اختار الخيار",
+    });
+    expect(stickyPrimary(p, "اطلب الآن", "ar")).toEqual({
+      stage: "partial",
+      label: "كمّل طلبك",
+      sub: "باقي اختار الخيار",
+      target: { kind: "variant", id: "direct-order-variants" },
+    });
+  });
+
+  it("untouched with the option first: the start label, aimed at the option", () => {
+    const p = registered({
+      missing: ["variant", "phone", "customer_name", "governorate_code", "address_details"],
+      firstMissingId: null,
+      firstMissingLabel: "اختار الخيار",
+    });
+    expect(stickyPrimary(p, "اطلب الآن", "ar").target).toEqual({ kind: "variant", id: null });
+  });
+});
+
 describe("stickyWhatsappHref", () => {
   it("prefills the message, encoded; no number, no link", () => {
     expect(stickyWhatsappHref("07779703832", "هلا، أريد أطلب ويفر انتنس")).toBe(
@@ -93,7 +120,7 @@ describe("handOffToForm", () => {
 
   it("a field: scrolled into view and focused", () => {
     const fallback = vi.fn();
-    handOffToForm({ kind: "field", id: "f-phone" }, fallback);
+    handOffToForm({ kind: "field", id: "f-phone" }, fallback, PID);
     expect(document.activeElement?.id).toBe("f-phone");
     expect(scrolled.map((e) => e.id)).toEqual(["f-phone"]);
     expect(fallback).not.toHaveBeenCalled();
@@ -101,8 +128,8 @@ describe("handOffToForm", () => {
 
   it("a field in a closed (inert) stage, or a missing one: the fallback", () => {
     const fallback = vi.fn();
-    handOffToForm({ kind: "field", id: "f-name" }, fallback);
-    handOffToForm({ kind: "field", id: "nope" }, fallback);
+    handOffToForm({ kind: "field", id: "f-name" }, fallback, PID);
+    handOffToForm({ kind: "field", id: "nope" }, fallback, PID);
     expect(fallback).toHaveBeenCalledTimes(2);
     expect(scrolled).toEqual([]);
   });
@@ -110,7 +137,7 @@ describe("handOffToForm", () => {
   it("complete: the receipt comes into view, the submit gets focus, and nothing is submitted", () => {
     const submitted = vi.fn((e: Event) => e.preventDefault());
     document.getElementById("direct-order")?.addEventListener("submit", submitted);
-    handOffToForm({ kind: "submit", id: "direct-order-submit" }, vi.fn());
+    handOffToForm({ kind: "submit", id: "direct-order-submit" }, vi.fn(), PID);
     expect(scrolled.map((e) => e.hasAttribute("data-receipt"))).toEqual([true]);
     expect(document.activeElement?.id).toBe("direct-order-submit");
     expect(submitted).not.toHaveBeenCalled();
@@ -119,7 +146,52 @@ describe("handOffToForm", () => {
   it("complete without the marks (no bar watching yet): the fallback", () => {
     document.querySelector("[data-receipt]")?.removeAttribute("data-receipt");
     const fallback = vi.fn();
-    handOffToForm({ kind: "submit", id: "direct-order-submit" }, fallback);
+    handOffToForm({ kind: "submit", id: "direct-order-submit" }, fallback, PID);
     expect(fallback).toHaveBeenCalledOnce();
+  });
+
+  it("complete while the submit is disabled (sending): the receipt comes into view, nothing takes focus", () => {
+    const submit = document.getElementById("direct-order-submit");
+    if (!(submit instanceof HTMLButtonElement)) throw new Error("missing submit");
+    submit.disabled = true;
+    const before = document.activeElement;
+    const fallback = vi.fn();
+    handOffToForm({ kind: "submit", id: "direct-order-submit" }, fallback, PID);
+    expect(scrolled.map((e) => e.hasAttribute("data-receipt"))).toEqual([true]);
+    expect(document.activeElement).toBe(before);
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it("an option: the group comes into view and its first enabled choice takes focus", () => {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div id="direct-order-variants" role="group">
+        <button type="button" id="v-out" disabled>50ml</button>
+        <button type="button" id="v-in">100ml</button>
+      </div>`,
+    );
+    const fallback = vi.fn();
+    handOffToForm({ kind: "variant", id: "direct-order-variants" }, fallback, PID);
+    expect(scrolled.map((e) => e.id)).toEqual(["direct-order-variants"]);
+    expect(document.activeElement?.id).toBe("v-in");
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it("an option owned by a picker section: that picker's first choice takes focus", () => {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div data-variant-picker="other"><button type="button" id="other-1">x</button></div>
+       <div data-variant-picker="${PID}"><select id="picker-select"><option>50ml</option></select></div>`,
+    );
+    handOffToForm({ kind: "variant", id: null }, vi.fn(), PID);
+    expect(document.activeElement?.id).toBe("picker-select");
+  });
+
+  it("an option with nothing to choose on the page: the fallback", () => {
+    const fallback = vi.fn();
+    handOffToForm({ kind: "variant", id: "direct-order-variants" }, fallback, PID);
+    handOffToForm({ kind: "variant", id: null }, fallback, PID);
+    expect(fallback).toHaveBeenCalledTimes(2);
+    expect(scrolled).toEqual([]);
   });
 });

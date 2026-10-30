@@ -17,11 +17,11 @@
 // a field inside it has focus. The greeting waits for the shopper to leave
 // the name field, so it never greets a half-typed name.
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { IRAQ_GOVERNORATES, governorateLabel, cn, resolveI18n } from "@scheniders/shared";
-import { useExpressOrderStore } from "../helpers/express-order-store";
+import { EXPRESS_VARIANTS_ID, useExpressOrderStore } from "../helpers/express-order-store";
 import { MaterialIcon } from "../helpers/primitives";
-import { DIRECT_ORDER_FORM_ID, type FieldElement, type FieldKey } from "../pdp_direct_order.client";
+import type { FieldElement, FieldKey } from "../pdp_direct_order.client";
 import { formProgressReport } from "./form-progress";
 import type { ExpressModel } from "./model";
 import { IRAQI_MOBILE_DIGITS, phoneDigits, phoneIssue, type PhoneIssue } from "./phone";
@@ -160,13 +160,23 @@ export function ExpressForm({
   const productId = m.product.id;
   const registerForm = useExpressOrderStore((st) => st.registerForm);
   const reportForm = useExpressOrderStore((st) => st.reportForm);
-  useEffect(() => registerForm(productId, DIRECT_ORDER_FORM_ID), [registerForm, productId]);
+  // Registered under this mount's own token: a second express form for the
+  // same product (a duplicate section) unmounting never removes this entry.
+  const owner = useId();
+  useEffect(() => registerForm(productId, owner), [registerForm, productId, owner]);
   const progress = formProgressReport({
     form,
     fieldError: m.fieldError,
     phoneComplete,
     fieldId: (k) => m.fieldA11yCore(k).id,
     submitLabel: resolveI18n(m.props.submit_label_i18n, locale),
+    // The option is owed first, as the submit asks for it first; the form's
+    // pills carry the id only while a bar watches (express-view).
+    variant: {
+      needed: m.chosen.needsVariant,
+      label: m.s("chooseVariant"),
+      targetId: m.chosen.pickerMounted ? null : EXPRESS_VARIANTS_ID,
+    },
     locale,
   });
   useEffect(() => {

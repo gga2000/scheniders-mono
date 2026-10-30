@@ -188,7 +188,9 @@ export function StickyCtaBarRender({
 
   // The one tap handler for both button kinds: form_aware hands off to the
   // form (never submitting it), scroll_to_form scrolls as it always has.
-  const onPrimary = primary ? () => handOffToForm(primary.target, scrollToForm) : scrollToForm;
+  const onPrimary = primary
+    ? () => handOffToForm(primary.target, scrollToForm, productId)
+    : scrollToForm;
   const scrolls = primaryKind !== "link";
   const secondaryName =
     props.secondary_kind === "call" ? fs("call", locale) : fs("whatsapp", locale);

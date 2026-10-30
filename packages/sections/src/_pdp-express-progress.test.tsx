@@ -58,7 +58,7 @@ describe("express form progress", () => {
   it("registers untouched, names the next field as it fills, and unregisters on unmount", () => {
     const { view, q } = mount();
     expect(expressFormStage(progress())).toBe("untouched");
-    expect(progress().formId).toBe("direct-order");
+    expect(progress().owner).not.toBe("");
     expect(progress().firstMissingId).toBe(q<HTMLInputElement>('input[name="phone"]').id);
     expect(progress().firstMissingLabel).toBe("رقم الموبايل");
     expect(progress().submitLabel).toBe("ثبّت طلبي");
@@ -96,5 +96,17 @@ describe("express form progress", () => {
     expect(view.container.querySelector(`#${EXPRESS_SUBMIT_ID}`)?.getAttribute("type")).toBe("submit");
     act(() => unwatch());
     expect(marks()).toEqual([0, 0]);
+  });
+
+  it("two forms for the same product: unmounting the first leaves the second registered", () => {
+    const first = mount();
+    const second = mount();
+    expect(expressFormStage(progress())).toBe("untouched");
+    first.view.unmount();
+    expect(progress().registered).toBe(true);
+    fireEvent.change(second.q('input[name="phone"]'), { target: { value: "0770 123 4567" } });
+    expect(expressFormStage(progress())).toBe("partial");
+    second.view.unmount();
+    expect(progress()).toBe(UNREGISTERED);
   });
 });

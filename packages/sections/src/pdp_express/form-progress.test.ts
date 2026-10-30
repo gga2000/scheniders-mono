@@ -20,19 +20,25 @@ function fieldError(k: FieldKey, raw: string): string | null {
   return v ? null : "required";
 }
 
-function report(form: Partial<FormState>, phoneComplete = true, locale: "ar" | "en" = "ar") {
+function report(
+  form: Partial<FormState>,
+  phoneComplete = true,
+  locale: "ar" | "en" = "ar",
+  variant: { needed: boolean; targetId: string | null } = { needed: false, targetId: null },
+) {
   return formProgressReport({
     form: { ...EMPTY, ...form },
     fieldError,
     phoneComplete,
     fieldId: (k) => `f-${k}`,
     submitLabel: locale === "ar" ? "ثبّت طلبي" : "Place my order",
+    variant: { ...variant, label: locale === "ar" ? "اختار الخيار" : "Choose an option" },
     locale,
   });
 }
 
 const stageOf = (r: ReturnType<typeof report>) =>
-  expressFormStage({ ...UNREGISTERED, registered: true, formId: "direct-order", ...r });
+  expressFormStage({ ...UNREGISTERED, registered: true, owner: "form-1", ...r });
 
 describe("formProgressReport", () => {
   it("untouched: every required field missing, the phone first", () => {
@@ -73,5 +79,37 @@ describe("formProgressReport", () => {
       submitLabel: "ثبّت طلبي",
     });
     expect(stageOf(r)).toBe("complete");
+  });
+
+  describe("a product sold by variant with none chosen", () => {
+    const FILLED = { phone: "0770 123 4567", customer_name: "علي", governorate_code: "BG", address_details: "المنصور" };
+    const pills = { needed: true, targetId: "direct-order-variants" };
+
+    it("every field filled is still not complete: the option is missing, named by the variant prompt", () => {
+      const r = report(FILLED, true, "ar", pills);
+      expect(r.missing).toEqual(["variant"]);
+      expect(r.firstMissingId).toBe("direct-order-variants");
+      expect(r.firstMissingLabel).toBe("اختار الخيار");
+      expect(stageOf(r)).toBe("partial");
+    });
+
+    it("the option comes first, as the submit asks for it first; the fields still count for untouched", () => {
+      const r = report({}, false, "en", pills);
+      expect(r.missing).toEqual(["variant", "phone", "customer_name", "governorate_code", "address_details"]);
+      expect(r.firstMissingId).toBe("direct-order-variants");
+      expect(r.firstMissingLabel).toBe("Choose an option");
+      expect(stageOf(r)).toBe("untouched");
+    });
+
+    it("a picker section owns the choice: no id to go to, still missing", () => {
+      const r = report(FILLED, true, "ar", { needed: true, targetId: null });
+      expect(r.missing).toEqual(["variant"]);
+      expect(r.firstMissingId).toBeNull();
+      expect(r.firstMissingLabel).toBe("اختار الخيار");
+    });
+
+    it("once chosen, it is not reported", () => {
+      expect(report(FILLED, true, "ar", { needed: false, targetId: "direct-order-variants" }).missing).toEqual([]);
+    });
   });
 });
