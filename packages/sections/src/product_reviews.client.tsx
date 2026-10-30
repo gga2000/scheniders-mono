@@ -13,7 +13,11 @@
 //
 // Opt-in `layout: "quiet"`: one hairline summary card, quiet review cards
 // (product_reviews/), and the form folded behind a modest «اكتب تقييمك»
-// button that #reviews opens by itself. Absent, the historical layout
+// button that #reviews opens by itself. Opt-in `layout: "highlights"`
+// (spec §1.6): product_reviews/highlights-view.tsx. `heading_style:
+// "chapter"` sets the heading at the chapter scale in every layout;
+// `form_entry: "hash_only"` keeps the entry and the form out of the page
+// unless the visitor arrived on #reviews. Absent, the historical layout
 // renders byte-identically.
 // =====================================================================
 // Client half of `product_reviews` — the component (hooks / browser APIs). The
@@ -28,6 +32,8 @@ import Image from "next/image";
 import { resolveI18n, computeRatingSummary } from "@scheniders/shared";
 import type { ProductReview, RatingSummary } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, MaterialIcon, Section, Stars } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
+import { storeDisplayName } from "./helpers/store-name";
 import { formatCount } from "./helpers/format";
 import { isOptimizableImageHost } from "./helpers/image";
 import { cn } from "./helpers/utils";
@@ -35,6 +41,7 @@ import type { SectionRenderContext } from "./_types";
 import type { ReviewSummaryItem } from "./types";
 import type { Props } from "./product_reviews";
 import { readsRtl } from "./pdp_express/text";
+import { HighlightsView } from "./product_reviews/highlights-view";
 import { QuietReviewCard } from "./product_reviews/quiet-review-card";
 import { QuietSummary } from "./product_reviews/quiet-summary";
 import { rs } from "./product_reviews/strings";
@@ -196,6 +203,8 @@ export function ProductReviewsRender({
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const quiet = props.layout === "quiet";
+  // The tracker's #reviews link is the only way in to the form.
+  const hashOnly = props.form_entry === "hash_only";
   // The quiet layout folds the form behind an entry button; the
   // historical layout always shows it and never reads this.
   const [formOpen, setFormOpen] = React.useState(false);
@@ -496,14 +505,72 @@ export function ProductReviewsRender({
 
   const rtl = readsRtl(locale);
 
+  const headingEl =
+    props.heading_style === "chapter" ? (
+      <ChapterHeading title={heading} locale={locale} titleField="heading_i18n" />
+    ) : (
+      <CenteredSectionHeader
+        title={heading}
+        align="start"
+        titleField="heading_i18n"
+      />
+    );
+
+  const entryButton = (
+    <div className={cn("mt-bk-md flex", rtl && "justify-end")}>
+      <button
+        type="button"
+        data-review-entry=""
+        onClick={() => {
+          setFormOpen(true);
+          setFocusForm(true);
+        }}
+        className={cn(
+          "inline-flex min-h-11 items-center gap-2 rounded-bk-pill border-bk border-bk-divider bg-bk-surface px-bk-md font-bk-body text-sm font-bold text-bk-ink",
+          "transition-[opacity,transform] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
+          "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
+          rtl && "flex-row-reverse",
+        )}
+      >
+        <MaterialIcon name="edit" className="text-base" />
+        {rs("writeEntry", locale)}
+      </button>
+    </div>
+  );
+
+  // Quiet and highlights fold the form behind the entry button; with
+  // `hash_only` there is no button, only the form a #reviews arrival opens.
+  const foldedForm =
+    props.show_form && (formOpen ? formBlock : hashOnly ? null : entryButton);
+
+  if (props.layout === "highlights") {
+    return (
+      <Section id="reviews">
+        {headingEl}
+        <HighlightsView
+          reviews={reviews}
+          summary={summary}
+          distributionKnown={distributionKnown}
+          props={props}
+          locale={locale}
+          storeName={storeDisplayName(ctx.tenant, locale)}
+          logoUrl={ctx.tenant.branding?.logo_url ?? null}
+          onOpenPhoto={setLightbox}
+        />
+        <PhotoLightbox
+          image={lightbox}
+          onClose={() => setLightbox(null)}
+          closeLabel={t("Close", "إغلاق")}
+        />
+        {foldedForm}
+      </Section>
+    );
+  }
+
   if (quiet) {
     return (
       <Section id="reviews">
-        <CenteredSectionHeader
-          title={heading}
-          align="start"
-          titleField="heading_i18n"
-        />
+        {headingEl}
         {hasReviews ? (
           <QuietSummary
             summary={summary}
@@ -537,30 +604,7 @@ export function ProductReviewsRender({
           onClose={() => setLightbox(null)}
           closeLabel={t("Close", "إغلاق")}
         />
-        {props.show_form &&
-          (formOpen ? (
-            formBlock
-          ) : (
-            <div className={cn("mt-bk-md flex", rtl && "justify-end")}>
-              <button
-                type="button"
-                data-review-entry=""
-                onClick={() => {
-                  setFormOpen(true);
-                  setFocusForm(true);
-                }}
-                className={cn(
-                  "inline-flex min-h-11 items-center gap-2 rounded-bk-pill border-bk border-bk-divider bg-bk-surface px-bk-md font-bk-body text-sm font-bold text-bk-ink",
-                  "transition-[opacity,transform] duration-bk-fast motion-reduce:transition-none hover:opacity-90 active:scale-[0.98]",
-                  "focus-visible:outline-none focus-visible:ring-2 ring-bk-focus ring-offset-2",
-                  rtl && "flex-row-reverse",
-                )}
-              >
-                <MaterialIcon name="edit" className="text-base" />
-                {rs("writeEntry", locale)}
-              </button>
-            </div>
-          ))}
+        {foldedForm}
       </Section>
     );
   }
@@ -570,11 +614,7 @@ export function ProductReviewsRender({
     // order tracker links a delivered order to /products/<slug>#reviews.
     // Without the anchor that link lands at the top of the page.
     <Section id="reviews">
-      <CenteredSectionHeader
-        title={heading}
-        align="start"
-        titleField="heading_i18n"
-      />
+      {headingEl}
 
       {/* Summary — only when there is something real to summarise. A
           zero-review product gets one honest line, never "0.0" + empty bars. */}
@@ -689,7 +729,7 @@ export function ProductReviewsRender({
       />
 
       {/* Submit form */}
-      {formBlock}
+      {hashOnly && !formOpen ? null : formBlock}
     </Section>
   );
 }
