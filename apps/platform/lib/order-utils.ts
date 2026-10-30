@@ -54,6 +54,13 @@ export function validatePhoneDetailed(phone: string | undefined | null): PhoneVa
         cleaned = '0' + cleaned.substring(3);
     }
 
+    // Read 00964… and the zero-less 7XXXXXXXXX form as a local 07… number, the
+    // same way formatPhoneGrouped shows them. LightFunnels stores whatever the
+    // customer typed, so "7714388144" reached the card displayed as
+    // "0771 438 8144" yet flagged red as not starting with 07.
+    if (cleaned.startsWith('00964')) cleaned = '0' + cleaned.substring(5);
+    if (/^7\d{9}$/.test(cleaned)) cleaned = '0' + cleaned;
+
     // Check if it starts with valid Iraqi mobile prefix (07)
     if (!cleaned.startsWith('07')) {
         return {

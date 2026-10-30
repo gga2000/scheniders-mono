@@ -5,6 +5,7 @@ import { supabase, type Order, type RejectionReason, type MessageTemplate } from
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { computeCustomerOrderCounts, findOrderDuplicates } from "@/lib/order-duplicates";
+import { useCustomerOrderCounts } from "@/hooks/use-customer-order-counts";
 import {
     sumRealizedRevenue,
     sumRealizedRevenueForDay,
@@ -23,6 +24,8 @@ import {
 interface UseOrderAuxiliaryOptions {
     orders: Order[];
     archivedOrders: Order[];
+    /** Server search matches, which may lie outside the loaded window; their customers need counts too. */
+    searchOrders?: Order[] | null;
 }
 
 export interface BlacklistEntry {
@@ -32,7 +35,7 @@ export interface BlacklistEntry {
     added_by?: string | null;
 }
 
-export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryOptions) {
+export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseOrderAuxiliaryOptions) {
     const { user, profile } = useAuth();
 
     // =============================================
@@ -137,19 +140,28 @@ export function useOrderAuxiliary({ orders, archivedOrders }: UseOrderAuxiliaryO
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
-    // Precomputed map for O(1) lookups. The algorithm lives in
-    // lib/order-duplicates.ts as a pure function so it can be unit-tested and
-    // proven equivalent to the SQL side (public.get_customer_order_counts),
-    // which takes over once the order fetch is windowed.
+    // Counted over the loaded rows (lib/order-duplicates.ts), which since the
+    // fetch is windowed only see the active date range. The server count
+    // (public.get_customer_order_counts, the same rules over the whole book) is
+    // the real number; the loaded rows only cover the moment before it arrives
+    // and an order that landed after it was fetched, so the larger of the two wins.
     const customerOrderCountsMap = useMemo(
         () => computeCustomerOrderCounts(orders),
         [orders],
     );
+    const countedOrders = useMemo(
+        () => (searchOrders && searchOrders.length > 0 ? [...orders, ...searchOrders] : orders),
+        [orders, searchOrders],
+    );
+    const serverOrderCounts = useCustomerOrderCounts(countedOrders, orders.length);
 
     const getCustomerOrderCount = useCallback((phone: string, _currentOrderId?: string): number => {
         const normalizedPhone = normalizePhoneForSearch(phone);
-        return customerOrderCountsMap.get(normalizedPhone) || 0;
-    }, [customerOrderCountsMap]);
+        return Math.max(
+            serverOrderCounts?.get(normalizedPhone) ?? 0,
+            customerOrderCountsMap.get(normalizedPhone) ?? 0,
+        );
+    }, [customerOrderCountsMap, serverOrderCounts]);
 
     function getDuplicatesForOrder(orderId: string): Order[] {
         const order = orders.find((o) => o.id === orderId);

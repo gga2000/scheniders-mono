@@ -191,7 +191,11 @@ export function useOrders() {
 
 
     // 3. Auxiliary — reference data, customer helpers, stats
-    const auxiliaryHook = useOrderAuxiliary({ orders, archivedOrders });
+    const auxiliaryHook = useOrderAuxiliary({
+        orders,
+        archivedOrders,
+        searchOrders: orderSearch.active ? orderSearch.orders : null,
+    });
 
     // 48h money-at-risk duplicates. Needs the window, because a windowed view
     // must look past its own edges to find a twin placed the day before.
