@@ -25,6 +25,11 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import type { Category, CategoryScope } from "@/types/product";
 import { CategoryScopeControl } from "@/components/products/category-scope-control";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 
 export function CategoriesTab() {
     const { data: categories = [], isLoading } = useCategoriesQuery();
@@ -32,6 +37,9 @@ export function CategoriesTab() {
     const addMutation = useAddCategoryMutation();
     const updateMutation = useUpdateCategoryMutation();
     const deleteMutation = useDeleteCategoryMutation();
+    const { t } = useLanguage();
+    const { can } = usePermission();
+    const canDeleteCategories = can(PERMISSIONS.MANAGE_PRODUCTS);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -94,7 +102,11 @@ export function CategoriesTab() {
     };
 
     const handleDelete = async (id: string) => {
-        await deleteMutation.mutateAsync(id);
+        try {
+            await deleteMutation.mutateAsync(id);
+        } catch (err) {
+            toast.error(t(productWriteErrorKey(err)));
+        }
         setDeleteConfirmId(null);
     };
 
@@ -175,7 +187,7 @@ export function CategoriesTab() {
                                 productCount={productCountMap.get(cat.id) || 0}
                                 productCountMap={productCountMap}
                                 onEdit={handleEdit}
-                                onDelete={(id) => setDeleteConfirmId(id)}
+                                onDelete={canDeleteCategories ? (id) => setDeleteConfirmId(id) : undefined}
                                 deleteConfirmId={deleteConfirmId}
                                 onConfirmDelete={handleDelete}
                                 onCancelDelete={() => setDeleteConfirmId(null)}
@@ -206,7 +218,8 @@ interface CategoryRowProps {
     productCount: number;
     productCountMap: Map<string, number>;
     onEdit: (cat: Category) => void;
-    onDelete: (id: string) => void;
+    /** Absent when the member may not delete categories (products.manage). */
+    onDelete?: (id: string) => void;
     deleteConfirmId: string | null;
     onConfirmDelete: (id: string) => void;
     onCancelDelete: () => void;
@@ -336,12 +349,14 @@ function CategoryRow({
                             >
                                 <Pencil className="w-4 h-4" />
                             </button>
-                            <button
-                                onClick={() => onDelete(category.id)}
-                                className="p-2 rounded-lg hover:bg-rose-50 text-muted hover:text-rose-500 transition-colors"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
+                            {onDelete && (
+                                <button
+                                    onClick={() => onDelete(category.id)}
+                                    className="p-2 rounded-lg hover:bg-rose-50 text-muted hover:text-rose-500 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
                         </div>
                     )}
                 </motion.div>
