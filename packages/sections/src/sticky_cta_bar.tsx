@@ -28,8 +28,12 @@ const schema = z.object({
   /** "link" (default) navigates to `primary_href`. "scroll_to_form" scrolls
    *  to the in-page order form instead — the right choice on a funnel PDP
    *  whose only purchase path is the inline COD form (a link to /checkout
-   *  there is a dead end into an empty cart). */
-  primary_kind: z.enum(["link", "scroll_to_form"]).optional(),
+   *  there is a dead end into an empty cart). "form_aware" (spec §1.8)
+   *  reads the express form's progress: «اطلب الآن» → the first empty field;
+   *  «كمّل طلبك · باقي …» → the first missing field; once complete the
+   *  form's own «ثبّت طلبي» → the receipt, focusing the submit. It never
+   *  submits (D6). A bad stored value falls back to "link". */
+  primary_kind: z.enum(["link", "scroll_to_form", "form_aware"]).optional().catch(undefined),
   /** Element id targeted by `scroll_to_form`. Omitted = "direct-order"
    *  (the id pdp_direct_order gives its form). */
   scroll_target_id: z.string().optional(),
@@ -43,6 +47,17 @@ const schema = z.object({
    *  layouts whose form sits on the first screen, where the bar would
    *  otherwise cover the fields it points to. */
   hide_while: z.enum(["submit", "form"]).optional().catch(undefined),
+  /** "chunky" (default): today's outlined, hard-shadow buttons. "soft": the
+   *  express form's own button look — token radius and shadow, no ink
+   *  outline — on a plain surface bar (issue I14). */
+  style: z.enum(["chunky", "soft"]).optional().catch(undefined),
+  /** "button" (default): the labelled secondary button. "icon": a 52px
+   *  square, the WhatsApp glyph (or the call glyph) with an accessible name. */
+  secondary_display: z.enum(["button", "icon"]).optional().catch(undefined),
+  /** With `secondary_display: "icon"` on a product page: the message the
+   *  WhatsApp icon opens with, `{product}` = the product's name. Empty =
+   *  «هلا، أريد أطلب {product}». The labelled button keeps its bare link. */
+  whatsapp_prefill_i18n: i18nStringOptional.catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

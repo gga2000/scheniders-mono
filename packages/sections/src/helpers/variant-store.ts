@@ -111,14 +111,21 @@ export function variantPickerAnchor(productId: string): { "data-variant-picker":
   return { "data-variant-picker": productId };
 }
 
+/** The product's picker section element, or null when none is on the page. */
+export function variantPickerElement(productId: string): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>("[data-variant-picker]")).find(
+      (el) => el.dataset.variantPicker === productId,
+    ) ?? null
+  );
+}
+
 /** Scroll to the product's picker section and focus its first available
  *  option. Called by a buying section when the shopper tries to buy before
  *  choosing and the choice lives in another section. */
 export function focusVariantPicker(productId: string): void {
-  if (typeof document === "undefined") return;
-  const anchor = Array.from(document.querySelectorAll<HTMLElement>("[data-variant-picker]")).find(
-    (el) => el.dataset.variantPicker === productId,
-  );
+  const anchor = variantPickerElement(productId);
   if (!anchor) return;
   anchor.scrollIntoView?.({ block: "center" });
   anchor.querySelector<HTMLElement>("button:not(:disabled), select:not(:disabled)")?.focus();

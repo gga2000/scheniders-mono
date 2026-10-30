@@ -13,6 +13,7 @@ import {
 } from "@scheniders/shared";
 import type { GovernorateShippingConfig, LocaleCode } from "@scheniders/shared";
 import { ContactLine } from "../helpers/contact-line";
+import { EXPRESS_SUBMIT_ID, useFormWatched } from "../helpers/express-order-store";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
 import { displayNameOf } from "./identity-label";
@@ -93,6 +94,10 @@ export function CheckoutRow({
   waFallbackHref: string | null;
 }) {
   const rtl = readsRtl(locale);
+  // While a form-aware sticky bar watches this product, the receipt and the
+  // submit carry the marks it scrolls to and focuses (spec §1.8). Never in
+  // server markup: only the bar's mount effect sets the watch.
+  const watched = useFormWatched(m.product.id);
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
   // color_lock (D4): green is for WhatsApp and success states only.
   const freeInk = m.props.color_lock === true ? "text-bk-ink" : "text-bk-success";
@@ -115,7 +120,10 @@ export function CheckoutRow({
 
   return (
     <div className="space-y-bk-sm">
-      <div className="divide-y divide-dashed divide-bk-divider rounded-bk-card border-bk border-bk-divider px-4">
+      <div
+        className="divide-y divide-dashed divide-bk-divider rounded-bk-card border-bk border-bk-divider px-4"
+        data-receipt={watched ? "" : undefined}
+      >
         <div>
           <Row
             rtl={rtl}
@@ -187,6 +195,7 @@ export function CheckoutRow({
         )}
         <button
           type="submit"
+          id={watched ? EXPRESS_SUBMIT_ID : undefined}
           disabled={m.oos || m.submitting}
           aria-busy={m.submitting || undefined}
           aria-describedby={

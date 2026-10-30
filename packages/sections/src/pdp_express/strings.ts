@@ -118,7 +118,8 @@ export const EXPRESS_STRINGS = {
     ar: "شنو تحصل ويا طلبك",
     ku: "چی وەردەگریت لەگەڵ داواکارییەکەت",
   },
-  freeDeliveryTitle: { en: "Delivery is free.", ar: "التوصيل مجاني.", ku: "گەیاندن بەخۆڕاییە." },
+  // A row title, like row 1's and row 3's: no full stop.
+  freeDeliveryTitle: { en: "Delivery is free", ar: "التوصيل مجاني", ku: "گەیاندن بەخۆڕاییە" },
   termsLink: { en: "Terms", ar: "الشروط", ku: "مەرجەکان" },
   saveNumber: { en: "Save our number", ar: "احفظ رقمنا", ku: "ژمارەکەمان پاشەکەوت بکە" },
   // After «احفظ رقمنا». None of them says the contact was saved: the page

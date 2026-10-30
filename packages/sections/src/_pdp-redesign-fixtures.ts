@@ -14,8 +14,9 @@ import type { Props as AccordionProps } from "./accordion_richtext";
 import image_gallery from "./image_gallery";
 import type { Props as PdpDirectOrderProps } from "./pdp_direct_order";
 import type { Props as ReviewsProps } from "./product_reviews";
+import type { Props as StickyProps } from "./sticky_cta_bar";
 import type { Tenant } from "./types";
-import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, fixtureTenant } from "./_pdp-fixtures";
+import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, IRAQ_DRAFT_STICKY_PROPS, fixtureTenant } from "./_pdp-fixtures";
 import type { FaqProps } from "./_pdp-lower-fixtures";
 
 export type GalleryProps = typeof image_gallery.defaultProps;
@@ -544,11 +545,34 @@ export const IRAQ_REDESIGN_REVIEWS_INPUT = jsonbMerge(IRAQ_DRAFT_REVIEWS_BASE, S
 /** The draft faq_contact_split after slice 1e (unparsed, as stored). */
 export const IRAQ_REDESIGN_FAQ_INPUT = jsonbMerge(IRAQ_DRAFT_FAQ_BASE, SLICE_1E_FAQ_PATCH);
 
-/** The draft pdp_direct_order after slices 1b, 1c, 1d and 1e. */
+/** Slice 1f: the key the 1f draft migration merges into pdp_direct_order's
+ *  base. Ali (2026-10-30): the WhatsApp tile comes back beside «ثبّت طلبي»
+ *  (slice 1b had switched it off). It stays green under color_lock. */
+export const SLICE_1F_PDP_PATCH = {
+  show_whatsapp: true,
+} satisfies Partial<PdpDirectOrderProps>;
+
+/** The draft pdp_direct_order after slices 1b, 1c, 1d, 1e and 1f. */
 export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
   ...EXPRESS_IRAQ_DRAFT_PDP_PROPS,
   ...SLICE_1B_PDP_PATCH,
   ...SLICE_1C_PDP_PATCH,
   ...SLICE_1D_PDP_PATCH,
   ...SLICE_1E_PDP_PATCH,
+  ...SLICE_1F_PDP_PATCH,
 };
+
+/** Slice 1f: the keys the 1f draft migration merges into sticky_cta_bar's
+ *  base: the form-aware primary (never a submit, D6), the express form's
+ *  soft button look, and the 52px WhatsApp square. hide_while "form" and
+ *  the product price stay from the base. */
+export const SLICE_1F_STICKY_PATCH = {
+  primary_kind: "form_aware",
+  style: "soft",
+  secondary_display: "icon",
+} satisfies Partial<StickyProps>;
+
+/** The draft sticky_cta_bar after slice 1f (unparsed, as stored). The base
+ *  is IRAQ_DRAFT_STICKY_PROPS (read 2026-10-30, base md5
+ *  08921c992d5563e08afa97c093735301): 1b–1e never touched it. */
+export const IRAQ_REDESIGN_STICKY_INPUT = jsonbMerge(IRAQ_DRAFT_STICKY_PROPS, SLICE_1F_STICKY_PATCH);
