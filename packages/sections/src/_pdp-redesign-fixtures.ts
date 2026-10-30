@@ -13,8 +13,10 @@ import type { StoreContactConfig } from "@scheniders/shared";
 import type { Props as AccordionProps } from "./accordion_richtext";
 import image_gallery from "./image_gallery";
 import type { Props as PdpDirectOrderProps } from "./pdp_direct_order";
+import type { Props as ReviewsProps } from "./product_reviews";
 import type { Tenant } from "./types";
 import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, fixtureTenant } from "./_pdp-fixtures";
+import type { FaqProps } from "./_pdp-lower-fixtures";
 
 export type GalleryProps = typeof image_gallery.defaultProps;
 
@@ -403,4 +405,65 @@ export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
   ...SLICE_1B_PDP_PATCH,
   ...SLICE_1C_PDP_PATCH,
   ...SLICE_1D_PDP_PATCH,
+};
+
+/** scheniders-iraq's draft product_reviews 1ab3ee76 base before slice 1e
+ *  (read 2026-10-30, base md5 bf9602243bac84ce250199f7f692df02). */
+export const IRAQ_DRAFT_REVIEWS_BASE: ReviewsProps = {
+  layout: "quiet",
+  show_form: true,
+  heading_i18n: { ar: "آراء العملاء", en: "Customer reviews" },
+};
+
+/** scheniders-iraq's draft faq_contact_split 8354d117 base before slice 1e
+ *  (read 2026-10-30, base md5 6720f23fe9e4b1b1156dc2910d70055e): the
+ *  compact list of four store questions and the «عندك استفسار؟» row. */
+export const IRAQ_DRAFT_FAQ_BASE: FaqProps = {
+  items: [
+    {
+      a_i18n: {
+        ar: "كل عطورنا مختارة يدوياً من أفخم المصادر العالمية ومن أجود الخامات العطرية، ونجرّب كل عطر بأنفسنا قبل ما يوصلك. وما نتعامل بالعطور التركية المصنّعة بالجملة ولا بالعطور الصينية الرديئة.",
+        en: "Every perfume is hand-picked from premium global sources and the finest aromatic materials, and we try each one ourselves before it reaches you. We don't deal in bulk-made Turkish perfumes or low-grade Chinese ones.",
+      },
+      q_i18n: { ar: "العطور أصلية؟", en: "Are your perfumes original?" },
+    },
+    {
+      a_i18n: {
+        ar: "تجرّب العطر بالتيستر الزجاجي المجاني اللي يجي ويا طلبك، بحضور المندوب وقبل لا تدفع. وإذا لگيت أي اختلاف بالجودة أو المواصفات أو الفوحان أو الثبات، يحقلك ترفض العطر. وإذا اكتشفت فرق بالمواصفات بعد الاستلام، تگدر ترجّعه خلال أسبوع.",
+        en: "You try the perfume with the free glass tester that comes with your order, with the courier there and before you pay. If anything differs (quality, specs, projection or longevity) you can refuse it. If you find a difference in the specs after delivery, you can return it within a week.",
+      },
+      q_i18n: { ar: "ريحة العطر نفس ريحة التيستر؟", en: "Will the bottle smell like the tester?" },
+    },
+    {
+      a_i18n: {
+        ar: "ما تدفع إلا بعد ما تستلم العطر وتجرّبه بالتيستر. وإذا استلمته وما عجبتك التجربة العطرية، يحقلك ترجّعه خلال أسبوع من الاستلام: راسلنا على الواتساب ونرتّب الاسترجاع، وتفاصيل الشروط موجودة بصفحة سياسة الاسترجاع.",
+        en: "You only pay after you receive the perfume and try it with the tester. If you keep it and don't like the scent, you can return it within a week of delivery: message us on WhatsApp and we'll arrange the return. The conditions are on the returns policy page.",
+      },
+      q_i18n: { ar: "إذا ما عجبني العطر وقت الاستلام؟", en: "What if I don't like it when it arrives?" },
+    },
+    {
+      a_i18n: {
+        ar: "أغلب الطلبات توصل خلال ٢٤ ساعة من تثبيت الطلب، والمحافظات البعيدة ممكن توصل لحد ٣ أيام عمل. والتوصيل مجاني لكل المحافظات.",
+        en: "Most orders arrive within 24 hours of confirmation; far governorates can take up to 3 working days. Delivery is free to every governorate.",
+      },
+      q_i18n: { ar: "شكد يطول التوصيل؟", en: "How long does delivery take?" },
+    },
+  ],
+  compact: true,
+  contact: {
+    icon_url:
+      "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/66a2314b-371e-4474-ad0d-53a4cad055f9.svg",
+    sub_i18n: { ar: "نورونا على الواتساب وسولفوا ويانا", en: "Message us on WhatsApp, we're happy to chat." },
+    title_i18n: { ar: "عندك استفسار؟", en: "Any questions?" },
+    cta_label_i18n: { ar: "واتساب", en: "WhatsApp" },
+    whatsapp_number: "",
+  },
+  sub_i18n: {
+    ar: "هنا تجد أجوبة عن الأسئلة الاكثر شيوعا، إدا مازلت تريد معلومات إضافية، يمكنك دائما الاتصال بنا.",
+    en: "Answers to the most common questions — and you can always reach us for more.",
+  },
+  title_i18n: { ar: "الأسئلة الأكثر شيوعا", en: "Frequently asked questions" },
+  eyebrow_i18n: { ar: "أسئلة و أجوبة", en: "Questions & answers" },
+  row_icon_url:
+    "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/73c12b05-fbb5-4cc7-9a75-f61094855221.svg",
 };
