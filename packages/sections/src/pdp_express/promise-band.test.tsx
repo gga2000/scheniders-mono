@@ -63,7 +63,8 @@ describe("promise band rows", () => {
     expect(html).toContain('aria-label="شنو تحصل ويا طلبك"');
     expect(html).toContain("تفتح وتجرّب قبل لا تدفع — والتيستر هدية وياه");
     expect(html).toContain("ما عجبك؟ ترفضه قدام المندوب أو ترجّعه خلال أسبوع");
-    expect(html).toContain("التوصيل مجاني.");
+    expect(html).toContain(">التوصيل مجاني<");
+    expect(html).not.toContain("التوصيل مجاني.");
     expect(html).toContain("أغلب الطلبات توصل خلال 24 ساعة من تثبيت الطلب");
     expect(html).toContain(
       'راح يوصلك اتصال من <bdi class="whitespace-nowrap">0777 970 3832</bdi> لتأكيد طلبك — رد علينا ويطلع طلبك',
@@ -127,7 +128,7 @@ describe("promise band rows", () => {
   it("english", () => {
     const html = render(BAND, tenant(CONTACT), { runtime: { ...productRuntime, locale: "en" } });
     expect(html).toContain('aria-label="What you get with your order"');
-    expect(html).toContain("Delivery is free.");
+    expect(html).toContain(">Delivery is free<");
     expect(html).toContain('download="Scheniders — order confirmation.vcf"');
     expect(html).toContain("Save our number");
   });
@@ -177,7 +178,7 @@ describe("promiseRows", () => {
 
   it("free delivery without an SLA is a title-only row", () => {
     expect(promiseRows({ ...base, freeEverywhere: true }).delivery).toEqual({
-      title: "التوصيل مجاني.",
+      title: "التوصيل مجاني",
       fact: "",
     });
   });
