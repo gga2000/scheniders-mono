@@ -14,8 +14,9 @@ import type { Props as AccordionProps } from "./accordion_richtext";
 import image_gallery from "./image_gallery";
 import type { Props as PdpDirectOrderProps } from "./pdp_direct_order";
 import type { Props as ReviewsProps } from "./product_reviews";
+import type { Props as StickyProps } from "./sticky_cta_bar";
 import type { Tenant } from "./types";
-import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, fixtureTenant } from "./_pdp-fixtures";
+import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, IRAQ_DRAFT_STICKY_PROPS, fixtureTenant } from "./_pdp-fixtures";
 import type { FaqProps } from "./_pdp-lower-fixtures";
 
 export type GalleryProps = typeof image_gallery.defaultProps;
@@ -552,3 +553,18 @@ export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
   ...SLICE_1D_PDP_PATCH,
   ...SLICE_1E_PDP_PATCH,
 };
+
+/** Slice 1f: the keys the 1f draft migration merges into sticky_cta_bar's
+ *  base: the form-aware primary (never a submit, D6), the express form's
+ *  soft button look, and the 52px WhatsApp square. hide_while "form" and
+ *  the product price stay from the base. */
+export const SLICE_1F_STICKY_PATCH = {
+  primary_kind: "form_aware",
+  style: "soft",
+  secondary_display: "icon",
+} satisfies Partial<StickyProps>;
+
+/** The draft sticky_cta_bar after slice 1f (unparsed, as stored). The base
+ *  is IRAQ_DRAFT_STICKY_PROPS (read 2026-10-30, base md5
+ *  08921c992d5563e08afa97c093735301): 1b–1e never touched it. */
+export const IRAQ_REDESIGN_STICKY_INPUT = jsonbMerge(IRAQ_DRAFT_STICKY_PROPS, SLICE_1F_STICKY_PATCH);

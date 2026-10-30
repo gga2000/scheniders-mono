@@ -18,6 +18,7 @@ import faq_contact_split from "./faq_contact_split";
 import image_gallery from "./image_gallery";
 import pdp_direct_order from "./pdp_direct_order";
 import product_reviews from "./product_reviews";
+import sticky_cta_bar from "./sticky_cta_bar";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 import {
@@ -40,6 +41,7 @@ import {
   IRAQ_REDESIGN_GALLERY_INPUT,
   IRAQ_REDESIGN_PDP_PROPS,
   IRAQ_REDESIGN_REVIEWS_INPUT,
+  IRAQ_REDESIGN_STICKY_INPUT,
   IRAQ_REDESIGN_TENANT,
   IRAQ_RETURN_WORDING,
   SLICE_1B_CONTACT_PATCH,
@@ -52,6 +54,7 @@ import {
   SLICE_1E_FAQ_PATCH,
   SLICE_1E_PDP_PATCH,
   SLICE_1E_REVIEWS_PATCH,
+  SLICE_1F_STICKY_PATCH,
 } from "./_pdp-redesign-fixtures";
 
 const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
@@ -149,6 +152,18 @@ describe("redesign fixtures mirror the draft migrations", () => {
     const { title_i18n: _t, sub_i18n: _s, ...rest } = SLICE_1E_FAQ_PATCH.contact;
     const { title_i18n: _bt, sub_i18n: _bs, ...baseRest } = IRAQ_DRAFT_FAQ_BASE.contact;
     expect(rest).toEqual(baseRest);
+  });
+
+  it("slice 1f sticky_cta_bar patch", () => {
+    const sql1f = migrationSql("scheniders_iraq_pdp_redesign_1f_draft");
+    expect(migrationJson(sql1f, "sticky_patch")).toEqual(SLICE_1F_STICKY_PATCH);
+  });
+
+  it("the 1f sticky bar parses to exactly what is stored, still hidden while the form shows", () => {
+    const parsed = sticky_cta_bar.schema.parse(IRAQ_REDESIGN_STICKY_INPUT);
+    expect(parsed).toEqual(IRAQ_REDESIGN_STICKY_INPUT);
+    expect(parsed.hide_while).toBe("form");
+    expect(parsed.show_product_price).toBe(true);
   });
 
   it("the patched props satisfy the schema unchanged", () => {
@@ -294,5 +309,30 @@ describe("product_reviews + faq_contact_split — redesign draft (slice 1e)", ()
     expect(dirs(renderFaq(IRAQ_REDESIGN_FAQ_INPUT, "ar"))).toBe(0);
     expect(dirs(renderReviews(IRAQ_DRAFT_REVIEWS_BASE, "ar"))).toBe(0);
     expect(dirs(renderReviews(IRAQ_REDESIGN_REVIEWS_INPUT, "ar"))).toBe(0);
+  });
+});
+
+describe("sticky_cta_bar — redesign draft (slice 1f)", () => {
+  function renderBar(locale: LocaleCode): string {
+    return renderToStaticMarkup(
+      <StoreBaseProvider base="/s/fixture-store">
+        <sticky_cta_bar.render
+          props={sticky_cta_bar.schema.parse(IRAQ_REDESIGN_STICKY_INPUT)}
+          ctx={productCtx(wayferProduct, { tenant: IRAQ_REDESIGN_TENANT, runtime: { ...productRuntime, locale } })}
+        />
+      </StoreBaseProvider>,
+    );
+  }
+
+  it.each(["ar", "en"] as const)("sticky bar, %s", (locale) => {
+    expect(renderBar(locale)).toMatchSnapshot();
+  });
+
+  it("soft: no ink outline, no colour literal, no dir; yellow only on the primary", () => {
+    const html = renderBar("ar");
+    expect(html).not.toContain("--bk-border-thickness");
+    expect(html).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgba?\(/);
+    expect(html).not.toContain(' dir="');
+    expect(html.split("bg-bk-primary ").length - 1).toBe(1);
   });
 });
