@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import type { McpCaller } from "@/lib/mcp/caller";
-import { McpToolError, registerTool, requireWriter } from "@/lib/mcp/tool";
+import { McpToolError, actorName, registerTool, requireWriter } from "@/lib/mcp/tool";
 import {
     findOrder,
     findOrders,
@@ -22,9 +22,6 @@ import type { CreateOrderInput, Order, OrderItem } from "@/types/order";
 
 /** One status change can touch at most this many orders. */
 const MAX_BULK_ORDERS = 100;
-
-/** Name shown in status history and on the order, so staff see the change came from Claude. */
-const actorName = (caller: McpCaller) => `${caller.displayName} (via Claude)`;
 
 /**
  * The entry the order's activity timeline reads. Runs after the change has

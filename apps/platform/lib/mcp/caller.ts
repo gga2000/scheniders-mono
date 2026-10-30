@@ -25,6 +25,8 @@ export type McpCaller = {
     clientId: string;
     db: SupabaseClient;
     token: string;
+    /** The app's origin as Claude reached it, for links back into the app. */
+    appUrl: string;
 };
 
 /** The claims we read from a token Supabase Auth has already verified. */
@@ -52,7 +54,7 @@ function decodeClaims(token: string): unknown {
  *     session token pasted into a client would skip the database guard,
  *   - belongs to a user on the `mcp_access` list.
  */
-export async function verifyMcpToken(_req: Request, bearerToken?: string): Promise<AuthInfo | undefined> {
+export async function verifyMcpToken(req: Request, bearerToken?: string): Promise<AuthInfo | undefined> {
     if (!bearerToken) return undefined;
 
     const claims = oauthClaimsSchema.safeParse(decodeClaims(bearerToken));
@@ -69,7 +71,7 @@ export async function verifyMcpToken(_req: Request, bearerToken?: string): Promi
         clientId: claims.data.client_id,
         scopes: [],
         expiresAt: typeof exp === "number" ? exp : undefined,
-        extra: { userId: user.id, email: user.email ?? null },
+        extra: { userId: user.id, email: user.email ?? null, appUrl: new URL(req.url).origin },
     };
 }
 
@@ -92,7 +94,9 @@ export type ResolvedCaller = { ok: true; caller: McpCaller } | { ok: false; erro
  * store takes effect on Claude's next call.
  */
 export async function resolveMcpCaller(authInfo: AuthInfo | undefined): Promise<ResolvedCaller> {
-    const extra = z.object({ userId: z.string().uuid(), email: z.string().nullable() }).safeParse(authInfo?.extra);
+    const extra = z
+        .object({ userId: z.string().uuid(), email: z.string().nullable(), appUrl: z.string().url() })
+        .safeParse(authInfo?.extra);
     if (!authInfo || !extra.success) return { ok: false, error: "Not signed in" };
 
     const active = await resolveActiveTenant(extra.data.userId);
@@ -116,6 +120,7 @@ export async function resolveMcpCaller(authInfo: AuthInfo | undefined): Promise<
             clientId: authInfo.clientId,
             db,
             token: authInfo.token,
+            appUrl: extra.data.appUrl,
         },
     };
 }

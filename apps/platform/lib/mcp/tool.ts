@@ -19,6 +19,9 @@ export function requireWriter(caller: McpCaller): void {
     }
 }
 
+/** Name shown in status history and on records, so staff see the change came from Claude. */
+export const actorName = (caller: McpCaller) => `${caller.displayName} (via Claude)`;
+
 /** Money figures follow the dashboard rule: admins only. */
 export function canSeeMoney(caller: McpCaller): boolean {
     return isAdminRole(caller.role);

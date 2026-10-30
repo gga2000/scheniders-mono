@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { McpCaller } from "@/lib/mcp/caller";
-import { McpToolError, registerTool, requireWriter } from "@/lib/mcp/tool";
+import { McpToolError, actorName, registerTool, requireWriter } from "@/lib/mcp/tool";
 import { findProduct, pickVariant, productRefSchema, variantRefSchema, type CatalogProduct, type CatalogVariant } from "@/lib/mcp/products";
 import { orderPhone } from "@/lib/mcp/orders";
 import { iqd } from "@/lib/mcp/format";
@@ -11,8 +10,6 @@ const PRICE_JUMP = 2;
 
 /** The reasons the products page offers for a manual stock change (a shelf count is set_stock_count). */
 const STOCK_REASONS = ["received", "damaged", "sold", "other"] as const;
-
-const actorName = (caller: McpCaller) => `${caller.displayName} (via Claude)`;
 
 /** Postgres refuses with 42501 when the role lacks products.edit; say so plainly. */
 function stockError(error: { code?: string; message: string }): Error {
