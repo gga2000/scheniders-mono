@@ -273,22 +273,17 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     // Here we only fire side-effects the trigger does NOT cover:
                     //   - supplies/BOM deduction
                     //   - QC quarantine queue population for returns
-                    if (previousOrder && previousOrder.status !== status) {
-                        import("@/lib/inventory-engine").then(engine => {
-                            const items = previousOrder.items || [];
-                            const TERMINAL = ['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'];
-                            const prevWasActive = !TERMINAL.includes(previousOrder.status);
-                            const nowIsActive = !TERMINAL.includes(status);
-
-                            if (status === 'completed' || status === 'delivered') {
-                                engine.deductSupplies(items);
-                            } else if (status === 'rejected' || status === 'refund_delivered') {
-                                engine.quarantineOrder(orderId, items, rejectionReason || `Changed to ${status}`);
-                            } else if (nowIsActive && !prevWasActive &&
-                                       ['rejected', 'refund_delivered', 'cancelled'].includes(previousOrder.status)) {
-                                engine.removeFromQuarantine(orderId);
-                            }
-                        }).catch(console.error);
+                    if (previousOrder && previousOrder.status !== status && tenantId) {
+                        import("@/lib/orders/status-side-effects").then(effects =>
+                            effects.applyStatusSideEffect(supabase, {
+                                orderId,
+                                tenantId,
+                                items: previousOrder.items || [],
+                                from: previousOrder.status,
+                                to: status,
+                                reason: rejectionReason || `Changed to ${status}`,
+                            })
+                        ).catch(console.error);
                     }
 
                     // Record status change to history table
@@ -1070,24 +1065,18 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             );
 
             // Reserved/stock math handled by the DB trigger. Only supplies + QC-queue side-effects here.
-            import("@/lib/inventory-engine").then(engine => {
-                const TERMINAL = ['completed', 'delivered', 'rejected', 'refund_delivered', 'refund_failed', 'cancelled'];
+            if (tenantId) import("@/lib/orders/status-side-effects").then(effects => {
                 succeeded.forEach(({ id }) => {
                     const previousOrder = previousById.get(id);
                     if (!previousOrder) return;
-
-                    const items = previousOrder.items || [];
-                    const prevWasActive = !TERMINAL.includes(previousOrder.status);
-                    const nowIsActive = !TERMINAL.includes(status);
-
-                    if (status === 'completed' || status === 'delivered') {
-                        engine.deductSupplies(items);
-                    } else if (status === 'rejected' || status === 'refund_delivered') {
-                        engine.quarantineOrder(id, items, `Bulk changed to ${status}`);
-                    } else if (nowIsActive && !prevWasActive &&
-                               ['rejected', 'refund_delivered', 'cancelled'].includes(previousOrder.status)) {
-                        engine.removeFromQuarantine(id);
-                    }
+                    void effects.applyStatusSideEffect(supabase, {
+                        orderId: id,
+                        tenantId,
+                        items: previousOrder.items || [],
+                        from: previousOrder.status,
+                        to: status,
+                        reason: `Bulk changed to ${status}`,
+                    });
                 });
             }).catch(console.error);
         };

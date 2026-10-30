@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase, OrderItem, Product } from './supabase';
 import { productRepository } from './repositories/product-repository';
 
@@ -21,14 +22,18 @@ export function getAvailableStock(product: Product): number {
  * Moves items into the QC Quarantine table when an order is Rejected or Refunded.
  * Reserved/stock math is handled by the DB trigger on `orders`; this only
  * records the returned items as needing inspection.
+ *
+ * `db` defaults to the browser client; server callers (the MCP tools) pass a
+ * client carrying the user's own token so RLS still applies.
  */
-export async function quarantineOrder(orderId: string, orderItems: OrderItem[], reason: string) {
+export async function quarantineOrder(orderId: string, orderItems: OrderItem[], reason: string, tenantId: string, db: SupabaseClient = supabase) {
     if (!orderItems || orderItems.length === 0) return { success: true };
 
     try {
         const qcItems = orderItems
             .filter(item => item.product_id)
             .map(item => ({
+                tenant_id: tenantId,
                 order_id: orderId,
                 product_id: item.product_id,
                 quantity: item.quantity,
@@ -37,7 +42,10 @@ export async function quarantineOrder(orderId: string, orderItems: OrderItem[], 
             }));
 
         if (qcItems.length > 0) {
-            await supabase.from('qc_quarantine').insert(qcItems);
+            // RLS only admits rows stamped with the caller's store; without
+            // tenant_id every insert was refused and the queue stayed empty.
+            const { error } = await db.from('qc_quarantine').insert(qcItems);
+            if (error) throw error;
         }
 
         return { success: true };
@@ -50,13 +58,15 @@ export async function quarantineOrder(orderId: string, orderItems: OrderItem[], 
 /**
  * Removes items from QC Quarantine when an order's rejected/cancelled status is reverted.
  */
-export async function removeFromQuarantine(orderId: string) {
+export async function removeFromQuarantine(orderId: string, tenantId: string, db: SupabaseClient = supabase) {
     try {
-        await supabase
+        const { error } = await db
             .from('qc_quarantine')
             .delete()
+            .eq('tenant_id', tenantId)
             .eq('order_id', orderId)
             .eq('status', 'pending_inspection');
+        if (error) throw error;
 
         return { success: true };
     } catch (e: any) {
@@ -111,6 +121,19 @@ export async function resolveQuarantine(
     }
 }
 
+/**
+ * Take used supplies out of stock through the same delta RPC the Products page
+ * uses (`productRepository.adjustStock`), on the given client.
+ */
+async function useSupply(db: SupabaseClient, productId: string, quantity: number): Promise<void> {
+    const { error } = await db.rpc('adjust_product_stock', {
+        p_product_id: productId,
+        p_delta: -quantity,
+        p_reason: 'supply_used',
+    });
+    if (error) throw error;
+}
+
 type DeductInput = OrderItem[] | number;
 
 interface BomRule {
@@ -135,7 +158,7 @@ interface BomRule {
  * engine keeps working during the BOM rollout. The legacy numeric signature is
  * still supported for compatibility.
  */
-export async function deductSupplies(input: DeductInput) {
+export async function deductSupplies(input: DeductInput, tenantId: string, db: SupabaseClient = supabase) {
     const items: OrderItem[] = Array.isArray(input)
         ? input.filter((i) => i.product_id)
         : [];
@@ -153,9 +176,10 @@ export async function deductSupplies(input: DeductInput) {
                 new Set(items.map((i) => i.product_id).filter(Boolean) as string[])
             );
 
-            const { data: rulesData, error: rulesError } = await supabase
+            const { data: rulesData, error: rulesError } = await db
                 .from('bom_items')
                 .select('product_id, supply_id, quantity, unit')
+                .eq('tenant_id', tenantId)
                 .in('product_id', productIds);
 
             if (rulesError) throw rulesError;
@@ -207,7 +231,7 @@ export async function deductSupplies(input: DeductInput) {
                 if (deductions.size > 0) {
                     for (const [supplyId, delta] of deductions) {
                         if (delta <= 0) continue;
-                        await productRepository.adjustStock({ productId: supplyId, delta: -Math.ceil(delta), reason: 'supply_used' });
+                        await useSupply(db, supplyId, Math.ceil(delta));
                     }
 
                     return { success: true, via: 'bom' as const };
@@ -219,16 +243,17 @@ export async function deductSupplies(input: DeductInput) {
         // Legacy fallback: deduct 1× line count from every active supply.
         if (legacyItemCount <= 0) return { success: true };
 
-        const { data: supplies, error: suppliesError } = await supabase
+        const { data: supplies, error: suppliesError } = await db
             .from('products')
             .select('id')
+            .eq('tenant_id', tenantId)
             .eq('is_supply', true);
         if (suppliesError) throw suppliesError;
 
         if (!supplies || supplies.length === 0) return { success: true };
 
         for (const supply of supplies) {
-            await productRepository.adjustStock({ productId: supply.id, delta: -legacyItemCount, reason: 'supply_used' });
+            await useSupply(db, supply.id, legacyItemCount);
         }
 
         return { success: true, via: 'legacy' as const };

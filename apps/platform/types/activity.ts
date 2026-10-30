@@ -18,7 +18,8 @@ export type ActivityAction =
     | "user.login"
     | "user.logout"
     | "user.create"
-    | "user.role_change";
+    | "user.role_change"
+    | "mcp.tool_call";
 
 export interface ActivityLogEntry {
     id: string;
