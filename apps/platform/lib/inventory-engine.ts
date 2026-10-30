@@ -1,4 +1,5 @@
 import { supabase, OrderItem, Product } from './supabase';
+import { productRepository } from './repositories/product-repository';
 
 /**
  * Calculates the truly available stock (physical - reserved).
@@ -100,20 +101,7 @@ export async function resolveQuarantine(
 
         const deductsPhysical = resolution === 'written_off' || resolution === 'returned_to_supplier';
         if (deductsPhysical) {
-            const { data: product } = await supabase
-                .from('products')
-                .select('stock_quantity')
-                .eq('id', productId)
-                .single();
-
-            if (product) {
-                await supabase
-                    .from('products')
-                    .update({
-                        stock_quantity: Math.max(0, product.stock_quantity - quantity)
-                    })
-                    .eq('id', productId);
-            }
+            await productRepository.adjustStock({ productId, delta: -quantity, reason: resolution });
         }
 
         return { success: true };
@@ -217,23 +205,9 @@ export async function deductSupplies(input: DeductInput) {
                 }
 
                 if (deductions.size > 0) {
-                    const supplyIds = Array.from(deductions.keys());
-                    const { data: supplies } = await supabase
-                        .from('products')
-                        .select('id, stock_quantity')
-                        .in('id', supplyIds);
-
-                    for (const supply of supplies ?? []) {
-                        const delta = deductions.get(supply.id) ?? 0;
+                    for (const [supplyId, delta] of deductions) {
                         if (delta <= 0) continue;
-                        const nextQty = Math.max(
-                            0,
-                            (supply.stock_quantity ?? 0) - Math.ceil(delta)
-                        );
-                        await supabase
-                            .from('products')
-                            .update({ stock_quantity: nextQty })
-                            .eq('id', supply.id);
+                        await productRepository.adjustStock({ productId: supplyId, delta: -Math.ceil(delta), reason: 'supply_used' });
                     }
 
                     return { success: true, via: 'bom' as const };
@@ -245,23 +219,16 @@ export async function deductSupplies(input: DeductInput) {
         // Legacy fallback: deduct 1× line count from every active supply.
         if (legacyItemCount <= 0) return { success: true };
 
-        const { data: supplies } = await supabase
+        const { data: supplies, error: suppliesError } = await supabase
             .from('products')
-            .select('id, stock_quantity')
+            .select('id')
             .eq('is_supply', true);
+        if (suppliesError) throw suppliesError;
 
         if (!supplies || supplies.length === 0) return { success: true };
 
         for (const supply of supplies) {
-            await supabase
-                .from('products')
-                .update({
-                    stock_quantity: Math.max(
-                        0,
-                        supply.stock_quantity - legacyItemCount
-                    ),
-                })
-                .eq('id', supply.id);
+            await productRepository.adjustStock({ productId: supply.id, delta: -legacyItemCount, reason: 'supply_used' });
         }
 
         return { success: true, via: 'legacy' as const };

@@ -3,6 +3,15 @@ import { withRetry, NonRetryableError } from "./with-retry";
 import type { Product, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
 
+/**
+ * Stock is never part of a generic update. A product edit carries the stock it
+ * loaded, which can be minutes old; writing it back would undo every order
+ * that shipped since. Stock moves through adjustStock (a delta) or
+ * setCountedStock (a shelf count), both applied to the row's current value.
+ */
+export type ProductUpdate = Omit<Partial<Product>, "stock_quantity">;
+export type VariantUpdate = Omit<Partial<ProductVariant>, "stock_quantity">;
+
 /** A product as the top-bar search lists it. */
 export type ProductSearchMatch = Pick<Product, "id" | "name" | "price">;
 
@@ -15,6 +24,13 @@ export class ProductWriteDeniedError extends NonRetryableError {
     constructor(operation: string) {
         super(`${operation}: no row was changed (not permitted for this role)`);
         this.name = "ProductWriteDeniedError";
+    }
+}
+
+/** Stock in a generic update is a programming error, not a value to drop. */
+function assertNoStock(operation: string, data: object): void {
+    if ("stock_quantity" in data) {
+        throw new NonRetryableError(`${operation}: stock_quantity must be written with adjustStock or setCountedStock`);
     }
 }
 
@@ -91,14 +107,36 @@ export const productRepository = {
     },
 
     /**
-     * Top on-hand up to reserved for any product where reserved > on-hand,
-     * so oversold becomes 0. Tenant-scoped. Supplies untouched.
+     * Add (positive) or remove (negative) units of a product or variant. The
+     * database applies the delta to the current stock and logs who and why.
+     * Returns the new stock. Not retried: a retry after a lost response would
+     * apply the delta twice.
      */
-    async zeroOversold(tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.zeroOversold', async () => {
-            const { error } = await supabase.rpc('zero_oversold', { p_tenant_id: tenantId });
-            if (error) throw error;
+    async adjustStock(args: { productId: string; variantId?: string | null; delta: number; reason: string; notes?: string }): Promise<number> {
+        const { data, error } = await supabase.rpc("adjust_product_stock", {
+            p_product_id: args.productId,
+            p_variant_id: args.variantId ?? undefined,
+            p_delta: args.delta,
+            p_reason: args.reason,
+            p_notes: args.notes,
         });
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Set stock to what was counted on the shelf. The difference from the
+     * current stock is logged as a count. Returns the new stock.
+     */
+    async setCountedStock(args: { productId: string; variantId?: string | null; counted: number; notes?: string }): Promise<number> {
+        const { data, error } = await supabase.rpc("set_counted_stock", {
+            p_product_id: args.productId,
+            p_variant_id: args.variantId ?? undefined,
+            p_counted: args.counted,
+            p_notes: args.notes,
+        });
+        if (error) throw error;
+        return data;
     },
 
     /** Insert a new product. Returns the created product. */
@@ -120,10 +158,11 @@ export const productRepository = {
     },
 
     /** Update a product by ID. */
-    async update(id: string, data: Partial<Product>): Promise<void> {
+    async update(id: string, data: ProductUpdate): Promise<void> {
         return withRetry('productRepository.update', async () => {
             // Strip computed/joined fields and immutable keys. `sku` is a real,
             // writable column (LightFunnels order matching depends on it) — keep it.
+            assertNoStock("productRepository.update", data);
             const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as any;
             const { data: changed, error } = await supabase
                 .from("products")
@@ -314,8 +353,9 @@ export const productRepository = {
     },
 
     /** Update a variant. */
-    async updateVariant(id: string, data: Partial<ProductVariant>): Promise<void> {
+    async updateVariant(id: string, data: VariantUpdate): Promise<void> {
         return withRetry('productRepository.updateVariant', async () => {
+            assertNoStock("productRepository.updateVariant", data);
             const { data: changed, error } = await supabase
                 .from("product_variants")
                 .update(data)

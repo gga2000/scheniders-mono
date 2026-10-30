@@ -117,7 +117,7 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     const addProduct = (data: ProductFormData): Promise<Product> =>
         addProductMutation.mutateAsync(data);
 
-    const updateProduct = async (id: string, data: Partial<ProductFormData>): Promise<void> => {
+    const updateProduct = async (id: string, data: Omit<Partial<ProductFormData>, "stock_quantity">): Promise<void> => {
         await updateProductMutation.mutateAsync({ id, data });
     };
 
@@ -160,7 +160,7 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     const addVariant = (productId: string, data: VariantFormData): Promise<ProductVariant> =>
         addVariantMutation.mutateAsync({ productId, data });
 
-    const updateVariant = async (variantId: string, data: Partial<VariantFormData>): Promise<void> => {
+    const updateVariant = async (variantId: string, data: Omit<Partial<VariantFormData>, "stock_quantity">): Promise<void> => {
         await updateVariantMutation.mutateAsync({ id: variantId, data });
     };
 

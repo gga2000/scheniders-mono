@@ -3,7 +3,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
-import { useRecomputeInventoryMutation, useZeroOversoldMutation, usePriceHistoryQuery } from "@/hooks/use-products-query";
+import { useRecomputeInventoryMutation, usePriceHistoryQuery } from "@/hooks/use-products-query";
+import { StockCountDialog } from "@/components/products/stock-count-dialog";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { productWriteErrorKey } from "@/lib/product-write-error";
@@ -22,7 +23,7 @@ import {
     ChevronLeft,
     Plus,
     RefreshCw,
-    AlertTriangle,
+    ClipboardList,
     CheckSquare,
     Square,
     Filter,
@@ -118,14 +119,12 @@ function ProductsContent() {
         bulkRestore,
         bulkDelete,
         addVariant,
-        updateVariant,
-        deleteVariant,
         bulkUpdateVisibility,
         deleteProduct,
         reorderProducts,
     } = useProductsCrud({ withSales: true });
     const recomputeInventory = useRecomputeInventoryMutation();
-    const zeroOversold = useZeroOversoldMutation();
+    const [isStockCountOpen, setIsStockCountOpen] = useState(false);
     // The database enforces these (RLS + RPC checks); the UI only hides what
     // the role can't do so nobody taps a button that is bound to fail.
     const { can } = usePermission();
@@ -241,7 +240,6 @@ function ProductsContent() {
 
     // Modal State
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [formModalMode, setFormModalMode] = useState<"add" | "edit">("add");
     const [formDefaultIsSupply, setFormDefaultIsSupply] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -354,14 +352,12 @@ function ProductsContent() {
     // Stable callback refs for child components
     const handleAddProduct = useCallback(() => {
         setSelectedProduct(null);
-        setFormModalMode("add");
         setFormDefaultIsSupply(false);
         setIsFormModalOpen(true);
     }, []);
 
     const handleAddSupply = useCallback(() => {
         setSelectedProduct(null);
-        setFormModalMode("add");
         setFormDefaultIsSupply(true);
         setIsFormModalOpen(true);
     }, []);
@@ -464,82 +460,39 @@ function ProductsContent() {
     }, [updateProduct, reportWriteError]);
 
     const submitProductForm = useCallback(async (data: ProductFormData) => {
-        if (formModalMode === "add") {
-            const newProduct = await addProduct({
-                name: data.name,
-                description: data.description,
-                sku: data.sku || undefined,
-                price: data.price,
-                compare_at_price: data.compare_at_price || undefined,
-                cost: data.cost,
-                stock_quantity: data.stock_quantity,
-                open_box_quantity: data.open_box_quantity,
-                low_stock_threshold: data.low_stock_threshold,
-                image_url: data.image_url,
-                tag_color: data.tag_color,
-                is_supply: data.is_supply,
-                slug: data.slug || undefined,
-                is_visible: data.is_visible,
-                display_order: data.display_order,
-                category_id: data.category_id,
-                website_price: data.website_price,
-                short_description: data.short_description || undefined,
-            });
+        const newProduct = await addProduct({
+            name: data.name,
+            description: data.description,
+            sku: data.sku || undefined,
+            price: data.price,
+            compare_at_price: data.compare_at_price || undefined,
+            cost: data.cost,
+            stock_quantity: data.stock_quantity,
+            open_box_quantity: data.open_box_quantity,
+            low_stock_threshold: data.low_stock_threshold,
+            image_url: data.image_url,
+            tag_color: data.tag_color,
+            is_supply: data.is_supply,
+            slug: data.slug || undefined,
+            is_visible: data.is_visible,
+            display_order: data.display_order,
+            category_id: data.category_id,
+            website_price: data.website_price,
+            short_description: data.short_description || undefined,
+        });
 
-            if (newProduct && data.variants.length > 0) {
-                for (const variant of data.variants) {
-                    await addVariant(newProduct.id, {
-                        name: variant.name,
-                        price: variant.price,
-                        cost: variant.cost,
-                        stock_quantity: variant.stock_quantity,
-                        sku: variant.sku,
-                    });
-                }
-            }
-        } else if (selectedProduct) {
-            await updateProduct(selectedProduct.id, {
-                name: data.name,
-                description: data.description,
-                sku: data.sku || undefined,
-                price: data.price,
-                compare_at_price: data.compare_at_price || undefined,
-                cost: data.cost,
-                stock_quantity: data.stock_quantity,
-                open_box_quantity: data.open_box_quantity,
-                low_stock_threshold: data.low_stock_threshold,
-                image_url: data.image_url,
-                tag_color: data.tag_color,
-                is_supply: data.is_supply,
-                slug: data.slug || undefined,
-                is_visible: data.is_visible,
-                display_order: data.display_order,
-                category_id: data.category_id,
-                website_price: data.website_price,
-                short_description: data.short_description || undefined,
-            });
-
+        if (newProduct && data.variants.length > 0) {
             for (const variant of data.variants) {
-                if (variant.id) {
-                    await updateVariant(variant.id, {
-                        name: variant.name,
-                        price: variant.price,
-                        cost: variant.cost,
-                        stock_quantity: variant.stock_quantity,
-                        sku: variant.sku,
-                    });
-                } else {
-                    await addVariant(selectedProduct.id, {
-                        name: variant.name,
-                        price: variant.price,
-                        cost: variant.cost,
-                        stock_quantity: variant.stock_quantity,
-                        sku: variant.sku,
-                    });
-                }
+                await addVariant(newProduct.id, {
+                    name: variant.name,
+                    price: variant.price,
+                    cost: variant.cost,
+                    stock_quantity: variant.stock_quantity,
+                    sku: variant.sku,
+                });
             }
         }
-    }, [formModalMode, selectedProduct, addProduct, updateProduct, addVariant, updateVariant]);
+    }, [addProduct, addVariant]);
 
     const handleFormSubmit = useCallback(async (data: ProductFormData) => {
         try {
@@ -866,7 +819,6 @@ function ProductsContent() {
                                 onPrintReport={handlePrintReport}
                             />
                             {canManageProducts && (
-                            <>
                             <button
                                 onClick={() => recomputeInventory.mutate(undefined, {
                                     onSuccess: () => toast.success(t("products.tools.recalculateDone")),
@@ -882,22 +834,16 @@ function ProductsContent() {
                                 <RefreshCw className={cn("w-4 h-4", recomputeInventory.isPending && "animate-spin")} />
                                 {t("products.tools.recalculate")}
                             </button>
+                            )}
+                            {canEditProducts && (
                             <button
-                                onClick={() => zeroOversold.mutate(undefined, {
-                                    onSuccess: () => toast.success(t("products.tools.zeroOversoldDone")),
-                                    onError: reportWriteError,
-                                })}
-                                disabled={zeroOversold.isPending}
-                                className={cn(
-                                    "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all",
-                                    zeroOversold.isPending && "opacity-50 cursor-not-allowed"
-                                )}
-                                title={t("products.tools.zeroOversoldHint")}
+                                onClick={() => setIsStockCountOpen(true)}
+                                className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all"
+                                title={t("products.count.description")}
                             >
-                                <AlertTriangle className="w-4 h-4" />
-                                {t("products.tools.zeroOversold")}
+                                <ClipboardList className="w-4 h-4" />
+                                {t("products.tools.count")}
                             </button>
-                            </>
                             )}
                             {canEditProducts && (
                             <button
@@ -1234,7 +1180,7 @@ function ProductsContent() {
                 onClose={() => setIsFormModalOpen(false)}
                 onSubmit={handleFormSubmit}
                 product={selectedProduct}
-                mode={formModalMode}
+                mode="add"
                 defaultIsSupply={formDefaultIsSupply}
             />
 
@@ -1247,6 +1193,12 @@ function ProductsContent() {
                     setIsDetailModalOpen(false);
                     handleEditProduct(selectedProduct!);
                 }}
+            />
+
+            <StockCountDialog
+                open={isStockCountOpen}
+                onOpenChange={setIsStockCountOpen}
+                products={products}
             />
 
             {/* Bulk Actions Bar */}

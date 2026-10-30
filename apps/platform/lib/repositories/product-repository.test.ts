@@ -105,4 +105,11 @@ describe("productRepository SKU persistence", () => {
         // A refusal is final: it is not retried.
         expect(updateSpy).toHaveBeenCalledTimes(1);
     });
+
+    it("update() refuses stock: stock only moves by delta or shelf count", async () => {
+        await expect(
+            productRepository.update("prod-1", { stock_quantity: 5 } as unknown as UpdateArg),
+        ).rejects.toThrow(/adjustStock or setCountedStock/);
+        expect(updateSpy).not.toHaveBeenCalled();
+    });
 });
