@@ -287,10 +287,18 @@ export class RealtimeBatcher {
             // Only rows that belong in the loaded window: with a windowed cache,
             // prepending anything else invents a row the merchant can act on.
             const newOrders: Order[] = [];
+            // An INSERT and the UPDATEs that follow it within one flush (a new
+            // order's own triggers, or the WhatsApp bot moving it to contacted
+            // seconds later) are one row. The insert already carries the latest
+            // update (see the loop above); checking `result` alone pushed it a
+            // second time, and the next status change patched only the first
+            // copy — leaving the order in two status tabs until a reload.
+            const prepended = new Set<string>();
             for (const [, order] of inserts) {
                 if (!belongsInWindow(order, win)) continue;
                 if (!result.some((o) => o.id === order.id)) {
                     newOrders.push(order);
+                    prepended.add(order.id);
                 }
             }
             // Updates for orders that weren't in the list (e.g., un-archived)
@@ -299,7 +307,7 @@ export class RealtimeBatcher {
                     this.recordRemoval(order.id, order, false);
                     continue;
                 }
-                if (!order.is_archived && !result.some((o) => o.id === order.id)) {
+                if (!order.is_archived && !prepended.has(order.id) && !result.some((o) => o.id === order.id)) {
                     newOrders.push(order);
                 }
             }

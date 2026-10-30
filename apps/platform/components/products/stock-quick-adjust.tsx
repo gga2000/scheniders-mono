@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { useAdjustStockMutation } from "@/hooks/use-products-query";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 
 interface StockQuickAdjustProps {
     productId: string;
@@ -35,7 +36,7 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
         inputRef.current?.focus();
     }, []);
 
-    const newQuantity = Math.max(0, currentStock + delta);
+    const newQuantity = currentStock + delta;
 
     const submit = async () => {
         if (delta === 0) {
@@ -45,15 +46,14 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
         try {
             await adjust.mutateAsync({
                 productId,
-                previousQuantity: currentStock,
-                newQuantity,
+                delta,
                 reason,
                 notes: notes.trim() || undefined,
             });
             toast.success(t("products.stockAdjust.success").replace("{name}", productName));
             onClose();
-        } catch {
-            toast.error(t("products.bulk.error"));
+        } catch (err) {
+            toast.error(t(productWriteErrorKey(err)));
         }
     };
 

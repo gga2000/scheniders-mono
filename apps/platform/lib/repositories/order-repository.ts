@@ -14,8 +14,10 @@ import {
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS, ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { runInSequentialBatches, type BatchOutcome, type BulkProgress } from "@/lib/order-bulk-batches";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
     MAX_SEARCH_RESULTS,
+    MIN_PHONE_DIGITS,
     buildDirectSearchFilters,
     parseOrderSearchTerm,
     rankSearchResults,
@@ -29,7 +31,7 @@ import {
 } from "@/lib/customer-trust-risk";
 
 /** Attribution and reason fields that ride along with a status change. */
-type StatusUpdateContext = {
+export type StatusUpdateContext = {
     rejectionReason?: string;
     rejectionReasonId?: string;
     changedByName?: string;
@@ -41,7 +43,7 @@ type StatusUpdateContext = {
  * rejection reason (cleared when moving to a non-rejecting status) and the
  * actor. Shared by the single-order and batched paths so they cannot drift.
  */
-function buildStatusUpdate(status: Order["status"], ctx: StatusUpdateContext): Partial<Order> {
+export function buildStatusUpdate(status: Order["status"], ctx: StatusUpdateContext): Partial<Order> {
     const updateData: Partial<Order> = { status };
     const loose = updateData as Record<string, unknown>;
     if (ctx.rejectionReason) {
@@ -701,6 +703,22 @@ export const orderRepository = {
 
         const ranked = rankSearchResults(parsed, [rows], cappedLimit);
         return withRiskData(tenantId, ranked.map(row => normalizeOrder(row)));
+    },
+
+    /**
+     * Every live order of one customer, whatever its date: same normalized
+     * phone, not trashed, not archived. The compare modal needs these because
+     * the loaded list is a date window — a customer's order from last month is
+     * never in it. Runs as a phone search (indexed), then keeps exact matches
+     * only, so a partial-digit match on another customer cannot slip in.
+     */
+    async findCustomerOrders(tenantId: string, phone: string): Promise<Order[]> {
+        const normalized = normalizePhoneForSearch(phone);
+        if (normalized.length < MIN_PHONE_DIGITS) return [];
+        const matches = await this.search(tenantId, normalized);
+        return matches.filter(o =>
+            !o.deleted_at && !o.is_archived && normalizePhoneForSearch(o.phone) === normalized,
+        );
     },
 
     /**

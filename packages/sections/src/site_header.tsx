@@ -46,6 +46,11 @@ const schema = z.object({
    *  is a full-bleed hero, turning solid once the hero scrolls away. Pages
    *  without a hero mark render it solid. Absent = "solid" (unchanged). */
   surface: z.enum(["solid", "overlay"]).optional().catch(undefined),
+  /** overlay surface only: a glass cart chip — the bag and the live item
+   *  count — beside the menu chip, linking to the cart; the count pops when
+   *  the shopper adds something. Needs show_cart too. Absent = no cart chip
+   *  (the overlay never had one), byte-identical. */
+  overlay_cart: z.boolean().optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

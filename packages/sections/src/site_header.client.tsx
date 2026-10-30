@@ -115,6 +115,7 @@ export function SiteHeaderRender({
           navLinks={navLinks}
           enabledLocales={enabledLocales}
           menuLabel={menuLabel}
+          cart={props.show_cart && props.overlay_cart === true ? { label: cartLabel, count } : null}
         />
       );
     }

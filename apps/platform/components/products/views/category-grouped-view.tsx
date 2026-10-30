@@ -46,6 +46,7 @@ import { CategoryQuickAssignPanel } from "../category-quick-assign-panel";
 import { CategorySuggester } from "../category-suggester";
 import { BulkCategoryConfirmDialog } from "../bulk-category-confirm-dialog";
 import { FillerBadge } from "../filler-badge";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface CategoryGroupedViewProps {
     products: Product[];
@@ -57,7 +58,7 @@ interface CategoryGroupedViewProps {
     onArchive: (id: string) => void;
     onRestore: (id: string) => void;
     onDuplicate: (product: Product) => void;
-    onDelete: (product: Product) => void;
+    onDelete?: (product: Product) => void;
     onVisibilityToggle: (product: Product) => void;
 }
 
@@ -709,7 +710,7 @@ interface MiniProductCardProps {
     onArchive: (id: string) => void;
     onRestore: (id: string) => void;
     onDuplicate: (product: Product) => void;
-    onDelete: (product: Product) => void;
+    onDelete?: (product: Product) => void;
     onVisibilityToggle: (product: Product) => void;
 }
 
@@ -783,21 +784,15 @@ function MiniProductCard({
                     onArchive={() => onArchive(product.id)}
                     onRestore={() => onRestore(product.id)}
                     onViewDetails={() => onViewDetails(product)}
-                    onViewOrders={() => {}}
                     onDuplicate={() => onDuplicate(product)}
-                    onDelete={() => onDelete(product)}
+                    onDelete={onDelete ? () => onDelete(product) : undefined}
                 />
             </div>
 
             {/* Product image */}
-            <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--card-bg)] flex items-center justify-center">
+            <div className="relative w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--card-bg)] flex items-center justify-center">
                 {product.image_url ? (
-                    <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                    />
+                    <ProductThumb src={product.image_url} alt={product.name} sizes="48px" />
                 ) : (
                     <Package className="w-5 h-5 text-muted" />
                 )}

@@ -52,12 +52,19 @@ vi.mock("@/lib/admin-supabase", () => ({
 
 /** What the cookie session's `getUser()` answers (no bearer token sent). */
 let cookieGetUser: () => Promise<{ data: { user: { id: string } | null }; error: unknown }>;
+/** The access token stored in the cookie session. */
+let cookieAccessToken = "app-session-token";
 
 vi.mock("next/headers", () => ({
   cookies: async () => ({ getAll: () => [], set: () => undefined }),
 }));
 vi.mock("@supabase/ssr", () => ({
-  createServerClient: () => ({ auth: { getUser: () => cookieGetUser() } }),
+  createServerClient: () => ({
+    auth: {
+      getUser: () => cookieGetUser(),
+      getSession: async () => ({ data: { session: { access_token: cookieAccessToken } } }),
+    },
+  }),
 }));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
@@ -234,6 +241,20 @@ describe("requireAdminFromRequest (bearer or cookie transport)", () => {
 
     resolve.mockRejectedValueOnce(OUTAGE);
     await expect(requireAdminFromRequest(req("/x", "GET", null))).rejects.toBe(OUTAGE);
+  });
+
+  it("a Claude connector token in the session cookie is no admin session → 401", async () => {
+    const { resolveAdminRole } = await import("@/lib/admin-supabase");
+    vi.mocked(resolveAdminRole).mockClear();
+    cookieGetUser = async () => ({ data: { user: { id: ADMIN.user.id } }, error: null });
+    cookieAccessToken = `h.${Buffer.from(JSON.stringify({ sub: ADMIN.user.id, client_id: "claude" })).toString("base64url")}.s`;
+    try {
+      const res = await requireAdminFromRequest(req("/x", "GET", null));
+      expect((res as NextResponse).status).toBe(401);
+      expect(resolveAdminRole).not.toHaveBeenCalled();
+    } finally {
+      cookieAccessToken = "app-session-token";
+    }
   });
 
   it("a passing route that uses it still turns a DB error into a 500", async () => {

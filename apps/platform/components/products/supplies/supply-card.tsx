@@ -8,6 +8,7 @@ import { DaysOfSupplyPill, daysOfSupplyFrom } from "./days-of-supply-pill";
 import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
 import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsStack } from "./supplier-initials-badge";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface SupplyCardProps {
     supply: Product;
@@ -39,7 +40,7 @@ export function SupplyCard({
 }: SupplyCardProps) {
     const stock = supply.stock_quantity ?? 0;
     const reserved = supply.reserved_quantity ?? 0;
-    const timesSold = supply.times_sold ?? 0;
+    const timesSold = supply.times_sold_30d ?? 0;
     const days = daysOfSupplyFrom({ stock, reserved, timesSold30d: timesSold });
     const stockoutEta = stockoutEtaFrom({ stock, reserved, timesSold30d: timesSold });
     const available = Math.max(0, stock - reserved);
@@ -85,13 +86,7 @@ export function SupplyCard({
                 {/* Image / icon tile */}
                 <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--background)] flex items-center justify-center shrink-0 ring-1 ring-[var(--card-border)]/70">
                     {supply.image_url ? (
-                        <img
-                            src={supply.image_url}
-                            alt={supply.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover"
-                        />
+                        <ProductThumb src={supply.image_url} alt={supply.name} sizes="56px" />
                     ) : (
                         <Box className="w-6 h-6 text-teal-600" />
                     )}

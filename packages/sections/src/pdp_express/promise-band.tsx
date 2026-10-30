@@ -7,7 +7,7 @@
 // message is never pushed below it. Three rows, each only with its data:
 //   1. try before you pay (`reassurance_i18n`), the return line
 //      (`return_promise_i18n`) and a «الشروط» link to the guarantee terms;
-//   2. «التوصيل مجاني.» when every governorate is free (else «التوصيل»),
+//   2. «التوصيل مجاني» when every governorate is free (else «التوصيل»),
 //      with the merchant's delivery SLA;
 //   3. who calls, from the one shared contact resolver (the same sentence
 //      as the contact line and the thank-you card), and «احفظ رقمنا».

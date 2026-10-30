@@ -5,6 +5,7 @@
 // placing), so the one price on the button can never disagree with the
 // receipt or leave delivery out.
 
+import { useState } from "react";
 import {
   cn,
   IRAQ_GOVERNORATES,
@@ -13,8 +14,10 @@ import {
 } from "@scheniders/shared";
 import type { GovernorateShippingConfig, LocaleCode } from "@scheniders/shared";
 import { ContactLine } from "../helpers/contact-line";
+import { EXPRESS_SUBMIT_ID, useFormWatched } from "../helpers/express-order-store";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
+import { CartAddedStatus, CartTile, type CartNote } from "./cart-action";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
 import { PromiseBand } from "./promise-band";
@@ -93,6 +96,10 @@ export function CheckoutRow({
   waFallbackHref: string | null;
 }) {
   const rtl = readsRtl(locale);
+  // While a form-aware sticky bar watches this product, the receipt and the
+  // submit carry the marks it scrolls to and focuses (spec §1.8). Never in
+  // server markup: only the bar's mount effect sets the watch.
+  const watched = useFormWatched(m.product.id);
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
   // color_lock (D4): green is for WhatsApp and success states only.
   const freeInk = m.props.color_lock === true ? "text-bk-ink" : "text-bk-success";
@@ -101,6 +108,12 @@ export function CheckoutRow({
   // messages so they stay directly under the submit.
   const band = m.props.promise_layout === "band";
   const idle = !m.oos && !m.submitting;
+  // add_to_cart (slice 1g): the «أضف للسلة» tile between the WhatsApp tile
+  // and the submit, and its confirmation wrapped onto a line of its own
+  // under them. Both live inside this row, so the receipt above and every
+  // block below keep their place (and React's useId paths).
+  const cart = m.props.add_to_cart === true && !m.oos;
+  const [cartNote, setCartNote] = useState<CartNote | null>(null);
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
       ? (m.compareAt - m.price) * m.qty
@@ -115,7 +128,10 @@ export function CheckoutRow({
 
   return (
     <div className="space-y-bk-sm">
-      <div className="divide-y divide-dashed divide-bk-divider rounded-bk-card border-bk border-bk-divider px-4">
+      <div
+        className="divide-y divide-dashed divide-bk-divider rounded-bk-card border-bk border-bk-divider px-4"
+        data-receipt={watched ? "" : undefined}
+      >
         <div>
           <Row
             rtl={rtl}
@@ -170,7 +186,11 @@ export function CheckoutRow({
         />
       </div>
 
-      <div className="flex items-stretch gap-2" data-layer="submit" data-layer-label="Order buttons">
+      <div
+        className={cn("flex items-stretch gap-2", cart && "flex-wrap")}
+        data-layer="submit"
+        data-layer-label="Order buttons"
+      >
         {waHref && (
           <a
             href={waHref}
@@ -185,8 +205,10 @@ export function CheckoutRow({
             </span>
           </a>
         )}
+        {cart && <CartTile m={m} locale={locale} onAdded={(outcome) => setCartNote((prev) => ({ ...outcome, seq: (prev?.seq ?? 0) + 1 }))} />}
         <button
           type="submit"
+          id={watched ? EXPRESS_SUBMIT_ID : undefined}
           disabled={m.oos || m.submitting}
           aria-busy={m.submitting || undefined}
           aria-describedby={
@@ -200,6 +222,9 @@ export function CheckoutRow({
             idle && "hover:bg-bk-primary-hover active:scale-[0.97] active:bg-bk-primary-active active:shadow-none",
             m.submitting && "cursor-progress",
             rtl && "flex-row-reverse",
+            // Three targets in one row: the submit gives up side padding,
+            // never its label, down to 360px.
+            cart && "min-w-0 gap-2 px-3",
           )}
         >
           {idle && (
@@ -231,6 +256,7 @@ export function CheckoutRow({
             </span>
           )}
         </button>
+        {cart && <CartAddedStatus note={cartNote} locale={locale} />}
       </div>
 
       {!band && m.reassurance && (

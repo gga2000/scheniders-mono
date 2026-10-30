@@ -2,8 +2,13 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useProductsCrud } from "@/hooks/use-products-crud";
-import { useRecomputeInventoryMutation, useZeroOversoldMutation } from "@/hooks/use-products-query";
+import { useRecomputeInventoryMutation, usePriceHistoryQuery } from "@/hooks/use-products-query";
+import { StockCountDialog } from "@/components/products/stock-count-dialog";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import { Product, getStockStatus, supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
@@ -19,7 +24,7 @@ import {
     ChevronLeft,
     Plus,
     RefreshCw,
-    AlertTriangle,
+    ClipboardList,
     CheckSquare,
     Square,
     Filter,
@@ -37,10 +42,8 @@ import { useFinancialVisibility } from "@/components/providers/financial-visibil
 import { RevealToggle } from "@/components/ui/reveal-toggle";
 
 // Import components
-import { ProductFormModal, ProductFormData } from "@/components/products/product-form-modal";
 import { ProductDetailModal } from "@/components/products/product-detail-modal";
 import { LowStockAlert } from "@/components/products/low-stock-alert";
-import { TimePeriodFilter, TimePeriod, filterByTimePeriod } from "@/components/products/time-period-filter";
 import { AdvancedFilters, FilterValues } from "@/components/products/advanced-filters";
 import { ActiveFilterPills } from "@/components/products/active-filter-pills";
 import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
@@ -48,11 +51,17 @@ import { BulkActionsBar } from "@/components/products/bulk-actions-bar";
 import { ExportMenu } from "@/components/products/export-menu";
 import { AbcTierProvider } from "@/components/products/abc-tier-context";
 import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-utils";
-import { QCQuarantineTab } from "@/components/products/qc-quarantine-tab";
-import { SuppliesTab } from "@/components/products/supplies-tab";
-import { CategoriesTab } from "@/components/products/categories-tab";
-import { AttributesTab } from "@/components/products/attributes-tab";
-import { CategoriesTabV2 } from "@/components/categories/v2/categories-tab-v2";
+import { PageSkeleton, TableSkeleton } from "@scheniders/ui/skeletons";
+
+// Tabs and views other than the default grid load on first use, so opening
+// /products does not parse their code (supplies, QC, categories, attributes,
+// grouped/kanban/heatmap views: tens of thousands of lines).
+const tabFallback = () => <TableSkeleton rows={6} cols={4} />;
+const QCQuarantineTab = dynamic(() => import("@/components/products/qc-quarantine-tab").then((m) => m.QCQuarantineTab), { loading: tabFallback });
+const SuppliesTab = dynamic(() => import("@/components/products/supplies-tab").then((m) => m.SuppliesTab), { loading: tabFallback });
+const CategoriesTab = dynamic(() => import("@/components/products/categories-tab").then((m) => m.CategoriesTab), { loading: tabFallback });
+const AttributesTab = dynamic(() => import("@/components/products/attributes-tab").then((m) => m.AttributesTab), { loading: tabFallback });
+const CategoriesTabV2 = dynamic(() => import("@/components/categories/v2/categories-tab-v2").then((m) => m.CategoriesTabV2), { loading: tabFallback });
 
 const CATEGORIES_V2_ENABLED = process.env.NEXT_PUBLIC_CATEGORIES_V2 !== "0";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
@@ -63,10 +72,10 @@ import { VirtualizedProductGrid } from "@/components/products/virtualized-produc
 import { VirtualizedProductList } from "@/components/products/virtualized-product-list";
 
 // New view modes
-import { CategoryGroupedView } from "@/components/products/views/category-grouped-view";
 import { applyFillerVisibility, countFiller } from "@/lib/product-filler";
-import { KanbanStockBoard } from "@/components/products/views/kanban-stock-board";
-import { MarginHeatmapView } from "@/components/products/views/margin-heatmap-view";
+const CategoryGroupedView = dynamic(() => import("@/components/products/views/category-grouped-view").then((m) => m.CategoryGroupedView), { loading: tabFallback });
+const KanbanStockBoard = dynamic(() => import("@/components/products/views/kanban-stock-board").then((m) => m.KanbanStockBoard), { loading: tabFallback });
+const MarginHeatmapView = dynamic(() => import("@/components/products/views/margin-heatmap-view").then((m) => m.MarginHeatmapView), { loading: tabFallback });
 
 // Analytics
 import { ForecastingCards } from "@/components/products/forecasting-cards";
@@ -76,14 +85,7 @@ import { useProductStore } from "@/store/use-product-store";
 
 export default function ProductsPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">Loading modules...</p>
-                </div>
-            </div>
-        }>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--background)]"><PageSkeleton /></div>}>
             <ProductsContent />
         </Suspense>
     );
@@ -114,16 +116,17 @@ function ProductsContent() {
         bulkArchive,
         bulkRestore,
         bulkDelete,
-        addVariant,
-        updateVariant,
-        deleteVariant,
-        getPriceHistory,
         bulkUpdateVisibility,
         deleteProduct,
         reorderProducts,
-    } = useProductsCrud();
+    } = useProductsCrud({ withSales: true });
     const recomputeInventory = useRecomputeInventoryMutation();
-    const zeroOversold = useZeroOversoldMutation();
+    const [isStockCountOpen, setIsStockCountOpen] = useState(false);
+    // The database enforces these (RLS + RPC checks); the UI only hides what
+    // the role can't do so nobody taps a button that is bound to fail.
+    const { can } = usePermission();
+    const canEditProducts = can(PERMISSIONS.EDIT_PRODUCTS);
+    const canManageProducts = can(PERMISSIONS.MANAGE_PRODUCTS);
     const { revealed: showFinancials } = useFinancialVisibility();
 
     const { data: categories } = useCategoriesQuery();
@@ -153,7 +156,6 @@ function ProductsContent() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const activeTab = (searchParams?.get("tab") as "products" | "categories" | "attributes" | "quarantine" | "supplies") || "products";
-    const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues | null>(null);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const [isFilterStuck, setIsFilterStuck] = useState(false);
@@ -233,12 +235,9 @@ function ProductsContent() {
     }, [viewMode, advancedFilters, router, searchParams]);
 
     // Modal State
-    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [formModalMode, setFormModalMode] = useState<"add" | "edit">("add");
-    const [formDefaultIsSupply, setFormDefaultIsSupply] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [priceHistory, setPriceHistory] = useState<any[]>([]);
+    const { data: priceHistory = [] } = usePriceHistoryQuery(isDetailModalOpen && selectedProduct ? selectedProduct.id : "");
 
     // Filter and sort products — memoized with stable deps
     // Filler products are catalogue depth, not shelf stock. They stay out of the
@@ -254,10 +253,15 @@ function ProductsContent() {
         // Text search
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
+            // Every name a product goes by (same set as the top-bar search):
+            // order cards show the short name or the imported alias, and that
+            // is what gets typed. Description is left out: long marketing
+            // text matched generic words like عطر on every product.
             result = result.filter((product) =>
                 product.name.toLowerCase().includes(query) ||
-                (product.description?.toLowerCase().includes(query)) ||
-                (product.sku?.toLowerCase().includes(query))
+                (product.short_name?.toLowerCase().includes(query)) ||
+                (product.sku?.toLowerCase().includes(query)) ||
+                (product.lightfunnels_aliases?.some((alias) => alias.toLowerCase().includes(query)))
             );
         }
 
@@ -346,32 +350,31 @@ function ProductsContent() {
 
     // Stable callback refs for child components
     const handleAddProduct = useCallback(() => {
-        setSelectedProduct(null);
-        setFormModalMode("add");
-        setFormDefaultIsSupply(false);
-        setIsFormModalOpen(true);
-    }, []);
+        router.push("/products/new");
+    }, [router]);
 
     const handleAddSupply = useCallback(() => {
-        setSelectedProduct(null);
-        setFormModalMode("add");
-        setFormDefaultIsSupply(true);
-        setIsFormModalOpen(true);
-    }, []);
+        router.push("/products/new?supply=1");
+    }, [router]);
 
     const handleEditProduct = useCallback((product: Product) => {
         router.push(`/products/${product.id}/edit`);
     }, [router]);
 
-    const handleViewDetails = useCallback(async (product: Product) => {
+    // Opens at once; the price history loads inside the modal.
+    const handleViewDetails = useCallback((product: Product) => {
         setSelectedProduct(product);
-        const history = await getPriceHistory(product.id);
-        setPriceHistory(history);
         setIsDetailModalOpen(true);
-    }, [getPriceHistory]);
+    }, []);
+
+    const reportWriteError = useCallback((err: unknown) => {
+        toast.error(t(productWriteErrorKey(err)));
+    }, [t]);
 
     const handleDuplicateProduct = useCallback(async (product: Product) => {
-        const newProduct = await addProduct({
+        let newProduct: Product;
+        try {
+        newProduct = await addProduct({
             name: `Copy of ${product.name}`,
             sku: product.sku ? `${product.sku}-copy` : undefined,
             description: product.description,
@@ -390,109 +393,66 @@ function ProductsContent() {
             website_price: product.website_price,
             short_description: product.short_description || undefined,
         });
-        if (newProduct) {
-            router.push(`/products/${newProduct.id}/edit`);
+        } catch (err) {
+            reportWriteError(err);
+            return;
         }
-    }, [addProduct, router]);
+        router.push(`/products/${newProduct.id}/edit`);
+    }, [addProduct, router, reportWriteError]);
 
     const handleDeleteProduct = useCallback(async (product: Product) => {
-        await deleteProduct(product.id);
-    }, [deleteProduct]);
-
-    const handleArchive = useCallback(async (id: string) => {
-        await archiveProduct(id);
-    }, [archiveProduct]);
+        try {
+            await deleteProduct(product.id);
+            toast.success(t("products.deleted"));
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [deleteProduct, reportWriteError, t]);
 
     const handleRestore = useCallback(async (id: string) => {
-        await restoreProduct(id);
-    }, [restoreProduct]);
+        try {
+            await restoreProduct(id);
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [restoreProduct, reportWriteError]);
+
+    // Archive (card menu or a swipe on mobile) hides the product from the
+    // store at once, so it always says so and offers the way back.
+    const handleArchive = useCallback(async (id: string) => {
+        try {
+            await archiveProduct(id);
+        } catch (err) {
+            reportWriteError(err);
+            return;
+        }
+        toast({
+            title: t("products.archived"),
+            variant: "success",
+            duration: 8000,
+            action: {
+                label: t("products.bulk.undo"),
+                onClick: () => { void handleRestore(id); },
+            },
+        });
+    }, [archiveProduct, reportWriteError, handleRestore, t]);
 
     const handleReorder = useCallback(async (updates: { id: string; display_order: number }[]) => {
-        await reorderProducts(updates);
-        toast.success(t("products.reorderSuccess"));
-    }, [reorderProducts, t]);
+        try {
+            await reorderProducts(updates);
+            toast.success(t("products.reorderSuccess"));
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [reorderProducts, reportWriteError, t]);
 
     const handleVisibilityToggle = useCallback(async (product: Product) => {
-        await updateProduct(product.id, { is_visible: !product.is_visible });
-    }, [updateProduct]);
-
-    const handleFormSubmit = useCallback(async (data: ProductFormData) => {
-        if (formModalMode === "add") {
-            const newProduct = await addProduct({
-                name: data.name,
-                description: data.description,
-                sku: data.sku || undefined,
-                price: data.price,
-                compare_at_price: data.compare_at_price || undefined,
-                cost: data.cost,
-                stock_quantity: data.stock_quantity,
-                open_box_quantity: data.open_box_quantity,
-                low_stock_threshold: data.low_stock_threshold,
-                image_url: data.image_url,
-                tag_color: data.tag_color,
-                is_supply: data.is_supply,
-                slug: data.slug || undefined,
-                is_visible: data.is_visible,
-                display_order: data.display_order,
-                category_id: data.category_id,
-                website_price: data.website_price,
-                short_description: data.short_description || undefined,
-            });
-
-            if (newProduct && data.variants.length > 0) {
-                for (const variant of data.variants) {
-                    await addVariant(newProduct.id, {
-                        name: variant.name,
-                        price: variant.price,
-                        cost: variant.cost,
-                        stock_quantity: variant.stock_quantity,
-                        sku: variant.sku,
-                    });
-                }
-            }
-        } else if (selectedProduct) {
-            await updateProduct(selectedProduct.id, {
-                name: data.name,
-                description: data.description,
-                sku: data.sku || undefined,
-                price: data.price,
-                compare_at_price: data.compare_at_price || undefined,
-                cost: data.cost,
-                stock_quantity: data.stock_quantity,
-                open_box_quantity: data.open_box_quantity,
-                low_stock_threshold: data.low_stock_threshold,
-                image_url: data.image_url,
-                tag_color: data.tag_color,
-                is_supply: data.is_supply,
-                slug: data.slug || undefined,
-                is_visible: data.is_visible,
-                display_order: data.display_order,
-                category_id: data.category_id,
-                website_price: data.website_price,
-                short_description: data.short_description || undefined,
-            });
-
-            for (const variant of data.variants) {
-                if (variant.id) {
-                    await updateVariant(variant.id, {
-                        name: variant.name,
-                        price: variant.price,
-                        cost: variant.cost,
-                        stock_quantity: variant.stock_quantity,
-                        sku: variant.sku,
-                    });
-                } else {
-                    await addVariant(selectedProduct.id, {
-                        name: variant.name,
-                        price: variant.price,
-                        cost: variant.cost,
-                        stock_quantity: variant.stock_quantity,
-                        sku: variant.sku,
-                    });
-                }
-            }
+        try {
+            await updateProduct(product.id, { is_visible: !product.is_visible });
+        } catch (err) {
+            reportWriteError(err);
         }
-    }, [formModalMode, selectedProduct, addProduct, updateProduct, addVariant, updateVariant]);
+    }, [updateProduct, reportWriteError]);
 
     // Shift-click range selection over the currently visible filtered list.
     const handleToggleSelection = useCallback((id: string, event?: React.MouseEvent) => {
@@ -519,7 +479,9 @@ function ProductsContent() {
         }
     }, [selectedIds.size, filteredProducts, selectAll, clearSelection]);
 
-    // Bulk action handlers
+    // Bulk action handlers. BulkActionsBar reports success (with its own undo
+    // countdown for archive) or the failure, so these only do the work and let
+    // a failed write reject.
     const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
         await bulkUpdatePrices(Array.from(selectedIds), newPrice);
         clearSelection();
@@ -530,33 +492,21 @@ function ProductsContent() {
     const handleBulkArchiveUndo = useCallback(async () => {
         if (lastArchivedIdsRef.current.length === 0) return;
         const ids = lastArchivedIdsRef.current;
-        lastArchivedIdsRef.current = [];
         await bulkRestore(ids);
-        toast.success(t("products.bulk.undone"));
-    }, [bulkRestore, t]);
+        lastArchivedIdsRef.current = [];
+    }, [bulkRestore]);
 
     const handleBulkArchive = useCallback(async () => {
         const ids = Array.from(selectedIds);
-        lastArchivedIdsRef.current = ids;
         await bulkArchive(ids);
+        lastArchivedIdsRef.current = ids;
         clearSelection();
-        toast({
-            title: t("products.bulk.archiveSuccess").replace("{count}", String(ids.length)),
-            variant: "success",
-            duration: 8000,
-            action: {
-                label: t("products.bulk.undo"),
-                onClick: () => { void handleBulkArchiveUndo(); },
-            },
-        });
-    }, [selectedIds, bulkArchive, clearSelection, t, handleBulkArchiveUndo]);
+    }, [selectedIds, bulkArchive, clearSelection]);
 
     const handleBulkDelete = useCallback(async () => {
-        const ids = Array.from(selectedIds);
-        await bulkDelete(ids);
+        await bulkDelete(Array.from(selectedIds));
         clearSelection();
-        toast.success(t("products.bulk.deleteSuccess").replace("{count}", String(ids.length)));
-    }, [selectedIds, bulkDelete, clearSelection, t]);
+    }, [selectedIds, bulkDelete, clearSelection]);
 
     const handleBulkShow = useCallback(async () => {
         await bulkUpdateVisibility(Array.from(selectedIds), true);
@@ -675,11 +625,8 @@ function ProductsContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">{t("products.loading")}</p>
-                </div>
+            <div className="min-h-screen bg-[var(--background)]" aria-busy="true" aria-label={t("products.loading")}>
+                <PageSkeleton />
             </div>
         );
     }
@@ -805,7 +752,7 @@ function ProductsContent() {
                                             className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
                                         >
                                             <span className="text-sm font-bold">{selectedIds.size}</span>
-                                            <span className="text-xs font-medium opacity-80">{t("products.selection.selected") ?? "selected"}</span>
+                                            <span className="text-xs font-medium opacity-80">{t("products.selection.selected")}</span>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -818,36 +765,34 @@ function ProductsContent() {
                                 onExportExcel={handleExportExcel}
                                 onPrintReport={handlePrintReport}
                             />
+                            {canManageProducts && (
                             <button
                                 onClick={() => recomputeInventory.mutate(undefined, {
-                                    onSuccess: () => toast.success("تمت إعادة حساب المخزون"),
-                                    onError: () => toast.error("فشلت إعادة حساب المخزون"),
+                                    onSuccess: () => toast.success(t("products.tools.recalculateDone")),
+                                    onError: reportWriteError,
                                 })}
                                 disabled={recomputeInventory.isPending}
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all",
                                     recomputeInventory.isPending && "opacity-50 cursor-not-allowed"
                                 )}
-                                title="إعادة حساب الكميات المحجوزة من الطلبات النشطة"
+                                title={t("products.tools.recalculateHint")}
                             >
                                 <RefreshCw className={cn("w-4 h-4", recomputeInventory.isPending && "animate-spin")} />
-                                Recalculate
+                                {t("products.tools.recalculate")}
                             </button>
+                            )}
+                            {canEditProducts && (
                             <button
-                                onClick={() => zeroOversold.mutate(undefined, {
-                                    onSuccess: () => toast.success("تم تصفير الكمية الزائدة"),
-                                    onError: () => toast.error("فشل تصفير الكمية الزائدة"),
-                                })}
-                                disabled={zeroOversold.isPending}
-                                className={cn(
-                                    "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all",
-                                    zeroOversold.isPending && "opacity-50 cursor-not-allowed"
-                                )}
-                                title="Top on-hand up to reserved for oversold products (oversold → 0)"
+                                onClick={() => setIsStockCountOpen(true)}
+                                className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all"
+                                title={t("products.count.description")}
                             >
-                                <AlertTriangle className="w-4 h-4" />
-                                Zero oversold
+                                <ClipboardList className="w-4 h-4" />
+                                {t("products.tools.count")}
                             </button>
+                            )}
+                            {canEditProducts && (
                             <button
                                 onClick={handleAddProduct}
                                 className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg"
@@ -855,6 +800,7 @@ function ProductsContent() {
                                 <Plus className="w-5 h-5" />
                                 {t("products.addProduct")}
                             </button>
+                            )}
                         </div>
                     </motion.div>
 
@@ -941,20 +887,17 @@ function ProductsContent() {
                                 <div className="flex flex-col lg:flex-row gap-3">
                                     {/* Search */}
                                     <div className="relative flex-1">
-                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--foreground-subtle)]" />
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" aria-hidden />
                                         <input
                                             type="text"
                                             placeholder={t("products.searchPlaceholder")}
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                            className="w-full pl-12 pr-4 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
                                         />
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-3">
-                                        {/* Time Period Filter */}
-                                        <TimePeriodFilter value={timePeriod} onChange={setTimePeriod} />
-
                                         {/* Advanced Filters — desktop dropdown */}
                                         <div className="hidden sm:block">
                                             <AdvancedFilters
@@ -985,12 +928,14 @@ function ProductsContent() {
                                                     key={mode}
                                                     onClick={() => setViewMode(mode)}
                                                     className={cn(
-                                                        "p-2 rounded-lg transition-all",
+                                                        "relative p-2 rounded-lg transition-all before:absolute before:-inset-1.5 before:content-['']",
                                                         viewMode === mode
                                                             ? "bg-[var(--ink)] text-white"
                                                             : "text-muted hover:text-foreground"
                                                     )}
                                                     title={t(label)}
+                                                    aria-label={t(label)}
+                                                    aria-pressed={viewMode === mode}
                                                 >
                                                     <Icon className="w-4 h-4" />
                                                 </button>
@@ -1007,7 +952,7 @@ function ProductsContent() {
                                                     aria-pressed={gridGroupByCategory}
                                                     title={t("products.groupByCategory")}
                                                     className={cn(
-                                                        "p-2 rounded-xl border transition-all",
+                                                        "relative p-2 rounded-xl border transition-all before:absolute before:-inset-1.5 before:content-['']",
                                                         gridGroupByCategory
                                                             ? "bg-[var(--ink)] text-white border-[var(--ink)]"
                                                             : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:text-foreground"
@@ -1082,7 +1027,7 @@ function ProductsContent() {
                             {filteredProducts.length === 0 ? (
                                 <div className="pastel-card p-12 text-center">
                                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
-                                        <Package className="h-8 w-8 text-[var(--foreground-subtle)]" />
+                                        <Package className="h-8 w-8 text-muted" />
                                     </div>
                                     <p className="text-lg font-medium text-foreground mb-1">{t("products.emptyState.title")}</p>
                                     <p className="text-sm text-muted mb-4">
@@ -1112,7 +1057,7 @@ function ProductsContent() {
                                     onArchive={handleArchive}
                                     onRestore={handleRestore}
                                     onDuplicate={handleDuplicateProduct}
-                                    onDelete={handleDeleteProduct}
+                                    onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
                                     onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
                                     density={gridDensity}
@@ -1132,7 +1077,7 @@ function ProductsContent() {
                                     onArchive={handleArchive}
                                     onRestore={handleRestore}
                                     onDuplicate={handleDuplicateProduct}
-                                    onDelete={handleDeleteProduct}
+                                    onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
                                     onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
                                 />
@@ -1149,7 +1094,7 @@ function ProductsContent() {
                                     onArchive={handleArchive}
                                     onRestore={handleRestore}
                                     onDuplicate={handleDuplicateProduct}
-                                    onDelete={handleDeleteProduct}
+                                    onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
                                 />
                                 </AbcTierProvider>
@@ -1176,15 +1121,6 @@ function ProductsContent() {
             </div>
 
             {/* Modals */}
-            <ProductFormModal
-                isOpen={isFormModalOpen}
-                onClose={() => setIsFormModalOpen(false)}
-                onSubmit={handleFormSubmit}
-                product={selectedProduct}
-                mode={formModalMode}
-                defaultIsSupply={formDefaultIsSupply}
-            />
-
             <ProductDetailModal
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}
@@ -1196,22 +1132,28 @@ function ProductsContent() {
                 }}
             />
 
+            <StockCountDialog
+                open={isStockCountOpen}
+                onOpenChange={setIsStockCountOpen}
+                products={products}
+            />
+
             {/* Bulk Actions Bar */}
-            {activeTab === "products" && (
+            {activeTab === "products" && canEditProducts && (
                 <BulkActionsBar
                     selectedCount={selectedIds.size}
                     totalCount={filteredProducts.length}
                     selectedProductNames={products
                         .filter((p) => selectedIds.has(p.id))
                         .map((p) => p.name)}
-                    onUpdatePrice={handleBulkUpdatePrice}
+                    onUpdatePrice={canManageProducts ? handleBulkUpdatePrice : undefined}
                     onArchive={handleBulkArchive}
                     onExport={handleBulkExport}
                     onShowOnStore={handleBulkShow}
                     onHideFromStore={handleBulkHide}
                     onClearSelection={clearSelection}
                     onUndo={handleBulkArchiveUndo}
-                    onDelete={handleBulkDelete}
+                    onDelete={canManageProducts ? handleBulkDelete : undefined}
                 />
             )}
 

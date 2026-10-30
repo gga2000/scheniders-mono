@@ -9,6 +9,8 @@ import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 
 export interface ProductOptionFormData {
     id?: string;
@@ -479,24 +481,42 @@ function productToFormData(product: Product): ProductEditorFormData {
     };
 }
 
+/**
+ * website_price is the storefront's override of price. Empty, 0 or the same
+ * as price means "sell at price" and is stored as null, so a later price
+ * change reaches the store instead of leaving a stale copy behind.
+ */
+function storeOverride(websitePrice: number | null, price: number): number | null {
+    return websitePrice && websitePrice > 0 && websitePrice !== price ? websitePrice : null;
+}
+
 interface UseProductEditorOptions {
     product?: Product | null; // null for new product mode
     mode: "create" | "edit";
+    defaultIsSupply?: boolean;
 }
 
-export function useProductEditor({ product, mode }: UseProductEditorOptions) {
+export function useProductEditor({ product, mode, defaultIsSupply = false }: UseProductEditorOptions) {
     const router = useRouter();
     const { addProduct, updateProduct, addVariant, updateVariant, deleteVariant } = useProductsCrud();
     const { tenantId } = useAuth();
+    const { t } = useLanguage();
 
+    const emptyForm = useMemo(
+        () => (defaultIsSupply ? { ...DEFAULT_FORM_DATA, is_supply: true } : DEFAULT_FORM_DATA),
+        [defaultIsSupply]
+    );
     const initialData = useMemo(() =>
-        product ? productToFormData(product) : DEFAULT_FORM_DATA,
-        [product]
+        product ? productToFormData(product) : emptyForm,
+        [product, emptyForm]
     );
 
     const [formData, setFormData] = useState<ProductEditorFormData>(initialData);
     const [saving, setSaving] = useState(false);
     const initialDataRef = useRef(initialData);
+    // The product's updated_at when this editor loaded it (then after each of
+    // its own saves). A save only applies if the row still carries it.
+    const baseUpdatedAtRef = useRef<string | null>(product?.updated_at ?? null);
 
     // Reset form only when navigating to a different product — NOT on every
     // refetch. TanStack invalidation returns a new `products` array reference
@@ -504,10 +524,11 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     // wipe in-flight user edits and reset `initialDataRef`, making isDirty go
     // false after the first successful save.
     useEffect(() => {
-        const newData = product ? productToFormData(product) : DEFAULT_FORM_DATA;
+        const newData = product ? productToFormData(product) : emptyForm;
         setFormData(newData);
         initialDataRef.current = newData;
-    }, [product?.id]);
+        baseUpdatedAtRef.current = product?.updated_at ?? null;
+    }, [product?.id, emptyForm]);
 
     const [pendingVariantDiff, setPendingVariantDiff] = useState<VariantDiff | null>(null);
     const [pendingOptions, setPendingOptions] = useState<ProductOptionFormData[] | null>(null);
@@ -635,16 +656,19 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         ? "product-editor-new"
         : `product-editor-${product?.id}`;
 
-    const { hasDraft, restoreDraft, clearDraft } = useAutoSave({
-        key: autoSaveKey,
-        data: formData,
-        enabled: true,
-    });
-
     // Dirty detection
     const isDirty = useMemo(() => {
         return JSON.stringify(formData) !== JSON.stringify(initialDataRef.current);
     }, [formData]);
+
+    // Only unsaved edits are kept as a draft, tied to the product version they
+    // were made on, so an old draft can never be offered over newer changes.
+    const { hasDraft, restoreDraft, clearDraft } = useAutoSave({
+        key: autoSaveKey,
+        data: formData,
+        enabled: isDirty,
+        version: product?.updated_at ?? null,
+    });
 
     // Navigation guard
     useEffect(() => {
@@ -829,10 +853,21 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     const handleRestoreDraft = useCallback(() => {
         const draft = restoreDraft();
         if (draft) {
-            setFormData(draft);
-            toast.success("Draft restored");
+            // Stock is never restored: it moves with every order, and the
+            // editor saves a changed stock as a shelf count. The draft's
+            // number would overwrite today's stock.
+            const loaded = initialDataRef.current;
+            const loadedVariantStock = new Map(loaded.variants.flatMap((v) => (v.id ? [[v.id, v.stock_quantity] as const] : [])));
+            setFormData({
+                ...draft,
+                stock_quantity: loaded.stock_quantity,
+                variants: draft.variants.map((v) =>
+                    v.id && loadedVariantStock.has(v.id) ? { ...v, stock_quantity: loadedVariantStock.get(v.id) ?? 0 } : v,
+                ),
+            });
+            toast.success(t("products.ed.draftRestored"));
         }
-    }, [restoreDraft]);
+    }, [restoreDraft, t]);
 
     const dismissDraft = useCallback(() => {
         clearDraft();
@@ -884,17 +919,17 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     // Save
     const save = useCallback(async () => {
         if (!formData.name.trim()) {
-            toast.error("Product name is required");
+            toast.error(t("products.ed.err.name"));
             return false;
         }
         if (!formData.is_supply && formData.price <= 0) {
-            toast.error("Price must be greater than 0");
+            toast.error(t("products.ed.err.price"));
             return false;
         }
 
         // Validate SKU uniqueness format (no spaces)
         if (formData.sku && /\s/.test(formData.sku)) {
-            toast.error("SKU cannot contain spaces");
+            toast.error(t("products.ed.err.sku"));
             return false;
         }
 
@@ -904,9 +939,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         // generated (رفقات, ويفر, بستاشيو…) and blocked every save on those
         // products — including edits that never touched the slug.
         if (formData.slug && !isCanonicalSlug(formData.slug)) {
-            toast.error(
-                "URL slug can only contain letters, numbers and hyphens — no spaces or punctuation"
-            );
+            toast.error(t("products.ed.err.slug"));
             return false;
         }
 
@@ -924,7 +957,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 const prev = sorted[i - 1];
                 const curr = sorted[i];
                 if (prev.max_quantity !== null && curr.min_quantity <= prev.max_quantity) {
-                    toast.error("Tiered pricing has overlapping quantity ranges");
+                    toast.error(t("products.ed.err.tiers"));
                     return false;
                 }
             }
@@ -932,14 +965,14 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
 
         // Validate bundle has items
         if (formData.product_type === "bundle" && formData.bundle_items.length === 0) {
-            toast.error("Bundle products must contain at least one item");
+            toast.error(t("products.ed.err.bundle"));
             return false;
         }
 
         // Validate cost is not greater than price (warning only for negative margin)
         if (formData.cost > 0 && formData.cost > formData.price && !formData.is_supply) {
             // Allow but warn
-            toast.warning("Cost exceeds price — this product has negative margin");
+            toast.warning(t("products.ed.warn.margin"));
         }
 
         setSaving(true);
@@ -966,7 +999,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
                     category_id: formData.category_id,
-                    website_price: formData.website_price,
+                    website_price: storeOverride(formData.website_price, formData.price),
                     short_description: formData.short_description || undefined,
                     status: formData.status,
                     product_type: formData.product_type,
@@ -1017,25 +1050,25 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 }
 
                 clearDraft();
-                toast.success("Product created successfully");
+                toast.success(t("products.created"));
                 if (newProduct) {
                     router.push(`/products/${newProduct.id}/edit`);
                 }
             } else if (product) {
-                await updateProduct(product.id, {
+                const savedUpdatedAt = await updateProduct(product.id, {
                     name: formData.name,
                     short_name: formData.short_name.trim() || null,
                     description: formData.description,
-                    sku: formData.sku || undefined,
+                    // Cleared fields are saved as cleared (null), not skipped.
+                    sku: formData.sku.trim() || null,
                     price: formData.price,
-                    compare_at_price: formData.compare_at_price || undefined,
+                    compare_at_price: formData.compare_at_price || null,
                     cost: formData.cost,
-                    stock_quantity: formData.stock_quantity,
                     low_stock_threshold: formData.low_stock_threshold,
                     reorder_point: formData.reorder_point,
                     image_url: formData.image_url,
                     tag_color: formData.tag_color,
-                    barcode: formData.barcode || undefined,
+                    barcode: formData.barcode.trim() || null,
                     cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
                     is_filler: formData.is_filler,
@@ -1043,8 +1076,8 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     is_visible: formData.is_visible,
                     display_order: formData.display_order,
                     category_id: formData.category_id,
-                    website_price: formData.website_price,
-                    short_description: formData.short_description || undefined,
+                    website_price: storeOverride(formData.website_price, formData.price),
+                    short_description: formData.short_description,
                     status: formData.status,
                     product_type: formData.product_type,
                     weight: formData.weight,
@@ -1057,7 +1090,23 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
                     feature_cards: serializeFeatureCards(formData.feature_cards),
-                } as any);
+                } as any, { expectedUpdatedAt: baseUpdatedAtRef.current ?? undefined });
+                baseUpdatedAtRef.current = savedUpdatedAt;
+
+                // Stock is saved only when the merchant changed it, as a shelf
+                // count applied to the current row, so orders that shipped
+                // while the editor was open are not undone.
+                const loaded = initialDataRef.current;
+                if (loaded.stock_quantity !== formData.stock_quantity) {
+                    await productRepository.setCountedStock({
+                        productId: product.id,
+                        counted: formData.stock_quantity,
+                        notes: "Product editor",
+                    });
+                }
+                const loadedVariantStock = new Map(
+                    loaded.variants.flatMap((v) => (v.id ? [[v.id, v.stock_quantity] as const] : []))
+                );
 
                 // Handle variants
                 const existingVariantIds = new Set(
@@ -1070,12 +1119,19 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                             name: variant.name,
                             price: variant.price,
                             cost: variant.cost,
-                            stock_quantity: variant.stock_quantity,
                             sku: variant.sku,
                             option_values: variant.option_values,
                             image_url: variant.image_url,
                             is_enabled: variant.is_enabled ?? true,
                         } as any);
+                        if (loadedVariantStock.get(variant.id) !== variant.stock_quantity) {
+                            await productRepository.setCountedStock({
+                                productId: product.id,
+                                variantId: variant.id,
+                                counted: variant.stock_quantity,
+                                notes: "Product editor",
+                            });
+                        }
                         existingVariantIds.delete(variant.id);
                     } else {
                         await addVariant(product.id, {
@@ -1132,32 +1188,20 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     }, tenantId);
                 }
 
-                // Auto-capture inventory changes
-                if (prev.stock_quantity !== formData.stock_quantity) {
-                    await productRepository.addInventoryEntry(product.id, {
-                        change_type: "adjusted",
-                        quantity_change: formData.stock_quantity - prev.stock_quantity,
-                        quantity_before: prev.stock_quantity,
-                        quantity_after: formData.stock_quantity,
-                        notes: "Manual stock adjustment via product editor",
-                    }, tenantId);
-                }
-
                 clearDraft();
                 // Update initial data ref to new saved state
                 initialDataRef.current = { ...formData };
-                toast.success("Product updated successfully");
+                toast.success(t("products.updated"));
             }
 
             return true;
         } catch (error) {
-            console.error("Error saving product:", error);
-            toast.error("Failed to save product");
+            toast.error(t(productWriteErrorKey(error)));
             return false;
         } finally {
             setSaving(false);
         }
-    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId]);
+    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t]);
 
     // Duplicate product
     const duplicateProduct = useCallback(async () => {
@@ -1183,7 +1227,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 is_visible: false,
                 display_order: formData.display_order,
                 category_id: formData.category_id,
-                website_price: formData.website_price,
+                website_price: storeOverride(formData.website_price, formData.price),
                 short_description: formData.short_description || undefined,
                 status: "draft" as const,
                 product_type: formData.product_type,
@@ -1223,17 +1267,16 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 }, tenantId);
             }
 
-            toast.success("Product duplicated successfully");
+            toast.success(t("products.duplicated"));
             if (newProduct) {
                 router.push(`/products/${newProduct.id}/edit`);
             }
         } catch (error) {
-            console.error("Error duplicating product:", error);
-            toast.error("Failed to duplicate product");
+            toast.error(t(productWriteErrorKey(error)));
         } finally {
             setSaving(false);
         }
-    }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId]);
+    }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId, t]);
 
     return {
         formData,

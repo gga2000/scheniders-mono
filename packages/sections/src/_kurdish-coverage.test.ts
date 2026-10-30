@@ -3,22 +3,7 @@
 // in the builder; this guards the code-owned chrome only.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { STRING_TABLE_FILES } from "./_string-tables";
-
-function stringsBlock(src: string): string {
-  // `STRINGS` or a prefixed table such as the express layout's `EXPRESS_STRINGS`.
-  const m = /const (?:[A-Z]+_)?STRINGS\s*(?::[^=]*)?=\s*\{/.exec(src);
-  if (!m) return "";
-  let depth = 1;
-  let i = m.index + m[0].length;
-  const start = i;
-  while (depth && i < src.length) {
-    if (src[i] === "{") depth++;
-    else if (src[i] === "}") depth--;
-    i++;
-  }
-  return src.slice(start, i);
-}
+import { STRING_TABLE_FILES, stringTableEntries } from "./_string-tables";
 
 describe("Kurdish coverage of UI strings", () => {
   it("covers today's eight tables plus the vCard table", () => {
@@ -39,11 +24,9 @@ describe("Kurdish coverage of UI strings", () => {
 
   for (const f of STRING_TABLE_FILES) {
     it(`${f}: every entry has ku`, () => {
-      const block = stringsBlock(readFileSync(new URL(`./${f}`, import.meta.url), "utf8"));
-      // Quoted strings are atoms so a `{points}` placeholder cannot end an entry early.
-      const entries = [...block.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\{(?:[^{}"]|"(?:[^"\\]|\\.)*")*\}/gm)];
+      const entries = stringTableEntries(readFileSync(new URL(`./${f}`, import.meta.url), "utf8"));
       expect(entries.length).toBeGreaterThan(0);
-      const missing = entries.filter((e) => !/\bku:\s*"/.test(e[0])).map((e) => e[1]);
+      const missing = entries.filter((e) => !/\bku:\s*"/.test(e.source)).map((e) => e.key);
       expect(missing).toEqual([]);
     });
   }

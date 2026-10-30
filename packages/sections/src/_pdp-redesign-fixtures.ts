@@ -14,8 +14,10 @@ import type { Props as AccordionProps } from "./accordion_richtext";
 import image_gallery from "./image_gallery";
 import type { Props as PdpDirectOrderProps } from "./pdp_direct_order";
 import type { Props as ReviewsProps } from "./product_reviews";
+import type { Props as HeaderProps } from "./site_header";
+import type { Props as StickyProps } from "./sticky_cta_bar";
 import type { Tenant } from "./types";
-import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, fixtureTenant } from "./_pdp-fixtures";
+import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, IRAQ_DRAFT_STICKY_PROPS, fixtureTenant } from "./_pdp-fixtures";
 import type { FaqProps } from "./_pdp-lower-fixtures";
 
 export type GalleryProps = typeof image_gallery.defaultProps;
@@ -544,11 +546,80 @@ export const IRAQ_REDESIGN_REVIEWS_INPUT = jsonbMerge(IRAQ_DRAFT_REVIEWS_BASE, S
 /** The draft faq_contact_split after slice 1e (unparsed, as stored). */
 export const IRAQ_REDESIGN_FAQ_INPUT = jsonbMerge(IRAQ_DRAFT_FAQ_BASE, SLICE_1E_FAQ_PATCH);
 
-/** The draft pdp_direct_order after slices 1b, 1c, 1d and 1e. */
+/** Slice 1f: the key the 1f draft migration merges into pdp_direct_order's
+ *  base. Ali (2026-10-30): the WhatsApp tile comes back beside «ثبّت طلبي»
+ *  (slice 1b had switched it off). It stays green under color_lock. */
+export const SLICE_1F_PDP_PATCH = {
+  show_whatsapp: true,
+} satisfies Partial<PdpDirectOrderProps>;
+
+/** Slice 1g (Ali, 2026-10-30): the «أضف للسلة» tile side by side with
+ *  «ثبّت طلبي»; the WhatsApp tile stays beside them. */
+export const SLICE_1G_PDP_PATCH = {
+  add_to_cart: true,
+} satisfies Partial<PdpDirectOrderProps>;
+
+/** The draft pdp_direct_order after slices 1b, 1c, 1d, 1e, 1f and 1g. */
 export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
   ...EXPRESS_IRAQ_DRAFT_PDP_PROPS,
   ...SLICE_1B_PDP_PATCH,
   ...SLICE_1C_PDP_PATCH,
   ...SLICE_1D_PDP_PATCH,
   ...SLICE_1E_PDP_PATCH,
+  ...SLICE_1F_PDP_PATCH,
+  ...SLICE_1G_PDP_PATCH,
 };
+
+/** Slice 1f: the keys the 1f draft migration merges into sticky_cta_bar's
+ *  base: the form-aware primary (never a submit, D6), the express form's
+ *  soft button look, and the 52px WhatsApp square. hide_while "form" and
+ *  the product price stay from the base. */
+export const SLICE_1F_STICKY_PATCH = {
+  primary_kind: "form_aware",
+  style: "soft",
+  secondary_display: "icon",
+} satisfies Partial<StickyProps>;
+
+/** The draft sticky_cta_bar after slice 1f (unparsed, as stored). The base
+ *  is IRAQ_DRAFT_STICKY_PROPS (read 2026-10-30, base md5
+ *  08921c992d5563e08afa97c093735301): 1b–1e never touched it. */
+export const IRAQ_REDESIGN_STICKY_INPUT = jsonbMerge(IRAQ_DRAFT_STICKY_PROPS, SLICE_1F_STICKY_PATCH);
+
+/** scheniders-iraq's draft globals.header base (site_header 33c6a493) as
+ *  read on 2026-10-30, before slice 1g: no cart anywhere (show_cart false). */
+export const IRAQ_DRAFT_HEADER_BASE: HeaderProps = {
+  layout: "floating_pill",
+  sticky: true,
+  nav_links: [
+    { href: "/", label_i18n: { ar: "الصفحة الرئيسية", en: "Home" } },
+    { href: "/products", label_i18n: { ar: "منتجاتنا", en: "Our products" } },
+    { href: "/about", label_i18n: { ar: "معلومات عنا", en: "About us" } },
+    { href: "/contact", label_i18n: { ar: "تواصل معنا", en: "Contact us" } },
+  ],
+  show_cart: false,
+  show_search: false,
+  wordmark_i18n: { ar: "شنايدر", en: "Scheniders" },
+  logo_image_url:
+    "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/da0471e3-4980-4e4d-80ef-4ea9e75bf2da.png",
+  wordmark_style: "pill",
+};
+
+/** The header's product-page variant (4c9e2b71) override, before 1g. */
+export const IRAQ_DRAFT_HEADER_PRODUCT_OVERRIDE = { sticky: false, surface: "overlay" } satisfies Partial<HeaderProps>;
+
+/** Slice 1g: the solid header on every other page shows the cart. */
+export const SLICE_1G_HEADER_PATCH = { show_cart: true } satisfies Partial<HeaderProps>;
+
+/** Slice 1g: the product page's floating header gets the cart chip. */
+export const SLICE_1G_HEADER_VARIANT_PATCH = { overlay_cart: true } satisfies Partial<HeaderProps>;
+
+/** The draft header base after slice 1g (unparsed, as stored). */
+export const IRAQ_REDESIGN_HEADER_INPUT = jsonbMerge(IRAQ_DRAFT_HEADER_BASE, SLICE_1G_HEADER_PATCH);
+
+/** The header the product page resolves after slice 1g: the base with the
+ *  variant's override merged over it (the resolver's deepMerge; every key
+ *  here is a scalar). */
+export const IRAQ_REDESIGN_HEADER_PRODUCT_INPUT = jsonbMerge(IRAQ_REDESIGN_HEADER_INPUT, {
+  ...IRAQ_DRAFT_HEADER_PRODUCT_OVERRIDE,
+  ...SLICE_1G_HEADER_VARIANT_PATCH,
+});

@@ -293,7 +293,7 @@ function OverviewTab({ supply }: { supply: Product }) {
     const stock = supply.stock_quantity ?? 0;
     const reserved = supply.reserved_quantity ?? 0;
     const available = Math.max(0, stock - reserved);
-    const timesSold = supply.times_sold ?? 0;
+    const timesSold = supply.times_sold_30d ?? 0;
     const days = daysOfSupplyFrom({ stock, reserved, timesSold30d: timesSold });
     const eta = stockoutEtaFrom({ stock, reserved, timesSold30d: timesSold });
     const onHandValue = stock * (supply.cost ?? 0);

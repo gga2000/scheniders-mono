@@ -24,7 +24,6 @@ type PopoverKind = null | "reorder" | "category" | "adjust";
 type SupplyPatch = {
     reorder_point?: number | null;
     category_id?: string | null;
-    stock_quantity?: number;
     is_archived?: boolean;
 };
 
@@ -32,7 +31,9 @@ interface SuppliesBulkActionsBarProps {
     selected: Product[];
     categories: Category[];
     onClear: () => void;
-    updateProduct: (id: string, patch: SupplyPatch) => Promise<boolean>;
+    updateProduct: (id: string, patch: SupplyPatch) => Promise<void>;
+    /** Adds or removes units on the current stock (never an absolute write). */
+    adjustStock: (id: string, delta: number) => Promise<unknown>;
 }
 
 export function SuppliesBulkActionsBar({
@@ -40,6 +41,7 @@ export function SuppliesBulkActionsBar({
     categories,
     onClear,
     updateProduct,
+    adjustStock,
 }: SuppliesBulkActionsBarProps) {
     const [openPopover, setOpenPopover] = useState<PopoverKind>(null);
     const [busy, setBusy] = useState(false);
@@ -57,24 +59,23 @@ export function SuppliesBulkActionsBar({
 
     const selectedCount = selected.length;
 
+    const runPatch = (patchFor: (supply: Product) => SupplyPatch, successLabel: string) =>
+        runBulk((supply) => updateProduct(supply.id, patchFor(supply)), successLabel);
+
     const runBulk = async (
-        patchFor: (supply: Product) => Partial<Product> | null,
+        writeFor: (supply: Product) => Promise<unknown> | null,
         successLabel: string,
     ) => {
         if (busy || selectedCount === 0) return;
         setBusy(true);
         try {
             const results = await Promise.allSettled(
-                selected.map((supply) => {
-                    const patch = patchFor(supply);
-                    if (!patch) return Promise.resolve(true);
-                    return updateProduct(supply.id, patch);
-                }),
+                selected.map((supply) => writeFor(supply) ?? Promise.resolve()),
             );
             let ok = 0;
             let fail = 0;
             for (const r of results) {
-                if (r.status === "fulfilled" && r.value) ok++;
+                if (r.status === "fulfilled") ok++;
                 else fail++;
             }
             if (fail === 0) {
@@ -147,7 +148,7 @@ export function SuppliesBulkActionsBar({
                             <ReorderPointForm
                                 busy={busy}
                                 onSubmit={(value) =>
-                                    runBulk(() => ({ reorder_point: value }), "Reorder point set")
+                                    runPatch(() => ({ reorder_point: value }), "Reorder point set")
                                 }
                             />
                         </PopoverButton>
@@ -164,7 +165,7 @@ export function SuppliesBulkActionsBar({
                                 busy={busy}
                                 categories={categories}
                                 onSubmit={(categoryId) =>
-                                    runBulk(
+                                    runPatch(
                                         () => ({ category_id: categoryId }),
                                         "Category updated",
                                     )
@@ -183,12 +184,10 @@ export function SuppliesBulkActionsBar({
                             <AdjustStockForm
                                 busy={busy}
                                 onSubmit={(delta) =>
-                                    runBulk((supply) => {
-                                        const current = supply.stock_quantity ?? 0;
-                                        const next = Math.max(0, current + delta);
-                                        if (next === current) return null;
-                                        return { stock_quantity: next };
-                                    }, "Stock adjusted")
+                                    runBulk(
+                                        (supply) => (delta === 0 ? null : adjustStock(supply.id, delta)),
+                                        "Stock adjusted",
+                                    )
                                 }
                             />
                         </PopoverButton>
@@ -212,7 +211,7 @@ export function SuppliesBulkActionsBar({
                         <button
                             type="button"
                             onClick={() =>
-                                runBulk(() => ({ is_archived: true }), "Archived")
+                                runPatch(() => ({ is_archived: true }), "Archived")
                             }
                             disabled={busy}
                             className={cn(

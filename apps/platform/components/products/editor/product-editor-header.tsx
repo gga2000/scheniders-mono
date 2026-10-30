@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, RotateCcw, Circle, Copy } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProductEditorHeaderProps {
     productName: string;
@@ -28,6 +29,7 @@ export function ProductEditorHeader({
     children,
 }: ProductEditorHeaderProps) {
     const router = useRouter();
+    const { t } = useLanguage();
 
     const statusColors = {
         draft: "bg-amber-100 text-amber-800",
@@ -42,17 +44,18 @@ export function ProductEditorHeader({
                 <div className="flex items-center gap-4 min-w-0">
                     <button
                         onClick={() => router.push("/products")}
+                        aria-label={t("products.ed.back")}
                         className="p-2 rounded-xl hover:bg-[var(--card-bg)] transition-colors shrink-0"
                     >
                         <ArrowLeft className="w-5 h-5 text-muted" />
                     </button>
                     <div className="min-w-0">
                         <h1 className="text-lg font-bold text-foreground truncate">
-                            {mode === "create" ? "New Product" : (productName || "Untitled Product")}
+                            {mode === "create" ? t("products.ed.newProduct") : (productName || t("products.ed.untitled"))}
                         </h1>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${statusColors[status]}`}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                        {t(`products.ed.status.${status}`)}
                     </span>
                     {children ? (
                         <div className="shrink-0">{children}</div>
@@ -63,7 +66,7 @@ export function ProductEditorHeader({
                             className="flex items-center gap-1.5 text-amber-600 shrink-0"
                         >
                             <Circle className="w-2 h-2 fill-current" />
-                            <span className="text-xs font-medium">Unsaved changes</span>
+                            <span className="text-xs font-medium">{t("products.ed.unsaved")}</span>
                         </motion.div>
                     ) : null}
                 </div>
@@ -76,7 +79,7 @@ export function ProductEditorHeader({
                             className="px-4 py-2.5 bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--background)] transition-colors flex items-center gap-2"
                         >
                             <Copy className="w-4 h-4" />
-                            Duplicate
+                            {t("products.ed.duplicate")}
                         </button>
                     )}
                     {isDirty && (
@@ -85,7 +88,7 @@ export function ProductEditorHeader({
                             className="px-4 py-2.5 bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--background)] transition-colors flex items-center gap-2"
                         >
                             <RotateCcw className="w-4 h-4" />
-                            Discard
+                            {t("products.ed.discard")}
                         </button>
                     )}
                     <button
@@ -96,12 +99,12 @@ export function ProductEditorHeader({
                         {saving ? (
                             <>
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                Saving...
+                                {t("products.ed.saving")}
                             </>
                         ) : (
                             <>
                                 <Save className="w-4 h-4" />
-                                {mode === "create" ? "Create Product" : "Save Changes"}
+                                {mode === "create" ? t("products.ed.create") : t("products.ed.save")}
                             </>
                         )}
                     </button>

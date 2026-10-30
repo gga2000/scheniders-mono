@@ -1,7 +1,12 @@
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useQueryClient } from "@tanstack/react-query";
+import { productKeys } from "@/hooks/use-products-query";
+import { productRepository } from "@/lib/repositories/product-repository";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import {
     Box,
     Plus,
@@ -64,7 +69,9 @@ const VIEW_MODE_KEY = "supplies.viewMode";
 const SECTION_KEY = "supplies.section";
 
 export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
-    const { products, loading, updateProduct } = useProductsCrud();
+    const { products, loading, updateProduct } = useProductsCrud({ withSales: true });
+    const { t } = useLanguage();
+    const queryClient = useQueryClient();
     const { data: categories = [] } = useCategoriesQuery();
     const { data: openPoBySupply } = useOpenPosBySupply();
     const { data: supplierPos = [] } = useSupplierPos();
@@ -346,15 +353,17 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         [supplies, selectedIds]
     );
 
+    const adjustSupplyStock = (id: string, delta: number) =>
+        productRepository.adjustStock({ productId: id, delta, reason: "adjusted" });
+
     const handleAdjustStock = async (product: Product, delta: number) => {
-        const current = product.stock_quantity ?? 0;
-        const next = Math.max(0, current + delta);
-        if (next === current) return;
-        const ok = await updateProduct(product.id, { stock_quantity: next });
-        if (ok) {
-            toast.success(`${product.name}: ${current} → ${next}`);
-        } else {
-            toast.error("Could not update stock");
+        if (delta === 0) return;
+        try {
+            const next = await adjustSupplyStock(product.id, delta);
+            await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+            toast.success(`${product.name}: ${next - delta} → ${next}`);
+        } catch (err) {
+            toast.error(t(productWriteErrorKey(err)));
         }
     };
 
@@ -752,7 +761,11 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     selected={selectedSupplies}
                     categories={categories}
                     onClear={clearSelection}
-                    updateProduct={updateProduct}
+                    updateProduct={async (id, patch) => { await updateProduct(id, patch); }}
+                    adjustStock={async (id, delta) => {
+                        await adjustSupplyStock(id, delta);
+                        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+                    }}
                 />
             )}
         </div>

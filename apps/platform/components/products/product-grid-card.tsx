@@ -30,6 +30,7 @@ import { CategoryCombobox } from "./category-combobox";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { useUpdateProductMutation } from "@/hooks/use-products-query";
 import { calculateProductScore, computeDailySalesRate, type ProductScoreInput } from "@/lib/utils/product-scoring";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface ProductGridCardProps {
     product: Product;
@@ -111,7 +112,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     e.stopPropagation();
                     onToggleSelection(product.id, e);
                 }}
-                className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
+                className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors before:absolute before:-inset-2 before:content-['']"
                 aria-label={isSelected ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
             >
                 {isSelected ? (
@@ -142,7 +143,6 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     onArchive={() => onArchive(product.id)}
                     onRestore={() => onRestore(product.id)}
                     onViewDetails={() => onViewDetails(product)}
-                    onViewOrders={() => {}}
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
                     open={menuOpen}
@@ -156,12 +156,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 className="aspect-square bg-gradient-to-br from-[var(--background)] to-[var(--card-border)] flex items-center justify-center relative cursor-pointer"
             >
                 {product.image_url ? (
-                    <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                    />
+                    <ProductThumb src={product.image_url} alt={product.name} sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw" />
                 ) : (
                     <Package className="w-12 h-12 text-muted" />
                 )}
@@ -180,7 +175,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         onVisibilityToggle(product);
                     }}
                     className={cn(
-                        "absolute bottom-2 right-2 p-1.5 rounded-xl backdrop-blur-md border shadow-lg ring-1 ring-black/5 transition-colors",
+                        "absolute bottom-2 right-2 p-1.5 rounded-xl backdrop-blur-md border shadow-lg ring-1 ring-black/5 transition-colors before:absolute before:-inset-2 before:content-['']",
                         product.is_visible
                             ? "bg-white/25 border-white/40 text-blue-600 hover:bg-white/40"
                             : "bg-black/30 border-white/20 text-white hover:bg-black/50"
@@ -198,6 +193,12 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     <h3 className="text-base font-bold text-foreground leading-tight line-clamp-2 flex-1 min-w-0">
                         {product.name}
                         <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
+                        {/* A draft is not on the store even when its eye says visible. */}
+                        {product.status === "draft" && (
+                            <span className="align-middle ms-1.5 inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-800">
+                                {t("products.ed.status.draft")}
+                            </span>
+                        )}
                     </h3>
                     <div className="flex items-center gap-1.5 shrink-0">
                         {product.cost && product.cost > 0 && product.price > 0 && (
@@ -215,9 +216,17 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                                 {(((product.price - product.cost) / product.price) * 100).toFixed(0)}%
                             </span>
                         )}
-                        <p className="text-[15px] font-bold text-foreground whitespace-nowrap leading-tight">
-                            {formatIQD(product.price)}
-                        </p>
+                        <div className="flex flex-col items-end">
+                            <p className="text-[15px] font-bold text-foreground whitespace-nowrap leading-tight">
+                                {formatIQD(product.price)}
+                            </p>
+                            {/* The storefront sells at its own price when one is set. */}
+                            {product.website_price != null && product.website_price !== product.price && (
+                                <p className="text-[11px] text-muted whitespace-nowrap tabular-nums">
+                                    {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -436,6 +445,8 @@ export const ProductGridCard = React.memo(function ProductGridCard({
         prev.product.id === next.product.id &&
         prev.product.name === next.product.name &&
         prev.product.price === next.product.price &&
+        prev.product.website_price === next.product.website_price &&
+        prev.product.status === next.product.status &&
         prev.product.cost === next.product.cost &&
         prev.product.stock_quantity === next.product.stock_quantity &&
         prev.product.reserved_quantity === next.product.reserved_quantity &&

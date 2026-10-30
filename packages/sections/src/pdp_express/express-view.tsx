@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { cn, resolveI18n } from "@scheniders/shared";
 import { ChapterHeading } from "../helpers/chapter-heading";
+import { EXPRESS_VARIANTS_ID, useFormWatched } from "../helpers/express-order-store";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon } from "../helpers/primitives";
 import { stockLeftFor } from "../helpers/variant-store";
@@ -42,6 +43,9 @@ import { expressWhatsappHref } from "./whatsapp-href";
 export function PdpExpress({ model: m }: { model: ExpressModel }) {
   const { props, product, locale } = m;
   const [landmark, setLandmark] = useState("");
+  // The option pills carry the id a form-aware bar focuses only while one
+  // watches, so server markup (and every page without that bar) is as before.
+  const variantsWatched = useFormWatched(product.id);
   const showGallery = props.show_gallery !== false;
   const clock = props.offer_clock;
   // Express owns the landmark, so it builds the WhatsApp link: the message
@@ -142,6 +146,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
           {m.chosen.variants.length > 1 && !m.chosen.pickerMounted && (
             <div
               ref={m.variantPillsRef}
+              id={variantsWatched ? EXPRESS_VARIANTS_ID : undefined}
               data-layer="variants"
               data-layer-label="Options"
               role="group"

@@ -71,6 +71,8 @@ export interface Product {
     variants?: ProductVariant[];
     times_sold?: number;
     total_revenue?: number;
+    times_sold_30d?: number;
+    revenue_30d?: number;
     profit_margin?: number;
     average_order_value?: number;
 }

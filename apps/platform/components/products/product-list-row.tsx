@@ -24,6 +24,7 @@ import { CategoryCombobox } from "./category-combobox";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { useUpdateProductMutation } from "@/hooks/use-products-query";
 import { calculateProductScore, computeDailySalesRate, type ProductScoreInput } from "@/lib/utils/product-scoring";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface ProductListRowProps {
     product: Product;
@@ -121,15 +122,10 @@ export const ProductListRow = React.memo(function ProductListRow({
                 {/* Product Image */}
                 <div
                     onClick={() => onViewDetails(product)}
-                    className="w-14 h-14 rounded-xl bg-[var(--background)] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer"
+                    className="relative w-14 h-14 rounded-xl bg-[var(--background)] flex items-center justify-center flex-shrink-0 overflow-hidden cursor-pointer"
                 >
                     {product.image_url ? (
-                        <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                        />
+                        <ProductThumb src={product.image_url} alt={product.name} sizes="56px" />
                     ) : (
                         <Package className="w-6 h-6 text-muted" />
                     )}
@@ -269,6 +265,11 @@ export const ProductListRow = React.memo(function ProductListRow({
                     <p className="text-lg font-bold text-foreground">
                         {formatIQD(product.price)}
                     </p>
+                    {product.website_price != null && product.website_price !== product.price && (
+                        <span className="text-xs text-muted tabular-nums">
+                            {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
+                        </span>
+                    )}
                     {margin !== null && (
                         <span className={cn(
                             "text-xs font-medium",
@@ -328,7 +329,6 @@ export const ProductListRow = React.memo(function ProductListRow({
                     onArchive={() => onArchive(product.id)}
                     onRestore={() => onRestore(product.id)}
                     onViewDetails={() => onViewDetails(product)}
-                    onViewOrders={() => {}}
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
                 />

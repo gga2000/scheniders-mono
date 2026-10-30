@@ -70,6 +70,14 @@ describe("requireAdmin error typing", () => {
     expect(await outcome()).toBe("server-error");
   });
 
+  it("refuses a Claude connector (OAuth client) token before validating it → 401", async () => {
+    const { requireAdmin } = await import("./admin-supabase");
+    const oauthToken = `h.${Buffer.from(JSON.stringify({ sub: USER.id, client_id: "claude" })).toString("base64url")}.s`;
+    getUser = vi.fn(async () => ({ data: { user: USER }, error: null }));
+    await expect(requireAdmin(oauthToken)).rejects.toMatchObject({ status: 401 });
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
   it("no admin_users row → 403", async () => {
     lookup = { data: null, error: null };
     expect(await outcome()).toBe(403);

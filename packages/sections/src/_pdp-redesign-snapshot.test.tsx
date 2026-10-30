@@ -18,6 +18,8 @@ import faq_contact_split from "./faq_contact_split";
 import image_gallery from "./image_gallery";
 import pdp_direct_order from "./pdp_direct_order";
 import product_reviews from "./product_reviews";
+import site_header from "./site_header";
+import sticky_cta_bar from "./sticky_cta_bar";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 import {
@@ -37,9 +39,13 @@ import {
   IRAQ_DRAFT_REVIEWS_BASE,
   IRAQ_REDESIGN_ACCORDION_INPUT,
   IRAQ_REDESIGN_FAQ_INPUT,
+  IRAQ_DRAFT_HEADER_BASE,
   IRAQ_REDESIGN_GALLERY_INPUT,
+  IRAQ_REDESIGN_HEADER_INPUT,
+  IRAQ_REDESIGN_HEADER_PRODUCT_INPUT,
   IRAQ_REDESIGN_PDP_PROPS,
   IRAQ_REDESIGN_REVIEWS_INPUT,
+  IRAQ_REDESIGN_STICKY_INPUT,
   IRAQ_REDESIGN_TENANT,
   IRAQ_RETURN_WORDING,
   SLICE_1B_CONTACT_PATCH,
@@ -52,6 +58,11 @@ import {
   SLICE_1E_FAQ_PATCH,
   SLICE_1E_PDP_PATCH,
   SLICE_1E_REVIEWS_PATCH,
+  SLICE_1F_PDP_PATCH,
+  SLICE_1F_STICKY_PATCH,
+  SLICE_1G_HEADER_PATCH,
+  SLICE_1G_HEADER_VARIANT_PATCH,
+  SLICE_1G_PDP_PATCH,
 } from "./_pdp-redesign-fixtures";
 
 const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
@@ -149,6 +160,45 @@ describe("redesign fixtures mirror the draft migrations", () => {
     const { title_i18n: _t, sub_i18n: _s, ...rest } = SLICE_1E_FAQ_PATCH.contact;
     const { title_i18n: _bt, sub_i18n: _bs, ...baseRest } = IRAQ_DRAFT_FAQ_BASE.contact;
     expect(rest).toEqual(baseRest);
+  });
+
+  it("slice 1f sticky_cta_bar patch", () => {
+    const sql1f = migrationSql("scheniders_iraq_pdp_redesign_1f_draft");
+    expect(migrationJson(sql1f, "sticky_patch")).toEqual(SLICE_1F_STICKY_PATCH);
+  });
+
+  it("slice 1f pdp_direct_order patch: the WhatsApp tile is back", () => {
+    const sql1f = migrationSql("scheniders_iraq_pdp_redesign_1f_draft");
+    expect(migrationJson(sql1f, "pdp_patch")).toEqual(SLICE_1F_PDP_PATCH);
+    expect(IRAQ_REDESIGN_PDP_PROPS.show_whatsapp).toBe(true);
+  });
+
+  it("the 1f sticky bar parses to exactly what is stored, still hidden while the form shows", () => {
+    const parsed = sticky_cta_bar.schema.parse(IRAQ_REDESIGN_STICKY_INPUT);
+    expect(parsed).toEqual(IRAQ_REDESIGN_STICKY_INPUT);
+    expect(parsed.hide_while).toBe("form");
+    expect(parsed.show_product_price).toBe(true);
+  });
+
+  it("slice 1g patches: pdp_direct_order, the header base, its product variant", () => {
+    const sql1g = migrationSql("scheniders_iraq_pdp_redesign_1g_draft");
+    expect(migrationJson(sql1g, "pdp_patch")).toEqual(SLICE_1G_PDP_PATCH);
+    expect(migrationJson(sql1g, "header_patch")).toEqual(SLICE_1G_HEADER_PATCH);
+    expect(migrationJson(sql1g, "header_variant_patch")).toEqual(SLICE_1G_HEADER_VARIANT_PATCH);
+    expect(IRAQ_REDESIGN_PDP_PROPS.add_to_cart).toBe(true);
+  });
+
+  it("the 1g header parses to exactly what is stored, on the product page and off it", () => {
+    expect(site_header.schema.parse(IRAQ_DRAFT_HEADER_BASE)).toEqual(IRAQ_DRAFT_HEADER_BASE);
+    expect(site_header.schema.parse(IRAQ_REDESIGN_HEADER_INPUT)).toEqual(IRAQ_REDESIGN_HEADER_INPUT);
+    const product = site_header.schema.parse(IRAQ_REDESIGN_HEADER_PRODUCT_INPUT);
+    expect(product).toEqual(IRAQ_REDESIGN_HEADER_PRODUCT_INPUT);
+    expect([product.surface, product.sticky, product.show_cart, product.overlay_cart]).toEqual([
+      "overlay",
+      false,
+      true,
+      true,
+    ]);
   });
 
   it("the patched props satisfy the schema unchanged", () => {
@@ -294,5 +344,69 @@ describe("product_reviews + faq_contact_split — redesign draft (slice 1e)", ()
     expect(dirs(renderFaq(IRAQ_REDESIGN_FAQ_INPUT, "ar"))).toBe(0);
     expect(dirs(renderReviews(IRAQ_DRAFT_REVIEWS_BASE, "ar"))).toBe(0);
     expect(dirs(renderReviews(IRAQ_REDESIGN_REVIEWS_INPUT, "ar"))).toBe(0);
+  });
+});
+
+describe("sticky_cta_bar — redesign draft (slice 1f)", () => {
+  function renderBar(locale: LocaleCode): string {
+    return renderToStaticMarkup(
+      <StoreBaseProvider base="/s/fixture-store">
+        <sticky_cta_bar.render
+          props={sticky_cta_bar.schema.parse(IRAQ_REDESIGN_STICKY_INPUT)}
+          ctx={productCtx(wayferProduct, { tenant: IRAQ_REDESIGN_TENANT, runtime: { ...productRuntime, locale } })}
+        />
+      </StoreBaseProvider>,
+    );
+  }
+
+  it.each(["ar", "en"] as const)("sticky bar, %s", (locale) => {
+    expect(renderBar(locale)).toMatchSnapshot();
+  });
+
+  it("soft: no ink outline, no colour literal, no dir; yellow only on the primary", () => {
+    const html = renderBar("ar");
+    expect(html).not.toContain("--bk-border-thickness");
+    expect(html).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgba?\(/);
+    expect(html).not.toContain(' dir="');
+    expect(html.split("bg-bk-primary ").length - 1).toBe(1);
+  });
+});
+
+describe("site_header — redesign draft (slice 1g)", () => {
+  function renderHeader(input: Record<string, unknown>, locale: LocaleCode): string {
+    return renderToStaticMarkup(
+      <StoreBaseProvider base="/s/fixture-store">
+        <site_header.render
+          props={site_header.schema.parse(input)}
+          ctx={productCtx(wayferProduct, { tenant: IRAQ_REDESIGN_TENANT, runtime: { ...productRuntime, locale } })}
+        />
+      </StoreBaseProvider>,
+    );
+  }
+
+  it.each(["ar", "en"] as const)("product page header with the cart chip, %s", (locale) => {
+    expect(renderHeader(IRAQ_REDESIGN_HEADER_PRODUCT_INPUT, locale)).toMatchSnapshot();
+  });
+
+  it("the cart chip: to the cart, beside the menu, no yellow, no colour literal, no dir", () => {
+    const html = renderHeader(IRAQ_REDESIGN_HEADER_PRODUCT_INPUT, "ar");
+    expect(html).toContain('href="/s/fixture-store/cart"');
+    expect(html).toContain('aria-label="سلة التسوّق (0)"');
+    expect(html).not.toContain("bg-bk-primary");
+    expect(html).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgba?\(/);
+    expect(html).not.toContain(' dir="');
+  });
+
+  it("every other page: the solid header shows the cart", () => {
+    const html = renderToStaticMarkup(
+      <StoreBaseProvider base="/s/fixture-store">
+        <site_header.render
+          props={site_header.schema.parse(IRAQ_REDESIGN_HEADER_INPUT)}
+          ctx={productCtx(undefined, { tenant: IRAQ_REDESIGN_TENANT, runtime: { ...productRuntime, page_id: "home" } })}
+        />
+      </StoreBaseProvider>,
+    );
+    expect(html).toContain('href="/s/fixture-store/cart"');
+    expect(html).not.toContain("data-header-cart");
   });
 });
