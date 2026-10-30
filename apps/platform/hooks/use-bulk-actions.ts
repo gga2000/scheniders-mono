@@ -34,8 +34,12 @@ export function useCustomerBulkActions() {
                 .upsert(payload, { onConflict: "tenant_id,customer_phone,tag_id", ignoreDuplicates: true });
             if (error) throw error;
 
-            await queryClient.invalidateQueries({ queryKey: ["customer_tags"] });
-            await queryClient.invalidateQueries({ queryKey: ["customers"] });
+            // The list, the drawer and the profile page each cache the tags.
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["customers"] }),
+                queryClient.invalidateQueries({ queryKey: ["customer-dialog"] }),
+                queryClient.invalidateQueries({ queryKey: ["customer-profile"] }),
+            ]);
         } finally {
             setIsTagging(false);
         }

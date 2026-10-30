@@ -2347,7 +2347,7 @@ export const OrderCard = memo(function OrderCard({
                                                     <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
                                                         <Ban className="w-3.5 h-3.5 text-red-600" />
                                                     </div>
-                                                    <span className="font-medium">إضافة للقائمة السوداء</span>
+                                                    <span className="font-medium">{t("orderDetail.addBlacklist")}</span>
                                                 </button>
                                             )}
                                         </>

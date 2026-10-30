@@ -508,32 +508,27 @@ async function resolveMissingAttribution(webhook: LightFunnelsWebhook): Promise<
  * Check if a phone number is on `tenantId`'s blacklist. This runs on the
  * service-role client, so RLS does not scope it: without the tenant filter one
  * merchant's blacklist silently dropped another merchant's orders.
+ *
+ * A failed lookup throws instead of answering "not blocked": the order is then
+ * not created, the webhook answers 500 and the checkout cron keeps the item, so
+ * both retry rather than shipping to a blocked number.
  */
 export async function checkBlacklist(phone: string, tenantId: string): Promise<{ isBlacklisted: boolean; reason?: string }> {
-    try {
-        // blacklist.phone is stored normalized (a DB trigger enforces it), so
-        // compare in that shape: Lightfunnels sends +964…, merchants block 07….
-        const { data, error } = await supabase
-            .from("blacklist")
-            .select("reason")
-            .eq("tenant_id", tenantId)
-            .eq("phone", normalizePhoneForSearch(phone))
-            .limit(1)
-            .maybeSingle();
+    // blacklist.phone is stored normalized (a DB trigger enforces it), so
+    // compare in that shape: Lightfunnels sends +964…, merchants block 07….
+    const { data, error } = await supabase
+        .from("blacklist")
+        .select("reason")
+        .eq("tenant_id", tenantId)
+        .eq("phone", normalizePhoneForSearch(phone))
+        .limit(1)
+        .maybeSingle();
+    if (error) throw new Error(`Blacklist check failed: ${error.message}`);
 
-        if (error && error.code !== "PGRST116") {
-            console.error("Error checking blacklist:", error);
-            return { isBlacklisted: false };
-        }
-
-        return {
-            isBlacklisted: !!data,
-            reason: data?.reason,
-        };
-    } catch (error) {
-        console.error("Error in blacklist check:", error);
-        return { isBlacklisted: false };
-    }
+    return {
+        isBlacklisted: !!data,
+        reason: data?.reason,
+    };
 }
 
 /**

@@ -24,7 +24,9 @@ export async function addToBlacklist({ tenantId, phone, reason, notes, addedBy }
             notes: notes || null,
             added_by: addedBy ?? null,
         },
-        { onConflict: "tenant_id,phone" },
+        // Already blocked stays as first written: the DB lets only admins
+        // change a block's reason and never its author or date.
+        { onConflict: "tenant_id,phone", ignoreDuplicates: true },
     );
     if (error) throw error;
 }
