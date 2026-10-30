@@ -483,7 +483,7 @@ function SoftCartSummary({
             </p>
           )}
           {promo.status === "applied" && (
-            <p id="cart-promo-status" className="font-bk-body text-xs font-bold text-bk-ink">
+            <p id="cart-promo-status" role="status" className="font-bk-body text-xs font-bold text-bk-ink">
               {cs("promoApplied", locale)}
             </p>
           )}

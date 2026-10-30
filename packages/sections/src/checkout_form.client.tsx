@@ -683,7 +683,7 @@ export function CheckoutFormRender({
         if (issues.length > 0) {
           idempotencyKeyRef.current = null;
           setErrorLines([
-            namedSubmit ? s("errReviewAction").replace("{action}", namedSubmit) : s("errReview"),
+            namedSubmit ? s("errReviewAction").replace("{action}", () => namedSubmit) : s("errReview"),
             ...lines,
           ]);
         } else {
