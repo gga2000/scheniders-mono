@@ -9,6 +9,7 @@ import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 
 export interface CustomerReliability {
     total_orders: number;
+    total_spent: number;
     completed_count: number;
     cancelled_count: number;
     no_response_count: number;

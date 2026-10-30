@@ -1,15 +1,22 @@
 "use client";
 
-import { use, Suspense } from "react";
+import { use, useState, Suspense } from "react";
+import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Filter, Eye, Download } from "lucide-react";
+import { ArrowLeft, Eye, Download } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
-import { trustEngine } from "@/lib/fraud-detector";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { storedPhoneVariants } from "@/lib/order-server-search";
+import { formatIQD, getStatusLabel } from "@/lib/utils";
+import { formatPhoneDisplay } from "@/lib/customer-format";
+import { toast } from "@/hooks/use-toast";
+import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
 import { useVoiceNotes } from "@/hooks/use-voice-notes";
 import { useCustomerStore } from "@/store/use-customer-store";
@@ -31,105 +38,91 @@ import { ActivityLogTimeline } from "@/components/customers/detail/activity-log-
 import { AddNoteModal } from "@/components/customers/modals/add-note-modal";
 import type { TrustTier } from "@/types/customer";
 
+const CreateOrderModal = dynamic(() => import("@/components/orders/create-order-modal").then((m) => m.CreateOrderModal), { ssr: false });
+
+type ProfileOrder = {
+    id: string;
+    order_id: string;
+    created_at: string;
+    items: unknown;
+    price: number | null;
+    total_price: number;
+    status: string;
+    is_return: boolean | null;
+    governorate_code: string | null;
+};
+
+type ProfileTag = { id: string; name: string; color: string };
+
 function useCustomerProfile(phone: string) {
-    // RLS limits every read to the caller's tenants; the explicit tenant filter
-    // keeps the dossier to the tenant being worked in, so a phone that is a
-    // customer of two tenants never merges their orders, notes and trust.
+    // Every read is pinned to the store being worked in, so a phone that is a
+    // customer of two stores never merges their orders, notes and trust.
     const { tenantId } = useAuth();
     return useQuery({
         queryKey: ["customer-profile", tenantId, phone],
         enabled: !!tenantId,
         queryFn: async () => {
-            if (!tenantId) throw new Error("No active tenant");
-            const normalized = trustEngine.normalizePhone(phone);
-            // Match every stored phone format for this person: bare (07…/7…), the
-            // normalized key, `964…` and `+964…`. supabase-js encodes the leading
-            // `+`, so the `.in()` filter is safe (same variant list the dialog uses).
-            const phoneVariants = [normalized, `0${normalized}`, `964${normalized}`, `+964${normalized}`];
+            if (!tenantId) throw new Error("No active store");
+            const normalized = normalizePhoneForSearch(phone);
+            const variants = storedPhoneVariants(normalized);
 
-            const { data: trust } = await supabase
-                .from("customer_trust")
-                .select("*")
-                .eq("tenant_id", tenantId)
-                .eq("phone", normalized)
-                .maybeSingle();
+            const [trustRes, aggRes, notesRes, tagsRes, blacklistRes, reliabilityRes, ordersRes] = await Promise.all([
+                supabase.from("customer_trust").select("trust_score, trust_tier")
+                    .eq("tenant_id", tenantId).eq("phone", normalized).maybeSingle(),
+                // mv_customer_metrics is keyed by the normalized phone.
+                supabase.from("customer_aggregates").select("*")
+                    .eq("tenant_id", tenantId).eq("customer_phone", normalized).maybeSingle(),
+                supabase.from("customer_notes").select("*")
+                    .eq("tenant_id", tenantId).in("customer_phone", variants)
+                    .order("created_at", { ascending: false }),
+                supabase.from("customer_tag_assignments").select("tag:customer_tags(*)")
+                    .eq("tenant_id", tenantId).in("customer_phone", variants),
+                supabase.from("blacklist").select("phone")
+                    .eq("tenant_id", tenantId).in("phone", variants).limit(1),
+                // Totals and counts use the same delivered-only rule as the list.
+                supabase.rpc("get_customer_reliability", { p_phone: normalized }),
+                supabase.from("orders")
+                    .select("id, order_id, created_at, items, price, total_price:price, status, is_return, governorate_code")
+                    .eq("tenant_id", tenantId)
+                    .in("phone", variants)
+                    .is("deleted_at", null)
+                    .not("is_test", "is", true)
+                    .neq("status", "pending_checkout")
+                    .order("created_at", { ascending: false })
+                    .limit(200),
+            ]);
+            for (const res of [trustRes, aggRes, notesRes, tagsRes, blacklistRes, reliabilityRes, ordersRes]) {
+                if (res.error) throw res.error;
+            }
 
-            const { data: aggRows } = await supabase
-                .from("customer_aggregates")
-                .select("*")
-                .eq("tenant_id", tenantId)
-                .in("customer_phone", phoneVariants)
-                .limit(1);
-            const agg = aggRows?.[0] || null;
-
-            const { data: notes } = await supabase
-                .from("customer_notes")
-                .select("*")
-                .eq("tenant_id", tenantId)
-                .in("customer_phone", phoneVariants)
-                .order("created_at", { ascending: false });
-
-            const { data: tagAssignments } = await supabase
-                .from("customer_tag_assignments")
-                .select("*, tag:customer_tags(*)")
-                .eq("tenant_id", tenantId)
-                .in("customer_phone", phoneVariants);
-
-            const { data: blacklistRows } = await supabase
-                .from("blacklist")
-                .select("phone")
-                .eq("tenant_id", tenantId)
-                .in("phone", phoneVariants)
-                .limit(1);
-            const blacklist = blacklistRows?.[0] || null;
-
-            // Two-axis VALUE + RISK (same SQL helpers as the list/dialog/order panel).
-            const { data: reliabilityRows } = await supabase
-                .rpc("get_customer_reliability", { p_phone: normalized });
-            const reliability = (reliabilityRows as CustomerReliability[] | null)?.[0] ?? null;
-
-            // Fetch orders for the order history table.
-            // NOTE: the orders table column is `phone`, not `customer_phone`.
-            const { data: orders } = await supabase
-                .from("orders")
-                .select("id, order_id, created_at, items, price, total_price:price, status, governorate_code")
-                .eq("tenant_id", tenantId)
-                .in("phone", phoneVariants)
-                .order("created_at", { ascending: false })
-                .limit(200);
-
-            // Prefer authoritative trust-engine totals over the aggregate mat-view
-            // (the mv is per-tenant and can lag); fall back to the mv and finally
-            // to the live `orders` array we just fetched so a freshly-created
-            // customer with zero trust/aggregate rows still renders accurate stats.
-            const ordersList = orders || [];
-            const ordersSum = ordersList.reduce((sum, o) => sum + Number(o.price || 0), 0);
-            const resolvedTotalOrders = Number(trust?.total_orders ?? agg?.total_orders ?? ordersList.length ?? 0);
-            const resolvedTotalSpent = Number(trust?.total_spent ?? agg?.total_spent ?? ordersSum ?? 0);
-            const resolvedFirstOrder = trust?.first_order_date ?? agg?.first_order_date ?? ordersList[ordersList.length - 1]?.created_at ?? null;
-            const resolvedLastOrder = trust?.last_order_date ?? agg?.last_order_date ?? ordersList[0]?.created_at ?? null;
+            const trust = trustRes.data;
+            const agg = aggRes.data;
+            const reliability = (reliabilityRes.data as CustomerReliability[] | null)?.[0] ?? null;
+            const orders: ProfileOrder[] = (ordersRes.data ?? []).map((o) => ({ ...o, total_price: o.total_price ?? 0 }));
+            const totalOrders = Number(reliability?.total_orders ?? 0);
+            const completed = Number(reliability?.completed_count ?? 0);
 
             return {
                 phone: normalized,
-                name: agg?.latest_name || "Unknown",
-                city: agg?.latest_city,
-                governorate: agg?.latest_governorate,
-                totalOrders: resolvedTotalOrders,
-                totalSpent: resolvedTotalSpent,
-                lastOrderDate: resolvedLastOrder,
-                firstOrderDate: resolvedFirstOrder,
-                trustScore: trust?.trust_score ?? 100,
+                name: agg?.latest_name ?? null,
+                city: agg?.latest_city ?? null,
+                governorate: agg?.latest_governorate ?? null,
+                secondaryPhone: agg?.latest_secondary_phone ?? null,
+                addressDetails: agg?.latest_address_details ?? null,
+                totalOrders,
+                totalSpent: Number(reliability?.total_spent ?? 0),
+                lastOrderDate: agg?.last_order_date ?? orders[0]?.created_at ?? null,
+                firstOrderDate: agg?.first_order_date ?? orders[orders.length - 1]?.created_at ?? null,
+                // Same neutral default as the list until the trust engine has scored them.
+                trustScore: trust?.trust_score ?? 50,
                 trustTier: (trust?.trust_tier ?? "new") as TrustTier,
-                deliverySuccessRate: Number(trust?.delivery_success_rate ?? 0),
-                // The trust engine computes delivery_success_rate as delivered /
-                // total_orders, so the card subtitle must use the same
-                // denominator to keep the big percent and the "based on N"
-                // subtitle internally consistent.
-                totalCompletedFromTrust: Number(trust?.total_orders ?? 0),
-                isBlacklisted: !!blacklist,
-                notes: notes || [],
-                tags: (tagAssignments || []).map((ta: any) => ta.tag).filter(Boolean),
-                orders: ordersList,
+                deliverySuccessRate: totalOrders > 0 ? (completed / totalOrders) * 100 : 0,
+                totalCompleted: completed,
+                isBlacklisted: (blacklistRes.data ?? []).length > 0,
+                notes: notesRes.data ?? [],
+                tags: ((tagsRes.data ?? []) as unknown as { tag: ProfileTag | null }[])
+                    .flatMap((ta) => (ta.tag ? [ta.tag] : [])),
+                orders,
                 reliability,
             };
         },
@@ -137,32 +130,56 @@ function useCustomerProfile(phone: string) {
     });
 }
 
-function OrderStatusBadge({ status }: { status: string }) {
-    const s = status?.toLowerCase();
-    if (s === "delivered" || s === "completed") {
-        return <span className="bg-[#c7f8ef] text-[#33605a] px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">Delivered</span>;
-    }
-    if (s === "rejected" || s === "returned") {
-        return <span className="bg-red-100 text-red-700 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">Returned</span>;
-    }
-    if (s === "in_transit" || s === "shipping") {
-        return <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">In Transit</span>;
-    }
-    if (s === "confirmed") {
-        return <span className="bg-[#FBE38E]/30 text-foreground px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">Confirmed</span>;
-    }
-    return <span className="bg-muted/50 text-muted-foreground px-3 py-1.5 rounded-full text-[10px] font-bold uppercase">{status}</span>;
+const STATUS_TONE: Record<string, string> = {
+    delivered: "bg-[#c7f8ef] text-[#33605a]",
+    completed: "bg-[#c7f8ef] text-[#33605a]",
+    rejected: "bg-red-100 text-red-700",
+    returned: "bg-red-100 text-red-700",
+    return_pending: "bg-red-100 text-red-700",
+    cancelled: "bg-muted/50 text-muted-foreground",
+    in_transit: "bg-blue-100 text-blue-700",
+    shipping: "bg-blue-100 text-blue-700",
+    confirmed: "bg-[#FBE38E]/30 text-foreground",
+};
+
+function OrderStatusBadge({ status, isReturn }: { status: string; isReturn: boolean }) {
+    const { language } = useLanguage();
+    const tone = STATUS_TONE[status?.toLowerCase()] ?? "bg-muted/50 text-muted-foreground";
+    return (
+        <span className={`${tone} px-3 py-1.5 rounded-full text-[10px] font-bold uppercase`}>
+            {getStatusLabel(status, isReturn, language)}
+        </span>
+    );
 }
+
+const HISTORY_ROWS = 20;
 
 function CustomerProfileContent({ phone }: { phone: string }) {
     const { t } = useLanguage();
     const { tenantId } = useAuth();
     const router = useRouter();
     const store = useCustomerStore();
+    const { createOrder } = useOrderCrud();
+    const [creatingOrder, setCreatingOrder] = useState(false);
 
-    const { data: profile, isLoading } = useCustomerProfile(phone);
+    const { data: profile, isLoading, isError, refetch, isRefetching } = useCustomerProfile(phone);
     const { data: historyData } = useTrustScoreHistory(profile?.phone);
     const { data: voiceNotes } = useVoiceNotes(profile?.phone);
+
+    if (isError) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+                <p className="text-sm text-muted-foreground">{t("customers.profile.loadFailed")}</p>
+                <button
+                    onClick={() => refetch()}
+                    disabled={isRefetching}
+                    className="px-5 py-2.5 rounded-full bg-foreground text-background text-xs font-bold disabled:opacity-50"
+                >
+                    {t("customers.profile.retry")}
+                </button>
+            </div>
+        );
+    }
 
     if (isLoading || !profile) {
         return (
@@ -172,8 +189,10 @@ function CustomerProfileContent({ phone }: { phone: string }) {
         );
     }
 
+    const displayName = profile.name ?? formatPhoneDisplay(profile.phone);
+
     return (
-        <div className="customers-page customer-profile min-h-screen p-6 md:p-8 lg:p-10 pb-24">
+        <div className="customers-page customer-profile relative min-h-screen p-6 md:p-8 lg:p-10 pb-24">
             {/* Back button */}
             <motion.button
                 initial={{ opacity: 0, x: -10 }}
@@ -189,22 +208,26 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <button
                 onClick={async () => {
                     if (!tenantId) return;
-                    const { customerDataExport } = await import("@/lib/customer-data-export");
-                    await customerDataExport.downloadAsJSON(tenantId, phone);
+                    try {
+                        const { customerDataExport } = await import("@/lib/customer-data-export");
+                        await customerDataExport.downloadAsJSON(tenantId, phone);
+                    } catch {
+                        toast({ variant: "error", title: t("customers.export.failed") });
+                    }
                 }}
-                title="Download all customer data as JSON"
+                title={t("customers.profile.exportJsonHint")}
                 className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
                 <Download className="w-3.5 h-3.5" />
-                Export JSON
+                {t("customers.profile.exportJson")}
             </button>
 
             {/* Hero Banner — peer badges + Rate button now live inside */}
             <div className="mb-8">
                 <HeroIdentityBanner
-                    name={profile.name}
+                    name={displayName}
                     phone={profile.phone}
-                    city={profile.city}
+                    city={profile.city ?? undefined}
                     tier={profile.trustTier}
                     trustScore={profile.trustScore}
                     totalOrders={profile.totalOrders}
@@ -228,7 +251,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     <DeliverySuccessCard
                         successRate={profile.deliverySuccessRate}
                         recentOrders={profile.orders}
-                        totalCompletedFromTrust={profile.totalCompletedFromTrust}
+                        totalCompletedFromTrust={profile.totalCompleted}
                     />
                 </div>
                 <div className="col-span-12 lg:col-span-8">
@@ -281,31 +304,20 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 {/* Row 5: Order History (col-span-12) */}
                 <div className="col-span-12">
                     <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="font-headline font-extrabold text-xl text-foreground">
-                                {t("customers.profile.orderHistory")}
-                            </h3>
-                            <div className="flex gap-4">
-                                <button className="flex items-center gap-2 px-5 py-2.5 bg-muted/30 rounded-full hover:bg-muted/50 transition-colors">
-                                    <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-                                    <span className="text-xs font-bold text-foreground">{t("customers.profile.filterByStatus")}</span>
-                                </button>
-                                <button className="text-xs font-bold bg-foreground text-background px-6 py-2.5 rounded-full shadow-lg hover:shadow-xl transition-all uppercase tracking-wide">
-                                    {t("customers.profile.exportHistory")}
-                                </button>
-                            </div>
-                        </div>
+                        <h3 className="font-headline font-extrabold text-xl text-foreground mb-8">
+                            {t("customers.profile.orderHistory")}
+                        </h3>
 
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest border-b border-muted/20">
-                                        <th className="pb-6 px-4">Order ID</th>
-                                        <th className="pb-6 px-4">Date</th>
-                                        <th className="pb-6 px-4">Items</th>
-                                        <th className="pb-6 px-4">Amount</th>
-                                        <th className="pb-6 px-4">Status</th>
-                                        <th className="pb-6 px-4 text-right">Actions</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.order")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.date")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.items")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.amount")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.status")}</th>
+                                        <th className="pb-6 px-4 text-right"><span className="sr-only">{t("customers.profile.viewOrder")}</span></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-muted/10">
@@ -316,39 +328,34 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                             </td>
                                         </tr>
                                     ) : (
-                                        profile.orders.map((order: any) => {
-                                            const items = (() => {
-                                                try {
-                                                    const parsed = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-                                                    if (Array.isArray(parsed)) {
-                                                        const lineCount = mergeOrderItems(parsed).length;
-                                                        return `${lineCount} item${lineCount !== 1 ? "s" : ""}`;
-                                                    }
-                                                } catch {}
-                                                return "—";
-                                            })();
+                                        profile.orders.slice(0, HISTORY_ROWS).map((order) => {
+                                            const parsed = Array.isArray(order.items) ? order.items : null;
+                                            const lineCount = parsed ? mergeOrderItems(parsed).length : null;
                                             return (
                                                 <tr key={order.id} className="group hover:bg-muted/10 transition-colors">
                                                     <td className="py-6 px-4 font-headline font-bold text-sm tabular-nums text-foreground">
-                                                        #{order.id?.toString().slice(-6).toUpperCase()}
+                                                        #{order.order_id}
+                                                    </td>
+                                                    <td className="py-6 px-4 text-muted-foreground text-xs tabular-nums">
+                                                        {order.created_at.slice(0, 10)}
                                                     </td>
                                                     <td className="py-6 px-4 text-muted-foreground text-xs">
-                                                        {new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}
+                                                        {lineCount === null ? "—" : t("customers.profile.itemsCount", { count: lineCount })}
                                                     </td>
-                                                    <td className="py-6 px-4 text-muted-foreground text-xs">{items}</td>
                                                     <td className="py-6 px-4 font-bold text-sm tabular-nums text-foreground">
-                                                        IQD {Number(order.price || 0).toLocaleString("en-US")}
+                                                        {formatIQD(Number(order.price || 0))}
                                                     </td>
                                                     <td className="py-6 px-4">
-                                                        <OrderStatusBadge status={order.status} />
+                                                        <OrderStatusBadge status={order.status} isReturn={!!order.is_return} />
                                                     </td>
                                                     <td className="py-6 px-4 text-right">
-                                                        <button
-                                                            onClick={() => router.push(`/orders?highlight=${order.id}`)}
-                                                            className="text-muted-foreground/30 hover:text-foreground transition-colors"
+                                                        <Link
+                                                            href={`/orders?search=${encodeURIComponent(order.order_id)}`}
+                                                            aria-label={t("customers.profile.viewOrder")}
+                                                            className="inline-flex text-muted-foreground/50 hover:text-foreground transition-colors"
                                                         >
                                                             <Eye className="w-5 h-5" />
-                                                        </button>
+                                                        </Link>
                                                     </td>
                                                 </tr>
                                             );
@@ -358,18 +365,37 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                             </table>
                         </div>
 
-                        {profile.totalOrders > 20 && (
+                        {profile.orders.length > HISTORY_ROWS && (
                             <div className="mt-10 flex justify-center">
-                                <button className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-[0.2em]">
-                                    {t("customers.profile.viewAll").replace("{count}", profile.totalOrders.toLocaleString("en-US"))}
-                                </button>
+                                <Link
+                                    href={`/orders?search=0${profile.phone}`}
+                                    className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-[0.2em]"
+                                >
+                                    {t("customers.profile.viewAll", { count: profile.totalOrders.toLocaleString("en-US") })}
+                                </Link>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            <FabNewShipment customerPhone={profile.phone} />
+            <FabNewShipment onClick={() => setCreatingOrder(true)} />
+
+            {creatingOrder && (
+                <CreateOrderModal
+                    open
+                    onClose={() => setCreatingOrder(false)}
+                    onCreate={createOrder}
+                    initialData={{
+                        customer_name: profile.name ?? undefined,
+                        phone: `0${profile.phone}`,
+                        secondary_phone: profile.secondaryPhone ?? undefined,
+                        city: profile.city ?? undefined,
+                        governorate_code: profile.governorate ?? undefined,
+                        address_details: profile.addressDetails ?? undefined,
+                    }}
+                />
+            )}
 
             {/* Modals */}
             <ScoreBreakdownModal />

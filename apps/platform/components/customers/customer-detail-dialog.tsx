@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag, Star,
-    Package, ChevronDown, User, Home, ShoppingBag, StickyNote, ShieldCheck, CreditCard, Truck,
+    Package, ChevronDown, User, Home, ShoppingBag, StickyNote, ShieldCheck, CreditCard, Truck, Ban,
 } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
@@ -23,6 +24,12 @@ import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { monogram, formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
+import { addToBlacklist, removeFromBlacklist } from "@/lib/blacklist";
+import { useOrderCrud } from "@/hooks/use-order-crud";
+
+// Opened on demand from the footer; kept out of the customers page bundle.
+const BlacklistDialog = dynamic(() => import("@/components/orders/blacklist-dialog").then((m) => m.BlacklistDialog), { ssr: false });
+const CreateOrderModal = dynamic(() => import("@/components/orders/create-order-modal").then((m) => m.CreateOrderModal), { ssr: false });
 
 interface OrderItem { name?: string; price?: number; quantity?: number; image_url?: string }
 interface DialogOrder {
@@ -234,18 +241,38 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
 export function CustomerDetailDialog({ customer, onClose }: { customer: PaginatedCustomer | null; onClose: () => void }) {
     const { t, language } = useLanguage();
     const router = useRouter();
+    const queryClient = useQueryClient();
+    const { tenantId, profile, user } = useAuth();
+    const { createOrder } = useOrderCrud();
     const [limit, setLimit] = useState(60);
+    const [blacklistMode, setBlacklistMode] = useState<"add" | "remove" | null>(null);
+    const [creatingOrder, setCreatingOrder] = useState(false);
     const data = useCustomerDialogData(customer?.phone ?? null, limit);
+    const nestedOpen = blacklistMode !== null || creatingOrder;
 
     useEffect(() => {
         if (!customer) return;
         setLimit(60); // reset paging each time a new customer opens
         const prev = document.body.style.overflow;
         document.body.style.overflow = "hidden";
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+        // A nested dialog (block, new order) handles its own Escape.
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !nestedOpen) onClose(); };
         window.addEventListener("keydown", onKey);
         return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
-    }, [customer, onClose]);
+    }, [customer, onClose, nestedOpen]);
+
+    const onBlacklistConfirm = async (reason?: string, notes?: string) => {
+        if (!customer || !tenantId) throw new Error("No active store");
+        if (blacklistMode === "add") {
+            await addToBlacklist({
+                tenantId, phone: customer.phone, reason: reason ?? "", notes,
+                addedBy: profile?.display_name || user?.email || null,
+            });
+        } else {
+            await removeFromBlacklist(tenantId, customer.phone);
+        }
+        await queryClient.invalidateQueries({ queryKey: ["customers"] });
+    };
 
     const loadedAll = !data.data || data.data.orders.length >= (data.data.totalOrders ?? 0);
 
@@ -262,8 +289,35 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     onLoadMore={() => setLimit((l) => l + 60)}
                     onClose={onClose}
                     onOpenFull={() => router.push(`/customers/${encodeURIComponent(customer.phone)}`)}
+                    onNewOrder={() => setCreatingOrder(true)}
+                    onToggleBlock={() => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
                     t={t}
                     locale={language}
+                />
+            )}
+            {customer && blacklistMode && (
+                <BlacklistDialog
+                    open
+                    onClose={() => setBlacklistMode(null)}
+                    mode={blacklistMode}
+                    customerName={customer.name}
+                    customerPhone={formatPhoneDisplay(customer.phone)}
+                    onConfirm={onBlacklistConfirm}
+                />
+            )}
+            {customer && creatingOrder && (
+                <CreateOrderModal
+                    open
+                    onClose={() => setCreatingOrder(false)}
+                    onCreate={createOrder}
+                    initialData={{
+                        customer_name: customer.name,
+                        phone: `0${customer.phone}`,
+                        secondary_phone: customer.secondary_phone,
+                        city: customer.city ?? undefined,
+                        governorate_code: customer.governorate ?? undefined,
+                        address_details: customer.address_details,
+                    }}
                 />
             )}
         </AnimatePresence>
@@ -271,7 +325,7 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
 }
 
 function Body({
-    customer, data, loading, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, t, locale,
+    customer, data, loading, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, onNewOrder, onToggleBlock, t, locale,
 }: {
     customer: PaginatedCustomer;
     data: ReturnType<typeof useCustomerDialogData>["data"];
@@ -281,6 +335,8 @@ function Body({
     onLoadMore: () => void;
     onClose: () => void;
     onOpenFull: () => void;
+    onNewOrder: () => void;
+    onToggleBlock: () => void;
     t: (k: string, f?: string) => string;
     locale: string;
 }) {
@@ -463,10 +519,23 @@ function Body({
                     <a href={`tel:+${e164}`} className="flex-1 h-12 rounded-2xl border border-(--card-border) font-bold inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
                         <Phone className="w-4 h-4" /> {t("customers.drawer.call", "Call")}
                     </a>
-                    <button onClick={onOpenFull} className="h-12 px-4 rounded-2xl border border-(--card-border) font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
+                    <button onClick={onOpenFull} aria-label={t("customers.drawer.openFull", "Full profile")} className="h-12 min-w-12 px-4 rounded-2xl border border-(--card-border) font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
                         <ExternalLink className="w-4 h-4" /> <span className="hidden sm:inline">{t("customers.drawer.openFull", "Full profile")}</span>
                     </button>
-                    <button onClick={onOpenFull} className="flex-1 h-12 rounded-2xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                    <button
+                        onClick={onToggleBlock}
+                        aria-label={customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}
+                        className={cn(
+                            "h-12 min-w-12 px-4 rounded-2xl border font-semibold inline-flex items-center justify-center gap-2 transition-colors",
+                            customer.is_blacklisted
+                                ? "border-(--card-border) text-foreground hover:bg-muted/40"
+                                : "border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/40",
+                        )}
+                    >
+                        <Ban className="w-4 h-4" />
+                        <span className="hidden sm:inline">{customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}</span>
+                    </button>
+                    <button onClick={onNewOrder} className="flex-1 h-12 rounded-2xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
                         <Plus className="w-4 h-4" /> {t("customers.drawer.newOrder", "New order")}
                     </button>
                 </div>

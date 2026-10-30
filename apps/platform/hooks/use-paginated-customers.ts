@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { CustomerStatus, TrustTier } from "@/types/customer";
 import type { ValueTier, RiskLevel } from "@/lib/customer-reliability";
 import { CACHE_PRESETS } from '@/lib/query-config';
+import type { Database } from "@scheniders/supabase/database.types";
 
 export interface PaginatedCustomerFilters {
     status?: CustomerStatus | "all";
@@ -74,6 +75,69 @@ export interface PaginatedCustomersResponse {
     totalPages: number;
 }
 
+/** RPC arguments for get_paginated_customers; shared by the list and the export so both read the same set. */
+export function toCustomerRpcArgs(filters: PaginatedCustomerFilters | undefined, limit: number, offset: number) {
+    return {
+        search_query: filters?.search || null,
+        status_filter: filters?.status === "all" ? null : (filters?.status || null),
+        city_filter: filters?.city || null,
+        sort_by: filters?.sortBy || "last_order_date",
+        sort_desc: filters?.sortOrder !== "asc",
+        page_limit: limit,
+        page_offset: offset,
+        min_ltv: filters?.minLtv ?? null,
+        max_ltv: filters?.maxLtv ?? null,
+        last_order_within_days: filters?.lastOrderWithinDays ?? null,
+        tag_id_filter: filters?.tagId || null,
+        trust_tier_filter: filters?.trustTier === "all" ? null : (filters?.trustTier || null),
+        min_trust_score: filters?.minTrustScore ?? null,
+        max_trust_score: filters?.maxTrustScore ?? null,
+        value_filter: filters?.valueFilter && filters.valueFilter !== "all" ? filters.valueFilter : null,
+        risk_filter: filters?.riskFilter && filters.riskFilter !== "all" ? filters.riskFilter : null,
+        last_order_before_days: filters?.lastOrderBeforeDays ?? null,
+        first_order_within_days: filters?.firstOrderWithinDays ?? null,
+        first_delivery_pending: filters?.firstDeliveryPending ?? null,
+    };
+}
+
+type CustomerRpcRow = Database["public"]["Functions"]["get_paginated_customers"]["Returns"][number];
+
+export function mapCustomerRow(row: CustomerRpcRow): PaginatedCustomer {
+    return {
+        phone: row.phone,
+        name: row.name || "Unknown Customer",
+        city: row.city,
+        governorate: row.governorate,
+        total_orders: Number(row.total_orders),
+        total_spent: Number(row.total_spent),
+        last_order_date: row.last_order_date,
+        first_order_date: row.first_order_date,
+        calculated_status: row.calculated_status as CustomerStatus,
+        is_blacklisted: row.is_blacklisted,
+        total_items: Number(row.total_items || 0),
+        last_order_id: row.last_order_id,
+        last_order_status: row.last_order_status,
+        secondary_phone: row.secondary_phone ?? undefined,
+        address_details: row.address_details ?? undefined,
+        trust_score: Number(row.trust_score ?? 50),
+        trust_tier: (row.trust_tier || 'new') as TrustTier,
+        delivery_success_rate: Number(row.delivery_success_rate ?? 0),
+        community_avg_rating: Number(row.community_avg_rating ?? 0),
+        cancelled_count: Number(row.cancelled_count ?? 0),
+        no_response_count: Number(row.no_response_count ?? 0),
+        rejected_count: Number(row.rejected_count ?? 0),
+        returned_count: Number(row.returned_count ?? 0),
+        refund_count: Number(row.refund_count ?? 0),
+        completed_count: Number(row.completed_count ?? 0),
+        value_tier: (row.value_tier || 'newcomer') as ValueTier,
+        risk_level: (row.risk_level || 'clean') as RiskLevel,
+        severe_count: Number(row.severe_count ?? 0),
+        recent_severe_count: Number(row.recent_severe_count ?? 0),
+        moderate_count: Number(row.moderate_count ?? 0),
+        recent_moderate_count: Number(row.recent_moderate_count ?? 0),
+    };
+}
+
 /**
  * Hook to fetch paginated customers directly from the database using an RPC.
  * Uses useInfiniteQuery to support infinite scrolling in the virtualized list.
@@ -93,72 +157,20 @@ export function usePaginatedCustomers(
             const offset = (pageParam - 1) * limit;
 
             // Call the RPC we defined in the migration
-            const { data, error } = await supabase.rpc("get_paginated_customers", {
-                search_query: filters?.search || null,
-                status_filter: filters?.status === "all" ? null : (filters?.status || null),
-                city_filter: filters?.city || null,
-                sort_by: filters?.sortBy || "last_order_date",
-                sort_desc: filters?.sortOrder !== "asc", // Defaults to true/desc
-                page_limit: limit,
-                page_offset: offset,
-                min_ltv: filters?.minLtv ?? null,
-                max_ltv: filters?.maxLtv ?? null,
-                last_order_within_days: filters?.lastOrderWithinDays ?? null,
-                tag_id_filter: filters?.tagId || null,
-                trust_tier_filter: filters?.trustTier === "all" ? null : (filters?.trustTier || null),
-                min_trust_score: filters?.minTrustScore ?? null,
-                max_trust_score: filters?.maxTrustScore ?? null,
-                value_filter: filters?.valueFilter && filters.valueFilter !== "all" ? filters.valueFilter : null,
-                risk_filter: filters?.riskFilter && filters.riskFilter !== "all" ? filters.riskFilter : null,
-                last_order_before_days: filters?.lastOrderBeforeDays ?? null,
-                first_order_within_days: filters?.firstOrderWithinDays ?? null,
-                first_delivery_pending: filters?.firstDeliveryPending ?? null,
-            });
+            const { data, error } = await supabase.rpc("get_paginated_customers", toCustomerRpcArgs(filters, limit, offset));
 
             if (error) {
                 console.error("Error fetching paginated customers:", error);
                 throw new Error("Failed to fetch customers");
             }
 
-            const rawData = data as any[];
+            const rawData = (data ?? []) as CustomerRpcRow[];
 
             // The RPC returns total_count as a column on every row. Grab it from the first row.
             const totalCount = rawData.length > 0 ? Number(rawData[0].total_count) : 0;
 
             // Clean up the data before returning it to the components.
-            const formattedData: PaginatedCustomer[] = rawData.map(row => ({
-                phone: row.phone,
-                name: row.name || "Unknown Customer",
-                city: row.city,
-                governorate: row.governorate,
-                total_orders: Number(row.total_orders),
-                total_spent: Number(row.total_spent),
-                last_order_date: row.last_order_date,
-                first_order_date: row.first_order_date,
-                calculated_status: row.calculated_status as CustomerStatus,
-                is_blacklisted: row.blacklisted ?? row.is_blacklisted,
-                total_items: Number(row.total_items || 0),
-                last_order_id: row.last_order_id,
-                last_order_status: row.last_order_status,
-                secondary_phone: row.secondary_phone ?? undefined,
-                address_details: row.address_details ?? undefined,
-                trust_score: Number(row.trust_score ?? 50),
-                trust_tier: (row.trust_tier || 'new') as TrustTier,
-                delivery_success_rate: Number(row.delivery_success_rate ?? 0),
-                community_avg_rating: Number(row.community_avg_rating ?? 0),
-                cancelled_count: Number(row.cancelled_count ?? 0),
-                no_response_count: Number(row.no_response_count ?? 0),
-                rejected_count: Number(row.rejected_count ?? 0),
-                returned_count: Number(row.returned_count ?? 0),
-                refund_count: Number(row.refund_count ?? 0),
-                completed_count: Number(row.completed_count ?? 0),
-                value_tier: (row.value_tier || 'newcomer') as ValueTier,
-                risk_level: (row.risk_level || 'clean') as RiskLevel,
-                severe_count: Number(row.severe_count ?? 0),
-                recent_severe_count: Number(row.recent_severe_count ?? 0),
-                moderate_count: Number(row.moderate_count ?? 0),
-                recent_moderate_count: Number(row.recent_moderate_count ?? 0),
-            }));
+            const formattedData: PaginatedCustomer[] = rawData.map(mapCustomerRow);
 
             // Determine if there's a next page
             const hasMore = offset + formattedData.length < totalCount;

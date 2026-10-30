@@ -13,6 +13,7 @@ import {
     todayBaghdadDayKey,
     recentBaghdadDayKeys,
 } from "@/lib/order-revenue";
+import { addToBlacklist as addBlacklistEntry, removeFromBlacklist as removeBlacklistEntry } from "@/lib/blacklist";
 
 // =============================================
 // ORDER AUXILIARY HOOK
@@ -97,16 +98,11 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
         return auxData.blacklistMap.get(normalizePhoneForSearch(phone)) ?? null;
     }
 
-    // The blacklist key is (tenant_id, normalized phone); the DB also normalizes
-    // on write, so every stored format of the same number is one entry.
     async function addToBlacklist(phone: string, reason: string, notes?: string): Promise<void> {
         if (!tenantId) throw new Error("No active store");
         const addedBy = profile?.display_name || user?.email || null;
         const entry: BlacklistEntry = { phone: normalizePhoneForSearch(phone), reason, notes: notes || null, added_by: addedBy };
-        const { error } = await supabase
-            .from("blacklist")
-            .upsert({ ...entry, tenant_id: tenantId }, { onConflict: "tenant_id,phone" });
-        if (error) throw error;
+        await addBlacklistEntry({ tenantId, phone, reason, notes, addedBy });
         setAuxData(prev => ({
             ...prev,
             blacklistMap: new Map(prev.blacklistMap).set(normalizePhoneForSearch(phone), entry),
@@ -115,12 +111,7 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
 
     async function removeFromBlacklist(phone: string): Promise<void> {
         if (!tenantId) throw new Error("No active store");
-        const { error } = await supabase
-            .from("blacklist")
-            .delete()
-            .eq("tenant_id", tenantId)
-            .eq("phone", normalizePhoneForSearch(phone));
-        if (error) throw error;
+        await removeBlacklistEntry(tenantId, phone);
         setAuxData(prev => {
             const updated = new Map(prev.blacklistMap);
             updated.delete(normalizePhoneForSearch(phone));

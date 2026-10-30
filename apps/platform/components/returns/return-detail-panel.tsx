@@ -12,10 +12,9 @@ import type { RiskLevel } from "@/lib/fraud-detector";
 import { cn } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { useAuth } from "@/components/auth/auth-provider";
-import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { useStatusLabel } from "@/hooks/use-status-label";
-import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { addToBlacklist } from "@/lib/blacklist";
 
 const DESTS: { key: ReturnDestination; label: string }[] = [
     { key: "restock", label: "Restock" },
@@ -77,14 +76,20 @@ export function ReturnDetailPanel({
     const handleBlacklist = async () => {
         if (!order.phone) return;
         setBlacklisting(true);
-        const { error } = await supabase.from("blacklist").upsert({
-            phone: normalizePhoneForSearch(order.phone),
-            reason: reasonLabel || "Flagged from returns cockpit",
-            added_by: profile?.display_name || user?.email || null,
-            tenant_id: tenantId,
-        }, { onConflict: "tenant_id,phone" });
-        setBlacklisting(false);
-        if (error) { toast.error("Failed to blacklist"); return; }
+        try {
+            if (!tenantId) throw new Error("No active store");
+            await addToBlacklist({
+                tenantId,
+                phone: order.phone,
+                reason: reasonLabel || "Flagged from returns cockpit",
+                addedBy: profile?.display_name || user?.email || null,
+            });
+        } catch {
+            toast.error("Failed to blacklist");
+            return;
+        } finally {
+            setBlacklisting(false);
+        }
         setBlacklisted(true);
         toast.success(`Blacklisted ${order.phone}`);
     };
