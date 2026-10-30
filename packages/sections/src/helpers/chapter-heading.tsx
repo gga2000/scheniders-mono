@@ -33,7 +33,8 @@ export function ChapterHeading({
   eyebrow?: ReactNode;
   sub?: ReactNode;
   locale: LocaleCode;
-  as?: "h2" | "h3";
+  /** "h1" for a page whose chapter heading is its title (cart, checkout). */
+  as?: "h1" | "h2" | "h3";
   /** Anchor id on the title, for in-page links. */
   id?: string;
   /** `data-i18n-field` hooks for the editor's inline text editing. */
