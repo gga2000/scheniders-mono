@@ -13,11 +13,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act, cleanup, render } from "@testing-library/react";
 import type { CartItem } from "@scheniders/shared";
-import { CART_BUMP_MS } from "./helpers/cart-bump";
+import { CART_BUMP_MS, useCartBump } from "./helpers/cart-bump";
 import { useCart } from "./helpers/cart-store";
 import { StoreBaseProvider } from "./helpers/store-context";
 import site_header, { type Props } from "./site_header";
 import { SIGNATURE_HEADER_PROPS, productCtx, saleProduct } from "./_pdp-fixtures";
+
+// Pass-through spy: the hook behaves as shipped; the tests count who calls it.
+vi.mock("./helpers/cart-bump", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./helpers/cart-bump")>();
+  return { ...actual, useCartBump: vi.fn(actual.useCartBump) };
+});
 
 const OVERLAY: Props = { ...SIGNATURE_HEADER_PROPS, sticky: false, surface: "overlay" };
 const WITH_CART: Props = { ...OVERLAY, show_cart: true, overlay_cart: true };
@@ -74,6 +80,15 @@ describe("overlay_cart prop", () => {
 });
 
 describe("the cart chip in the browser", () => {
+  it("only a header with the chip subscribes to the cart's pop", () => {
+    vi.mocked(useCartBump).mockClear();
+    render(<Header props={OVERLAY} />);
+    expect(useCartBump).not.toHaveBeenCalled();
+    cleanup();
+    render(<Header props={WITH_CART} />);
+    expect(useCartBump).toHaveBeenCalled();
+  });
+
   it("shows the live count once mounted", () => {
     useCart.setState({ items: [{ ...LINE, quantity: 2 }] });
     const view = render(<Header props={WITH_CART} />);

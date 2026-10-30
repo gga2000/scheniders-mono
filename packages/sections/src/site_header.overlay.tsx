@@ -54,6 +54,43 @@ function useOverHero(barRef: React.RefObject<HTMLDivElement | null>): boolean {
   return overHero;
 }
 
+/** `overlay_cart`: the cart chip. Its own component so only a header that
+ *  renders the chip subscribes to the cart's pop. */
+function CartChip({
+  cart,
+  chipClassName,
+  onNavigate,
+}: {
+  cart: { label: string; count: number };
+  chipClassName: string;
+  onNavigate: () => void;
+}) {
+  const bumped = useCartBump();
+  return (
+    <StoreLink
+      href="/cart"
+      onClick={onNavigate}
+      aria-label={cart.label}
+      data-header-cart=""
+      className={cn(chipClassName, "relative w-11 justify-center")}
+    >
+      <MaterialIcon name="shopping_bag" className="text-2xl" />
+      {cart.count > 0 && (
+        // Ink, not yellow: yellow fills stay on the order actions (D4).
+        <span
+          data-cart-count=""
+          className={cn(
+            "absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-bk-pill bg-bk-ink px-1 font-bk-body text-xs font-bold tabular-nums text-bk-surface transition-transform duration-bk-fast motion-reduce:transition-none",
+            bumped && "scale-125",
+          )}
+        >
+          {cart.count}
+        </span>
+      )}
+    </StoreLink>
+  );
+}
+
 export function OverlayHeader({
   wordmark,
   logo,
@@ -81,7 +118,6 @@ export function OverlayHeader({
   const barRef = useRef<HTMLDivElement | null>(null);
   useMenuSheet({ open, onClose: close, sheetRef, toggleRef });
   const overHero = useOverHero(barRef);
-  const bumped = useCartBump();
   const glass = overHero && !open;
   const hasSheet = navLinks.length > 0 || enabledLocales.length > 1;
   // Arabic-script rows sit against the right edge — under the toggle that
@@ -159,27 +195,7 @@ export function OverlayHeader({
           </StoreLink>
           {cart ? (
             <div className="flex shrink-0 items-center gap-2">
-              <StoreLink
-                href="/cart"
-                onClick={close}
-                aria-label={cart.label}
-                data-header-cart=""
-                className={cn(chip, "relative w-11 justify-center")}
-              >
-                <MaterialIcon name="shopping_bag" className="text-2xl" />
-                {cart.count > 0 && (
-                  // Ink, not yellow: yellow fills stay on the order actions (D4).
-                  <span
-                    data-cart-count=""
-                    className={cn(
-                      "absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-bk-pill bg-bk-ink px-1 font-bk-body text-xs font-bold tabular-nums text-bk-surface transition-transform duration-bk-fast motion-reduce:transition-none",
-                      bumped && "scale-125",
-                    )}
-                  >
-                    {cart.count}
-                  </span>
-                )}
-              </StoreLink>
+              <CartChip cart={cart} chipClassName={chip} onNavigate={close} />
               {menuToggle}
             </div>
           ) : (
