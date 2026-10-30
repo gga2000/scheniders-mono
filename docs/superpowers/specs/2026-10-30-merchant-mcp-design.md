@@ -1,19 +1,23 @@
-# Merchant MCP connector: design
+# Platform MCP connector: design
 
-Status: draft for Ali's review · 2026-10-30
+Status: revised 2026-10-30 after Ali's feedback ("the AI should fully control my store, platform app only, read and write, only for me at first, go live later").
 
 ## Goal
 
-A merchant adds "Scheniders" as a connector in Claude (claude.ai, Claude Desktop or Claude Code), signs in with their normal Scheniders account, and can then ask questions about **their own store**, for example "which orders are stuck in delivery in Basra this week?", "how many orders did we deliver yesterday and for how much?" or "is 0770… a good customer?".
+Ali adds "Scheniders" as a connector in Claude (claude.ai, Claude Desktop or Claude Code), signs in with his Scheniders account, and Claude can run his store in the platform app: look things up, and change things. Examples include "move every order confirmed yesterday in Basra to shipped", "set stock of the black hoodie L to 12" and "create an order for 0770… with 2× product X to Karbala".
 
-Version 1 is **read-only**. Writes (order status, stock) come in a later version, each confirmed by the merchant and written to the activity log.
+Only users on an access list can connect. At launch that is only Ali. Going live later means adding merchants to the list, or replacing the list with a per-store setting. No code change is needed for that.
+
+Out of scope: the storefront and internal admin apps.
 
 ## Non-negotiables
 
-1. **Tenant isolation.** Every tool acts as the signed-in user, in their membership-verified active store. A tool never accepts a tenant id from Claude.
-2. **Role and permission respected.** A `viewer` sees what a viewer sees in the app. Money figures need the same permission the Finances page needs (`has_tenant_permission`).
-3. **Read-only is enforced by the database, not only by the tool list.** The OAuth token Claude holds is a real Supabase user JWT, so it could also be sent straight to the Supabase REST API. The database must refuse writes from it (see "Read-only token" below).
-4. **Every tool call is logged** with user, store, OAuth client and tool name.
+1. **Tenant isolation.** Every call acts as the signed-in user in their membership-verified active store (`resolveActiveTenant`). A tool never accepts a tenant id from Claude. RLS applies to every query because the server talks to Supabase **with the user's own token**, never the service role.
+2. **Same rules as the app.** Tools call the same repositories and RPCs the platform UI uses, so validation, triggers, stock moves and order-number rules behave exactly as when Ali clicks in the app. Role and permission checks (`has_tenant_permission`) apply the same way.
+3. **Access list enforced in the database.** The OAuth token Claude holds is a real Supabase user JWT that carries a `client_id` claim. A PostgREST `db_pre_request` guard refuses *any* request made with such a token unless the user is on `mcp_access`. Revoking a user takes effect on their next request.
+4. **No deletes, no money movement through Claude.** The guard refuses HTTP `DELETE` for OAuth tokens and refuses writes to sensitive tables and RPCs (wallet, billing and subscriptions, team membership, roles and permissions, user profiles). Claude can cancel an order but not delete one.
+5. **Every write is audited.** Each tool call writes an `activity_logs` row tagged `source: "claude"` with the user, store, OAuth client, tool, input and result. The order timeline shows "via Claude".
+6. **Writes are explicit.** Write tools are marked `destructiveHint` so Claude asks before running them. Bulk tools (more than one order) show a preview first and need a second call with `confirm: true`.
 
 ## Architecture
 
@@ -21,67 +25,57 @@ Version 1 is **read-only**. Writes (order status, stock) come in a later version
 Claude ──(OAuth 2.1 + PKCE, dynamic client registration)──> Supabase Auth OAuth server
    │                                                           │ redirects to
    │                                                           ▼
-   │                                       platform /oauth/consent  (sign in → approve/deny)
+   │                                       platform /oauth/consent  (sign in → approve/deny;
+   │                                                                  refuses users not on mcp_access)
    │
-   └──(Bearer: Supabase access token, carries client_id)──> platform /api/mcp  (Streamable HTTP)
-                                                            │ verify token → resolveActiveTenant
-                                                            ▼
-                                                 Supabase as the user (RLS applies)
+   └──(Bearer: user access token with client_id)──> platform /api/mcp  (Streamable HTTP)
+                                                    │ verify token → mcp_access check → resolveActiveTenant
+                                                    ▼
+                                         repositories / RPCs with a Supabase client built
+                                         from the user's token (RLS + db_pre_request guard)
 ```
-
-**Units:**
 
 | Unit | Location | Job |
 |---|---|---|
-| OAuth server | Supabase dashboard (Auth → OAuth Server) | Issues tokens. Ali enables it, sets the authorization path to `/oauth/consent` and turns on dynamic client registration. |
-| Consent page | `apps/platform/app/oauth/consent/` | Signs the user in (reuses login `returnTo`), shows the client name, the store and a plain list of what it can read, then Approve or Deny. Arabic and English, LTR. |
-| Protected-resource metadata | `apps/platform/app/.well-known/oauth-protected-resource/route.ts` | Tells Claude which authorization server to use. |
-| MCP endpoint | `apps/platform/app/api/mcp/route.ts` | Streamable HTTP via `mcp-handler` and `@modelcontextprotocol/sdk`. Verifies the bearer token, resolves the caller with the existing `resolveActiveTenant`, then dispatches to tools. Middleware does not run on `/api`, so the route authenticates itself. |
-| Tools | `apps/platform/lib/mcp/tools/*.ts` | One file per tool. Each has a Zod input schema, a user-scoped Supabase client and a pure formatter. Tools are unit-tested on their own. |
-| Call log | `activity_logs` via `lib/activity-logger.ts` | Records one row per tool call. |
-| Read-only token guard | new migration | See below. |
+| OAuth server | Supabase dashboard | Ali enables OAuth Server, sets the authorization path `/oauth/consent` and enables dynamic client registration. |
+| Consent page | `apps/platform/app/oauth/consent/` | Sign in (login already supports `returnTo`), show the client and store, then Approve or Deny. Users not on the list see "not available yet". |
+| Resource metadata | `apps/platform/app/.well-known/oauth-protected-resource/route.ts` | Points Claude at the Supabase authorization server. |
+| MCP endpoint | `apps/platform/app/api/mcp/[transport]/route.ts` | `mcp-handler` with `withMcpAuth`. Builds a per-request context: `{ userId, tenantId, role, clientId, db }`, where `db` is a Supabase client carrying the user's token. |
+| Tools | `apps/platform/lib/mcp/tools/<area>.ts` | Zod input, a call into the shared repository or RPC, and a compact text result. One file per area. |
+| Repositories refactor | `apps/platform/lib/repositories/*` | Today they import the browser singleton `supabase`. They become `createOrderRepository(client)` and similar, and the existing singleton exports stay as `createX(supabase)`, so the app is unchanged. This lets the MCP reuse the exact app code. |
+| Audit | `lib/mcp/audit.ts` → `activity_logs` | One row per call. |
+| DB guard and access list | migration `…_mcp_access_guard.sql` | `mcp_access` table (RLS on, no policies, so it is service-role only) and `public.mcp_request_guard()` set as `pgrst.db_pre_request`. |
 
-## Tools in v1 (read-only)
+## Tools, phase 1 (this PR)
 
-| Tool | Returns |
-|---|---|
-| `get_store` | Store name, slug, the caller's role, today's date in Baghdad time. |
-| `search_orders` | Orders filtered by term (number, phone, name), status, governorate, date range and channel. Limit 50. Reuses `search_orders_v2` and the orders list filters. |
-| `get_order` | One order: items, totals in IQD, customer, address, delivery company and tracking, and status history. |
-| `find_customer` | Customer by phone (normalized, so 07… and +9647… match) or name, with order count, delivered/returned rate and trust flag. |
-| `list_products` | Products and variants with stock, price in IQD and a `low_stock` filter. Sold counts use the delivered-only rule. |
-| `sales_summary` | Counts by status and delivered revenue for a date range, built on the same queries as the dashboard. Money needs the finance permission. |
+**Read:** `get_store`, `search_orders` (term, status, governorate, date range, channel), `get_order` (items, IQD totals, customer, delivery, history), `find_customer` (normalized phone, history, trust), `list_products` (stock, price, low-stock filter), `sales_summary` (status counts, delivered revenue; money needs the finance permission).
 
-All money is whole IQD. There is no tax logic. Phone numbers are shown in full only to roles that see them in the app.
+**Write:**
+- `update_order_status`: one or many orders; bulk needs a preview and then `confirm`. Uses the app's status path, so stock and history follow.
+- `update_order`: customer name, phone, governorate, city, address, notes, delivery price.
+- `create_order`: through `create_order_atomic`, with the same plan-limit check as the app.
+- `add_order_note`.
+- `update_product`: price, compare-at price, active/hidden.
+- `set_stock`: a variant's stock, through the same stock-delta path the Products page uses.
 
-## Read-only token guard
+## Tools, phase 2 (next PRs, same pattern)
 
-Supabase OAuth access tokens carry a `client_id` claim; the app's own session tokens do not. A PostgREST `db_pre_request` function (none exists today) checks `request.jwt.claims ->> 'client_id'`. When it is present:
-
-- `GET` and `HEAD` are allowed (RLS still applies).
-- `POST /rpc/<fn>` is allowed only for an allowlist of read functions the tools use.
-- Everything else (`POST`, `PATCH`, `DELETE` and other RPCs) raises `42501`.
-
-A restrictive policy on `storage.objects` also blocks insert, update and delete for tokens with `client_id`. Version 2 replaces the blanket block with specific write tools that go through the existing guarded server code, not direct table writes.
+Customers (blacklist, notes), delivery (assign company, Waseet export, print batches), after-sale (refund, replacement), abandoned carts, products (create, images), categories, expenses, store builder text, and chat replies.
 
 ## Error handling
 
-- A missing or invalid token returns 401 with `WWW-Authenticate` pointing at the resource metadata, so Claude re-runs sign-in.
-- A deactivated user, no active store or a missing permission returns a tool error with a plain sentence, never a stack trace.
-- Supabase errors are reported to Sentry and returned as a generic message.
+- A missing or invalid token returns 401 with `WWW-Authenticate` pointing to the resource metadata, so Claude signs in again.
+- If the user is not on the list, the guard rejects the request: 403 with "Claude access is not enabled for this account".
+- RLS or permission failures become a plain sentence in the tool result. Unexpected errors go to Sentry and Claude gets a generic message.
 
 ## Testing
 
-- Vitest for each tool: input validation, formatting and permission gating.
-- A tenant-isolation test: a token for store A that asks for an order id from store B gets "not found".
-- A migration test on a branch: an OAuth-style JWT is refused on insert, update and delete and on a non-allowlisted RPC, and allowed on select.
-- Live: Ali adds the connector in claude.ai, signs in to `scheniders-iraq` and runs each tool. Then Ali checks the activity log rows.
+- Vitest per tool: input validation, permission gating, output format, and the bulk confirm flow.
+- Tenant isolation: a token for store A asking for store B's order gets "not found", and a store B update affects 0 rows.
+- Guard, run on a Supabase branch or in a transaction with simulated claims: an OAuth claim without access is refused on everything; with access, `DELETE` and the sensitive tables and RPCs are refused while normal writes pass; app session tokens (no `client_id`) are unaffected.
+- Live: Ali connects in claude.ai on `scheniders-iraq`, runs each read tool and one safe write (a note on a test order), then checks the activity log.
 
 ## Dashboard steps for Ali (one time)
 
 1. Supabase → Authentication → OAuth Server: enable it, set the authorization path to `/oauth/consent` and enable dynamic client registration.
-2. Check that Authentication → URL Configuration → Site URL is the platform app's production domain, because the consent page lives there.
-
-## Out of scope for v1
-
-Writes, the storefront app, the internal admin app, cross-store questions, and a screen in Settings for revoking access (users can revoke from Claude for now; a Settings screen is in v2).
+2. Check that Authentication → URL Configuration → Site URL is the platform app's production domain.
