@@ -52,6 +52,9 @@ export interface ExpressModel {
   onSale: boolean;
   discountPct: number | null;
   qty: number;
+  /** The unit price at this quantity (the merchant's ladder applied to
+   *  `price`), as the order line posts it. */
+  unitPrice: number;
   setQty: (update: (q: number) => number) => void;
   maxQty: number;
   atMinQty: boolean;
@@ -101,6 +104,10 @@ export interface ExpressModel {
   variantError: boolean;
   setVariantError: (v: boolean) => void;
   variantPillsRef: RefObject<HTMLDivElement | null>;
+  /** Ask for the variant: show the choose-an-option message and focus the
+   *  picker (this form's pills, or the picker section that owns the
+   *  choice). What a submit does while a choice is still owed. */
+  focusVariantChoice: () => void;
   reassurance: string;
   /** Promise band row 1's return line (`return_promise_i18n`); "" = none. */
   returnPromise: string;

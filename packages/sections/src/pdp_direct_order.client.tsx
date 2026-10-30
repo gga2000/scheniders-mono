@@ -924,6 +924,21 @@ export function PdpDirectOrderRender({
     );
   }
 
+  /** The variant is still owed: show the message and focus where it is
+   *  chosen — this form's own pills or, when a picker section owns the
+   *  choice, that section (the message then shows beside the submit
+   *  button, where the shopper tapped). */
+  function focusVariantChoice() {
+    if (!product) return;
+    setVariantError(true);
+    if (chosen.pickerMounted) {
+      focusVariantPicker(product.id);
+    } else {
+      variantPillsRef.current?.scrollIntoView?.({ block: "center" });
+      variantPillsRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    }
+  }
+
   async function onSubmit(
     e: React.FormEvent<HTMLFormElement>,
     opts?: SubmitOptions,
@@ -944,18 +959,11 @@ export function PdpDirectOrderRender({
       errors.alt_phone = s("phoneInvalid");
     }
     setFieldErrors(errors);
-    // The option is the first thing to fix. It is either this form's own
-    // pills or, when a picker section owns the choice, that section — the
-    // message then shows beside the submit button, where the shopper tapped.
+    // The option is the first thing to fix (focusVariantChoice).
     setVariantError(awaitingVariant);
     const firstInvalid = (opts?.focusOrder ?? FIELD_ORDER).find((k) => errors[k]);
     if (awaitingVariant) {
-      if (chosen.pickerMounted) {
-        focusVariantPicker(product.id);
-      } else {
-        variantPillsRef.current?.scrollIntoView?.({ block: "center" });
-        variantPillsRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-      }
+      focusVariantChoice();
       return;
     }
     if (firstInvalid || !phone) {
@@ -1277,6 +1285,7 @@ export function PdpDirectOrderRender({
           onSale,
           discountPct,
           qty,
+          unitPrice,
           setQty,
           maxQty,
           atMinQty,
@@ -1318,6 +1327,7 @@ export function PdpDirectOrderRender({
           variantError,
           setVariantError,
           variantPillsRef,
+          focusVariantChoice,
           reassurance,
           returnPromise: resolveI18n(props.return_promise_i18n, locale),
           guaranteeAnchorId: props.guarantee_anchor_id,
