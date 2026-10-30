@@ -10,7 +10,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@scheniders/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, parseWholeNumber } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { useSetCountedStockMutation } from "@/hooks/use-products-query";
@@ -51,7 +51,7 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
     }, [products, query]);
 
     const entered = Object.entries(counts).filter(([, v]) => v.trim() !== "");
-    const invalid = entered.some(([, v]) => !/^\d+$/.test(v.trim()));
+    const invalid = entered.some(([, v]) => parseWholeNumber(v) === null);
 
     const close = () => {
         setCounts({});
@@ -67,7 +67,7 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
         const failed: Record<string, string> = {};
         for (const [productId, value] of entered) {
             try {
-                await setCounted.mutateAsync({ productId, counted: Number(value.trim()), notes: "Stock count" });
+                await setCounted.mutateAsync({ productId, counted: parseWholeNumber(value) ?? 0, notes: "Stock count" });
                 saved++;
             } catch (err) {
                 firstError ??= err;
@@ -117,7 +117,7 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                     {rows.map((p) => {
                         const flagged = needsCount(p);
                         const value = counts[p.id] ?? "";
-                        const bad = value.trim() !== "" && !/^\d+$/.test(value.trim());
+                        const bad = value.trim() !== "" && parseWholeNumber(value) === null;
                         return (
                             <li key={p.id} className="flex items-center gap-3 px-1 py-2.5">
                                 <div className="min-w-0 flex-1">
@@ -132,7 +132,6 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                                 <input
                                     type="text"
                                     inputMode="numeric"
-                                    pattern="[0-9]*"
                                     aria-label={`${t("products.count.counted")}: ${p.name}`}
                                     aria-invalid={bad}
                                     value={value}

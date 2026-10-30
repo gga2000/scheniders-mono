@@ -279,6 +279,13 @@ function ProductsContent() {
             if (advancedFilters.salesMax !== null) {
                 result = result.filter((p) => (p.times_sold || 0) <= advancedFilters.salesMax!);
             }
+            const { revenueMin, revenueMax } = advancedFilters;
+            if (revenueMin !== null) {
+                result = result.filter((p) => (p.total_revenue || 0) >= revenueMin);
+            }
+            if (revenueMax !== null) {
+                result = result.filter((p) => (p.total_revenue || 0) <= revenueMax);
+            }
             if (advancedFilters.stockStatus !== "all") {
                 result = result.filter((p) => getStockStatus(p) === advancedFilters.stockStatus);
             }
@@ -342,10 +349,12 @@ function ProductsContent() {
         const totalProducts = activeProducts.length;
         const totalSold = activeProducts.reduce((sum, p) => sum + (p.times_sold || 0), 0);
         const totalRevenue = activeProducts.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
-        const averageOrderValue = totalSold > 0 ? totalRevenue / totalSold : 0;
+        // Revenue per unit: per-product order counts overlap (one order, several
+        // products), so a store-wide per-order average cannot be summed from them.
+        const avgUnitPrice = totalSold > 0 ? Math.round(totalRevenue / totalSold) : 0;
         const bestSeller = [...activeProducts].sort((a, b) => (b.times_sold || 0) - (a.times_sold || 0))[0] || null;
 
-        return { totalProducts, totalSold, totalRevenue, averageOrderValue, bestSeller };
+        return { totalProducts, totalSold, totalRevenue, avgUnitPrice, bestSeller };
     }, [products]);
 
     // Stable callback refs for child components
@@ -727,17 +736,17 @@ function ProductsContent() {
                                     </div>
                                 </div>
 
-                                {/* Avg order value pill (masked via RevealToggle) */}
+                                {/* Avg price per unit sold (masked via RevealToggle) */}
                                 <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
                                     <div className="p-2 rounded-full bg-gradient-to-tr from-sky-400 to-blue-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-sky-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
                                         <TrendingUp className="w-4 h-4" />
                                     </div>
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-2xl font-black text-foreground dark:text-white leading-none">
-                                            {maskIQD(stats.averageOrderValue, showFinancials)}
+                                            {maskIQD(stats.avgUnitPrice, showFinancials)}
                                         </span>
                                         <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
-                                            {t("products.avgOrderValue")}
+                                            {t("products.avgUnitPrice")}
                                         </span>
                                     </div>
                                 </div>

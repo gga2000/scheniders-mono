@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Minus, Plus, Loader2, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, parseWholeNumber } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { useAdjustStockMutation } from "@/hooks/use-products-query";
@@ -26,7 +26,8 @@ const REASONS = [
 
 export function StockQuickAdjust({ productId, productName, currentStock, onClose }: StockQuickAdjustProps) {
     const { t } = useLanguage();
-    const [delta, setDelta] = useState(0);
+    const [deltaText, setDeltaText] = useState("0");
+    const delta = parseWholeNumber(deltaText, { allowNegative: true }) ?? 0;
     const [reason, setReason] = useState<string>("received");
     const [notes, setNotes] = useState("");
     const adjust = useAdjustStockMutation();
@@ -68,7 +69,7 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
                 </div>
                 <button
                     onClick={onClose}
-                    aria-label="Close"
+                    aria-label={t("common.close")}
                     className="p-1 hover:bg-[var(--background)] rounded-md transition-colors"
                 >
                     <X className="w-4 h-4 text-muted" />
@@ -85,24 +86,26 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
             <div className="flex items-center gap-2">
                 <button
                     type="button"
-                    onClick={() => setDelta((d) => d - 1)}
+                    onClick={() => setDeltaText(String(delta - 1))}
                     className="w-10 h-10 rounded-lg bg-[var(--pastel-pink)] text-rose-700 flex items-center justify-center hover:opacity-90"
-                    aria-label="Decrement"
+                    aria-label={t("products.stockAdjust.decrease")}
                 >
                     <Minus className="w-4 h-4" />
                 </button>
                 <input
                     ref={inputRef}
-                    type="number"
-                    value={delta}
-                    onChange={(e) => setDelta(parseInt(e.target.value) || 0)}
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={t("products.stockAdjust.change")}
+                    value={deltaText}
+                    onChange={(e) => setDeltaText(e.target.value)}
                     className="flex-1 h-10 px-3 text-center font-semibold bg-[var(--background)] border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                 />
                 <button
                     type="button"
-                    onClick={() => setDelta((d) => d + 1)}
+                    onClick={() => setDeltaText(String(delta + 1))}
                     className="w-10 h-10 rounded-lg bg-[var(--pastel-green)] text-green-700 flex items-center justify-center hover:opacity-90"
-                    aria-label="Increment"
+                    aria-label={t("products.stockAdjust.increase")}
                 >
                     <Plus className="w-4 h-4" />
                 </button>

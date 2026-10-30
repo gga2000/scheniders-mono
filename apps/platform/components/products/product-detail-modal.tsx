@@ -14,7 +14,9 @@ import {
     Edit,
 } from "lucide-react";
 import { Product, ProductPriceHistory, getStockStatus } from "@/lib/supabase";
-import { formatIQD, formatDate } from "@/lib/utils";
+import { formatIQD, formatDate, maskIQD, FINANCIAL_MASK } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { StockIndicator } from "./stock-indicator";
 import { ProductThumb } from "@/components/products/product-thumb";
 
@@ -33,6 +35,9 @@ export function ProductDetailModal({
     priceHistory,
     onEdit,
 }: ProductDetailModalProps) {
+    const { t } = useLanguage();
+    // Cost, margin and revenue follow the page's reveal toggle (hidden unless revealed).
+    const { revealed } = useFinancialVisibility();
     if (!isOpen || !product) return null;
 
     const stockStatus = getStockStatus(product);
@@ -79,7 +84,7 @@ export function ProductDetailModal({
                                     <StockIndicator status={stockStatus} quantity={product.stock_quantity} />
                                     {product.is_archived && (
                                         <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">
-                                            Archived
+                                            {t("products.detail.archived")}
                                         </span>
                                     )}
                                 </div>
@@ -91,10 +96,11 @@ export function ProductDetailModal({
                                 className="flex items-center gap-2 px-4 py-2 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                             >
                                 <Edit className="w-4 h-4" />
-                                Edit
+                                {t("common.edit")}
                             </button>
                             <button
                                 onClick={onClose}
+                                aria-label={t("common.close")}
                                 className="p-2 rounded-xl hover:bg-[var(--background)] transition-colors"
                             >
                                 <X className="w-5 h-5 text-muted" />
@@ -116,7 +122,7 @@ export function ProductDetailModal({
                             <div className="pastel-card pastel-card-mint p-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <DollarSign className="w-4 h-4 text-teal-700" />
-                                    <span className="text-xs text-teal-700">Selling Price</span>
+                                    <span className="text-xs text-teal-700">{t("products.detail.price")}</span>
                                 </div>
                                 <p className="text-xl font-bold text-teal-900">
                                     {formatIQD(product.price)}
@@ -126,7 +132,7 @@ export function ProductDetailModal({
                             <div className="pastel-card pastel-card-yellow p-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <ShoppingCart className="w-4 h-4 text-amber-700" />
-                                    <span className="text-xs text-amber-700">Units Sold</span>
+                                    <span className="text-xs text-amber-700">{t("products.detail.unitsSold")}</span>
                                 </div>
                                 <p className="text-xl font-bold text-amber-900">
                                     {product.times_sold || 0}
@@ -136,20 +142,20 @@ export function ProductDetailModal({
                             <div className="pastel-card pastel-card-green p-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <TrendingUp className="w-4 h-4 text-green-700" />
-                                    <span className="text-xs text-green-700">Total Revenue</span>
+                                    <span className="text-xs text-green-700">{t("products.totalRevenue")}</span>
                                 </div>
                                 <p className="text-xl font-bold text-green-900">
-                                    {formatIQD(product.total_revenue || 0)}
+                                    {maskIQD(product.total_revenue || 0, revealed)}
                                 </p>
                             </div>
 
                             <div className="pastel-card pastel-card-pink p-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <BarChart3 className="w-4 h-4 text-rose-700" />
-                                    <span className="text-xs text-rose-700">AOV</span>
+                                    <span className="text-xs text-rose-700">{t("products.detail.aov")}</span>
                                 </div>
                                 <p className="text-xl font-bold text-rose-900">
-                                    {formatIQD(product.average_order_value || 0)}
+                                    {maskIQD(product.average_order_value || 0, revealed)}
                                 </p>
                             </div>
                         </div>
@@ -157,25 +163,25 @@ export function ProductDetailModal({
                         {/* Pricing Details */}
                         <div className="pastel-card p-5">
                             <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Pricing Details
+                                {t("products.detail.pricing")}
                             </h3>
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
-                                    <p className="text-sm text-muted">Selling Price</p>
+                                    <p className="text-sm text-muted">{t("products.detail.price")}</p>
                                     <p className="text-lg font-bold text-foreground">
                                         {formatIQD(product.price)}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-muted">Cost Price</p>
+                                    <p className="text-sm text-muted">{t("products.detail.cost")}</p>
                                     <p className="text-lg font-bold text-foreground">
-                                        {product.cost ? formatIQD(product.cost) : "—"}
+                                        {product.cost ? maskIQD(product.cost, revealed) : "—"}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-muted">Profit Margin</p>
+                                    <p className="text-sm text-muted">{t("products.detail.margin")}</p>
                                     <p className="text-lg font-bold text-green-600">
-                                        {profitMargin ? `${profitMargin}%` : "—"}
+                                        {!profitMargin ? "—" : revealed ? `${profitMargin}%` : FINANCIAL_MASK}
                                     </p>
                                 </div>
                             </div>
@@ -185,7 +191,7 @@ export function ProductDetailModal({
                         {product.variants && product.variants.length > 0 && (
                             <div className="pastel-card p-5">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                    Variants
+                                    {t("products.detail.variants")}
                                 </h3>
                                 <div className="space-y-2">
                                     {product.variants.map((variant) => (
@@ -199,13 +205,13 @@ export function ProductDetailModal({
                                                 </span>
                                                 {variant.sku && (
                                                     <span className="text-xs text-muted">
-                                                        SKU: {variant.sku}
+                                                        {t("products.detail.sku", { sku: variant.sku })}
                                                     </span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <span className="text-sm text-muted">
-                                                    Stock: {variant.stock_quantity}
+                                                    {t("products.detail.variantStock", { count: variant.stock_quantity })}
                                                 </span>
                                                 <span className="font-bold text-foreground">
                                                     {formatIQD(variant.price || product.price)}
@@ -222,7 +228,7 @@ export function ProductDetailModal({
                             <div className="pastel-card p-5">
                                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
                                     <History className="w-4 h-4" />
-                                    Price History
+                                    {t("products.detail.priceHistory")}
                                 </h3>
                                 <div className="space-y-2 max-h-40 overflow-y-auto">
                                     {priceHistory.map((history) => (
@@ -254,34 +260,33 @@ export function ProductDetailModal({
                         {/* Inventory */}
                         <div className="pastel-card p-5">
                             <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-                                Internal Stock Tracking
+                                {t("products.detail.stock")}
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div>
-                                    <p className="text-sm text-muted">Physical</p>
+                                    <p className="text-sm text-muted">{t("products.detail.onShelf")}</p>
                                     <p className="text-lg font-bold text-foreground">
-                                        {product.stock_quantity} units
+                                        {t("products.detail.units", { count: product.stock_quantity })}
                                     </p>
-                                    <p className="text-xs text-muted mt-1 shadow-sm">On Shelf</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-muted">Reserved</p>
+                                    <p className="text-sm text-muted">{t("products.detail.reserved")}</p>
                                     <p className="text-lg font-bold text-amber-600">
-                                        {product.reserved_quantity || 0} units
+                                        {t("products.detail.units", { count: product.reserved_quantity || 0 })}
                                     </p>
-                                    <p className="text-xs text-muted mt-1">In active orders</p>
+                                    <p className="text-xs text-muted mt-1">{t("products.detail.reservedHint")}</p>
                                 </div>
                                 <div className="border-l border-[var(--card-border)] pl-4">
-                                    <p className="text-sm text-muted">Available</p>
+                                    <p className="text-sm text-muted">{t("products.detail.available")}</p>
                                     <p className="text-lg font-bold text-green-600">
-                                        {Math.max(0, product.stock_quantity - (product.reserved_quantity || 0))} units
+                                        {t("products.detail.units", { count: Math.max(0, product.stock_quantity - (product.reserved_quantity || 0)) })}
                                     </p>
-                                    <p className="text-xs text-muted mt-1">Actual to sell</p>
+                                    <p className="text-xs text-muted mt-1">{t("products.detail.availableHint")}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-muted">Alert Threshold</p>
+                                    <p className="text-sm text-muted">{t("products.detail.lowStockAt")}</p>
                                     <p className="text-lg font-bold text-foreground">
-                                        ≤ {product.low_stock_threshold} units
+                                        ≤ {t("products.detail.units", { count: product.low_stock_threshold })}
                                     </p>
                                 </div>
                             </div>

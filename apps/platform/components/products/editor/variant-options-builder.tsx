@@ -448,8 +448,7 @@ function SortableOptionGroup({
                             value={option.name}
                             onChange={(e) => onUpdateName(e.target.value)}
                             placeholder={
-                                t("products.variants.optionNamePlaceholder") ||
-                                "e.g., Size, Color, Material"
+                                t("products.variants.optionNamePlaceholder")
                             }
                             readOnly={disabled}
                             className="flex-1 px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
@@ -459,7 +458,7 @@ function SortableOptionGroup({
                     {/* Values area */}
                     <div>
                         <label className="block text-xs text-muted mb-1.5">
-                            {t("products.variants.optionValues") || "Option values"}
+                            {t("products.variants.optionValues")}
                         </label>
 
                         <DndContext
@@ -499,8 +498,7 @@ function SortableOptionGroup({
                                                 onChange={(e) => onValueInputChange(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 placeholder={
-                                                    t("products.variants.typeAndEnter") ||
-                                                    "Type and press Enter"
+                                                    t("products.variants.typeAndPress")
                                                 }
                                                 className="min-w-[140px] px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                                             />
@@ -508,7 +506,7 @@ function SortableOptionGroup({
                                                 type="button"
                                                 onClick={() => onAddValue(valueInput)}
                                                 className="p-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg hover:bg-[var(--pastel-green)] transition-colors"
-                                                title={t("products.variants.addValue") || "Add value"}
+                                                title={t("products.variants.addValue")}
                                             >
                                                 <Plus className="w-3.5 h-3.5" />
                                             </button>
@@ -526,7 +524,7 @@ function SortableOptionGroup({
                         type="button"
                         onClick={onRemoveGroup}
                         className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors mt-1"
-                        title={t("products.variants.removeOption") || "Remove option"}
+                        title={t("products.variants.removeOption")}
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
@@ -735,15 +733,14 @@ export function VariantOptionsBuilder({
             <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                     <Settings className="w-4 h-4" />
-                    {t("products.variants.title") || "Product Options"}
+                    {t("products.variants.title")}
                 </h2>
                 {!disabled && (
                     <div className="flex items-center gap-2">
                         {atMaxGroups && (
                             <span className="text-xs text-amber-600 flex items-center gap-1">
                                 <AlertTriangle className="w-3.5 h-3.5" />
-                                {t("products.variants.maxOptionsReached") ||
-                                    "Maximum 5 option groups"}
+                                {t("products.variants.maxOptions")}
                             </span>
                         )}
                         <button
@@ -757,7 +754,7 @@ export function VariantOptionsBuilder({
                             }`}
                         >
                             <Plus className="w-4 h-4" />
-                            {t("products.variants.addOption") || "Add Option"}
+                            {t("products.variants.addOption")}
                         </button>
                     </div>
                 )}
@@ -781,8 +778,7 @@ export function VariantOptionsBuilder({
                 <div className="p-8 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
                     <Settings className="w-8 h-8 text-muted mx-auto mb-2" />
                     <p className="text-muted text-sm">
-                        {t("products.variants.emptyState") ||
-                            "No options defined. Add options like Size, Color, or Material to create variants."}
+                        {t("products.variants.noOptions")}
                     </p>
                 </div>
             ) : (

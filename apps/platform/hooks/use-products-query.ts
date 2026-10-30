@@ -12,6 +12,8 @@ import { diag } from "@/lib/diag";
 export const productKeys = {
     all: ["products"] as const,
     lists: () => [...productKeys.all, "list"] as const,
+    /** One tenant's list; a member of two stores never sees the other's cache. */
+    list: (tenantId: string | null) => [...productKeys.lists(), tenantId] as const,
     details: () => [...productKeys.all, "detail"] as const,
     detail: (id: string) => [...productKeys.details(), id] as const,
     variants: (productId: string) => [...productKeys.detail(productId), "variants"] as const,
@@ -24,7 +26,7 @@ export function useProductsQuery() {
     const [fetchStartTime] = useState(() => performance.now());
 
     return useQuery({
-        queryKey: productKeys.lists(),
+        queryKey: productKeys.list(tenantId),
         queryFn: async () => {
             const hasSession = !!session;
             const elapsed = performance.now() - fetchStartTime;
@@ -59,7 +61,7 @@ export function usePrefetchProducts() {
     return () => {
         if (!tenantId) return;
         queryClient.prefetchQuery({
-            queryKey: productKeys.lists(),
+            queryKey: productKeys.list(tenantId),
             queryFn: () => productRepository.findAll(tenantId),
             staleTime: CACHE_PRESETS.STANDARD.staleTime,
         });
@@ -85,6 +87,7 @@ export function useAddProductMutation() {
 
 export function useUpdateProductMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ id, data, expectedUpdatedAt }: { id: string; data: ProductUpdate; expectedUpdatedAt?: string }) => {
             const updatedAt = await productRepository.update(id, data, { expectedUpdatedAt });
@@ -93,15 +96,15 @@ export function useUpdateProductMutation() {
         onMutate: async ({ id, data }) => {
             // Optimistic Update
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
-            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
-            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.list(tenantId));
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) =>
                 old?.map((p) => (p.id === id ? { ...p, ...data } : p))
             );
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) {
-                queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+                queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
             }
         },
         onSettled: () => {
@@ -112,6 +115,7 @@ export function useUpdateProductMutation() {
 
 export function useArchiveProductMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (id: string) => {
             await productRepository.archive(id);
@@ -119,16 +123,16 @@ export function useArchiveProductMutation() {
         },
         onMutate: async (id) => {
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
-            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.list(tenantId));
             // Assuming list filters out archived, we remove it
             // Or if list shows all, we update is_archived
-            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) =>
                 old?.map((p) => (p.id === id ? { ...p, is_archived: true } : p))
             );
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
-            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
@@ -136,6 +140,7 @@ export function useArchiveProductMutation() {
 
 export function useRestoreProductMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (id: string) => {
             await productRepository.restore(id);
@@ -143,14 +148,14 @@ export function useRestoreProductMutation() {
         },
         onMutate: async (id) => {
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
-            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
-            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.list(tenantId));
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) =>
                 old?.map((p) => (p.id === id ? { ...p, is_archived: false } : p))
             );
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
-            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
@@ -158,6 +163,7 @@ export function useRestoreProductMutation() {
 
 export function useDeleteProductMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (id: string) => {
             await productRepository.delete(id);
@@ -165,14 +171,14 @@ export function useDeleteProductMutation() {
         },
         onMutate: async (id) => {
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
-            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
-            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.list(tenantId));
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) =>
                 old?.filter((p) => p.id !== id)
             );
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
-            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
@@ -246,19 +252,20 @@ interface AdjustStockArgs {
 /** Add or remove units; applied by the database to the current stock. */
 export function useAdjustStockMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: ({ productId, delta, reason, notes }: AdjustStockArgs) =>
             productRepository.adjustStock({ productId, delta, reason, notes }),
         onMutate: async ({ productId, delta }) => {
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
-            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
-            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.list(tenantId));
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) =>
                 old?.map((p) => (p.id === productId ? { ...p, stock_quantity: (p.stock_quantity ?? 0) + delta } : p))
             );
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
-            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
@@ -282,6 +289,7 @@ export function useSetCountedStockMutation() {
 
 export function useBulkUpdateVisibilityMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ ids, isVisible }: { ids: string[]; isVisible: boolean }) => {
             await productRepository.bulkUpdateVisibility(ids, isVisible);
@@ -289,14 +297,14 @@ export function useBulkUpdateVisibilityMutation() {
         },
         onMutate: async ({ ids, isVisible }) => {
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
-            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
-            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.list(tenantId));
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) =>
                 old?.map((p) => (ids.includes(p.id) ? { ...p, is_visible: isVisible } : p))
             );
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
-            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
@@ -304,6 +312,7 @@ export function useBulkUpdateVisibilityMutation() {
 
 export function useBulkUpdateDisplayOrderMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (updates: { id: string; display_order: number }[]) => {
             await productRepository.bulkUpdateDisplayOrder(updates);
@@ -311,9 +320,9 @@ export function useBulkUpdateDisplayOrderMutation() {
         },
         onMutate: async (updates) => {
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
-            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
+            const previousProducts = queryClient.getQueryData<Product[]>(productKeys.list(tenantId));
             const updateMap = new Map(updates.map((u) => [u.id, u.display_order]));
-            queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) =>
                 old?.map((p) => {
                     const newOrder = updateMap.get(p.id);
                     return newOrder !== undefined ? { ...p, display_order: newOrder } : p;
@@ -322,7 +331,7 @@ export function useBulkUpdateDisplayOrderMutation() {
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
-            if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
+            if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });

@@ -110,7 +110,7 @@ export function BarcodeGenerator({
             {/* Header */}
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                 <Barcode className="w-4 h-4" />
-                {t("products.barcode.title") || "Barcode & QR Code"}
+                {t("products.barcode.title")}
             </h2>
 
             {/* Barcode input row */}
@@ -121,7 +121,7 @@ export function BarcodeGenerator({
                         value={barcode}
                         onChange={(e) => onChange(e.target.value)}
                         disabled={disabled}
-                        placeholder={t("products.barcode.placeholder") || "Enter barcode number..."}
+                        placeholder={t("products.barcode.placeholder")}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                 </div>
@@ -132,7 +132,7 @@ export function BarcodeGenerator({
                     onClick={handleCopy}
                     disabled={!barcode}
                     className="flex items-center justify-center w-11 h-11 rounded-xl border border-[var(--card-border)] bg-[var(--background)] text-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    title={t("products.barcode.copy") || "Copy barcode"}
+                    title={t("products.barcode.copy")}
                 >
                     {copied ? (
                         <Check className="w-4 h-4 text-emerald-500" />
@@ -149,7 +149,7 @@ export function BarcodeGenerator({
                     className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     <Sparkles className="w-4 h-4" />
-                    {t("products.barcode.autoGenerate") || "Auto-generate"}
+                    {t("products.barcode.generate")}
                 </button>
             </div>
 
@@ -168,7 +168,7 @@ export function BarcodeGenerator({
                             </div>
                             {barcodeError && (
                                 <p className="text-xs text-red-500">
-                                    {t("products.barcode.invalidBarcode") || "Invalid barcode value"}
+                                    {t("products.barcode.invalidBarcode")}
                                 </p>
                             )}
                         </div>
@@ -186,7 +186,7 @@ export function BarcodeGenerator({
                             </div>
                             <p className="text-[10px] text-muted flex items-center gap-1">
                                 <QrCode className="w-3 h-3" />
-                                {t("products.barcode.storeLink") || "Store link"}
+                                {t("products.barcode.storeLink")}
                             </p>
                         </div>
                     )}
@@ -201,7 +201,7 @@ export function BarcodeGenerator({
                     className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
                 >
                     <RefreshCw className="w-3 h-3" />
-                    {t("products.barcode.regenerate") || "Regenerate barcode"}
+                    {t("products.barcode.regenerate")}
                 </button>
             )}
         </div>

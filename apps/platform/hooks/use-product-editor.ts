@@ -1209,8 +1209,8 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         setSaving(true);
         try {
             const newProduct = await addProduct({
-                name: `Copy of ${formData.name}`,
-                short_name: formData.short_name.trim() ? `Copy of ${formData.short_name.trim()}` : null,
+                name: t("products.ed.copyOf", { name: formData.name }),
+                short_name: formData.short_name.trim() ? t("products.ed.copyOf", { name: formData.short_name.trim() }) : null,
                 description: formData.description,
                 sku: formData.sku ? `${formData.sku}-copy` : undefined,
                 price: formData.price,
