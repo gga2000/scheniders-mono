@@ -36,7 +36,7 @@ export interface BlacklistEntry {
 }
 
 export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseOrderAuxiliaryOptions) {
-    const { user, profile } = useAuth();
+    const { user, profile, tenantId } = useAuth();
 
     // =============================================
     // REFERENCE DATA STATE
@@ -60,7 +60,7 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
                 const [reasonsRes, templatesRes, blacklistRes] = await Promise.all([
                     supabase.from("order_reasons").select("*").eq("is_active", true).eq("kind", "reject").order("sort_order"),
                     supabase.from("message_templates").select("*").eq("is_active", true).order("sort_order"),
-                    supabase.from("blacklist").select("phone, reason, notes, added_by")
+                    supabase.from("blacklist").select("phone, reason, notes, added_by").eq("tenant_id", tenantId)
                 ]);
 
                 if (mounted.value) {
@@ -82,12 +82,12 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
             }
         }
 
-        if (auxData.rejectionReasons.length === 0) {
+        if (tenantId) {
             fetchAll();
         }
 
         return () => { mounted.value = false; };
-    }, []);
+    }, [tenantId]);
 
     function isBlacklisted(phone: string): boolean {
         return auxData.blacklistMap.has(normalizePhoneForSearch(phone));
@@ -97,10 +97,16 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
         return auxData.blacklistMap.get(normalizePhoneForSearch(phone)) ?? null;
     }
 
+    // The blacklist key is (tenant_id, normalized phone); the DB also normalizes
+    // on write, so every stored format of the same number is one entry.
     async function addToBlacklist(phone: string, reason: string, notes?: string): Promise<void> {
+        if (!tenantId) throw new Error("No active store");
         const addedBy = profile?.display_name || user?.email || null;
-        const entry: BlacklistEntry = { phone, reason, notes: notes || null, added_by: addedBy };
-        await supabase.from("blacklist").upsert(entry);
+        const entry: BlacklistEntry = { phone: normalizePhoneForSearch(phone), reason, notes: notes || null, added_by: addedBy };
+        const { error } = await supabase
+            .from("blacklist")
+            .upsert({ ...entry, tenant_id: tenantId }, { onConflict: "tenant_id,phone" });
+        if (error) throw error;
         setAuxData(prev => ({
             ...prev,
             blacklistMap: new Map(prev.blacklistMap).set(normalizePhoneForSearch(phone), entry),
@@ -108,7 +114,13 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
     }
 
     async function removeFromBlacklist(phone: string): Promise<void> {
-        await supabase.from("blacklist").delete().eq("phone", phone);
+        if (!tenantId) throw new Error("No active store");
+        const { error } = await supabase
+            .from("blacklist")
+            .delete()
+            .eq("tenant_id", tenantId)
+            .eq("phone", normalizePhoneForSearch(phone));
+        if (error) throw error;
         setAuxData(prev => {
             const updated = new Map(prev.blacklistMap);
             updated.delete(normalizePhoneForSearch(phone));

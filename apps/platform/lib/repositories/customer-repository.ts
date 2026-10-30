@@ -10,6 +10,7 @@ import type {
     CustomerLink,
     VoiceNote,
 } from "@/types/customer";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 
 /**
  * CustomerRepository — Centralized data access for customer-related tables.
@@ -141,8 +142,8 @@ export const customerRepository = {
             const { error } = await supabase
                 .from("customer_metadata")
                 .upsert(
-                    { customer_phone: phone, ...updates, tenant_id: tenantId },
-                    { onConflict: "customer_phone" }
+                    { customer_phone: normalizePhoneForSearch(phone), ...updates, tenant_id: tenantId },
+                    { onConflict: "tenant_id,customer_phone" }
                 );
 
             if (error) throw error;

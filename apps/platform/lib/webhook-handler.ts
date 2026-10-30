@@ -1,5 +1,5 @@
 import { createSupabaseServiceClient } from "./supabase-server";
-import { formatPhoneToStandard } from "./order-utils";
+import { formatPhoneToStandard, normalizePhoneForSearch } from "./order-utils";
 import { generateWhatsAppLink } from "./utils";
 import { validateAddress, getAddressStatus, extractAndSeparateGovernorate } from "./address-validator";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -511,13 +511,13 @@ async function resolveMissingAttribution(webhook: LightFunnelsWebhook): Promise<
  */
 export async function checkBlacklist(phone: string, tenantId: string): Promise<{ isBlacklisted: boolean; reason?: string }> {
     try {
-        const formattedPhone = formatPhoneToStandard(phone);
-
+        // blacklist.phone is stored normalized (a DB trigger enforces it), so
+        // compare in that shape: Lightfunnels sends +964…, merchants block 07….
         const { data, error } = await supabase
             .from("blacklist")
             .select("reason")
             .eq("tenant_id", tenantId)
-            .eq("phone", formattedPhone)
+            .eq("phone", normalizePhoneForSearch(phone))
             .limit(1)
             .maybeSingle();
 

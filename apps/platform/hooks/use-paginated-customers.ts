@@ -2,6 +2,7 @@
 
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import { CustomerStatus, TrustTier } from "@/types/customer";
 import type { ValueTier, RiskLevel } from "@/lib/customer-reliability";
 import { CACHE_PRESETS } from '@/lib/query-config';
@@ -81,8 +82,12 @@ export function usePaginatedCustomers(
     limit: number = 20,
     filters?: PaginatedCustomerFilters
 ) {
+    // The RPCs read the caller's active store; the store is in the key so a
+    // store switch never serves the previous store's cached pages.
+    const { tenantId } = useAuth();
     return useInfiniteQuery({
-        queryKey: ["customers", "infinite", limit, filters],
+        queryKey: ["customers", "infinite", tenantId, limit, filters],
+        enabled: !!tenantId,
         initialPageParam: 1,
         queryFn: async ({ pageParam = 1 }): Promise<{ customers: PaginatedCustomer[], totalCount: number, nextPage: number | null }> => {
             const offset = (pageParam - 1) * limit;
@@ -179,8 +184,10 @@ export function usePaginatedCustomers(
  * Hook to fetch the top-level stats for the dashboard quickly.
  */
 export function useCustomerDashboardStats() {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customers", "dashboard_stats"],
+        queryKey: ["customers", "dashboard_stats", tenantId],
+        enabled: !!tenantId,
         queryFn: async () => {
             const { data, error } = await supabase.rpc("get_customer_dashboard_stats");
 

@@ -15,6 +15,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { useStatusLabel } from "@/hooks/use-status-label";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 
 const DESTS: { key: ReturnDestination; label: string }[] = [
     { key: "restock", label: "Restock" },
@@ -77,11 +78,11 @@ export function ReturnDetailPanel({
         if (!order.phone) return;
         setBlacklisting(true);
         const { error } = await supabase.from("blacklist").upsert({
-            phone: order.phone,
+            phone: normalizePhoneForSearch(order.phone),
             reason: reasonLabel || "Flagged from returns cockpit",
             added_by: profile?.display_name || user?.email || null,
             tenant_id: tenantId,
-        });
+        }, { onConflict: "tenant_id,phone" });
         setBlacklisting(false);
         if (error) { toast.error("Failed to blacklist"); return; }
         setBlacklisted(true);

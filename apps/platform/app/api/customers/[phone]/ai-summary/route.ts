@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { ANTHROPIC_MESSAGES_URL } from "@/lib/anthropic-api";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,8 @@ export async function GET(
         if (!caller.ok) return caller.response;
 
         const { phone } = await params;
-        const decodedPhone = decodeURIComponent(phone);
+        // Stored in the same normalized shape as customer_metadata's key.
+        const decodedPhone = normalizePhoneForSearch(decodeURIComponent(phone));
 
         if (!decodedPhone) {
             return NextResponse.json({ error: "Phone is required" }, { status: 400 });
@@ -65,7 +67,7 @@ export async function GET(
         const { data: recentOrders } = await supabase
             .from("orders")
             .select("id, status, price, created_at, city, rejection_reason")
-            .eq("phone", decodedPhone)
+            .in("phone", [decodedPhone, `0${decodedPhone}`, `964${decodedPhone}`, `+964${decodedPhone}`])
             .eq("tenant_id", caller.tenantId)
             .order("created_at", { ascending: false })
             .limit(10);
@@ -142,7 +144,7 @@ Provide a brief, actionable summary that helps an operations team understand thi
                 ai_summary: { summary },
                 ai_summary_generated_at: generatedAt,
             },
-            { onConflict: "customer_phone" }
+            { onConflict: "tenant_id,customer_phone" }
         );
 
         if (upsertError) {

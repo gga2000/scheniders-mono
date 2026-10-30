@@ -2814,6 +2814,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.blacklist.unblockConfirm": "Do you want to unblock this customer and allow orders again?",
         "orders.blacklist.unblocking": "Unblocking...",
         "orders.blacklist.unblock": "Unblock",
+        "orders.blacklist.saveFailed": "Couldn't save. The customer's block status was not changed.",
 
         // ── Risk Badge ──
         "orders.risk.safe": "Safe",
@@ -6253,6 +6254,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.blacklist.unblockConfirm": "هل تريد رفع الحظر عن هذا العميل وإتاحة الطلبات مرة أخرى؟",
         "orders.blacklist.unblocking": "جاري رفع الحظر...",
         "orders.blacklist.unblock": "رفع الحظر",
+        "orders.blacklist.saveFailed": "لم يتم الحفظ، ولم يتغير حظر العميل.",
 
         // ── Risk Badge ──
         "orders.risk.safe": "آمن",
