@@ -13,7 +13,7 @@ export function FabNewShipment({ onClick }: FabNewShipmentProps) {
     const label = t("customers.profile.newShipment");
 
     return (
-        <div className="fixed bottom-10 right-10 z-40 group">
+        <div className="fixed bottom-24 right-5 md:bottom-10 md:right-10 z-40 group">
             {/* Tooltip */}
             <div className="absolute right-full mr-6 top-1/2 -translate-y-1/2 pointer-events-none">
                 <span className="whitespace-nowrap bg-foreground text-background text-xs font-bold px-3.5 py-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">

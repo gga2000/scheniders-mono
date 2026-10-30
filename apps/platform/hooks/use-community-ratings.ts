@@ -28,15 +28,12 @@ export function useSubmitCommunityRating() {
         mutationFn: async (rating: {
             customer_phone: string;
             order_id?: string;
-            rater_id: string;
-            rater_store_id?: string;
             trust_stars: number;
             communication_stars: number;
             behavior_stars: number;
             overall_type: 'positive' | 'neutral' | 'warning';
             comment?: string;
             quick_tags?: string[];
-            is_anonymous?: boolean;
         }) => {
             const { data, error } = await supabase
                 .from("community_ratings")

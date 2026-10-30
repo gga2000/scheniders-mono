@@ -6,6 +6,9 @@ import { Search, Link2, Users } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useLinkCustomers } from "@/hooks/use-customer-links";
+import { mapCustomerRow, toCustomerRpcArgs, type CustomerRpcRow, type PaginatedCustomer } from "@/hooks/use-paginated-customers";
+import { formatPhoneDisplay } from "@/lib/customer-format";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { ModalShell } from "./modal-shell";
 import { cn } from "@/lib/utils";
@@ -18,7 +21,7 @@ export function LinkCustomersModal() {
     const linkMutation = useLinkCustomers();
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<PaginatedCustomer[] | null>(null);
     const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
     const [relationshipType, setRelationshipType] = useState<typeof RELATIONSHIP_TYPES[number]>("family");
     const [isSearching, setIsSearching] = useState(false);
@@ -26,21 +29,24 @@ export function LinkCustomersModal() {
     const handleClose = () => {
         setLinkCustomersModalOpen(false);
         setSearchQuery("");
-        setSearchResults([]);
+        setSearchResults(null);
         setSelectedPhone(null);
     };
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
         setIsSearching(true);
-        const { data } = await supabase
-            .from("customer_aggregates")
-            .select("customer_phone, latest_name, latest_city, total_orders")
-            .or(`customer_phone.ilike.%${searchQuery}%,latest_name.ilike.%${searchQuery}%`)
-            .neq("customer_phone", linkCustomersPhone || "")
-            .limit(10);
-        setSearchResults(data || []);
+        // Same search as the customers list: this store only, any phone shape.
+        const { data, error } = await supabase.rpc(
+            "get_paginated_customers",
+            toCustomerRpcArgs({ search: searchQuery.trim() }, 11, 0),
+        );
         setIsSearching(false);
+        if (error) {
+            toast({ variant: "error", title: t("customers.link.searchFailed") });
+            return;
+        }
+        setSearchResults(((data ?? []) as CustomerRpcRow[]).map(mapCustomerRow).filter((c) => c.phone !== linkCustomersPhone).slice(0, 10));
     };
 
     const handleLink = () => {
@@ -49,7 +55,13 @@ export function LinkCustomersModal() {
             phoneA: linkCustomersPhone,
             phoneB: selectedPhone,
             relationshipType,
-        }, { onSuccess: handleClose });
+        }, {
+            onSuccess: () => {
+                toast({ variant: "success", title: t("customers.link.done") });
+                handleClose();
+            },
+            onError: () => toast({ variant: "error", title: t("customers.link.failed") }),
+        });
     };
 
     return (
@@ -57,8 +69,8 @@ export function LinkCustomersModal() {
             <div className="space-y-6">
                 {/* Anchor customer */}
                 <div className="p-4 rounded-xl bg-muted/20 border border-(--card-border)">
-                    <p className="text-xs text-muted-foreground">Primary Customer</p>
-                    <p className="font-mono text-sm font-medium text-foreground tabular-nums mt-1">{linkCustomersPhone}</p>
+                    <p className="text-xs text-muted-foreground">{t("customers.link.primary")}</p>
+                    <p className="font-mono text-sm font-medium text-foreground tabular-nums mt-1">{linkCustomersPhone && formatPhoneDisplay(linkCustomersPhone)}</p>
                 </div>
 
                 {/* Search */}
@@ -71,38 +83,41 @@ export function LinkCustomersModal() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                             placeholder={t("customers.link.search")}
-                            className="w-full pl-10 pr-4 py-2.5 bg-muted/20 border border-(--card-border) rounded-xl text-sm focus:ring-2 focus:ring-foreground/10"
+                            className="w-full h-11 pl-10 pr-4 bg-muted/20 border border-(--card-border) rounded-xl text-sm focus:ring-2 focus:ring-foreground/10"
                         />
                     </div>
                     <button
                         onClick={handleSearch}
                         disabled={isSearching}
-                        className="px-4 py-2.5 bg-foreground text-background rounded-xl text-sm font-medium"
+                        className="h-11 px-4 bg-foreground text-background rounded-xl text-sm font-medium disabled:opacity-50"
                     >
-                        {isSearching ? "..." : t("customers.search").split(" ")[0]}
+                        {t("customers.link.find")}
                     </button>
                 </div>
 
                 {/* Results */}
-                {searchResults.length > 0 && (
+                {searchResults?.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-3">{t("customers.link.noResults")}</p>
+                )}
+                {searchResults && searchResults.length > 0 && (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {searchResults.map((result: any) => (
+                        {searchResults.map((result) => (
                             <button
-                                key={result.customer_phone}
-                                onClick={() => setSelectedPhone(result.customer_phone)}
+                                key={result.phone}
+                                onClick={() => setSelectedPhone(result.phone)}
                                 className={cn(
                                     "w-full p-3 rounded-xl border text-left transition-all flex items-center gap-3",
-                                    selectedPhone === result.customer_phone
+                                    selectedPhone === result.phone
                                         ? "border-foreground bg-foreground/5"
                                         : "border-(--card-border) hover:border-foreground/30"
                                 )}
                             >
                                 <Users className="w-4 h-4 text-muted-foreground shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">{result.latest_name}</p>
-                                    <p className="text-xs text-muted-foreground font-mono tabular-nums">{result.customer_phone}</p>
+                                    <p className="text-sm font-medium text-foreground truncate">{result.name}</p>
+                                    <p className="text-xs text-muted-foreground font-mono tabular-nums">{formatPhoneDisplay(result.phone)}</p>
                                 </div>
-                                <span className="text-xs text-muted-foreground">{result.latest_city}</span>
+                                <span className="text-xs text-muted-foreground">{result.city}</span>
                             </button>
                         ))}
                     </div>
@@ -144,7 +159,7 @@ export function LinkCustomersModal() {
                             disabled={linkMutation.isPending}
                             className="w-full bg-foreground text-background py-3 rounded-xl font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
                         >
-                            {linkMutation.isPending ? "..." : t("customers.link.title")}
+                            {t("customers.link.title")}
                         </button>
                     </motion.div>
                 )}

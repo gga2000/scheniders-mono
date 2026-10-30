@@ -8550,6 +8550,27 @@ export type Database = {
           total_in_group: number
         }[]
       }
+      get_customer_order_history: {
+        Args: { p_phone: string }
+        Returns: {
+          address_details: string
+          city: string
+          created_at: string
+          customer_name: string
+          delivery_fee: number
+          discount_amount: number
+          governorate_code: string
+          id: string
+          is_return: boolean
+          items: Json
+          notes: string
+          order_id: string
+          payment_status: string
+          price: number
+          secondary_phone: string
+          status: string
+        }[]
+      }
       get_customer_reliability: {
         Args: { p_phone: string }
         Returns: {

@@ -164,8 +164,8 @@ export function HeroIdentityBanner({
                             onClick={() =>
                                 window.open(`https://wa.me/${toIraqE164(phone)}`, "_blank")
                             }
-                            className="p-2.5 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors"
-                            aria-label={t("customers.actions.whatsapp") || "WhatsApp"}
+                            className="w-11 h-11 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors"
+                            aria-label={t("customers.actions.whatsapp")}
                         >
                             <MessageCircle className="w-4 h-4" />
                         </motion.button>
@@ -174,8 +174,8 @@ export function HeroIdentityBanner({
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.96 }}
                             href={`tel:+${toIraqE164(phone)}`}
-                            className="p-2.5 rounded-full border border-(--card-border) text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label={t("customers.actions.call") || "Call"}
+                            className="w-11 h-11 flex items-center justify-center rounded-full border border-(--card-border) text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label={t("customers.actions.call")}
                         >
                             <Phone className="w-4 h-4" />
                         </motion.a>
@@ -188,11 +188,10 @@ export function HeroIdentityBanner({
                                 store.setCommunityRatingContext({ phone });
                                 store.setCommunityRatingModalOpen(true);
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors text-xs font-bold"
-                            aria-label={t("customers.actions.rate") || "Rate Customer"}
+                            className="flex items-center gap-1.5 min-h-11 px-4 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors text-sm font-bold"
                         >
                             <Star className="w-3.5 h-3.5" />
-                            {t("customers.actions.rate") || "Rate"}
+                            {t("customers.actions.rate")}
                         </motion.button>
                     </div>
                 </div>

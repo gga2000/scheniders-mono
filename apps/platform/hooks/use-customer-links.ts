@@ -2,22 +2,26 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import type { CustomerLink } from "@/types/customer";
 
 export function useCustomerLinks(phone: string | undefined) {
+    // Links belong to a store: a phone linked in two stores shows only this one's.
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customer-links", phone],
+        queryKey: ["customer-links", tenantId, phone],
         queryFn: async () => {
-            if (!phone) return [];
+            if (!phone || !tenantId) return [];
             const { data, error } = await supabase
                 .from("customer_links")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .or(`phone_a.eq.${phone},phone_b.eq.${phone}`)
                 .order("created_at", { ascending: false });
             if (error) throw error;
             return (data || []) as CustomerLink[];
         },
-        enabled: !!phone,
+        enabled: !!phone && !!tenantId,
         staleTime: 5 * 60 * 1000,
     });
 }
@@ -25,32 +29,29 @@ export function useCustomerLinks(phone: string | undefined) {
 export function useLinkCustomers() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ phoneA, phoneB, relationshipType, similarityHint, linkedBy }: {
+        mutationFn: async ({ phoneA, phoneB, relationshipType, similarityHint }: {
             phoneA: string;
             phoneB: string;
             relationshipType: 'same_address' | 'family' | 'coworker' | 'duplicate';
             similarityHint?: string;
-            linkedBy?: string;
         }) => {
-            // Ensure consistent ordering
-            const [a, b] = [phoneA, phoneB].sort();
+            // The database normalizes and orders the phones and fills in the
+            // store and who linked them.
             const { data, error } = await supabase
                 .from("customer_links")
                 .insert([{
-                    phone_a: a,
-                    phone_b: b,
+                    phone_a: phoneA,
+                    phone_b: phoneB,
                     relationship_type: relationshipType,
                     similarity_hint: similarityHint,
-                    linked_by: linkedBy,
                 }])
                 .select()
                 .single();
             if (error) throw error;
             return data as CustomerLink;
         },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ["customer-links", data.phone_a] });
-            queryClient.invalidateQueries({ queryKey: ["customer-links", data.phone_b] });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["customer-links"] });
         },
     });
 }
@@ -70,33 +71,8 @@ export function useUnlinkCustomers() {
             if (error) throw error;
             return { phoneA, phoneB };
         },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ["customer-links", data.phoneA] });
-            queryClient.invalidateQueries({ queryKey: ["customer-links", data.phoneB] });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["customer-links"] });
         },
-    });
-}
-
-export function useSearchSimilarCustomers(phone: string | undefined) {
-    return useQuery({
-        queryKey: ["similar-customers", phone],
-        queryFn: async () => {
-            if (!phone) return [];
-            // Find customers with shared addresses or similar phones
-            const { data, error } = await supabase
-                .from("customer_aggregates")
-                .select("customer_phone, latest_name, latest_city, total_orders, latest_address_details")
-                .neq("customer_phone", phone)
-                .limit(20);
-            if (error) throw error;
-            return (data || []).map((r: any) => ({
-                phone: r.customer_phone,
-                name: r.latest_name,
-                city: r.latest_city,
-                totalOrders: r.total_orders,
-                addressDetails: r.latest_address_details,
-            }));
-        },
-        enabled: false, // Only run when explicitly triggered
     });
 }

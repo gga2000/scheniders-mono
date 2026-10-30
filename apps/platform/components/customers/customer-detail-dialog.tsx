@@ -69,6 +69,18 @@ const STATUS_CLS: Record<string, string> = {
     pending_checkout: "bg-yellow-100 text-yellow-800",
 };
 
+const PAYMENT_KEY: Record<string, string> = {
+    cod: "orderDetail.payment.cod",
+    paid: "orderDetail.payment.prepaid",
+    prepaid: "orderDetail.payment.prepaid",
+    partial: "orderDetail.payment.partial",
+};
+
+function paymentLabel(status: string, t: Translate) {
+    const key = PAYMENT_KEY[status];
+    return key ? t(key) : status;
+}
+
 /** Arabic month names with Western digits, like the rest of the app. */
 type Translate = ReturnType<typeof useLanguage>["t"];
 
@@ -99,19 +111,23 @@ function useCustomerDialogData(phone: string | null, limit = 60) {
             const normalized = trustEngine.normalizePhone(phone as string);
             const variants = [normalized, `0${normalized}`, `964${normalized}`, `+964${normalized}`];
 
-            const [ordersRes, trustRes, tagRes, noteRes, countRes] = await Promise.all([
-                supabase.from("orders")
+            const [ordersRes, reliabilityRes, trustRes, tagRes, noteRes] = await Promise.all([
+                // Live orders of this store, matched on the normalized phone.
+                supabase.rpc("get_customer_order_history", { p_phone: normalized })
                     .select("id, order_id, created_at, items, price, discount_amount, delivery_fee, notes, address_details, city, governorate_code, status, payment_status, is_return, customer_name, secondary_phone")
-                    .eq("tenant_id", tenantId)
-                    .in("phone", variants).order("created_at", { ascending: false }).limit(limit),
+                    .order("created_at", { ascending: false }).limit(limit),
+                // Same order count as the list and the profile.
+                supabase.rpc("get_customer_reliability", { p_phone: normalized }),
                 supabase.from("customer_trust")
                     .select("avg_basket, delivered_count, community_avg_rating, community_rating_count, score_breakdown, first_order_date")
                     .eq("tenant_id", tenantId)
                     .eq("phone", normalized).maybeSingle(),
                 supabase.from("customer_tag_assignments").select("tag:customer_tags(name)").eq("tenant_id", tenantId).in("customer_phone", variants),
                 supabase.from("customer_notes").select("note, created_at").eq("tenant_id", tenantId).in("customer_phone", variants).order("created_at", { ascending: false }),
-                supabase.from("orders").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).in("phone", variants),
             ]);
+            for (const res of [ordersRes, reliabilityRes, trustRes, tagRes, noteRes]) {
+                if (res.error) throw res.error;
+            }
 
             const orders = (ordersRes.data ?? []) as DialogOrder[];
 
@@ -129,7 +145,8 @@ function useCustomerDialogData(phone: string | null, limit = 60) {
 
             return {
                 orders,
-                totalOrders: countRes.count ?? orders.length,
+                totalOrders: Number(reliabilityRes.data?.[0]?.total_orders ?? 0),
+                hasMore: orders.length >= limit,
                 avgBasket: Number(trustRes.data?.avg_basket ?? 0),
                 community: Number(trustRes.data?.community_avg_rating ?? 0),
                 firstOrderDate: trustRes.data?.first_order_date as string | null | undefined,
@@ -199,7 +216,7 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
                                     <div key={i} className="flex items-center gap-3 py-2.5">
                                         <ItemThumb url={it.image_url} name={it.name} />
                                         <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-sm text-foreground truncate">{it.name || "Item"}</div>
+                                            <div className="font-medium text-sm text-foreground truncate">{it.name || t("customers.dialog.item")}</div>
                                             <div className="text-xs text-muted-foreground font-mono tabular-nums">×{Number(it.quantity) || 1} · {formatIQD(Number(it.price) || 0)}</div>
                                         </div>
                                         <div className="font-mono font-semibold text-sm tabular-nums">{formatIQD((Number(it.price) || 0) * (Number(it.quantity) || 1))}</div>
@@ -218,14 +235,14 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
                             {/* Meta: payment + address + notes */}
                             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                                 {order.payment_status && (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background border border-(--card-border) text-muted-foreground capitalize">
-                                        <CreditCard className="w-3.5 h-3.5" />{order.payment_status}
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background border border-(--card-border) text-muted-foreground">
+                                        <CreditCard className="w-3.5 h-3.5" />{paymentLabel(order.payment_status, t)}
                                     </span>
                                 )}
                                 {(order.address_details || order.governorate_code) && (
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background border border-(--card-border) text-muted-foreground max-w-full">
                                         <MapPin className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="truncate">{[order.address_details, order.governorate_code].filter(Boolean).join(" · ")}</span>
+                                        <span className="truncate">{[order.address_details, order.governorate_code && (governorateLabel(order.governorate_code, locale) || order.governorate_code)].filter(Boolean).join(" · ")}</span>
                                     </span>
                                 )}
                             </div>
@@ -276,10 +293,14 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
         } else {
             await removeFromBlacklist(tenantId, customer.phone);
         }
-        await queryClient.invalidateQueries({ queryKey: ["customers"] });
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["customers"] }),
+            queryClient.invalidateQueries({ queryKey: ["customer-profile"] }),
+            queryClient.invalidateQueries({ queryKey: ["customer-dialog"] }),
+        ]);
     };
 
-    const loadedAll = !data.data || data.data.orders.length >= (data.data.totalOrders ?? 0);
+    const loadedAll = !data.data?.hasMore;
 
     return (
         <AnimatePresence>
@@ -396,7 +417,7 @@ function Body({
                             <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", { date: monthYear(locale, data?.firstOrderDate ?? customer.first_order_date) })}</span>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-9 h-9 rounded-xl border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40 shrink-0" aria-label="Close">
+                    <button onClick={onClose} className="w-9 h-9 rounded-xl border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40 shrink-0" aria-label={t("common.close")}>
                         <X className="w-4 h-4" />
                     </button>
                 </div>
@@ -517,9 +538,9 @@ function Body({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center gap-2.5 px-6 py-4 border-t border-(--card-border) shrink-0">
+                <div className="flex flex-wrap items-center gap-2.5 px-4 sm:px-6 py-4 border-t border-(--card-border) shrink-0">
                     <a href={`https://wa.me/${e164}`} target="_blank" rel="noopener noreferrer" className="flex-1 h-12 rounded-2xl bg-(--button-success) text-white font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-                        <MessageCircle className="w-4 h-4" /> WhatsApp
+                        <MessageCircle className="w-4 h-4" /> {t("customers.actions.whatsapp")}
                     </a>
                     <a href={`tel:+${e164}`} className="flex-1 h-12 rounded-2xl border border-(--card-border) font-bold inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
                         <Phone className="w-4 h-4" /> {t("customers.drawer.call", "Call")}
@@ -540,7 +561,7 @@ function Body({
                         <Ban className="w-4 h-4" />
                         <span className="hidden sm:inline">{customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}</span>
                     </button>
-                    <button onClick={onNewOrder} className="flex-1 h-12 rounded-2xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                    <button onClick={onNewOrder} className="basis-full sm:basis-0 flex-1 h-12 rounded-2xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
                         <Plus className="w-4 h-4" /> {t("customers.drawer.newOrder", "New order")}
                     </button>
                 </div>

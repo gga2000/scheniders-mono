@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 export default function CustomersError({
     error,
@@ -10,6 +11,8 @@ export default function CustomersError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    const { t } = useLanguage();
+
     useEffect(() => {
         console.error("Customers segment error:", error);
     }, [error]);
@@ -20,20 +23,16 @@ export default function CustomersError({
                 <AlertTriangle className="h-8 w-8 text-rose-600" />
             </div>
 
-            <h2 className="mb-2 text-xl font-bold text-foreground">
-                Customers Data Error
-            </h2>
+            <h2 className="mb-2 text-xl font-bold text-foreground">{t("customers.loadFailed")}</h2>
 
-            <p className="mb-6 max-w-md text-muted">
-                We encountered an error loading the customers overview. This might be a temporary network issue.
-            </p>
+            <p className="mb-6 max-w-md text-muted-foreground">{t("customers.loadFailedHint")}</p>
 
             <button
                 onClick={reset}
-                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="flex items-center gap-2 h-11 rounded-xl bg-foreground px-5 font-semibold text-background transition-opacity hover:opacity-90"
             >
                 <RefreshCw className="h-4 w-4" />
-                Try Again
+                {t("customers.profile.retry")}
             </button>
         </div>
     );

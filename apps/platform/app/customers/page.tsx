@@ -9,7 +9,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 import {
     usePaginatedCustomers, useCustomerDashboardStats, toCustomerRpcArgs, mapCustomerRow,
-    type PaginatedCustomerFilters, type PaginatedCustomer,
+    type PaginatedCustomerFilters, type PaginatedCustomer, parseCustomerSort,
 } from "@/hooks/use-paginated-customers";
 import { csvDate, csvPhone, downloadCsv, toCsv } from "@/lib/customer-csv";
 import { toast } from "@/hooks/use-toast";
@@ -45,8 +45,10 @@ function CustomersPageContent() {
     const [laneFilter, setLaneFilter] = useState<LaneSegment | null>(null);
     const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
 
-    // Multi-select for bulk actions (deep-link broadcast, tag, export).
-    const [selected, setSelected] = useState<Set<string>>(new Set());
+    // Multi-select for bulk actions (WhatsApp, tag, export). The selected rows are
+    // kept themselves, so the count, the campaign, the export and the tagging all
+    // act on the same customers even after the filter changes.
+    const [selected, setSelected] = useState<Map<string, PaginatedCustomer>>(new Map());
     const [showBroadcast, setShowBroadcast] = useState(false);
     const [showBulkTag, setShowBulkTag] = useState(false);
     const { bulkAddTags } = useCustomerBulkActions();
@@ -55,7 +57,7 @@ function CustomersPageContent() {
         const f: PaginatedCustomerFilters = {
             search: state.search,
             city: state.city,
-            sortBy: state.sortBy as any,
+            sortBy: state.sortBy,
             sortOrder: state.sortOrder,
             valueFilter: valueFilter === "all" ? undefined : valueFilter,
             riskFilter: riskFilter === "all" ? undefined : riskFilter,
@@ -89,18 +91,21 @@ function CustomersPageContent() {
     }, []);
 
     const toggleSelect = useCallback((phone: string) => {
+        const row = allCustomers.find((c) => c.phone === phone);
         setSelected((prev) => {
-            const next = new Set(prev);
-            if (next.has(phone)) next.delete(phone); else next.add(phone);
+            const next = new Map(prev);
+            if (next.has(phone)) next.delete(phone);
+            else if (row) next.set(phone, row);
             return next;
         });
-    }, []);
-    const clearSelected = useCallback(() => setSelected(new Set()), []);
-    const selectedPhones = useMemo(() => Array.from(selected), [selected]);
+    }, [allCustomers]);
+    const clearSelected = useCallback(() => setSelected(new Map()), []);
+    const selectedPhones = useMemo(() => Array.from(selected.keys()), [selected]);
+    const selectedSet = useMemo(() => new Set(selected.keys()), [selected]);
     const broadcastRecipients = useMemo(
-        () => allCustomers.filter((c) => selected.has(c.phone))
-            .map((c) => ({ phone: c.phone, name: c.name, is_blacklisted: c.is_blacklisted })),
-        [allCustomers, selected],
+        () => Array.from(selected.values())
+            .map((c) => ({ phone: c.phone, name: c.has_name ? c.name : "", is_blacklisted: c.is_blacklisted })),
+        [selected],
     );
 
     const customerCsvHeader = useCallback(() => [
@@ -120,12 +125,12 @@ function CustomersPageContent() {
     ], [t, language]);
 
     const exportSelected = useCallback(() => {
-        const rows = allCustomers.filter((c) => selected.has(c.phone));
+        const rows = Array.from(selected.values());
         downloadCsv(
             toCsv([customerCsvHeader(), ...rows.map(customerCsvRow)]),
             `customers-selected-${new Date().toISOString().slice(0, 10)}.csv`,
         );
-    }, [allCustomers, selected, customerCsvHeader, customerCsvRow]);
+    }, [selected, customerCsvHeader, customerCsvRow]);
 
     const onConfirmTags = useCallback(async (tagIds: string[]) => {
         try {
@@ -153,7 +158,8 @@ function CustomersPageContent() {
         setValueFilter(s.value);
         setRiskFilter(s.risk);
         setLaneFilter(s.lane);
-        if (s.sort) setSort(s.sort.by as any, s.sort.order);
+        const sortBy = parseCustomerSort(s.sort?.by);
+        if (s.sort && sortBy) setSort(sortBy, s.sort.order);
     }, [setSort]);
 
     const onSegment = useCallback((kind: LaneSegment) => {
@@ -245,7 +251,7 @@ function CustomersPageContent() {
                     onSearch={setSearch}
                     sortBy={state.sortBy || "total_orders"}
                     sortOrder={state.sortOrder || "desc"}
-                    onSort={(sb, so) => setSort(sb as any, so)}
+                    onSort={(sb, so) => setSort(parseCustomerSort(sb) ?? "total_orders", so)}
                     view={effectiveView}
                     onView={(mode) => { setViewMode(mode); setView(mode); }}
                 >
@@ -302,9 +308,9 @@ function CustomersPageContent() {
                 ) : (
                     <>
                         {effectiveView === "list" ? (
-                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selected} onToggleSelect={toggleSelect} />
+                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
                         ) : (
-                            <CustomerGrid customers={displayed} onCustomerClick={handleCustomerClick} selectedPhones={selected} onToggleSelect={toggleSelect} />
+                            <CustomerGrid customers={displayed} onCustomerClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
                         )}
                         {hasNextPage && (
                             <div className="flex justify-center pt-2">

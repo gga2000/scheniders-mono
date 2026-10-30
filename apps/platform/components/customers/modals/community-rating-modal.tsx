@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Star, Eye, EyeOff } from "lucide-react";
+import { Star } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useSubmitCommunityRating } from "@/hooks/use-community-ratings";
+import { toast } from "@/hooks/use-toast";
 import { ModalShell } from "./modal-shell";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +49,6 @@ export function CommunityRatingModal() {
     const [comment, setComment] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [overallType, setOverallType] = useState<"positive" | "neutral" | "warning">("neutral");
-    const [isAnonymous, setIsAnonymous] = useState(true);
 
     const handleClose = () => {
         setCommunityRatingModalOpen(false);
@@ -58,7 +58,6 @@ export function CommunityRatingModal() {
         setComment("");
         setSelectedTags([]);
         setOverallType("neutral");
-        setIsAnonymous(true);
     };
 
     const handleSubmit = () => {
@@ -66,15 +65,19 @@ export function CommunityRatingModal() {
         submitRating.mutate({
             customer_phone: communityRatingContext.phone,
             order_id: communityRatingContext.orderId,
-            rater_id: "", // TODO: get from auth
             trust_stars: trustStars,
             communication_stars: commStars,
             behavior_stars: behaviorStars,
             overall_type: overallType,
             comment: comment || undefined,
             quick_tags: selectedTags,
-            is_anonymous: isAnonymous,
-        }, { onSuccess: handleClose });
+        }, {
+            onSuccess: () => {
+                toast({ variant: "success", title: t("customers.rating.saved") });
+                handleClose();
+            },
+            onError: () => toast({ variant: "error", title: t("customers.rating.failed") }),
+        });
     };
 
     const toggleTag = (tag: string) => {
@@ -130,32 +133,18 @@ export function CommunityRatingModal() {
                                     : "border-(--card-border) text-muted-foreground hover:bg-muted/30"
                             )}
                         >
-                            {tag}
+                            {t(`customers.rating.tag.${tag}`)}
                         </button>
                     ))}
                 </div>
-
-                {/* Anonymous toggle */}
-                <button
-                    onClick={() => setIsAnonymous(!isAnonymous)}
-                    className="flex items-center gap-3 w-full p-3 rounded-xl bg-muted/20"
-                >
-                    {isAnonymous ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-foreground" />}
-                    <div className="text-left">
-                        <p className="text-sm font-medium text-foreground">
-                            {isAnonymous ? t("customers.rating.anonymous") : t("customers.rating.revealIdentity")}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{t("customers.rating.anonymousHint")}</p>
-                    </div>
-                </button>
 
                 {/* Submit */}
                 <button
                     onClick={handleSubmit}
                     disabled={trustStars === 0 || commStars === 0 || behaviorStars === 0 || submitRating.isPending}
-                    className="w-full bg-foreground text-background py-3 rounded-xl font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
+                    className="w-full min-h-11 bg-foreground text-background py-3 rounded-xl font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
                 >
-                    {submitRating.isPending ? "..." : t("customers.rating.publish")}
+                    {t("customers.rating.publish")}
                 </button>
             </div>
         </ModalShell>

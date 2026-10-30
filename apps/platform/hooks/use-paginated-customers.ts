@@ -9,11 +9,19 @@ import type { ValueTier, RiskLevel } from "@/lib/customer-reliability";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import type { Database } from "@scheniders/supabase/database.types";
 
+export const CUSTOMER_SORT_FIELDS = ["name", "total_orders", "total_spent", "last_order_date", "trust_score"] as const;
+export type CustomerSortBy = (typeof CUSTOMER_SORT_FIELDS)[number];
+
+/** A sort field from a URL or a select, or undefined when it is not one we support. */
+export function parseCustomerSort(value: string | null | undefined): CustomerSortBy | undefined {
+    return CUSTOMER_SORT_FIELDS.find((f) => f === value);
+}
+
 export interface PaginatedCustomerFilters {
     status?: CustomerStatus | "all";
     city?: string;
     search?: string;
-    sortBy?: "name" | "total_orders" | "total_spent" | "last_order_date" | "trust_score";
+    sortBy?: CustomerSortBy;
     sortOrder?: "asc" | "desc";
     // Advanced Filters
     minLtv?: number;
@@ -35,7 +43,10 @@ export interface PaginatedCustomerFilters {
 
 export interface PaginatedCustomer {
     phone: string;
+    /** Display name: the latest order's name, or the formatted phone when there is none. */
     name: string;
+    /** False when no order carried a name and `name` is only the phone. */
+    has_name: boolean;
     city: string | null;
     governorate: string | null;
     total_orders: number;
@@ -101,13 +112,14 @@ export function toCustomerRpcArgs(filters: PaginatedCustomerFilters | undefined,
     };
 }
 
-type CustomerRpcRow = Database["public"]["Functions"]["get_paginated_customers"]["Returns"][number];
+export type CustomerRpcRow = Database["public"]["Functions"]["get_paginated_customers"]["Returns"][number];
 
 export function mapCustomerRow(row: CustomerRpcRow): PaginatedCustomer {
     return {
         phone: row.phone,
         // No name on any order: show the number rather than an English placeholder.
         name: row.name || formatPhoneDisplay(row.phone),
+        has_name: !!row.name,
         city: row.city,
         governorate: row.governorate,
         total_orders: Number(row.total_orders),

@@ -13,12 +13,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { storedPhoneVariants } from "@/lib/order-server-search";
+import type { Database } from "@scheniders/supabase/database.types";
 import { formatIQD, getStatusLabel } from "@/lib/utils";
 import { formatPhoneDisplay } from "@/lib/customer-format";
 import { toast } from "@/hooks/use-toast";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
-import { useVoiceNotes } from "@/hooks/use-voice-notes";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { HeroIdentityBanner } from "@/components/customers/detail/hero-identity-banner";
 import { CustomerValueRiskBanner, type CustomerReliability } from "@/components/customers/detail/value-risk-banner";
@@ -31,7 +31,6 @@ import { FabNewShipment } from "@/components/customers/detail/fab-new-shipment";
 import { ScoreBreakdownModal } from "@/components/customers/modals/score-breakdown-modal";
 import { CommunityRatingModal } from "@/components/customers/modals/community-rating-modal";
 import { LinkCustomersModal } from "@/components/customers/modals/link-customers-modal";
-import { VoiceRecorderModal } from "@/components/customers/modals/voice-recorder-modal";
 import { LinkedPeopleSection } from "@/components/customers/detail/linked-people-section";
 import { IdentityTimeline } from "@/components/customers/detail/identity-timeline";
 import { ActivityLogTimeline } from "@/components/customers/detail/activity-log-timeline";
@@ -53,6 +52,7 @@ type ProfileOrder = {
 };
 
 type ProfileTag = { id: string; name: string; color: string };
+type OrderHistoryRow = Database["public"]["Functions"]["get_customer_order_history"]["Returns"][number];
 
 function useCustomerProfile(phone: string) {
     // Every read is pinned to the store being worked in, so a phone that is a
@@ -81,13 +81,9 @@ function useCustomerProfile(phone: string) {
                     .eq("tenant_id", tenantId).in("phone", variants).limit(1),
                 // Totals and counts use the same delivered-only rule as the list.
                 supabase.rpc("get_customer_reliability", { p_phone: normalized }),
-                supabase.from("orders")
-                    .select("id, order_id, created_at, items, price, total_price:price, status, is_return, governorate_code")
-                    .eq("tenant_id", tenantId)
-                    .in("phone", variants)
-                    .is("deleted_at", null)
-                    .not("is_test", "is", true)
-                    .neq("status", "pending_checkout")
+                // Matched on the normalized phone in the active store, so orders
+                // stored as "07… " or 9640… are listed too.
+                supabase.rpc("get_customer_order_history", { p_phone: normalized })
                     .order("created_at", { ascending: false })
                     .limit(200),
             ]);
@@ -98,7 +94,10 @@ function useCustomerProfile(phone: string) {
             const trust = trustRes.data;
             const agg = aggRes.data;
             const reliability = (reliabilityRes.data as CustomerReliability[] | null)?.[0] ?? null;
-            const orders: ProfileOrder[] = (ordersRes.data ?? []).map((o) => ({ ...o, total_price: o.total_price ?? 0 }));
+            const orders: ProfileOrder[] = ((ordersRes.data ?? []) as OrderHistoryRow[]).map((o) => ({
+                id: o.id, order_id: o.order_id, created_at: o.created_at, items: o.items, price: o.price,
+                total_price: o.price ?? 0, status: o.status, is_return: o.is_return, governorate_code: o.governorate_code,
+            }));
             const totalOrders = Number(reliability?.total_orders ?? 0);
             const completed = Number(reliability?.completed_count ?? 0);
 
@@ -164,7 +163,6 @@ function CustomerProfileContent({ phone }: { phone: string }) {
 
     const { data: profile, isLoading, isError, refetch, isRefetching } = useCustomerProfile(phone);
     const { data: historyData } = useTrustScoreHistory(profile?.phone);
-    const { data: voiceNotes } = useVoiceNotes(profile?.phone);
 
     if (isError) {
         return (
@@ -216,7 +214,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     }
                 }}
                 title={t("customers.profile.exportJsonHint")}
-                className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 min-h-11 px-4 rounded-xl text-sm font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
                 <Download className="w-3.5 h-3.5" />
                 {t("customers.profile.exportJson")}
@@ -272,10 +270,8 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <div className="col-span-12 lg:col-span-7">
                     <DossierNotesCard
                         notes={profile.notes}
-                        voiceNotes={voiceNotes || []}
                         phone={profile.phone}
                         onAddNote={() => store.setAddNoteModalOpen(true)}
-                        onPlayVoice={(_id) => {/* TODO: voice playback */}}
                     />
                 </div>
 
@@ -401,7 +397,6 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <ScoreBreakdownModal />
             <CommunityRatingModal />
             <LinkCustomersModal />
-            <VoiceRecorderModal />
             <AddNoteModal phone={profile.phone} />
         </div>
     );

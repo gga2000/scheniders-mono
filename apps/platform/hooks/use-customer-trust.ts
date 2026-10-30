@@ -4,10 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { TrustScoreBreakdownItem, TrustAuditEvent } from "@/types/customer";
+import type { Database } from "@scheniders/supabase/database.types";
+
+type AuditRow = Database["public"]["Functions"]["get_customer_score_audit_log"]["Returns"][number];
 
 export function useTrustScoreHistory(phone: string | undefined) {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customer-trust-history", phone],
+        queryKey: ["customer-trust-history", tenantId, phone],
         queryFn: async () => {
             if (!phone) return [];
             const { data, error } = await supabase.rpc("get_customer_trust_history", {
@@ -23,8 +27,9 @@ export function useTrustScoreHistory(phone: string | undefined) {
 }
 
 export function useTrustAuditLog(phone: string | undefined, limit = 20, offset = 0) {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customer-trust-audit", phone, limit, offset],
+        queryKey: ["customer-trust-audit", tenantId, phone, limit, offset],
         queryFn: async () => {
             if (!phone) return { events: [], totalCount: 0 };
             const { data, error } = await supabase.rpc("get_customer_score_audit_log", {
@@ -33,7 +38,7 @@ export function useTrustAuditLog(phone: string | undefined, limit = 20, offset =
                 log_offset: offset,
             });
             if (error) throw error;
-            const raw = (data || []) as any[];
+            const raw = (data ?? []) as AuditRow[];
             const totalCount = raw.length > 0 ? Number(raw[0].total_count) : 0;
             const events: TrustAuditEvent[] = raw.map(r => ({
                 id: r.id,
@@ -80,8 +85,9 @@ export function useTrustScoreBreakdown(phone: string | undefined) {
 }
 
 export function useCustomerPercentile(phone: string | undefined) {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["customer-percentile", phone],
+        queryKey: ["customer-percentile", tenantId, phone],
         queryFn: async () => {
             if (!phone) return { percentile: 50, city_name: '', total_in_group: 0 };
             const { data, error } = await supabase.rpc("get_customer_percentile", {

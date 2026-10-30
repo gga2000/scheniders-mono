@@ -7,8 +7,6 @@ import type {
     CustomerNote,
     CustomerStatus,
     CommunityRating,
-    CustomerLink,
-    VoiceNote,
 } from "@/types/customer";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 
@@ -297,75 +295,6 @@ export const customerRepository = {
 
             if (error) throw error;
             return data as CommunityRating;
-        });
-    },
-
-    // =============================================
-    // CUSTOMER LINKS
-    // =============================================
-
-    async findLinksByPhone(phone: string): Promise<CustomerLink[]> {
-        return withRetry('customerRepository.findLinksByPhone', async () => {
-            const { data, error } = await supabase
-                .from("customer_links")
-                .select("*")
-                .or(`phone_a.eq.${phone},phone_b.eq.${phone}`)
-                .order("created_at", { ascending: false });
-
-            if (error) throw error;
-            return data as CustomerLink[];
-        });
-    },
-
-    async createLink(link: { phone_a: string; phone_b: string; relationship_type: string; similarity_hint?: string; linked_by?: string }): Promise<CustomerLink> {
-        return withRetry('customerRepository.createLink', async () => {
-            const { data, error } = await supabase
-                .from("customer_links")
-                .insert([link])
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as CustomerLink;
-        });
-    },
-
-    async deleteLink(id: string): Promise<void> {
-        return withRetry('customerRepository.deleteLink', async () => {
-            const { error } = await supabase
-                .from("customer_links")
-                .delete()
-                .eq("id", id);
-
-            if (error) throw error;
-        });
-    },
-
-    // =============================================
-    // VOICE NOTES
-    // =============================================
-
-    async findVoiceNotesByPhone(phone: string): Promise<VoiceNote[]> {
-        return withRetry('customerRepository.findVoiceNotesByPhone', async () => {
-            const { data, error } = await supabase
-                .from("customer_voice_notes")
-                .select("*")
-                .eq("customer_phone", phone)
-                .order("created_at", { ascending: false });
-
-            if (error) throw error;
-            return data as VoiceNote[];
-        });
-    },
-
-    async deleteVoiceNote(id: string): Promise<void> {
-        return withRetry('customerRepository.deleteVoiceNote', async () => {
-            const { error } = await supabase
-                .from("customer_voice_notes")
-                .delete()
-                .eq("id", id);
-
-            if (error) throw error;
         });
     },
 };

@@ -20,7 +20,7 @@ interface BroadcastModalProps {
     recipients: BroadcastRecipient[];
 }
 
-/** "{name}" in the message becomes the customer's first name. */
+/** "{name}" in the message becomes the customer's first name, or nothing when no order carried a name. */
 function personalise(message: string, name: string): string {
     const first = name.trim().split(/\s+/)[0] ?? "";
     return message.replaceAll("{name}", first);
@@ -120,7 +120,7 @@ export function BroadcastModal({ isOpen, onClose, recipients }: BroadcastModalPr
                                 return (
                                     <li key={r.phone} className="flex items-center gap-3 px-5 py-2">
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
+                                            <p className="text-sm font-semibold text-foreground truncate">{r.name || formatPhoneDisplay(r.phone)}</p>
                                             <p className="text-xs text-muted-foreground tabular-nums">{formatPhoneDisplay(r.phone)}</p>
                                         </div>
                                         <a

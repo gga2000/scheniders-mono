@@ -43,6 +43,8 @@ export function CustomerListTable({
 }) {
     const { t, language } = useLanguage();
     const allSelected = customers.length > 0 && customers.every((c) => selectedPhones?.has(c.phone));
+    // Once something is selected, tapping a row adds or removes it, like the grid.
+    const selecting = !!onToggleSelect && (selectedPhones?.size ?? 0) > 0;
 
     return (
         <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)]">
@@ -87,7 +89,7 @@ export function CustomerListTable({
                             return (
                                 <tr
                                     key={c.phone}
-                                    onClick={() => onRowClick(c.phone)}
+                                    onClick={() => (selecting ? onToggleSelect?.(c.phone) : onRowClick(c.phone))}
                                     className={cn("border-b border-(--card-border) last:border-0 hover:bg-background cursor-pointer transition-colors", selectedPhones?.has(c.phone) && "bg-foreground/3")}
                                 >
                                     {onToggleSelect && (
