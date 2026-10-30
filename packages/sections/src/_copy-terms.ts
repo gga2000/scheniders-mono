@@ -179,4 +179,8 @@ export const COPY_ACTIONS = {
   saveNumber: "احفظ رقمنا",
   /** The guarantee terms, by name. */
   guarantee: "كرت الضمان",
+  /** Putting the product in the cart, beside the submit (slice 1g). */
+  addToCart: "أضف للسلة",
+  /** Going to the cart, after an add (slice 1g). */
+  viewCart: "شوف السلة",
 } as const;

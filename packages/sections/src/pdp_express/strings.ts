@@ -162,6 +162,23 @@ export const EXPRESS_STRINGS = {
   scentStory: { en: "The scent’s story", ar: "قصة العطر", ku: "چیرۆکی بۆنەکە" },
   meterValue: { en: "{value} of {max}", ar: "{value} من {max}", ku: "{value} لە {max}" },
   closeSheet: { en: "Close", ar: "إغلاق", ku: "داخستن" },
+  // add_to_cart (slice 1g): the cart tile beside the submit, and the line
+  // under the order buttons once a tap has put the perfume in the cart.
+  addToCart: { en: "Add to cart", ar: "أضف للسلة", ku: "خستنە سەبەتە" },
+  // {count}: how many of this line the cart holds after the add.
+  addedToCart: {
+    en: "Added to cart · {count} in your cart",
+    ar: "انضافت للسلة · {count} بالسلة",
+    ku: "خرایە سەبەتەکەوە · {count} لە سەبەتەکەدا",
+  },
+  // A tap with the most that can be ordered (stock or max_qty) already in
+  // the cart: nothing is added.
+  cartAtMax: {
+    en: "Your cart already has the most you can order",
+    ar: "بسلتك أقصى كمية تكدر تطلبها",
+    ku: "سەبەتەکەت زۆرترین بڕی تێدایە کە دەتوانیت داوای بکەیت",
+  },
+  viewCart: { en: "View cart", ar: "شوف السلة", ku: "سەبەتەکە ببینە" },
 } as const;
 
 export type ExpressStringKey = keyof typeof EXPRESS_STRINGS;

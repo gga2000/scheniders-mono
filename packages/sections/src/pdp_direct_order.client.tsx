@@ -56,6 +56,7 @@ import {
   stackDiscounts,
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
+import { useCart } from "./helpers/cart-store";
 import { trackPixel, newPixelEventId } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import { focusVariantPicker, stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
@@ -924,6 +925,32 @@ export function PdpDirectOrderRender({
     );
   }
 
+  /** The variant is still owed: show the message and focus where it is
+   *  chosen — this form's own pills or, when a picker section owns the
+   *  choice, that section (the message then shows beside the submit
+   *  button, where the shopper tapped). */
+  function focusVariantChoice() {
+    if (!product) return;
+    setVariantError(true);
+    if (chosen.pickerMounted) {
+      focusVariantPicker(product.id);
+    } else {
+      variantPillsRef.current?.scrollIntoView?.({ block: "center" });
+      variantPillsRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    }
+  }
+
+  /** add_to_cart (slice 1g): once the direct order for this product is in
+   *  (placed now, or the server's duplicate answer for one placed before),
+   *  every cart line of it — any variant — is retired, so a later cart
+   *  checkout cannot order the same product a second time. Other products
+   *  stay. Only with the cart tile opted in (express), so every other
+   *  store's cart is untouched. */
+  function retireCartLines(productId: string) {
+    if (props.layout !== "express" || props.add_to_cart !== true) return;
+    useCart.getState().removeProduct(productId);
+  }
+
   async function onSubmit(
     e: React.FormEvent<HTMLFormElement>,
     opts?: SubmitOptions,
@@ -944,18 +971,11 @@ export function PdpDirectOrderRender({
       errors.alt_phone = s("phoneInvalid");
     }
     setFieldErrors(errors);
-    // The option is the first thing to fix. It is either this form's own
-    // pills or, when a picker section owns the choice, that section — the
-    // message then shows beside the submit button, where the shopper tapped.
+    // The option is the first thing to fix (focusVariantChoice).
     setVariantError(awaitingVariant);
     const firstInvalid = (opts?.focusOrder ?? FIELD_ORDER).find((k) => errors[k]);
     if (awaitingVariant) {
-      if (chosen.pickerMounted) {
-        focusVariantPicker(product.id);
-      } else {
-        variantPillsRef.current?.scrollIntoView?.({ block: "center" });
-        variantPillsRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-      }
+      focusVariantChoice();
       return;
     }
     if (firstInvalid || !phone) {
@@ -1061,6 +1081,7 @@ export function PdpDirectOrderRender({
         // nothing fires again, and there is no new order to thank them for —
         // the form says so instead.
         clearOrderDraft(ctx.tenant.id, product.id);
+        retireCartLines(product.id);
         idempotencyKeyRef.current = null;
         purchaseEventIdRef.current = null;
         setStatus("duplicate");
@@ -1120,6 +1141,7 @@ export function PdpDirectOrderRender({
         purchaseEventIdRef.current ?? undefined,
       );
       clearOrderDraft(ctx.tenant.id, product.id);
+      retireCartLines(product.id);
       idempotencyKeyRef.current = null;
       purchaseEventIdRef.current = null;
       setStatus("ok");
@@ -1277,6 +1299,7 @@ export function PdpDirectOrderRender({
           onSale,
           discountPct,
           qty,
+          unitPrice,
           setQty,
           maxQty,
           atMinQty,
@@ -1318,6 +1341,7 @@ export function PdpDirectOrderRender({
           variantError,
           setVariantError,
           variantPillsRef,
+          focusVariantChoice,
           reassurance,
           returnPromise: resolveI18n(props.return_promise_i18n, locale),
           guaranteeAnchorId: props.guarantee_anchor_id,

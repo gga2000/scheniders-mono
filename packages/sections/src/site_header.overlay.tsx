@@ -16,6 +16,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "./helpers/utils";
+import { useCartBump } from "./helpers/cart-bump";
 import { MaterialIcon } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { isOptimizableImageHost } from "./helpers/image";
@@ -53,6 +54,43 @@ function useOverHero(barRef: React.RefObject<HTMLDivElement | null>): boolean {
   return overHero;
 }
 
+/** `overlay_cart`: the cart chip. Its own component so only a header that
+ *  renders the chip subscribes to the cart's pop. */
+function CartChip({
+  cart,
+  chipClassName,
+  onNavigate,
+}: {
+  cart: { label: string; count: number };
+  chipClassName: string;
+  onNavigate: () => void;
+}) {
+  const bumped = useCartBump();
+  return (
+    <StoreLink
+      href="/cart"
+      onClick={onNavigate}
+      aria-label={cart.label}
+      data-header-cart=""
+      className={cn(chipClassName, "relative w-11 justify-center")}
+    >
+      <MaterialIcon name="shopping_bag" className="text-2xl" />
+      {cart.count > 0 && (
+        // Ink, not yellow: yellow fills stay on the order actions (D4).
+        <span
+          data-cart-count=""
+          className={cn(
+            "absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-bk-pill bg-bk-ink px-1 font-bk-body text-xs font-bold tabular-nums text-bk-surface transition-transform duration-bk-fast motion-reduce:transition-none",
+            bumped && "scale-125",
+          )}
+        >
+          {cart.count}
+        </span>
+      )}
+    </StoreLink>
+  );
+}
+
 export function OverlayHeader({
   wordmark,
   logo,
@@ -60,6 +98,7 @@ export function OverlayHeader({
   navLinks,
   enabledLocales,
   menuLabel,
+  cart = null,
 }: {
   wordmark: string;
   logo: string | null;
@@ -67,6 +106,9 @@ export function OverlayHeader({
   navLinks: NavLink[];
   enabledLocales: LocaleCode[];
   menuLabel: string;
+  /** `overlay_cart`: the cart chip's name («سلة التسوّق (n)») and the
+   *  mounted item count. Null = no chip, today's markup. */
+  cart?: { label: string; count: number } | null;
 }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
@@ -87,6 +129,22 @@ export function OverlayHeader({
     glass
       ? "border-bk-surface/60 bg-bk-surface/70 shadow-bk-card backdrop-blur-md"
       : "border-transparent bg-transparent",
+  );
+  // The menu chip (or its spacer): alone at the right, or after the cart chip.
+  const menuToggle = hasSheet ? (
+    <button
+      ref={toggleRef}
+      type="button"
+      onClick={() => setOpen((o) => !o)}
+      aria-label={menuLabel}
+      aria-expanded={open}
+      aria-controls={sheetId}
+      className={cn(chip, "w-11 justify-center")}
+    >
+      <MaterialIcon name={open ? "close" : "menu"} className="text-2xl" />
+    </button>
+  ) : (
+    <span aria-hidden="true" />
   );
 
   return (
@@ -135,20 +193,13 @@ export function OverlayHeader({
               />
             )}
           </StoreLink>
-          {hasSheet ? (
-            <button
-              ref={toggleRef}
-              type="button"
-              onClick={() => setOpen((o) => !o)}
-              aria-label={menuLabel}
-              aria-expanded={open}
-              aria-controls={sheetId}
-              className={cn(chip, "w-11 justify-center")}
-            >
-              <MaterialIcon name={open ? "close" : "menu"} className="text-2xl" />
-            </button>
+          {cart ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <CartChip cart={cart} chipClassName={chip} onNavigate={close} />
+              {menuToggle}
+            </div>
           ) : (
-            <span aria-hidden="true" />
+            menuToggle
           )}
         </div>
       </div>
