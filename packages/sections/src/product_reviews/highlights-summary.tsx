@@ -3,7 +3,8 @@
 // rating link and the scent card's footer link, so neither ever lands on
 // `#reviews` (which opens the review form). The big number and the exact
 // stars come from one value, `displayRating(avg)`: «4.7» and a 70% fifth
-// star. «من 6 تقييمات» takes the identity row's plural forms. Amber is
+// star. «من 6 تقييمات» and each bar's label («5 من 5: 5 تقييمات») take
+// the identity row's plural forms. Amber is
 // used only for the stars and the bars (D4). Bars need the real per-star
 // counts and at least two reviews. Server-safe: no hooks.
 
@@ -57,7 +58,10 @@ export function HighlightsSummary({
             return (
               <li
                 key={star}
-                aria-label={rs("starRow", locale, { star, count })}
+                aria-label={rs("starRowCounted", locale, {
+                  star,
+                  count: reviewCountLabel(count, locale),
+                })}
                 className={cn("flex items-center gap-bk-xs", rtl && "flex-row-reverse")}
               >
                 <span

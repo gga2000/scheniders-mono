@@ -16,6 +16,7 @@ import { StoreBaseProvider } from "./helpers/store-context";
 import product_reviews from "./product_reviews";
 import type { Product } from "./types";
 import { productCtx, productRuntime } from "./_pdp-fixtures";
+import { HighlightsSummary } from "./product_reviews/highlights-summary";
 import { IRAQ_REDESIGN_TENANT } from "./_pdp-redesign-fixtures";
 import { WAYFER_REVIEWS, wayferProduct } from "./_pdp-wayfer-fixtures";
 
@@ -85,6 +86,30 @@ describe("summary card", () => {
     expect(html).toContain('data-star-count="5">5<');
     expect(html).toContain('data-star-count="3">1<');
     expect(count(html, "bg-bk-accent")).toBe(5);
+  });
+
+  it("each bar's label counts with the plural forms («تقييم واحد», «5 تقييمات»)", () => {
+    expect(html).toContain('aria-label="5 من 5: 5 تقييمات"');
+    expect(html).toContain('aria-label="3 من 5: تقييم واحد"');
+    expect(html).toContain('aria-label="1 من 5: 0 تقييم"');
+    expect(html).not.toContain(": 5 تقييم\"");
+  });
+
+  it("bar labels: two, 11+, zero and English", () => {
+    const summary = { average: 4.2, count: 17, distribution: { 5: 11, 4: 2, 3: 1, 2: 0, 1: 3 } };
+    const ar = renderToStaticMarkup(
+      <HighlightsSummary summary={summary} distributionKnown locale="ar" />,
+    );
+    expect(ar).toContain('aria-label="5 من 5: 11 تقييم"');
+    expect(ar).toContain('aria-label="4 من 5: تقييمين"');
+    expect(ar).toContain('aria-label="2 من 5: 0 تقييم"');
+    expect(ar).toContain('aria-label="1 من 5: 3 تقييمات"');
+    const en = renderToStaticMarkup(
+      <HighlightsSummary summary={summary} distributionKnown locale="en" />,
+    );
+    expect(en).toContain('aria-label="3 of 5: 1 review"');
+    expect(en).toContain('aria-label="4 of 5: 2 reviews"');
+    expect(en).toContain('aria-label="2 of 5: 0 reviews"');
   });
 });
 

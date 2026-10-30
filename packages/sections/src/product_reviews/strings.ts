@@ -43,6 +43,13 @@ export const REVIEW_STRINGS = {
   // layout "highlights" (spec §1.6). `{count}` in ofReviews is the whole
   // plural-correct count («6 تقييمات»), not a bare number.
   ofReviews: { en: "from {count}", ar: "من {count}", ku: "لە {count}" },
+  // A highlights star bar's label; `{count}` is the plural-correct count
+  // («تقييم واحد», «5 تقييمات»). The quiet layout keeps `starRow`.
+  starRowCounted: {
+    en: "{star} of 5: {count}",
+    ar: "{star} من 5: {count}",
+    ku: "{star} لە 5: {count}",
+  },
   themesLabel: { en: "Mentioned most", ar: "أكثر شي ذكروه", ku: "زۆرترین شت کە باسیان کرد" },
   // The screen-reader line after a word button is pressed. `{count}` is
   // the plural-correct count («تقييم واحد» / «تقييمين» / «3 تقييمات»);
