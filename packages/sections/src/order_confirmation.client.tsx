@@ -31,6 +31,10 @@ import { useEffect, useId, useState } from "react";
 import { formatPoints, referralShareUrl, resolveI18n, resolveReferral } from "@scheniders/shared";
 import type { I18nString, LocaleCode, StoreConfigV2 } from "@scheniders/shared";
 import { EyebrowChip, MaterialIcon, Section, WhatsAppButton } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
+import { readsRtl } from "./helpers/reading";
+import { ReceiptRow, SOFT_RECEIPT, SoftWhatsappLink } from "./helpers/soft-commerce";
+import { cn } from "./helpers/utils";
 import { PRESSABLE } from "./helpers/utils";
 import { StoreLink, useStoreBase } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
@@ -49,6 +53,10 @@ const STASH_TTL_MS = 60 * 60 * 1000;
 
 interface StashedItem {
   name: string;
+  /** The name the product's own page shows (pdp_direct_order writes it,
+   *  slice 1h). Read only by the soft recap; absent from older stashes and
+   *  from cart orders, whose line names are already the page's. */
+  display_name?: string;
   variant: string | null;
   qty: number;
   price: number;
@@ -102,6 +110,9 @@ function parseStash(raw: string | null, now: number): StashedOrder | null {
     ...(typeof o.upsell_token === "string" ? { upsell_token: o.upsell_token } : {}),
     items: items.map((i) => ({
       name: i.name,
+      ...(typeof i.display_name === "string" && i.display_name.trim()
+        ? { display_name: i.display_name.trim() }
+        : {}),
       variant: typeof i.variant === "string" ? i.variant : null,
       qty: i.qty,
       price: i.price,
@@ -284,6 +295,43 @@ function Recap({
   );
 }
 
+/** style "soft" (slice 1h): the recap as the express receipt — each line
+ *  named as its product page names it, read from the right in Arabic, the
+ *  total in ink at the receipt's 22px/900 (D4). */
+function SoftRecap({
+  order,
+  locale,
+  heading,
+  totalLabel,
+}: {
+  order: StashedOrder;
+  locale: LocaleCode;
+  heading: string;
+  totalLabel: string;
+}) {
+  const rtl = readsRtl(locale);
+  return (
+    <div className="mt-bk-lg" data-recap-style="soft">
+      <ChapterHeading locale={locale} title={heading} titleField="recap_heading_i18n" />
+      <div className={cn(SOFT_RECEIPT, "divide-y divide-dashed divide-bk-divider px-4")}>
+        <ul>
+          {order.items.map((it, i) => (
+            <li key={`${i}-${it.name}`}>
+              <ReceiptRow
+                rtl={rtl}
+                label={it.variant ? `${it.display_name ?? it.name} · ${it.variant}` : (it.display_name ?? it.name)}
+                note={`× ${it.qty}`}
+                value={<bdi>{formatPrice(it.price * it.qty, locale)}</bdi>}
+              />
+            </li>
+          ))}
+        </ul>
+        <ReceiptRow rtl={rtl} strong label={totalLabel} value={<bdi>{formatPrice(order.total, locale)}</bdi>} />
+      </div>
+    </div>
+  );
+}
+
 /* ─── Render ────────────────────────────────────────────────────────── */
 
 export function OrderConfirmationRender({
@@ -333,6 +381,8 @@ export function OrderConfirmationRender({
   const trackHref = orderNumber
     ? `/track?order=${encodeURIComponent(orderNumber)}`
     : "/track";
+  const soft = props.style === "soft";
+  const rtl = readsRtl(locale);
 
   return (
     <Section>
@@ -396,7 +446,15 @@ export function OrderConfirmationRender({
           </div>
         )}
 
-        {recap && (
+        {recap && soft && (
+          <SoftRecap
+            order={recap}
+            locale={locale}
+            heading={t(props.recap_heading_i18n)}
+            totalLabel={t(props.total_label_i18n)}
+          />
+        )}
+        {recap && !soft && (
           <Recap
             order={recap}
             locale={locale}
@@ -405,6 +463,41 @@ export function OrderConfirmationRender({
           />
         )}
 
+        {soft ? (
+          <section aria-labelledby={stepsId} className="mt-bk-lg" data-steps-style="soft">
+            <ChapterHeading
+              locale={locale}
+              id={stepsId}
+              title={t(props.steps_heading_i18n)}
+              titleField="steps_heading_i18n"
+            />
+            <ol className="space-y-bk-xs">
+              {props.steps.map((step, i) => {
+                const body = step.body_i18n ? t(step.body_i18n) : "";
+                return (
+                  <li key={i}>
+                    <div
+                      className={cn("flex items-start gap-bk-sm p-bk-sm", rtl && "flex-row-reverse")}
+                      style={CARD_STYLE}
+                    >
+                      {/* D4: a step number is not an order action — ink, not a yellow disc. */}
+                      <span
+                        aria-hidden="true"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-bk-pill bg-bk-ink font-bk-display text-sm font-black tabular-nums text-bk-surface"
+                      >
+                        {i + 1}
+                      </span>
+                      <div className={cn("min-w-0", rtl ? "text-right" : "text-left")}>
+                        <p className="font-bk-body text-base font-bold text-bk-ink">{t(step.title_i18n)}</p>
+                        {body && <p className="mt-0.5 font-bk-body text-sm text-bk-ink-soft">{body}</p>}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        ) : (
         <section aria-labelledby={stepsId} className="mt-bk-md">
           <h2
             id={stepsId}
@@ -448,10 +541,11 @@ export function OrderConfirmationRender({
             })}
           </ol>
         </section>
+        )}
 
         {eta && (
           <div
-            className="mt-bk-md flex items-start gap-bk-sm p-bk-md"
+            className={cn("mt-bk-md flex items-start gap-bk-sm p-bk-md", soft && rtl && "flex-row-reverse text-right")}
             style={CARD_STYLE}
           >
             <MaterialIcon name="local_shipping" className="text-2xl" />
@@ -478,7 +572,14 @@ export function OrderConfirmationRender({
         )}
 
         <div className="mt-bk-lg flex flex-col gap-bk-xs">
-          {phone && (
+          {phone && soft && (
+            <SoftWhatsappLink
+              href={buildWhatsappHref(phone, t(props.whatsapp_message_i18n), orderNumber)}
+              label={t(props.whatsapp_label_i18n)}
+              rtl={rtl}
+            />
+          )}
+          {phone && !soft && (
             <WhatsAppButton
               href={buildWhatsappHref(
                 phone,
@@ -496,15 +597,27 @@ export function OrderConfirmationRender({
           <StoreLink
             href={trackHref}
             data-i18n-field="track_label_i18n"
-            className={`inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 py-3 font-display text-base font-bold ${PRESSABLE} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus`}
-            style={{
-              backgroundColor: "var(--bk-surface, #ffffff)",
-              color: "var(--bk-ink, #1a1a1a)",
-              border: INK_BORDER,
-              borderRadius: "var(--bk-radius-pill, 9999px)",
-              boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
-              fontFamily: "var(--bk-font-display, inherit)",
-            }}
+            className={
+              soft
+                ? cn(
+                    "flex min-h-[52px] w-full items-center justify-center gap-2 rounded-bk-input border-bk border-bk-divider bg-bk-surface px-4 font-bk-body text-[15px] font-bold text-bk-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus",
+                    PRESSABLE,
+                    rtl && "flex-row-reverse",
+                  )
+                : `inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 py-3 font-display text-base font-bold ${PRESSABLE} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus`
+            }
+            style={
+              soft
+                ? undefined
+                : {
+                    backgroundColor: "var(--bk-surface, #ffffff)",
+                    color: "var(--bk-ink, #1a1a1a)",
+                    border: INK_BORDER,
+                    borderRadius: "var(--bk-radius-pill, 9999px)",
+                    boxShadow: "var(--bk-shadow-button, 2px 2px 0px 0px #1a1a1a)",
+                    fontFamily: "var(--bk-font-display, inherit)",
+                  }
+            }
           >
             <MaterialIcon name="package_2" className="text-xl" />
             {t(props.track_label_i18n)}

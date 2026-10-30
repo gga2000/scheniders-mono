@@ -101,6 +101,7 @@ import type { Props } from "./pdp_direct_order";
 // The two-way import is benign — the constant is only read at render time.
 import { DEFAULT_URGENCY_MAX_STOCK } from "./pdp_direct_order";
 import { PdpExpress } from "./pdp_express/express-view";
+import { displayNameOf } from "./pdp_express/identity-label";
 import { EXPRESS_FIELD_ORDER } from "./pdp_express/model";
 
 /** Chrome strings. Every entry carries Sorani — _kurdish-coverage.test.ts fails the build otherwise. */
@@ -1116,6 +1117,11 @@ export function PdpDirectOrderRender({
             customer_name: form.customer_name.trim(),
             items: items.map((i) => ({
               name: i.name,
+              // The name this page shows (slice 1h's soft recap reads it);
+              // the order itself keeps the catalogue's name.
+              display_name: displayNameOf(
+                acceptedBump && i.product_id === acceptedBump.product.id ? acceptedBump.product : product,
+              ),
               variant: i.variant_name,
               qty: i.quantity,
               price: i.price,

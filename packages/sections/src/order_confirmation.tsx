@@ -92,6 +92,13 @@ const schema = z.object({
   call_card_heading_named_i18n: i18nStringOptional.catch(undefined),
   /** Shown only once the WhatsApp confirmation is logged as sent. */
   call_card_whatsapp_sent_i18n: i18nStringOptional.catch(undefined),
+  /** "chunky" (default): today's thank-you below the head card. "soft"
+   *  (slice 1h): the redesigned PDP's voice — the recap as the express
+   *  receipt (the product named as its page names it, the total in ink,
+   *  D4), chapter headings, ink step numbers instead of yellow discs,
+   *  WhatsApp as the soft green row and a quiet track link. The call card
+   *  above is unchanged. A bad stored value falls back. */
+  style: z.enum(["chunky", "soft"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
