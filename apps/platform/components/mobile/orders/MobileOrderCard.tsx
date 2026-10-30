@@ -1,6 +1,7 @@
 "use client";
 
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
+import { AbandonedCartAccent } from "@/components/orders/abandoned-cart-accent";
 import React, { memo } from "react";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
@@ -152,14 +153,16 @@ export const MobileOrderCard = memo(function MobileOrderCard({
             {/* Status Side Color Accent — pulses amber/red when follow-up needed */}
             <div
                 className={cn(
-                    "absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl shrink-0",
+                    "absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl shrink-0 overflow-hidden",
                     needsDiscount
                         ? "bg-red-500 animate-pulse"
                         : needsReminder
                             ? "bg-amber-500 animate-pulse"
                             : getStatusColor(order.status, isReturn)
                 )}
-            />
+            >
+                {!needsDiscount && !needsReminder && <AbandonedCartAccent order={order} orientation="vertical" />}
+            </div>
 
             {/* Main Content Split */}
             <div className="flex items-start justify-between gap-2">
