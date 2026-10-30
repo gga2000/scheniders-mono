@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
+import { useLanguage } from "@/hooks/use-language";
 
 interface PhysicalFieldsSectionProps {
     formData: ProductEditorFormData;
@@ -8,12 +9,13 @@ interface PhysicalFieldsSectionProps {
 }
 
 export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsSectionProps) {
+    const { t } = useLanguage();
     return (
         <div className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Weight (g)
+                        {t("products.ed.weight")}
                     </label>
                     <input
                         type="number"
@@ -26,7 +28,7 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Length (cm)
+                        {t("products.ed.length")}
                     </label>
                     <input
                         type="number"
@@ -39,7 +41,7 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Width (cm)
+                        {t("products.ed.width")}
                     </label>
                     <input
                         type="number"
@@ -52,7 +54,7 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Height (cm)
+                        {t("products.ed.height")}
                     </label>
                     <input
                         type="number"

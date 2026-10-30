@@ -41,10 +41,8 @@ import { useFinancialVisibility } from "@/components/providers/financial-visibil
 import { RevealToggle } from "@/components/ui/reveal-toggle";
 
 // Import components
-import { ProductFormModal, ProductFormData } from "@/components/products/product-form-modal";
 import { ProductDetailModal } from "@/components/products/product-detail-modal";
 import { LowStockAlert } from "@/components/products/low-stock-alert";
-import { TimePeriodFilter, TimePeriod, filterByTimePeriod } from "@/components/products/time-period-filter";
 import { AdvancedFilters, FilterValues } from "@/components/products/advanced-filters";
 import { ActiveFilterPills } from "@/components/products/active-filter-pills";
 import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
@@ -118,7 +116,6 @@ function ProductsContent() {
         bulkArchive,
         bulkRestore,
         bulkDelete,
-        addVariant,
         bulkUpdateVisibility,
         deleteProduct,
         reorderProducts,
@@ -159,7 +156,6 @@ function ProductsContent() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const activeTab = (searchParams?.get("tab") as "products" | "categories" | "attributes" | "quarantine" | "supplies") || "products";
-    const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues | null>(null);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const [isFilterStuck, setIsFilterStuck] = useState(false);
@@ -239,8 +235,6 @@ function ProductsContent() {
     }, [viewMode, advancedFilters, router, searchParams]);
 
     // Modal State
-    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [formDefaultIsSupply, setFormDefaultIsSupply] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { data: priceHistory = [] } = usePriceHistoryQuery(isDetailModalOpen && selectedProduct ? selectedProduct.id : "");
@@ -259,10 +253,15 @@ function ProductsContent() {
         // Text search
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
+            // Every name a product goes by (same set as the top-bar search):
+            // order cards show the short name or the imported alias, and that
+            // is what gets typed. Description is left out: long marketing
+            // text matched generic words like عطر on every product.
             result = result.filter((product) =>
                 product.name.toLowerCase().includes(query) ||
-                (product.description?.toLowerCase().includes(query)) ||
-                (product.sku?.toLowerCase().includes(query))
+                (product.short_name?.toLowerCase().includes(query)) ||
+                (product.sku?.toLowerCase().includes(query)) ||
+                (product.lightfunnels_aliases?.some((alias) => alias.toLowerCase().includes(query)))
             );
         }
 
@@ -351,16 +350,12 @@ function ProductsContent() {
 
     // Stable callback refs for child components
     const handleAddProduct = useCallback(() => {
-        setSelectedProduct(null);
-        setFormDefaultIsSupply(false);
-        setIsFormModalOpen(true);
-    }, []);
+        router.push("/products/new");
+    }, [router]);
 
     const handleAddSupply = useCallback(() => {
-        setSelectedProduct(null);
-        setFormDefaultIsSupply(true);
-        setIsFormModalOpen(true);
-    }, []);
+        router.push("/products/new?supply=1");
+    }, [router]);
 
     const handleEditProduct = useCallback((product: Product) => {
         router.push(`/products/${product.id}/edit`);
@@ -458,51 +453,6 @@ function ProductsContent() {
             reportWriteError(err);
         }
     }, [updateProduct, reportWriteError]);
-
-    const submitProductForm = useCallback(async (data: ProductFormData) => {
-        const newProduct = await addProduct({
-            name: data.name,
-            description: data.description,
-            sku: data.sku || undefined,
-            price: data.price,
-            compare_at_price: data.compare_at_price || undefined,
-            cost: data.cost,
-            stock_quantity: data.stock_quantity,
-            open_box_quantity: data.open_box_quantity,
-            low_stock_threshold: data.low_stock_threshold,
-            image_url: data.image_url,
-            tag_color: data.tag_color,
-            is_supply: data.is_supply,
-            slug: data.slug || undefined,
-            is_visible: data.is_visible,
-            display_order: data.display_order,
-            category_id: data.category_id,
-            website_price: data.website_price,
-            short_description: data.short_description || undefined,
-        });
-
-        if (newProduct && data.variants.length > 0) {
-            for (const variant of data.variants) {
-                await addVariant(newProduct.id, {
-                    name: variant.name,
-                    price: variant.price,
-                    cost: variant.cost,
-                    stock_quantity: variant.stock_quantity,
-                    sku: variant.sku,
-                });
-            }
-        }
-    }, [addProduct, addVariant]);
-
-    const handleFormSubmit = useCallback(async (data: ProductFormData) => {
-        try {
-            await submitProductForm(data);
-        } catch (err) {
-            // Rethrown so the form stays open with what the merchant typed.
-            reportWriteError(err);
-            throw err;
-        }
-    }, [submitProductForm, reportWriteError]);
 
     // Shift-click range selection over the currently visible filtered list.
     const handleToggleSelection = useCallback((id: string, event?: React.MouseEvent) => {
@@ -805,7 +755,7 @@ function ProductsContent() {
                                             className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
                                         >
                                             <span className="text-sm font-bold">{selectedIds.size}</span>
-                                            <span className="text-xs font-medium opacity-80">{t("products.selection.selected") ?? "selected"}</span>
+                                            <span className="text-xs font-medium opacity-80">{t("products.selection.selected")}</span>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -951,9 +901,6 @@ function ProductsContent() {
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-3">
-                                        {/* Time Period Filter */}
-                                        <TimePeriodFilter value={timePeriod} onChange={setTimePeriod} />
-
                                         {/* Advanced Filters — desktop dropdown */}
                                         <div className="hidden sm:block">
                                             <AdvancedFilters
@@ -1175,15 +1122,6 @@ function ProductsContent() {
             </div>
 
             {/* Modals */}
-            <ProductFormModal
-                isOpen={isFormModalOpen}
-                onClose={() => setIsFormModalOpen(false)}
-                onSubmit={handleFormSubmit}
-                product={selectedProduct}
-                mode="add"
-                defaultIsSupply={formDefaultIsSupply}
-            />
-
             <ProductDetailModal
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}

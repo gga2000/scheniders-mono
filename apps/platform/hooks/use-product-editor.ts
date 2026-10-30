@@ -484,17 +484,22 @@ function productToFormData(product: Product): ProductEditorFormData {
 interface UseProductEditorOptions {
     product?: Product | null; // null for new product mode
     mode: "create" | "edit";
+    defaultIsSupply?: boolean;
 }
 
-export function useProductEditor({ product, mode }: UseProductEditorOptions) {
+export function useProductEditor({ product, mode, defaultIsSupply = false }: UseProductEditorOptions) {
     const router = useRouter();
     const { addProduct, updateProduct, addVariant, updateVariant, deleteVariant } = useProductsCrud();
     const { tenantId } = useAuth();
     const { t } = useLanguage();
 
+    const emptyForm = useMemo(
+        () => (defaultIsSupply ? { ...DEFAULT_FORM_DATA, is_supply: true } : DEFAULT_FORM_DATA),
+        [defaultIsSupply]
+    );
     const initialData = useMemo(() =>
-        product ? productToFormData(product) : DEFAULT_FORM_DATA,
-        [product]
+        product ? productToFormData(product) : emptyForm,
+        [product, emptyForm]
     );
 
     const [formData, setFormData] = useState<ProductEditorFormData>(initialData);
@@ -507,10 +512,10 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     // wipe in-flight user edits and reset `initialDataRef`, making isDirty go
     // false after the first successful save.
     useEffect(() => {
-        const newData = product ? productToFormData(product) : DEFAULT_FORM_DATA;
+        const newData = product ? productToFormData(product) : emptyForm;
         setFormData(newData);
         initialDataRef.current = newData;
-    }, [product?.id]);
+    }, [product?.id, emptyForm]);
 
     const [pendingVariantDiff, setPendingVariantDiff] = useState<VariantDiff | null>(null);
     const [pendingOptions, setPendingOptions] = useState<ProductOptionFormData[] | null>(null);
@@ -833,9 +838,9 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         const draft = restoreDraft();
         if (draft) {
             setFormData(draft);
-            toast.success("Draft restored");
+            toast.success(t("products.ed.draftRestored"));
         }
-    }, [restoreDraft]);
+    }, [restoreDraft, t]);
 
     const dismissDraft = useCallback(() => {
         clearDraft();
@@ -887,17 +892,17 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
     // Save
     const save = useCallback(async () => {
         if (!formData.name.trim()) {
-            toast.error("Product name is required");
+            toast.error(t("products.ed.err.name"));
             return false;
         }
         if (!formData.is_supply && formData.price <= 0) {
-            toast.error("Price must be greater than 0");
+            toast.error(t("products.ed.err.price"));
             return false;
         }
 
         // Validate SKU uniqueness format (no spaces)
         if (formData.sku && /\s/.test(formData.sku)) {
-            toast.error("SKU cannot contain spaces");
+            toast.error(t("products.ed.err.sku"));
             return false;
         }
 
@@ -907,9 +912,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
         // generated (رفقات, ويفر, بستاشيو…) and blocked every save on those
         // products — including edits that never touched the slug.
         if (formData.slug && !isCanonicalSlug(formData.slug)) {
-            toast.error(
-                "URL slug can only contain letters, numbers and hyphens — no spaces or punctuation"
-            );
+            toast.error(t("products.ed.err.slug"));
             return false;
         }
 
@@ -927,7 +930,7 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                 const prev = sorted[i - 1];
                 const curr = sorted[i];
                 if (prev.max_quantity !== null && curr.min_quantity <= prev.max_quantity) {
-                    toast.error("Tiered pricing has overlapping quantity ranges");
+                    toast.error(t("products.ed.err.tiers"));
                     return false;
                 }
             }
@@ -935,14 +938,14 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
 
         // Validate bundle has items
         if (formData.product_type === "bundle" && formData.bundle_items.length === 0) {
-            toast.error("Bundle products must contain at least one item");
+            toast.error(t("products.ed.err.bundle"));
             return false;
         }
 
         // Validate cost is not greater than price (warning only for negative margin)
         if (formData.cost > 0 && formData.cost > formData.price && !formData.is_supply) {
             // Allow but warn
-            toast.warning("Cost exceeds price — this product has negative margin");
+            toast.warning(t("products.ed.warn.margin"));
         }
 
         setSaving(true);

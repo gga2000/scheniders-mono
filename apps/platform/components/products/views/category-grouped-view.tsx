@@ -783,7 +783,6 @@ function MiniProductCard({
                     onArchive={() => onArchive(product.id)}
                     onRestore={() => onRestore(product.id)}
                     onViewDetails={() => onViewDetails(product)}
-                    onViewOrders={() => {}}
                     onDuplicate={() => onDuplicate(product)}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
                 />

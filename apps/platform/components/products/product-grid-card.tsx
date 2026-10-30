@@ -142,7 +142,6 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     onArchive={() => onArchive(product.id)}
                     onRestore={() => onRestore(product.id)}
                     onViewDetails={() => onViewDetails(product)}
-                    onViewOrders={() => {}}
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
                     open={menuOpen}

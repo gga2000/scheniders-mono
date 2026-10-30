@@ -78,7 +78,9 @@ export function LowStockAlert({ products, onViewProduct }: LowStockAlertProps) {
     };
 
     const severityGroups = useMemo(() => {
-        const activeProducts = products.filter((p) => !p.is_archived);
+        // Supplies and filler are not held in main stock (the list hides
+        // them too), so a low count on them is not something to restock.
+        const activeProducts = products.filter((p) => !p.is_archived && !p.is_supply && !p.is_filler);
 
         const outOfStock: (Product & { daysOfSupply: number | null })[] = [];
         const lowStock: (Product & { daysOfSupply: number | null })[] = [];
