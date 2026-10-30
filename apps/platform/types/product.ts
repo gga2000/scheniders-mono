@@ -114,6 +114,8 @@ export interface ProductVariant {
     cost?: number;
     stock_quantity: number;
     reserved_quantity?: number;
+    /** Open-box pile, taken down when an open-box order is confirmed. */
+    open_box_quantity?: number;
     sku?: string;
     barcode?: string | null;
     option_values?: Record<string, string> | null;

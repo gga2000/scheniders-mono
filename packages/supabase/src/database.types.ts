@@ -8721,6 +8721,27 @@ export type Database = {
         }[]
       }
       get_seed_automation_status: { Args: never; Returns: Json }
+      get_stock_today: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          image_url: string
+          is_filler: boolean
+          low_stock_threshold: number
+          name: string
+          ob_left: number
+          ob_reserved: number
+          on_hand: number
+          product_id: string
+          reserved: number
+          sku: string
+          today_new: number
+          today_ob: number
+          variant_id: string
+          variant_name: string
+          waiting_new: number
+          waiting_ob: number
+        }[]
+      }
       get_user_tenant_ids: { Args: never; Returns: string[] }
       in_quiet_hours: {
         Args: { p_tenant_id: string; p_user_id: string }

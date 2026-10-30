@@ -30,6 +30,12 @@ vi.mock("@/components/orders/duplicate-confirm-dialog", () => ({ DuplicateConfir
 vi.mock("@/hooks/use-duplicate-dispatch-guard", () => ({
     useDuplicateDispatchGuard: () => ({ holdStatusChange: () => false, dialogProps: {} }),
 }));
+vi.mock("@/hooks/use-products-crud", () => ({ useProductsCrud: () => ({ products: [] }) }));
+vi.mock("@/hooks/use-stock-shortfall-guard", () => ({
+    useStockShortfallGuard: () => ({ holdStatusChange: () => false, dialogProps: {} }),
+}));
+vi.mock("@/components/orders/stock-shortfall-dialog", () => ({ StockShortfallDialog: () => null }));
+vi.mock("@/components/orders/stock-today-dialog", () => ({ StockTodayDialog: () => null }));
 
 import { MobileOrdersPage } from "./MobileOrdersPage";
 

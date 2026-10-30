@@ -7,7 +7,10 @@ import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
+import { StockTodayDialog } from "@/components/orders/stock-today-dialog";
 import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
+import { useStockShortfallGuard } from "@/hooks/use-stock-shortfall-guard";
+import { StockShortfallDialog } from "@/components/orders/stock-shortfall-dialog";
 import { useShallow } from "zustand/react/shallow";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -106,6 +109,7 @@ import {
     Maximize2,
     Truck,
     PackageX,
+    Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
@@ -134,6 +138,7 @@ export default function OrdersPage() {
 
     const [isMounted, setIsMounted] = useState(false);
     const [isReturnsOpen, setIsReturnsOpen] = useState(false);
+    const [isStockTodayOpen, setIsStockTodayOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     // Sub-filters (Type + Products rows) are hidden by default — show only when
     // the merchant clicks the toggle next to the barcode button. Per-device pref.
@@ -263,8 +268,13 @@ export default function OrdersPage() {
         }));
     }, [filtersSettled, setFilters]);
 
-    // Get products for Excel import matching
-    useProductsCrud();
+    // Products for Excel import matching, and the oversold count on Stock today.
+    const { products } = useProductsCrud();
+    const oversoldCount = useMemo(
+        () => products.filter(p => !p.is_archived && !p.is_supply && !p.is_filler
+            && ((p.stock_quantity ?? 0) - (p.reserved_quantity ?? 0) < 0 || (p.open_box_quantity ?? 0) < 0)).length,
+        [products]
+    );
     const isMobile = useIsMobile();
     const { t } = useLanguage();
 
@@ -718,9 +728,19 @@ export default function OrdersPage() {
      * confirmation dialog instead (see ShipExportConfirmationDialog).
      */
     const duplicateGuard = useDuplicateDispatchGuard(orders, getConfirmBlockingTwin);
+    /**
+     * A confirm that needs more stock than is free is held too (a warning, not
+     * a block). It is asked after the duplicate question, so a confirm the
+     * operator already pushed past one guard still meets the other.
+     */
+    const stockGuard = useStockShortfallGuard(orders, products);
+    const holdStatusChange = (orderId: string, status: Order["status"], proceed: () => void): boolean =>
+        duplicateGuard.holdStatusChange(orderId, status, () => {
+            if (!stockGuard.holdStatusChange(orderId, status, proceed)) proceed();
+        }) || stockGuard.holdStatusChange(orderId, status, proceed);
 
     const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
-        if (duplicateGuard.holdStatusChange(orderId, status, () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
+        if (holdStatusChange(orderId, status, () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
             return;
         }
         await runStatusUpdate(orderId, status, reason, reasonId);
@@ -787,7 +807,7 @@ export default function OrdersPage() {
         status: Order["status"],
         reason?: string,
     ): Promise<{ success: boolean; error?: string }> => {
-        if (duplicateGuard.holdStatusChange(orderId, status, () => { void updateOrderStatus(orderId, status, reason); })) {
+        if (holdStatusChange(orderId, status, () => { void updateOrderStatus(orderId, status, reason); })) {
             return { success: false };
         }
         return updateOrderStatus(orderId, status, reason);
@@ -798,7 +818,9 @@ export default function OrdersPage() {
         ...bulkActions,
         confirm: async () => {
             const ids = Array.from(useOrderStore.getState().selectedOrders);
-            if (duplicateGuard.hold(ids, "confirm", () => { void bulkActions.confirm(); })) return;
+            const run = () => { void bulkActions.confirm(); };
+            if (duplicateGuard.hold(ids, "confirm", () => { if (!stockGuard.holdConfirm(ids, run)) run(); })) return;
+            if (stockGuard.holdConfirm(ids, run)) return;
             await bulkActions.confirm();
         },
         inTransit: async () => {
@@ -1610,6 +1632,23 @@ export default function OrdersPage() {
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             <button
+                                                                type="button"
+                                                                onClick={() => setIsStockTodayOpen(true)}
+                                                                className="relative flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:border-[var(--foreground-muted)] transition-all duration-300 font-bold text-sm"
+                                                                title={t("orders.stockToday.title", "Stock today")}
+                                                                aria-label={oversoldCount > 0
+                                                                    ? t("orders.stockToday.buttonOversold", "Stock today, {count} oversold", { count: oversoldCount })
+                                                                    : t("orders.stockToday.title", "Stock today")}
+                                                            >
+                                                                <Boxes className="w-4 h-4" />
+                                                                <span className="whitespace-nowrap hidden lg:inline">{t("orders.stockToday.button", "Stock")}</span>
+                                                                {oversoldCount > 0 && (
+                                                                    <span className="rounded-full bg-red-100 px-1.5 text-[11px] font-bold leading-5 text-red-700 tabular-nums dark:bg-red-500/20 dark:text-red-300">
+                                                                        {oversoldCount}
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                            <button
                                                                 onClick={() => setIsReturnsOpen(true)}
                                                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
                                                                 title="Returns cockpit (scan returned packages)"
@@ -2113,6 +2152,9 @@ export default function OrdersPage() {
                         onSplitConfirm={handleSplitOrder}
                         onStatusUpdate={handleStatusUpdate}
                     />
+
+                    <StockTodayDialog open={isStockTodayOpen} onOpenChange={setIsStockTodayOpen} />
+                    <StockShortfallDialog {...stockGuard.dialogProps} />
 
                     <OrderBulkDialogs bulk={guardedBulk} getDispatchTwin={getConfirmBlockingTwin} />
 

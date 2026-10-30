@@ -151,7 +151,10 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                 {/* Product Info */}
                 <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate">{product.name}</p>
-                    <p className="text-sm font-mono text-green-700 font-bold">{formatIQD(product.price)}</p>
+                    <div className="flex flex-wrap items-baseline gap-x-2">
+                        <p className="text-sm font-mono text-green-700 font-bold">{formatIQD(product.price)}</p>
+                        {!product.is_filler && <StockLeft product={product} />}
+                    </div>
                     {isSelected && selectedData && (
                         <div className="flex items-center gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
                             <button
@@ -358,5 +361,29 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                 </DialogPrimitive.Content>
             </DialogPrimitive.Portal>
         </DialogPrimitive.Root>
+    );
+}
+
+/**
+ * What is free to sell, so staff see it while adding the item: new = on hand
+ * minus confirmed orders; open box = open_box_quantity (already net of
+ * confirmed open-box orders). Below zero reads as oversold.
+ */
+function StockLeft({ product }: { product: Product }) {
+    const fresh = (product.stock_quantity ?? 0) - (product.reserved_quantity ?? 0);
+    const openBox = product.open_box_quantity ?? 0;
+    const tone = (n: number, lowAt: number) =>
+        n < 0 ? "text-red-600" : n === 0 ? "text-gray-400" : n <= lowAt ? "text-amber-600" : "text-gray-500";
+    return (
+        <span className="text-[11px] font-medium tabular-nums">
+            <span className={tone(fresh, product.low_stock_threshold ?? 5)}>
+                جديد {fresh < 0 ? `${Math.abs(fresh)} زيادة` : `${fresh} متبقي`}
+            </span>
+            {openBox !== 0 && (
+                <span className={tone(openBox, 1)}>
+                    {" · "}مفتوحة {openBox < 0 ? `${Math.abs(openBox)} زيادة` : openBox}
+                </span>
+            )}
+        </span>
     );
 }
