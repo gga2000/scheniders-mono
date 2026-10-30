@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, MessageCircle, Phone, Star, Tag, X, Check } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
@@ -16,7 +16,7 @@ import {
 import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
-import { formatCompactIQD, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
+import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
 interface CustomerCardProps {
     customer: PaginatedCustomer;
@@ -39,7 +39,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
     const risk = customer.risk_level;
     const meta = VALUE_META[value];
     const pending = firstDeliveryPending(customer);
-    const recency = recencyStatus(customer.last_order_date, risk);
+    const recency = recencyStatus(customer.last_order_date, risk, t);
     const success = effectiveSuccessRate(customer);
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, language) || customer.governorate : null;
@@ -62,14 +62,23 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 <button
                     onClick={(e) => { e.stopPropagation(); select(); }}
                     className={cn(
-                        "absolute top-3 left-3 z-10 w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                        isSelected
-                            ? "bg-foreground border-foreground text-background opacity-100"
-                            : "bg-(--card-bg) border-(--card-border) text-transparent opacity-0 group-hover:opacity-100",
+                        // 44 px hit area around a 20 px box; always shown on touch screens (no hover there).
+                        "absolute top-0.5 left-0.5 z-10 w-11 h-11 flex items-center justify-center transition-opacity",
+                        isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                     )}
                     aria-label={t("customers.bulk.select", "Select")}
+                    aria-pressed={!!isSelected}
                 >
-                    <Check className="w-3.5 h-3.5" />
+                    <span
+                        className={cn(
+                            "w-5 h-5 rounded-md border flex items-center justify-center",
+                            isSelected
+                                ? "bg-foreground border-foreground text-background"
+                                : "bg-(--card-bg) border-(--card-border) text-transparent",
+                        )}
+                    >
+                        <Check className="w-3.5 h-3.5" />
+                    </span>
                 </button>
             )}
 
@@ -109,7 +118,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
             <div className="mt-3 flex items-center gap-2 text-[13px] text-muted-foreground flex-wrap">
                 <span><span className="font-mono font-medium text-foreground tabular-nums">{customer.total_orders.toLocaleString("en-US")}</span> {t("customers.orders").toLowerCase()}</span>
                 <span className="text-(--card-border)">·</span>
-                <span className="font-mono font-medium text-foreground tabular-nums">{formatCompactIQD(customer.total_spent)} IQD</span>
+                <span className="font-mono font-medium text-foreground tabular-nums">{formatIQD(customer.total_spent)}</span>
                 {!pending && (
                     <>
                         <span className="text-(--card-border)">·</span>
@@ -130,22 +139,22 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 <span className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={(e) => { e.stopPropagation(); setQuickOpen(true); }}
-                        className="w-9 h-9 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
+                        className="w-11 h-11 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
                         aria-label={t("customers.quick.title", "Tag or note")}
                     >
                         <Tag className="w-4 h-4" />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
-                        className="w-9 h-9 rounded-xl bg-lime-50 text-lime-700 flex items-center justify-center hover:bg-lime-100 transition-colors"
-                        aria-label="WhatsApp"
+                        className="w-11 h-11 rounded-xl bg-lime-50 text-lime-700 flex items-center justify-center hover:bg-lime-100 transition-colors"
+                        aria-label={t("customers.actions.whatsapp")}
                     >
                         <MessageCircle className="w-4 h-4" />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); window.location.href = `tel:+${e164}`; }}
-                        className="w-9 h-9 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
-                        aria-label="Call"
+                        className="w-11 h-11 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
+                        aria-label={t("customers.actions.call")}
                     >
                         <Phone className="w-4 h-4" />
                     </button>
@@ -163,7 +172,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                     >
                         <div className="flex items-center justify-between mb-2.5">
                             <span className="text-sm font-bold inline-flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />{t("customers.quick.title", "Quick actions")}</span>
-                            <button onClick={() => setQuickOpen(false)} className="w-7 h-7 rounded-lg border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40" aria-label={t("common.close", "Close")}>
+                            <button onClick={() => setQuickOpen(false)} className="w-11 h-11 -m-2 rounded-lg border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40" aria-label={t("common.close", "Close")}>
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         </div>

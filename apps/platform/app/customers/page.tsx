@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo, useCallback, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Search, Download } from "lucide-react";
@@ -28,7 +29,7 @@ import { CustomerDetailDialog } from "@/components/customers/customer-detail-dia
 import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
-import { pct, toIraqE164 } from "@/lib/customer-format";
+import { pct } from "@/lib/customer-format";
 
 const PAGE_LIMIT = 24;
 const EXPORT_PAGE = 1000;
@@ -66,6 +67,8 @@ function CustomersPageContent() {
         return f;
     }, [state.search, state.city, state.sortBy, state.sortOrder, valueFilter, riskFilter, laneFilter]);
 
+    const filtered = !!(state.search || state.city || filters.valueFilter || filters.riskFilter || laneFilter);
+
     const { data, isLoading, isError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
 
@@ -94,6 +97,11 @@ function CustomersPageContent() {
     }, []);
     const clearSelected = useCallback(() => setSelected(new Set()), []);
     const selectedPhones = useMemo(() => Array.from(selected), [selected]);
+    const broadcastRecipients = useMemo(
+        () => allCustomers.filter((c) => selected.has(c.phone))
+            .map((c) => ({ phone: c.phone, name: c.name, is_blacklisted: c.is_blacklisted })),
+        [allCustomers, selected],
+    );
 
     const customerCsvHeader = useCallback(() => [
         t("customers.export.name", "Name"), t("customers.export.phone", "Phone"),
@@ -276,8 +284,20 @@ function CustomersPageContent() {
                         <div className="mx-auto w-14 h-14 rounded-full bg-foreground/5 flex items-center justify-center mb-4">
                             <Search className="w-6 h-6 text-muted-foreground" />
                         </div>
-                        <p className="text-lg font-bold text-foreground mb-1">{t("customers.noCustomers")}</p>
-                        <p className="text-sm text-muted-foreground">{t("customers.adjustFilters")}</p>
+                        {filtered ? (
+                            <>
+                                <p className="text-lg font-bold text-foreground mb-1">{t("customers.noCustomers")}</p>
+                                <p className="text-sm text-muted-foreground">{t("customers.adjustFilters")}</p>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-lg font-bold text-foreground mb-1">{t("customers.empty.title")}</p>
+                                <p className="text-sm text-muted-foreground mb-5">{t("customers.empty.body")}</p>
+                                <Link href="/orders" className="inline-flex items-center h-11 px-6 rounded-2xl bg-foreground text-background text-sm font-semibold">
+                                    {t("customers.empty.cta")}
+                                </Link>
+                            </>
+                        )}
                     </div>
                 ) : (
                     <>
@@ -314,8 +334,7 @@ function CustomersPageContent() {
             <BroadcastModal
                 isOpen={showBroadcast}
                 onClose={() => setShowBroadcast(false)}
-                selectedCount={selected.size}
-                selectedPhones={selectedPhones.map(toIraqE164)}
+                recipients={broadcastRecipients}
             />
             <BulkTagModal
                 isOpen={showBulkTag}

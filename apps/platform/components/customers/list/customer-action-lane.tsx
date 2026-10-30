@@ -47,7 +47,7 @@ export function CustomerActionLane({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.05 }}
-            className="flex items-center gap-1.5 flex-wrap rounded-2xl border border-(--card-border) bg-linear-to-r from-white to-white/55 px-4 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+            className="flex items-center gap-1.5 flex-wrap rounded-2xl border border-(--card-border) bg-(--card-bg) px-4 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
         >
             <div className="flex items-center gap-2 pr-2 font-bold text-sm shrink-0">
                 <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">

@@ -66,10 +66,10 @@ export function ScoreBreakdownModal() {
                                     )}
                                 >
                                     <span className="text-xs text-muted-foreground w-20 shrink-0 tabular-nums">
-                                        {new Date(event.event_date).toLocaleDateString("en-US")}
+                                        {event.event_date.slice(0, 10)}
                                     </span>
                                     <span className="text-foreground flex-1 truncate">
-                                        {event.reason || event.event_type}
+                                        {t(`customers.trust.event.${event.event_type}`)}
                                     </span>
                                     <span className={cn(
                                         "text-xs font-bold tabular-nums",
@@ -77,7 +77,6 @@ export function ScoreBreakdownModal() {
                                     )}>
                                         {event.score_change > 0 ? "+" : ""}{event.score_change}
                                     </span>
-                                    <span className="text-xs text-muted-foreground capitalize">{event.source}</span>
                                 </div>
                             ))}
                         </div>

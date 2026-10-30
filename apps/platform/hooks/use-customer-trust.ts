@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { TrustScoreBreakdownItem, TrustAuditEvent } from "@/types/customer";
@@ -97,57 +97,5 @@ export function useCustomerPercentile(phone: string | undefined) {
         },
         enabled: !!phone,
         staleTime: 10 * 60 * 1000,
-    });
-}
-
-export function useUpdateRejectionReason() {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: async ({ orderId, newReason, editedBy, justification }: {
-            orderId: string;
-            newReason: string;
-            editedBy: string;
-            justification: string;
-        }) => {
-            // Get current order
-            const { data: order, error: fetchErr } = await supabase
-                .from("orders")
-                .select("rejection_reason, phone")
-                .eq("id", orderId)
-                .single();
-            if (fetchErr) throw fetchErr;
-
-            const originalReason = order.rejection_reason;
-
-            // Update rejection reason
-            const { error: updateErr } = await supabase
-                .from("orders")
-                .update({ rejection_reason: newReason })
-                .eq("id", orderId);
-            if (updateErr) throw updateErr;
-
-            // Insert audit log entry
-            const { error: auditErr } = await supabase
-                .from("customer_trust_audit_log")
-                .insert({
-                    phone: order.phone,
-                    event_type: 'rejection_edit',
-                    reason: newReason,
-                    source: 'admin',
-                    order_id: orderId,
-                    edited_by: editedBy,
-                    edited_reason: justification,
-                    original_reason: originalReason,
-                    edited_at: new Date().toISOString(),
-                });
-            if (auditErr) throw auditErr;
-
-            return { phone: order.phone };
-        },
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ["customer-trust-audit", data.phone] });
-            queryClient.invalidateQueries({ queryKey: ["customer-trust-breakdown", data.phone] });
-            queryClient.invalidateQueries({ queryKey: ["customers"] });
-        },
     });
 }

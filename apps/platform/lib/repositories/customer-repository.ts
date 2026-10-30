@@ -76,7 +76,7 @@ export const customerRepository = {
             const { data, error } = await supabase
                 .from("customer_tag_assignments")
                 .select(`*, tag:customer_tags(*)`)
-                .eq("customer_phone", phone);
+                .eq("customer_phone", normalizePhoneForSearch(phone));
 
             if (error) throw error;
             return data as CustomerTagAssignment[];
@@ -98,7 +98,7 @@ export const customerRepository = {
             const { error } = await supabase
                 .from("customer_tag_assignments")
                 .delete()
-                .eq("customer_phone", phone)
+                .eq("customer_phone", normalizePhoneForSearch(phone))
                 .eq("tag_id", tagId);
 
             if (error) throw error;

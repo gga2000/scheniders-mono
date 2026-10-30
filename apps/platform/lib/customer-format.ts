@@ -1,19 +1,15 @@
 // Shared formatting helpers for the customers page (card, list, drawer).
 
-/** Compact IQD amount: 2_400_000 → "2.4M", 340_000 → "340K", 950 → "950". */
-export function formatCompactIQD(value: number): string {
-    if (!Number.isFinite(value)) return '0';
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
-    return Math.round(value).toLocaleString('en-US');
-}
-
-/** Iraqi phone for display: any input → "0780 123 4567" (LTR, Western digits). */
+/**
+ * Iraqi phone for display: any input → "0780 123 4567" (LTR, Western digits).
+ * A number that is not 10 national digits is shown as typed, not padded with
+ * zeros into something that looks real.
+ */
 export function formatPhoneDisplay(raw: string): string {
     let digits = (raw || '').replace(/\D/g, '');
     if (digits.startsWith('964') && digits.length > 10) digits = digits.slice(3);
     if (digits.startsWith('0')) digits = digits.slice(1);
-    digits = digits.padStart(10, '0');
+    if (digits.length !== 10) return (raw || '').trim();
     return `0${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 }
 

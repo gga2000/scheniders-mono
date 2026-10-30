@@ -2,7 +2,7 @@
 
 import { MapPin, MessageCircle, Phone, ChevronRight, Star, Check } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
-import { formatCompactIQD, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
+import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
 function successTone(rate: number): string {
     if (rate >= 80) return "text-lime-700";
@@ -80,7 +80,7 @@ export function CustomerListTable({
                         {customers.map((c) => {
                             const meta = VALUE_META[c.value_tier];
                             const pending = firstDeliveryPending(c);
-                            const recency = recencyStatus(c.last_order_date, c.risk_level);
+                            const recency = recencyStatus(c.last_order_date, c.risk_level, t);
                             const success = effectiveSuccessRate(c);
                             const e164 = toIraqE164(c.phone);
                             const gov = c.governorate ? governorateLabel(c.governorate, language) || c.governorate : null;
@@ -91,9 +91,9 @@ export function CustomerListTable({
                                     className={cn("border-b border-(--card-border) last:border-0 hover:bg-background cursor-pointer transition-colors", selectedPhones?.has(c.phone) && "bg-foreground/3")}
                                 >
                                     {onToggleSelect && (
-                                        <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-4 py-3 w-10 cursor-default" onClick={(e) => { e.stopPropagation(); onToggleSelect(c.phone); }}>
                                             <button
-                                                onClick={() => onToggleSelect(c.phone)}
+                                                onClick={(e) => { e.stopPropagation(); onToggleSelect(c.phone); }}
                                                 className={cn("w-5 h-5 rounded-md border flex items-center justify-center transition-colors mx-auto",
                                                     selectedPhones?.has(c.phone) ? "bg-foreground border-foreground text-background" : "bg-(--card-bg) border-(--card-border) text-transparent hover:border-foreground/40")}
                                                 aria-label={t("customers.bulk.select", "Select")}
@@ -139,7 +139,7 @@ export function CustomerListTable({
                                         </span>
                                     </td>
                                     {/* Lifetime value */}
-                                    <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-foreground">{formatCompactIQD(c.total_spent)}</td>
+                                    <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-foreground">{formatIQD(c.total_spent)}</td>
                                     {/* Success */}
                                     <td className={cn("px-4 py-3 text-right font-mono text-sm tabular-nums font-semibold", pending ? "text-muted-foreground" : successTone(success))}>
                                         {pending ? "—" : `${success}%`}
@@ -156,15 +156,15 @@ export function CustomerListTable({
                                         <div className="flex items-center gap-1.5 justify-end">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
-                                                className="w-8 h-8 rounded-lg bg-lime-50 text-lime-700 flex items-center justify-center hover:bg-lime-100 transition-colors"
-                                                aria-label="WhatsApp"
+                                                className="w-10 h-10 rounded-lg bg-lime-50 text-lime-700 flex items-center justify-center hover:bg-lime-100 transition-colors"
+                                                aria-label={t("customers.actions.whatsapp")}
                                             >
                                                 <MessageCircle className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); window.location.href = `tel:+${e164}`; }}
-                                                className="w-8 h-8 rounded-lg border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
-                                                aria-label="Call"
+                                                className="w-10 h-10 rounded-lg border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
+                                                aria-label={t("customers.actions.call")}
                                             >
                                                 <Phone className="w-4 h-4" />
                                             </button>

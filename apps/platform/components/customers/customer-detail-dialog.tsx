@@ -9,7 +9,8 @@ import {
     X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag, Star,
     Package, ChevronDown, User, Home, ShoppingBag, StickyNote, ShieldCheck, CreditCard, Truck, Ban,
 } from "lucide-react";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, getStatusLabel } from "@/lib/utils";
+import type { Locale } from "@/lib/i18n";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -52,33 +53,37 @@ interface DialogOrder {
 }
 type IdentityEvent = { type: "name" | "city" | "address" | "phone"; value: string; at: string };
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-    new: { label: "New", cls: "bg-orange-100 text-orange-800" },
-    contacted: { label: "Contacted", cls: "bg-amber-100 text-amber-800" },
-    confirmed: { label: "Confirmed", cls: "bg-emerald-100 text-emerald-800" },
-    in_transit: { label: "In transit", cls: "bg-blue-100 text-blue-800" },
-    delivered: { label: "Delivered", cls: "bg-teal-100 text-teal-800" },
-    completed: { label: "Completed", cls: "bg-emerald-200 text-emerald-900" },
-    rejected: { label: "Rejected", cls: "bg-rose-100 text-rose-800" },
-    no_response: { label: "No response", cls: "bg-slate-100 text-slate-600" },
-    cancelled: { label: "Cancelled", cls: "bg-zinc-100 text-zinc-700" },
-    return_pending: { label: "Return pending", cls: "bg-fuchsia-100 text-fuchsia-800" },
-    refund_delivered: { label: "Refunded", cls: "bg-pink-200 text-pink-900" },
-    suspended: { label: "Suspended", cls: "bg-orange-100 text-orange-800" },
-    pending_checkout: { label: "Cart", cls: "bg-yellow-100 text-yellow-800" },
+const STATUS_CLS: Record<string, string> = {
+    new: "bg-orange-100 text-orange-800",
+    contacted: "bg-amber-100 text-amber-800",
+    confirmed: "bg-emerald-100 text-emerald-800",
+    in_transit: "bg-blue-100 text-blue-800",
+    delivered: "bg-teal-100 text-teal-800",
+    completed: "bg-emerald-200 text-emerald-900",
+    rejected: "bg-rose-100 text-rose-800",
+    no_response: "bg-slate-100 text-slate-600",
+    cancelled: "bg-zinc-100 text-zinc-700",
+    return_pending: "bg-fuchsia-100 text-fuchsia-800",
+    refund_delivered: "bg-pink-200 text-pink-900",
+    suspended: "bg-orange-100 text-orange-800",
+    pending_checkout: "bg-yellow-100 text-yellow-800",
 };
-const statusPill = (s: string) => STATUS[s] ?? { label: (s || "").replace(/_/g, " "), cls: "bg-zinc-100 text-zinc-700" };
 
-function fmtDate(d?: string | null, withYear = false) {
+/** Arabic month names with Western digits, like the rest of the app. */
+type Translate = ReturnType<typeof useLanguage>["t"];
+
+const dateLocale = (locale: string) => (locale === "ar" ? "ar-IQ-u-nu-latn" : "en-GB");
+
+function fmtDate(locale: string, d?: string | null) {
     if (!d) return "—";
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return "—";
-    return dt.toLocaleDateString("en-US", withYear ? { month: "short", day: "numeric", year: "numeric" } : { month: "short", day: "numeric" });
+    return dt.toLocaleDateString(dateLocale(locale), { day: "numeric", month: "short", year: "numeric" });
 }
-function monthYear(d?: string | null) {
+function monthYear(locale: string, d?: string | null) {
     if (!d) return "—";
     const dt = new Date(d);
-    return Number.isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    return Number.isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString(dateLocale(locale), { month: "short", year: "numeric" });
 }
 
 function useCustomerDialogData(phone: string | null, limit = 60) {
@@ -155,14 +160,14 @@ const IDENTITY_META: Record<IdentityEvent["type"], { icon: typeof User; cls: str
     phone: { icon: Phone, cls: "text-amber-600 bg-amber-50", label: "Alt phone" },
 };
 
-function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?: boolean; t: (k: string, f?: string) => string }) {
+function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defaultOpen?: boolean; t: Translate; locale: Locale }) {
     const [open, setOpen] = useState(!!defaultOpen);
     const items = (Array.isArray(order.items) ? order.items : []) as OrderItem[];
     const subtotal = items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
     const discount = Number(order.discount_amount) || 0;
     const delivery = Number(order.delivery_fee) || 0;
     const total = Number(order.price) || 0;
-    const pill = statusPill(order.status);
+    const pillCls = STATUS_CLS[order.status] ?? "bg-zinc-100 text-zinc-700";
     const itemCount = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
     const lines = mergeOrderItems(items);
 
@@ -170,8 +175,8 @@ function OrderCard({ order, defaultOpen, t }: { order: DialogOrder; defaultOpen?
         <div className="rounded-2xl border border-(--card-border) overflow-hidden bg-(--card-bg)">
             {/* Header */}
             <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background transition-colors text-left">
-                <span className="font-mono text-xs text-muted-foreground w-16 shrink-0 tabular-nums">{fmtDate(order.created_at, true)}</span>
-                <span className={cn("text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0", pill.cls)}>{pill.label}</span>
+                <span className="font-mono text-xs text-muted-foreground w-16 shrink-0 tabular-nums">{fmtDate(locale, order.created_at)}</span>
+                <span className={cn("text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0", pillCls)}>{getStatusLabel(order.status, !!order.is_return, locale)}</span>
                 {order.order_id && <span className="font-mono text-xs text-muted-foreground/70 hidden sm:inline">#{order.order_id}</span>}
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">{itemCount} {t(itemCount === 1 ? "customers.dialog.item" : "customers.dialog.items", itemCount === 1 ? "item" : "items")}</span>
                 <span className="font-mono font-bold text-sm shrink-0 tabular-nums">{formatIQD(total)}</span>
@@ -337,8 +342,8 @@ function Body({
     onOpenFull: () => void;
     onNewOrder: () => void;
     onToggleBlock: () => void;
-    t: (k: string, f?: string) => string;
-    locale: string;
+    t: Translate;
+    locale: Locale;
 }) {
     const value = customer.value_tier;
     const risk = customer.risk_level;
@@ -388,7 +393,7 @@ function Body({
                         <div className="flex items-center gap-x-4 gap-y-1 mt-1 text-[13px] text-muted-foreground flex-wrap">
                             <span className="font-mono tabular-nums inline-flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{formatPhoneDisplay(customer.phone)}</span>
                             {gov && <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{gov}</span>}
-                            <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", "Customer since")} {monthYear(data?.firstOrderDate ?? customer.first_order_date)}</span>
+                            <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", { date: monthYear(locale, data?.firstOrderDate ?? customer.first_order_date) })}</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="w-9 h-9 rounded-xl border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40 shrink-0" aria-label="Close">
@@ -452,7 +457,7 @@ function Body({
                                                     <div key={i} className="flex items-start gap-2.5">
                                                         <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", im.cls)}><Icon className="w-3.5 h-3.5" /></span>
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · {fmtDate(ev.at, true)}</div>
+                                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · {fmtDate(locale, ev.at)}</div>
                                                             <div className="text-[13px] truncate">{ev.value}</div>
                                                         </div>
                                                     </div>
@@ -493,7 +498,7 @@ function Body({
                                 </div>
                             ) : data && data.orders.length > 0 ? (
                                 <div className="space-y-2.5">
-                                    {data.orders.map((o, i) => <OrderCard key={o.id} order={o} defaultOpen={i === 0} t={t} />)}
+                                    {data.orders.map((o, i) => <OrderCard key={o.id} order={o} defaultOpen={i === 0} t={t} locale={locale} />)}
                                     {canLoadMore && (
                                         <button
                                             onClick={onLoadMore}

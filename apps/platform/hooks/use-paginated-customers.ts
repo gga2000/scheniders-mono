@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPhoneDisplay } from "@/lib/customer-format";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -105,7 +106,8 @@ type CustomerRpcRow = Database["public"]["Functions"]["get_paginated_customers"]
 export function mapCustomerRow(row: CustomerRpcRow): PaginatedCustomer {
     return {
         phone: row.phone,
-        name: row.name || "Unknown Customer",
+        // No name on any order: show the number rather than an English placeholder.
+        name: row.name || formatPhoneDisplay(row.phone),
         city: row.city,
         governorate: row.governorate,
         total_orders: Number(row.total_orders),

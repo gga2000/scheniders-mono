@@ -23,6 +23,9 @@ const itemVariants = {
 };
 
 export function CustomerGrid({ customers, onCustomerClick, selectedPhones, onToggleSelect }: CustomerGridProps) {
+    // Once something is selected, a tap selects instead of opening, so the
+    // selection can be built on a phone without hunting for the checkbox.
+    const selecting = !!onToggleSelect && (selectedPhones?.size ?? 0) > 0;
     return (
         <motion.div
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7"
@@ -41,7 +44,7 @@ export function CustomerGrid({ customers, onCustomerClick, selectedPhones, onTog
                     >
                         <CustomerCard
                             customer={customer}
-                            onClick={() => onCustomerClick(customer.phone)}
+                            onClick={() => (selecting ? onToggleSelect?.(customer.phone) : onCustomerClick(customer.phone))}
                             isSelected={selectedPhones?.has(customer.phone)}
                             onToggleSelect={onToggleSelect ? () => onToggleSelect(customer.phone) : undefined}
                         />
