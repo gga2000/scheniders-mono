@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createMcpHandler } from "mcp-handler";
 
 vi.mock("@/lib/mcp/caller", () => ({ resolveMcpCaller: vi.fn() }));
-vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn() }));
+vi.mock("@/lib/order-service", () => ({ createOrderForTenant: vi.fn() }));
 
 import { MCP_INSTRUCTIONS, MCP_SERVER_INFO, registerPlatformTools } from "./server";
 
@@ -26,6 +26,8 @@ describe("MCP server", () => {
         const tools = result?.tools ?? [];
         expect(tools.map((t) => t.name).sort()).toEqual([
             "add_order_note",
+            "adjust_stock",
+            "blacklist_customer",
             "create_order",
             "find_customer",
             "get_order",
@@ -33,11 +35,22 @@ describe("MCP server", () => {
             "list_products",
             "sales_summary",
             "search_orders",
+            "set_stock_count",
             "update_order",
             "update_order_status",
+            "update_product",
         ]);
         for (const t of tools) expect(t.inputSchema).toBeTruthy();
         const writes = tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name).sort();
-        expect(writes).toEqual(["add_order_note", "create_order", "update_order", "update_order_status"]);
+        expect(writes).toEqual([
+            "add_order_note",
+            "adjust_stock",
+            "blacklist_customer",
+            "create_order",
+            "set_stock_count",
+            "update_order",
+            "update_order_status",
+            "update_product",
+        ]);
     });
 });

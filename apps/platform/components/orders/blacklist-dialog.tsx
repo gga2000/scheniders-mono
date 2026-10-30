@@ -14,6 +14,7 @@ import { Textarea } from "@scheniders/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 
 const REASON_PRESET_KEYS = [
     "orders.blacklist.reasonPreset.threat",
@@ -61,6 +62,8 @@ export function BlacklistDialog({
             setCustomReason("");
             setNotes("");
             onClose();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : t("common.error"));
         } finally {
             setLoading(false);
         }

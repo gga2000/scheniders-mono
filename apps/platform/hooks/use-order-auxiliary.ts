@@ -36,7 +36,7 @@ export interface BlacklistEntry {
 }
 
 export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseOrderAuxiliaryOptions) {
-    const { user, profile } = useAuth();
+    const { user, profile, tenantId } = useAuth();
 
     // =============================================
     // REFERENCE DATA STATE
@@ -98,9 +98,13 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
     }
 
     async function addToBlacklist(phone: string, reason: string, notes?: string): Promise<void> {
+        if (!tenantId) throw new Error("No store selected");
         const addedBy = profile?.display_name || user?.email || null;
         const entry: BlacklistEntry = { phone, reason, notes: notes || null, added_by: addedBy };
-        await supabase.from("blacklist").upsert(entry);
+        // RLS admits only rows stamped with the caller's store; without
+        // tenant_id every insert was refused and the error went unseen.
+        const { error } = await supabase.from("blacklist").insert({ ...entry, tenant_id: tenantId });
+        if (error) throw error;
         setAuxData(prev => ({
             ...prev,
             blacklistMap: new Map(prev.blacklistMap).set(normalizePhoneForSearch(phone), entry),
@@ -108,7 +112,9 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
     }
 
     async function removeFromBlacklist(phone: string): Promise<void> {
-        await supabase.from("blacklist").delete().eq("phone", phone);
+        if (!tenantId) throw new Error("No store selected");
+        const { error } = await supabase.from("blacklist").delete().eq("tenant_id", tenantId).eq("phone", phone);
+        if (error) throw error;
         setAuxData(prev => {
             const updated = new Map(prev.blacklistMap);
             updated.delete(normalizePhoneForSearch(phone));
