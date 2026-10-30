@@ -31,6 +31,7 @@ type ProductRow = {
     price: number | null;
     stock_quantity: number | null;
     reserved_quantity: number | null;
+    open_box_quantity: number | null;
     low_stock_threshold: number | null;
     is_visible: boolean | null;
 };
@@ -38,6 +39,10 @@ type VariantRow = Omit<ProductRow, "is_visible"> & { product_id: string; is_enab
 
 const available = (r: { stock_quantity: number | null; reserved_quantity: number | null }) =>
     (r.stock_quantity ?? 0) - (r.reserved_quantity ?? 0);
+
+const stockText = (r: ProductRow | VariantRow) =>
+    `stock ${r.stock_quantity ?? 0}, reserved ${r.reserved_quantity ?? 0}, available ${available(r)}` +
+    (r.open_box_quantity ? `, open box left ${r.open_box_quantity}` : "");
 
 export function registerStoreReadTools(server: McpServer): void {
     registerTool(server, {
@@ -230,7 +235,7 @@ export function registerStoreReadTools(server: McpServer): void {
         title: "Products and stock",
         kind: "read",
         description:
-            "Products with price and stock. `available` = in stock minus reserved by open orders. Use `low_stock` to list only items at or below their alert level (default 5). Variants are listed under their product.",
+            "Products with price and stock. `available` = new units in stock minus reserved by confirmed orders; `open box left` = open-box units free to sell (already net of confirmed orders). Use `low_stock` to list only items at or below their alert level (default 5). Variants are listed under their product.",
         input: z.object({
             search: z.string().trim().min(1).max(80).optional().describe("Part of the product name or SKU"),
             low_stock: z.boolean().default(false),
@@ -240,7 +245,7 @@ export function registerStoreReadTools(server: McpServer): void {
         async run(caller, input) {
             let q = caller.db
                 .from("products")
-                .select("id, name, sku, price, stock_quantity, reserved_quantity, low_stock_threshold, is_visible")
+                .select("id, name, sku, price, stock_quantity, reserved_quantity, open_box_quantity, low_stock_threshold, is_visible")
                 .eq("tenant_id", caller.tenantId)
                 .eq("is_archived", false)
                 .or("is_supply.is.null,is_supply.eq.false");
@@ -262,7 +267,7 @@ export function registerStoreReadTools(server: McpServer): void {
             for (let i = 0; i < list.length; i += ID_CHUNK) {
                 const { data, error } = await caller.db
                     .from("product_variants")
-                    .select("id, product_id, name, sku, price, stock_quantity, reserved_quantity, low_stock_threshold, is_enabled")
+                    .select("id, product_id, name, sku, price, stock_quantity, reserved_quantity, open_box_quantity, low_stock_threshold, is_enabled")
                     .eq("tenant_id", caller.tenantId)
                     .in("product_id", list.slice(i, i + ID_CHUNK).map((p) => p.id));
                 if (error) throw error;
@@ -286,12 +291,12 @@ export function registerStoreReadTools(server: McpServer): void {
                 const vs = variants.get(p.id) ?? [];
                 lines.push(
                     `${p.name}${p.sku ? ` [${p.sku}]` : ""} (id ${p.id}) | ${iqd(p.price)} | ${p.is_visible ? "visible" : "hidden"}` +
-                        (vs.length === 0 ? ` | stock ${p.stock_quantity ?? 0}, reserved ${p.reserved_quantity ?? 0}, available ${available(p)}` : ""),
+                        (vs.length === 0 ? ` | ${stockText(p)}` : ""),
                 );
                 for (const v of vs) {
                     if (input.low_stock && !isLow(v)) continue;
                     lines.push(
-                        `    ${v.name}${v.sku ? ` [${v.sku}]` : ""} (variant ${v.id}) | ${iqd(v.price ?? p.price)}${v.is_enabled === false ? " | disabled" : ""} | stock ${v.stock_quantity ?? 0}, reserved ${v.reserved_quantity ?? 0}, available ${available(v)}`,
+                        `    ${v.name}${v.sku ? ` [${v.sku}]` : ""} (variant ${v.id}) | ${iqd(v.price ?? p.price)}${v.is_enabled === false ? " | disabled" : ""} | ${stockText(v)}`,
                     );
                 }
             }
