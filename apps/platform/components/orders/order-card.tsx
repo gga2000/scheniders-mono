@@ -2,6 +2,7 @@
 
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { AbandonedCartBadge } from "@/components/orders/abandoned-cart-badge";
+import { AbandonedCartAccent } from "@/components/orders/abandoned-cart-accent";
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -535,7 +536,9 @@ export const OrderCard = memo(function OrderCard({
                     }}
                 >
                     {/* Status bar top */}
-                    <div className={cn("h-1 w-full flex-shrink-0", getStatusColor(order.status, isReturn))} />
+                    <div className={cn("relative overflow-hidden h-1 w-full flex-shrink-0", getStatusColor(order.status, isReturn))}>
+                        <AbandonedCartAccent order={order} orientation="horizontal" />
+                    </div>
 
                     <div className="p-2.5 flex flex-col gap-1.5 flex-1 min-w-0">
                         {/* Row 1: Name + Status */}
@@ -637,7 +640,9 @@ export const OrderCard = memo(function OrderCard({
                     )}
                 >
                     {/* Status bar top */}
-                    <div className={cn("h-1.5 w-full flex-shrink-0", isBlacklisted ? "bg-gray-900" : getStatusColor(order.status, isReturn))} />
+                    <div className={cn("relative overflow-hidden h-1.5 w-full flex-shrink-0", isBlacklisted ? "bg-gray-900" : getStatusColor(order.status, isReturn))}>
+                        {!isBlacklisted && <AbandonedCartAccent order={order} orientation="horizontal" />}
+                    </div>
 
                     {/* Blacklist banner */}
                     {isBlacklisted && (
@@ -1110,11 +1115,13 @@ export const OrderCard = memo(function OrderCard({
                 <motion.div
                     layoutId={getLayoutId(`order-accent-${order.id}-${order.status}`)}
                     className={cn(
-                        "w-2 flex-shrink-0 rounded-l-[20px]",
+                        "relative overflow-hidden w-2 flex-shrink-0 rounded-l-[20px]",
                         getStatusColor(order.status, isReturn),
                         !(isReturn || order.status === 'rejected') && isNew && "w-3"
                     )}
-                />
+                >
+                    <AbandonedCartAccent order={order} orientation="vertical" />
+                </motion.div>
 
                 {/* Selection Checkbox - Positioned top-left on mobile, inline on desktop */}
                 {onToggleSelection && (
