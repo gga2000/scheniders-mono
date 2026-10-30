@@ -1,8 +1,11 @@
+import type { Database } from "@scheniders/supabase/database.types";
 import { supabase } from "@/lib/supabase";
-import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
-import { storedPhoneVariants } from "@/lib/order-server-search";
+
+type OrderHistoryRow = Database["public"]["Functions"]["get_customer_order_history"]["Returns"][number];
+type ReliabilityRow = Database["public"]["Functions"]["get_customer_reliability"]["Returns"][number];
+type ExportItem = { name: string; quantity: number; price: number };
 
 // =============================================
 // TYPES
@@ -49,8 +52,6 @@ interface OrderExport {
     city: string;
     address?: string;
     notes?: string;
-    deliveredAt?: string;
-    cancelledAt?: string;
 }
 
 interface ActivityExport {
@@ -80,21 +81,20 @@ class CustomerDataExportService {
     async exportCustomerData(tenantId: string, phone: string): Promise<CustomerDataExport> {
         const normalizedPhone = normalizePhoneForSearch(phone);
         const exportedAt = new Date().toISOString();
-        // Orders store the phone as 07…, +964…, 964… or bare; match them all.
-        const variants = storedPhoneVariants(normalizedPhone).join(",");
 
-        // Fetch all orders for this customer
-        const { data: orders, error: ordersError } = await supabase
-            .from("orders")
-            .select(ORDER_READ_COLUMNS)
-            .eq("tenant_id", tenantId)
-            .or(`phone.in.(${variants}),secondary_phone.in.(${variants})`)
-            .order("created_at", { ascending: false });
-
-        if (ordersError) {
-            console.error("Error fetching orders:", ordersError);
-            throw new Error("Failed to fetch customer orders");
-        }
+        // The same reads as the profile page: this customer's own live orders
+        // in the active store (any stored phone shape; deleted, archived and
+        // test orders left out) and the page's totals. Orders where this
+        // number is only another buyer's alternate phone are not theirs.
+        const [historyRes, reliabilityRes] = await Promise.all([
+            supabase.rpc("get_customer_order_history", { p_phone: normalizedPhone })
+                .order("created_at", { ascending: false }),
+            supabase.rpc("get_customer_reliability", { p_phone: normalizedPhone }),
+        ]);
+        if (historyRes.error) throw historyRes.error;
+        if (reliabilityRes.error) throw reliabilityRes.error;
+        const orders = (historyRes.data ?? []) as OrderHistoryRow[];
+        const reliability = ((reliabilityRes.data ?? []) as ReliabilityRow[])[0];
 
         // Check blacklist status
         const { data: blacklistEntry } = await supabase
@@ -105,7 +105,7 @@ class CustomerDataExportService {
             .maybeSingle();
 
         // Fetch activity log entries for this customer's orders
-        const orderIds = orders?.map(o => o.id) || [];
+        const orderIds = orders.map(o => o.id);
         let activityLog: ActivityExport[] = [];
 
         if (orderIds.length > 0) {
@@ -123,8 +123,9 @@ class CustomerDataExportService {
             }));
         }
 
-        // Build customer profile from most recent order
-        const latestOrder = orders?.[0];
+        // Profile from the most recent purchase (not a refund or replacement row).
+        const purchases = orders.filter((o) => !o.is_return);
+        const latestOrder = purchases[0] ?? orders[0];
         const profile = {
             name: latestOrder?.customer_name || "Unknown",
             phone: normalizedPhone,
@@ -136,26 +137,22 @@ class CustomerDataExportService {
             address: latestOrder?.address_details || undefined,
         };
 
-        // Calculate summary
-        const deliveredOrders = orders?.filter(o => o.status === "delivered" || o.status === "completed") || [];
-        const cancelledOrders = orders?.filter(o => o.status === "cancelled") || [];
-        const totalSpent = deliveredOrders.reduce((sum, o) => sum + orderTotal(o), 0);
-
         const summary = {
-            totalOrders: orders?.length || 0,
-            totalSpent,
-            firstOrderDate: orders?.[orders.length - 1]?.created_at || null,
-            lastOrderDate: orders?.[0]?.created_at || null,
-            deliveredCount: deliveredOrders.length,
-            cancelledCount: cancelledOrders.length,
+            totalOrders: Number(reliability?.total_orders ?? 0),
+            totalSpent: Number(reliability?.total_spent ?? 0),
+            firstOrderDate: purchases[purchases.length - 1]?.created_at ?? null,
+            lastOrderDate: purchases[0]?.created_at ?? null,
+            deliveredCount: Number(reliability?.completed_count ?? 0),
+            cancelledCount: Number(reliability?.cancelled_count ?? 0),
         };
 
         // Format orders for export
-        const formattedOrders: OrderExport[] = (orders || []).map(o => ({
+        const formattedOrders: OrderExport[] = orders.map(o => ({
             orderId: o.order_id,
             createdAt: o.created_at,
             status: o.status,
-            items: mergeOrderItems<{ name: string; quantity: number; price: number }>(o.items || []).map((item) => ({
+            // `items` is a jsonb array of order lines.
+            items: mergeOrderItems((Array.isArray(o.items) ? o.items : []) as ExportItem[]).map((item) => ({
                 name: item.name,
                 quantity: item.quantity,
                 price: item.price,
@@ -163,9 +160,7 @@ class CustomerDataExportService {
             total: orderTotal(o),
             city: o.city || "",
             address: o.address_details,
-            notes: o.notes,
-            deliveredAt: o.delivered_at,
-            cancelledAt: o.cancelled_at,
+            notes: o.notes ?? undefined,
         }));
 
         return {

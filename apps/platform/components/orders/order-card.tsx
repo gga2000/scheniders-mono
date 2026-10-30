@@ -2315,7 +2315,7 @@ export const OrderCard = memo(function OrderCard({
                                     )}
 
                                     {/* Blacklist toggle */}
-                                    {(onAddToBlacklist || onRemoveFromBlacklist) && (
+                                    {(isBlacklisted ? onRemoveFromBlacklist : onAddToBlacklist) && (
                                         <>
                                             <div className="my-1 mx-3 border-t border-[var(--card-border)]" />
                                             {isBlacklisted ? (
@@ -2331,7 +2331,7 @@ export const OrderCard = memo(function OrderCard({
                                                     <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
                                                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                                                     </div>
-                                                    <span className="font-medium">رفع الحظر</span>
+                                                    <span className="font-medium">{t("orderDetail.unblacklist")}</span>
                                                 </button>
                                             ) : (
                                                 <button
