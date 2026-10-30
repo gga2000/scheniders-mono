@@ -14,7 +14,7 @@ import {
     useCustomerMetadataQuery,
     useUpdateMetadataMutation
 } from "@/hooks/use-customers-query";
-import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/types/customer";
+import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus, TagColor } from "@/types/customer";
 
 // =============================================
 // CUSTOMER NOTES HOOK
@@ -68,7 +68,7 @@ export function useCustomerTags() {
     const createTagMutation = useCreateTagMutation();
     const deleteTagMutation = useDeleteTagMutation();
 
-    const createTag = async (name: string, color: string): Promise<CustomerTag | null> => {
+    const createTag = async (name: string, color: TagColor): Promise<CustomerTag | null> => {
         try {
             const data = await createTagMutation.mutateAsync({ name, color });
             return data as CustomerTag;
