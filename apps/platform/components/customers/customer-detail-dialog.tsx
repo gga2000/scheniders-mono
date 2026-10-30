@@ -110,9 +110,11 @@ function useCustomerDialogData(phone: string | null, limit = 60) {
         staleTime: 5 * 60 * 1000,
         // "Load more" raises `limit`, which is a new key: keep showing the
         // current orders while the longer list loads instead of blanking.
-        // A different customer still starts empty.
+        // A different customer or store still starts empty.
         placeholderData: (previous, previousQuery) =>
-            previousQuery?.queryKey[2] === phone ? previous : undefined,
+            previousQuery?.queryKey[1] === tenantId && previousQuery.queryKey[2] === phone
+                ? previous
+                : undefined,
         queryFn: async () => {
             if (!tenantId) throw new Error("No active tenant");
             const normalized = trustEngine.normalizePhone(phone as string);

@@ -37,6 +37,8 @@ import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
 import { scheduleDayFromToday } from "@/lib/order-format-utils";
 import { routeCreateOrderDate, FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
+import { ExchangedOrderStatusError } from "@/lib/order-status-guard";
+import { useLanguage } from "@/hooks/use-language";
 import { toBaghdadDayKey } from "@/lib/order-window";
 import { duplicateCandidateKeys } from "@/hooks/use-duplicate-window-alerts";
 import type { BatchOutcome, BulkProgress } from "@/lib/order-bulk-batches";
@@ -94,6 +96,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const authRef = useRef({ user, profile, session });
     useLayoutEffect(() => {
         authRef.current = { user, profile, session };
+    });
+    const { t } = useLanguage();
+    const tRef = useRef(t);
+    useLayoutEffect(() => {
+        tRef.current = t;
     });
 
     // Helper: optimistically update the React Query orders cache
@@ -360,7 +367,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     }
                     diag.log(`[Diag:StatusUpdate] MUTATION_ERR orderId=${orderId} seq=${mySeq} err=${err instanceof Error ? err.message : err} totalTime=${(performance.now() - _t0).toFixed(1)}ms`);
                     console.error("Error updating order status:", err);
-                    const msg = err instanceof Error ? err.message : "Failed to update order status";
+                    const msg = err instanceof ExchangedOrderStatusError
+                        ? tRef.current("orders.status.exchangedOriginal")
+                        : err instanceof Error ? err.message : "Failed to update order status";
                     toast.error(msg);
                     resolve({ success: false, error: msg });
                 }
