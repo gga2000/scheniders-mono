@@ -8,6 +8,7 @@ import { DaysOfSupplyPill, daysOfSupplyFrom } from "./days-of-supply-pill";
 import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
 import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsStack } from "./supplier-initials-badge";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface SupplyListRowProps {
     supply: Product;
@@ -72,15 +73,9 @@ export function SupplyListRow({
                 </td>
             )}
             <td className="px-3 py-3 w-14">
-                <div className="w-10 h-10 rounded-lg overflow-hidden bg-[var(--background)] flex items-center justify-center ring-1 ring-[var(--card-border)]">
+                <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-[var(--background)] flex items-center justify-center ring-1 ring-[var(--card-border)]">
                     {supply.image_url ? (
-                        <img
-                            src={supply.image_url}
-                            alt={supply.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover"
-                        />
+                        <ProductThumb src={supply.image_url} alt={supply.name} sizes="40px" />
                     ) : (
                         <Box className="w-5 h-5 text-teal-600" />
                     )}

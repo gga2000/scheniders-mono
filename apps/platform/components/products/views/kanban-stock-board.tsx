@@ -6,6 +6,7 @@ import { Package, AlertTriangle, XCircle, TrendingDown } from "lucide-react";
 import { Product, getStockStatus } from "@/lib/supabase";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface KanbanStockBoardProps {
     products: Product[];
@@ -153,14 +154,9 @@ function MiniCard({
         >
             <div className="flex items-start gap-3">
                 {/* Product Image */}
-                <div className="w-12 h-12 rounded-lg bg-[var(--background)] flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <div className="relative w-12 h-12 rounded-lg bg-[var(--background)] flex-shrink-0 overflow-hidden flex items-center justify-center">
                     {product.image_url ? (
-                        <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-full h-full object-cover rounded-lg"
-                            loading="lazy"
-                        />
+                        <ProductThumb src={product.image_url} alt={product.name} sizes="48px" />
                     ) : (
                         <Package className="w-5 h-5 text-muted" />
                     )}

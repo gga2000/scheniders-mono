@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useRecomputeInventoryMutation, usePriceHistoryQuery } from "@/hooks/use-products-query";
 import { StockCountDialog } from "@/components/products/stock-count-dialog";
@@ -50,11 +51,17 @@ import { BulkActionsBar } from "@/components/products/bulk-actions-bar";
 import { ExportMenu } from "@/components/products/export-menu";
 import { AbcTierProvider } from "@/components/products/abc-tier-context";
 import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-utils";
-import { QCQuarantineTab } from "@/components/products/qc-quarantine-tab";
-import { SuppliesTab } from "@/components/products/supplies-tab";
-import { CategoriesTab } from "@/components/products/categories-tab";
-import { AttributesTab } from "@/components/products/attributes-tab";
-import { CategoriesTabV2 } from "@/components/categories/v2/categories-tab-v2";
+import { PageSkeleton, TableSkeleton } from "@scheniders/ui/skeletons";
+
+// Tabs and views other than the default grid load on first use, so opening
+// /products does not parse their code (supplies, QC, categories, attributes,
+// grouped/kanban/heatmap views: tens of thousands of lines).
+const tabFallback = () => <TableSkeleton rows={6} cols={4} />;
+const QCQuarantineTab = dynamic(() => import("@/components/products/qc-quarantine-tab").then((m) => m.QCQuarantineTab), { loading: tabFallback });
+const SuppliesTab = dynamic(() => import("@/components/products/supplies-tab").then((m) => m.SuppliesTab), { loading: tabFallback });
+const CategoriesTab = dynamic(() => import("@/components/products/categories-tab").then((m) => m.CategoriesTab), { loading: tabFallback });
+const AttributesTab = dynamic(() => import("@/components/products/attributes-tab").then((m) => m.AttributesTab), { loading: tabFallback });
+const CategoriesTabV2 = dynamic(() => import("@/components/categories/v2/categories-tab-v2").then((m) => m.CategoriesTabV2), { loading: tabFallback });
 
 const CATEGORIES_V2_ENABLED = process.env.NEXT_PUBLIC_CATEGORIES_V2 !== "0";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
@@ -65,10 +72,10 @@ import { VirtualizedProductGrid } from "@/components/products/virtualized-produc
 import { VirtualizedProductList } from "@/components/products/virtualized-product-list";
 
 // New view modes
-import { CategoryGroupedView } from "@/components/products/views/category-grouped-view";
 import { applyFillerVisibility, countFiller } from "@/lib/product-filler";
-import { KanbanStockBoard } from "@/components/products/views/kanban-stock-board";
-import { MarginHeatmapView } from "@/components/products/views/margin-heatmap-view";
+const CategoryGroupedView = dynamic(() => import("@/components/products/views/category-grouped-view").then((m) => m.CategoryGroupedView), { loading: tabFallback });
+const KanbanStockBoard = dynamic(() => import("@/components/products/views/kanban-stock-board").then((m) => m.KanbanStockBoard), { loading: tabFallback });
+const MarginHeatmapView = dynamic(() => import("@/components/products/views/margin-heatmap-view").then((m) => m.MarginHeatmapView), { loading: tabFallback });
 
 // Analytics
 import { ForecastingCards } from "@/components/products/forecasting-cards";
@@ -78,14 +85,7 @@ import { useProductStore } from "@/store/use-product-store";
 
 export default function ProductsPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">Loading modules...</p>
-                </div>
-            </div>
-        }>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--background)]"><PageSkeleton /></div>}>
             <ProductsContent />
         </Suspense>
     );
@@ -625,11 +625,8 @@ function ProductsContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">{t("products.loading")}</p>
-                </div>
+            <div className="min-h-screen bg-[var(--background)]" aria-busy="true" aria-label={t("products.loading")}>
+                <PageSkeleton />
             </div>
         );
     }
@@ -890,13 +887,13 @@ function ProductsContent() {
                                 <div className="flex flex-col lg:flex-row gap-3">
                                     {/* Search */}
                                     <div className="relative flex-1">
-                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--foreground-subtle)]" />
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" aria-hidden />
                                         <input
                                             type="text"
                                             placeholder={t("products.searchPlaceholder")}
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                            className="w-full pl-12 pr-4 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
                                         />
                                     </div>
 
@@ -931,12 +928,14 @@ function ProductsContent() {
                                                     key={mode}
                                                     onClick={() => setViewMode(mode)}
                                                     className={cn(
-                                                        "p-2 rounded-lg transition-all",
+                                                        "relative p-2 rounded-lg transition-all before:absolute before:-inset-1.5 before:content-['']",
                                                         viewMode === mode
                                                             ? "bg-[var(--ink)] text-white"
                                                             : "text-muted hover:text-foreground"
                                                     )}
                                                     title={t(label)}
+                                                    aria-label={t(label)}
+                                                    aria-pressed={viewMode === mode}
                                                 >
                                                     <Icon className="w-4 h-4" />
                                                 </button>
@@ -953,7 +952,7 @@ function ProductsContent() {
                                                     aria-pressed={gridGroupByCategory}
                                                     title={t("products.groupByCategory")}
                                                     className={cn(
-                                                        "p-2 rounded-xl border transition-all",
+                                                        "relative p-2 rounded-xl border transition-all before:absolute before:-inset-1.5 before:content-['']",
                                                         gridGroupByCategory
                                                             ? "bg-[var(--ink)] text-white border-[var(--ink)]"
                                                             : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:text-foreground"
@@ -1028,7 +1027,7 @@ function ProductsContent() {
                             {filteredProducts.length === 0 ? (
                                 <div className="pastel-card p-12 text-center">
                                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
-                                        <Package className="h-8 w-8 text-[var(--foreground-subtle)]" />
+                                        <Package className="h-8 w-8 text-muted" />
                                     </div>
                                     <p className="text-lg font-medium text-foreground mb-1">{t("products.emptyState.title")}</p>
                                     <p className="text-sm text-muted mb-4">

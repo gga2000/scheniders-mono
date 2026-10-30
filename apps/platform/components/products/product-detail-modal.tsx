@@ -16,6 +16,7 @@ import {
 import { Product, ProductPriceHistory, getStockStatus } from "@/lib/supabase";
 import { formatIQD, formatDate } from "@/lib/utils";
 import { StockIndicator } from "./stock-indicator";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface ProductDetailModalProps {
     isOpen: boolean;
@@ -62,11 +63,9 @@ export function ProductDetailModal({
                     <div className="sticky top-0 z-10 flex items-center justify-between p-6 bg-[var(--card-bg)] border-b border-[var(--card-border)]">
                         <div className="flex items-center gap-4">
                             {product.image_url ? (
-                                <img
-                                    src={product.image_url}
-                                    alt={product.name}
-                                    className="w-14 h-14 rounded-xl object-cover"
-                                />
+                                <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0">
+                                    <ProductThumb src={product.image_url} alt={product.name} sizes="56px" />
+                                </div>
                             ) : (
                                 <div className="w-14 h-14 rounded-xl bg-[var(--background)] flex items-center justify-center">
                                     <Package className="w-7 h-7 text-muted" />

@@ -46,6 +46,7 @@ import { CategoryQuickAssignPanel } from "../category-quick-assign-panel";
 import { CategorySuggester } from "../category-suggester";
 import { BulkCategoryConfirmDialog } from "../bulk-category-confirm-dialog";
 import { FillerBadge } from "../filler-badge";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface CategoryGroupedViewProps {
     products: Product[];
@@ -789,14 +790,9 @@ function MiniProductCard({
             </div>
 
             {/* Product image */}
-            <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--card-bg)] flex items-center justify-center">
+            <div className="relative w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--card-bg)] flex items-center justify-center">
                 {product.image_url ? (
-                    <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                    />
+                    <ProductThumb src={product.image_url} alt={product.name} sizes="48px" />
                 ) : (
                     <Package className="w-5 h-5 text-muted" />
                 )}
