@@ -1,6 +1,9 @@
-// Chrome strings for the product_reviews quiet layout: generic UI text,
-// never merchant claims (the heading comes from props). Every entry
-// carries ar, en and ku, guarded by _kurdish-coverage.
+// Chrome strings for the product_reviews quiet and highlights layouts:
+// generic UI text, never merchant claims (the heading, the topic labels
+// and the store's replies come from props). Every entry carries ar, en
+// and ku, guarded by _kurdish-coverage. The highlights summary counts
+// reviews with the identity row's plural forms (`reviewCountLabel`), so
+// both say «6 تقييمات»; the quiet layout keeps «{count} تقييم».
 
 import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -37,6 +40,22 @@ export const REVIEW_STRINGS = {
   writeEntry: { en: "Write your review", ar: "اكتب تقييمك", ku: "هەڵسەنگاندنەکەت بنووسە" },
   enlargePhoto: { en: "Enlarge photo", ar: "تكبير الصورة", ku: "گەورەکردنی وێنە" },
   reviewPhoto: { en: "Review photo {n}", ar: "صورة التقييم {n}", ku: "وێنەی هەڵسەنگاندن {n}" },
+  // layout "highlights" (spec §1.6). `{count}` in ofReviews is the whole
+  // plural-correct count («6 تقييمات»), not a bare number.
+  ofReviews: { en: "from {count}", ar: "من {count}", ku: "لە {count}" },
+  themesLabel: { en: "Mentioned most", ar: "أكثر شي ذكروه", ku: "زۆرترین شت کە باسیان کرد" },
+  showAll: {
+    en: "See all reviews ({count})",
+    ar: "شوف كل التقييمات ({count})",
+    ku: "هەموو هەڵسەنگاندنەکان ببینە ({count})",
+  },
+  readMoreInline: { en: "More", ar: "كمّل", ku: "زیاتر" },
+  storeReply: { en: "Reply from {store}", ar: "رد {store}", ku: "وەڵامی {store}" },
+  emptyHighlights: {
+    en: "No reviews on this perfume yet",
+    ar: "بعد ماكو تقييمات على هذا العطر",
+    ku: "هێشتا هیچ هەڵسەنگاندنێک لەسەر ئەم بۆنە نییە",
+  },
 } as const;
 
 export type ReviewStringKey = keyof typeof REVIEW_STRINGS;

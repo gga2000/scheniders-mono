@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reviewCount, rs } from "./strings";
+import { REVIEW_STRINGS, reviewCount, rs } from "./strings";
 
 describe("REVIEW_STRINGS", () => {
   it("fills every {token}", () => {
@@ -18,5 +18,20 @@ describe("REVIEW_STRINGS", () => {
     expect(reviewCount(1, "en")).toBe("1 review");
     expect(reviewCount(6, "en")).toBe("6 reviews");
     expect(reviewCount(6, "ku")).toBe("6 هەڵسەنگاندن");
+  });
+});
+
+describe("REVIEW_STRINGS — highlights", () => {
+  it("fills the summary, show-all and reply lines", () => {
+    expect(rs("ofReviews", "ar", { count: "6 تقييمات" })).toBe("من 6 تقييمات");
+    expect(rs("showAll", "ar", { count: 6 })).toBe("شوف كل التقييمات (6)");
+    expect(rs("storeReply", "ar", { store: "شنايدر" })).toBe("رد شنايدر");
+    expect(rs("storeReply", "en", { store: "Scheniders" })).toBe("Reply from Scheniders");
+  });
+
+  it("every entry has ar, en and ku", () => {
+    for (const entry of Object.values(REVIEW_STRINGS)) {
+      expect(Object.keys(entry).sort()).toEqual(["ar", "en", "ku"]);
+    }
   });
 });
