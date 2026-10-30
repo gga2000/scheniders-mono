@@ -44,6 +44,17 @@ const schema = z.object({
       z.object({ label_i18n: i18nStringSchema, icon: z.string().optional() }),
     )
     .optional(),
+  /** The submit's label (slice 1h). Unset = the chrome «أكّد الطلب». A
+   *  store whose product page says «ثبّت طلبي» sets the same words here, so
+   *  the order action has one name along the whole path (F12). The reprice
+   *  message then quotes this label. */
+  submit_label_i18n: i18nStringOptional.catch(undefined),
+  /** "chunky" (default): today's outlined form. "soft" (slice 1h): the
+   *  express form's voice — no step chips, a quiet card, the express
+   *  fields, the chapter heading, the token-radius yellow submit with the
+   *  total under its label, WhatsApp as the soft green row, no fine print.
+   *  A bad stored value falls back. */
+  style: z.enum(["chunky", "soft"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
