@@ -41,7 +41,16 @@ export interface StockTodayItem {
 const RANK: Record<StockState, number> = { oversold: 0, short: 1, out: 2, low: 3, ok: 4 };
 
 /** An open box is a single unit; one left is already the last one. */
-const OPEN_BOX_LOW_AT = 1;
+export const OPEN_BOX_LOW_AT = 1;
+
+/** i18n key and English fallback for each state. */
+export const STOCK_STATE_LABEL: Record<StockState, [string, string]> = {
+    oversold: ["orders.stockToday.state.oversold", "Oversold"],
+    short: ["orders.stockToday.state.short", "Short if confirmed"],
+    out: ["orders.stockToday.state.out", "Sold out"],
+    low: ["orders.stockToday.state.low", "Running low"],
+    ok: ["orders.stockToday.state.ok", "In stock"],
+};
 
 export function laneState(lane: StockLane, lowAt: number): StockState {
     if (lane.left < 0) return "oversold";

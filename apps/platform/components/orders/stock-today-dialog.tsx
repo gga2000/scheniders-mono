@@ -7,8 +7,10 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useStockTodayQuery } from "@/hooks/use-stock-today-query";
 import { ProductThumb } from "@/components/products/product-thumb";
+import { StockTodayGlance } from "@/components/orders/stock-today-glance";
 import {
     filterStockToday,
+    STOCK_STATE_LABEL,
     stockTodaySummary,
     type StockFilter,
     type StockLane,
@@ -18,6 +20,29 @@ import {
 } from "@/lib/orders/stock-today";
 
 const PAGE = 5;
+/** Cards come in rows of two or three; six fills both. */
+const GLANCE_PAGE = 6;
+
+type StockView = "glance" | "detailed";
+const VIEW_KEY = "stock-today-view";
+
+/** Remembered per browser; storage can be blocked (private mode), then the default stands. */
+function readView(): StockView {
+    if (typeof window === "undefined") return "glance";
+    try {
+        return window.localStorage.getItem(VIEW_KEY) === "detailed" ? "detailed" : "glance";
+    } catch {
+        return "glance";
+    }
+}
+
+function saveView(view: StockView) {
+    try {
+        window.localStorage.setItem(VIEW_KEY, view);
+    } catch {
+        // Not remembered when storage is blocked; the chosen view still applies now.
+    }
+}
 
 const CHIP: Record<StockState, string> = {
     oversold: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300",
@@ -25,14 +50,6 @@ const CHIP: Record<StockState, string> = {
     out: "bg-[var(--background)] text-[var(--foreground-muted)]",
     low: "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
     ok: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-};
-
-const STATE_KEY: Record<StockState, [string, string]> = {
-    oversold: ["orders.stockToday.state.oversold", "Oversold"],
-    short: ["orders.stockToday.state.short", "Short if confirmed"],
-    out: ["orders.stockToday.state.out", "Sold out"],
-    low: ["orders.stockToday.state.low", "Running low"],
-    ok: ["orders.stockToday.state.ok", "In stock"],
 };
 
 interface StockTodayDialogProps {
@@ -52,17 +69,36 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
     const [filter, setFilter] = useState<StockFilter>("all");
     const [lane, setLane] = useState<StockLaneFilter>("both");
     const [query, setQuery] = useState("");
-    const [shown, setShown] = useState(PAGE);
+    // The dialog only renders content once opened in the browser, so reading
+    // storage up front cannot cause a hydration mismatch.
+    const [view, setView] = useState<StockView>(readView);
+    const page = view === "glance" ? GLANCE_PAGE : PAGE;
+    const [shown, setShown] = useState(page);
 
     const items = useMemo(() => data ?? [], [data]);
     const summary = useMemo(() => stockTodaySummary(items), [items]);
-    const list = useMemo(() => filterStockToday(items, filter, lane, query), [items, filter, lane, query]);
+    const list = useMemo(
+        () => filterStockToday(items, filter, view === "glance" ? "both" : lane, query),
+        [items, filter, lane, query, view]
+    );
     const rest = list.length - shown;
 
     const pick = (f: StockFilter) => {
         setFilter(prev => (prev === f && f !== "all" ? "all" : f));
-        setShown(PAGE);
+        setShown(page);
     };
+
+    const switchView = (next: StockView) => {
+        setView(next);
+        saveView(next);
+        setShown(next === "glance" ? GLANCE_PAGE : PAGE);
+        if (next === "glance" && filter === "today") setFilter("all");
+    };
+
+    const views: { key: StockView; label: string }[] = [
+        { key: "glance", label: t("orders.stockToday.view.glance", "Simple") },
+        { key: "detailed", label: t("orders.stockToday.view.detailed", "Detailed") },
+    ];
 
     const tiles: { key: StockFilter; label: string; value: number; dot: string }[] = [
         { key: "all", label: t("orders.stockToday.all", "All"), value: summary.all, dot: "bg-[var(--foreground-muted)]" },
@@ -95,12 +131,52 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                                 : t("orders.stockToday.loading", "Loading stock…")}
                         </DialogDescription>
                     </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                    <div role="group" aria-label={t("orders.stockToday.view.label", "View")} className="flex rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-0.5">
+                        {views.map(v => (
+                            <button
+                                key={v.key}
+                                type="button"
+                                onClick={() => switchView(v.key)}
+                                aria-pressed={view === v.key}
+                                className={cn(
+                                    "rounded-[10px] px-2.5 py-1.5 text-xs font-medium transition-colors",
+                                    view === v.key ? "bg-[var(--card-bg)] text-foreground shadow-sm" : "text-[var(--foreground-muted)]"
+                                )}
+                            >
+                                {v.label}
+                            </button>
+                        ))}
+                    </div>
                     <DialogClose className="shrink-0 rounded-xl p-2 text-[var(--foreground-muted)] transition-colors hover:bg-[var(--background)] hover:text-foreground">
                         <X className="h-5 w-5" />
                         <span className="sr-only">{t("orders.stockToday.close", "Close")}</span>
                     </DialogClose>
                     </div>
+                    </div>
 
+                    {view === "glance" ? (
+                        <div role="group" aria-label={t("orders.stockToday.show", "Show")} className="flex flex-wrap gap-1.5">
+                            {tiles.filter(tile => tile.key !== "today").map(tile => (
+                                <button
+                                    key={tile.key}
+                                    type="button"
+                                    onClick={() => pick(tile.key)}
+                                    aria-pressed={filter === tile.key}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                                        filter === tile.key
+                                            ? "border-foreground bg-foreground text-background"
+                                            : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
+                                    )}
+                                >
+                                    <i className={cn("w-2 h-2 rounded-full", tile.dot)} />
+                                    {tile.label}
+                                    <b className="tabular-nums">{tile.value}</b>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                         {tiles.map(tile => (
                             <button
@@ -123,6 +199,7 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                             </button>
                         ))}
                     </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                         <label className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3">
@@ -131,12 +208,13 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                                 id="stock-today-search"
                                 type="search"
                                 value={query}
-                                onChange={e => { setQuery(e.target.value); setShown(PAGE); }}
+                                onChange={e => { setQuery(e.target.value); setShown(page); }}
                                 placeholder={t("orders.stockToday.search", "Search product or SKU")}
                                 aria-label={t("orders.stockToday.search", "Search product or SKU")}
                                 className="flex-1 min-w-0 bg-transparent py-2 text-sm outline-none"
                             />
                         </label>
+                        {view === "detailed" && (
                         <div role="group" aria-label={t("orders.stockToday.which", "Which stock")} className="flex shrink-0 rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-0.5">
                             {lanes.map(l => (
                                 <button
@@ -153,6 +231,7 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                                 </button>
                             ))}
                         </div>
+                        )}
                     </div>
                 </div>
 
@@ -169,6 +248,12 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                     </div>
                 ) : (
                     <>
+                        {view === "glance" ? (
+                            list.length === 0
+                                ? <p className="py-12 text-center text-sm text-[var(--foreground-muted)]">{t("orders.stockToday.empty", "No products match.")}</p>
+                                : <StockTodayGlance items={list.slice(0, shown)} />
+                        ) : (
+                        <>
                         <div className={cn("hidden md:grid gap-4 pt-3 pb-1 text-[11px] uppercase tracking-wider text-[var(--foreground-muted)]", cols)}>
                             <span>{t("orders.stockToday.product", "Product")}</span>
                             {lane !== "openBox" && <span>{t("orders.stockToday.new", "New")}</span>}
@@ -183,28 +268,30 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                                 ))}
                             </ul>
                         )}
-                        {(rest > 0 || shown > PAGE) && (
+                        </>
+                        )}
+                        {(rest > 0 || shown > page) && (
                             <div className="flex flex-wrap items-center justify-center gap-2 border-t border-[var(--card-border)] pt-4 mt-1">
                                 {rest > 0 ? (
                                     <>
                                         <span className="text-xs text-[var(--foreground-muted)]">
                                             {t("orders.stockToday.showing", "Showing {shown} of {total}", { shown, total: list.length })}
                                         </span>
-                                        <button type="button" onClick={() => setShown(s => s + PAGE)} className="rounded-xl border border-[var(--card-border)] px-3.5 py-2 text-sm font-medium hover:bg-[var(--background)]">
-                                            {t("orders.stockToday.more", "Show {count} more", { count: Math.min(PAGE, rest) })}
+                                        <button type="button" onClick={() => setShown(s => s + page)} className="rounded-xl border border-[var(--card-border)] px-3.5 py-2 text-sm font-medium hover:bg-[var(--background)]">
+                                            {t("orders.stockToday.more", "Show {count} more", { count: Math.min(page, rest) })}
                                         </button>
                                         <button type="button" onClick={() => setShown(list.length)} className="rounded-xl bg-foreground text-background px-3.5 py-2 text-sm font-medium">
                                             {t("orders.stockToday.showAll", "Show all {count}", { count: list.length })}
                                         </button>
                                     </>
                                 ) : (
-                                    <button type="button" onClick={() => setShown(PAGE)} className="rounded-xl border border-[var(--card-border)] px-3.5 py-2 text-sm font-medium hover:bg-[var(--background)]">
+                                    <button type="button" onClick={() => setShown(page)} className="rounded-xl border border-[var(--card-border)] px-3.5 py-2 text-sm font-medium hover:bg-[var(--background)]">
                                         {t("orders.stockToday.fewer", "Show fewer")}
                                     </button>
                                 )}
                             </div>
                         )}
-                        <Legend />
+                        {view === "detailed" && <Legend />}
                     </>
                 )}
             </DialogContent>
@@ -214,7 +301,7 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
 
 function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneFilter; cols: string }) {
     const { t } = useLanguage();
-    const [stateKey, stateFallback] = STATE_KEY[item.state];
+    const [stateKey, stateFallback] = STOCK_STATE_LABEL[item.state];
     return (
         <li className={cn("grid grid-cols-2 gap-3 md:gap-4 border-t border-[var(--card-border)] py-3.5 items-stretch md:items-center", cols)}>
             <div className="col-span-2 md:col-span-1 flex items-center gap-3 min-w-0">
