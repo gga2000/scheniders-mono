@@ -31,3 +31,43 @@ export const STRING_TABLE_FILES: readonly string[] = [
   "image_gallery.strings.ts",
   "faq_contact_split.strings.ts",
 ];
+
+/** One entry of a chrome table, read from its source: the key, the entry's
+ *  source text, and its `ar` value (null when it has none). */
+export interface StringTableEntry {
+  key: string;
+  source: string;
+  ar: string | null;
+}
+
+/** The `{ … }` body of the file's `STRINGS` / `<PREFIX>_STRINGS` table, or
+ *  "" when the file has none. */
+export function stringsBlock(src: string): string {
+  const m = /const (?:[A-Z]+_)?STRINGS\s*(?::[^=]*)?=\s*\{/.exec(src);
+  if (!m) return "";
+  let depth = 1;
+  let i = m.index + m[0].length;
+  const start = i;
+  while (depth && i < src.length) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}") depth--;
+    i++;
+  }
+  return src.slice(start, i);
+}
+
+/** Every `key: { … }` entry of the file's table. Quoted strings are atoms,
+ *  so a `{points}` placeholder cannot end an entry early. */
+export function stringTableEntries(src: string): StringTableEntry[] {
+  const block = stringsBlock(src);
+  return [...block.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\{(?:[^{}"]|"(?:[^"\\]|\\.)*")*\}/gm)].map(
+    (e) => {
+      const ar = /\bar:\s*"((?:[^"\\]|\\.)*)"/.exec(e[0]);
+      return {
+        key: e[1] ?? "",
+        source: e[0],
+        ar: ar ? String(JSON.parse(`"${ar[1] ?? ""}"`)) : null,
+      };
+    },
+  );
+}
