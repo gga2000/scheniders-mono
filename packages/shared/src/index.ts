@@ -6,6 +6,7 @@ export * from "./governorates";
 export * from "./types";
 // MOVED TO SUBPATH EXPORT: export * from "./iraq-map-paths";
 export * from "./merchant-code";
+export * from "./oauth-client-token";
 export * from "./phone";
 export * from "./prune-orphaned-variants";
 export * from "./brand-kit-vars";

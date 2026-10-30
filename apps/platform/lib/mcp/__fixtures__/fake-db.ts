@@ -16,6 +16,7 @@ export function fakeDb(tables: Record<string, Row[]>, rpc: Record<string, (args:
         let op: "select" | "update" | "insert" = "select";
         let payload: Row | Row[] | undefined;
         let cap = Infinity;
+        let offset = 0;
         let single: "maybe" | "one" | null = null;
 
         const run = () => {
@@ -30,7 +31,7 @@ export function fakeDb(tables: Record<string, Row[]>, rpc: Record<string, (args:
             if (op === "update") {
                 for (const r of matched) Object.assign(r, payload, { version: Number(r.version ?? 0) + 1 });
             }
-            const out = matched.slice(0, cap);
+            const out = matched.slice(offset, offset + cap);
             if (single === "maybe") return { data: out[0] ?? null, error: null };
             if (single === "one") return out[0] ? { data: out[0], error: null } : { data: null, error: { message: "no rows" } };
             return { data: out, error: null, count: matched.length };
@@ -39,7 +40,11 @@ export function fakeDb(tables: Record<string, Row[]>, rpc: Record<string, (args:
         const chain = {
             select: () => chain,
             order: () => chain,
-            range: () => chain,
+            range(fromRow: number, toRow: number) {
+                offset = fromRow;
+                cap = toRow - fromRow + 1;
+                return chain;
+            },
             or: () => chain,
             eq(col: string, val: unknown) {
                 filters.push({ desc: `${col}=${String(val)}`, test: (r) => r[col] === val });

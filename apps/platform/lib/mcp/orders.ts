@@ -5,6 +5,8 @@ import { ORDER_STATUSES } from "@/lib/order-status-labels";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { findExactGovernorate, getGovernorateByCode } from "@/lib/address-validator";
+import { normalizeIraqiPhone } from "@/lib/order-utils";
+import { isValidIraqiMobile } from "@scheniders/shared";
 import type { Order } from "@/types/order";
 
 export const orderStatusSchema = z.enum(ORDER_STATUSES);
@@ -19,24 +21,68 @@ export const orderRefSchema = z
 
 const UUID = z.string().uuid();
 
+/** Rows the order-search RPC returns at most; a full page means older matches may be missing. */
+export const SEARCH_LIMIT = 200;
+
 /**
  * Find one live order in the caller's store. The tenant filter is explicit on
  * top of RLS: a user who belongs to several stores is acting in one of them.
  */
 export async function findOrder(caller: McpCaller, ref: string): Promise<Order> {
-    const cleaned = ref.replace(/^#/, "");
-    let query = caller.db
-        .from("orders")
-        .select(ORDER_READ_COLUMNS)
-        .eq("tenant_id", caller.tenantId)
-        .is("deleted_at", null);
-    query = UUID.safeParse(cleaned).success ? query.eq("id", cleaned) : query.eq("order_id", cleaned);
+    const [order] = await findOrders(caller, [ref]);
+    return order;
+}
 
-    const { data, error } = await query.limit(2);
-    if (error) throw error;
-    if (!data || data.length === 0) throw new McpToolError(`No order ${ref} in this store.`);
-    if (data.length > 1) throw new McpToolError(`More than one order matches ${ref}; use the order id instead.`);
-    return normalizeOrder(data[0] as unknown as Order);
+/**
+ * Find several live orders in the caller's store with at most two queries (by
+ * id and by number), returned in the order given. Fails as a whole, naming
+ * every reference that matches no order or more than one.
+ */
+export async function findOrders(caller: McpCaller, refs: string[]): Promise<Order[]> {
+    const cleaned = refs.map((ref) => ({ ref, key: ref.replace(/^#/, "") }));
+    const ids = cleaned.filter((r) => UUID.safeParse(r.key).success).map((r) => r.key);
+    const numbers = cleaned.filter((r) => !UUID.safeParse(r.key).success).map((r) => r.key);
+
+    const lookup = async (column: "id" | "order_id", keys: string[]): Promise<Order[]> => {
+        if (keys.length === 0) return [];
+        const { data, error } = await caller.db
+            .from("orders")
+            .select(ORDER_READ_COLUMNS)
+            .eq("tenant_id", caller.tenantId)
+            .is("deleted_at", null)
+            .in(column, keys);
+        if (error) throw error;
+        return ((data ?? []) as unknown as Order[]).map(normalizeOrder);
+    };
+    const [byId, byNumber] = await Promise.all([lookup("id", ids), lookup("order_id", numbers)]);
+
+    const missing: string[] = [];
+    const ambiguous: string[] = [];
+    const found = cleaned.flatMap(({ ref, key }) => {
+        const matches = UUID.safeParse(key).success
+            ? byId.filter((o) => o.id === key)
+            : byNumber.filter((o) => o.order_id === key);
+        if (matches.length === 0) missing.push(ref);
+        if (matches.length > 1) ambiguous.push(ref);
+        return matches.length === 1 ? matches : [];
+    });
+    if (missing.length > 0) throw new McpToolError(`No order ${missing.join(", ")} in this store.`);
+    if (ambiguous.length > 0) {
+        throw new McpToolError(`More than one order matches ${ambiguous.join(", ")}; use the order id instead.`);
+    }
+    return found;
+}
+
+/**
+ * An Iraqi mobile in the form orders store it (07XXXXXXXXX), or a refusal: an
+ * order the courier cannot call is not deliverable.
+ */
+export function orderPhone(raw: string, field: string): string {
+    const phone = normalizeIraqiPhone(raw);
+    if (!isValidIraqiMobile(phone)) {
+        throw new McpToolError(`${field} "${raw}" is not an Iraqi mobile number (07XX XXX XXXX).`);
+    }
+    return phone;
 }
 
 export const governorateInputSchema = z

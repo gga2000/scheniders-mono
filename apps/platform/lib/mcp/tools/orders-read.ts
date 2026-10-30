@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { registerTool } from "@/lib/mcp/tool";
-import { findOrder, governorateInputSchema, orderRefSchema, orderStatusSchema, resolveOrderGovernorate } from "@/lib/mcp/orders";
+import { findOrder, governorateInputSchema, orderRefSchema, orderStatusSchema, resolveOrderGovernorate, SEARCH_LIMIT } from "@/lib/mcp/orders";
 import {
     ORDER_SUMMARY_COLUMNS,
     baghdadDayEnd,
@@ -38,17 +38,21 @@ export function registerOrderReadTools(server: McpServer): void {
 
             let rows: OrderSummaryRow[];
             let total: number | null = null;
+            let capped = false;
 
             if (input.query) {
                 // The app's own search: number, name and every phone format.
                 const { data, error } = await caller.db.rpc("search_orders_v2", {
                     p_tenant_id: caller.tenantId,
                     p_term: input.query,
-                    p_limit: 200,
+                    p_limit: SEARCH_LIMIT,
                 });
                 if (error) throw error;
-                const found = (data ?? []) as (OrderSummaryRow & { is_archived?: boolean })[];
+                const found = (data ?? []) as (OrderSummaryRow & { is_archived?: boolean; deleted_at: string | null })[];
+                capped = found.length >= SEARCH_LIMIT;
                 rows = found.filter((row) => {
+                    // The search RPC also returns orders in the trash.
+                    if (row.deleted_at !== null) return false;
                     if (!input.include_archived && row.is_archived) return false;
                     if (input.status && !input.status.includes(row.status)) return false;
                     if (governorate && row.city !== governorate.city) return false;
@@ -76,7 +80,9 @@ export function registerOrderReadTools(server: McpServer): void {
             }
 
             if (rows.length === 0) return "No orders match.";
-            const header = `${total ?? rows.length} order(s) match; showing ${rows.length}.`;
+            const header =
+                `${total ?? rows.length} order(s) match; showing ${rows.length}.` +
+                (capped ? ` The text search stops at its ${SEARCH_LIMIT} closest matches, so older orders may be missing; narrow the query to be sure.` : "");
             return [header, ...rows.map((o) => orderLine(o, true))].join("\n");
         },
     });

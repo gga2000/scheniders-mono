@@ -21,13 +21,26 @@ const TERMINAL_STATUSES: readonly OrderStatus[] = [
 
 const QUARANTINED_STATUSES: readonly OrderStatus[] = ["rejected", "refund_delivered", "cancelled"];
 
+/** Statuses in which the order's supplies have already been used up. */
+const FULFILLED_STATUSES: readonly OrderStatus[] = ["delivered", "completed"];
+
+/** Statuses in which the order's items have already been queued for QC. */
+const RETURNED_STATUSES: readonly OrderStatus[] = ["rejected", "refund_delivered"];
+
 export type StatusSideEffect = "deduct_supplies" | "quarantine" | "unquarantine";
 
 /** The non-trigger inventory effect of moving an order from `from` to `to`, if any. */
 export function statusSideEffect(from: OrderStatus, to: OrderStatus): StatusSideEffect | null {
     if (from === to) return null;
-    if (to === "completed" || to === "delivered") return "deduct_supplies";
-    if (to === "rejected" || to === "refund_delivered") return "quarantine";
+    // Effects fire on entering a group, not on moves inside it: delivered →
+    // completed must not use the supplies twice, nor rejected →
+    // refund_delivered queue the same items twice.
+    if (FULFILLED_STATUSES.includes(to)) {
+        return FULFILLED_STATUSES.includes(from) ? null : "deduct_supplies";
+    }
+    if (RETURNED_STATUSES.includes(to)) {
+        return RETURNED_STATUSES.includes(from) ? null : "quarantine";
+    }
     const wasActive = !TERMINAL_STATUSES.includes(from);
     const isActive = !TERMINAL_STATUSES.includes(to);
     if (isActive && !wasActive && QUARANTINED_STATUSES.includes(from)) return "unquarantine";

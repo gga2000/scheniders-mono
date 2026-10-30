@@ -283,7 +283,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                                 to: status,
                                 reason: rejectionReason || `Changed to ${status}`,
                             })
-                        ).catch(console.error);
+                        ).then(result => {
+                            if (!result.success) {
+                                toast.error(`Status updated, but supplies or the QC queue were not updated: ${result.error ?? "unknown error"}`);
+                            }
+                        }).catch(console.error);
                     }
 
                     // Record status change to history table
@@ -1065,11 +1069,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             );
 
             // Reserved/stock math handled by the DB trigger. Only supplies + QC-queue side-effects here.
-            if (tenantId) import("@/lib/orders/status-side-effects").then(effects => {
-                succeeded.forEach(({ id }) => {
+            if (tenantId) import("@/lib/orders/status-side-effects").then(async effects => {
+                const results = await Promise.all(succeeded.map(({ id }) => {
                     const previousOrder = previousById.get(id);
-                    if (!previousOrder) return;
-                    void effects.applyStatusSideEffect(supabase, {
+                    if (!previousOrder) return { success: true };
+                    return effects.applyStatusSideEffect(supabase, {
                         orderId: id,
                         tenantId,
                         items: previousOrder.items || [],
@@ -1077,7 +1081,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         to: status,
                         reason: `Bulk changed to ${status}`,
                     });
-                });
+                }));
+                const failed = results.filter(r => !r.success).length;
+                if (failed > 0) {
+                    toast.error(`Statuses updated, but supplies or the QC queue were not updated for ${failed} order(s)`);
+                }
             }).catch(console.error);
         };
 

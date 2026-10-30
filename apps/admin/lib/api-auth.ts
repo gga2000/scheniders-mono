@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { isOAuthClientToken } from "@scheniders/shared";
 import { requireAdmin, resolveAdminRole } from "./admin-supabase";
 import { env } from "./admin-env";
 import { AdminAuthError, isCredentialRejection } from "./admin-auth-error";
@@ -50,6 +51,10 @@ async function adminFromCookies(): Promise<AdminContext | null> {
     if (isCredentialRejection(error)) return null;
     throw new Error(`Session validation failed: ${error?.message}`, { cause: error });
   }
+
+  // A Claude connector token planted in the session cookie is no admin session.
+  const { data } = await supabase.auth.getSession();
+  if (data.session && isOAuthClientToken(data.session.access_token)) return null;
 
   const role = await resolveAdminRole(user.id);
   return { user: { id: user.id, email: user.email }, role };
