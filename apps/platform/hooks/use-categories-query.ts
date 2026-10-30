@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { Category, CategoryStatus } from "@/types/product";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
+import { ProductWriteDeniedError } from "@/lib/repositories/product-repository";
 
 export const categoryKeys = {
     all: ["categories"] as const,
@@ -92,11 +93,14 @@ export function useDeleteCategoryMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("categories")
                 .delete()
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
             if (error) throw error;
+            // RLS refuses a delete by matching no rows, not with an error.
+            if (!data || data.length === 0) throw new ProductWriteDeniedError("delete category");
             return id;
         },
         onSuccess: () => {

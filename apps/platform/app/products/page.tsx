@@ -384,7 +384,7 @@ function ProductsContent() {
         let newProduct: Product;
         try {
         newProduct = await addProduct({
-            name: `Copy of ${product.name}`,
+            name: t("products.ed.copyOf", { name: product.name }),
             sku: product.sku ? `${product.sku}-copy` : undefined,
             description: product.description,
             price: product.price,
@@ -407,7 +407,7 @@ function ProductsContent() {
             return;
         }
         router.push(`/products/${newProduct.id}/edit`);
-    }, [addProduct, router, reportWriteError]);
+    }, [addProduct, router, reportWriteError, t]);
 
     const handleDeleteProduct = useCallback(async (product: Product) => {
         try {
