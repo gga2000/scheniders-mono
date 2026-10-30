@@ -32,6 +32,26 @@ interface InteraktTemplateBody {
     };
 }
 
+/**
+ * The reason Interakt gives for a refused send. Its error bodies come in more
+ * than one shape: `{"result":false,"message":"…"}`, and, for an empty wallet,
+ * a bare array of strings:
+ *   ["Your wallet doesn't have sufficient balance. Please recharge your wallet to continue sending messages."]
+ * Reading only `.message` turned the second into a bare "HTTP 400", which the
+ * failure handler then took for a bad phone number.
+ */
+export function interaktErrorMessage(body: unknown): string | undefined {
+    if (typeof body === "string") return body.trim() || undefined;
+    if (Array.isArray(body)) {
+        const parts = body.filter((p): p is string => typeof p === "string" && p.trim() !== "");
+        return parts.length > 0 ? parts.join(" ") : undefined;
+    }
+    if (body !== null && typeof body === "object" && "message" in body) {
+        return interaktErrorMessage(body.message);
+    }
+    return undefined;
+}
+
 interface InteraktAPIResponse {
     result: boolean;
     message?: string;
@@ -395,7 +415,7 @@ export async function sendTemplateMessage(
                 );
                 return {
                     success: false,
-                    error: data.message || `HTTP ${response.status}`,
+                    error: interaktErrorMessage(data) || `HTTP ${response.status}`,
                     statusCode: response.status,
                 };
             }
@@ -535,7 +555,7 @@ export async function sendStaffAlertMessage(
                 };
             }
 
-            lastError = typeof result?.message === "string" ? result.message : `HTTP ${response.status}`;
+            lastError = interaktErrorMessage(result) || `HTTP ${response.status}`;
             if (response.status === 429 && attempt < MAX_RETRIES) {
                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
                 continue;

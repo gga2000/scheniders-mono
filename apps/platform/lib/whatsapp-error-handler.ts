@@ -26,22 +26,32 @@ export function categorizeWhatsAppFailure(
 
     let reason = "whatsapp_send_failed";
     let notePrefix = "فشل إرسال واتساب";
+    const msg = errorMsg.toLowerCase();
 
-    // Categorize by status code and error message
-    if (statusCode === 400 || errorMsg.toLowerCase().includes("invalid")) {
+    // Categorize by Interakt's own reason first: it answers 400 for an empty
+    // wallet, a bad template and a bad number alike, so the status code alone
+    // cannot tell a customer's number apart from our own account's state.
+    if (msg.includes("sufficient balance") || msg.includes("recharge your wallet")) {
+        reason = "whatsapp_wallet_empty";
+        notePrefix = "رصيد محفظة Interakt غير كافٍ — اشحن المحفظة";
+    } else if (/phone ?number|country ?code/.test(msg)) {
         reason = "whatsapp_invalid_number";
         notePrefix = "رقم واتساب غير صالح";
-    } else if (statusCode === 429 || errorMsg.toLowerCase().includes("rate limit")) {
+    } else if (statusCode === 429 || msg.includes("rate limit")) {
         reason = "whatsapp_rate_limited";
         notePrefix = "تم تجاوز حد الإرسال";
     } else if (
         statusCode >= 500 ||
-        errorMsg.toLowerCase().includes("network") ||
-        errorMsg.toLowerCase().includes("invalid response")
+        msg.includes("network") ||
+        msg.includes("invalid response")
     ) {
         reason = "whatsapp_network_error";
         notePrefix = "خطأ في الشبكة";
-    } else if (errorMsg.includes("not configured")) {
+    } else if (
+        statusCode === 403 ||
+        msg.includes("not configured") ||
+        msg.includes("template")
+    ) {
         reason = "whatsapp_config_error";
         notePrefix = "خطأ في إعدادات واتساب";
     }
