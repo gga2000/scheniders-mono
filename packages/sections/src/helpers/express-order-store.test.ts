@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   EXPRESS_REQUIRED_FIELDS,
+  EXPRESS_SUBMIT_ID,
   UNREGISTERED,
   expressFormOf,
   expressFormStage,
   useExpressOrderStore,
+  type ExpressFormReport,
 } from "./express-order-store";
 
 const P1 = "11111111-1111-4111-8111-111111111111";
 const P2 = "22222222-2222-4222-8222-222222222222";
 const store = () => useExpressOrderStore.getState();
 
-beforeEach(() => useExpressOrderStore.setState({ forms: {} }));
+beforeEach(() => useExpressOrderStore.setState({ forms: {}, watchers: {} }));
 
 describe("EXPRESS_REQUIRED_FIELDS", () => {
   it("is the express field order without the backup number", () => {
@@ -47,6 +49,7 @@ describe("useExpressOrderStore", () => {
       firstMissingId: "direct-order-governorate_code",
       firstMissingLabel: "المحافظة",
       submitId: "direct-order-submit",
+      submitLabel: "ثبّت طلبي",
     });
     const partial = expressFormOf(store(), P1);
     expect(expressFormStage(partial)).toBe("partial");
@@ -58,6 +61,7 @@ describe("useExpressOrderStore", () => {
       firstMissingId: null,
       firstMissingLabel: null,
       submitId: "direct-order-submit",
+      submitLabel: "ثبّت طلبي",
     });
     expect(expressFormStage(expressFormOf(store(), P1))).toBe("complete");
   });
@@ -68,6 +72,7 @@ describe("useExpressOrderStore", () => {
       firstMissingId: null,
       firstMissingLabel: null,
       submitId: "x",
+      submitLabel: null,
     });
     expect(expressFormOf(store(), P1)).toBe(UNREGISTERED);
   });
@@ -85,5 +90,52 @@ describe("useExpressOrderStore", () => {
     const second = store().registerForm(P1, "form-c");
     second();
     expect(expressFormOf(store(), P1)).toBe(UNREGISTERED);
+  });
+});
+
+describe("slice 1f: the submit label, quiet reports, and watching bars", () => {
+  const report: ExpressFormReport = {
+    missing: ["address_details"],
+    firstMissingId: "f-address_details",
+    firstMissingLabel: "المنطقة والشارع",
+    submitId: EXPRESS_SUBMIT_ID,
+    submitLabel: "ثبّت طلبي",
+  };
+
+  it("the submit id is the express form's id plus -submit", () => {
+    expect(EXPRESS_SUBMIT_ID).toBe("direct-order-submit");
+    expect(UNREGISTERED.submitLabel).toBeNull();
+  });
+
+  it("carries the submit label", () => {
+    store().registerForm(P1, "direct-order");
+    store().reportForm(P1, report);
+    expect(expressFormOf(store(), P1).submitLabel).toBe("ثبّت طلبي");
+  });
+
+  it("an unchanged report does not notify readers", () => {
+    store().registerForm(P1, "direct-order");
+    store().reportForm(P1, report);
+    let calls = 0;
+    const unsubscribe = useExpressOrderStore.subscribe(() => {
+      calls += 1;
+    });
+    store().reportForm(P1, report);
+    expect(calls).toBe(0);
+    store().reportForm(P1, { ...report, missing: [], firstMissingId: null, firstMissingLabel: null });
+    expect(calls).toBe(1);
+    unsubscribe();
+  });
+
+  it("counts watching bars; only the last cleanup unwatches", () => {
+    const watched = () => (store().watchers[P1] ?? 0) > 0;
+    expect(watched()).toBe(false);
+    const a = store().watchForm(P1);
+    const b = store().watchForm(P1);
+    a();
+    expect(watched()).toBe(true);
+    b();
+    expect(watched()).toBe(false);
+    expect(store().watchers).toEqual({});
   });
 });

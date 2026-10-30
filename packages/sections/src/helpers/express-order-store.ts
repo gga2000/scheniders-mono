@@ -11,11 +11,20 @@
 // only by sections that opted in (`primary_kind: "form_aware"`, slice 1f).
 // With nothing registered every reader sees `UNREGISTERED` and keeps
 // today's behaviour.
+//
+// The wire runs both ways for one thing: a form-aware bar WATCHES the
+// product (`watchForm`), and only while it is watched does the form mark
+// its receipt (`data-receipt`) and give its submit the id the bar focuses
+// (`EXPRESS_SUBMIT_ID`). Server markup never carries either (effects do not
+// run there), so every store without a form-aware bar renders as before.
 // =====================================================================
 
 import { create } from "zustand";
 import type { FieldKey } from "../pdp_direct_order.client";
 import { EXPRESS_FIELD_ORDER } from "../pdp_express/model";
+
+/** The id the express submit carries while a form-aware bar watches. */
+export const EXPRESS_SUBMIT_ID = "direct-order-submit";
 
 /** The fields a shopper must fill before the order can go: the express
  *  field order without the optional backup number. */
@@ -34,6 +43,8 @@ export interface ExpressFormProgress {
   firstMissingLabel: string | null;
   /** DOM id of the form's submit button, once it has one. */
   submitId: string | null;
+  /** The submit's label in the current locale («ثبّت طلبي»), or null. */
+  submitLabel: string | null;
   /** DOM id of the form element ("" when nothing is registered). */
   formId: string;
 }
@@ -41,7 +52,7 @@ export interface ExpressFormProgress {
 /** What the form reports on every change. */
 export type ExpressFormReport = Pick<
   ExpressFormProgress,
-  "missing" | "firstMissingId" | "firstMissingLabel" | "submitId"
+  "missing" | "firstMissingId" | "firstMissingLabel" | "submitId" | "submitLabel"
 >;
 
 /** The one value readers see for a product with no mounted form. A single
@@ -52,19 +63,37 @@ export const UNREGISTERED: ExpressFormProgress = Object.freeze({
   firstMissingId: null,
   firstMissingLabel: null,
   submitId: null,
+  submitLabel: null,
   formId: "",
 });
 
+/** True when `report` would change nothing in `current`. */
+function sameReport(current: ExpressFormProgress, report: ExpressFormReport): boolean {
+  return (
+    current.missing.join(" ") === report.missing.join(" ") &&
+    current.firstMissingId === report.firstMissingId &&
+    current.firstMissingLabel === report.firstMissingLabel &&
+    current.submitId === report.submitId &&
+    current.submitLabel === report.submitLabel
+  );
+}
+
 interface ExpressOrderState {
   forms: Record<string, ExpressFormProgress>;
+  /** How many form-aware bars watch each product's form. */
+  watchers: Record<string, number>;
   /** Called by the form on mount; returns the unmount cleanup. */
   registerForm: (productId: string, formId: string) => () => void;
-  /** Called by the form on every change. Ignored while not registered. */
+  /** Called by the form after every render. Ignored while not registered,
+   *  and a no-op (readers are not notified) when nothing changed. */
   reportForm: (productId: string, report: ExpressFormReport) => void;
+  /** Called by a form-aware bar on mount; returns the unmount cleanup. */
+  watchForm: (productId: string) => () => void;
 }
 
 export const useExpressOrderStore = create<ExpressOrderState>()((set) => ({
   forms: {},
+  watchers: {},
   registerForm: (productId, formId) => {
     set((s) => ({
       forms: {
@@ -87,9 +116,20 @@ export const useExpressOrderStore = create<ExpressOrderState>()((set) => ({
   reportForm: (productId, report) =>
     set((s) => {
       const current = s.forms[productId];
-      if (!current) return s;
+      if (!current || sameReport(current, report)) return s;
       return { forms: { ...s.forms, [productId]: { ...current, ...report } } };
     }),
+  watchForm: (productId) => {
+    set((s) => ({ watchers: { ...s.watchers, [productId]: (s.watchers[productId] ?? 0) + 1 } }));
+    return () =>
+      set((s) => {
+        const left = (s.watchers[productId] ?? 0) - 1;
+        if (left > 0) return { watchers: { ...s.watchers, [productId]: left } };
+        return {
+          watchers: Object.fromEntries(Object.entries(s.watchers).filter(([id]) => id !== productId)),
+        };
+      });
+  },
 }));
 
 /** The progress for `productId`, or `UNREGISTERED`. */
@@ -103,6 +143,11 @@ export function expressFormOf(
 /** Hook form of `expressFormOf`, for the sections that read it. */
 export function useExpressFormProgress(productId: string): ExpressFormProgress {
   return useExpressOrderStore((s) => expressFormOf(s, productId));
+}
+
+/** True while at least one form-aware bar watches `productId`'s form. */
+export function useFormWatched(productId: string): boolean {
+  return useExpressOrderStore((s) => (s.watchers[productId] ?? 0) > 0);
 }
 
 export type ExpressFormStage = "none" | "untouched" | "partial" | "complete";
