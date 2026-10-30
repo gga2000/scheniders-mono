@@ -7,6 +7,7 @@ import { useOrderStore } from "@/store/use-order-store";
 import { useShallow } from "zustand/react/shallow";
 import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary";
 import { compareTwinsFor } from "@/lib/duplicate-window";
+import { useCustomerOrderHistory } from "@/hooks/use-customer-order-history";
 import type { Order, OrderItem, MessageTemplate } from "@/lib/supabase";
 
 const OrderDetailsModal = withOrderModalBoundary(
@@ -161,8 +162,12 @@ export function OrderDialogs({
         })),
     );
 
+    // The customer's orders outside the loaded date window, so the modal can
+    // compare against every order the "N طلبات" chip counted. Loaded rows go
+    // last: realtime patches them, so their copy is the current one.
+    const customerHistory = useCustomerOrderHistory(duplicateOrder?.phone);
     const compareTwins = duplicateOrder
-        ? compareTwinsFor(duplicateOrder, duplicateCandidates, getDuplicateWindowAlert(duplicateOrder.id))
+        ? compareTwinsFor(duplicateOrder, [...customerHistory, ...duplicateCandidates], getDuplicateWindowAlert(duplicateOrder.id))
         : [];
 
     return (

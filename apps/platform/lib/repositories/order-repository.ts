@@ -14,8 +14,10 @@ import {
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS, ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { runInSequentialBatches, type BatchOutcome, type BulkProgress } from "@/lib/order-bulk-batches";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
     MAX_SEARCH_RESULTS,
+    MIN_PHONE_DIGITS,
     buildDirectSearchFilters,
     parseOrderSearchTerm,
     rankSearchResults,
@@ -701,6 +703,22 @@ export const orderRepository = {
 
         const ranked = rankSearchResults(parsed, [rows], cappedLimit);
         return withRiskData(tenantId, ranked.map(row => normalizeOrder(row)));
+    },
+
+    /**
+     * Every live order of one customer, whatever its date: same normalized
+     * phone, not trashed, not archived. The compare modal needs these because
+     * the loaded list is a date window — a customer's order from last month is
+     * never in it. Runs as a phone search (indexed), then keeps exact matches
+     * only, so a partial-digit match on another customer cannot slip in.
+     */
+    async findCustomerOrders(tenantId: string, phone: string): Promise<Order[]> {
+        const normalized = normalizePhoneForSearch(phone);
+        if (normalized.length < MIN_PHONE_DIGITS) return [];
+        const matches = await this.search(tenantId, normalized);
+        return matches.filter(o =>
+            !o.deleted_at && !o.is_archived && normalizePhoneForSearch(o.phone) === normalized,
+        );
     },
 
     /**
