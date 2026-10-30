@@ -61,7 +61,8 @@ export function registerOrderReadTools(server: McpServer): void {
                     return true;
                 });
                 total = rows.length;
-                rows = rows.slice(0, input.limit);
+                // The RPC ranks by match quality; the tool promises newest first.
+                rows = rows.sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, input.limit);
             } else {
                 let q = caller.db
                     .from("orders")
