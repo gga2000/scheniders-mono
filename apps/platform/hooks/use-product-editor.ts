@@ -876,29 +876,34 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     // Save related data to all subsidiary tables
     const saveRelatedData = useCallback(async (productId: string) => {
         const validOptions = formData.variant_options.filter(o => o.name.trim() && o.values.length > 0);
-        await Promise.all([
-            productRepository.saveProductOptions(productId, validOptions.map((o, i) => ({
+        // One call, one transaction: a failure leaves every table as it was.
+        await productRepository.saveChildren(productId, {
+            product_options: validOptions.map((o, i) => ({
                 name: o.name,
                 values: o.values,
                 display_order: i,
                 option_type: o.option_type || 'custom',
                 values_metadata: o.values_metadata || null,
-            })), tenantId),
-            productRepository.saveTieredPrices(productId, formData.tiered_prices, tenantId),
-            productRepository.saveOrderBumps(productId, formData.order_bumps.map((b) => ({
+            })),
+            product_tiered_pricing: formData.tiered_prices.map((tp) => ({
+                min_quantity: tp.min_quantity,
+                max_quantity: tp.max_quantity,
+                price: tp.price,
+            })),
+            product_order_bumps: formData.order_bumps.map((b) => ({
                 bump_product_id: b.bump_product_id,
                 discount_percentage: b.discount_percentage,
                 headline: b.headline,
                 description: b.description,
                 display_order: b.display_order,
                 is_active: b.is_active,
-            })), tenantId),
-            productRepository.saveRelatedProducts(productId, formData.related_products.map((r) => ({
+            })),
+            product_related: formData.related_products.map((r) => ({
                 related_product_id: r.related_product_id,
                 relation_type: r.relation_type,
                 display_order: r.display_order,
-            })), tenantId),
-            productRepository.saveSuppliers(productId, formData.suppliers.map((s) => ({
+            })),
+            product_suppliers: formData.suppliers.map((s) => ({
                 supplier_name: s.supplier_name,
                 supplier_contact: s.supplier_contact || undefined,
                 supplier_email: s.supplier_email || undefined,
@@ -907,14 +912,14 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 unit_cost: s.unit_cost,
                 notes: s.notes || undefined,
                 is_primary: s.is_primary,
-            })), tenantId),
-            productRepository.saveBundleItems(productId, formData.bundle_items.map((b) => ({
+            })),
+            product_bundle_items: formData.bundle_items.map((b) => ({
                 child_product_id: b.child_product_id,
                 quantity: b.quantity,
                 display_order: b.display_order,
-            })), tenantId),
-        ]);
-    }, [formData, tenantId]);
+            })),
+        });
+    }, [formData]);
 
     // Save
     const save = useCallback(async () => {

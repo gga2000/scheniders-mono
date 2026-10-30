@@ -278,11 +278,32 @@ interface CountStockArgs {
     notes?: string;
 }
 
-/** Set stock to a shelf count; the database logs the difference. */
+export interface CountStockResult {
+    saved: number;
+    /** The counts that did not save, by product id, and the first error. */
+    failed: Map<string, unknown>;
+}
+
+/**
+ * Set stock to shelf counts, one product at a time; the database logs each
+ * difference. A failure doesn't stop the rest. The catalogue is refetched
+ * once at the end, not after every row.
+ */
 export function useSetCountedStockMutation() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (args: CountStockArgs) => productRepository.setCountedStock(args),
+        mutationFn: async (counts: CountStockArgs[]): Promise<CountStockResult> => {
+            const result: CountStockResult = { saved: 0, failed: new Map() };
+            for (const args of counts) {
+                try {
+                    await productRepository.setCountedStock(args);
+                    result.saved++;
+                } catch (err) {
+                    result.failed.set(args.productId, err);
+                }
+            }
+            return result;
+        },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
 }
