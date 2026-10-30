@@ -30,6 +30,7 @@ export const STRING_TABLE_FILES: readonly string[] = [
   "helpers/vcard.ts",
   "image_gallery.strings.ts",
   "faq_contact_split.strings.ts",
+  "sticky_cta_bar.strings.ts",
 ];
 
 /** One entry of a chrome table, read from its source: the key, the entry's
