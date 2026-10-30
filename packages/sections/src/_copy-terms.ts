@@ -169,7 +169,8 @@ export const COPY_ACTIONS = {
   startOrder: "اطلب الآن",
   /** The form's submit, and the sticky bar once the form is complete. */
   placeOrder: "ثبّت طلبي",
-  /** Finishing a half-filled form, from the sticky bar. */
+  /** Finishing the order: the sticky bar's half-filled state, and the
+   *  cart's way on to the checkout (slice 1h). */
   continueOrder: "كمّل طلبك",
   /** Every WhatsApp contact button: the FAQ row and the sticky icon. */
   whatsapp: "راسلنا واتساب",
@@ -183,4 +184,7 @@ export const COPY_ACTIONS = {
   addToCart: "أضف للسلة",
   /** Going to the cart, after an add (slice 1g). */
   viewCart: "شوف السلة",
+  /** Placing the order on WhatsApp instead: the express tile, the cart and
+   *  the checkout (slice 1h). */
+  orderOnWhatsapp: "اطلب عبر واتساب",
 } as const;
