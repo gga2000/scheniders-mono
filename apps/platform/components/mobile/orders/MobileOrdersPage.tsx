@@ -18,13 +18,17 @@ import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { MobileFilterModal } from "./MobileFilterModal";
 import { OrderDetailsModal } from "@/components/orders/order-details-modal";
 import { Order } from "@/lib/supabase";
-import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft } from "lucide-react";
+import { Search, Filter, Plus, Download, ChevronRight, ChevronLeft, Boxes } from "lucide-react";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
 import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
+import { useStockShortfallGuard } from "@/hooks/use-stock-shortfall-guard";
+import { StockShortfallDialog } from "@/components/orders/stock-shortfall-dialog";
+import { StockTodayDialog } from "@/components/orders/stock-today-dialog";
+import { useProductsCrud } from "@/hooks/use-products-crud";
 
 export function MobileOrdersPage() {
     const {
@@ -60,6 +64,14 @@ export function MobileOrdersPage() {
 
     // Same 48h confirm/ship guard as the desktop page.
     const duplicateGuard = useDuplicateDispatchGuard(orders, getConfirmBlockingTwin);
+    // Same stock warning as the desktop page, asked after the duplicate question.
+    const { products } = useProductsCrud();
+    const stockGuard = useStockShortfallGuard(orders, products);
+    const holdStatusChange = (id: string, status: Order["status"], proceed: () => void): boolean =>
+        duplicateGuard.holdStatusChange(id, status, () => {
+            if (!stockGuard.holdStatusChange(id, status, proceed)) proceed();
+        }) || stockGuard.holdStatusChange(id, status, proceed);
+    const [isStockTodayOpen, setIsStockTodayOpen] = useState(false);
 
     // Selected through `useShallow`; a bare `useOrderStore()` subscribes to the
     // whole store and re-renders this screen on every unrelated store change.
@@ -203,7 +215,7 @@ export function MobileOrdersPage() {
     }, [previewing]);
 
     const handleStatusUpdate = async (id: string, status: Order["status"]) => {
-        if (duplicateGuard.holdStatusChange(id, status, () => { void updateOrderStatus(id, status); })) return;
+        if (holdStatusChange(id, status, () => { void updateOrderStatus(id, status); })) return;
         await updateOrderStatus(id, status);
     };
 
@@ -213,7 +225,7 @@ export function MobileOrdersPage() {
         status: Order["status"],
         reason?: string,
     ): Promise<{ success: boolean; error?: string }> => {
-        if (duplicateGuard.holdStatusChange(id, status, () => { void updateOrderStatus(id, status, reason); })) {
+        if (holdStatusChange(id, status, () => { void updateOrderStatus(id, status, reason); })) {
             return { success: false };
         }
         return updateOrderStatus(id, status, reason);
@@ -241,6 +253,16 @@ export function MobileOrdersPage() {
                         aria-label="Create New Order"
                     >
                         <Plus className="w-[20px] h-[20px]" />
+                    </button>
+
+                    {/* Stock today */}
+                    <button
+                        type="button"
+                        onClick={() => setIsStockTodayOpen(true)}
+                        className="h-full px-3.5 flex items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors border-l border-[var(--card-border)] shrink-0"
+                        aria-label="Stock today"
+                    >
+                        <Boxes className="w-[18px] h-[18px]" />
                     </button>
 
                     {/* Export Button */}
@@ -401,6 +423,8 @@ export function MobileOrdersPage() {
             )}
 
             <DuplicateConfirmDialog {...duplicateGuard.dialogProps} />
+            <StockShortfallDialog {...stockGuard.dialogProps} />
+            <StockTodayDialog open={isStockTodayOpen} onOpenChange={setIsStockTodayOpen} />
 
             {/* WhatsApp Template Panel */}
             {orderForTemplate && (

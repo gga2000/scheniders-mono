@@ -60,6 +60,8 @@ import {
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 import { OrderCustomerRiskPanel } from "./order-customer-risk-panel";
 import { ProductPicker } from "./product-picker";
+import { useProductsCrud } from "@/hooks/use-products-crud";
+import { findStockShortfalls, type StockShortfall } from "@/lib/orders/stock-shortfall";
 import { GovernorateOptions } from "./governorate-options";
 import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { DiscountPresetSelector } from "./discount-preset-selector";
@@ -128,6 +130,10 @@ export function CreateOrderModal({
     });
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [isCreating, setIsCreating] = useState(false);
+    const { products } = useProductsCrud();
+    // Set when the items need more than is free to sell. Creating again with
+    // the same items goes ahead (a warning, not a block); changing them asks again.
+    const [stockWarning, setStockWarning] = useState<{ items: string; shortfalls: StockShortfall[] } | null>(null);
     const [showProductPicker, setShowProductPicker] = useState(false);
     const [discount, setDiscount] = useState(0);
     const [orderIdStatus, setOrderIdStatus] = useState<"idle" | "checking" | "available" | "exists">("idle");
@@ -202,6 +208,7 @@ export function CreateOrderModal({
     };
 
     const resetForm = () => {
+        setStockWarning(null);
         setOrderType("delivery");
         setFormData({
             customer_name: "",
@@ -448,6 +455,17 @@ export function CreateOrderModal({
                 }
             }, 100);
             return;
+        }
+
+        const stockItems = formData.items.filter(item => item.name.trim());
+        const itemsKey = JSON.stringify(stockItems.map(i => [i.product_id, i.variant_id, !!i.is_open_box, i.quantity]));
+        if (stockWarning?.items !== itemsKey) {
+            const shortfalls = findStockShortfalls([{ status: "new", items: stockItems }], products);
+            if (shortfalls.length > 0) {
+                setStockWarning({ items: itemsKey, shortfalls });
+                setCreateAndNew(false);
+                return;
+            }
         }
 
         setIsCreating(true);
@@ -1227,6 +1245,20 @@ export function CreateOrderModal({
                         </div>
                     </div>
 
+                    {stockWarning && (
+                        <div role="alert" className="mx-6 mb-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-right text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                            <p className="font-bold">المخزون غير كافٍ. اضغط إنشاء مرة ثانية للمتابعة على أي حال.</p>
+                            <ul className="mt-1 space-y-0.5">
+                                {stockWarning.shortfalls.map(s => (
+                                    <li key={s.key}>
+                                        {s.name}{s.isOpenBox ? " (علبة مفتوحة)" : ""}: يحتاج {s.need}،{" "}
+                                        {s.left < 0 ? `مباع بزيادة ${Math.abs(s.left)} أصلاً` : `باقي ${s.left} فقط`}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     {/* Sticky Footer */}
                     <DialogFooter className="sticky bottom-0 z-10 flex items-center justify-between gap-3 px-6 py-3 bg-[var(--background)] border-t border-[var(--card-border)] shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
                         <button
@@ -1264,7 +1296,7 @@ export function CreateOrderModal({
                             {/* Create */}
                             <button
                                 type="button"
-                                onClick={handleCreate}
+                                onClick={() => handleCreate()}
                                 disabled={isCreating || !!limitBlocked}
                                 className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-[var(--button-success)] hover:bg-[var(--button-success-hover)] rounded-xl shadow-md transition-all disabled:opacity-50"
                             >

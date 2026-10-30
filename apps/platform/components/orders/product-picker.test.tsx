@@ -238,3 +238,24 @@ describe("ProductPicker over another dialog", () => {
         expect(effectivePointerEvents(within(picker).getByText("انفوي بلو"))).toBe("auto");
     });
 });
+
+describe("ProductPicker stock left", () => {
+    it("shows new left after confirmed orders, and open-box left", () => {
+        setProducts([makeProduct({ id: "s1", name: "انفوي", stock_quantity: 202, reserved_quantity: 17, open_box_quantity: 5 })]);
+        renderPicker();
+
+        expect(screen.getByText("جديد 185 متبقي")).toBeDefined();
+        expect(screen.getByText(/مفتوحة 5/)).toBeDefined();
+    });
+
+    it("reads an oversold product as how many over, and skips filler", () => {
+        setProducts([
+            makeProduct({ id: "s2", name: "برسيفيرون", stock_quantity: -84, reserved_quantity: 10 }),
+            makeProduct({ id: "s3", name: "مينيا", is_filler: true, stock_quantity: 1, reserved_quantity: 2 }),
+        ]);
+        renderPicker();
+
+        expect(screen.getByText("جديد 94 زيادة")).toBeDefined();
+        expect(screen.queryByText(/جديد 1 زيادة/)).toBeNull();
+    });
+});
