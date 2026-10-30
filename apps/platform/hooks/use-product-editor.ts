@@ -1033,7 +1033,6 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     price: formData.price,
                     compare_at_price: formData.compare_at_price || undefined,
                     cost: formData.cost,
-                    stock_quantity: formData.stock_quantity,
                     low_stock_threshold: formData.low_stock_threshold,
                     reorder_point: formData.reorder_point,
                     image_url: formData.image_url,
@@ -1062,6 +1061,21 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                     feature_cards: serializeFeatureCards(formData.feature_cards),
                 } as any);
 
+                // Stock is saved only when the merchant changed it, as a shelf
+                // count applied to the current row, so orders that shipped
+                // while the editor was open are not undone.
+                const loaded = initialDataRef.current;
+                if (loaded.stock_quantity !== formData.stock_quantity) {
+                    await productRepository.setCountedStock({
+                        productId: product.id,
+                        counted: formData.stock_quantity,
+                        notes: "Product editor",
+                    });
+                }
+                const loadedVariantStock = new Map(
+                    loaded.variants.flatMap((v) => (v.id ? [[v.id, v.stock_quantity] as const] : []))
+                );
+
                 // Handle variants
                 const existingVariantIds = new Set(
                     (product.variants || []).map((v) => v.id)
@@ -1073,12 +1087,19 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                             name: variant.name,
                             price: variant.price,
                             cost: variant.cost,
-                            stock_quantity: variant.stock_quantity,
                             sku: variant.sku,
                             option_values: variant.option_values,
                             image_url: variant.image_url,
                             is_enabled: variant.is_enabled ?? true,
                         } as any);
+                        if (loadedVariantStock.get(variant.id) !== variant.stock_quantity) {
+                            await productRepository.setCountedStock({
+                                productId: product.id,
+                                variantId: variant.id,
+                                counted: variant.stock_quantity,
+                                notes: "Product editor",
+                            });
+                        }
                         existingVariantIds.delete(variant.id);
                     } else {
                         await addVariant(product.id, {
@@ -1132,17 +1153,6 @@ export function useProductEditor({ product, mode }: UseProductEditorOptions) {
                         old_price: prev.price,
                         new_price: formData.price,
                         reason: "Manual price update",
-                    }, tenantId);
-                }
-
-                // Auto-capture inventory changes
-                if (prev.stock_quantity !== formData.stock_quantity) {
-                    await productRepository.addInventoryEntry(product.id, {
-                        change_type: "adjusted",
-                        quantity_change: formData.stock_quantity - prev.stock_quantity,
-                        quantity_before: prev.stock_quantity,
-                        quantity_after: formData.stock_quantity,
-                        notes: "Manual stock adjustment via product editor",
                     }, tenantId);
                 }
 

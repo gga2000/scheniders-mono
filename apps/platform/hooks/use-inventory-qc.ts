@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { productRepository } from "@/lib/repositories/product-repository";
 import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import type { QCItem, QCStatus, QCResolution, QCEvent, QCReasonCategory } from "@/types/product";
 import { useEffect, useRef } from "react";
@@ -311,19 +312,7 @@ export function useInventoryQC() {
                     snap.appliedResolution === "written_off" ||
                     snap.appliedResolution === "returned_to_supplier";
                 if (restoresPhysical) {
-                    const { data: product } = await supabase
-                        .from("products")
-                        .select("stock_quantity")
-                        .eq("id", snap.productId)
-                        .single();
-                    if (product) {
-                        await supabase
-                            .from("products")
-                            .update({
-                                stock_quantity: (product.stock_quantity || 0) + snap.quantity,
-                            })
-                            .eq("id", snap.productId);
-                    }
+                    await productRepository.adjustStock({ productId: snap.productId, delta: snap.quantity, reason: "qc_undo" });
                 }
             }
             return snapshots.map((s) => s.id);

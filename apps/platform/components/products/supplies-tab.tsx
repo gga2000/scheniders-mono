@@ -1,4 +1,7 @@
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useQueryClient } from "@tanstack/react-query";
+import { productKeys } from "@/hooks/use-products-query";
+import { productRepository } from "@/lib/repositories/product-repository";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -68,6 +71,7 @@ const SECTION_KEY = "supplies.section";
 export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const { products, loading, updateProduct } = useProductsCrud({ withSales: true });
     const { t } = useLanguage();
+    const queryClient = useQueryClient();
     const { data: categories = [] } = useCategoriesQuery();
     const { data: openPoBySupply } = useOpenPosBySupply();
     const { data: supplierPos = [] } = useSupplierPos();
@@ -349,13 +353,15 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         [supplies, selectedIds]
     );
 
+    const adjustSupplyStock = (id: string, delta: number) =>
+        productRepository.adjustStock({ productId: id, delta, reason: "adjusted" });
+
     const handleAdjustStock = async (product: Product, delta: number) => {
-        const current = product.stock_quantity ?? 0;
-        const next = Math.max(0, current + delta);
-        if (next === current) return;
+        if (delta === 0) return;
         try {
-            await updateProduct(product.id, { stock_quantity: next });
-            toast.success(`${product.name}: ${current} → ${next}`);
+            const next = await adjustSupplyStock(product.id, delta);
+            await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+            toast.success(`${product.name}: ${next - delta} → ${next}`);
         } catch (err) {
             toast.error(t(productWriteErrorKey(err)));
         }
@@ -756,6 +762,10 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     categories={categories}
                     onClear={clearSelection}
                     updateProduct={updateProduct}
+                    adjustStock={async (id, delta) => {
+                        await adjustSupplyStock(id, delta);
+                        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+                    }}
                 />
             )}
         </div>

@@ -8678,6 +8678,16 @@ export type Database = {
           value_tier: string
         }[]
       }
+      adjust_product_stock: {
+        Args: {
+          p_delta: number
+          p_notes?: string
+          p_product_id: string
+          p_reason: string
+          p_variant_id?: string
+        }
+        Returns: number
+      }
       get_product_sales: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -8862,6 +8872,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_counted_stock: {
+        Args: {
+          p_counted: number
+          p_notes?: string
+          p_product_id: string
+          p_variant_id?: string
+        }
+        Returns: number
+      }
       recompute_inventory: {
         Args: { p_tenant_id?: string }
         Returns: undefined
@@ -8978,7 +8997,6 @@ export type Database = {
       }
       uuid_generate_v4: { Args: never; Returns: string }
       value_tier_calc: { Args: { p_completed: number }; Returns: string }
-      zero_oversold: { Args: { p_tenant_id?: string }; Returns: undefined }
     }
     Enums: {
       commission_status: "pending" | "approved" | "paid"

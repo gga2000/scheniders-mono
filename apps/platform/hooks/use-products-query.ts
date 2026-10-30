@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { type Product, type ProductVariant, type ProductPriceHistory } from "@/lib/supabase";
-import { productRepository } from "@/lib/repositories/product-repository";
+import { productRepository, type ProductUpdate, type VariantUpdate } from "@/lib/repositories/product-repository";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { useAuth } from "@/components/auth/auth-provider";
 import { diag } from "@/lib/diag";
@@ -86,7 +86,7 @@ export function useAddProductMutation() {
 export function useUpdateProductMutation() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: any }) => {
+        mutationFn: async ({ id, data }: { id: string; data: ProductUpdate }) => {
             await productRepository.update(id, data);
             return { id, data };
         },
@@ -235,57 +235,47 @@ export function useRecomputeInventoryMutation() {
     });
 }
 
-export function useZeroOversoldMutation() {
-    const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
-    return useMutation({
-        mutationFn: async () => {
-            await productRepository.zeroOversold(tenantId);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-        },
-    });
-}
-
 interface AdjustStockArgs {
     productId: string;
-    previousQuantity: number;
-    newQuantity: number;
+    /** Units to add (positive) or remove (negative). */
+    delta: number;
     reason: string;
     notes?: string;
 }
 
+/** Add or remove units; applied by the database to the current stock. */
 export function useAdjustStockMutation() {
     const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ productId, previousQuantity, newQuantity, reason, notes }: AdjustStockArgs) => {
-            await productRepository.update(productId, { stock_quantity: newQuantity });
-            await productRepository.addInventoryEntry(
-                productId,
-                {
-                    change_type: reason,
-                    quantity_change: newQuantity - previousQuantity,
-                    quantity_before: previousQuantity,
-                    quantity_after: newQuantity,
-                    notes,
-                },
-                tenantId
-            );
-            return { productId, newQuantity };
-        },
-        onMutate: async ({ productId, newQuantity }) => {
+        mutationFn: ({ productId, delta, reason, notes }: AdjustStockArgs) =>
+            productRepository.adjustStock({ productId, delta, reason, notes }),
+        onMutate: async ({ productId, delta }) => {
             await queryClient.cancelQueries({ queryKey: productKeys.lists() });
             const previousProducts = queryClient.getQueryData<Product[]>(productKeys.lists());
             queryClient.setQueryData<Product[]>(productKeys.lists(), (old) =>
-                old?.map((p) => (p.id === productId ? { ...p, stock_quantity: newQuantity } : p))
+                old?.map((p) => (p.id === productId ? { ...p, stock_quantity: (p.stock_quantity ?? 0) + delta } : p))
             );
             return { previousProducts };
         },
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.lists(), context.previousProducts);
         },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+    });
+}
+
+interface CountStockArgs {
+    productId: string;
+    variantId?: string | null;
+    counted: number;
+    notes?: string;
+}
+
+/** Set stock to a shelf count; the database logs the difference. */
+export function useSetCountedStockMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (args: CountStockArgs) => productRepository.setCountedStock(args),
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });
 }
@@ -353,7 +343,7 @@ export function useAddVariantMutation() {
 export function useUpdateVariantMutation() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: any }) => {
+        mutationFn: async ({ id, data }: { id: string; data: VariantUpdate }) => {
             await productRepository.updateVariant(id, data);
             return { id, data };
         },
