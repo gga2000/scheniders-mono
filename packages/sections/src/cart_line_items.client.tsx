@@ -14,10 +14,14 @@
 
 import Image from "next/image";
 import { resolveI18n } from "@scheniders/shared";
-import type { LocaleCode } from "@scheniders/shared";
+import type { CartItem, LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, MaterialIcon } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
 import { formatCount, formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
+import { readsRtl } from "./helpers/reading";
+import { SOFT_CARD, SOFT_RECEIPT } from "./helpers/soft-commerce";
+import { cn } from "./helpers/utils";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./cart_line_items";
 
@@ -66,6 +70,19 @@ export function CartLineItemsRender({
   const updateQuantity = useCart((s) => s.updateQuantity);
   const removeItem = useCart((s) => s.removeItem);
   const emptyMessage = resolveI18n(props.empty_state_message_i18n, locale);
+
+  if (props.style === "soft") {
+    return (
+      <SoftCartLines
+        items={items}
+        locale={locale}
+        emptyMessage={emptyMessage}
+        showThumbnails={props.show_thumbnails}
+        onQuantity={(item, qty) => updateQuantity(item.product_id, item.variant_id, qty)}
+        onRemove={(item) => removeItem(item.product_id, item.variant_id)}
+      />
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -216,6 +233,108 @@ export function CartLineItemsRender({
             </li>
           );
         })}
+      </ul>
+    </section>
+  );
+}
+
+/** style "soft" (slice 1h): one hairline list in the express receipt's
+ *  grammar. Each row reads from the right in Arabic (photo, name, then the
+ *  stepper at the far end); the name wraps to two lines instead of an
+ *  ellipsis; the line total is ink (D4: yellow is only the order action). */
+function SoftCartLines({
+  items,
+  locale,
+  emptyMessage,
+  showThumbnails,
+  onQuantity,
+  onRemove,
+}: {
+  items: CartItem[];
+  locale: LocaleCode;
+  emptyMessage: string;
+  showThumbnails: boolean;
+  onQuantity: (item: CartItem, qty: number) => void;
+  onRemove: (item: CartItem) => void;
+}) {
+  const rtl = readsRtl(locale);
+  if (items.length === 0) {
+    return (
+      <section className="px-4 py-bk-section" data-cart-style="soft">
+        <div className={cn(SOFT_CARD, "flex flex-col items-center gap-bk-sm p-bk-xl text-center")}>
+          <MaterialIcon name="shopping_bag" className="text-5xl text-bk-ink-faint" />
+          <h1 className="font-bk-display text-bk-chapter font-black text-bk-ink text-balance">{emptyMessage}</h1>
+        </div>
+      </section>
+    );
+  }
+  const itemCount = items.reduce((n, i) => n + i.quantity, 0);
+  return (
+    <section className="px-4 py-bk-section-dense" data-cart-style="soft">
+      <ChapterHeading as="h1" locale={locale} title={resolveI18n(STRINGS.heading, locale)} sub={itemCountLine(itemCount, locale)} />
+      <ul className={cn(SOFT_RECEIPT, "divide-y divide-bk-divider px-3")}>
+        {items.map((item) => (
+          <li key={`${item.product_id}-${item.variant_id ?? "default"}`}>
+            <div className={cn("flex items-center gap-3 py-3", rtl && "flex-row-reverse")}>
+              {showThumbnails && (
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-bk-input bg-bk-surface-alt">
+                  {item.image_url ? (
+                    <Image src={item.image_url} alt="" fill sizes="64px" className="object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <MaterialIcon name="image" className="text-2xl text-bk-ink-faint" />
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className={cn("min-w-0 flex-1", rtl ? "text-right" : "text-left")}>
+                <p className="line-clamp-2 font-bk-body text-[15px] font-bold leading-snug text-bk-ink" data-cart-line-name="">
+                  {item.name}
+                </p>
+                {item.variant_name && (
+                  <p className="font-bk-body text-xs text-bk-ink-soft">{item.variant_name}</p>
+                )}
+                <p className="mt-1 font-bk-display text-base font-black tabular-nums text-bk-ink">
+                  <bdi>{formatPrice(item.price * item.quantity, locale)}</bdi>
+                </p>
+              </div>
+              <div className={cn("flex shrink-0 flex-col gap-1", rtl ? "items-start" : "items-end")}>
+                <div
+                  role="group"
+                  aria-label={resolveI18n(STRINGS.quantity, locale)}
+                  className="flex items-center rounded-bk-input border-bk border-bk-divider bg-bk-surface"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onQuantity(item, item.quantity - 1)}
+                    aria-label={resolveI18n(STRINGS.decrease, locale)}
+                    className="flex min-h-11 min-w-11 items-center justify-center text-bk-ink"
+                  >
+                    <MaterialIcon name="remove" className="text-base" />
+                  </button>
+                  <span aria-live="polite" className="min-w-7 text-center font-bk-display text-sm font-black tabular-nums text-bk-ink">
+                    {item.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onQuantity(item, item.quantity + 1)}
+                    aria-label={resolveI18n(STRINGS.increase, locale)}
+                    className="flex min-h-11 min-w-11 items-center justify-center text-bk-ink"
+                  >
+                    <MaterialIcon name="add" className="text-base" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemove(item)}
+                  className="min-h-11 px-1 font-bk-body text-xs font-semibold text-bk-ink-soft underline-offset-2 hover:text-bk-ink hover:underline"
+                >
+                  {resolveI18n(STRINGS.remove, locale)}
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
       </ul>
     </section>
   );
