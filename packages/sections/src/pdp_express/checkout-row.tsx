@@ -202,6 +202,7 @@ export function CheckoutRow({
           submitId={watched ? EXPRESS_SUBMIT_ID : undefined}
           submitLabel={submitLabel}
           cart={cart}
+          note={cartNote}
           onAdded={onCartAdded}
         />
       ) : (

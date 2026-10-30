@@ -10,22 +10,27 @@
 
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
-import { useExpressCartAdd, type CartAddOutcome } from "./cart-action";
+import { useExpressCartAdd, type CartAddOutcome, type CartNote } from "./cart-action";
 import { DockBagIcon } from "./dock-icons";
 import { DOCK_LABEL, DOCK_SEGMENT } from "./dock-style";
 import type { ExpressModel } from "./model";
-import { xs } from "./text";
+import { readsRtl, xs } from "./text";
 
 export function DockCartSegment({
   m,
   locale,
+  note,
   onAdded,
 }: {
   m: ExpressModel;
   locale: LocaleCode;
+  /** The last tap's outcome, for the badge. */
+  note: CartNote | null;
   onAdded: (outcome: CartAddOutcome) => void;
 }) {
   const add = useExpressCartAdd(m, onAdded);
+  const rtl = readsRtl(locale);
+  const count = note !== null && note.inCart > 0 ? note.inCart : null;
 
   return (
     <button
@@ -37,6 +42,17 @@ export function DockCartSegment({
     >
       <span aria-hidden="true" className="relative">
         <DockBagIcon className="block h-[22px] w-[22px]" />
+        {count !== null && (
+          <span
+            data-dock-count=""
+            className={cn(
+              "bk-xp-dock-badge absolute -top-2 h-[18px] min-w-[18px] rounded-full bg-bk-surface px-[5px] text-center font-bk-body text-xs font-extrabold leading-[18px] text-bk-secondary tabular-nums",
+              rtl ? "-left-3" : "-right-3",
+            )}
+          >
+            {count}
+          </span>
+        )}
       </span>
       <span className={DOCK_LABEL}>{xs("addToCart", locale)}</span>
     </button>

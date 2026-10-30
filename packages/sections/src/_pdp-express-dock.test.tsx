@@ -14,15 +14,25 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import type { LocaleCode } from "@scheniders/shared";
 import { useCart } from "./helpers/cart-store";
-import { useExpressOrderStore } from "./helpers/express-order-store";
+import { EXPRESS_SUBMIT_ID, useExpressOrderStore } from "./helpers/express-order-store";
+import { orderDraftKey, writeOrderDraft } from "./helpers/order-draft";
 import { StoreBaseProvider } from "./helpers/store-context";
 import { useVariantStore } from "./helpers/variant-store";
 import pdp_direct_order, { type Props } from "./pdp_direct_order";
+import sticky_cta_bar, { type Props as StickyProps } from "./sticky_cta_bar";
 import type { Product } from "./types";
-import { EXPRESS_IRAQ_PDP_PROPS, plainProduct, productCtx, soldOutProduct } from "./_pdp-fixtures";
+import {
+  EXPRESS_IRAQ_PDP_PROPS,
+  IRAQ_DRAFT_STICKY_PROPS,
+  fixtureTenant,
+  plainProduct,
+  productCtx,
+  soldOutProduct,
+  variantProduct,
+} from "./_pdp-fixtures";
 
 const CART: Props = { ...EXPRESS_IRAQ_PDP_PROPS, add_to_cart: true };
 
@@ -207,5 +217,217 @@ describe("the dock's server markup", () => {
     const ku = row(markup(DOCK, plainProduct, "ku"));
     expect(ku).toContain(">خستنە سەبەتە<");
     expect(ku).toContain("bk-xp-dock-rtl");
+  });
+});
+
+// ── In a browser DOM ──────────────────────────────────────────────────
+
+const STICKY: StickyProps = {
+  ...IRAQ_DRAFT_STICKY_PROPS,
+  primary_kind: "form_aware",
+  style: "soft",
+  secondary_display: "icon",
+};
+
+/** The sticky bar watches the form through an IntersectionObserver; here
+ *  the form is reported off screen, so the bar is on screen. */
+class OffScreen {
+  constructor(private readonly cb: (entries: { isIntersecting: boolean }[]) => void) {}
+  observe() {
+    this.cb([{ isIntersecting: false }]);
+  }
+  disconnect() {}
+}
+
+const scrolled: Element[] = [];
+/** Every request answers `{}`, except the order itself, which never does
+ *  (the order stays "being placed"). */
+const pendingOrder = (url: string) =>
+  url === "/api/checkout/orders" ? new Promise<Response>(() => {}) : Promise.resolve(new Response("{}"));
+const fetchMock = vi.fn(pendingOrder);
+
+function mount(product: Product = plainProduct, props: Props = DOCK, withSticky = false) {
+  const ctx = productCtx(product);
+  const Pdp = pdp_direct_order.render;
+  const Bar = sticky_cta_bar.render;
+  const view = render(
+    <StoreBaseProvider base="/s/fixture-store">
+      <Pdp props={props} ctx={ctx} />
+      {withSticky && <Bar props={STICKY} ctx={ctx} />}
+    </StoreBaseProvider>,
+  );
+  const q = <T extends Element>(sel: string): T => {
+    const el = view.container.querySelector<T>(sel);
+    if (!el) throw new Error(`missing ${sel}`);
+    return el;
+  };
+  const form = q<HTMLFormElement>("form#direct-order");
+  const submits: Event[] = [];
+  form.addEventListener("submit", (e) => submits.push(e));
+  return {
+    view,
+    q,
+    form,
+    submits,
+    pill: () => q<HTMLButtonElement>('[data-cta-layout="dock"] button[type="submit"]'),
+    cartSeg: () => q<HTMLButtonElement>("[data-cart-add]"),
+    wa: () => q<HTMLAnchorElement>('[data-cta-layout="dock"] a[aria-label="اطلب عبر واتساب"]'),
+    drawer: () => q<HTMLElement>("[data-cart-drawer]"),
+    status: () => q<HTMLElement>("[data-cart-status]"),
+    badge: () => view.container.querySelector<HTMLElement>("[data-dock-count]"),
+  };
+}
+
+function fillAll(q: ReturnType<typeof mount>["q"]) {
+  fireEvent.change(q('input[name="phone"]'), { target: { value: "0770 123 4567" } });
+  fireEvent.change(q('input[name="name"]'), { target: { value: "علي" } });
+  fireEvent.change(q('select[name="governorate"]'), { target: { value: "BG" } });
+  fireEvent.change(q('input[name="address"]'), { target: { value: "المنصور" } });
+}
+
+const ordersCalls = () => fetchMock.mock.calls.filter(([url]) => url === "/api/checkout/orders");
+
+/** jsdom does not navigate; a link tap is only a click event here. */
+function stopNavigation(e: MouseEvent) {
+  if (e.target instanceof Element && e.target.closest("a")) e.preventDefault();
+}
+
+describe("the dock in a browser DOM", () => {
+  beforeEach(() => {
+    scrolled.length = 0;
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(pendingOrder);
+    window.sessionStorage.clear();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("IntersectionObserver", OffScreen);
+    vi.stubGlobal("matchMedia", (q: string) => ({
+      matches: false,
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this);
+    };
+    document.addEventListener("click", stopNavigation);
+  });
+  afterEach(() => {
+    document.removeEventListener("click", stopNavigation);
+  });
+
+  it("the cart segment and the WhatsApp link never submit; the yellow pill does, once", () => {
+    const { cartSeg, wa, pill, submits } = mount();
+    fireEvent.click(cartSeg());
+    expect(useCart.getState().items.map((i) => [i.product_id, i.quantity])).toEqual([[plainProduct.id, 1]]);
+    fireEvent.click(wa());
+    expect(submits).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(pill());
+    expect(submits).toHaveLength(1);
+    // An empty form only shows its field errors: no order is sent.
+    expect(ordersCalls()).toHaveLength(0);
+  });
+
+  it("an add opens the drawer and the live region says it; every tap is announced again", () => {
+    const { cartSeg, drawer, status, badge } = mount();
+    expect(drawer().hasAttribute("data-open")).toBe(false);
+    expect(status().textContent).toBe("");
+    expect(badge()).toBeNull();
+    fireEvent.click(cartSeg());
+    expect(drawer().hasAttribute("data-open")).toBe(true);
+    expect(status().textContent).toBe("انضافت للسلة · 1 بالسلةشوف السلة");
+    expect(status().querySelector("a")?.getAttribute("href")).toBe("/s/fixture-store/cart");
+    expect(badge()?.textContent).toBe("1");
+    expect(badge()?.closest('[aria-hidden="true"]')).not.toBeNull();
+    const first = status().firstElementChild;
+    fireEvent.click(cartSeg());
+    expect(status().firstElementChild).not.toBe(first);
+    expect(status().textContent).toBe("انضافت للسلة · 2 بالسلةشوف السلة");
+    expect(badge()?.textContent).toBe("2");
+  });
+
+  it("with the most that can be ordered already in the cart, nothing is added and the drawer says so", () => {
+    const LOW: Product = { ...plainProduct, stock_quantity: 1 };
+    const { cartSeg, status } = mount(LOW);
+    fireEvent.click(cartSeg());
+    fireEvent.click(cartSeg());
+    expect(useCart.getState().items.map((i) => i.quantity)).toEqual([1]);
+    expect(status().textContent).toBe("infoبسلتك أقصى كمية تكدر تطلبهاشوف السلة");
+  });
+
+  it("while a variant is owed the segment adds nothing and asks for the option", () => {
+    const { cartSeg, view, q } = mount(variantProduct);
+    fireEvent.click(cartSeg());
+    expect(useCart.getState().items).toEqual([]);
+    expect(view.container.querySelector('[role="alert"]')?.textContent).toBe("اختار الخيار أول.");
+    expect(document.activeElement).toBe(q('[data-layer="variants"] button'));
+  });
+
+  it("the form-aware sticky bar still hands off to the yellow pill (1f)", () => {
+    const { q, pill } = mount(plainProduct, DOCK, true);
+    fillAll(q);
+    const primary = q<HTMLButtonElement>("[data-sticky-primary]");
+    expect(primary.dataset.stickyPrimary).toBe("complete");
+    fetchMock.mockClear();
+    fireEvent.click(primary);
+    expect(document.activeElement).toBe(pill());
+    expect(pill().id).toBe(EXPRESS_SUBMIT_ID);
+    expect(scrolled.map((e) => e.hasAttribute("data-receipt"))).toEqual([true]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("while the order is being placed: the pill is busy with a spinner, the cart segment waits", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { q, form, pill, cartSeg } = mount();
+    fillAll(q);
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+    await waitFor(() => expect(pill().getAttribute("aria-busy")).toBe("true"));
+    expect(pill().disabled).toBe(true);
+    expect(pill().textContent).toContain("جارٍ تأكيد الطلب…");
+    expect(pill().textContent).toContain("progress_activity");
+    expect(cartSeg().disabled).toBe(true);
+    expect(ordersCalls()).toHaveLength(1);
+    vi.restoreAllMocks();
+  });
+
+  it("a placed direct order still retires the product's cart lines (1g)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    writeOrderDraft(fixtureTenant.id, plainProduct.id, {
+      form: {
+        customer_name: "زبون تجريبي",
+        phone: "07802301677",
+        alt_phone: "",
+        governorate_code: "BG",
+        address_details: "الكرادة قرب الجسر",
+      },
+      idempotencyKey: null,
+      purchaseEventId: null,
+    });
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            url === "/api/checkout/orders"
+              ? { success: true, orderNumber: "SH-0001", orderId: "order-1", total: 18000 }
+              : {},
+          ),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+    const { cartSeg, form } = mount();
+    fireEvent.click(cartSeg());
+    expect(useCart.getState().items).toHaveLength(1);
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(orderDraftKey(fixtureTenant.id, plainProduct.id))).toBeNull(),
+    );
+    expect(ordersCalls()).toHaveLength(1);
+    expect(useCart.getState().items).toEqual([]);
+    vi.restoreAllMocks();
   });
 });

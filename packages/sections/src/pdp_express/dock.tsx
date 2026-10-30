@@ -27,7 +27,7 @@
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { MaterialIcon, WhatsAppOutlineIcon } from "../helpers/primitives";
-import type { CartAddOutcome } from "./cart-action";
+import type { CartAddOutcome, CartNote } from "./cart-action";
 import { DockCartSegment } from "./dock-cart";
 import { DockDrawer } from "./dock-drawer";
 import { DockArrowIcon } from "./dock-icons";
@@ -42,6 +42,7 @@ export function ExpressDock({
   submitId,
   submitLabel,
   cart,
+  note,
   onAdded,
 }: {
   m: ExpressModel;
@@ -53,6 +54,8 @@ export function ExpressDock({
   submitLabel: string;
   /** add_to_cart is on and the product can be ordered. */
   cart: boolean;
+  /** The last cart tap's outcome: the badge and the drawer. */
+  note: CartNote | null;
   onAdded: (outcome: CartAddOutcome) => void;
 }) {
   const rtl = readsRtl(locale);
@@ -74,7 +77,7 @@ export function ExpressDock({
             <span className={DOCK_LABEL}>{xs("whatsappShort", locale)}</span>
           </a>
         )}
-        {cart && <DockCartSegment m={m} locale={locale} onAdded={onAdded} />}
+        {cart && <DockCartSegment m={m} locale={locale} note={note} onAdded={onAdded} />}
         <button
           type="submit"
           id={submitId}
@@ -122,7 +125,7 @@ export function ExpressDock({
           )}
         </button>
       </div>
-      {cart && <DockDrawer locale={locale} />}
+      {cart && <DockDrawer note={note} locale={locale} />}
     </div>
   );
 }
