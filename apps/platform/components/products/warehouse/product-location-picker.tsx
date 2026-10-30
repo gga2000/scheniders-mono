@@ -126,7 +126,6 @@ export function ProductLocationPicker({
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["product-storage", productId, variantId] });
             queryClient.invalidateQueries({ queryKey: ["product-storage-counts", tenantId] });
-            queryClient.invalidateQueries({ queryKey: ["location-badge", productId] });
             setNewLocationId("");
             setNewQuantity("");
         },
@@ -153,7 +152,6 @@ export function ProductLocationPicker({
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["product-storage", productId, variantId] });
             queryClient.invalidateQueries({ queryKey: ["product-storage-counts", tenantId] });
-            queryClient.invalidateQueries({ queryKey: ["location-badge", productId] });
         },
     });
 
@@ -177,7 +175,6 @@ export function ProductLocationPicker({
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["product-storage", productId, variantId] });
-            queryClient.invalidateQueries({ queryKey: ["location-badge", productId] });
         },
     });
 

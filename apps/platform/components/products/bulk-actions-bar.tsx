@@ -16,7 +16,7 @@ import {
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, parseWholeNumber } from "@/lib/utils";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 
 interface BulkActionsBarProps {
@@ -137,8 +137,8 @@ export function BulkActionsBar({
 
     const handlePriceSubmit = useCallback(async () => {
         // Whole IQD only: the price columns reject fractions.
-        const price = Number(newPrice.replace(/[,\s]/g, ""));
-        if (!onUpdatePrice || !Number.isInteger(price) || price <= 0) return;
+        const price = parseWholeNumber(newPrice);
+        if (!onUpdatePrice || price === null || price <= 0) return;
 
         await runAction(
             "price",
@@ -349,10 +349,8 @@ export function BulkActionsBar({
                             /* Price input */
                             <div className="flex items-center gap-2">
                                 <input
-                                    type="number"
+                                    type="text"
                                     inputMode="numeric"
-                                    step={1}
-                                    min={1}
                                     value={newPrice}
                                     onChange={(e) => setNewPrice(e.target.value)}
                                     placeholder={t("products.bulk.newPrice")}

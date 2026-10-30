@@ -21,6 +21,21 @@ export function maskIQD(amount: number, reveal: boolean): string {
 }
 
 /**
+ * A whole number as a merchant types it: Arabic-Indic (٠-٩) and Persian (۰-۹)
+ * digits, spaces and thousands separators (, ٬) are accepted. Returns null for
+ * anything that is not a whole number (a leading minus only when allowed).
+ */
+export function parseWholeNumber(raw: string, { allowNegative = false }: { allowNegative?: boolean } = {}): number | null {
+    const latin = raw
+        .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+        .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+        .replace(/[\s,٬]/g, "")
+        .replace(/^[−–]/, "-");
+    if (!(allowNegative ? /^-?\d+$/ : /^\d+$/).test(latin)) return null;
+    return Number(latin);
+}
+
+/**
  * Format phone number for WhatsApp link
  */
 export function formatPhoneForWhatsApp(phone: string): string {
