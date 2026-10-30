@@ -40,9 +40,9 @@ Claude ──(OAuth 2.1 + PKCE, dynamic client registration)──> Supabase Aut
 | OAuth server | Supabase dashboard | Ali enables OAuth Server, sets the authorization path `/oauth/consent` and enables dynamic client registration. |
 | Consent page | `apps/platform/app/oauth/consent/` | Sign in (login already supports `returnTo`), show the client and store, then Approve or Deny. Users not on the list see "not available yet". |
 | Resource metadata | `apps/platform/app/.well-known/oauth-protected-resource/route.ts` | Points Claude at the Supabase authorization server. |
-| MCP endpoint | `apps/platform/app/api/mcp/[transport]/route.ts` | `mcp-handler` with `withMcpAuth`. Builds a per-request context: `{ userId, tenantId, role, clientId, db }`, where `db` is a Supabase client carrying the user's token. |
+| MCP endpoint | `apps/platform/app/api/mcp/route.ts` | `mcp-handler` with `withMcpAuth`. Builds a per-request context: `{ userId, tenantId, role, clientId, db }`, where `db` is a Supabase client carrying the user's token. |
 | Tools | `apps/platform/lib/mcp/tools/<area>.ts` | Zod input, a call into the shared repository or RPC, and a compact text result. One file per area. |
-| Repositories refactor | `apps/platform/lib/repositories/*` | Today they import the browser singleton `supabase`. They become `createOrderRepository(client)` and similar, and the existing singleton exports stay as `createX(supabase)`, so the app is unchanged. This lets the MCP reuse the exact app code. |
+| Shared order logic | `lib/repositories/order-repository.ts` (`buildStatusUpdate`), `lib/orders/status-side-effects.ts`, `lib/inventory-engine.ts` | The status-change pieces the orders page uses now take a Supabase client, so the MCP runs the same code with the user's token. Order creation calls the same `createOrderAction` server action as the New order form. |
 | Audit | `lib/mcp/audit.ts` → `activity_logs` | One row per call. |
 | DB guard and access list | migration `…_mcp_access_guard.sql` | `mcp_access` table (RLS on, no policies, so it is service-role only) and `public.mcp_request_guard()` set as `pgrst.db_pre_request`. |
 
@@ -55,12 +55,10 @@ Claude ──(OAuth 2.1 + PKCE, dynamic client registration)──> Supabase Aut
 - `update_order`: customer name, phone, governorate, city, address, notes, delivery price.
 - `create_order`: through `create_order_atomic`, with the same plan-limit check as the app.
 - `add_order_note`.
-- `update_product`: price, compare-at price, active/hidden.
-- `set_stock`: a variant's stock, through the same stock-delta path the Products page uses.
 
 ## Tools, phase 2 (next PRs, same pattern)
 
-Customers (blacklist, notes), delivery (assign company, Waseet export, print batches), after-sale (refund, replacement), abandoned carts, products (create, images), categories, expenses, store builder text, and chat replies.
+Products (price, visibility, and stock through `adjust_product_stock` / `set_counted_stock` once the Products thread ships them), customers (blacklist, notes), delivery (assign company, Waseet export, print batches), after-sale (refund, replacement), abandoned carts, products (create, images), categories, expenses, store builder text, and chat replies.
 
 ## Error handling
 

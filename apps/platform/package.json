@@ -20,6 +20,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/server": "2.3.1",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
     "@radix-ui/react-popover": "^1.1.15",
@@ -65,6 +66,7 @@
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.468.0",
+    "mcp-handler": "2.3.0",
     "next": "16.3.8",
     "next-themes": "^0.4.6",
     "pdf-parse": "^2.4.5",
@@ -83,8 +85,8 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@scheniders/provider-mock": "workspace:*",
     "@playwright/test": "^1.58.2",
+    "@scheniders/provider-mock": "workspace:*",
     "@storybook/addon-a11y": "^10.1.11",
     "@storybook/addon-docs": "^10.1.11",
     "@storybook/addon-onboarding": "^10.1.11",

@@ -31,7 +31,7 @@ import {
 } from "@/lib/customer-trust-risk";
 
 /** Attribution and reason fields that ride along with a status change. */
-type StatusUpdateContext = {
+export type StatusUpdateContext = {
     rejectionReason?: string;
     rejectionReasonId?: string;
     changedByName?: string;
@@ -43,7 +43,7 @@ type StatusUpdateContext = {
  * rejection reason (cleared when moving to a non-rejecting status) and the
  * actor. Shared by the single-order and batched paths so they cannot drift.
  */
-function buildStatusUpdate(status: Order["status"], ctx: StatusUpdateContext): Partial<Order> {
+export function buildStatusUpdate(status: Order["status"], ctx: StatusUpdateContext): Partial<Order> {
     const updateData: Partial<Order> = { status };
     const loose = updateData as Record<string, unknown>;
     if (ctx.rejectionReason) {
