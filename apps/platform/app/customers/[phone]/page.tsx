@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Eye, Download } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { useQuery } from "@tanstack/react-query";
@@ -155,6 +157,8 @@ const HISTORY_ROWS = 20;
 
 function CustomerProfileContent({ phone }: { phone: string }) {
     const { t } = useLanguage();
+    const { can } = usePermission();
+    const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
     const { tenantId } = useAuth();
     const router = useRouter();
     const store = useCustomerStore();
@@ -203,22 +207,24 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             </motion.button>
 
             {/* Floating export action (top-right). Lazy-loads customer-data-export to keep this route's bundle lean. */}
-            <button
-                onClick={async () => {
-                    if (!tenantId) return;
-                    try {
-                        const { customerDataExport } = await import("@/lib/customer-data-export");
-                        await customerDataExport.downloadAsJSON(tenantId, phone);
-                    } catch {
-                        toast({ variant: "error", title: t("customers.export.failed") });
-                    }
-                }}
-                title={t("customers.profile.exportJsonHint")}
-                className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 min-h-11 px-4 rounded-xl text-sm font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-                <Download className="w-3.5 h-3.5" />
-                {t("customers.profile.exportJson")}
-            </button>
+            {canExport && (
+                <button
+                    onClick={async () => {
+                        if (!tenantId) return;
+                        try {
+                            const { customerDataExport } = await import("@/lib/customer-data-export");
+                            await customerDataExport.downloadAsJSON(tenantId, phone);
+                        } catch {
+                            toast({ variant: "error", title: t("customers.export.failed") });
+                        }
+                    }}
+                    title={t("customers.profile.exportJsonHint")}
+                    className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 min-h-11 px-4 rounded-xl text-sm font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                    <Download className="w-3.5 h-3.5" />
+                    {t("customers.profile.exportJson")}
+                </button>
+            )}
 
             {/* Hero Banner — peer badges + Rate button now live inside */}
             <div className="mb-8">

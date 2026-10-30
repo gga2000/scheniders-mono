@@ -29,11 +29,18 @@ export async function addToBlacklist({ tenantId, phone, reason, notes, addedBy }
     if (error) throw error;
 }
 
+/**
+ * Unblocking needs `customers.unblock` (admins). The database refuses the
+ * DELETE for anyone else by matching no rows rather than raising, so an empty
+ * result is reported as a failure instead of a silent no-op.
+ */
 export async function removeFromBlacklist(tenantId: string, phone: string): Promise<void> {
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from("blacklist")
         .delete()
         .eq("tenant_id", tenantId)
-        .eq("phone", normalizePhoneForSearch(phone));
+        .eq("phone", normalizePhoneForSearch(phone))
+        .select("phone");
     if (error) throw error;
+    if (!data?.length) throw new Error("Customer was not unblocked");
 }

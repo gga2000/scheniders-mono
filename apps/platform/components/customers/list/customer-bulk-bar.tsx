@@ -7,7 +7,8 @@ import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerBulkBarProps {
   selectedCount: number;
-  onExport: () => void;
+  /** Omitted when the user may not export customer data. */
+  onExport?: () => void;
   onAddTag: () => void;
   onBroadcast: () => void;
   onClear: () => void;
@@ -55,12 +56,14 @@ export function CustomerBulkBar({
               onClick={onBroadcast}
               pastelClass="hover:bg-(--pastel-green)/40 hover:text-foreground"
             />
-            <ActionButton
-              icon={Download}
-              label={t("customers.bulk.exportCsv")}
-              onClick={onExport}
-              pastelClass="hover:bg-(--pastel-blue)/40 hover:text-foreground"
-            />
+            {onExport && (
+              <ActionButton
+                icon={Download}
+                label={t("customers.bulk.exportCsv")}
+                onClick={onExport}
+                pastelClass="hover:bg-(--pastel-blue)/40 hover:text-foreground"
+              />
+            )}
 
             <div className="mx-1 hidden h-5 w-px bg-(--card-border) sm:block" />
 

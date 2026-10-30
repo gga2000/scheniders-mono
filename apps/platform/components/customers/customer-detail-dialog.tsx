@@ -27,6 +27,8 @@ import { CustomerQuickActions } from "@/components/customers/customer-quick-acti
 import { monogram, formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
 import { addToBlacklist, removeFromBlacklist } from "@/lib/blacklist";
 import { useOrderCrud } from "@/hooks/use-order-crud";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 
 // Opened on demand from the footer; kept out of the customers page bundle.
 const BlacklistDialog = dynamic(() => import("@/components/orders/blacklist-dialog").then((m) => m.BlacklistDialog), { ssr: false });
@@ -263,6 +265,7 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
 
 export function CustomerDetailDialog({ customer, onClose }: { customer: PaginatedCustomer | null; onClose: () => void }) {
     const { t, language } = useLanguage();
+    const { can } = usePermission();
     const router = useRouter();
     const queryClient = useQueryClient();
     const { tenantId, profile, user } = useAuth();
@@ -302,6 +305,7 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     };
 
     const loadedAll = !data.data?.hasMore;
+    const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
 
     return (
         <AnimatePresence>
@@ -319,7 +323,7 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     onClose={onClose}
                     onOpenFull={() => router.push(`/customers/${encodeURIComponent(customer.phone)}`)}
                     onNewOrder={() => setCreatingOrder(true)}
-                    onToggleBlock={() => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
+                    onToggleBlock={customer.is_blacklisted && !canUnblock ? undefined : () => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
                     t={t}
                     locale={language}
                 />
@@ -367,7 +371,8 @@ function Body({
     onClose: () => void;
     onOpenFull: () => void;
     onNewOrder: () => void;
-    onToggleBlock: () => void;
+    /** Omitted when the customer is blocked and the user may not unblock. */
+    onToggleBlock?: () => void;
     t: Translate;
     locale: Locale;
 }) {
@@ -566,19 +571,21 @@ function Body({
                     <button onClick={onOpenFull} aria-label={t("customers.drawer.openFull", "Full profile")} className="h-12 min-w-12 px-4 rounded-2xl border border-(--card-border) font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
                         <ExternalLink className="w-4 h-4" /> <span className="hidden sm:inline">{t("customers.drawer.openFull", "Full profile")}</span>
                     </button>
-                    <button
-                        onClick={onToggleBlock}
-                        aria-label={customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}
-                        className={cn(
-                            "h-12 min-w-12 px-4 rounded-2xl border font-semibold inline-flex items-center justify-center gap-2 transition-colors",
-                            customer.is_blacklisted
-                                ? "border-(--card-border) text-foreground hover:bg-muted/40"
-                                : "border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/40",
-                        )}
-                    >
-                        <Ban className="w-4 h-4" />
-                        <span className="hidden sm:inline">{customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}</span>
-                    </button>
+                    {onToggleBlock && (
+                        <button
+                            onClick={onToggleBlock}
+                            aria-label={customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}
+                            className={cn(
+                                "h-12 min-w-12 px-4 rounded-2xl border font-semibold inline-flex items-center justify-center gap-2 transition-colors",
+                                customer.is_blacklisted
+                                    ? "border-(--card-border) text-foreground hover:bg-muted/40"
+                                    : "border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/40",
+                            )}
+                        >
+                            <Ban className="w-4 h-4" />
+                            <span className="hidden sm:inline">{customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}</span>
+                        </button>
+                    )}
                     <button onClick={onNewOrder} className="basis-full sm:basis-0 flex-1 h-12 rounded-2xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
                         <Plus className="w-4 h-4" /> {t("customers.drawer.newOrder", "New order")}
                     </button>

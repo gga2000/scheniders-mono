@@ -30,12 +30,16 @@ import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { pct } from "@/lib/customer-format";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 
 const PAGE_LIMIT = 24;
 const EXPORT_PAGE = 1000;
 
 function CustomersPageContent() {
     const { t, language } = useLanguage();
+    const { can } = usePermission();
+    const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
     const { state, rawSearch, setSearch, setSort, setView } = useCustomerUrlState();
     const { viewMode, setViewMode } = useCustomerStore();
 
@@ -219,15 +223,17 @@ function CustomersPageContent() {
                                 : `${totalCount.toLocaleString("en-US")}`}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                        <button
-                            onClick={exportCsv}
-                            disabled={totalCount === 0 || exporting}
-                            className="inline-flex items-center gap-2 h-11 px-4 rounded-2xl border border-(--card-border) bg-(--card-bg) text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-40 transition-colors"
-                        >
-                            <Download className="w-4 h-4" /> {t("customers.export")}
-                        </button>
-                    </div>
+                    {canExport && (
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <button
+                                onClick={exportCsv}
+                                disabled={totalCount === 0 || exporting}
+                                className="inline-flex items-center gap-2 h-11 px-4 rounded-2xl border border-(--card-border) bg-(--card-bg) text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-40 transition-colors"
+                            >
+                                <Download className="w-4 h-4" /> {t("customers.export")}
+                            </button>
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Insight strip */}
@@ -332,7 +338,7 @@ function CustomersPageContent() {
             {/* Bulk actions */}
             <CustomerBulkBar
                 selectedCount={selected.size}
-                onExport={exportSelected}
+                onExport={canExport ? exportSelected : undefined}
                 onAddTag={() => setShowBulkTag(true)}
                 onBroadcast={() => setShowBroadcast(true)}
                 onClear={clearSelected}

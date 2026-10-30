@@ -82,6 +82,8 @@ export const PERMISSIONS = {
     VIEW_CUSTOMERS: "customers.view",
     EDIT_CUSTOMERS: "customers.edit",
     BLOCK_CUSTOMERS: "customers.block",
+    UNBLOCK_CUSTOMERS: "customers.unblock",
+    EXPORT_CUSTOMERS: "customers.export",
 
     // Products
     EDIT_PRODUCTS: "products.edit", // create/edit products, variants, categories and stock
@@ -158,6 +160,8 @@ export const PERMISSION_CATEGORIES = [
             { key: PERMISSIONS.VIEW_CUSTOMERS, label: "View Customers" },
             { key: PERMISSIONS.EDIT_CUSTOMERS, label: "Edit Customer Details" },
             { key: PERMISSIONS.BLOCK_CUSTOMERS, label: "Block Customers" },
+            { key: PERMISSIONS.UNBLOCK_CUSTOMERS, label: "Unblock Customers" },
+            { key: PERMISSIONS.EXPORT_CUSTOMERS, label: "Export Customer Data" },
         ]
     },
     {
