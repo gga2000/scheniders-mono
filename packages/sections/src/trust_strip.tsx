@@ -12,6 +12,8 @@ import type { CSSProperties } from "react";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { Section, MaterialIcon } from "./helpers/primitives";
+import { readsRtl } from "./helpers/reading";
+import { cn } from "./helpers/utils";
 import { i18nStringSchema } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
@@ -41,6 +43,11 @@ const schema = z.object({
       bg: pillBg.optional(),
     }),
   ),
+  /** "chunky" (default): today's sideways-scrolling outlined pills. "soft"
+   *  (slice 1h): every pill on screen at 360px — quiet tiles two a row on
+   *  the alt surface, ink icon and text, no outline, no tint (D4), labels
+   *  wrapping instead of scrolling. A bad stored value falls back. */
+  style: z.enum(["chunky", "soft"]).optional().catch(undefined),
 });
 
 type Props = z.infer<typeof schema>;
@@ -92,6 +99,38 @@ function TrustStripRender({
   ctx: { runtime: { locale: "ar" | "en" | "ku" } };
 }) {
   const locale = ctx.runtime.locale;
+  if (props.style === "soft") {
+    const rtl = readsRtl(locale);
+    return (
+      <Section density="dense" className="text-bk-ink" data-trust-style="soft">
+        {/* Two tiles a row, the first at the reading start (a flex row
+            flips with a class; a grid cannot without `dir`). A tile that is
+            alone on its row grows to the full width. */}
+        <ul className={cn("flex flex-wrap gap-2", rtl && "flex-row-reverse")}>
+          {props.pills.map((pill, i) => (
+            <li
+              key={`${i}-${resolveI18n(pill.label_i18n, "en")}`}
+              className={cn(
+                "flex min-h-11 grow basis-[calc(50%-0.25rem)] items-center gap-2 rounded-bk-input bg-bk-surface-alt px-3 py-2",
+                rtl && "flex-row-reverse",
+              )}
+            >
+              {pill.icon ? <MaterialIcon name={pill.icon} className="shrink-0 text-lg text-bk-ink" /> : null}
+              <span
+                data-i18n-field={`pills[${i}].label_i18n`}
+                className={cn(
+                  "min-w-0 font-bk-body text-[13px] font-bold leading-snug text-bk-ink",
+                  rtl ? "text-right" : "text-left",
+                )}
+              >
+                {resolveI18n(pill.label_i18n, locale)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Section>
+    );
+  }
   return (
     <Section density="dense" bleed className="text-bk-ink">
       <div className="relative">
