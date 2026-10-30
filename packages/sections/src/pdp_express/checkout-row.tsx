@@ -17,7 +17,7 @@ import { ContactLine } from "../helpers/contact-line";
 import { EXPRESS_SUBMIT_ID, useFormWatched } from "../helpers/express-order-store";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
-import { CartAddedStatus, CartTile } from "./cart-action";
+import { CartAddedStatus, CartTile, type CartNote } from "./cart-action";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
 import { PromiseBand } from "./promise-band";
@@ -113,7 +113,7 @@ export function CheckoutRow({
   // under them. Both live inside this row, so the receipt above and every
   // block below keep their place (and React's useId paths).
   const cart = m.props.add_to_cart === true && !m.oos;
-  const [cartAdds, setCartAdds] = useState(0);
+  const [cartNote, setCartNote] = useState<CartNote | null>(null);
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
       ? (m.compareAt - m.price) * m.qty
@@ -205,7 +205,7 @@ export function CheckoutRow({
             </span>
           </a>
         )}
-        {cart && <CartTile m={m} locale={locale} onAdded={() => setCartAdds((n) => n + 1)} />}
+        {cart && <CartTile m={m} locale={locale} onAdded={(outcome) => setCartNote((prev) => ({ ...outcome, seq: (prev?.seq ?? 0) + 1 }))} />}
         <button
           type="submit"
           id={watched ? EXPRESS_SUBMIT_ID : undefined}
@@ -256,7 +256,7 @@ export function CheckoutRow({
             </span>
           )}
         </button>
-        {cart && <CartAddedStatus adds={cartAdds} locale={locale} />}
+        {cart && <CartAddedStatus note={cartNote} locale={locale} />}
       </div>
 
       {!band && m.reassurance && (

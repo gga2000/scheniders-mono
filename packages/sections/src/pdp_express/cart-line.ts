@@ -15,6 +15,13 @@ import type { ProductVariant } from "../types";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
 
+/** How many of this product + variant the cart already holds. */
+export function cartQuantityOf(items: readonly CartItem[], productId: string, variantId: string | null): number {
+  return items
+    .filter((i) => i.product_id === productId && i.variant_id === variantId)
+    .reduce((sum, i) => sum + i.quantity, 0);
+}
+
 export type CartLineInput = Pick<ExpressModel, "product" | "qty" | "price" | "unitPrice"> & {
   /** The variant being bought, or null for a plain product. */
   variant: ProductVariant | null;

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { PriceTier } from "@scheniders/shared";
 import { VARIANT_100, plainProduct, saleProduct } from "../_pdp-fixtures";
-import { expressCartLine } from "./cart-line";
+import { cartQuantityOf, expressCartLine } from "./cart-line";
 
 const LADDER: PriceTier[] = [{ min_quantity: 2, max_quantity: null, price: 22000 }];
 
@@ -56,5 +56,17 @@ describe("expressCartLine", () => {
       unitPrice: 25000,
     });
     expect(line.name).toBe("ويفر انتنس");
+  });
+});
+
+describe("cartQuantityOf", () => {
+  it("counts this product and variant only", () => {
+    const plain = expressCartLine({ product: plainProduct, variant: null, qty: 2, price: 18000, unitPrice: 18000 });
+    const v100 = expressCartLine({ product: saleProduct, variant: VARIANT_100, qty: 3, price: 40000, unitPrice: 40000 });
+    const items = [plain, v100];
+    expect(cartQuantityOf(items, plainProduct.id, null)).toBe(2);
+    expect(cartQuantityOf(items, saleProduct.id, VARIANT_100.id)).toBe(3);
+    expect(cartQuantityOf(items, saleProduct.id, null)).toBe(0);
+    expect(cartQuantityOf([], plainProduct.id, null)).toBe(0);
   });
 });

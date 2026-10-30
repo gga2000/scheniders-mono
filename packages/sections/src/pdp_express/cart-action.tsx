@@ -6,7 +6,11 @@
 // the order and never runs the form's validation. It adds what the form
 // would order — the chosen variant and the stepper's quantity at the
 // receipt's unit price — or, while a variant is still owed, asks for it
-// exactly as a submit would. The AddToCart pixel fires as on
+// exactly as a submit would. The cart never holds more of the line than
+// the stepper allows (stock and max_qty, `m.maxQty`): a tap adds only what
+// is left, and with nothing left it adds nothing and says so. The cart
+// store's own merge is uncapped for its other callers. The AddToCart pixel
+// fires as on
 // pdp_add_to_cart; in draft view no pixel and no funnel sink is installed
 // (storefront layout / v2-page), so the call records nothing there.
 //
@@ -19,9 +23,15 @@ import { useCart } from "../helpers/cart-store";
 import { trackPixel } from "../helpers/pixels";
 import { MaterialIcon } from "../helpers/primitives";
 import { StoreLink } from "../helpers/store-context";
-import { expressCartLine } from "./cart-line";
+import { cartQuantityOf, expressCartLine } from "./cart-line";
 import type { ExpressModel } from "./model";
 import { readsRtl, xs } from "./text";
+
+/** What a tap did: `inCart` is how many of the line the cart now holds. */
+export type CartAddOutcome = { added: boolean; inCart: number };
+
+/** The confirmation's state; `seq` counts taps so each one re-announces. */
+export type CartNote = CartAddOutcome & { seq: number };
 
 export function CartTile({
   m,
@@ -30,8 +40,9 @@ export function CartTile({
 }: {
   m: ExpressModel;
   locale: LocaleCode;
-  /** Called after each add, for the confirmation line. */
-  onAdded: () => void;
+  /** Called after each tap that is not asking for a variant, for the
+   *  confirmation line. */
+  onAdded: (outcome: CartAddOutcome) => void;
 }) {
   const addItem = useCart((s) => s.addItem);
 
@@ -40,10 +51,17 @@ export function CartTile({
       m.focusVariantChoice();
       return;
     }
+    const variant = m.chosen.variant;
+    const inCart = cartQuantityOf(useCart.getState().items, m.product.id, variant?.id ?? null);
+    const qty = Math.min(m.qty, m.maxQty - inCart);
+    if (qty <= 0) {
+      onAdded({ added: false, inCart });
+      return;
+    }
     const line = expressCartLine({
       product: m.product,
-      variant: m.chosen.variant,
-      qty: m.qty,
+      variant,
+      qty,
       price: m.price,
       unitPrice: m.unitPrice,
     });
@@ -52,7 +70,7 @@ export function CartTile({
       "AddToCart",
       pixelContentsFromItems([{ product_id: line.product_id, price: line.price, quantity: line.quantity }]),
     );
-    onAdded();
+    onAdded({ added: true, inCart: inCart + qty });
   }
 
   return (
@@ -69,17 +87,25 @@ export function CartTile({
   );
 }
 
-/** The confirmation under the order buttons. The live region is always in
- *  the row (a region inserted with its text is often not announced); the
- *  text is keyed by the add count so a second add is announced again. */
-export function CartAddedStatus({ adds, locale }: { adds: number; locale: LocaleCode }) {
+/** The confirmation under the order buttons: the add and how many of the
+ *  line the cart now holds, or that it already holds the most. The live
+ *  region is always in the row (a region inserted with its text is often
+ *  not announced); the text is keyed by the tap count so each tap is
+ *  announced again. */
+export function CartAddedStatus({ note, locale }: { note: CartNote | null; locale: LocaleCode }) {
   const rtl = readsRtl(locale);
   return (
     <p role="status" data-cart-status="" className="basis-full font-bk-body text-[13px] text-bk-ink">
-      {adds > 0 && (
-        <span key={adds} className={cn("flex items-center justify-center gap-1.5", rtl && "flex-row-reverse")}>
-          <MaterialIcon name="check_circle" className="text-base text-bk-success" />
-          <span className="font-bold">{xs("addedToCart", locale)}</span>
+      {note && (
+        <span key={note.seq} className={cn("flex items-center justify-center gap-1.5", rtl && "flex-row-reverse")}>
+          {note.added ? (
+            <MaterialIcon name="check_circle" className="text-base text-bk-success" />
+          ) : (
+            <MaterialIcon name="info" className="text-base text-bk-ink-soft" />
+          )}
+          <span className="font-bold">
+            {note.added ? xs("addedToCart", locale, { count: note.inCart }) : xs("cartAtMax", locale)}
+          </span>
           <StoreLink
             href="/cart"
             className="inline-flex min-h-11 items-center px-1 font-bold text-bk-ink underline underline-offset-4"

@@ -116,6 +116,19 @@ describe("the order-buttons row with add_to_cart", () => {
   });
 });
 
+/** Three left in stock: the stepper and the cart both stop at 3. */
+const LOW_STOCK: Product = { ...plainProduct, stock_quantity: 3 };
+const LOW_STOCK_LINE: CartItem = {
+  product_id: plainProduct.id,
+  variant_id: null,
+  name: "عطر تجريبي",
+  variant_name: null,
+  price: 18000,
+  quantity: 1,
+  image_url: plainProduct.image_url ?? null,
+  base_price: 18000,
+};
+
 const fetchMock = vi.fn(() => Promise.resolve(new Response("{}")));
 const fbq = vi.fn();
 
@@ -172,7 +185,7 @@ describe("tapping «أضف للسلة»", () => {
         base_price: 18000,
       },
     ]);
-    expect(status().textContent).toBe("check_circleانضافت للسلةشوف السلة");
+    expect(status().textContent).toBe("check_circleانضافت للسلة · 2 بالسلةشوف السلة");
     expect(status().querySelector("a")?.getAttribute("href")).toBe("/s/fixture-store/cart");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(view.container.querySelector('[role="alert"]')).toBeNull();
@@ -185,6 +198,39 @@ describe("tapping «أضف للسلة»", () => {
     fireEvent.click(tile());
     expect(useCart.getState().items.map((i) => i.quantity)).toEqual([2]);
     expect(status().firstElementChild).not.toBe(first);
+    expect(status().textContent).toContain("انضافت للسلة · 2 بالسلة");
+  });
+
+  it("never puts more in the cart than can be ordered: the last tap adds what is left", () => {
+    const { q, tile, status } = mount(LOW_STOCK);
+    fireEvent.click(q('button[aria-controls$="-qty-panel"]'));
+    fireEvent.click(q('button[aria-label="زيادة الكمية"]'));
+    fireEvent.click(tile());
+    fireEvent.click(tile());
+    expect(useCart.getState().items.map((i) => i.quantity)).toEqual([3]);
+    expect(status().textContent).toBe("check_circleانضافت للسلة · 3 بالسلةشوف السلة");
+  });
+
+  it("with the most that can be ordered already in the cart, a tap adds nothing and says so", () => {
+    vi.stubGlobal("fbq", fbq);
+    useCart.setState({ items: [{ ...LOW_STOCK_LINE, quantity: 3 }] });
+    const { tile, status } = mount(LOW_STOCK);
+    fireEvent.click(tile());
+    expect(useCart.getState().items.map((i) => i.quantity)).toEqual([3]);
+    expect(status().textContent).toBe("infoبسلتك أقصى كمية تكدر تطلبهاشوف السلة");
+    expect(status().querySelector("a")?.getAttribute("href")).toBe("/s/fixture-store/cart");
+    expect(fbq).not.toHaveBeenCalled();
+    const first = status().firstElementChild;
+    fireEvent.click(tile());
+    expect(status().firstElementChild).not.toBe(first);
+  });
+
+  it("another variant's line does not count against this one", () => {
+    useCart.setState({ items: [{ ...LOW_STOCK_LINE, variant_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", quantity: 3 }] });
+    const { tile, status } = mount(LOW_STOCK);
+    fireEvent.click(tile());
+    expect(useCart.getState().items.map((i) => i.quantity)).toEqual([3, 1]);
+    expect(status().textContent).toContain("انضافت للسلة · 1 بالسلة");
   });
 
   it("while a variant is owed it adds nothing and asks for the option", () => {
