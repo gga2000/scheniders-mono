@@ -43,6 +43,19 @@ describe("validatePhoneDetailed", () => {
         expect(validatePhoneDetailed("٠٧٧٠١٢٣٤٥٦٧").isValid).toBe(true);
     });
 
+    it("accepts the zero-less and 00964 forms the card already shows as 07…", () => {
+        // LightFunnels stores what the customer typed; 24 live orders hold the
+        // zero-less form. formatPhoneGrouped displays them as "0771 438 8144", so
+        // flagging them red with "must start with 07" contradicted the screen.
+        const zeroless = validatePhoneDetailed("7714388144");
+        expect(zeroless.isValid).toBe(true);
+        expect(zeroless.formattedNumber).toBe("07714388144");
+        expect(validatePhoneDetailed("009647714388144").isValid).toBe(true);
+        // Ten digits is only an Iraqi mobile when it starts with 7.
+        expect(validatePhoneDetailed("5714388144").error).toBe("invalid_prefix");
+        expect(validatePhoneDetailed("771438814").error).toBe("invalid_prefix");
+    });
+
     it("rejects a number one digit short, which the old regex demanded", () => {
         // The deleted validatePhone matched exactly this and rejected the real
         // 11-digit numbers above.
