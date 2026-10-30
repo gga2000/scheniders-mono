@@ -18,6 +18,14 @@ import type { Props as HeaderProps } from "./site_header";
 import type { Props as StickyProps } from "./sticky_cta_bar";
 import type { Tenant } from "./types";
 import { EXPRESS_IRAQ_DRAFT_PDP_PROPS, IRAQ_DRAFT_STICKY_PROPS, fixtureTenant } from "./_pdp-fixtures";
+import {
+  IRAQ_DRAFT_CART_LINES_BASE,
+  IRAQ_DRAFT_CART_SUMMARY_BASE,
+  IRAQ_DRAFT_CHECKOUT_FORM_BASE,
+  IRAQ_DRAFT_CONFIRMATION_BASE,
+  IRAQ_DRAFT_ORDER_SUMMARY_BASE,
+  IRAQ_DRAFT_TRUST_BASE,
+} from "./_cart-checkout-fixtures";
 import type { FaqProps } from "./_pdp-lower-fixtures";
 
 export type GalleryProps = typeof image_gallery.defaultProps;
@@ -623,3 +631,95 @@ export const IRAQ_REDESIGN_HEADER_PRODUCT_INPUT = jsonbMerge(IRAQ_REDESIGN_HEADE
   ...IRAQ_DRAFT_HEADER_PRODUCT_OVERRIDE,
   ...SLICE_1G_HEADER_VARIANT_PATCH,
 });
+
+// ── Slice 1h: cart, checkout and thank-you in the redesign's voice ──────
+
+/** The first clause of the band's row 1 (1b `reassurance_i18n`, before
+ *  « — والتيستر هدية وياه», which is about the product page's own tester):
+ *  the promise the cart and checkout quote. A test pins it to 1b. */
+export const BAND_TRY_FIRST = { ar: "تفتح وتجرّب قبل لا تدفع", en: "Open it and try it before you pay" } as const;
+
+/** One draft edit of slice 1h: merge `patch` into the section's base
+ *  (`||`), drop the `remove` keys (`-`), and set `enabled` when given. */
+export interface DraftSectionEdit {
+  page: "cart" | "checkout" | "checkout_success";
+  id: string;
+  patch: Record<string, unknown>;
+  remove?: string[];
+  enabled?: boolean;
+}
+
+/** Cart lines: the soft list. */
+export const SLICE_1H_CART_LINES_PATCH = { style: "soft" } as const;
+
+/** Cart summary: the soft receipt, and the way on named «كمّل طلبك»
+ *  (COPY_ACTIONS.continueOrder, the sticky bar's words). */
+export const SLICE_1H_CART_SUMMARY_PATCH = {
+  style: "soft",
+  checkout_label_i18n: { ar: "كمّل طلبك", en: "Finish your order" },
+} as const;
+
+/** Cart trust strip: the soft grid with the band's own words. Free
+ *  delivery is not a pill: the receipt's «التوصيل: مجاني» row says it. */
+export const SLICE_1H_CART_TRUST_PATCH = {
+  style: "soft",
+  pills: [
+    { bg: "mint", icon: "payments", label_i18n: { ar: "الدفع عند الاستلام", en: "Cash on delivery" } },
+    { bg: "sky", icon: "visibility", label_i18n: BAND_TRY_FIRST },
+    { bg: "lilac", icon: "undo", label_i18n: SLICE_1B_PDP_PATCH.return_promise_i18n },
+  ],
+} as const;
+
+/** Checkout form: soft, the order action named «ثبّت طلبي» as on the
+ *  product page, and the band's promise beside it in the band's words. */
+export const SLICE_1H_CHECKOUT_FORM_PATCH = {
+  style: "soft",
+  submit_label_i18n: EXPRESS_IRAQ_DRAFT_PDP_PROPS.submit_label_i18n,
+  reassurance_text_i18n: {
+    ar: `${BAND_TRY_FIRST.ar} — ${SLICE_1B_PDP_PATCH.return_promise_i18n.ar}`,
+    en: `${BAND_TRY_FIRST.en}. ${SLICE_1B_PDP_PATCH.return_promise_i18n.en}`,
+  },
+} as const;
+
+/** Checkout summary: soft; its COD note goes (the form's payment row and
+ *  promise line already say it). */
+export const SLICE_1H_ORDER_SUMMARY_PATCH = { style: "soft" } as const;
+export const SLICE_1H_ORDER_SUMMARY_REMOVE = ["cod_note_i18n"] as const;
+
+/** Thank-you: soft; the ETA is the product page's one delivery claim
+ *  (Latin digits, D5); WhatsApp is «راسلنا واتساب» (COPY_ACTIONS.whatsapp). */
+export const SLICE_1H_CONFIRMATION_PATCH = {
+  style: "soft",
+  eta_i18n: SLICE_1B_PDP_PATCH.delivery_sla_i18n,
+  whatsapp_label_i18n: { ar: "راسلنا واتساب", en: "Message us on WhatsApp" },
+} as const;
+
+/** Every edit of the 1h draft migration, in its order. The cart sticky
+ *  bar and the checkout trust strip are switched off (enabled false). */
+export const SLICE_1H_EDITS: DraftSectionEdit[] = [
+  { page: "cart", id: "2e4337a4-87ae-478d-98b6-5f361a404562", patch: SLICE_1H_CART_LINES_PATCH },
+  { page: "cart", id: "e5dbfa28-5c29-4f8b-810a-b5fe2baf1d2c", patch: SLICE_1H_CART_SUMMARY_PATCH },
+  { page: "cart", id: "78babd62-1484-48f1-8ed9-90e4fbc198a2", patch: SLICE_1H_CART_TRUST_PATCH },
+  { page: "cart", id: "aee18fed-e7c6-4f3f-8257-9f1a60fb4a3c", patch: {}, enabled: false },
+  { page: "checkout", id: "561f48cc-7a08-4a8e-bb9f-b76a4ad8c26a", patch: SLICE_1H_CHECKOUT_FORM_PATCH },
+  {
+    page: "checkout",
+    id: "10bbe359-3565-43f7-883a-da6607379b87",
+    patch: SLICE_1H_ORDER_SUMMARY_PATCH,
+    remove: [...SLICE_1H_ORDER_SUMMARY_REMOVE],
+  },
+  { page: "checkout", id: "4d0bc827-8914-4505-b018-10edaef38130", patch: {}, enabled: false },
+  { page: "checkout_success", id: "59bfb096-e8ab-4503-b2ab-def24113ec07", patch: SLICE_1H_CONFIRMATION_PATCH },
+];
+
+/** The draft sections after slice 1h (unparsed, as stored). */
+export const IRAQ_REDESIGN_CART_LINES_INPUT = jsonbMerge(IRAQ_DRAFT_CART_LINES_BASE, SLICE_1H_CART_LINES_PATCH);
+export const IRAQ_REDESIGN_CART_SUMMARY_INPUT = jsonbMerge(IRAQ_DRAFT_CART_SUMMARY_BASE, SLICE_1H_CART_SUMMARY_PATCH);
+export const IRAQ_REDESIGN_CART_TRUST_INPUT = jsonbMerge(IRAQ_DRAFT_TRUST_BASE, SLICE_1H_CART_TRUST_PATCH);
+export const IRAQ_REDESIGN_CHECKOUT_FORM_INPUT = jsonbMerge(IRAQ_DRAFT_CHECKOUT_FORM_BASE, SLICE_1H_CHECKOUT_FORM_PATCH);
+export const IRAQ_REDESIGN_ORDER_SUMMARY_INPUT = jsonbMerge(
+  IRAQ_DRAFT_ORDER_SUMMARY_BASE,
+  SLICE_1H_ORDER_SUMMARY_PATCH,
+  SLICE_1H_ORDER_SUMMARY_REMOVE,
+);
+export const IRAQ_REDESIGN_CONFIRMATION_INPUT = jsonbMerge(IRAQ_DRAFT_CONFIRMATION_BASE, SLICE_1H_CONFIRMATION_PATCH);

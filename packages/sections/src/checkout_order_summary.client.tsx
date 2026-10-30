@@ -19,10 +19,15 @@ import {
   computeDiscount,
   computeBundleDiscounts,
 } from "@scheniders/shared";
-import type { StoreConfigV2, GovernorateCode } from "@scheniders/shared";
+import type { CartItem, StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, MaterialIcon } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
+import { readsRtl } from "./helpers/reading";
+import { ReceiptRow, SOFT_RECEIPT } from "./helpers/soft-commerce";
+import { cn } from "./helpers/utils";
+import { cs } from "./cart_checkout.strings";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./checkout_order_summary";
 
@@ -65,6 +70,24 @@ export function CheckoutOrderSummaryRender({
   ).total_amount_iqd;
   const discountAmount = couponAmount + bundleAmount;
   const total = subtotal - discountAmount + delivery;
+
+  if (props.style === "soft") {
+    return (
+      <SoftOrderSummary
+        locale={locale}
+        heading={heading}
+        codNote={codNote}
+        sticky={props.sticky}
+        showThumbnails={props.show_thumbnails}
+        items={items}
+        subtotal={subtotal}
+        delivery={delivery}
+        discountAmount={discountAmount}
+        discountCode={discount?.code ?? null}
+        total={total}
+      />
+    );
+  }
 
   return (
     <section className="px-4 py-bk-section-dense">
@@ -205,6 +228,107 @@ export function CheckoutOrderSummaryRender({
             </p>
           )}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** style "soft" (slice 1h): the express receipt with the cart's lines. */
+function SoftOrderSummary({
+  locale,
+  heading,
+  codNote,
+  sticky,
+  showThumbnails,
+  items,
+  subtotal,
+  delivery,
+  discountAmount,
+  discountCode,
+  total,
+}: {
+  locale: LocaleCode;
+  heading: string;
+  codNote: string;
+  sticky: boolean;
+  showThumbnails: boolean;
+  items: CartItem[];
+  subtotal: number;
+  delivery: number;
+  discountAmount: number;
+  discountCode: string | null;
+  total: number;
+}) {
+  const rtl = readsRtl(locale);
+  return (
+    <section className="px-4 py-bk-section-dense" data-checkout-style="soft">
+      <div className={sticky ? "lg:sticky lg:top-24" : undefined}>
+        <ChapterHeading locale={locale} title={heading} titleField="heading_i18n" />
+        <div className={cn(SOFT_RECEIPT, "divide-y divide-dashed divide-bk-divider px-4")}>
+          {items.length === 0 ? (
+            <p className={cn("py-3 font-bk-body text-sm text-bk-ink-soft", rtl ? "text-right" : "text-left")}>
+              {cs("emptyCart", locale)}
+            </p>
+          ) : (
+            <ul className="divide-y divide-bk-divider">
+              {items.map((item) => (
+                <li key={`${item.product_id}-${item.variant_id ?? "default"}`}>
+                  <div className={cn("flex items-center gap-3 py-3", rtl && "flex-row-reverse")}>
+                    {showThumbnails && (
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-bk-input bg-bk-surface-alt">
+                        {item.image_url ? (
+                          <Image src={item.image_url} alt="" fill sizes="48px" className="object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-bk-ink-faint">
+                            <MaterialIcon name="image" className="text-lg" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className={cn("min-w-0 flex-1", rtl ? "text-right" : "text-left")}>
+                      <p className="line-clamp-2 font-bk-body text-sm font-bold leading-snug text-bk-ink">{item.name}</p>
+                      <p className="font-bk-body text-xs tabular-nums text-bk-ink-soft">
+                        {cs("lineQuantity", locale, { count: item.quantity })}
+                        {item.variant_name ? ` · ${item.variant_name}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 whitespace-nowrap font-bk-body text-sm font-bold tabular-nums text-bk-ink">
+                      <bdi>{formatPrice(item.price * item.quantity, locale)}</bdi>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div>
+            <ReceiptRow rtl={rtl} label={cs("subtotal", locale)} value={<bdi>{formatPrice(subtotal, locale)}</bdi>} />
+            <ReceiptRow
+              rtl={rtl}
+              label={cs("delivery", locale)}
+              value={delivery === 0 ? cs("deliveryFree", locale) : <bdi>{formatPrice(delivery, locale)}</bdi>}
+            />
+            {discountAmount > 0 && (
+              <ReceiptRow
+                rtl={rtl}
+                label={cs("discount", locale)}
+                note={discountCode ?? undefined}
+                value={<bdi>−{formatPrice(discountAmount, locale)}</bdi>}
+              />
+            )}
+          </div>
+          <ReceiptRow rtl={rtl} strong label={cs("total", locale)} value={<bdi>{formatPrice(total, locale)}</bdi>} />
+        </div>
+        {codNote && (
+          <p
+            className={cn(
+              "mt-bk-sm flex items-center gap-2 font-bk-body text-[13px] text-bk-ink-soft",
+              rtl && "flex-row-reverse text-right",
+            )}
+          >
+            <MaterialIcon name="verified" className="shrink-0 text-lg text-bk-ink" />
+            <span data-i18n-field="cod_note_i18n">{codNote}</span>
+          </p>
+        )}
       </div>
     </section>
   );

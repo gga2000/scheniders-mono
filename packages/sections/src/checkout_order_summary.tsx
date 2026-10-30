@@ -17,6 +17,10 @@ const schema = z.object({
   cod_note_i18n: i18nStringOptional,
   sticky: z.boolean(),
   show_thumbnails: z.boolean(),
+  /** "chunky" (default): today's outlined recap. "soft" (slice 1h): the
+   *  express receipt — hairline card, names on up to two lines, ink
+   *  figures and an ink COD note (D4: no yellow total, no green icon). */
+  style: z.enum(["chunky", "soft"]).optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

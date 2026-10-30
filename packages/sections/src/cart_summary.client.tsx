@@ -24,11 +24,24 @@ import {
   formatHours,
 } from "@scheniders/shared";
 import type { StoreConfigV2 } from "@scheniders/shared";
+import type { LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, ChunkyLink, WhatsAppButton } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
 import { useStoreBase } from "./helpers/store-context";
 import { formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
+import { readsRtl } from "./helpers/reading";
+import {
+  ReceiptRow,
+  SOFT_FIELD,
+  SOFT_PRIMARY,
+  SOFT_RECEIPT,
+  SoftPrimaryBody,
+  SoftWhatsappLink,
+} from "./helpers/soft-commerce";
+import { cn } from "./helpers/utils";
 import { whatsappCartLink } from "./helpers/whatsapp";
+import { cs } from "./cart_checkout.strings";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./cart_summary";
 
@@ -118,6 +131,52 @@ export function CartSummaryRender({
         },
         locale,
       );
+
+  if (props.style === "soft") {
+    const fee = deliverySummary.kind === "varies" ? deliverySummary.fee : null;
+    const eta = deliverySummary.eta_hours;
+    const note = [
+      fee ? cs("deliveryVaries", locale, { range: `${formatPrice(fee.min, locale)} – ${formatPrice(fee.max, locale)}` }) : null,
+      eta
+        ? cs("deliveryWithin", locale, {
+            hours:
+              eta.min === eta.max
+                ? formatHours(eta.min, locale)
+                : `${formatHours(eta.min, locale)} – ${formatHours(eta.max, locale)}`,
+          })
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      <SoftCartSummary
+        locale={locale}
+        heading={heading}
+        checkoutLabel={checkoutLabel}
+        checkoutHref={empty ? null : `${base}/checkout`}
+        subtotal={subtotal}
+        delivery={delivery}
+        deliveryNote={note}
+        discountAmount={discountAmount}
+        discountCode={discount?.code ?? null}
+        total={total}
+        waHref={waHref}
+        promo={
+          props.show_promo_input
+            ? {
+                value: promoCode,
+                status: promoStatus,
+                onChange: (v) => {
+                  setPromoCode(v);
+                  setPromoStatus("idle");
+                },
+                onApply: applyPromo,
+              }
+            : null
+        }
+      />
+    );
+  }
 
   return (
     <section className="px-4 py-bk-section-dense">
@@ -323,6 +382,124 @@ export function CartSummaryRender({
             </WhatsAppButton>
           </>
         )}
+      </div>
+    </section>
+  );
+}
+
+/** style "soft" (slice 1h): the express receipt and its order button. */
+function SoftCartSummary({
+  locale,
+  heading,
+  checkoutLabel,
+  checkoutHref,
+  subtotal,
+  delivery,
+  deliveryNote,
+  discountAmount,
+  discountCode,
+  total,
+  waHref,
+  promo,
+}: {
+  locale: LocaleCode;
+  heading: string;
+  checkoutLabel: string;
+  /** Null while the cart is empty: the action is a disabled button. */
+  checkoutHref: string | null;
+  subtotal: number;
+  delivery: number;
+  deliveryNote: string;
+  discountAmount: number;
+  discountCode: string | null;
+  total: number;
+  waHref: string | null;
+  promo: {
+    value: string;
+    status: "idle" | "applied" | "invalid";
+    onChange: (value: string) => void;
+    onApply: () => void;
+  } | null;
+}) {
+  const rtl = readsRtl(locale);
+  return (
+    <section className="px-4 py-bk-section-dense" data-cart-style="soft">
+      <ChapterHeading locale={locale} title={heading} titleField="heading_i18n" />
+      <div className={cn(SOFT_RECEIPT, "divide-y divide-dashed divide-bk-divider px-4")} data-receipt-soft="">
+        <div>
+          <ReceiptRow rtl={rtl} label={cs("subtotal", locale)} value={<bdi>{formatPrice(subtotal, locale)}</bdi>} />
+          <ReceiptRow
+            rtl={rtl}
+            label={cs("delivery", locale)}
+            value={delivery === 0 ? cs("deliveryFree", locale) : <bdi>{formatPrice(delivery, locale)}</bdi>}
+          />
+          {deliveryNote && (
+            <p
+              className={cn("-mt-1 pb-2 font-bk-body text-xs text-bk-ink-soft", rtl ? "text-right" : "text-left")}
+              data-delivery-note
+            >
+              {deliveryNote}
+            </p>
+          )}
+          {discountAmount > 0 && (
+            <ReceiptRow
+              rtl={rtl}
+              label={cs("discount", locale)}
+              note={discountCode ?? undefined}
+              value={<bdi>−{formatPrice(discountAmount, locale)}</bdi>}
+            />
+          )}
+        </div>
+        <ReceiptRow rtl={rtl} strong label={cs("total", locale)} value={<bdi>{formatPrice(total, locale)}</bdi>} />
+      </div>
+      {promo && (
+        <div className="mt-bk-sm space-y-1">
+          <label htmlFor="cart-promo-input" className="block font-bk-body text-[13px] font-bold text-bk-ink-soft">
+            {cs("promoLabel", locale)}
+          </label>
+          <div className={cn("flex gap-2", rtl && "flex-row-reverse")}>
+            <input
+              id="cart-promo-input"
+              type="text"
+              autoComplete="off"
+              value={promo.value}
+              onChange={(e) => promo.onChange(e.target.value)}
+              aria-invalid={promo.status === "invalid" || undefined}
+              aria-describedby={promo.status === "idle" ? undefined : "cart-promo-status"}
+              className={cn(SOFT_FIELD, "min-w-0 flex-1")}
+              placeholder={cs("promoPlaceholder", locale)}
+            />
+            <button
+              type="button"
+              onClick={promo.onApply}
+              className="min-h-[52px] shrink-0 rounded-bk-input border-bk border-bk-divider bg-bk-surface px-4 font-bk-body text-sm font-bold text-bk-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus"
+            >
+              {cs("promoApply", locale)}
+            </button>
+          </div>
+          {promo.status === "invalid" && (
+            <p id="cart-promo-status" role="alert" className="font-bk-body text-xs font-bold text-bk-danger">
+              {cs("promoInvalid", locale)}
+            </p>
+          )}
+          {promo.status === "applied" && (
+            <p id="cart-promo-status" role="status" className="font-bk-body text-xs font-bold text-bk-ink">
+              {cs("promoApplied", locale)}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="mt-bk-md space-y-bk-xs">
+        {checkoutHref ? (
+          <a href={checkoutHref} className={SOFT_PRIMARY}>
+            <SoftPrimaryBody label={checkoutLabel} labelField="checkout_label_i18n" rtl={rtl} />
+          </a>
+        ) : (
+          <button type="button" disabled className={SOFT_PRIMARY}>
+            <SoftPrimaryBody label={checkoutLabel} rtl={rtl} />
+          </button>
+        )}
+        {waHref && <SoftWhatsappLink href={waHref} label={cs("orderOnWhatsapp", locale)} rtl={rtl} />}
       </div>
     </section>
   );

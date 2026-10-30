@@ -50,6 +50,18 @@ import {
 } from "./helpers/customer-memory";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, MaterialIcon, WhatsAppButton } from "./helpers/primitives";
+import { ChapterHeading } from "./helpers/chapter-heading";
+import { readsRtl } from "./helpers/reading";
+import {
+  SOFT_CARD,
+  SOFT_FIELD,
+  SOFT_LABEL,
+  SOFT_PRIMARY,
+  SoftPrimaryBody,
+  SoftWhatsappLink,
+} from "./helpers/soft-commerce";
+import { cn } from "./helpers/utils";
+import { cs } from "./cart_checkout.strings";
 import { useCart } from "./helpers/cart-store";
 import { useStoreBase } from "./helpers/store-context";
 import { isPlausiblePhone, whatsappCartLink } from "./helpers/whatsapp";
@@ -131,6 +143,13 @@ const STRINGS = {
     en: "Your cart was updated. Please review it and confirm again.",
     ar: "تم تحديث سلتك. راجعها ثم أكّد الطلب مرة أخرى.",
     ku: "سەبەتەکەت نوێکرایەوە. تکایە پێداچوونەوەی بۆ بکە و دووبارە پشتڕاستی بکەرەوە.",
+  },
+  /** errReview for a store that names its submit (`submit_label_i18n`):
+   *  the message quotes the button the shopper will tap again. */
+  errReviewAction: {
+    en: "Your cart was updated. Review it and tap “{action}” again.",
+    ar: "تحدّثت سلتك. راجعها واضغط «{action}» مرة ثانية.",
+    ku: "سەبەتەکەت نوێکرایەوە. پێیدا بچۆرەوە و دووبارە «{action}» دابگرە.",
   },
 } as const;
 
@@ -215,6 +234,13 @@ export function CheckoutFormRender({
   const locale: LocaleCode = ctx.runtime.locale;
   const t = locale !== "en";
   const s = (key: keyof typeof STRINGS) => resolveI18n(STRINGS[key], locale);
+  // style "soft" (slice 1h): the express form's voice. Every switch below
+  // keeps today's value when it is off, so the default markup is unchanged.
+  const soft = props.style === "soft";
+  const rtl = readsRtl(locale);
+  // One name for the order action (F12): the merchant's label when set.
+  const namedSubmit = resolveI18n(props.submit_label_i18n, locale);
+  const submitLabel = namedSubmit || s("placeOrder");
   const items = useCart((st) => st.items);
   const subtotal = useCart((st) => st.getTotal());
   const clearCart = useCart((st) => st.clearCart);
@@ -656,7 +682,10 @@ export function CheckoutFormRender({
         }
         if (issues.length > 0) {
           idempotencyKeyRef.current = null;
-          setErrorLines([s("errReview"), ...lines]);
+          setErrorLines([
+            namedSubmit ? s("errReviewAction").replace("{action}", () => namedSubmit) : s("errReview"),
+            ...lines,
+          ]);
         } else {
           // The server's own messages are Arabic; show them to Arabic-script
           // locales and the localised generic line to English readers.
@@ -674,16 +703,21 @@ export function CheckoutFormRender({
     }
   }
 
-  const inputCls =
-    "w-full px-3 py-3 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
-  const inputStyle: React.CSSProperties = {
-    backgroundColor: "var(--bk-surface, #ffffff)",
-    border: INK_BORDER,
-    borderRadius: "var(--bk-radius-input, 0.75rem)",
-    color: "var(--bk-ink, #1a1a1a)",
-  };
-  const labelCls =
-    "block font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
+  // Soft fields read from the reading edge, as the express form's do.
+  const inputCls = soft
+    ? cn(SOFT_FIELD, rtl ? "text-right" : "text-left")
+    : "w-full px-3 py-3 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
+  const inputStyle: React.CSSProperties | undefined = soft
+    ? undefined
+    : {
+        backgroundColor: "var(--bk-surface, #ffffff)",
+        border: INK_BORDER,
+        borderRadius: "var(--bk-radius-input, 0.75rem)",
+        color: "var(--bk-ink, #1a1a1a)",
+      };
+  const labelCls = soft
+    ? cn(SOFT_LABEL, rtl ? "text-right" : "text-left")
+    : "block font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft mb-bk-2xs";
 
   const steps = [s("stepCart"), s("stepDetails"), s("stepConfirm")];
   const submitting = status === "submitting";
@@ -700,7 +734,9 @@ export function CheckoutFormRender({
   return (
     <section className="px-4 py-bk-section-dense">
       <div className="mx-auto max-w-2xl space-y-bk-md">
-        {/* Step indicator */}
+        {/* Step indicator — not in soft: the express path has no steps,
+            and «التأكيد» would be a third name for the order action. */}
+        {!soft && (
         <ol className="flex items-center justify-center gap-bk-xs font-label font-bold text-[11px] bk-caps tracking-[0.15em]">
           {steps.map((label, i) => {
             const active = i === 1; // "Details" is the current step
@@ -731,16 +767,21 @@ export function CheckoutFormRender({
             );
           })}
         </ol>
+        )}
 
         {/* "We'll call to confirm" reassurance callout */}
         {callPromise && (
           <div
-            className="flex items-start gap-3 p-bk-md"
-            style={{
-              backgroundColor: ACCENT_TINT,
-              color: "var(--bk-ink, #1a1a1a)",
-              borderRadius: "var(--bk-radius-card, 1rem)",
-            }}
+            className={soft ? cn(SOFT_CARD, "flex items-start gap-3 p-bk-md", rtl && "flex-row-reverse text-right") : "flex items-start gap-3 p-bk-md"}
+            style={
+              soft
+                ? undefined
+                : {
+                    backgroundColor: ACCENT_TINT,
+                    color: "var(--bk-ink, #1a1a1a)",
+                    borderRadius: "var(--bk-radius-card, 1rem)",
+                  }
+            }
           >
             <MaterialIcon name="call" className="text-2xl shrink-0" />
             <div>
@@ -763,22 +804,31 @@ export function CheckoutFormRender({
         )}
 
         <div
-          className="p-bk-lg sm:p-bk-xl"
-          style={{
-            backgroundColor: "var(--bk-surface, #ffffff)",
-            color: "var(--bk-ink, #1a1a1a)",
-            border: INK_BORDER,
-            borderRadius: "var(--bk-radius-card, 1rem)",
-            boxShadow: "var(--bk-shadow-card, 4px 4px 0px 0px #1a1a1a)",
-          }}
+          className={soft ? cn(SOFT_CARD, "px-4 py-5") : "p-bk-lg sm:p-bk-xl"}
+          data-checkout-style={soft ? "soft" : undefined}
+          style={
+            soft
+              ? undefined
+              : {
+                  backgroundColor: "var(--bk-surface, #ffffff)",
+                  color: "var(--bk-ink, #1a1a1a)",
+                  border: INK_BORDER,
+                  borderRadius: "var(--bk-radius-card, 1rem)",
+                  boxShadow: "var(--bk-shadow-card, 4px 4px 0px 0px #1a1a1a)",
+                }
+          }
         >
+          {/* The checkout page has no other heading, so this is its h1. */}
+          {soft ? (
+            <ChapterHeading as="h1" locale={locale} title={s("deliveryDetails")} />
+          ) : (
           <CenteredSectionHeader
-            // The checkout page has no other heading, so this is its h1.
             as="h1"
             align="start"
             title={s("deliveryDetails")}
             className="mb-bk-md"
           />
+          )}
           <form onSubmit={onSubmit} className="space-y-bk-sm">
             {recognised && (
               <p data-testid="welcome-back" className="flex items-center justify-between gap-bk-xs rounded-bk-input bg-bk-decor-a/40 px-3 py-2 text-xs sm:text-sm text-bk-ink">
@@ -813,6 +863,39 @@ export function CheckoutFormRender({
             <div>
               <label className="block">
                 <span className={labelCls}>{s("phone")}</span>
+                {soft ? (
+                  // The prefix and the number share one field outline; an
+                  // LTR document already puts +964 first, so no `dir`.
+                  <div
+                    className={cn(
+                      "flex overflow-hidden rounded-bk-input border-bk bg-bk-surface focus-within:ring-2 focus-within:ring-bk-focus",
+                      phoneError ? "border-bk-danger" : "border-bk-divider",
+                    )}
+                  >
+                    <span className="flex shrink-0 items-center bg-bk-surface-alt px-3 font-bk-display text-base font-black text-bk-ink">
+                      +964
+                    </span>
+                    <input
+                      type="tel"
+                      name="phone"
+                      required
+                      inputMode="tel"
+                      autoComplete="tel-national"
+                      placeholder="770 000 0000"
+                      value={form.phone}
+                      onChange={(e) => {
+                        set("phone", e.target.value);
+                        if (phoneError) setPhoneError(false);
+                      }}
+                      onBlur={() => {
+                        if (form.phone.trim() !== "") validatePhone();
+                      }}
+                      aria-invalid={phoneError || undefined}
+                      aria-describedby={phoneError ? phoneErrorId : undefined}
+                      className="min-h-[52px] w-full min-w-0 bg-transparent px-4 font-bk-body text-base text-bk-ink placeholder:text-bk-ink-faint focus-visible:outline-none"
+                    />
+                  </div>
+                ) : (
                 <div className="flex" dir="ltr">
                   <span
                     className="inline-flex items-center px-3 font-display font-black text-base shrink-0"
@@ -855,6 +938,7 @@ export function CheckoutFormRender({
                     }}
                   />
                 </div>
+                )}
               </label>
               {phoneError && (
                 <p
@@ -961,9 +1045,31 @@ export function CheckoutFormRender({
             {/* Payment method — COD is the only option on a COD store, shown
                 as the selected state so the shopper sees what happens next. */}
             <fieldset className="space-y-bk-xs pt-bk-2xs">
-              <legend className="font-display font-black text-base bk-caps mb-bk-xs">
+              <legend
+                className={
+                  soft
+                    ? cn("mb-1 w-full font-bk-body text-[13px] font-bold text-bk-ink-soft", rtl ? "text-right" : "text-left")
+                    : "font-display font-black text-base bk-caps mb-bk-xs"
+                }
+              >
                 {s("paymentMethod")}
               </legend>
+              {soft ? (
+                // D4: the chosen method is a fact, not a success state —
+                // ink icon and check on the quiet surface, no green.
+                <div
+                  className={cn(
+                    "flex min-h-[52px] items-center gap-3 rounded-bk-input border-bk border-bk-divider bg-bk-surface-alt px-4",
+                    rtl && "flex-row-reverse",
+                  )}
+                >
+                  <MaterialIcon name="payments" className="shrink-0 text-2xl text-bk-ink" />
+                  <span className={cn("flex-1 font-bk-body text-[15px] font-bold text-bk-ink", rtl ? "text-right" : "text-left")}>
+                    {s("cod")}
+                  </span>
+                  <MaterialIcon name="check_circle" className="shrink-0 text-2xl text-bk-ink" />
+                </div>
+              ) : (
               <div
                 className="flex items-center gap-3 px-4 py-3"
                 style={{
@@ -984,6 +1090,7 @@ export function CheckoutFormRender({
                   className="text-2xl text-bk-success"
                 />
               </div>
+              )}
             </fieldset>
 
             {/* Trust pills */}
@@ -992,13 +1099,21 @@ export function CheckoutFormRender({
                 {pills.map((pill) => (
                   <li
                     key={pill.label}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 font-label font-bold text-xs bk-caps"
-                    style={{
-                      backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
-                      color: "var(--bk-ink, #1a1a1a)",
-                      border: INK_BORDER,
-                      borderRadius: "var(--bk-radius-pill, 9999px)",
-                    }}
+                    className={
+                      soft
+                        ? "inline-flex items-center gap-2 rounded-bk-pill bg-bk-surface-alt px-3 py-1.5 font-bk-body text-xs font-bold text-bk-ink"
+                        : "inline-flex items-center gap-2 px-3 py-1.5 font-label font-bold text-xs bk-caps"
+                    }
+                    style={
+                      soft
+                        ? undefined
+                        : {
+                            backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+                            color: "var(--bk-ink, #1a1a1a)",
+                            border: INK_BORDER,
+                            borderRadius: "var(--bk-radius-pill, 9999px)",
+                          }
+                    }
                   >
                     {pill.icon && (
                       <MaterialIcon name={pill.icon} className="text-base" />
@@ -1010,6 +1125,15 @@ export function CheckoutFormRender({
             )}
 
             {reassurance && (
+              soft ? (
+                // D4: yellow is the order action only — the eye is ink.
+                <p className={cn("flex items-center gap-2 font-bk-body text-[13px] text-bk-ink-soft", rtl && "flex-row-reverse")}>
+                  <MaterialIcon name="visibility" className="shrink-0 text-xl text-bk-ink" />
+                  <span data-i18n-field="reassurance_text_i18n" className={rtl ? "text-right" : "text-left"}>
+                    {reassurance}
+                  </span>
+                </p>
+              ) : (
               <p
                 className="font-body text-sm text-bk-ink-soft inline-flex items-center gap-2"
                 data-i18n-field="reassurance_text_i18n"
@@ -1020,6 +1144,7 @@ export function CheckoutFormRender({
                 />
                 {reassurance}
               </p>
+              )
             )}
 
             {referralProgram?.enabled === true && (
@@ -1097,12 +1222,16 @@ export function CheckoutFormRender({
             {/* Loyalty points redemption */}
             {loyaltyCfg?.enabled && (pointsBalance ?? 0) > 0 && (
               <div
-                className="space-y-bk-xs p-bk-sm"
-                style={{
-                  backgroundColor: ACCENT_TINT,
-                  border: INK_BORDER,
-                  borderRadius: "var(--bk-radius-input, 0.75rem)",
-                }}
+                className={soft ? cn(SOFT_CARD, "space-y-bk-xs p-bk-sm") : "space-y-bk-xs p-bk-sm"}
+                style={
+                  soft
+                    ? undefined
+                    : {
+                        backgroundColor: ACCENT_TINT,
+                        border: INK_BORDER,
+                        borderRadius: "var(--bk-radius-input, 0.75rem)",
+                      }
+                }
               >
                 <div className="flex items-center justify-between gap-bk-sm">
                   <span className="font-display font-black text-sm bk-caps inline-flex items-center gap-2 tabular-nums">
@@ -1150,6 +1279,30 @@ export function CheckoutFormRender({
 
             {/* Primary CTA with running total. Stays focusable while pending
                 (aria-busy/aria-disabled) so focus isn't dropped mid-submit. */}
+            {soft ? (
+              <button
+                type="submit"
+                className={SOFT_PRIMARY}
+                disabled={items.length === 0}
+                aria-busy={submitting || undefined}
+                aria-disabled={submitting || undefined}
+                aria-describedby={
+                  status === "error" && errorLines.length > 0
+                    ? submitErrorId
+                    : undefined
+                }
+              >
+                <SoftPrimaryBody
+                  label={submitting ? s("placingOrder") : submitLabel}
+                  labelField={namedSubmit ? "submit_label_i18n" : undefined}
+                  sub={
+                    !submitting && items.length > 0 ? <bdi>{formatPrice(total, locale)}</bdi> : undefined
+                  }
+                  rtl={rtl}
+                  busy={submitting}
+                />
+              </button>
+            ) : (
             <ChunkyButton
               type="submit"
               bg="pink"
@@ -1174,7 +1327,7 @@ export function CheckoutFormRender({
                 </>
               ) : (
                 <>
-                  {s("placeOrder")}
+                  {submitLabel}
                   {items.length > 0 && (
                     <>
                       {" — "}
@@ -1187,12 +1340,19 @@ export function CheckoutFormRender({
                 </>
               )}
             </ChunkyButton>
+            )}
+            {!soft && (
             <p className="text-center font-body text-xs text-bk-ink-soft">
               {s("finePrint")}
             </p>
+            )}
 
-            {/* WhatsApp alternative */}
-            {waEnabled && (
+            {/* WhatsApp alternative — soft: the express page's green row,
+                named as its tile is («اطلب عبر واتساب»). */}
+            {waEnabled && soft && (
+              <SoftWhatsappLink href={waHref} label={cs("orderOnWhatsapp", locale)} rtl={rtl} />
+            )}
+            {waEnabled && !soft && (
               <>
                 <div className="my-bk-2xs flex items-center gap-bk-sm">
                   <span
