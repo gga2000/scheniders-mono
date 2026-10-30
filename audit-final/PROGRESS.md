@@ -68,3 +68,6 @@ Each production migration and merge needs Ali's OK (§4 order). Backup: Ali chos
 - Merge card posted for #199, #193, #194 (+ cron migration). #199 and #193 both edit packages/shared/package.json exports; second merge needs re-resolve.
 - 23:14Z Ali chose "Merge all + DB". #194 merged (cb272b9d). Cron migration applied as 20261027231501: 11 jobs left, all active, 0 seed_*; file md5 7af43ac4… = schema_migrations. #199 merged (f353cd99); prod platform/storefront/admin READY on it. #193: exports conflict with #199 resolved (both kept), vitest 481/5645 pass, CI green, merged (f0d9bfd0). #215 renames the cron file to 20261027231501, merged (848c0ceb). Prod deploys for f0d9bfd0/848c0ceb were queued at 23:30Z.
 - Open: #167 waits on TELEGRAM_WEBHOOK_SECRET + Interakt webhook_secret or INTERAKT_WEBHOOK_AUTH_MODE=monitor (Ali). Storage policies still pending Ali's UI change.
+
+## 2026-10-30 storage policies live
+- Ali edited the 6 storage.objects policies in the dashboard (Storage > Policies). Verified via pg_policies 07:22Z: product-images insert/update/delete and qc-evidence insert/delete are TO authenticated with storage_object_writable(bucket_id,name,owner_id); payroll-pdfs ALL is TO authenticated with payroll_pdf_accessible(name). vault_backups policy (accidentally edited, then restored) matches its original super_admin text. #167 parked by Ali.
