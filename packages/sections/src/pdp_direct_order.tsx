@@ -296,6 +296,14 @@ const schema = z.object({
     })
     .optional()
     .catch(undefined),
+
+  // ── Add to cart (opt-in, express only) ──────────────────────────────
+  /** Express: a «أضف للسلة» tile between the WhatsApp tile and the submit.
+   *  It puts the chosen variant and quantity in the store's cart (the
+   *  AddToCart pixel fires, as on pdp_add_to_cart), confirms under the
+   *  buttons with a «شوف السلة» link, and never submits the order.
+   *  Absent = today's row, byte-identical. Classic ignores it. */
+  add_to_cart: z.boolean().optional().catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;

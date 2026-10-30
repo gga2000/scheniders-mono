@@ -5,6 +5,7 @@
 // placing), so the one price on the button can never disagree with the
 // receipt or leave delivery out.
 
+import { useState } from "react";
 import {
   cn,
   IRAQ_GOVERNORATES,
@@ -16,6 +17,7 @@ import { ContactLine } from "../helpers/contact-line";
 import { EXPRESS_SUBMIT_ID, useFormWatched } from "../helpers/express-order-store";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
+import { CartAddedStatus, CartTile } from "./cart-action";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
 import { PromiseBand } from "./promise-band";
@@ -106,6 +108,12 @@ export function CheckoutRow({
   // messages so they stay directly under the submit.
   const band = m.props.promise_layout === "band";
   const idle = !m.oos && !m.submitting;
+  // add_to_cart (slice 1g): the «أضف للسلة» tile between the WhatsApp tile
+  // and the submit, and its confirmation wrapped onto a line of its own
+  // under them. Both live inside this row, so the receipt above and every
+  // block below keep their place (and React's useId paths).
+  const cart = m.props.add_to_cart === true && !m.oos;
+  const [cartAdds, setCartAdds] = useState(0);
   const saving =
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
       ? (m.compareAt - m.price) * m.qty
@@ -178,7 +186,11 @@ export function CheckoutRow({
         />
       </div>
 
-      <div className="flex items-stretch gap-2" data-layer="submit" data-layer-label="Order buttons">
+      <div
+        className={cn("flex items-stretch gap-2", cart && "flex-wrap")}
+        data-layer="submit"
+        data-layer-label="Order buttons"
+      >
         {waHref && (
           <a
             href={waHref}
@@ -193,6 +205,7 @@ export function CheckoutRow({
             </span>
           </a>
         )}
+        {cart && <CartTile m={m} locale={locale} onAdded={() => setCartAdds((n) => n + 1)} />}
         <button
           type="submit"
           id={watched ? EXPRESS_SUBMIT_ID : undefined}
@@ -209,6 +222,9 @@ export function CheckoutRow({
             idle && "hover:bg-bk-primary-hover active:scale-[0.97] active:bg-bk-primary-active active:shadow-none",
             m.submitting && "cursor-progress",
             rtl && "flex-row-reverse",
+            // Three targets in one row: the submit gives up side padding,
+            // never its label, down to 360px.
+            cart && "min-w-0 gap-2 px-3",
           )}
         >
           {idle && (
@@ -240,6 +256,7 @@ export function CheckoutRow({
             </span>
           )}
         </button>
+        {cart && <CartAddedStatus adds={cartAdds} locale={locale} />}
       </div>
 
       {!band && m.reassurance && (
