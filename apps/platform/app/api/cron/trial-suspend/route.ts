@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { EXEMPT_PLANS_SQL_LIST } from "@/lib/billing-exempt";
 
@@ -14,11 +15,10 @@ export const maxDuration = 30;
  * whose trial_ends_at is in the past.
  */
 export async function GET(request: Request) {
-    // Verify cron secret (Vercel sends this header)
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // With CRON_SECRET unset the old inline check compared against the
+    // literal "Bearer undefined"; the shared helper fails closed instead.
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
 
     const now = new Date().toISOString();
 

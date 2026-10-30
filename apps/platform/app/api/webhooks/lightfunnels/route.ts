@@ -34,8 +34,9 @@ export async function POST(request: NextRequest) {
         // webhooks registered through the LightFunnels API), the shared secret in
         // `x-webhook-secret`, or the shared secret as `?token=` — the form a
         // dashboard automation can carry, since it has no header field. Missing
-        // credentials are processed-and-logged in monitor mode and refused in
-        // enforce mode; a wrong one is refused in both. See lib/webhook-auth.ts.
+        // credentials, or no secret configured, are refused unless the
+        // explicit monitor opt-out is set; a wrong one is always refused. See
+        // lib/webhook-auth.ts.
         const rawBody = await request.text();
         const authResult = verifyWebhookAuth(
             { headers: request.headers, url: request.url, rawBody },

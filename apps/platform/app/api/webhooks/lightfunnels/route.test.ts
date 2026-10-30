@@ -50,14 +50,35 @@ describe("POST /api/webhooks/lightfunnels — auth", () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    it("monitor (default): processes a request with no credential and logs it", async () => {
+    it("default (no mode set, as in production): refuses a request with no credential (NEW-P1-07)", async () => {
         setEnv({ LIGHTFUNNELS_WEBHOOK_SECRET: SECRET });
-        const res = await post();
-        const out = await POST(res);
+        const out = await POST(post());
+        expect(out.status).toBe(401);
+        expect(mocks.createOrderFromWebhook).not.toHaveBeenCalled();
+        expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
+    });
+
+    it("default: refuses everything with 503 when no secret is configured", async () => {
+        setEnv({});
+        const out = await POST(post({ query: "token=anything" }));
+        expect(out.status).toBe(503);
+        expect(mocks.createOrderFromWebhook).not.toHaveBeenCalled();
+    });
+
+    it("default: accepts the correct ?token=", async () => {
+        setEnv({ LIGHTFUNNELS_WEBHOOK_SECRET: SECRET });
+        const out = await POST(post({ query: `token=${SECRET}` }));
         expect(out.status).toBe(201);
         expect(mocks.createOrderFromWebhook).toHaveBeenCalledWith({ order_number: "order_1" }, TENANT);
-        const warned = vi.mocked(console.warn).mock.calls.map(c => String(c[0]));
-        expect(warned.some(l => l.includes(`"outcome":"missing"`) && l.includes(`"action":"accepted_unauthenticated"`))).toBe(true);
+    });
+
+    it("explicit monitor opt-out: processes a request with no credential and logs an error", async () => {
+        setEnv({ LIGHTFUNNELS_WEBHOOK_SECRET: SECRET, LIGHTFUNNELS_WEBHOOK_AUTH_MODE: "monitor" });
+        const out = await POST(post());
+        expect(out.status).toBe(201);
+        expect(mocks.createOrderFromWebhook).toHaveBeenCalledWith({ order_number: "order_1" }, TENANT);
+        const logged = vi.mocked(console.error).mock.calls.map(c => String(c[0]));
+        expect(logged.some(l => l.includes(`"outcome":"missing"`) && l.includes(`"action":"accepted_unauthenticated"`))).toBe(true);
     });
 
     it("monitor: refuses a wrong token", async () => {
@@ -68,7 +89,7 @@ describe("POST /api/webhooks/lightfunnels — auth", () => {
     });
 
     it("monitor: refuses a wrong x-webhook-secret header", async () => {
-        setEnv({ LIGHTFUNNELS_WEBHOOK_SECRET: SECRET });
+        setEnv({ LIGHTFUNNELS_WEBHOOK_SECRET: SECRET, WEBHOOK_AUTH_MODE: "monitor" });
         const out = await POST(post({ headers: { "x-webhook-secret": "wrong" } }));
         expect(out.status).toBe(401);
         expect(mocks.createOrderFromWebhook).not.toHaveBeenCalled();
@@ -84,7 +105,7 @@ describe("POST /api/webhooks/lightfunnels — auth", () => {
     it("enforce: refuses everything when no secret is configured (fails closed)", async () => {
         setEnv({ LIGHTFUNNELS_WEBHOOK_AUTH_MODE: "enforce" });
         const out = await POST(post({ query: "token=anything" }));
-        expect(out.status).toBe(401);
+        expect(out.status).toBe(503);
         expect(mocks.createOrderFromWebhook).not.toHaveBeenCalled();
     });
 

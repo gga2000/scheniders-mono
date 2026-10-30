@@ -194,8 +194,12 @@ describe("verifyWebhookAuth — lightfunnels-hmac", () => {
 });
 
 describe("resolveWebhookAuthMode", () => {
-    it("defaults to monitor", () => {
-        expect(resolveWebhookAuthMode(undefined, undefined)).toBe("monitor");
+    it("defaults to enforce: monitor must be opted into by name (NEW-P1-06/07)", () => {
+        expect(resolveWebhookAuthMode(undefined, undefined)).toBe("enforce");
+    });
+    it("honours an explicit monitor opt-out", () => {
+        expect(resolveWebhookAuthMode(undefined, "monitor")).toBe("monitor");
+        expect(resolveWebhookAuthMode("monitor", undefined)).toBe("monitor");
     });
     it("uses the global flag", () => {
         expect(resolveWebhookAuthMode(undefined, "enforce")).toBe("enforce");
@@ -231,11 +235,11 @@ describe("enforceWebhookAuth", () => {
         expect(logged(error)).toMatchObject({ outcome: "invalid", action: "rejected", method: "header" });
     });
 
-    it.each(["missing", "unconfigured"] as const)("monitor mode processes a %s request and warns loudly", status => {
-        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    it.each(["missing", "unconfigured"] as const)("the monitor opt-out processes a %s request and logs it as an error", status => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
         const res = enforceWebhookAuth("/api/webhooks/lightfunnels", request, { status, ...presence }, "monitor");
         expect(res).toBeNull();
-        expect(logged(warn)).toEqual({
+        expect(logged(error)).toEqual({
             event: "webhook_auth",
             route: "/api/webhooks/lightfunnels",
             mode: "monitor",
@@ -248,15 +252,29 @@ describe("enforceWebhookAuth", () => {
         });
     });
 
-    it.each(["missing", "unconfigured"] as const)("enforce mode returns 401 for a %s request", status => {
+    it("enforce mode returns 401 for a request with no credential", () => {
         const error = vi.spyOn(console, "error").mockImplementation(() => {});
-        const res = enforceWebhookAuth("/r", request, { status, ...presence }, "enforce");
+        const res = enforceWebhookAuth("/r", request, { status: "missing", ...presence }, "enforce");
         expect(res?.status).toBe(401);
-        expect(logged(error)).toMatchObject({ outcome: status, action: "rejected" });
+        expect(logged(error)).toMatchObject({ outcome: "missing", action: "rejected" });
+    });
+
+    it("enforce mode returns 503 when no secret is configured (fails closed)", () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
+        const res = enforceWebhookAuth("/r", request, { status: "unconfigured", ...presence }, "enforce");
+        expect(res?.status).toBe(503);
+        expect(logged(error)).toMatchObject({ outcome: "unconfigured", action: "rejected" });
+    });
+
+    it("the default mode rejects a request with no credential", () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        const mode = resolveWebhookAuthMode(undefined, undefined);
+        expect(enforceWebhookAuth("/r", request, { status: "missing", ...presence }, mode)?.status).toBe(401);
+        expect(enforceWebhookAuth("/r", request, { status: "unconfigured", ...presence }, mode)?.status).toBe(503);
     });
 
     it("never logs a credential value", () => {
-        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        const warn = vi.spyOn(console, "error").mockImplementation(() => {});
         const r = verifyWebhookAuth(
             { headers: new Headers({ "x-webhook-secret": "leaky-value" }), url: `${BASE}?token=leaky-token`, rawBody: "{}" },
             { sharedSecret: undefined, secretHeaders: ["x-webhook-secret"] },

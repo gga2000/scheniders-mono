@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { EXEMPT_PLANS_SQL_LIST, isBillingExempt } from "@/lib/billing-exempt";
 
@@ -46,10 +47,10 @@ const renewResultSchema = z.object({
  * unique index on the per-period reference backs this up in the ledger.
  */
 export async function GET(request: Request) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // With CRON_SECRET unset the old inline check compared against the
+    // literal "Bearer undefined"; the shared helper fails closed instead.
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
 
     const now = new Date().toISOString();
     const results: RenewalResult[] = [];

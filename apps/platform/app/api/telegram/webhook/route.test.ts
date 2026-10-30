@@ -61,6 +61,11 @@ class FakeQuery implements PromiseLike<{ data: Row[] | null; error: null }> {
     }
 }
 
+// The webhook fails closed without its secret (route.auth.test.ts), so these
+// updates carry the registered one.
+const SECRET = vi.hoisted(() => "tg-secret");
+vi.mock("@/lib/env", () => ({ env: { TELEGRAM_WEBHOOK_SECRET: SECRET } }));
+
 vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: () => ({ from: (table: string) => new FakeQuery(table) }),
 }));
@@ -129,6 +134,7 @@ function linkTelegramUser() {
 function update(text: string) {
     return new NextRequest("http://x/api/telegram/webhook", {
         method: "POST",
+        headers: { "x-telegram-bot-api-secret-token": SECRET },
         body: JSON.stringify({
             update_id: 1,
             message: { message_id: 10, from: { id: TG_USER }, chat: { id: 1 }, text },
@@ -137,7 +143,6 @@ function update(text: string) {
 }
 
 beforeEach(() => {
-    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "");
     state.upserts = [];
     state.sent = [];
     state.createOrder.mockReset();

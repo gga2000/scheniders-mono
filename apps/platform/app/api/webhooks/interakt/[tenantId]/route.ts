@@ -88,9 +88,10 @@ export async function POST(
         // Authenticate. The tenant's `credentials.webhook_secret` is both the
         // Interakt "Secret Key" (Interakt signs every delivery with it as
         // `Interakt-Signature: sha256=<hex HMAC of the body>`) and the shared
-        // secret accepted from a header or `?token=`. Missing credentials are
-        // processed-and-logged in monitor mode and refused in enforce mode; a
-        // wrong one is refused in both. See lib/webhook-auth.ts.
+        // secret accepted from a header or `?token=`. Missing credentials, or a
+        // tenant with no webhook_secret, are refused unless the explicit
+        // monitor opt-out is set; a wrong one is always refused. See
+        // lib/webhook-auth.ts.
         const credentials = integration.credentials as Record<string, unknown> | null;
         const webhookSecret =
             typeof credentials?.webhook_secret === "string" && credentials.webhook_secret

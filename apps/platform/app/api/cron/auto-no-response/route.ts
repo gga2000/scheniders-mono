@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 // Create admin client for server-side operations
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,29 +16,11 @@ export const maxDuration = 30; // 30 seconds max
  */
 export async function GET(request: Request) {
     try {
-        // Verify cron secret for security (optional but recommended)
-        const authHeader = request.headers.get('authorization');
-        // Fails closed: an unset secret means misconfigured, not public. The
-        // x-vercel-cron fallback below is kept because this route is genuinely
-        // scheduled, but it is only consulted AFTER a secret is known to be
-        // configured — an inbound header alone can no longer authorise a
-        // service-role status sweep.
-        const cronSecret = env.CRON_SECRET;
-        if (!cronSecret) {
-            console.error('[Cron: auto-no-response] CRON_SECRET is not set — refusing to run.');
-            return NextResponse.json({ error: 'Endpoint is not configured.' }, { status: 503 });
-        }
-
-        if (authHeader !== `Bearer ${cronSecret}`) {
-            // Allow Vercel's internal cron requests
-            const isVercelCron = request.headers.get('x-vercel-cron') === '1';
-            if (!isVercelCron) {
-                return NextResponse.json(
-                    { error: 'Unauthorized' },
-                    { status: 401 }
-                );
-            }
-        }
+        // Fails closed. The `x-vercel-cron: 1` fallback that used to sit here
+        // let anyone who sent that header run a service-role status sweep
+        // (NEW-P1-14); Vercel Cron sends `Authorization: Bearer $CRON_SECRET`.
+        const denied = requireCronAuth(request);
+        if (denied) return denied;
 
         // Create Supabase client
         const supabase = createClient(supabaseUrl, supabaseServiceKey);

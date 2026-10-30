@@ -89,31 +89,46 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    it("monitor: no webhook_secret configured — still confirms (today's traffic) and logs unconfigured", async () => {
+    it("default (no mode set, as in production): no webhook_secret configured fails closed with 503 (NEW-P1-06)", async () => {
         configure({}, { api_key: "k" });
         const res = await call();
-        expect(res.status).toBe(200);
-        expect(confirmedOrder()).toBe(true);
-        const warned = vi.mocked(console.warn).mock.calls.map(c => String(c[0]));
-        expect(warned.some(l => l.includes(`"outcome":"unconfigured"`))).toBe(true);
+        expect(res.status).toBe(503);
+        expect(confirmedOrder()).toBe(false);
     });
 
-    it("monitor: secret configured but none presented — processes and logs missing", async () => {
+    it("default: secret configured but none presented is refused", async () => {
         configure({}, { webhook_secret: SECRET });
+        const res = await call();
+        expect(res.status).toBe(401);
+        expect(confirmedOrder()).toBe(false);
+    });
+
+    it("default: a valid Interakt-Signature is accepted", async () => {
+        configure({}, { webhook_secret: SECRET });
+        const sig = createHmac("sha256", SECRET).update(BODY).digest("hex");
+        const res = await call({ headers: { "Interakt-Signature": `sha256=${sig}` } });
+        expect(res.status).toBe(200);
+        expect(confirmedOrder()).toBe(true);
+    });
+
+    it("explicit monitor opt-out: no webhook_secret configured still confirms and logs an error", async () => {
+        configure({ INTERAKT_WEBHOOK_AUTH_MODE: "monitor" }, { api_key: "k" });
         const res = await call();
         expect(res.status).toBe(200);
         expect(confirmedOrder()).toBe(true);
+        const logged = vi.mocked(console.error).mock.calls.map(c => String(c[0]));
+        expect(logged.some(l => l.includes(`"outcome":"unconfigured"`) && l.includes(`"action":"accepted_unauthenticated"`))).toBe(true);
     });
 
     it("monitor: a wrong token is refused and the order is untouched", async () => {
-        configure({}, { webhook_secret: SECRET });
+        configure({ INTERAKT_WEBHOOK_AUTH_MODE: "monitor" }, { webhook_secret: SECRET });
         const res = await call({ query: "token=wrong" });
         expect(res.status).toBe(401);
         expect(confirmedOrder()).toBe(false);
     });
 
     it("monitor: a forged Interakt-Signature is refused", async () => {
-        configure({}, { webhook_secret: SECRET });
+        configure({ INTERAKT_WEBHOOK_AUTH_MODE: "monitor" }, { webhook_secret: SECRET });
         const res = await call({ headers: { "Interakt-Signature": "sha256=deadbeef" } });
         expect(res.status).toBe(401);
         expect(confirmedOrder()).toBe(false);
@@ -129,7 +144,7 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     it("enforce: no webhook_secret configured fails closed", async () => {
         configure({ WEBHOOK_AUTH_MODE: "enforce" }, {});
         const res = await call({ query: "token=anything" });
-        expect(res.status).toBe(401);
+        expect(res.status).toBe(503);
         expect(confirmedOrder()).toBe(false);
     });
 
@@ -149,8 +164,8 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     });
 
     it("stamps the route's tenant on the history and inbound whatsapp_logs rows (NEW-P1-17)", async () => {
-        configure({}, { api_key: "k" });
-        await call();
+        configure({}, { api_key: "k", webhook_secret: SECRET });
+        await call({ query: `token=${SECRET}` });
         const history = state.inserts.filter(i => i.table === "order_status_history");
         const logs = state.inserts.filter(i => i.table === "whatsapp_logs");
         expect(history).toHaveLength(1);

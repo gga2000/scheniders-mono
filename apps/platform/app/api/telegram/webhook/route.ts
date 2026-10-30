@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { env } from "@/lib/env";
+import { constantTimeEqual } from "@/lib/webhook-auth";
 import { extractOrderFromImage } from "@/lib/gemini-order-extractor";
 import {
     sendMessage,
@@ -77,12 +79,19 @@ interface EmployeeLink {
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-    const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
-    if (expected) {
-        const got = req.headers.get("x-telegram-bot-api-secret-token");
-        if (got !== expected) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+    // Fails closed (NEW-P1-08). This checked the secret only `if (expected)`,
+    // and the secret was never set in production, so any POST with a forged
+    // update reached the order-creating handlers. Telegram sends the value
+    // registered through setWebhook's `secret_token` in this header; with no
+    // secret configured the endpoint is misconfigured, not public.
+    const expected = env.TELEGRAM_WEBHOOK_SECRET;
+    if (!expected) {
+        console.error("[telegram] TELEGRAM_WEBHOOK_SECRET is not set — refusing the update.");
+        return NextResponse.json({ error: "Webhook is not configured." }, { status: 503 });
+    }
+    const got = req.headers.get("x-telegram-bot-api-secret-token");
+    if (got === null || !constantTimeEqual(got, expected)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     let update: TgUpdate;
