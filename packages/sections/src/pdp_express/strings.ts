@@ -162,6 +162,11 @@ export const EXPRESS_STRINGS = {
   scentStory: { en: "The scent’s story", ar: "قصة العطر", ku: "چیرۆکی بۆنەکە" },
   meterValue: { en: "{value} of {max}", ar: "{value} من {max}", ku: "{value} لە {max}" },
   closeSheet: { en: "Close", ar: "إغلاق", ku: "داخستن" },
+  // add_to_cart (slice 1g): the cart tile beside the submit, and the line
+  // under the order buttons once a tap has put the perfume in the cart.
+  addToCart: { en: "Add to cart", ar: "أضف للسلة", ku: "خستنە سەبەتە" },
+  addedToCart: { en: "Added to your cart", ar: "انضافت للسلة", ku: "خرایە سەبەتەکەوە" },
+  viewCart: { en: "View cart", ar: "شوف السلة", ku: "سەبەتەکە ببینە" },
 } as const;
 
 export type ExpressStringKey = keyof typeof EXPRESS_STRINGS;

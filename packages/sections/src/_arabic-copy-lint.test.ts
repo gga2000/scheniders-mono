@@ -152,5 +152,7 @@ describe("one name per action", () => {
     expect(FAQ_STRINGS.call.ar).toBe(COPY_ACTIONS.call);
     expect(EXPRESS_STRINGS.saveNumber.ar).toBe(COPY_ACTIONS.saveNumber);
     expect(REDESIGN.SLICE_1D_ACCORDION_PATCH.heading_i18n.ar).toBe(COPY_ACTIONS.guarantee);
+    expect(EXPRESS_STRINGS.addToCart.ar).toBe(COPY_ACTIONS.addToCart);
+    expect(EXPRESS_STRINGS.viewCart.ar).toBe(COPY_ACTIONS.viewCart);
   });
 });
