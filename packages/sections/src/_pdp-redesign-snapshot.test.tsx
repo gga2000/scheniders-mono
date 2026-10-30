@@ -14,8 +14,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { LocaleCode } from "@scheniders/shared";
 import { StoreBaseProvider } from "./helpers/store-context";
 import accordion_richtext from "./accordion_richtext";
+import faq_contact_split from "./faq_contact_split";
 import image_gallery from "./image_gallery";
 import pdp_direct_order from "./pdp_direct_order";
+import product_reviews from "./product_reviews";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 import {
@@ -26,13 +28,18 @@ import {
   saleProduct,
 } from "./_pdp-fixtures";
 import { scentProduct } from "./_pdp-scent-fixtures";
-import { wayferProduct } from "./_pdp-wayfer-fixtures";
+import { WAYFER_REVIEWS, wayferProduct } from "./_pdp-wayfer-fixtures";
+import { IRAQ_TENANT } from "./_pdp-lower-fixtures";
 import {
   IRAQ_DRAFT_ACCORDION_BASE,
+  IRAQ_DRAFT_FAQ_BASE,
   IRAQ_DRAFT_GALLERY_BASE,
+  IRAQ_DRAFT_REVIEWS_BASE,
   IRAQ_REDESIGN_ACCORDION_INPUT,
+  IRAQ_REDESIGN_FAQ_INPUT,
   IRAQ_REDESIGN_GALLERY_INPUT,
   IRAQ_REDESIGN_PDP_PROPS,
+  IRAQ_REDESIGN_REVIEWS_INPUT,
   IRAQ_REDESIGN_TENANT,
   IRAQ_RETURN_WORDING,
   SLICE_1B_CONTACT_PATCH,
@@ -42,6 +49,9 @@ import {
   SLICE_1D_ACCORDION_REMOVE,
   SLICE_1D_GALLERY_PATCH,
   SLICE_1D_PDP_PATCH,
+  SLICE_1E_FAQ_PATCH,
+  SLICE_1E_PDP_PATCH,
+  SLICE_1E_REVIEWS_PATCH,
 } from "./_pdp-redesign-fixtures";
 
 const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
@@ -113,6 +123,32 @@ describe("redesign fixtures mirror the draft migrations", () => {
     expect(image_gallery.schema.parse(IRAQ_REDESIGN_GALLERY_INPUT)).toEqual(IRAQ_REDESIGN_GALLERY_INPUT);
     expect(accordion_richtext.schema.parse(IRAQ_REDESIGN_ACCORDION_INPUT)).toEqual(IRAQ_REDESIGN_ACCORDION_INPUT);
     expect(IRAQ_REDESIGN_ACCORDION_INPUT).not.toHaveProperty("call_row");
+  });
+
+  it("slice 1e patches: product_reviews, faq_contact_split, pdp_direct_order", () => {
+    const sql1e = migrationSql("scheniders_iraq_pdp_redesign_1e_draft");
+    expect(migrationJson(sql1e, "reviews_patch")).toEqual(SLICE_1E_REVIEWS_PATCH);
+    expect(migrationJson(sql1e, "faq_patch")).toEqual(SLICE_1E_FAQ_PATCH);
+    expect(migrationJson(sql1e, "pdp_patch")).toEqual(SLICE_1E_PDP_PATCH);
+  });
+
+  it("the 1e reviews and FAQ parse to exactly what is stored", () => {
+    expect(product_reviews.schema.parse(IRAQ_REDESIGN_REVIEWS_INPUT)).toEqual(IRAQ_REDESIGN_REVIEWS_INPUT);
+    expect(faq_contact_split.schema.parse(IRAQ_REDESIGN_FAQ_INPUT)).toEqual(IRAQ_REDESIGN_FAQ_INPUT);
+  });
+
+  it("every curated key phrase is a verbatim part of its approved review", () => {
+    for (const c of SLICE_1E_REVIEWS_PATCH.review_curation) {
+      const review = WAYFER_REVIEWS.find((r) => r.id === c.review_id);
+      expect(review?.body ?? "").toContain(c.highlight);
+    }
+    expect(new Set(SLICE_1E_REVIEWS_PATCH.review_curation.map((c) => c.review_id)).size).toBe(WAYFER_REVIEWS.length);
+  });
+
+  it("the FAQ patch only retitles the contact: icon, CTA label and number unchanged", () => {
+    const { title_i18n: _t, sub_i18n: _s, ...rest } = SLICE_1E_FAQ_PATCH.contact;
+    const { title_i18n: _bt, sub_i18n: _bs, ...baseRest } = IRAQ_DRAFT_FAQ_BASE.contact;
+    expect(rest).toEqual(baseRest);
   });
 
   it("the patched props satisfy the schema unchanged", () => {
@@ -201,5 +237,62 @@ describe("image_gallery + accordion_richtext — redesign draft (slice 1d)", () 
     expect(dirs(renderGallery(IRAQ_REDESIGN_GALLERY_INPUT, "ar"))).toBe(0);
     expect(dirs(renderAccordion(IRAQ_DRAFT_ACCORDION_BASE, "ar"))).toBe(5);
     expect(dirs(renderAccordion(IRAQ_REDESIGN_ACCORDION_INPUT, "ar"))).toBe(0);
+  });
+});
+
+describe("product_reviews + faq_contact_split — redesign draft (slice 1e)", () => {
+  function renderReviews(input: unknown, locale: LocaleCode): string {
+    return renderToStaticMarkup(
+      <StoreBaseProvider base="/s/fixture-store">
+        <product_reviews.render
+          props={product_reviews.schema.parse(input)}
+          ctx={productCtx(wayferProduct, { tenant: IRAQ_REDESIGN_TENANT, runtime: { ...productRuntime, locale } })}
+        />
+      </StoreBaseProvider>,
+    );
+  }
+
+  function renderFaq(input: unknown, locale: LocaleCode, product: Product = wayferProduct): string {
+    return renderToStaticMarkup(
+      <StoreBaseProvider base="/s/fixture-store">
+        <faq_contact_split.render
+          props={faq_contact_split.schema.parse(input)}
+          ctx={productCtx(product, { tenant: IRAQ_TENANT, runtime: { ...productRuntime, locale } })}
+        />
+      </StoreBaseProvider>,
+    );
+  }
+
+  it.each(["ar", "en"] as const)("reviews highlights, %s", (locale) => {
+    expect(renderReviews(IRAQ_REDESIGN_REVIEWS_INPUT, locale)).toMatchSnapshot();
+  });
+
+  it.each(["ar", "en"] as const)("FAQ contact row (Wayfarer today: 0 of 2 answered), %s", (locale) => {
+    expect(renderFaq(IRAQ_REDESIGN_FAQ_INPUT, locale)).toMatchSnapshot();
+  });
+
+  it("FAQ with both answers (after to-do 2), ar", () => {
+    expect(renderFaq(IRAQ_REDESIGN_FAQ_INPUT, "ar", { ...scentProduct, size_ml: 100 })).toMatchSnapshot();
+  });
+
+  it("the identity row and the scent card link to the summary card the reviews render", () => {
+    const pdp = renderToStaticMarkup(
+      <StoreBaseProvider base="/s/fixture-store">
+        <pdp_direct_order.render props={IRAQ_REDESIGN_PDP_PROPS} ctx={productCtx(wayferProduct, { tenant: IRAQ_REDESIGN_TENANT })} />
+      </StoreBaseProvider>,
+    );
+    expect(pdp).toContain('data-rating-link="summary"');
+    expect(pdp).toContain('data-scent-rating="link"');
+    expect(pdp.split('href="#reviews-summary"').length - 1).toBe(2);
+    expect(renderReviews(IRAQ_REDESIGN_REVIEWS_INPUT, "ar")).toContain('id="reviews-summary"');
+  });
+
+  it("the old «عندك استفسار؟» card is gone; no section adds a dir attribute", () => {
+    const dirs = (html: string) => html.split('dir="').length - 1;
+    expect(renderFaq(IRAQ_REDESIGN_FAQ_INPUT, "ar")).not.toContain("عندك استفسار؟");
+    expect(dirs(renderFaq(IRAQ_DRAFT_FAQ_BASE, "ar"))).toBe(4);
+    expect(dirs(renderFaq(IRAQ_REDESIGN_FAQ_INPUT, "ar"))).toBe(0);
+    expect(dirs(renderReviews(IRAQ_DRAFT_REVIEWS_BASE, "ar"))).toBe(0);
+    expect(dirs(renderReviews(IRAQ_REDESIGN_REVIEWS_INPUT, "ar"))).toBe(0);
   });
 });

@@ -399,14 +399,6 @@ export const IRAQ_REDESIGN_ACCORDION_INPUT = jsonbMerge(
   SLICE_1D_ACCORDION_REMOVE,
 );
 
-/** The draft pdp_direct_order after slices 1b, 1c and 1d. */
-export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
-  ...EXPRESS_IRAQ_DRAFT_PDP_PROPS,
-  ...SLICE_1B_PDP_PATCH,
-  ...SLICE_1C_PDP_PATCH,
-  ...SLICE_1D_PDP_PATCH,
-};
-
 /** scheniders-iraq's draft product_reviews 1ab3ee76 base before slice 1e
  *  (read 2026-10-30, base md5 bf9602243bac84ce250199f7f692df02). */
 export const IRAQ_DRAFT_REVIEWS_BASE: ReviewsProps = {
@@ -466,4 +458,97 @@ export const IRAQ_DRAFT_FAQ_BASE: FaqProps = {
   eyebrow_i18n: { ar: "أسئلة و أجوبة", en: "Questions & answers" },
   row_icon_url:
     "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public/tenant-assets/store-templates/scheniders/73c12b05-fbb5-4cc7-9a75-f61094855221.svg",
+};
+
+/** Slice 1e: the identity row's rating becomes the link to the reviews
+ *  summary (1b shipped the prop; its target, #reviews-summary, arrives
+ *  with the highlights layout). The scent card's footer rating links too. */
+export const SLICE_1E_PDP_PATCH = {
+  identity_rating: "summary_link",
+} satisfies Partial<PdpDirectOrderProps>;
+
+/** Wayfarer's six approved reviews (live ids, read 2026-10-30). */
+export const WAYFER_REVIEW_IDS = {
+  ahmed: "cd25b071-10d9-4de5-a324-ea6a0793559b",
+  hazem: "fcd04048-2a8c-4377-a5c3-2e7f7c20b628",
+  yassin: "aeb344f2-8597-45f7-b639-99973d6f1a6f",
+  saif: "6881921e-d263-4780-8878-762e01904146",
+  mustafa: "b4f6b842-2e63-465b-8d11-3dc15039ed68",
+  alshemmari: "d7c511e8-f208-4956-b7e2-a9a8f85be05e",
+} as const;
+
+/** Slice 1e: the keys the 1e draft migration merges into product_reviews'
+ *  base. The key phrases are verbatim parts of each body (concept g3 B's
+ *  three, drafted for the other three); Ali confirms them (to-do 14). No
+ *  rank (D10 already puts Ahmed last) and no reply (to-do 1: Ali writes
+ *  it; until then nothing renders). */
+export const SLICE_1E_REVIEWS_PATCH = {
+  layout: "highlights",
+  heading_i18n: { ar: "شنو گالوا اللي جرّبوه", en: "What people who tried it said" },
+  form_entry: "hash_only",
+  visible_count: 3,
+  heading_style: "chapter",
+  theme_words: [
+    { key: "longevity", label_i18n: { ar: "الثبات", en: "Longevity" }, match_terms: ["ثبات"] },
+    { key: "tester", label_i18n: { ar: "التيستر", en: "The tester" }, match_terms: ["تيستر"] },
+    { key: "luxury", label_i18n: { ar: "فخامة", en: "Luxury" }, match_terms: ["فخم"] },
+    {
+      key: "packaging",
+      label_i18n: { ar: "العلبة والتغليف", en: "Box and packaging" },
+      match_terms: ["تغليف", "علبه"],
+    },
+  ],
+  review_curation: [
+    { review_id: WAYFER_REVIEW_IDS.alshemmari, highlight: "بس وصلتني العلبة مرتبة والتيستر فكرة تخبل" },
+    { review_id: WAYFER_REVIEW_IDS.hazem, highlight: "هذا ثاني عطر اطلبه منهم" },
+    { review_id: WAYFER_REVIEW_IDS.mustafa, highlight: "العطر صدمني بثباته" },
+    {
+      review_id: WAYFER_REVIEW_IDS.saif,
+      highlight: "كله اشتري عطور بمية ومية وخمسين بس ممحصل منهم بكد ثبات هذا الويفر",
+    },
+    { review_id: WAYFER_REVIEW_IDS.yassin, highlight: "اشتريته وخليته بالسيارة بنفس اليوم قطوه مني" },
+    { review_id: WAYFER_REVIEW_IDS.ahmed, highlight: "العطر كلش راقي وثباته يطول يوم كامل على الملابس" },
+  ],
+} satisfies Partial<ReviewsProps>;
+
+/** Slice 1e: the keys the 1e draft migration merges into faq_contact_split's
+ *  base. `contact` is restated whole (jsonb `||` replaces the object):
+ *  only its title and sub change. The four store questions stay in
+ *  `items` and no longer render (their answers live in «كرت الضمان»). */
+export const SLICE_1E_FAQ_PATCH = {
+  product_faq: {
+    title_i18n: { ar: "أسئلة قبل لا تطلب", en: "Before you order" },
+    items: [
+      {
+        q_i18n: { ar: "شكد يثبت؟", en: "How long does it last?" },
+        answer: { kind: "attribute", key: "longevity_note" },
+      },
+      {
+        q_i18n: { ar: "شكد حجم القنينة؟", en: "How big is the bottle?" },
+        answer: { kind: "size_ml" },
+      },
+    ],
+  },
+  contact_style: "row",
+  heading_style: "chapter",
+  contact: {
+    ...IRAQ_DRAFT_FAQ_BASE.contact,
+    title_i18n: { ar: "محتار بالريحة؟ نوصفلك ياها", en: "Not sure about the scent? We'll describe it" },
+    sub_i18n: { ar: "نفس الرقم للاتصال والواتساب", en: "Same number for calls and WhatsApp" },
+  },
+} satisfies Partial<FaqProps>;
+
+/** The draft product_reviews after slice 1e (unparsed, as stored). */
+export const IRAQ_REDESIGN_REVIEWS_INPUT = jsonbMerge(IRAQ_DRAFT_REVIEWS_BASE, SLICE_1E_REVIEWS_PATCH);
+
+/** The draft faq_contact_split after slice 1e (unparsed, as stored). */
+export const IRAQ_REDESIGN_FAQ_INPUT = jsonbMerge(IRAQ_DRAFT_FAQ_BASE, SLICE_1E_FAQ_PATCH);
+
+/** The draft pdp_direct_order after slices 1b, 1c, 1d and 1e. */
+export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
+  ...EXPRESS_IRAQ_DRAFT_PDP_PROPS,
+  ...SLICE_1B_PDP_PATCH,
+  ...SLICE_1C_PDP_PATCH,
+  ...SLICE_1D_PDP_PATCH,
+  ...SLICE_1E_PDP_PATCH,
 };
