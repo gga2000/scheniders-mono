@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useMemo } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Package, Search, X, Check, Plus, Minus, ChevronDown, ChevronLeft, Layers } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -225,30 +224,17 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
         (sum, { product, quantity }) => sum + (product.price * quantity), 0
     );
 
-    // Need to check for client-side rendering for portal
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!open || !mounted) return null;
-
-    const modalContent = (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 flex items-center justify-center p-4"
-                style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}
-                onClick={handleClose}
-            >
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-[var(--card-border)] flex flex-col"
+    // A Radix dialog, not a bare body portal: opened over another Radix
+    // dialog (order details, the Replace sheet) it joins that dialog's layer
+    // stack, so it receives pointer events and focus instead of passing
+    // clicks through to the dialog underneath.
+    return (
+        <DialogPrimitive.Root open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+            <DialogPrimitive.Portal>
+                <DialogPrimitive.Overlay className="fixed inset-0 z-[9999] bg-black/50 data-[state=open]:animate-fade-in" />
+                <DialogPrimitive.Content
+                    aria-describedby={undefined}
+                    className="fixed left-1/2 top-1/2 z-[9999] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-[var(--card-border)] bg-white shadow-2xl data-[state=open]:animate-fade-in"
                     style={{ maxHeight: 'min(80vh, 600px)' }}
                 >
                     {/* Header */}
@@ -258,7 +244,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 <Package className="w-4 h-4 text-green-700" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-foreground">{t("orders.productPicker.title")}</h3>
+                                <DialogPrimitive.Title className="font-bold text-foreground">{t("orders.productPicker.title")}</DialogPrimitive.Title>
                                 <p className="text-xs text-muted">{totalShown} {t("orders.productPicker.product")} • {totalSelected} {t("orders.productPicker.selected")}</p>
                             </div>
                         </div>
@@ -369,10 +355,8 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                             </button>
                         </div>
                     </div>
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
+                </DialogPrimitive.Content>
+            </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
     );
-
-    return createPortal(modalContent, document.body);
 }

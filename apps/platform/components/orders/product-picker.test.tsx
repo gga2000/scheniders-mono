@@ -23,6 +23,7 @@ vi.mock("@/hooks/use-recent-order-lines", () => ({
     useRecentOrderLines: () => ({ data: recentLines }),
 }));
 
+import { Dialog, DialogContent, DialogTitle } from "@scheniders/ui/dialog";
 import { ProductPicker } from "./product-picker";
 
 function makeProduct(over: Partial<Product> & { id: string; name: string }): Product {
@@ -204,5 +205,36 @@ describe("ProductPicker top-seller ordering", () => {
         renderPicker();
         fireEvent.change(screen.getByRole("textbox"), { target: { value: "باء" } });
         expect(shownNames()).toEqual([B.name]);
+    });
+});
+
+describe("ProductPicker over another dialog", () => {
+    /** The pointer-events value an element really gets: its own, or the nearest ancestor's. */
+    const effectivePointerEvents = (el: HTMLElement | null): string => {
+        for (let node = el; node; node = node.parentElement) {
+            if (node.style.pointerEvents) return node.style.pointerEvents;
+        }
+        return "auto";
+    };
+
+    it("takes clicks when opened over a modal dialog (Replace sheet, order details)", () => {
+        setProducts([MAIN]);
+        const screenWithPicker = (pickerOpen: boolean) => (
+            <>
+                <Dialog open>
+                    <DialogContent>
+                        <DialogTitle>order</DialogTitle>
+                    </DialogContent>
+                </Dialog>
+                <ProductPicker open={pickerOpen} onClose={vi.fn()} onSelect={vi.fn()} />
+            </>
+        );
+        // As in the app: the dialog underneath is already open when "add product" opens the picker.
+        const { rerender } = render(screenWithPicker(false));
+        rerender(screenWithPicker(true));
+
+        expect(document.body.style.pointerEvents).toBe("none");
+        const picker = screen.getByRole("dialog", { name: "orders.productPicker.title" });
+        expect(effectivePointerEvents(within(picker).getByText("انفوي بلو"))).toBe("auto");
     });
 });
