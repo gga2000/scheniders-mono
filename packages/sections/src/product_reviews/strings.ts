@@ -1,6 +1,9 @@
-// Chrome strings for the product_reviews quiet layout: generic UI text,
-// never merchant claims (the heading comes from props). Every entry
-// carries ar, en and ku, guarded by _kurdish-coverage.
+// Chrome strings for the product_reviews quiet and highlights layouts:
+// generic UI text, never merchant claims (the heading, the topic labels
+// and the store's replies come from props). Every entry carries ar, en
+// and ku, guarded by _kurdish-coverage. The highlights summary counts
+// reviews with the identity row's plural forms (`reviewCountLabel`), so
+// both say «6 تقييمات»; the quiet layout keeps «{count} تقييم».
 
 import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -37,6 +40,38 @@ export const REVIEW_STRINGS = {
   writeEntry: { en: "Write your review", ar: "اكتب تقييمك", ku: "هەڵسەنگاندنەکەت بنووسە" },
   enlargePhoto: { en: "Enlarge photo", ar: "تكبير الصورة", ku: "گەورەکردنی وێنە" },
   reviewPhoto: { en: "Review photo {n}", ar: "صورة التقييم {n}", ku: "وێنەی هەڵسەنگاندن {n}" },
+  // layout "highlights" (spec §1.6). `{count}` in ofReviews is the whole
+  // plural-correct count («6 تقييمات»), not a bare number.
+  ofReviews: { en: "from {count}", ar: "من {count}", ku: "لە {count}" },
+  // A highlights star bar's label; `{count}` is the plural-correct count
+  // («تقييم واحد», «5 تقييمات»). The quiet layout keeps `starRow`.
+  starRowCounted: {
+    en: "{star} of 5: {count}",
+    ar: "{star} من 5: {count}",
+    ku: "{star} لە 5: {count}",
+  },
+  themesLabel: { en: "Mentioned most", ar: "أكثر شي ذكروه", ku: "زۆرترین شت کە باسیان کرد" },
+  // The screen-reader line after a word button is pressed. `{count}` is
+  // the plural-correct count («تقييم واحد» / «تقييمين» / «3 تقييمات»);
+  // the subject is the reviewers, so neither the topic's gender nor the
+  // count changes the verb.
+  themeAnnounce: {
+    en: "“{topic}” is mentioned in {count}",
+    ar: "ذكروا «{topic}» في {count}",
+    ku: "باسی «{topic}» کراوە لە {count}",
+  },
+  showAll: {
+    en: "See all reviews ({count})",
+    ar: "شوف كل التقييمات ({count})",
+    ku: "هەموو هەڵسەنگاندنەکان ببینە ({count})",
+  },
+  readMoreInline: { en: "More", ar: "كمّل", ku: "زیاتر" },
+  storeReply: { en: "Reply from {store}", ar: "رد {store}", ku: "وەڵامی {store}" },
+  emptyHighlights: {
+    en: "No reviews on this perfume yet",
+    ar: "بعد ماكو تقييمات على هذا العطر",
+    ku: "هێشتا هیچ هەڵسەنگاندنێک لەسەر ئەم بۆنە نییە",
+  },
 } as const;
 
 export type ReviewStringKey = keyof typeof REVIEW_STRINGS;

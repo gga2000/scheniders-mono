@@ -11,6 +11,8 @@
 // =====================================================================
 
 import { cn } from "@scheniders/shared";
+import type { LocaleCode } from "@scheniders/shared";
+import { ChapterHeading } from "./helpers/chapter-heading";
 import { MaterialIcon, Section, WhatsAppIcon } from "./helpers/primitives";
 import { ActionPill, ActionRow } from "./helpers/action-row";
 
@@ -33,6 +35,7 @@ export function FaqContactCompact({
   rows,
   contact,
   rtl,
+  chapterLocale,
 }: {
   title: string;
   headingAs: "h1" | "h2";
@@ -41,11 +44,16 @@ export function FaqContactCompact({
   /** Null when the store has no usable WhatsApp number or no CTA label. */
   contact: CompactFaqContact | null;
   rtl: boolean;
+  /** `heading_style: "chapter"`: the heading at the chapter scale. */
+  chapterLocale?: LocaleCode;
 }) {
   const textSide = rtl ? "text-right" : "text-left";
   return (
     <Section density="dense">
-      {title && (
+      {title && chapterLocale && (
+        <ChapterHeading title={title} locale={chapterLocale} titleField="title_i18n" />
+      )}
+      {title && !chapterLocale && (
         <Heading
           data-i18n-field="title_i18n"
           className={cn(

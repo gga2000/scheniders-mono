@@ -14,7 +14,7 @@
 import Image from "next/image";
 import { useId } from "react";
 import { z } from "zod";
-import { resolveI18n } from "@scheniders/shared";
+import { parseStoreContact, resolveI18n } from "@scheniders/shared";
 import {
   CenteredSectionHeader,
   MaterialIcon,
@@ -26,7 +26,10 @@ import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition, SectionRenderContext } from "./_types";
 import { readsRtl } from "./pdp_express/text";
+import { displayNameOf } from "./pdp_express/identity-label";
 import { FaqContactCompact } from "./faq_contact_split.compact";
+import { FaqProductView, resolveProductFaq, type ContactRowData } from "./faq_contact_split.product";
+import { fs } from "./faq_contact_split.strings";
 
 const schema = z.object({
   eyebrow_i18n: i18nStringSchema,
@@ -53,6 +56,46 @@ const schema = z.object({
    * undefined instead of dropping the section.
    */
   compact: z.boolean().optional().catch(undefined),
+  /**
+   * Opt-in product FAQ (spec §1.7): questions about THIS product, each
+   * answered from its own data or a merchant text; shown only when at
+   * least `min_answered` (default 2) resolve. When set, it replaces
+   * `items` (kept in config) and every other layout. An `attribute`
+   * answer reads a text/enum attribute; a `size_ml` answer reads
+   * products.size_ml into «القنينة {value} مل». Empty = unanswered.
+   */
+  product_faq: z
+    .object({
+      title_i18n: i18nStringOptional,
+      min_answered: z.number().int().min(1).max(10).optional().catch(undefined),
+      items: z
+        .array(
+          z.object({
+            q_i18n: i18nStringSchema,
+            answer: z.discriminatedUnion("kind", [
+              z.object({ kind: z.literal("text"), a_i18n: i18nStringSchema }),
+              z.object({
+                kind: z.literal("attribute"),
+                key: z.string().min(1),
+                template_i18n: i18nStringOptional,
+              }),
+              z.object({ kind: z.literal("size_ml"), template_i18n: i18nStringOptional }),
+            ]),
+          }),
+        )
+        .min(1)
+        .max(8),
+    })
+    .optional()
+    .catch(undefined),
+  /** With `product_faq`: "row" = one row with «اتصل بينا» + «راسلنا
+   *  واتساب» under the questions (title and sub from `contact`); absent
+   *  or "card" = the compact WhatsApp row. Other layouts ignore it. */
+  contact_style: z.enum(["card", "row"]).optional().catch(undefined),
+  /** "chapter": the product FAQ's and the compact layout's heading at the
+   *  chapter scale. The cards/ledger header (eyebrow, centred title, sub)
+   *  and a page-leading h1 keep theirs. */
+  heading_style: z.enum(["section", "chapter"]).optional().catch(undefined),
   items: z
     .array(
       z.object({
@@ -73,7 +116,7 @@ const schema = z.object({
   }),
 });
 
-type Props = z.infer<typeof schema>;
+export type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   eyebrow_i18n: { en: "Questions & answers", ar: "أسئلة وأجوبة" },
@@ -179,6 +222,38 @@ function FaqContactSplit({
       ? "h1"
       : "h2";
 
+  if (props.product_faq) {
+    const product = ctx.product;
+    const dial = parseStoreContact(ctx.tenant.store_config_v2?.commerce?.contact)?.call_number;
+    const ask = product ? fs("askAbout", locale, { product: displayNameOf(product) }) : "";
+    const contactRow: ContactRowData | null =
+      props.contact_style === "row" && (dial || waNumber)
+        ? {
+            title: contactTitle,
+            sub: contactSub,
+            callHref: dial ? `tel:+${whatsappDigits(dial)}` : null,
+            whatsappHref: waNumber
+              ? `https://wa.me/${whatsappDigits(waNumber)}${ask ? `?text=${encodeURIComponent(ask)}` : ""}`
+              : null,
+          }
+        : null;
+    return (
+      <FaqProductView
+        title={resolveI18n(props.product_faq.title_i18n, locale) || title}
+        chapter={props.heading_style === "chapter"}
+        groupName={groupName}
+        rows={resolveProductFaq(props.product_faq, product, locale)}
+        locale={locale}
+        contactRow={contactRow}
+        whatsappCard={
+          props.contact_style !== "row" && waHref && ctaLabel
+            ? { title: contactTitle, sub: contactSub, ctaLabel, href: waHref }
+            : null
+        }
+      />
+    );
+  }
+
   if (props.compact) {
     return (
       <FaqContactCompact
@@ -192,6 +267,7 @@ function FaqContactSplit({
             : null
         }
         rtl={readsRtl(locale)}
+        chapterLocale={props.heading_style === "chapter" && headingAs === "h2" ? locale : undefined}
       />
     );
   }
