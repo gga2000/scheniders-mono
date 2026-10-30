@@ -17,12 +17,14 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 
 interface BulkActionsBarProps {
     selectedCount: number;
     totalCount?: number;
     selectedProductNames?: string[];
-    onUpdatePrice: (newPrice: number) => Promise<void> | void;
+    /** Absent when the user's role may not bulk-change prices. */
+    onUpdatePrice?: (newPrice: number) => Promise<void> | void;
     onArchive: () => Promise<void> | void;
     onExport: () => void;
     onShowOnStore?: () => Promise<void> | void;
@@ -104,8 +106,8 @@ export function BulkActionsBar({
             try {
                 await onUndo();
                 toast.success(t("products.bulk.undone"));
-            } catch {
-                toast.error(t("products.bulk.error"));
+            } catch (err) {
+                toast.error(t(productWriteErrorKey(err)));
             }
         }
     }, [onUndo, t]);
@@ -124,8 +126,8 @@ export function BulkActionsBar({
                 if (showUndo && onUndo) {
                     startUndoCountdown(successMsg);
                 }
-            } catch {
-                toast.error(t("products.bulk.error"));
+            } catch (err) {
+                toast.error(t(productWriteErrorKey(err)));
             } finally {
                 setLoadingAction(null);
             }
@@ -134,8 +136,9 @@ export function BulkActionsBar({
     );
 
     const handlePriceSubmit = useCallback(async () => {
-        const price = parseFloat(newPrice);
-        if (isNaN(price) || price <= 0) return;
+        // Whole IQD only: the price columns reject fractions.
+        const price = Number(newPrice.replace(/[,\s]/g, ""));
+        if (!onUpdatePrice || !Number.isInteger(price) || price <= 0) return;
 
         await runAction(
             "price",
@@ -347,6 +350,9 @@ export function BulkActionsBar({
                             <div className="flex items-center gap-2">
                                 <input
                                     type="number"
+                                    inputMode="numeric"
+                                    step={1}
+                                    min={1}
                                     value={newPrice}
                                     onChange={(e) => setNewPrice(e.target.value)}
                                     placeholder={t("products.bulk.newPrice")}
@@ -379,6 +385,7 @@ export function BulkActionsBar({
                         ) : (
                             /* Action buttons */
                             <>
+                                {onUpdatePrice && (
                                 <button
                                     onClick={() => setShowPriceInput(true)}
                                     disabled={isLoading}
@@ -389,6 +396,7 @@ export function BulkActionsBar({
                                         {t("products.bulk.updatePrice")}
                                     </span>
                                 </button>
+                                )}
 
                                 <button
                                     onClick={() => setConfirmAction("archive")}

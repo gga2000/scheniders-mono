@@ -141,7 +141,7 @@ export function ReorderDrawer({
             const available = Math.max(0, stock - reserved);
 
             // Skip if well-stocked and sales velocity is low/zero.
-            const sold30 = salesMap.get(s.id) ?? s.times_sold ?? 0;
+            const sold30 = salesMap.get(s.id) ?? s.times_sold_30d ?? 0;
             const dailyRate = sold30 / 30;
             const daysUntilStockout =
                 dailyRate > 0 ? Math.round(available / dailyRate) : null;

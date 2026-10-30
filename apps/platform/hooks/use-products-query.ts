@@ -17,14 +17,10 @@ export const productKeys = {
     variants: (productId: string) => [...productKeys.detail(productId), "variants"] as const,
 };
 
-// Fetch function
-async function fetchProducts(): Promise<Product[]> {
-    return productRepository.findAll();
-}
 
 // Hook
 export function useProductsQuery() {
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
     const [fetchStartTime] = useState(() => performance.now());
 
     return useQuery({
@@ -34,7 +30,8 @@ export function useProductsQuery() {
             const elapsed = performance.now() - fetchStartTime;
             diag.log(`[Diag:Products] FETCH_START hasSession=${hasSession} clientReady=${clientReady} elapsedSinceMount=${elapsed.toFixed(1)}ms`);
 
-            const result = await fetchProducts();
+            if (!tenantId) return [];
+            const result = await productRepository.findAll(tenantId);
 
             const fetchMs = performance.now() - fetchStartTime;
             diag.log(`[Diag:Products] FETCH_DONE count=${result.length} fetchMs=${fetchMs.toFixed(1)}ms hasSession=${!!session}`);
@@ -43,7 +40,7 @@ export function useProductsQuery() {
         },
         // CRITICAL: Wait for Supabase client's internal session to be ready
         // Not just React state - the client must have completed _initialize()
-        enabled: !!session && clientReady,
+        enabled: !!session && clientReady && !!tenantId,
         staleTime: CACHE_PRESETS.STANDARD.staleTime * 2, // 10 mins
         gcTime: CACHE_PRESETS.STANDARD.gcTime * 2, // 30 mins
         refetchOnWindowFocus: true,
@@ -58,10 +55,12 @@ export function useProductsQuery() {
  */
 export function usePrefetchProducts() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return () => {
+        if (!tenantId) return;
         queryClient.prefetchQuery({
             queryKey: productKeys.lists(),
-            queryFn: fetchProducts,
+            queryFn: () => productRepository.findAll(tenantId),
             staleTime: CACHE_PRESETS.STANDARD.staleTime,
         });
     };

@@ -26,11 +26,11 @@ beforeEach(() => {
 });
 
 describe("useProductSalesQuery", () => {
-    it("maps get_product_sales rows by product id, dividing revenue by matched lines", async () => {
+    it("maps get_product_sales rows by product id for the active tenant, revenue per order in whole IQD", async () => {
         H.rpc.mockResolvedValue({
             data: [
-                { product_id: "p1", times_sold: 16, total_revenue: 740500, line_count: 4 },
-                { product_id: "p2", times_sold: 0, total_revenue: 0, line_count: 0 },
+                { product_id: "p1", units_sold: 16, revenue: 740500, order_count: 3, units_sold_30d: 4, revenue_30d: 185000 },
+                { product_id: "p2", units_sold: 0, revenue: 0, order_count: 0, units_sold_30d: 0, revenue_30d: 0 },
             ],
             error: null,
         });
@@ -38,9 +38,21 @@ describe("useProductSalesQuery", () => {
         const { result } = renderHook(() => useProductSalesQuery(), { wrapper: wrapper() });
 
         await waitFor(() => expect(result.current.size).toBe(2));
-        expect(H.rpc).toHaveBeenCalledWith("get_product_sales");
-        expect(result.current.get("p1")).toEqual({ timesSold: 16, totalRevenue: 740500, averageOrderValue: 185125 });
-        expect(result.current.get("p2")).toEqual({ timesSold: 0, totalRevenue: 0, averageOrderValue: 0 });
+        expect(H.rpc).toHaveBeenCalledWith("get_product_sales", { p_tenant_id: "tenant-1" });
+        expect(result.current.get("p1")).toEqual({
+            timesSold: 16, totalRevenue: 740500, averageOrderValue: 246833, timesSold30d: 4, revenue30d: 185000,
+        });
+        expect(result.current.get("p2")).toEqual({
+            timesSold: 0, totalRevenue: 0, averageOrderValue: 0, timesSold30d: 0, revenue30d: 0,
+        });
+    });
+
+    it("does not call the RPC when the screen doesn't show sales", async () => {
+        const { result } = renderHook(() => useProductSalesQuery(false), { wrapper: wrapper() });
+
+        await new Promise((r) => setTimeout(r, 20));
+        expect(H.rpc).not.toHaveBeenCalled();
+        expect(result.current.size).toBe(0);
     });
 
     it("does not call the RPC before the active tenant is known", async () => {

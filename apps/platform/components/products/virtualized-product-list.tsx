@@ -61,7 +61,7 @@ interface VirtualizedProductListProps {
     onArchive: (id: string) => void;
     onRestore: (id: string) => void;
     onDuplicate: (product: Product) => void;
-    onDelete: (product: Product) => void;
+    onDelete?: (product: Product) => void;
     onVisibilityToggle: (product: Product) => void;
     onReorder?: (updates: { id: string; display_order: number }[]) => void;
 }

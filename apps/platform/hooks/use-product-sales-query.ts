@@ -6,49 +6,49 @@ import { supabase } from "@/lib/supabase";
 import { productKeys } from "@/hooks/use-products-query";
 
 export interface ProductSales {
+    /** Units sold on delivered orders, net of delivered refunds. */
     timesSold: number;
+    /** IQD earned on delivered orders, net of delivered refunds. */
     totalRevenue: number;
+    /** Revenue per delivered order that carried the product, whole IQD. */
     averageOrderValue: number;
+    timesSold30d: number;
+    revenue30d: number;
 }
 
 const EMPTY: ReadonlyMap<string, ProductSales> = new Map();
 
 /**
- * Per-product sales totals, folded in SQL by `get_product_sales()`.
+ * Per-product sales, folded in SQL by `get_product_sales(p_tenant_id)`.
  *
- * These used to be summed in the browser over the order list held by
- * OrdersProvider. That list is windowed to the merchant's date filter, so a
- * product's "times sold" silently meant "times sold inside whatever window the
- * orders page last had open". The client rule also picked SKU-or-name matching
- * from the PRODUCT, so giving a product a SKU discarded every historical line
- * recorded without one. The RPC keys the rule off the LINE (a line with a SKU
- * matches on SKU, a line without one on its name) over every non-archived,
- * non-deleted order. It is SECURITY INVOKER, so RLS scopes both tables, and it
- * joins on tenant_id so one tenant's products never match another's lines.
- *
- * `averageOrderValue` divides by matched lines, not orders, as the client did.
+ * Lines are matched on their product_id, and only delivered orders count
+ * (completed/delivered, minus delivered refunds) — the same rule the Customers
+ * page uses for spend, so the two pages agree. Cancelled, rejected, no-answer
+ * and in-flight orders are not sales. The RPC checks membership of the tenant.
  */
-export function useProductSalesQuery(): ReadonlyMap<string, ProductSales> {
+export function useProductSalesQuery(enabled = true): ReadonlyMap<string, ProductSales> {
     const { session, clientReady, tenantId } = useAuth();
     const { data } = useQuery({
         queryKey: [...productKeys.all, "sales", tenantId] as const,
         queryFn: async () => {
-            const { data: rows, error } = await supabase.rpc("get_product_sales");
+            if (!tenantId) return EMPTY;
+            const { data: rows, error } = await supabase.rpc("get_product_sales", { p_tenant_id: tenantId });
             if (error) throw error;
             const map = new Map<string, ProductSales>();
             for (const row of rows ?? []) {
-                const timesSold = Number(row.times_sold) || 0;
-                const totalRevenue = Number(row.total_revenue) || 0;
-                const lines = Number(row.line_count) || 0;
+                const totalRevenue = Number(row.revenue) || 0;
+                const orders = Number(row.order_count) || 0;
                 map.set(row.product_id, {
-                    timesSold,
+                    timesSold: Number(row.units_sold) || 0,
                     totalRevenue,
-                    averageOrderValue: lines > 0 ? totalRevenue / lines : 0,
+                    averageOrderValue: orders > 0 ? Math.round(totalRevenue / orders) : 0,
+                    timesSold30d: Number(row.units_sold_30d) || 0,
+                    revenue30d: Number(row.revenue_30d) || 0,
                 });
             }
             return map;
         },
-        enabled: !!session && clientReady && !!tenantId,
+        enabled: enabled && !!session && clientReady && !!tenantId,
         staleTime: 5 * 60 * 1000,
     });
     return data ?? EMPTY;

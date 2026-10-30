@@ -10,7 +10,8 @@ import {
   Activity,
   ChevronRight,
 } from "lucide-react";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, maskIQD } from "@/lib/utils";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
 import type { Product } from "@/lib/supabase";
 import {
@@ -19,7 +20,7 @@ import {
   type HealthGrade,
   type ProductScoreInput,
 } from "@/lib/utils/product-scoring";
-import { MiniSparkline, TrendGlyph, trendFromSeries } from "@/components/ui/mini-sparkline";
+import { TrendGlyph } from "@/components/ui/mini-sparkline";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -36,6 +37,7 @@ interface ForecastingCardsProps {
 
 export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProps) {
   const { t } = useLanguage();
+  const { revealed } = useFinancialVisibility();
 
   // ---- Derived stats (single pass where possible) ----
   const stats = useMemo(() => {
@@ -60,15 +62,12 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
       F: 0,
     };
 
-    // Sparkline buckets: simulate daily revenue distribution across 7 buckets
-    const revenueBuckets: number[] = [0, 0, 0, 0, 0, 0, 0];
-    const stockBuckets: number[] = [0, 0, 0, 0, 0, 0, 0];
-
-    for (let i = 0; i < products.length; i++) {
-      const p = products[i];
+    for (const p of products) {
       const isActive = !p.is_archived && !p.is_supply;
-      const timesSold = p.times_sold ?? 0;
-      const revenue = p.total_revenue ?? 0;
+      // Revenue, turnover and sales rate all read the last 30 days of
+      // delivered sales, so the card label and the rates are true.
+      const timesSold = p.times_sold_30d ?? 0;
+      const revenue = p.revenue_30d ?? 0;
       const cost = p.cost ?? 0;
       const stock = p.stock_quantity ?? 0;
       const threshold = p.low_stock_threshold ?? 0;
@@ -119,19 +118,14 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
           stock_quantity: stock,
           reserved_quantity: p.reserved_quantity ?? 0,
           low_stock_threshold: threshold,
-          times_sold: timesSold,
-          total_revenue: revenue,
+          times_sold: p.times_sold ?? 0,
+          total_revenue: p.total_revenue ?? 0,
           created_at: p.created_at,
           daily_sales_rate: dailySalesRate,
         };
         const score = calculateProductScore(scoreInput);
         gradeCounts[score.overall]++;
       }
-
-      // Distribute into sparkline buckets (deterministic hash by index)
-      const bucket = i % 7;
-      revenueBuckets[bucket] += revenue;
-      stockBuckets[bucket] += stock;
     }
 
     const avgTurnover =
@@ -150,8 +144,6 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
       totalSold,
       avgTurnover,
       gradeCounts,
-      revenueBuckets,
-      stockBuckets,
     };
   }, [products]);
 
@@ -178,10 +170,6 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
           <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
             <Package className="w-5 h-5 text-amber-600" />
           </div>
-          <div className="flex items-center gap-1">
-            <MiniSparkline data={stats.stockBuckets} color="#d97706" />
-            <TrendGlyph direction={trendFromSeries(stats.stockBuckets)} />
-          </div>
         </div>
         <p className="text-2xl font-bold mt-3">{stats.activeCount}</p>
         <p className="text-xs text-muted">
@@ -199,19 +187,15 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
           <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
             <DollarSign className="w-5 h-5 text-teal-600" />
           </div>
-          <div className="flex items-center gap-1">
-            <MiniSparkline data={stats.stockBuckets} color="#0d9488" />
-            <TrendGlyph direction={trendFromSeries(stats.stockBuckets)} />
-          </div>
         </div>
         <p className="text-2xl font-bold mt-3">
-          {formatIQD(stats.inventoryValueCost)}
+          {maskIQD(stats.inventoryValueCost, revealed)}
         </p>
         <p className="text-xs text-muted">
           {t("products.forecast.inventoryValue")}
         </p>
         <p className="text-xs text-muted mt-1">
-          {t("products.forecast.retail")}: {formatIQD(stats.inventoryValueRetail)}
+          {t("products.forecast.retail")}: {maskIQD(stats.inventoryValueRetail, revealed)}
         </p>
       </div>
 
@@ -256,13 +240,9 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
           <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-emerald-600" />
           </div>
-          <div className="flex items-center gap-1">
-            <MiniSparkline data={stats.revenueBuckets} color="#059669" />
-            <TrendGlyph direction={trendFromSeries(stats.revenueBuckets)} />
-          </div>
         </div>
         <p className="text-2xl font-bold mt-3">
-          {formatIQD(stats.totalRevenue)}
+          {maskIQD(stats.totalRevenue, revealed)}
         </p>
         <p className="text-xs text-muted flex items-center gap-1">
           {t("products.forecast.revenue30d")}

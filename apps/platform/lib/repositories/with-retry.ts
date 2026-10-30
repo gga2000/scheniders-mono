@@ -7,6 +7,20 @@ export interface RetryOptions {
 }
 
 /**
+ * A failure that will fail the same way on every attempt, so retrying only
+ * makes the user wait: a write the database refused for permission reasons.
+ */
+export class NonRetryableError extends Error {}
+
+/** Postgres insufficient_privilege, as PostgREST reports an RLS denial. */
+const PG_INSUFFICIENT_PRIVILEGE = "42501";
+
+function isNonRetryable(err: unknown): boolean {
+    if (err instanceof NonRetryableError) return true;
+    return typeof err === "object" && err !== null && (err as { code?: unknown }).code === PG_INSUFFICIENT_PRIVILEGE;
+}
+
+/**
  * Wraps an async function with retry and timeout logic.
  * Useful for Supabase calls that might hang indefinitely due to network issues.
  */
@@ -48,6 +62,7 @@ export async function withRetry<T>(
         } catch (err) {
             const attemptMs = performance.now() - _tAttempt;
             lastError = err;
+            if (isNonRetryable(err)) throw err;
             diag.warn(`[Diag:Retry] FAILED op=${operationName} attempt=${attempt + 1}/${maxRetries + 1} attemptMs=${attemptMs.toFixed(1)}ms err=${err instanceof Error ? err.message : err}`);
 
             if (attempt < maxRetries) {

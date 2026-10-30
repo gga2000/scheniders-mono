@@ -12,14 +12,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * messages. `sku` is a real, writable column and MUST survive the write.
  */
 
-// withRetry: invoke the operation directly — no timers/retries under test.
-vi.mock("./with-retry", () => ({
-    withRetry: (_name: string, op: () => unknown) => op(),
-}));
+// The real withRetry: successful writes resolve on the first attempt, and the
+// denial test checks that a refusal is not retried.
 
 // Capture exactly what gets handed to supabase insert()/update().
 const insertSpy = vi.fn<(rows: Record<string, unknown>[]) => void>();
 const updateSpy = vi.fn<(patch: Record<string, unknown>) => void>();
+// Rows the UPDATE reports back; RLS that hides the row makes this empty.
+let updatedRows: { id: string }[] = [{ id: "prod-1" }];
 
 vi.mock("@/lib/supabase", () => ({
     supabase: {
@@ -34,13 +34,13 @@ vi.mock("@/lib/supabase", () => ({
             },
             update: (patch: Record<string, unknown>) => {
                 updateSpy(patch);
-                return { eq: async () => ({ error: null }) };
+                return { eq: () => ({ select: async () => ({ data: updatedRows, error: null }) }) };
             },
         }),
     },
 }));
 
-import { productRepository } from "./product-repository";
+import { productRepository, ProductWriteDeniedError } from "./product-repository";
 
 type CreateArg = Parameters<typeof productRepository.create>[0];
 type UpdateArg = Parameters<typeof productRepository.update>[1];
@@ -48,6 +48,7 @@ type UpdateArg = Parameters<typeof productRepository.update>[1];
 beforeEach(() => {
     insertSpy.mockClear();
     updateSpy.mockClear();
+    updatedRows = [{ id: "prod-1" }];
 });
 
 describe("productRepository SKU persistence", () => {
@@ -94,5 +95,14 @@ describe("productRepository SKU persistence", () => {
         expect(patch).not.toHaveProperty("times_sold");
         expect(patch).not.toHaveProperty("id");
         expect(patch).not.toHaveProperty("created_at");
+    });
+
+    it("update() rejects when RLS let no row change, instead of reporting success", async () => {
+        updatedRows = [];
+        await expect(productRepository.update("prod-1", { price: 1000 } as UpdateArg)).rejects.toBeInstanceOf(
+            ProductWriteDeniedError,
+        );
+        // A refusal is final: it is not retried.
+        expect(updateSpy).toHaveBeenCalledTimes(1);
     });
 });
