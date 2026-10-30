@@ -279,6 +279,8 @@ export function usePrinting(orders: Order[]) {
                     order_ids: orderIds,
                     invoice_template: invoiceTemplate,
                     print_type: printType,
+                    // RLS only admits rows stamped with one of the member's stores.
+                    tenant_id: tenantId,
                 })
                 .select()
                 .single();

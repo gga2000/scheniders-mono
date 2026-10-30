@@ -23,9 +23,10 @@ export function fakeDb(tables: Record<string, Row[]>, rpc: Record<string, (args:
             calls.push({ table, op, filters: filters.map((f) => f.desc), payload });
             const rows = tables[table] ?? (tables[table] = []);
             if (op === "insert") {
-                const list = Array.isArray(payload) ? payload : [payload as Row];
+                // New rows get an id the way the column default would.
+                const list = (Array.isArray(payload) ? payload : [payload as Row]).map((r, i) => ({ id: `${table}-${rows.length + i + 1}`, ...r }));
                 rows.push(...list);
-                return { data: list, error: null };
+                return single ? { data: list[0], error: null } : { data: list, error: null };
             }
             const matched = rows.filter((r) => filters.every((f) => f.test(r)));
             if (op === "update") {
@@ -46,6 +47,7 @@ export function fakeDb(tables: Record<string, Row[]>, rpc: Record<string, (args:
                 return chain;
             },
             or: () => chain,
+            not: () => chain,
             eq(col: string, val: unknown) {
                 filters.push({ desc: `${col}=${String(val)}`, test: (r) => r[col] === val });
                 return chain;

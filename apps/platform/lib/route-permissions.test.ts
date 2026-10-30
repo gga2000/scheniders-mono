@@ -33,6 +33,7 @@ describe("canAccessRoute", () => {
         expect(canAccessRoute("/team", "admin", [])).toBe(true);
         expect(canAccessRoute("/printing", "employee", [])).toBe(true);
         expect(canAccessRoute("/printing", "viewer", [])).toBe(false);
+        expect(canAccessRoute("/shipping-export/b1", "viewer", [])).toBe(false);
         expect(canAccessRoute("/orders/trash", "viewer", [])).toBe(true);
     });
 

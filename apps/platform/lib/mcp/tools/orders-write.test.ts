@@ -66,6 +66,7 @@ function asCaller(role: McpCaller["role"] = "admin") {
             clientId: "claude",
             db: env.db,
             token: "tok",
+            appUrl: "https://app.test",
         } satisfies McpCaller,
     });
 }

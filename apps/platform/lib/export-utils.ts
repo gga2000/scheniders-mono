@@ -1,29 +1,29 @@
 import { Product, Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
-import { extractGovernorate } from "@/lib/address-validator";
-import { computeCodAmount } from "@/lib/order-money";
-import { mergeOrderItems } from "@/lib/merge-order-items";
+import { courierSheet, courierWorkbook, type CourierCompany } from "@/lib/shipping/courier-sheets";
 
-/** Courier-facing note (Arabic) flagging an order as already paid → collect 0 COD. */
-const PREPAID_NOTE = 'طلب مدفوع مسبقا';
+export { cleanPhoneForExport } from "@/lib/shipping/courier-sheets";
 
-/**
- * Helper to clean phone numbers for export
- * - Removes 964 prefix
- * - Removes leading zeros
- * - Removes non-digit characters
- */
-export function cleanPhoneForExport(phone: string): string {
-    if (!phone) return '';
-    // Remove all non-digit characters
-    let cleaned = phone.replace(/\D/g, '');
-    // Remove 964 country code prefix
-    if (cleaned.startsWith('964')) {
-        cleaned = cleaned.substring(3);
-    }
-    // Remove leading zeros
-    cleaned = cleaned.replace(/^0+/, '');
-    return cleaned;
+async function downloadCourierSheet(company: CourierCompany, orderIds: string[], ordersData: Order[]) {
+    const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
+    const sheet = courierSheet(company, selectedOrders);
+
+    // Dynamically import xlsx library
+    const xlsxModule = await import('xlsx');
+    const XLSX = xlsxModule.default || xlsxModule;
+
+    const excelBuffer = XLSX.write(courierWorkbook(XLSX, sheet), { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = sheet.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    return { success: true, count: selectedOrders.length };
 }
 
 /**
@@ -31,224 +31,14 @@ export function cleanPhoneForExport(phone: string): string {
  * Matches the exact column structure of PrimeUploadSample.xlsx
  */
 export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Order[]) {
-    const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
-
-    // Dynamically import xlsx library
-    const xlsxModule = await import('xlsx');
-    const XLSX = xlsxModule.default || xlsxModule;
-
-    // Prime headers (Arabic, exact match to their sample)
-    const headers = [
-        'ملاحظات',
-        'عدد القطع',
-        'يحتوي على ارجاع بضاعة؟',
-        'هاتف المستلم',
-        'تفاصيل العنوان',
-        'شفرة المحافظة',
-        'أسم المستلم',
-        'المبلغ عراقي',
-        'رقم الوصل',
-        'كود الشحنة',
-        'هاتف المستلم 2',
-        'نوع البضاعة',
-    ];
-
-    const rows = selectedOrders.map((order) => {
-        // Get total item quantity
-        const totalQuantity = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
-
-        // Clean phone numbers (remove 964 prefix and leading zeros, start with 7)
-        const phone = cleanPhoneForExport(order.phone);
-        const secondaryPhone = cleanPhoneForExport(order.secondary_phone || '');
-
-        // Get governorate code
-        let govCode = order.validated_governorate_code || order.governorate_code || '';
-        if (!govCode && order.city) {
-            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
-            govCode = governorate?.code || '';
-        }
-
-        // Clean Order ID:
-        // 1. Remove CHK- prefix if present
-        // 2. For RTN-669-1 or RPL-669-1 style, extract only the middle number (669)
-        let cleanOrderId = (order.order_id || '').replace(/^CHK-/, '');
-        if (cleanOrderId.startsWith('RTN-') || cleanOrderId.startsWith('RPL-')) {
-            const parts = cleanOrderId.split('-');
-            if (parts.length >= 2) {
-                cleanOrderId = parts[1]; // Get the middle number
-            }
-        }
-
-        // Get product type: Join all item names with ' + ' as requested
-        const productType = mergeOrderItems(order.items).map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
-
-        // Prepaid orders: courier must not collect COD, so the amount is 0 and a
-        // note flags it as already paid for the courier.
-        const isPrepaid = order.payment_status === 'prepaid' || order.payment_status === 'paid';
-        // `price` excludes delivery (see lib/order-money) — the courier must
-        // collect price + delivery_fee, or the merchant eats the delivery.
-        const codAmount = computeCodAmount(order);
-        const notes = isPrepaid
-            ? [PREPAID_NOTE, order.notes].filter(Boolean).join(' - ')
-            : (order.notes || '');
-
-        return {
-            'ملاحظات': notes,
-            'عدد القطع': totalQuantity,
-            'يحتوي على ارجاع بضاعة؟': (order.is_return || order.is_replacement) ? 'Y' : 'N',
-            'هاتف المستلم': phone,
-            'تفاصيل العنوان': order.address_details || order.city || '',
-            'شفرة المحافظة': govCode,
-            'أسم المستلم': order.customer_name || '',
-            'المبلغ عراقي': codAmount,
-            'رقم الوصل': cleanOrderId,
-            'كود الشحنة': '',
-            'هاتف المستلم 2': secondaryPhone,
-            'نوع البضاعة': productType,
-        };
-    });
-
-    // Create workbook and worksheet
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
-
-    // Set column widths for better readability
-    worksheet['!cols'] = [
-        { wch: 15 }, // ملاحظات
-        { wch: 10 }, // عدد القطع
-        { wch: 20 }, // يحتوي على ارجاع بضاعة؟
-        { wch: 15 }, // هاتف المستلم
-        { wch: 30 }, // تفاصيل العنوان
-        { wch: 15 }, // شفرة المحافظة
-        { wch: 20 }, // أسم المستلم
-        { wch: 15 }, // المبلغ عراقي
-        { wch: 15 }, // رقم الوصل
-        { wch: 15 }, // كود الشحنة
-        { wch: 15 }, // هاتف المستلم 2
-        { wch: 15 }, // نوع البضاعة
-    ];
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
-
-    // Generate buffer and download
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `prime_shipment_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    return { success: true, count: selectedOrders.length };
+    return downloadCourierSheet('prime', orderIds, ordersData);
 }
 
 /**
  * Export orders to Al-Waseet delivery company XLSX format
  */
 export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: Order[]) {
-    const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
-
-    const xlsxModule = await import('xlsx');
-    const XLSX = xlsxModule.default || xlsxModule;
-
-    const headers = [
-        'اسم الزبون',
-        'رقم الهاتف الاساسي',
-        'رقم الهاتف الثانوي',
-        'المحافظة',
-        'المنطقة',
-        'نوع البضاعه',
-        'عدد القطع',
-        'السعر مع التوصيل',
-        'حجم الطلب',
-        'الملاحظات',
-        'نوع الطلب',
-    ];
-
-    const rows = selectedOrders.map((order) => {
-        const totalQuantity = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
-        const phone = cleanPhoneForExport(order.phone);
-        const secondaryPhone = cleanPhoneForExport(order.secondary_phone || '');
-
-        // Get governorate Arabic name
-        let govName = '';
-        const govCode = order.validated_governorate_code || order.governorate_code || '';
-        if (govCode) {
-            // INT-3: the code was passed in the `city` slot. The signature is
-            // extractGovernorate(city?, governorateCode?, addressDetails?), so the
-            // code-resolution branch never ran. That branch is not merely tidier:
-            // 16 of the 18 canonical codes return null from the city slot, and
-            // only BGD and KOT happen to resolve there — which is why a spot-check
-            // with Baghdad looks fine. 214 real orders hold one of the other 16
-            // codes with a city that names no province, and for those the courier
-            // received an empty governorate while the data sat in the row.
-            const { governorate } = extractGovernorate(undefined, govCode, undefined);
-            govName = governorate?.nameAr || '';
-        }
-        if (!govName && order.city) {
-            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
-            govName = governorate?.nameAr || '';
-        }
-
-        const productType = mergeOrderItems(order.items).map(item => item.name).filter(Boolean).join(' + ') || 'ملابس';
-
-        // Same prepaid handling as the Prime CSV: computeCodAmount already
-        // returns 0, and the courier gets an explicit note saying why.
-        const isPrepaid = order.payment_status === 'prepaid' || order.payment_status === 'paid';
-        const xlsxNotes = isPrepaid
-            ? [PREPAID_NOTE, order.notes].filter(Boolean).join(' - ')
-            : (order.notes || '');
-
-        return {
-            'اسم الزبون': order.customer_name || '',
-            'رقم الهاتف الاساسي': phone,
-            'رقم الهاتف الثانوي': secondaryPhone,
-            'المحافظة': govName,
-            'المنطقة': order.address_details || '',
-            'نوع البضاعه': productType,
-            'عدد القطع': totalQuantity,
-            'السعر مع التوصيل': computeCodAmount(order),
-            'حجم الطلب': 'عادي',
-            'الملاحظات': xlsxNotes,
-            'نوع الطلب': 'طلب جديد',
-        };
-    });
-
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
-
-    worksheet['!cols'] = [
-        { wch: 20 },  // اسم الزبون
-        { wch: 15 },  // رقم الهاتف الاساسي
-        { wch: 15 },  // رقم الهاتف الثانوي
-        { wch: 15 },  // المحافظة
-        { wch: 20 },  // المنطقة
-        { wch: 20 },  // نوع البضاعه
-        { wch: 10 },  // عدد القطع
-        { wch: 15 },  // السعر مع التوصيل
-        { wch: 12 },  // حجم الطلب
-        { wch: 20 },  // الملاحظات
-        { wch: 12 },  // نوع الطلب
-    ];
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'الطلبات');
-
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `waseet_shipment_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    return { success: true, count: selectedOrders.length };
+    return downloadCourierSheet('waseet', orderIds, ordersData);
 }
 
 /**
