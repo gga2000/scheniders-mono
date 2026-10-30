@@ -8,8 +8,8 @@
 // - compact: a 36px monogram, the name in <bdi> (so «eng. سيف» never
 //   reads «سيف .eng»), the stars, the body at 15px clamped to 3 lines.
 // A clamped body gets «كمّل» only when it really overflows (measured
-// after mount), and opens by itself while a pressed topic marks a word in
-// it. The key phrase is always tinted (bg-bk-primary/25, a tint, never a
+// after mount and again whenever it resizes), and opens by itself while
+// a pressed topic marks a word in it. The key phrase is always tinted (bg-bk-primary/25, a tint, never a
 // fill: D4); a pressed topic's words get the stronger /40 tint. A
 // tag-only topic marks the card's edge instead. «رد {store}» renders
 // under the review only when the merchant wrote a reply. No dates (the
@@ -105,7 +105,13 @@ export function HighlightsCard({
   useEffect(() => {
     const p = bodyRef.current?.querySelector("p");
     if (!clamped || !p) return;
-    setOverflows(p.scrollHeight > p.clientHeight + 1);
+    const measure = (): void => setOverflows(p.scrollHeight > p.clientHeight + 1);
+    measure();
+    // A rotation, a font swap or a narrower column can change the answer.
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(p);
+    return () => observer.disconnect();
   }, [clamped, body]);
 
   const stars = (

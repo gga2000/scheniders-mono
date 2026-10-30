@@ -8,9 +8,10 @@
 // «شوف كل التقييمات (N)». A word button HIGHLIGHTS, never filters: the
 // list keeps every card in its place, the matching words get a mark, a
 // hidden matching review brings the rest into view, and the page scrolls
-// to the first mark. A second tap clears. Topic counts, order, key
-// phrases and replies are all computed here from the rendered reviews
-// and the merchant's props (`review_curation`, until Phase 2's columns).
+// to the first mark (only a press scrolls). A second tap clears. Topic
+// counts, order, key phrases and replies are all computed here from the
+// rendered reviews and the merchant's props (`review_curation`, until
+// Phase 2's columns).
 // =====================================================================
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -51,6 +52,9 @@ export function HighlightsView({
 }) {
   const rtl = readsRtl(locale);
   const listRef = useRef<HTMLUListElement>(null);
+  /** Set by a press, read and cleared by the scroll effect: only a press
+   *  scrolls, never «شوف كل التقييمات» opening the rest under a topic. */
+  const scrollPending = useRef(false);
   const [active, setActive] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -71,6 +75,8 @@ export function HighlightsView({
   const shown = expanded ? all : visible;
 
   useEffect(() => {
+    if (!scrollPending.current) return;
+    scrollPending.current = false;
     if (!active) return;
     const first = listRef.current?.querySelector("[data-term], [data-term-card]");
     if (!first) return;
@@ -83,6 +89,7 @@ export function HighlightsView({
       setActive(null);
       return;
     }
+    scrollPending.current = true;
     setActive(key);
     const hiddenMatch = all.some(
       (r) => !visible.includes(r) && reviewThemes(r.body, tagsOf(r.id), themes).has(key),

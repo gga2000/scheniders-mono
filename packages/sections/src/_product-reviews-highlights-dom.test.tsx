@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { StoreBaseProvider } from "./helpers/store-context";
 import product_reviews from "./product_reviews";
 import { productCtx } from "./_pdp-fixtures";
@@ -123,6 +123,16 @@ describe("«شوف كل التقييمات»", () => {
     expect(names(container)).toEqual(EXPANDED);
     expect(container.querySelector("[data-reviews-show-all]")).toBeNull();
   });
+
+  it("after a topic whose hits were all visible, opening the rest does not scroll", () => {
+    const { container, getByText } = mount();
+    fireEvent.click(button(container, "luxury"));
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    scrollIntoView.mockClear();
+    fireEvent.click(getByText("شوف كل التقييمات (6)"));
+    expect(names(container)).toEqual(EXPANDED);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
 });
 
 describe("«كمّل»", () => {
@@ -144,6 +154,41 @@ describe("«كمّل»", () => {
   it("does not show when the body fits", () => {
     const { container } = mount();
     expect(container.querySelectorAll("[data-read-more]")).toHaveLength(0);
+  });
+
+  it("re-measures when the clamped body resizes", () => {
+    const callbacks: Array<() => void> = [];
+    const observed: Element[] = [];
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(cb: () => void) {
+          callbacks.push(cb);
+        }
+        observe(el: Element): void {
+          observed.push(el);
+        }
+        unobserve(): void {}
+        disconnect = disconnect;
+      },
+    );
+    const { container, unmount } = mount();
+    expect(container.querySelectorAll("[data-read-more]")).toHaveLength(0);
+    expect(observed.every((el) => el.tagName === "P")).toBe(true);
+    expect(observed.length).toBeGreaterThan(0);
+    // The viewport narrows: the bodies now overflow their clamp.
+    const tall = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(200);
+    const clamp = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(80);
+    act(() => {
+      for (const cb of callbacks) cb();
+    });
+    expect(container.querySelectorAll("[data-read-more]")).toHaveLength(3);
+    unmount();
+    expect(disconnect).toHaveBeenCalled();
+    tall.mockRestore();
+    clamp.mockRestore();
+    vi.unstubAllGlobals();
   });
 });
 
