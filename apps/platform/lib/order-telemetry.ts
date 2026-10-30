@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { ExchangedOrderStatusError } from "@/lib/order-status-guard";
 
 /**
  * Error reporting for the orders surface.
@@ -29,11 +30,13 @@ export type OrderErrorContext = {
  * `CONFLICT_DETECTED` is the optimistic-concurrency guard doing its job: two
  * people edited the same order and the second was told to refresh. Reporting it
  * would bury real failures under routine ones, which is how error tracking stops
- * being read.
+ * being read. The exchange guard refusing a status change is the same: a rule
+ * working as intended.
  */
 const EXPECTED_ERRORS = new Set(["CONFLICT_DETECTED"]);
 
 export function isExpectedOrderError(error: unknown): boolean {
+    if (error instanceof ExchangedOrderStatusError) return true;
     const message = error instanceof Error ? error.message : String(error ?? "");
     return EXPECTED_ERRORS.has(message);
 }

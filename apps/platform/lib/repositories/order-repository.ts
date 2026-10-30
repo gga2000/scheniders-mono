@@ -12,6 +12,7 @@ import {
     type OrderListPreview,
 } from "@/lib/orders/list-preview";
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
+import { ExchangedOrderStatusError, isExchangedOriginalStatusViolation } from "@/lib/order-status-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS, ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { runInSequentialBatches, type BatchOutcome, type BulkProgress } from "@/lib/order-bulk-batches";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
@@ -937,6 +938,7 @@ export const orderRepository = {
                         diag.error(`[updateStatus] attempt ${attempt + 1} CONFLICT for ${id} in ${elapsed}ms (PGRST116)`);
                         throw new Error("CONFLICT_DETECTED");
                     }
+                    if (isExchangedOriginalStatusViolation(error)) throw new ExchangedOrderStatusError();
                     diag.error(`[updateStatus] attempt ${attempt + 1} FAILED for ${id} in ${elapsed}ms:`, error.message);
                     throw error;
                 }
@@ -972,6 +974,7 @@ export const orderRepository = {
                 }
 
                 // Do not retry on intentional application errors or data conflicts
+                if (err instanceof ExchangedOrderStatusError) throw err;
                 if (err instanceof Error && (err.message === "CONFLICT_DETECTED" || err.message.includes("row not found"))) {
                     throw err;
                 }
