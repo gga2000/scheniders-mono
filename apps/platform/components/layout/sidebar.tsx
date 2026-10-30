@@ -136,9 +136,21 @@ export function Sidebar({
     const currentTab =
         searchParams?.get("tab") ||
         (pathname.startsWith("/finances") ? "overview" : "products");
-    const { user, profile, role, permissions, signOut, isLoading: authLoading } = useAuth();
+    const { user, profile, role, permissions, profileLoaded, signOut, isLoading: authLoading } = useAuth();
     // Only the links this user may open: the same rules PageGuard enforces.
     const navSections = useMemo(() => filterNavSections(NAV_SECTIONS, role, permissions), [role, permissions]);
+    // Until the role is known, filtering keeps only the ungated links, which
+    // then jump to the full list. Hold placeholder rows in their place instead.
+    const navPlaceholder = (
+        <div aria-hidden className="space-y-0">
+            {NAV_ITEMS.map((item) => (
+                <div key={item.href} className={cn("flex items-center py-2.5", collapsed && !isMobile ? "justify-center" : "gap-3 px-3")}>
+                    <div className="w-[22px] h-[22px] rounded-md bg-white/[0.06] animate-pulse flex-shrink-0" />
+                    {!(collapsed && !isMobile) && <div className="h-3 w-24 rounded bg-white/[0.06] animate-pulse" />}
+                </div>
+            ))}
+        </div>
+    );
     const canOpenSettings = canAccessRoute("/settings", role, permissions);
     const prefetchCustomers = usePrefetchCustomers();
     const prefetchProducts = usePrefetchProducts();
@@ -384,7 +396,7 @@ export function Sidebar({
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
-                    {navSections.map((section, sectionIndex) => (
+                    {!profileLoaded ? navPlaceholder : navSections.map((section, sectionIndex) => (
                         <div key={section.titleKey} className={sectionIndex > 0 ? (collapsed ? "mt-2" : "mt-5") : undefined}>
                             <motion.div
                                 initial={false}
@@ -569,7 +581,7 @@ export function Sidebar({
 
                         {/* Navigation */}
                         <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
-                            {navSections.map((section, sectionIndex) => (
+                            {!profileLoaded ? navPlaceholder : navSections.map((section, sectionIndex) => (
                                 <div key={section.titleKey} className={sectionIndex > 0 ? "mt-5" : undefined}>
                                     <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
                                         {t(section.titleKey)}
