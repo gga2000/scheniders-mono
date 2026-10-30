@@ -63,6 +63,7 @@ import {
   SLICE_1G_HEADER_PATCH,
   SLICE_1G_HEADER_VARIANT_PATCH,
   SLICE_1G_PDP_PATCH,
+  SLICE_1H_EDITS,
 } from "./_pdp-redesign-fixtures";
 
 const MIGRATIONS = new URL("../../supabase/migrations/", import.meta.url);
@@ -199,6 +200,11 @@ describe("redesign fixtures mirror the draft migrations", () => {
       true,
       true,
     ]);
+  });
+
+  it("slice 1h edits: cart, checkout and thank-you sections", () => {
+    const sql1h = migrationSql("scheniders_iraq_pdp_redesign_1h_draft");
+    expect(migrationJson(sql1h, "edits")).toEqual(SLICE_1H_EDITS);
   });
 
   it("the patched props satisfy the schema unchanged", () => {
