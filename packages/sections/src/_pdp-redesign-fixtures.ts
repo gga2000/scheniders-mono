@@ -545,13 +545,21 @@ export const IRAQ_REDESIGN_REVIEWS_INPUT = jsonbMerge(IRAQ_DRAFT_REVIEWS_BASE, S
 /** The draft faq_contact_split after slice 1e (unparsed, as stored). */
 export const IRAQ_REDESIGN_FAQ_INPUT = jsonbMerge(IRAQ_DRAFT_FAQ_BASE, SLICE_1E_FAQ_PATCH);
 
-/** The draft pdp_direct_order after slices 1b, 1c, 1d and 1e. */
+/** Slice 1f: the key the 1f draft migration merges into pdp_direct_order's
+ *  base. Ali (2026-10-30): the WhatsApp tile comes back beside «ثبّت طلبي»
+ *  (slice 1b had switched it off). It stays green under color_lock. */
+export const SLICE_1F_PDP_PATCH = {
+  show_whatsapp: true,
+} satisfies Partial<PdpDirectOrderProps>;
+
+/** The draft pdp_direct_order after slices 1b, 1c, 1d, 1e and 1f. */
 export const IRAQ_REDESIGN_PDP_PROPS: PdpDirectOrderProps = {
   ...EXPRESS_IRAQ_DRAFT_PDP_PROPS,
   ...SLICE_1B_PDP_PATCH,
   ...SLICE_1C_PDP_PATCH,
   ...SLICE_1D_PDP_PATCH,
   ...SLICE_1E_PDP_PATCH,
+  ...SLICE_1F_PDP_PATCH,
 };
 
 /** Slice 1f: the keys the 1f draft migration merges into sticky_cta_bar's

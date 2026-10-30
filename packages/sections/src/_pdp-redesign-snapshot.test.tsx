@@ -54,6 +54,7 @@ import {
   SLICE_1E_FAQ_PATCH,
   SLICE_1E_PDP_PATCH,
   SLICE_1E_REVIEWS_PATCH,
+  SLICE_1F_PDP_PATCH,
   SLICE_1F_STICKY_PATCH,
 } from "./_pdp-redesign-fixtures";
 
@@ -157,6 +158,12 @@ describe("redesign fixtures mirror the draft migrations", () => {
   it("slice 1f sticky_cta_bar patch", () => {
     const sql1f = migrationSql("scheniders_iraq_pdp_redesign_1f_draft");
     expect(migrationJson(sql1f, "sticky_patch")).toEqual(SLICE_1F_STICKY_PATCH);
+  });
+
+  it("slice 1f pdp_direct_order patch: the WhatsApp tile is back", () => {
+    const sql1f = migrationSql("scheniders_iraq_pdp_redesign_1f_draft");
+    expect(migrationJson(sql1f, "pdp_patch")).toEqual(SLICE_1F_PDP_PATCH);
+    expect(IRAQ_REDESIGN_PDP_PROPS.show_whatsapp).toBe(true);
   });
 
   it("the 1f sticky bar parses to exactly what is stored, still hidden while the form shows", () => {
