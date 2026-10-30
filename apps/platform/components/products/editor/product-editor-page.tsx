@@ -41,14 +41,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import { TrendingUp, Clock, Package, Zap, Link as LinkIcon, Weight, Truck, Barcode, MapPin, Layers3, Tags } from "lucide-react";
 import { SectionNav } from "./section-nav";
 import { AutoSaveIndicator } from "./auto-save-indicator";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProductEditorPageProps {
     product?: Product | null;
     mode: "create" | "edit";
+    /** Create mode: start as an internal supply (Supplies tab → Add). */
+    defaultIsSupply?: boolean;
 }
 
-export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
-    const editor = useProductEditor({ product, mode });
+export function ProductEditorPage({ product, mode, defaultIsSupply = false }: ProductEditorPageProps) {
+    const editor = useProductEditor({ product, mode, defaultIsSupply });
+    const { t } = useLanguage();
 
     return (
         <div className="min-h-screen bg-[var(--background)]">
@@ -82,20 +86,20 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                     >
                         <div className="mt-4 p-4 bg-[var(--pastel-blue)] rounded-xl flex items-center justify-between">
                             <p className="text-sm text-blue-800">
-                                You have an unsaved draft from a previous session. Would you like to restore it?
+                                {t("products.ed.draftFound")}
                             </p>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={editor.dismissDraft}
                                     className="px-3 py-1.5 text-sm text-blue-700 hover:text-blue-900 transition-colors"
                                 >
-                                    Dismiss
+                                    {t("products.ed.dismiss")}
                                 </button>
                                 <button
                                     onClick={editor.handleRestoreDraft}
                                     className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                                 >
-                                    Restore Draft
+                                    {t("products.ed.restoreDraft")}
                                 </button>
                             </div>
                         </div>
@@ -297,7 +301,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                         <div id="section-advanced">
                         <AdvancedOptionsSection>
                             {!editor.formData.is_supply && (
-                                <CollapsibleSection title="Volume Pricing" icon={<TrendingUp className="w-4 h-4 text-muted" />} badge={editor.formData.tiered_prices.length || undefined} persistKey="volume-pricing">
+                                <CollapsibleSection title={t("products.ed.sec.volume")} icon={<TrendingUp className="w-4 h-4 text-muted" />} badge={editor.formData.tiered_prices.length || undefined} persistKey="volume-pricing">
                                     <TieredPricingSection
                                         tiers={editor.formData.tiered_prices}
                                         onChange={(tiers) => editor.updateField("tiered_prices", tiers)}
@@ -307,7 +311,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             )}
 
                             {editor.formData.product_type === "physical" && (
-                                <CollapsibleSection title="Shipping & Dimensions" icon={<Weight className="w-4 h-4 text-muted" />} persistKey="shipping-dims">
+                                <CollapsibleSection title={t("products.ed.sec.shipping")} icon={<Weight className="w-4 h-4 text-muted" />} persistKey="shipping-dims">
                                     <PhysicalFieldsSection
                                         formData={editor.formData}
                                         updateField={editor.updateField}
@@ -317,14 +321,14 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
 
                             {editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
                                 <>
-                                    <CollapsibleSection title="Inventory History" icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.inventory_history.length || undefined} persistKey="inventory-history">
+                                    <CollapsibleSection title={t("products.ed.sec.invHistory")} icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.inventory_history.length || undefined} persistKey="inventory-history">
                                         <InventoryTimeline
                                             entries={editor.formData.inventory_history}
                                             onChange={(entries) => editor.updateField("inventory_history", entries)}
                                         />
                                     </CollapsibleSection>
 
-                                    <CollapsibleSection title="Suppliers" icon={<Truck className="w-4 h-4 text-muted" />} badge={editor.formData.suppliers.length || undefined} persistKey="suppliers">
+                                    <CollapsibleSection title={t("products.ed.sec.suppliers")} icon={<Truck className="w-4 h-4 text-muted" />} badge={editor.formData.suppliers.length || undefined} persistKey="suppliers">
                                         <SupplierSection
                                             suppliers={editor.formData.suppliers}
                                             onChange={(suppliers) => editor.updateField("suppliers", suppliers)}
@@ -334,7 +338,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             )}
 
                             {!editor.formData.is_supply && (
-                                <CollapsibleSection title="Order Bumps" icon={<Zap className="w-4 h-4 text-muted" />} badge={editor.formData.order_bumps.length || undefined} persistKey="order-bumps">
+                                <CollapsibleSection title={t("products.ed.sec.bumps")} icon={<Zap className="w-4 h-4 text-muted" />} badge={editor.formData.order_bumps.length || undefined} persistKey="order-bumps">
                                     <OrderBumpsSection
                                         bumps={editor.formData.order_bumps}
                                         onChange={(bumps) => editor.updateField("order_bumps", bumps)}
@@ -343,7 +347,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                                 </CollapsibleSection>
                             )}
 
-                            <CollapsibleSection title="Related Products" icon={<LinkIcon className="w-4 h-4 text-muted" />} badge={editor.formData.related_products.length || undefined} persistKey="related-products">
+                            <CollapsibleSection title={t("products.ed.sec.related")} icon={<LinkIcon className="w-4 h-4 text-muted" />} badge={editor.formData.related_products.length || undefined} persistKey="related-products">
                                 <RelatedProductsSection
                                     relatedProducts={editor.formData.related_products}
                                     onChange={(products) => editor.updateField("related_products", products)}
@@ -352,7 +356,7 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             </CollapsibleSection>
 
                             {mode === "edit" && (
-                                <CollapsibleSection title="Price History" icon={<TrendingUp className="w-4 h-4 text-muted" />} persistKey="price-history">
+                                <CollapsibleSection title={t("products.ed.sec.priceHistory")} icon={<TrendingUp className="w-4 h-4 text-muted" />} persistKey="price-history">
                                     <PriceHistoryChart
                                         entries={editor.formData.price_history}
                                         currentPrice={editor.formData.price}
@@ -361,14 +365,14 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
                             )}
 
                             {mode === "edit" && (
-                                <CollapsibleSection title="Activity Log" icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.activity_log.length || undefined} persistKey="activity-log">
+                                <CollapsibleSection title={t("products.ed.sec.activity")} icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.activity_log.length || undefined} persistKey="activity-log">
                                     <ActivityLogSection
                                         entries={editor.formData.activity_log}
                                     />
                                 </CollapsibleSection>
                             )}
 
-                            <CollapsibleSection title="Barcode / QR Code" icon={<Barcode className="w-4 h-4 text-muted" />} persistKey="barcode-qr">
+                            <CollapsibleSection title={t("products.ed.sec.barcode")} icon={<Barcode className="w-4 h-4 text-muted" />} persistKey="barcode-qr">
                                 <BarcodeGenerator
                                     barcode={editor.formData.barcode ?? ""}
                                     onChange={(barcode) => editor.updateField("barcode" as any, barcode)}
@@ -379,14 +383,14 @@ export function ProductEditorPage({ product, mode }: ProductEditorPageProps) {
 
                             {editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
                                 <>
-                                    <CollapsibleSection title="Batch / Expiry Tracking" icon={<Layers3 className="w-4 h-4 text-muted" />} persistKey="batch-expiry">
+                                    <CollapsibleSection title={t("products.ed.sec.batch")} icon={<Layers3 className="w-4 h-4 text-muted" />} persistKey="batch-expiry">
                                         <BatchManager
                                             productId={product?.id || ""}
                                             productName={editor.formData.name}
                                         />
                                     </CollapsibleSection>
 
-                                    <CollapsibleSection title="Storage Locations" icon={<MapPin className="w-4 h-4 text-muted" />} persistKey="storage-locations">
+                                    <CollapsibleSection title={t("products.ed.sec.locations")} icon={<MapPin className="w-4 h-4 text-muted" />} persistKey="storage-locations">
                                         <ProductLocationPicker
                                             productId={product?.id || ""}
                                         />

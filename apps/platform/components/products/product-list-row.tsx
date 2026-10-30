@@ -328,7 +328,6 @@ export const ProductListRow = React.memo(function ProductListRow({
                     onArchive={() => onArchive(product.id)}
                     onRestore={() => onRestore(product.id)}
                     onViewDetails={() => onViewDetails(product)}
-                    onViewOrders={() => {}}
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
                 />

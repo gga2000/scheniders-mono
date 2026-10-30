@@ -1,14 +1,21 @@
 "use client";
 
 import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { ProductEditorPage } from "@/components/products/editor/product-editor-page";
 
 export default function NewProductPage() {
     return (
         <Suspense fallback={<EditorSkeleton />}>
-            <ProductEditorPage product={null} mode="create" />
+            <NewProductEditor />
         </Suspense>
     );
+}
+
+/** `?supply=1` comes from the Supplies tab's Add button. */
+function NewProductEditor() {
+    const searchParams = useSearchParams();
+    return <ProductEditorPage product={null} mode="create" defaultIsSupply={searchParams.get("supply") === "1"} />;
 }
 
 function EditorSkeleton() {

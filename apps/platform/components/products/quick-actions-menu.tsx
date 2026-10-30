@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
     MoreVertical,
@@ -24,7 +25,6 @@ interface QuickActionsMenuProps {
     onArchive: () => void;
     onRestore?: () => void;
     onViewDetails: () => void;
-    onViewOrders: () => void;
     onDuplicate?: () => void;
     onDelete?: () => void;
     open?: boolean;
@@ -40,13 +40,13 @@ export function QuickActionsMenu({
     onArchive,
     onRestore,
     onViewDetails,
-    onViewOrders,
     onDuplicate,
     onDelete,
     open,
     onOpenChange,
 }: QuickActionsMenuProps) {
     const { t } = useLanguage();
+    const router = useRouter();
     const [confirmingArchive, setConfirmingArchive] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -103,7 +103,7 @@ export function QuickActionsMenu({
                     {/* View Orders */}
                     <DropdownMenu.Item
                         className={cn(itemClasses, "text-foreground")}
-                        onSelect={onViewOrders}
+                        onSelect={() => router.push(`/orders?product=${encodeURIComponent(product.name)}`)}
                     >
                         <ShoppingBag className="w-4 h-4" />
                         {t("products.actions.viewOrders")}

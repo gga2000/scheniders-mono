@@ -2,6 +2,7 @@
 
 import { Package, Download, Clock, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 type ProductType = 'physical' | 'digital' | 'service' | 'bundle';
 
@@ -15,32 +16,24 @@ interface ProductTypeSelectorProps {
 const PRODUCT_TYPES = [
     {
         type: 'physical' as const,
-        label: 'Physical',
-        description: 'Tangible goods with inventory & shipping',
         icon: Package,
         color: 'bg-emerald-100 text-emerald-700',
         activeColor: 'bg-emerald-500 text-white',
     },
     {
         type: 'digital' as const,
-        label: 'Digital',
-        description: 'Downloadable files & license keys',
         icon: Download,
         color: 'bg-blue-100 text-blue-700',
         activeColor: 'bg-blue-500 text-white',
     },
     {
         type: 'service' as const,
-        label: 'Service',
-        description: 'Time-based offerings & bookings',
         icon: Clock,
         color: 'bg-purple-100 text-purple-700',
         activeColor: 'bg-purple-500 text-white',
     },
     {
         type: 'bundle' as const,
-        label: 'Bundle',
-        description: 'Combine existing products as a kit',
         icon: Layers,
         color: 'bg-amber-100 text-amber-700',
         activeColor: 'bg-amber-500 text-white',
@@ -48,12 +41,11 @@ const PRODUCT_TYPES = [
 ];
 
 export function ProductTypeSelector({ value, onChange, disabled, mode }: ProductTypeSelectorProps) {
+    const { t } = useLanguage();
     const handleSelect = (type: ProductType) => {
         if (disabled) return;
         if (mode === "edit" && type !== value) {
-            const confirmed = window.confirm(
-                "Changing product type will reset type-specific fields. Are you sure?"
-            );
+            const confirmed = window.confirm(t("products.ed.typeChangeConfirm"));
             if (!confirmed) return;
         }
         onChange(type);
@@ -62,7 +54,7 @@ export function ProductTypeSelector({ value, onChange, disabled, mode }: Product
     return (
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-4">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                Product Type
+                {t("products.ed.type")}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {PRODUCT_TYPES.map((pt) => {
@@ -92,14 +84,14 @@ export function ProductTypeSelector({ value, onChange, disabled, mode }: Product
                                     "text-sm font-semibold",
                                     isActive ? "text-foreground" : "text-muted"
                                 )}>
-                                    {pt.label}
+                                    {t(`products.ed.type.${pt.type}`)}
                                 </p>
                                 <p className="text-xs text-muted mt-0.5 leading-tight">
-                                    {pt.description}
+                                    {t(`products.ed.type.${pt.type}Hint`)}
                                 </p>
                             </div>
                             {isActive && (
-                                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--ink)]" />
+                                <div className="absolute top-2 end-2 w-2 h-2 rounded-full bg-[var(--ink)]" />
                             )}
                         </button>
                     );

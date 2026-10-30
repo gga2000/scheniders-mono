@@ -2,6 +2,7 @@
 
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { RichTextEditor } from "./rich-text-editor";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProductBasicSectionProps {
     formData: ProductEditorFormData;
@@ -9,50 +10,46 @@ interface ProductBasicSectionProps {
 }
 
 export function ProductBasicSection({ formData, updateField }: ProductBasicSectionProps) {
+    const { t } = useLanguage();
     return (
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                Basic Information
+                {t("products.ed.basic")}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Product Name <span className="text-rose-500">*</span>
+                        {t("products.ed.name")} <span className="text-rose-500">*</span>
                     </label>
                     <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => updateField("name", e.target.value)}
-                        placeholder="e.g., Dior Sauvage"
+                        placeholder={t("products.ed.namePh")}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Short Name
-                        <span className="text-xs text-muted ml-1">(internal)</span>
+                        {t("products.ed.shortName")}
+                        <span className="text-xs text-muted ms-1">{t("products.ed.internal")}</span>
                     </label>
                     <input
                         type="text"
                         value={formData.short_name}
                         onChange={(e) => updateField("short_name", e.target.value)}
-                        placeholder="e.g., انفوي"
+                        placeholder={t("products.ed.shortNamePh")}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
-                    <p className="text-xs text-muted mt-1">
-                        Product Name is the full customer-facing title shown on the website and
-                        used for marketing. Short Name is what your team sees on orders, printing
-                        and labels — keep it brief for quick identification. Leave empty to use
-                        the full name everywhere.
-                    </p>
+                    <p className="text-xs text-muted mt-1">{t("products.ed.shortNameHint")}</p>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                         SKU
-                        <span className="text-xs text-muted ml-1">(LightFunnels)</span>
+                        <span className="text-xs text-muted ms-1">(LightFunnels)</span>
                     </label>
                     <input
                         type="text"
@@ -66,29 +63,29 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
 
             <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                    Description
+                    {t("products.ed.description")}
                 </label>
                 <RichTextEditor
                     value={formData.description}
                     onChange={(html) => updateField("description", html)}
-                    placeholder="Write your product description..."
+                    placeholder={t("products.ed.descriptionPh")}
                 />
             </div>
 
             <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                    Short Description
-                    <span className="text-xs text-muted ml-1">(shown on product cards, max 200 chars)</span>
+                    {t("products.ed.shortDescription")}
+                    <span className="text-xs text-muted ms-1">{t("products.ed.shortDescriptionHint")}</span>
                 </label>
                 <textarea
                     value={formData.short_description}
                     onChange={(e) => updateField("short_description", e.target.value)}
-                    placeholder="Brief tagline or 1-2 sentence summary..."
+                    placeholder={t("products.ed.shortDescriptionPh")}
                     rows={2}
                     maxLength={200}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
                 />
-                <p className="text-xs text-muted mt-1 text-right">
+                <p className="text-xs text-muted mt-1 text-end">
                     {formData.short_description.length}/200
                 </p>
             </div>

@@ -4,6 +4,7 @@ import { Eye, EyeOff, Tag } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { CategoryCombobox } from "@/components/products/category-combobox";
 import { ProductPerformanceCard } from "./product-performance-card";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProductEditorSidebarProps {
     formData: ProductEditorFormData;
@@ -27,21 +28,22 @@ const TAG_COLORS = [
 ];
 
 export function ProductEditorSidebar({ formData, updateField, mode, timesSold, totalRevenue, profitMargin, averageOrderValue }: ProductEditorSidebarProps) {
+    const { t } = useLanguage();
     return (
         <div className="space-y-6">
             {/* Status */}
             <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                    Status
+                    {t("products.ed.statusLabel")}
                 </h3>
                 <select
                     value={formData.status}
                     onChange={(e) => updateField("status", e.target.value as 'draft' | 'active' | 'archived')}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 >
-                    <option value="draft">Draft</option>
-                    <option value="active">Active</option>
-                    <option value="archived">Archived</option>
+                    <option value="draft">{t("products.ed.status.draft")}</option>
+                    <option value="active">{t("products.ed.status.active")}</option>
+                    <option value="archived">{t("products.ed.status.archived")}</option>
                 </select>
 
                 {/* Supply toggle */}
@@ -54,8 +56,8 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                             className="w-4 h-4 rounded border-2 border-[var(--muted)] text-[var(--pastel-yellow)] focus:ring-[var(--pastel-yellow)] focus:ring-offset-0 bg-transparent cursor-pointer"
                         />
                         <div>
-                            <p className="text-sm font-medium text-foreground">Internal Supply</p>
-                            <p className="text-xs text-muted">Track for packaging/internal use</p>
+                            <p className="text-sm font-medium text-foreground">{t("products.ed.supply")}</p>
+                            <p className="text-xs text-muted">{t("products.ed.supplyHint")}</p>
                         </div>
                     </label>
                 </div>
@@ -71,10 +73,8 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                                 className="w-4 h-4 rounded border-2 border-[var(--muted)] text-[var(--pastel-yellow)] focus:ring-[var(--pastel-yellow)] focus:ring-offset-0 bg-transparent cursor-pointer"
                             />
                             <div>
-                                <p className="text-sm font-medium text-foreground">Filler product</p>
-                                <p className="text-xs text-muted">
-                                    Customers can order it, but it is not held in main stock — collapsed in the order product picker
-                                </p>
+                                <p className="text-sm font-medium text-foreground">{t("products.ed.filler")}</p>
+                                <p className="text-xs text-muted">{t("products.ed.fillerHint")}</p>
                             </div>
                         </label>
                     </div>
@@ -85,7 +85,7 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
             {!formData.is_supply && (
                 <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 space-y-4">
                     <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                        Visibility
+                        {t("products.ed.visibility")}
                     </h3>
                     <button
                         type="button"
@@ -99,12 +99,12 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                         {formData.is_visible ? (
                             <>
                                 <Eye className="w-4 h-4" />
-                                Visible on store
+                                {t("products.ed.visible")}
                             </>
                         ) : (
                             <>
                                 <EyeOff className="w-4 h-4" />
-                                Hidden from store
+                                {t("products.ed.hidden")}
                             </>
                         )}
                     </button>
@@ -115,12 +115,12 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
             {!formData.is_supply && (
                 <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 space-y-4">
                     <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                        Organization
+                        {t("products.ed.organization")}
                     </h3>
 
                     <div>
                         <label className="block text-sm font-medium text-foreground mb-2">
-                            Category
+                            {t("products.ed.category")}
                         </label>
                         <CategoryCombobox
                             value={formData.category_id ?? null}
@@ -132,8 +132,8 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
 
                     <div>
                         <label className="block text-sm font-medium text-foreground mb-2">
-                            Display Order
-                            <span className="text-xs text-muted ml-1">(lower = first)</span>
+                            {t("products.ed.displayOrder")}
+                            <span className="text-xs text-muted ms-1">{t("products.ed.displayOrderHint")}</span>
                         </label>
                         <input
                             type="number"
@@ -147,8 +147,8 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                     {/* Tag Color */}
                     <div>
                         <label className="block text-sm font-medium text-foreground mb-2">
-                            <Tag className="w-3.5 h-3.5 inline mr-1" />
-                            Tag Color
+                            <Tag className="w-3.5 h-3.5 inline me-1" />
+                            {t("products.ed.tagColor")}
                         </label>
                         <div className="flex flex-wrap gap-2">
                             {TAG_COLORS.map((preset) => (
