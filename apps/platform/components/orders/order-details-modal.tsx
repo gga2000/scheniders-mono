@@ -87,6 +87,7 @@ import { RefundBanner } from "./refund-banner";
 import { RefundEntry } from "./refund-entry";
 import { ReplaceEntry } from "./replace-entry";
 import { ReplacementBanner } from "./replacement-banner";
+import { AfterSaleLossChip } from "./after-sale-loss-chip";
 
 interface OrderDetailsModalProps {
     order: Order | null;
@@ -675,6 +676,7 @@ export function OrderDetailsModal({
                                 </span>
                                 <RefundBanner order={order} />
                                 <ReplacementBanner order={order} />
+                                <AfterSaleLossChip phone={order.phone} />
                                 {/* Action Buttons Row - Reorder, Return, Replace */}
                                 {!isEditing && (
                                     <div className="flex items-center gap-2 mt-1">
