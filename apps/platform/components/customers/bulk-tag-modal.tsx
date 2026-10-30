@@ -6,6 +6,7 @@ import { X, Tag as TagIcon, Search, AlertTriangle } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
 import { tagColorClasses } from "@/types/customer";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface BulkTagModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ interface BulkTagModalProps {
 }
 
 export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoading }: BulkTagModalProps) {
+    const { t } = useLanguage();
     const { tags } = useCustomerTags();
     const [search, setSearch] = useState("");
     const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
@@ -60,15 +62,16 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                         <div>
                             <h2 className="text-xl font-bold flex items-center gap-2">
                                 <TagIcon className="w-5 h-5 text-[var(--ink)]" />
-                                Add Tags
+                                {t("customers.bulkTag.title")}
                             </h2>
                             <p className="text-sm text-muted mt-1">
-                                Tagging {selectedCount} selected {selectedCount === 1 ? 'customer' : 'customers'}
+                                {t("customers.bulkTag.subtitle", { count: selectedCount.toLocaleString("en-US") })}
                             </p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 -mr-2 rounded-xl text-muted hover:text-foreground hover:bg-[var(--card-border)] transition-colors"
+                            aria-label={t("customers.bulk.cancel")}
+                            className="w-11 h-11 -mr-2 inline-flex items-center justify-center rounded-xl text-muted hover:text-foreground hover:bg-[var(--card-border)] transition-colors"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -80,7 +83,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                             <input
                                 type="text"
-                                placeholder="Search tags..."
+                                placeholder={t("customers.bulkTag.search")}
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="w-full pl-9 pr-4 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ink)] focus:border-transparent transition-all"
@@ -91,12 +94,12 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                         <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                             {filteredTags.length === 0 ? (
                                 <div className="text-center py-8 text-muted text-sm">
-                                    No tags found.
+                                    {t("customers.bulkTag.empty")}
                                 </div>
                             ) : (
                                 filteredTags.map((tag) => {
                                     const isSelected = selectedTagIds.has(tag.id);
-                                    const colorTheme = tagColorClasses[tag.color];
+                                    const colorTheme = tagColorClasses[tag.color] ?? tagColorClasses.gray;
                                     return (
                                         <button
                                             key={tag.id}
@@ -134,7 +137,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                             className="flex-1 py-2.5 px-4 bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:text-foreground hover:bg-[var(--card-border)] font-medium rounded-xl transition-all"
                             disabled={isLoading}
                         >
-                            Cancel
+                            {t("customers.bulk.cancel")}
                         </button>
                         <button
                             onClick={handleConfirm}
@@ -144,7 +147,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (
-                                `Apply Tags (${selectedTagIds.size})`
+                                t("customers.bulkTag.apply", { count: String(selectedTagIds.size) })
                             )}
                         </button>
                     </div>

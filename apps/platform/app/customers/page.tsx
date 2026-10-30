@@ -55,7 +55,7 @@ function CustomersPageContent() {
     const [selected, setSelected] = useState<Map<string, PaginatedCustomer>>(new Map());
     const [showBroadcast, setShowBroadcast] = useState(false);
     const [showBulkTag, setShowBulkTag] = useState(false);
-    const { bulkAddTags } = useCustomerBulkActions();
+    const { bulkAddTags, isTagging } = useCustomerBulkActions();
 
     const filters = useMemo(() => {
         const f: PaginatedCustomerFilters = {
@@ -352,6 +352,7 @@ function CustomersPageContent() {
                 isOpen={showBulkTag}
                 onClose={() => setShowBulkTag(false)}
                 onConfirm={onConfirmTags}
+                isLoading={isTagging}
                 selectedCount={selected.size}
             />
         </div>

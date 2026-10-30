@@ -12,7 +12,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
-import { usePrefetchCustomers } from "@/hooks/use-customers-query";
 import { usePrefetchProducts } from "@/hooks/use-products-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState, type ComponentType } from "react";
@@ -152,7 +151,6 @@ export function Sidebar({
         </div>
     );
     const canOpenSettings = canAccessRoute("/settings", role, permissions);
-    const prefetchCustomers = usePrefetchCustomers();
     const prefetchProducts = usePrefetchProducts();
     const { t } = useLanguage();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -199,7 +197,6 @@ export function Sidebar({
                     prefetch={true}
                     onMouseEnter={() => {
                         // Intent-based rigorous prefetching
-                        if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
                         if (["/products", "/finances"].includes(item.href)) prefetchProducts();
                     }}
                     className={cn(
@@ -596,7 +593,6 @@ export function Sidebar({
                                             onClick={handleNavClick}
                                             onMouseEnter={() => {
                                                 // Intent-based rigorous prefetching
-                                                if (["/customers", "/finances"].includes(item.href)) prefetchCustomers();
                                                 if (["/products", "/finances"].includes(item.href)) prefetchProducts();
                                             }}
                                             className={cn(

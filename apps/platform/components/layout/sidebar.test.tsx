@@ -23,7 +23,6 @@ vi.mock("next/navigation", () => ({
     useSearchParams: () => null,
 }));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => auth.current }));
-vi.mock("@/hooks/use-customers-query", () => ({ usePrefetchCustomers: () => () => {} }));
 vi.mock("@/hooks/use-products-query", () => ({ usePrefetchProducts: () => () => {} }));
 vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
 vi.mock("@/components/ui/notification-center", () => ({ NotificationCenter: () => null }));

@@ -18,11 +18,12 @@ export const customerRepository = {
     // TAGS
     // =============================================
 
-    async findAllTags(): Promise<CustomerTag[]> {
+    async findAllTags(tenantId: string): Promise<CustomerTag[]> {
         return withRetry('customerRepository.findAllTags', async () => {
             const { data, error } = await supabase
                 .from("customer_tags")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .order("name");
 
             if (error) throw error;
@@ -58,22 +59,12 @@ export const customerRepository = {
     // TAG ASSIGNMENTS
     // =============================================
 
-    async findAllTagAssignments(): Promise<CustomerTagAssignment[]> {
-        return withRetry('customerRepository.findAllTagAssignments', async () => {
-            const { data, error } = await supabase
-                .from("customer_tag_assignments")
-                .select(`*, tag:customer_tags(*)`);
-
-            if (error) throw error;
-            return data as CustomerTagAssignment[];
-        });
-    },
-
-    async findTagAssignmentsByPhone(phone: string): Promise<CustomerTagAssignment[]> {
+    async findTagAssignmentsByPhone(tenantId: string, phone: string): Promise<CustomerTagAssignment[]> {
         return withRetry('customerRepository.findTagAssignmentsByPhone', async () => {
             const { data, error } = await supabase
                 .from("customer_tag_assignments")
                 .select(`*, tag:customer_tags(*)`)
+                .eq("tenant_id", tenantId)
                 .eq("customer_phone", normalizePhoneForSearch(phone));
 
             if (error) throw error;
@@ -107,26 +98,16 @@ export const customerRepository = {
     // METADATA
     // =============================================
 
-    async findAllMetadata(): Promise<CustomerMetadata[]> {
-        return withRetry('customerRepository.findAllMetadata', async () => {
-            const { data, error } = await supabase
-                .from("customer_metadata")
-                .select("*");
-
-            if (error) throw error;
-            return data as CustomerMetadata[];
-        });
-    },
-
-    async findMetadataByPhone(phone: string): Promise<CustomerMetadata | null> {
+    async findMetadataByPhone(tenantId: string, phone: string): Promise<CustomerMetadata | null> {
         return withRetry('customerRepository.findMetadataByPhone', async () => {
             const { data, error } = await supabase
                 .from("customer_metadata")
                 .select("*")
-                .eq("customer_phone", phone)
-                .single();
+                .eq("tenant_id", tenantId)
+                .eq("customer_phone", normalizePhoneForSearch(phone))
+                .maybeSingle();
 
-            if (error && error.code !== "PGRST116") throw error;
+            if (error) throw error;
             return data as CustomerMetadata | null;
         });
     },
@@ -152,11 +133,12 @@ export const customerRepository = {
     // NOTES
     // =============================================
 
-    async findNotesByPhone(phone: string): Promise<CustomerNote[]> {
+    async findNotesByPhone(tenantId: string, phone: string): Promise<CustomerNote[]> {
         return withRetry('customerRepository.findNotesByPhone', async () => {
             const { data, error } = await supabase
                 .from("customer_notes")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .eq("customer_phone", phone)
                 .order("created_at", { ascending: false });
 
@@ -195,57 +177,6 @@ export const customerRepository = {
                 .from("customer_notes")
                 .delete()
                 .eq("id", id);
-
-            if (error) throw error;
-        });
-    },
-
-    // =============================================
-    // BLACKLIST
-    // =============================================
-
-    async findBlacklistedPhones(): Promise<{ phone: string }[]> {
-        return withRetry('customerRepository.findBlacklistedPhones', async () => {
-            const { data, error } = await supabase
-                .from("blacklist")
-                .select("phone");
-
-            if (error) throw error;
-            return data as { phone: string }[];
-        });
-    },
-
-    // =============================================
-    // WHITELIST
-    // =============================================
-
-    async findWhitelistedPhones(): Promise<{ phone: string }[]> {
-        return withRetry('customerRepository.findWhitelistedPhones', async () => {
-            const { data, error } = await supabase
-                .from("customer_whitelist")
-                .select("phone");
-
-            if (error) throw error;
-            return data as { phone: string }[];
-        });
-    },
-
-    async addToWhitelist(phone: string, reason: string | undefined, tenantId: string | null): Promise<void> {
-        return withRetry('customerRepository.addToWhitelist', async () => {
-            const { error } = await supabase
-                .from("customer_whitelist")
-                .upsert([{ phone, reason, tenant_id: tenantId }]);
-
-            if (error) throw error;
-        });
-    },
-
-    async removeFromWhitelist(phone: string): Promise<void> {
-        return withRetry('customerRepository.removeFromWhitelist', async () => {
-            const { error } = await supabase
-                .from("customer_whitelist")
-                .delete()
-                .eq("phone", phone);
 
             if (error) throw error;
         });
