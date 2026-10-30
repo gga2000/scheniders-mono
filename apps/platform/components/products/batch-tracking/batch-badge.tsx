@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/components/auth/auth-provider";
 
 interface BatchBadgeProps {
     productId: string;
@@ -12,7 +12,41 @@ interface BatchBadgeProps {
 }
 
 interface BatchRow {
+    product_id: string;
     expiry_date: string;
+}
+
+/**
+ * Nearest active expiry per product, for the whole tenant in one request.
+ * Every grid card used to fire its own product_batches query (about 20 on
+ * open, more on scroll as virtualised rows remount), on a store with no
+ * batches. All badges now share this one cached query.
+ */
+function useNearestExpiryByProduct() {
+    const { tenantId } = useAuth();
+    return useQuery<Map<string, string>>({
+        queryKey: ["product-batches-nearest-expiry", tenantId],
+        queryFn: async () => {
+            const nearest = new Map<string, string>();
+            if (!tenantId) return nearest;
+            const { data, error } = await supabase
+                .from("product_batches")
+                .select("product_id, expiry_date")
+                .eq("tenant_id", tenantId)
+                .eq("status", "active")
+                .not("expiry_date", "is", null)
+                .order("expiry_date", { ascending: true });
+
+            if (error) throw error;
+            // Rows arrive soonest first, so the first one per product wins.
+            for (const row of (data ?? []) as BatchRow[]) {
+                if (!nearest.has(row.product_id)) nearest.set(row.product_id, row.expiry_date);
+            }
+            return nearest;
+        },
+        enabled: !!tenantId,
+        staleTime: 5 * 60 * 1000,
+    });
 }
 
 function getDaysUntilExpiry(expiryDate: string): number {
@@ -31,29 +65,8 @@ function formatExpiryShort(dateStr: string): string {
 
 export function BatchBadge({ productId, size = "sm" }: BatchBadgeProps) {
     const { t } = useLanguage();
-    const { data: batches = [] } = useQuery<BatchRow[]>({
-        queryKey: ["product-batches-expiry", productId],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from("product_batches")
-                .select("expiry_date")
-                .eq("product_id", productId)
-                .eq("status", "active")
-                .not("expiry_date", "is", null)
-                .order("expiry_date", { ascending: true })
-                .limit(1);
-
-            if (error) throw error;
-            return (data ?? []) as BatchRow[];
-        },
-        enabled: !!productId,
-        staleTime: 60 * 1000, // cache 1 min
-    });
-
-    const nearest = useMemo(() => {
-        if (batches.length === 0) return null;
-        return batches[0].expiry_date;
-    }, [batches]);
+    const { data: nearestByProduct } = useNearestExpiryByProduct();
+    const nearest = nearestByProduct?.get(productId) ?? null;
 
     if (!nearest) return null;
 

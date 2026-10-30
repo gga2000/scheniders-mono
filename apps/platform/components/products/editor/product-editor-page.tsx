@@ -33,15 +33,19 @@ import { CollapsibleSection } from "./collapsible-section";
 import { AdvancedOptionsSection } from "./advanced-options-section";
 import { LandedCostSection } from "./landed-cost-section";
 import { RecipeSection } from "./recipe-section";
-import { BarcodeGenerator } from "../barcode/barcode-generator";
 import { TagInput } from "../tags/tag-input";
-import { BatchManager } from "../batch-tracking/batch-manager";
-import { ProductLocationPicker } from "../warehouse/product-location-picker";
 import { AnimatePresence, motion } from "framer-motion";
 import { TrendingUp, Clock, Package, Zap, Link as LinkIcon, Weight, Truck, Barcode, MapPin, Layers3, Tags } from "lucide-react";
 import { SectionNav } from "./section-nav";
 import { AutoSaveIndicator } from "./auto-save-indicator";
 import { useLanguage } from "@/hooks/use-language";
+import dynamic from "next/dynamic";
+
+// Collapsed-by-default sections: their code (jsbarcode, qrcode, batch and
+// location tooling) loads when the section is opened, not with the editor.
+const BarcodeGenerator = dynamic(() => import("../barcode/barcode-generator").then((m) => m.BarcodeGenerator));
+const BatchManager = dynamic(() => import("../batch-tracking/batch-manager").then((m) => m.BatchManager));
+const ProductLocationPicker = dynamic(() => import("../warehouse/product-location-picker").then((m) => m.ProductLocationPicker));
 
 interface ProductEditorPageProps {
     product?: Product | null;

@@ -30,6 +30,7 @@ import { CategoryCombobox } from "./category-combobox";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { useUpdateProductMutation } from "@/hooks/use-products-query";
 import { calculateProductScore, computeDailySalesRate, type ProductScoreInput } from "@/lib/utils/product-scoring";
+import { ProductThumb } from "@/components/products/product-thumb";
 
 interface ProductGridCardProps {
     product: Product;
@@ -111,7 +112,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     e.stopPropagation();
                     onToggleSelection(product.id, e);
                 }}
-                className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
+                className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors before:absolute before:-inset-2 before:content-['']"
                 aria-label={isSelected ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
             >
                 {isSelected ? (
@@ -155,12 +156,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 className="aspect-square bg-gradient-to-br from-[var(--background)] to-[var(--card-border)] flex items-center justify-center relative cursor-pointer"
             >
                 {product.image_url ? (
-                    <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                    />
+                    <ProductThumb src={product.image_url} alt={product.name} sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw" />
                 ) : (
                     <Package className="w-12 h-12 text-muted" />
                 )}
@@ -179,7 +175,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         onVisibilityToggle(product);
                     }}
                     className={cn(
-                        "absolute bottom-2 right-2 p-1.5 rounded-xl backdrop-blur-md border shadow-lg ring-1 ring-black/5 transition-colors",
+                        "absolute bottom-2 right-2 p-1.5 rounded-xl backdrop-blur-md border shadow-lg ring-1 ring-black/5 transition-colors before:absolute before:-inset-2 before:content-['']",
                         product.is_visible
                             ? "bg-white/25 border-white/40 text-blue-600 hover:bg-white/40"
                             : "bg-black/30 border-white/20 text-white hover:bg-black/50"
