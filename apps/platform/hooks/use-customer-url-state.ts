@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { PaginatedCustomerFilters } from "@/hooks/use-paginated-customers";
+import { PaginatedCustomerFilters, parseCustomerSort } from "@/hooks/use-paginated-customers";
 import { CustomerStatus, TrustTier } from "@/types/customer";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -30,7 +30,7 @@ export function useCustomerUrlState() {
         search: searchParams.get("search") || "",
         status: (searchParams.get("status") as CustomerStatus | "all") || "all",
         city: searchParams.get("city") || "",
-        sortBy: (searchParams.get("sortBy") as any) || "total_orders",
+        sortBy: parseCustomerSort(searchParams.get("sortBy")) ?? "total_orders",
         sortOrder: (searchParams.get("sortOrder") as "asc" | "desc") || "desc",
         customerId: searchParams.get("customer") || null,
         minLtv: searchParams.has("minLtv") ? Number(searchParams.get("minLtv")) : undefined,

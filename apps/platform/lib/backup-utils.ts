@@ -110,7 +110,7 @@ export async function restoreFromSnapshot(snapshot: DatabaseSnapshot): Promise<{
 
         // 3. Customer Metadata
         if (snapshot.data.customers.metadata?.length) {
-            const { error } = await supabase.from('customer_metadata').upsert(snapshot.data.customers.metadata, { onConflict: 'customer_phone' });
+            const { error } = await supabase.from('customer_metadata').upsert(snapshot.data.customers.metadata, { onConflict: 'tenant_id,customer_phone' });
             if (error) throw error;
         }
 

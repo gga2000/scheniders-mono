@@ -148,16 +148,6 @@ export interface CustomerLink {
     created_at: string;
 }
 
-export interface VoiceNote {
-    id: string;
-    customer_phone: string;
-    audio_url: string;
-    duration_seconds: number;
-    text_note: string | null;
-    recorded_by: string | null;
-    created_at: string;
-}
-
 export interface TrustTierConfig {
     labelKey: string;
     labelAr: string;

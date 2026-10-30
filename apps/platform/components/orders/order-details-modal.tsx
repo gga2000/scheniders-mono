@@ -81,6 +81,8 @@ import {
     Ban,
 } from "lucide-react";
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useRecordContact } from "@/hooks/use-record-contact";
 import { RefundBanner } from "./refund-banner";
@@ -181,6 +183,8 @@ export function OrderDetailsModal({
     });
 
     const { splitOrder, isBlacklisted, getBlacklistEntry, addToBlacklist, removeFromBlacklist } = useOrdersContext();
+    const { can } = usePermission();
+    const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
     const startOrderConv = useStartOrderConversation();
     const { open: openChat } = useChatStore();
     const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false);
@@ -650,7 +654,12 @@ export function OrderDetailsModal({
                                     </div>
 
                                     {/* Blacklist toggle icon */}
-                                    {isBlacklisted(order.phone) ? (
+                                    {isBlacklisted(order.phone) && !canUnblock ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full bg-gray-900 text-white border border-gray-800">
+                                            <Ban className="w-3 h-3" />
+                                            {t("orderDetail.blacklisted")}
+                                        </span>
+                                    ) : isBlacklisted(order.phone) ? (
                                         <button
                                             onClick={() => { setBlacklistDialogMode("remove"); setBlacklistDialogOpen(true); }}
                                             className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full bg-gray-900 text-white border border-gray-800 hover:bg-gray-700 transition-all"

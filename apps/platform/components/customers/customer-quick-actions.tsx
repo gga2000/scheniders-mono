@@ -33,7 +33,7 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
 
     const refresh = () => {
         qc.invalidateQueries({ queryKey: ["customer-dialog"] });
-        qc.invalidateQueries({ queryKey: ["customer-profile", phone] });
+        qc.invalidateQueries({ queryKey: ["customer-profile"] });
     };
 
     const toggle = async (tagId: string) => {

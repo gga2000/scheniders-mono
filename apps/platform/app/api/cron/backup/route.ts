@@ -106,11 +106,11 @@ export async function GET(request: Request) {
         const supabase = createClient(supabaseUrl, serviceRoleKey);
 
         // `customers` is not a table and never has been — the customer record is
-        // derived, and `mv_customer_aggregates` is what the app itself reads.
+        // derived, and `mv_customer_metrics` is what the app itself reads.
         // Backing up a name that does not exist threw PGRST205 on every run.
         const DATASETS = [
             { file: 'orders.csv', source: 'orders' },
-            { file: 'customers.csv', source: 'mv_customer_aggregates' },
+            { file: 'customers.csv', source: 'mv_customer_metrics' },
             { file: 'products.csv', source: 'products' },
         ] as const;
 

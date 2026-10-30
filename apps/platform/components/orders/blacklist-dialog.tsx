@@ -62,8 +62,8 @@ export function BlacklistDialog({
             setCustomReason("");
             setNotes("");
             onClose();
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : t("common.error"));
+        } catch {
+            toast({ variant: "error", title: t("orders.blacklist.saveFailed") });
         } finally {
             setLoading(false);
         }

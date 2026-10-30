@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { translations, type Locale } from './i18n';
 import {
     valueTier,
     riskLevel,
@@ -91,18 +92,28 @@ describe('effectiveSuccessRate (reconciles trust vs live orders)', () => {
     });
 });
 
+/** Real dictionary lookup, so the labels are checked in both languages. */
+const tIn = (locale: Locale) => (key: string, vars?: Record<string, string | number>) =>
+    (translations[locale][key] ?? key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars?.[k] ?? `{${k}}`));
+const tStub = tIn('en');
+
 describe('recencyStatus', () => {
     it('high/blocked always reads red', () => {
-        expect(recencyStatus(daysAgo(3), 'high').dot).toBe('bg-rose-600');
-        expect(recencyStatus(daysAgo(3), 'blocked').dot).toBe('bg-rose-600');
+        expect(recencyStatus(daysAgo(3), 'high', tStub).dot).toBe('bg-rose-600');
+        expect(recencyStatus(daysAgo(3), 'blocked', tStub).dot).toBe('bg-rose-600');
     });
     it('buckets active / cooling / dormant for healthy customers', () => {
-        expect(recencyStatus(daysAgo(2), 'clean').dot).toBe('bg-emerald-500');
-        expect(recencyStatus(daysAgo(20), 'clean').dot).toBe('bg-amber-500');
-        expect(recencyStatus(daysAgo(60), 'caution').dot).toBe('bg-zinc-400');
+        expect(recencyStatus(daysAgo(2), 'clean', tStub).dot).toBe('bg-emerald-500');
+        expect(recencyStatus(daysAgo(20), 'clean', tStub).dot).toBe('bg-amber-500');
+        expect(recencyStatus(daysAgo(60), 'caution', tStub).dot).toBe('bg-zinc-400');
     });
     it('handles missing date', () => {
-        expect(recencyStatus(null, 'clean').label).toBe('No orders yet');
+        expect(recencyStatus(null, 'clean', tStub).label).toBe('No orders yet');
+    });
+    it('writes the label in the active language', () => {
+        expect(recencyStatus(daysAgo(20), 'clean', tStub).label).toBe('Cooling · last order 20 days ago');
+        expect(recencyStatus(daysAgo(20), 'clean', tIn('ar')).label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوم');
+        expect(recencyStatus(daysAgo(1), 'clean', tIn('ar')).label).toBe('آخر طلب أمس');
     });
 });
 

@@ -21,7 +21,7 @@ export function useAddCustomerNote(phone: string) {
             return data;
         },
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["customer-profile", phone] });
+            qc.invalidateQueries({ queryKey: ["customer-profile"] });
         },
     });
 }
@@ -35,7 +35,7 @@ export function useDeleteCustomerNote(phone: string) {
             return id;
         },
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["customer-profile", phone] });
+            qc.invalidateQueries({ queryKey: ["customer-profile"] });
         },
     });
 }

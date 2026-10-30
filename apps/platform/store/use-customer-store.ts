@@ -40,11 +40,6 @@ interface CustomerStore {
   linkCustomersPhone: string | null;
   setLinkCustomersPhone: (phone: string | null) => void;
 
-  isVoiceRecorderModalOpen: boolean;
-  setVoiceRecorderModalOpen: (val: boolean) => void;
-  voiceRecorderPhone: string | null;
-  setVoiceRecorderPhone: (phone: string | null) => void;
-
   isAddNoteModalOpen: boolean;
   setAddNoteModalOpen: (val: boolean) => void;
 
@@ -125,11 +120,6 @@ export const useCustomerStore = create<CustomerStore>()(
       setLinkCustomersModalOpen: (val) => set({ isLinkCustomersModalOpen: val }),
       linkCustomersPhone: null,
       setLinkCustomersPhone: (phone) => set({ linkCustomersPhone: phone }),
-
-      isVoiceRecorderModalOpen: false,
-      setVoiceRecorderModalOpen: (val) => set({ isVoiceRecorderModalOpen: val }),
-      voiceRecorderPhone: null,
-      setVoiceRecorderPhone: (phone) => set({ voiceRecorderPhone: phone }),
 
       isAddNoteModalOpen: false,
       setAddNoteModalOpen: (val) => set({ isAddNoteModalOpen: val }),

@@ -139,15 +139,23 @@ export interface RecencyStatus {
     dot: string;
 }
 
+type RecencyTranslate = (key: string, vars?: Record<string, string | number>) => string;
+
 /** Recency line + status dot; a high-risk customer always reads red. */
-export function recencyStatus(lastOrderDate: string | null | undefined, risk: RiskLevel): RecencyStatus {
+export function recencyStatus(
+    lastOrderDate: string | null | undefined,
+    risk: RiskLevel,
+    t: RecencyTranslate,
+): RecencyStatus {
     const d = daysSince(lastOrderDate);
-    const ago = d === null ? '' : d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
-    if (d === null) return { label: 'No orders yet', dot: 'bg-zinc-400' };
-    if (risk === 'high' || risk === 'blocked') return { label: `Last order ${ago}`, dot: 'bg-rose-600' };
-    if (d <= 7) return { label: `Last order ${ago}`, dot: 'bg-emerald-500' };
-    if (d <= 30) return { label: `Cooling · last order ${ago}`, dot: 'bg-amber-500' };
-    return { label: `Dormant · last order ${ago}`, dot: 'bg-zinc-400' };
+    if (d === null) return { label: t('customers.recency.none'), dot: 'bg-zinc-400' };
+    const ago = d <= 0 ? t('customers.recency.today')
+        : d === 1 ? t('customers.recency.yesterday')
+        : t('customers.recency.daysAgo', { days: d });
+    if (risk === 'high' || risk === 'blocked') return { label: t('customers.recency.last', { ago }), dot: 'bg-rose-600' };
+    if (d <= 7) return { label: t('customers.recency.last', { ago }), dot: 'bg-emerald-500' };
+    if (d <= 30) return { label: t('customers.recency.cooling', { ago }), dot: 'bg-amber-500' };
+    return { label: t('customers.recency.dormant', { ago }), dot: 'bg-zinc-400' };
 }
 
 /** Order statuses that mean "no delivery outcome resolved yet". */

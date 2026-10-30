@@ -44,13 +44,13 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, v
                             value={search}
                             onChange={(e) => onSearch(e.target.value)}
                             placeholder={t("customers.search")}
-                            className="w-full h-10 pl-10 pr-9 rounded-xl bg-background border border-(--card-border) text-sm outline-none focus:ring-2 focus:ring-foreground/10 transition-all placeholder:text-muted-foreground"
+                            className="w-full h-11 pl-10 pr-11 rounded-xl bg-background border border-(--card-border) text-sm outline-none focus:ring-2 focus:ring-foreground/10 transition-all placeholder:text-muted-foreground"
                         />
                         {search && (
                             <button
                                 onClick={() => onSearch("")}
-                                aria-label="Clear search"
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-foreground/10 text-muted-foreground"
+                                aria-label={t("customers.search.clear")}
+                                className="absolute right-0 top-0 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-foreground/5 text-muted-foreground"
                             >
                                 <X className="w-3.5 h-3.5" />
                             </button>
@@ -62,7 +62,7 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, v
 
                     {/* Right cluster: sort + view toggle */}
                     <div className="flex items-center gap-2 ml-auto">
-                        <div className="relative h-10 px-3.5 rounded-xl flex items-center gap-2 text-sm font-semibold bg-(--card-bg) border border-(--card-border) cursor-pointer">
+                        <div className="relative h-11 px-3.5 rounded-xl flex items-center gap-2 text-sm font-semibold bg-(--card-bg) border border-(--card-border) cursor-pointer">
                             <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                                 {t("customers.sort.label")}
                             </span>
@@ -85,7 +85,7 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, v
                             </select>
                         </div>
 
-                        <div className="relative flex bg-background rounded-xl p-1 border border-(--card-border) h-10">
+                        <div className="relative flex bg-background rounded-xl p-1 border border-(--card-border) h-11">
                             {(["grid", "list"] as const).map((mode) => {
                                 const isActive = view === mode;
                                 const Icon = mode === "grid" ? LayoutGrid : List;
@@ -93,7 +93,7 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, v
                                     <button
                                         key={mode}
                                         onClick={() => onView(mode)}
-                                        className="relative px-3 rounded-lg flex items-center justify-center"
+                                        className="relative min-w-11 px-3 rounded-lg flex items-center justify-center"
                                         aria-label={mode === "grid" ? t("customers.view.grid") : t("customers.view.list")}
                                     >
                                         {isActive && (

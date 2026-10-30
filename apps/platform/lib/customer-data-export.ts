@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { storedPhoneVariants } from "@/lib/order-server-search";
 
 // =============================================
 // TYPES
@@ -76,15 +78,17 @@ class CustomerDataExportService {
      * be a customer of several tenants; each tenant exports only its own.
      */
     async exportCustomerData(tenantId: string, phone: string): Promise<CustomerDataExport> {
-        const normalizedPhone = this.normalizePhone(phone);
+        const normalizedPhone = normalizePhoneForSearch(phone);
         const exportedAt = new Date().toISOString();
+        // Orders store the phone as 07…, +964…, 964… or bare; match them all.
+        const variants = storedPhoneVariants(normalizedPhone).join(",");
 
         // Fetch all orders for this customer
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
             .select(ORDER_READ_COLUMNS)
             .eq("tenant_id", tenantId)
-            .or(`phone.eq.${normalizedPhone},secondary_phone.eq.${normalizedPhone}`)
+            .or(`phone.in.(${variants}),secondary_phone.in.(${variants})`)
             .order("created_at", { ascending: false });
 
         if (ordersError) {
@@ -249,7 +253,7 @@ class CustomerDataExportService {
      * Request customer data deletion (soft delete / anonymize)
      */
     async requestDeletion(phone: string): Promise<{ success: boolean; message: string }> {
-        const normalizedPhone = this.normalizePhone(phone);
+        const normalizedPhone = normalizePhoneForSearch(phone);
 
         try {
             // Log the deletion request
@@ -279,13 +283,6 @@ class CustomerDataExportService {
                 message: "حدث خطأ أثناء تسجيل الطلب",
             };
         }
-    }
-
-    private normalizePhone(phone: string): string {
-        let normalized = phone.replace(/\D/g, "");
-        if (normalized.startsWith("964")) normalized = normalized.slice(3);
-        if (normalized.startsWith("0")) normalized = normalized.slice(1);
-        return normalized;
     }
 }
 
