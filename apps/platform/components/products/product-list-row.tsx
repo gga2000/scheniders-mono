@@ -265,6 +265,11 @@ export const ProductListRow = React.memo(function ProductListRow({
                     <p className="text-lg font-bold text-foreground">
                         {formatIQD(product.price)}
                     </p>
+                    {product.website_price != null && product.website_price !== product.price && (
+                        <span className="text-xs text-muted tabular-nums">
+                            {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
+                        </span>
+                    )}
                     {margin !== null && (
                         <span className={cn(
                             "text-xs font-medium",

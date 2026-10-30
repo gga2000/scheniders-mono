@@ -117,8 +117,14 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     const addProduct = (data: ProductFormData): Promise<Product> =>
         addProductMutation.mutateAsync(data);
 
-    const updateProduct = async (id: string, data: Omit<Partial<ProductFormData>, "stock_quantity">): Promise<void> => {
-        await updateProductMutation.mutateAsync({ id, data });
+    /** Resolves to the product's new updated_at (see productRepository.update). */
+    const updateProduct = async (
+        id: string,
+        data: Omit<Partial<ProductFormData>, "stock_quantity">,
+        opts: { expectedUpdatedAt?: string } = {},
+    ): Promise<string | null> => {
+        const { updatedAt } = await updateProductMutation.mutateAsync({ id, data, expectedUpdatedAt: opts.expectedUpdatedAt });
+        return updatedAt;
     };
 
     const archiveProduct = async (id: string): Promise<void> => {

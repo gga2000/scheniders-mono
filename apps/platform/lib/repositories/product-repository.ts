@@ -34,6 +34,17 @@ function assertNoStock(operation: string, data: object): void {
     }
 }
 
+/**
+ * The product's details changed after the editor loaded it (another tab, a
+ * teammate, Claude). Saving would silently undo their change.
+ */
+export class ProductChangedElsewhereError extends NonRetryableError {
+    constructor() {
+        super("product changed since it was loaded");
+        this.name = "ProductChangedElsewhereError";
+    }
+}
+
 function assertChanged(operation: string, rows: unknown[] | null, expected: number): void {
     if ((rows?.length ?? 0) < expected) throw new ProductWriteDeniedError(operation);
 }
@@ -157,21 +168,31 @@ export const productRepository = {
         });
     },
 
-    /** Update a product by ID. */
-    async update(id: string, data: ProductUpdate): Promise<void> {
+    /**
+     * Update a product by ID and return its new updated_at. With
+     * `expectedUpdatedAt`, the write applies only if the row still carries
+     * that value (updated_at moves on every detail change, not on stock
+     * movements); otherwise ProductChangedElsewhereError.
+     */
+    async update(id: string, data: ProductUpdate, opts: { expectedUpdatedAt?: string } = {}): Promise<string | null> {
         return withRetry('productRepository.update', async () => {
             // Strip computed/joined fields and immutable keys. `sku` is a real,
             // writable column (LightFunnels order matching depends on it) — keep it.
             assertNoStock("productRepository.update", data);
             const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as any;
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update(updateData)
-                .eq("id", id)
-                .select("id");
+            let query = supabase.from("products").update(updateData).eq("id", id);
+            if (opts.expectedUpdatedAt) query = query.eq("updated_at", opts.expectedUpdatedAt);
+            const { data: changed, error } = await query.select("id, updated_at");
 
             if (error) throw error;
+            if ((changed?.length ?? 0) === 0 && opts.expectedUpdatedAt) {
+                // Zero rows is either "someone saved first" or "not allowed":
+                // a still-readable row with a different updated_at is the first.
+                const { data: current } = await supabase.from("products").select("updated_at").eq("id", id).maybeSingle();
+                if (current && current.updated_at !== opts.expectedUpdatedAt) throw new ProductChangedElsewhereError();
+            }
             assertChanged("productRepository.update", changed, 1);
+            return (changed?.[0] as { updated_at: string | null } | undefined)?.updated_at ?? null;
         });
     },
 
