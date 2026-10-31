@@ -36,9 +36,9 @@ export function QueueFilters({
 
     return (
             <div className="pastel-card p-4 space-y-4">
-                <div className="flex flex-col lg:flex-row gap-4">
+                <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-row lg:gap-4">
                     {/* Search */}
-                    <div className="relative flex-1">
+                    <div className="relative col-span-2 lg:col-span-1 lg:flex-1">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />
                         <input
                             type="text"
@@ -65,7 +65,7 @@ export function QueueFilters({
                                     city: e.target.value || undefined,
                                 })
                             }
-                            className="pl-10 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer min-w-[150px]"
+                            className="pl-10 pr-8 py-3 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer w-full lg:w-auto lg:min-w-[150px]"
                         >
                             <option value="">{t("printing.allCities")}</option>
                             {availableCities.map((city) => (
@@ -82,7 +82,7 @@ export function QueueFilters({
                         <select
                             value={sortBy}
                             onChange={(e) => onSortByChange(e.target.value as SortBy)}
-                            className="pl-4 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer"
+                            className="pl-4 pr-8 py-3 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer w-full lg:w-auto"
                         >
                             <option value="priority">{t("printing.sortPriority")}</option>
                             <option value="date">{t("printing.sortDate")}</option>
@@ -93,11 +93,11 @@ export function QueueFilters({
                     </div>
 
                     {/* Date Range */}
-                    <div className="relative">
+                    <div className="relative col-span-2 lg:col-span-1">
                         <button
                             onClick={() => setShowDatePicker(!showDatePicker)}
                             className={cn(
-                                "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
+                                "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2 w-full lg:w-auto",
                                 (filters.dateFrom || filters.dateTo)
                                     ? "bg-amber-100 border-amber-200 text-amber-700"
                                     : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
@@ -105,6 +105,7 @@ export function QueueFilters({
                             title={t("printing.dateFilter")}
                         >
                             <CalendarDays className="w-4 h-4" />
+                            <span className="text-sm lg:hidden">{t("printing.dateFilter")}</span>
                             {filters.dateFrom && (
                                 <span className="text-xs font-medium hidden sm:inline">
                                     {filters.dateFrom === filters.dateTo
@@ -150,7 +151,7 @@ export function QueueFilters({
 
                 {/* Priority Pills */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-muted mr-2">{t("printing.priority")}:</span>
+                    <span className="text-sm text-muted mr-2">{t("printing.priority")}</span>
                     {["all", "urgent", "high", "normal"].map((priority) => (
                         <button
                             key={priority}
@@ -177,7 +178,7 @@ export function QueueFilters({
                     ))}
 
                     {/* Auto-ship toggle */}
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto">
                         <span className="text-sm text-muted">{t("printing.autoShip")}</span>
                         <button
                             onClick={() => onAutoShipChange(!autoShip)}
