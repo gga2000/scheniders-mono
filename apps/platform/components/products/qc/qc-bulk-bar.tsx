@@ -189,6 +189,7 @@ export function QCBulkBar({
                                 </button>
                                 <button
                                     onClick={onClearSelection}
+                                    aria-label={t("qc.shortcuts.clearSelection")}
                                     className="p-1.5 rounded-lg hover:bg-white/10 text-white/70 ml-1 transition"
                                 >
                                     <X className="w-5 h-5" />

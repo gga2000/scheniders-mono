@@ -1,5 +1,6 @@
 import { Product, Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
+import type { Locale } from "@/lib/i18n";
 import { courierSheet, courierWorkbook, type CourierCompany } from "@/lib/shipping/courier-sheets";
 
 export { cleanPhoneForExport } from "@/lib/shipping/courier-sheets";
@@ -41,54 +42,83 @@ export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: O
     return downloadCourierSheet('waseet', orderIds, ordersData);
 }
 
+/** Translator and locale for the product exports; callers pass them from useLanguage(). */
+export interface ProductExportI18n {
+    t: (key: string, params?: Record<string, string | number>) => string;
+    locale: Locale;
+}
+
+function dateLocale(locale: Locale): string {
+    return locale === "ar" ? "ar-IQ" : "en-GB";
+}
+
 /**
- * Export products to CSV format
+ * Column order shared by the CSV and Excel product exports. CSV_FINANCIAL_COLUMNS
+ * indexes into this order, so keep the two in step.
  */
+const PRODUCT_EXPORT_COLUMNS = [
+    "products.export.col.name",
+    "products.export.col.description",
+    "products.export.col.price",
+    "products.export.col.cost",
+    "products.export.col.margin",
+    "products.export.col.stock",
+    "products.export.col.lowStock",
+    "products.export.col.unitsSold",
+    "products.export.col.revenue",
+    "products.export.col.aov",
+    "products.export.col.status",
+    "products.export.col.createdAt",
+] as const;
+
 /** Columns that reveal cost or sales money; hidden from callers without financial access. */
 const CSV_FINANCIAL_COLUMNS = new Set([3, 4, 8, 9]);
 
-export function exportToCSV(products: Product[], filename: string = "products", includeFinancials: boolean = true): void {
-    const headers = [
-        "Name",
-        "Description",
-        "Price (IQD)",
-        "Cost (IQD)",
-        "Profit Margin (%)",
-        "Stock Quantity",
-        "Low Stock Threshold",
-        "Units Sold",
-        "Total Revenue (IQD)",
-        "Average Order Value (IQD)",
-        "Status",
-        "Created At",
-    ];
+function productExportTable(
+    products: Product[],
+    includeFinancials: boolean,
+    { t, locale }: ProductExportI18n,
+): { headers: string[]; rows: (string | number)[][] } {
+    const keep = <T,>(cells: T[]): T[] =>
+        includeFinancials ? cells : cells.filter((_, i) => !CSV_FINANCIAL_COLUMNS.has(i));
 
-    const rows = products.map((product) => {
+    const rows = products.map((product): (string | number)[] => {
         const profitMargin = product.cost && product.price > 0
             ? (((product.price - product.cost) / product.price) * 100).toFixed(1)
             : "";
 
-        return [
+        return keep([
             product.name,
             htmlToPlainText(product.description || ""),
-            product.price.toString(),
-            (product.cost || "").toString(),
+            product.price,
+            product.cost || "",
             profitMargin,
-            product.stock_quantity.toString(),
-            product.low_stock_threshold.toString(),
-            (product.times_sold || 0).toString(),
-            (product.total_revenue || 0).toString(),
-            (product.average_order_value || 0).toString(),
-            product.is_archived ? "Archived" : "Active",
-            new Date(product.created_at).toLocaleDateString(),
-        ];
+            product.stock_quantity,
+            product.low_stock_threshold,
+            product.times_sold || 0,
+            product.total_revenue || 0,
+            product.average_order_value || 0,
+            product.is_archived ? t("products.export.status.archived") : t("products.export.status.active"),
+            new Date(product.created_at).toLocaleDateString(dateLocale(locale)),
+        ]);
     });
 
-    const keep = <T,>(cells: T[]): T[] =>
-        includeFinancials ? cells : cells.filter((_, i) => !CSV_FINANCIAL_COLUMNS.has(i));
+    return { headers: keep(PRODUCT_EXPORT_COLUMNS.map((key) => t(key))), rows };
+}
+
+/**
+ * Export products to CSV format
+ */
+export function exportToCSV(
+    products: Product[],
+    filename: string,
+    includeFinancials: boolean,
+    i18n: ProductExportI18n,
+): void {
+    const { headers, rows } = productExportTable(products, includeFinancials, i18n);
     const csvContent = [
-        keep(headers).join(","),
-        ...rows.map((row) => keep(row).map(csvCell).join(",")),
+        headers.map(csvCell).join(","),
+        ...rows.map((row) => row.map((cell) => csvCell(String(cell))).join(",")),
     ].join("\n");
 
     // The BOM makes Excel read the file as UTF-8, so Arabic names stay readable.
@@ -118,39 +148,13 @@ function csvCell(value: string): string {
  * Export products to Excel format using simple XML
  * This creates an XML spreadsheet that Excel can open
  */
-export function exportToExcel(products: Product[], filename: string = "products", includeFinancials: boolean = true): void {
-    const worksheetData = products.map((product) => {
-        const profitMargin = product.cost && product.price > 0
-            ? (((product.price - product.cost) / product.price) * 100).toFixed(1)
-            : "";
-
-        return {
-            Name: product.name,
-            Description: product.description || "",
-            "Price (IQD)": product.price,
-            "Cost (IQD)": product.cost || "",
-            "Profit Margin (%)": profitMargin,
-            "Stock Quantity": product.stock_quantity,
-            "Low Stock Threshold": product.low_stock_threshold,
-            "Units Sold": product.times_sold || 0,
-            "Total Revenue (IQD)": product.total_revenue || 0,
-            "AOV (IQD)": product.average_order_value || 0,
-            Status: product.is_archived ? "Archived" : "Active",
-            "Created At": new Date(product.created_at).toLocaleDateString(),
-        };
-    });
-
-    if (!includeFinancials) {
-        for (const row of worksheetData) {
-            delete (row as Partial<typeof row>)["Cost (IQD)"];
-            delete (row as Partial<typeof row>)["Profit Margin (%)"];
-            delete (row as Partial<typeof row>)["Total Revenue (IQD)"];
-            delete (row as Partial<typeof row>)["AOV (IQD)"];
-        }
-    }
-
-    // Create XML spreadsheet
-    const headers = Object.keys(worksheetData[0] || {});
+export function exportToExcel(
+    products: Product[],
+    filename: string,
+    includeFinancials: boolean,
+    i18n: ProductExportI18n,
+): void {
+    const { headers, rows } = productExportTable(products, includeFinancials, i18n);
 
     const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
@@ -161,10 +165,10 @@ export function exportToExcel(products: Product[], filename: string = "products"
             <Row>
                 ${headers.map((h) => `<Cell><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`).join("")}
             </Row>
-            ${worksheetData
+            ${rows
             .map(
                 (row) => `<Row>
-                ${Object.values(row)
+                ${row
                         .map(
                             (value) =>
                                 `<Cell><Data ss:Type="${typeof value === "number" ? "Number" : "String"}">${escapeXml(String(value))}</Data></Cell>`
@@ -183,17 +187,21 @@ export function exportToExcel(products: Product[], filename: string = "products"
 /**
  * Generate printable HTML report
  */
-export function generatePrintableReport(products: Product[], includeFinancials: boolean = true): string {
+export function generatePrintableReport(
+    products: Product[],
+    includeFinancials: boolean,
+    { t, locale }: ProductExportI18n,
+): string {
     const totalProducts = products.length;
     const totalRevenue = products.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
     const totalSold = products.reduce((sum, p) => sum + (p.times_sold || 0), 0);
 
     return `
 <!DOCTYPE html>
-<html>
+<html lang="${locale}">
 <head>
     <meta charset="UTF-8">
-    <title>Products Report</title>
+    <title>${escapeHtml(t("products.export.report.title"))}</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -261,20 +269,20 @@ export function generatePrintableReport(products: Product[], includeFinancials: 
     </style>
 </head>
 <body>
-    <h1>📦 Products Report</h1>
-    <p style="color: #666;">Generated on ${new Date().toLocaleString()}</p>
+    <h1>📦 ${escapeHtml(t("products.export.report.title"))}</h1>
+    <p style="color: #666;">${escapeHtml(t("products.export.report.generatedOn", { date: new Date().toLocaleString(dateLocale(locale)) }))}</p>
     
     <div class="summary">
         <div class="summary-card">
-            <h3>Total Products</h3>
+            <h3>${escapeHtml(t("products.export.report.totalProducts"))}</h3>
             <p>${totalProducts}</p>
         </div>
         <div class="summary-card">
-            <h3>Total Units Sold</h3>
+            <h3>${escapeHtml(t("products.export.report.totalSold"))}</h3>
             <p>${totalSold.toLocaleString()}</p>
         </div>
         ${includeFinancials ? `<div class="summary-card">
-            <h3>Total Revenue</h3>
+            <h3>${escapeHtml(t("products.export.report.totalRevenue"))}</h3>
             <p>${formatIQD(totalRevenue)}</p>
         </div>` : ""}
     </div>
@@ -283,12 +291,12 @@ export function generatePrintableReport(products: Product[], includeFinancials: 
         <thead>
             <tr>
                 <th>#</th>
-                <th>Product Name</th>
-                <th class="text-right">Price</th>
-                <th class="text-right">Stock</th>
-                <th class="text-right">Sold</th>
-                ${includeFinancials ? '<th class="text-right">Revenue</th>' : ""}
-                <th>Status</th>
+                <th>${escapeHtml(t("products.export.report.productName"))}</th>
+                <th class="text-right">${escapeHtml(t("products.export.report.price"))}</th>
+                <th class="text-right">${escapeHtml(t("products.export.report.stock"))}</th>
+                <th class="text-right">${escapeHtml(t("products.export.report.sold"))}</th>
+                ${includeFinancials ? `<th class="text-right">${escapeHtml(t("products.export.report.revenue"))}</th>` : ""}
+                <th>${escapeHtml(t("products.export.col.status"))}</th>
             </tr>
         </thead>
         <tbody>
@@ -303,7 +311,7 @@ export function generatePrintableReport(products: Product[], includeFinancials: 
                     <td class="text-right">${product.times_sold || 0}</td>
                     ${includeFinancials ? `<td class="text-right">${formatIQD(product.total_revenue || 0)}</td>` : ""}
                     <td class="${product.is_archived ? "status-archived" : "status-active"}">
-                        ${product.is_archived ? "Archived" : "Active"}
+                        ${escapeHtml(product.is_archived ? t("products.export.status.archived") : t("products.export.status.active"))}
                     </td>
                 </tr>
             `
@@ -313,7 +321,7 @@ export function generatePrintableReport(products: Product[], includeFinancials: 
     </table>
     
     <div class="footer">
-        Schenider Team - Product Management System
+        ${escapeHtml(t("products.export.report.footer"))}
     </div>
 </body>
 </html>`;
@@ -322,8 +330,12 @@ export function generatePrintableReport(products: Product[], includeFinancials: 
 /**
  * Open print dialog with generated report
  */
-export function printProductReport(products: Product[], includeFinancials: boolean = true): void {
-    const reportHtml = generatePrintableReport(products, includeFinancials);
+export function printProductReport(
+    products: Product[],
+    includeFinancials: boolean,
+    i18n: ProductExportI18n,
+): void {
+    const reportHtml = generatePrintableReport(products, includeFinancials, i18n);
     const printWindow = window.open("", "_blank");
 
     if (printWindow) {

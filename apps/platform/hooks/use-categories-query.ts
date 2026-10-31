@@ -76,11 +76,14 @@ export function useUpdateCategoryMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: Partial<Category> }) => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("categories")
                 .update(data as never)
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
             if (error) throw error;
+            // RLS refuses an update by matching no rows, not with an error.
+            if (!changed || changed.length === 0) throw new ProductWriteDeniedError("update category");
             return { id, data };
         },
         onSuccess: () => {
@@ -115,14 +118,16 @@ export function useArchiveCategoryMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("categories")
                 .update({
                     status: "archived",
                     archived_at: new Date().toISOString(),
                 } as never)
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
             if (error) throw error;
+            if (!changed || changed.length === 0) throw new ProductWriteDeniedError("archive category");
             return id;
         },
         onSuccess: () => {
@@ -135,14 +140,16 @@ export function useRestoreCategoryMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase
+            const { data: changed, error } = await supabase
                 .from("categories")
                 .update({
                     status: "published",
                     archived_at: null,
                 } as never)
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
             if (error) throw error;
+            if (!changed || changed.length === 0) throw new ProductWriteDeniedError("restore category");
             return id;
         },
         onSuccess: () => {

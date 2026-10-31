@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Product, ProductVariant } from "@/lib/supabase";
 import { useProductSalesQuery } from "@/hooks/use-product-sales-query";
+import type { BulkPriceChange } from "@/hooks/use-products-query";
 import {
     useProductsQuery,
     useAddProductMutation,
@@ -139,8 +140,8 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
         await deleteProductMutation.mutateAsync(id);
     };
 
-    const bulkUpdatePrices = async (productIds: string[], newPrice: number): Promise<void> => {
-        await bulkUpdatePricesMutation.mutateAsync({ ids: productIds, price: newPrice });
+    const bulkUpdatePrices = async (changes: BulkPriceChange[], newPrice: number): Promise<void> => {
+        await bulkUpdatePricesMutation.mutateAsync({ changes, price: newPrice });
     };
 
     const bulkArchive = async (productIds: string[]): Promise<void> => {

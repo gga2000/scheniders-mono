@@ -328,6 +328,48 @@ export const productRepository = {
         });
     },
 
+    /**
+     * Bulk price change with its side effects: a compare-at ("was") price that is
+     * no longer above the new price is cleared, and each changed price lands in
+     * the price history.
+     */
+    async bulkChangePrice(
+        changes: { id: string; oldPrice: number; clearCompareAt: boolean }[],
+        price: number,
+        tenantId: string | null,
+    ): Promise<void> {
+        await this.bulkUpdatePrice(changes.map((c) => c.id), price);
+
+        const toClear = changes.filter((c) => c.clearCompareAt).map((c) => c.id);
+        if (toClear.length > 0) {
+            await withRetry('productRepository.bulkClearCompareAt', async () => {
+                const { data: cleared, error } = await supabase
+                    .from("products")
+                    .update({ compare_at_price: null })
+                    .in("id", toClear)
+                    .select("id");
+                if (error) throw error;
+                assertChanged("productRepository.bulkClearCompareAt", cleared, toClear.length);
+            });
+        }
+
+        const history = changes
+            .filter((c) => c.oldPrice !== price)
+            .map((c) => ({
+                product_id: c.id,
+                tenant_id: tenantId,
+                old_price: c.oldPrice,
+                new_price: price,
+                reason: "Bulk price change",
+            }));
+        if (history.length > 0) {
+            await withRetry('productRepository.bulkPriceHistory', async () => {
+                const { error } = await supabase.from("product_price_history").insert(history);
+                if (error) throw error;
+            });
+        }
+    },
+
     /** Bulk-archive multiple products. */
     async bulkArchive(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkArchive', async () => {

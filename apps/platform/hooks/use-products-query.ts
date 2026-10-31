@@ -9,6 +9,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { diag } from "@/lib/diag";
 
 // Query keys
+export type BulkPriceChange = { id: string; oldPrice: number; clearCompareAt: boolean };
+
 export const productKeys = {
     all: ["products"] as const,
     lists: () => [...productKeys.all, "list"] as const,
@@ -186,10 +188,11 @@ export function useDeleteProductMutation() {
 
 export function useBulkUpdatePricesMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ ids, price }: { ids: string[]; price: number }) => {
-            await productRepository.bulkUpdatePrice(ids, price);
-            return { ids, price };
+        mutationFn: async ({ changes, price }: { changes: BulkPriceChange[]; price: number }) => {
+            await productRepository.bulkChangePrice(changes, price, tenantId);
+            return { ids: changes.map((c) => c.id), price };
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
     });

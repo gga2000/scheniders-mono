@@ -47,6 +47,7 @@ import { LowStockAlert } from "@/components/products/low-stock-alert";
 import { AdvancedFilters, FilterValues } from "@/components/products/advanced-filters";
 import { ActiveFilterPills } from "@/components/products/active-filter-pills";
 import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
+import { ProductDeleteDialog } from "@/components/products/product-delete-dialog";
 import { BulkActionsBar } from "@/components/products/bulk-actions-bar";
 import { ExportMenu } from "@/components/products/export-menu";
 import { AbcTierProvider } from "@/components/products/abc-tier-context";
@@ -158,7 +159,7 @@ function ProductsContent() {
     const lastSelectedRef = useRef<string | null>(null);
 
     // Local UI State (not persisted)
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const searchParams = useSearchParams();
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
@@ -428,14 +429,9 @@ function ProductsContent() {
         router.push(`/products/${newProduct.id}/edit`);
     }, [addProduct, products, router, reportWriteError, t, canSeeCost]);
 
-    const handleDeleteProduct = useCallback(async (product: Product) => {
-        try {
-            await deleteProduct(product.id);
-            toast.success(t("products.deleted"));
-        } catch (err) {
-            reportWriteError(err);
-        }
-    }, [deleteProduct, reportWriteError, t]);
+    // Delete (one product or a selection) opens the impact dialog first.
+    const [deleteTargets, setDeleteTargets] = useState<Product[]>([]);
+    const handleDeleteProduct = useCallback((product: Product) => setDeleteTargets([product]), []);
 
     const handleRestore = useCallback(async (id: string) => {
         try {
@@ -510,10 +506,29 @@ function ProductsContent() {
     // Bulk action handlers. BulkActionsBar reports success (with its own undo
     // countdown for archive) or the failure, so these only do the work and let
     // a failed write reject.
+    const selectedForPrice = useMemo(
+        () => products.filter((p) => selectedIds.has(p.id)),
+        [products, selectedIds],
+    );
+
+    // What a bulk price would also change, shown before Apply.
+    const describeBulkPrice = useCallback((newPrice: number) => ({
+        clearsCompareAt: selectedForPrice.filter((p) => p.compare_at_price != null && p.compare_at_price <= newPrice).length,
+        keepsStorePrice: selectedForPrice.filter((p) => p.website_price != null && p.website_price !== newPrice).length,
+    }), [selectedForPrice]);
+
     const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
-        await bulkUpdatePrices(Array.from(selectedIds), newPrice);
+        await bulkUpdatePrices(
+            selectedForPrice.map((p) => ({
+                id: p.id,
+                oldPrice: p.price,
+                // A "was" price at or below the new price would show a fake discount.
+                clearCompareAt: p.compare_at_price != null && p.compare_at_price <= newPrice,
+            })),
+            newPrice,
+        );
         clearSelection();
-    }, [selectedIds, bulkUpdatePrices, clearSelection]);
+    }, [selectedForPrice, bulkUpdatePrices, clearSelection]);
 
     // The one bulk action the Undo toast reverses: archive, show or hide.
     const lastUndoableRef = useRef<
@@ -544,10 +559,40 @@ function ProductsContent() {
         clearSelection();
     }, [selectedIds, bulkArchive, clearSelection]);
 
-    const handleBulkDelete = useCallback(async () => {
-        await bulkDelete(Array.from(selectedIds));
-        clearSelection();
-    }, [selectedIds, bulkDelete, clearSelection]);
+    const handleBulkDelete = useCallback(() => {
+        setDeleteTargets(products.filter((p) => selectedIds.has(p.id)));
+    }, [products, selectedIds]);
+
+    const confirmDelete = useCallback(async (targets: Product[]) => {
+        try {
+            if (targets.length === 1) {
+                await deleteProduct(targets[0].id);
+                toast.success(t("products.deleted"));
+            } else {
+                await bulkDelete(targets.map((p) => p.id));
+                toast.success(t("products.bulk.deleteSuccess", { count: targets.length }));
+                clearSelection();
+            }
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [deleteProduct, bulkDelete, clearSelection, reportWriteError, t]);
+
+    const archiveInsteadOfDelete = useCallback(async (targets: Product[]) => {
+        if (targets.length === 1) {
+            await handleArchive(targets[0].id);
+            return;
+        }
+        const ids = targets.map((p) => p.id);
+        try {
+            await bulkArchive(ids);
+            lastUndoableRef.current = { kind: "archive", ids };
+            toast.success(t("products.bulk.archiveSuccess", { count: ids.length }));
+            clearSelection();
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [handleArchive, bulkArchive, clearSelection, reportWriteError, t]);
 
     const handleBulkShow = useCallback(async () => {
         const ids = Array.from(selectedIds);
@@ -571,22 +616,22 @@ function ProductsContent() {
 
     const handleBulkExport = useCallback(() => {
         const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-        exportToCSV(selectedProducts, "selected-products", canSeeCost);
+        exportToCSV(selectedProducts, "selected-products", canSeeCost, { t, locale: language });
         clearSelection();
-    }, [products, selectedIds, clearSelection, canSeeCost]);
+    }, [products, selectedIds, clearSelection, canSeeCost, t, language]);
 
     // Export handlers
     const handleExportCSV = useCallback(() => {
-        exportToCSV(filteredProducts, "products", canSeeCost);
-    }, [filteredProducts, canSeeCost]);
+        exportToCSV(filteredProducts, "products", canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language]);
 
     const handleExportExcel = useCallback(() => {
-        exportToExcel(filteredProducts, "products", canSeeCost);
-    }, [filteredProducts, canSeeCost]);
+        exportToExcel(filteredProducts, "products", canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language]);
 
     const handlePrintReport = useCallback(() => {
-        printProductReport(filteredProducts, canSeeCost);
-    }, [filteredProducts, canSeeCost]);
+        printProductReport(filteredProducts, canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language]);
 
     // Keyboard chord: G then {G|L|C|K|H} to switch view mode
     useEffect(() => {
@@ -1196,6 +1241,13 @@ function ProductsContent() {
                 products={products}
             />
 
+            <ProductDeleteDialog
+                products={deleteTargets}
+                onOpenChange={(open) => { if (!open) setDeleteTargets([]); }}
+                onArchive={archiveInsteadOfDelete}
+                onDelete={confirmDelete}
+            />
+
             {/* Bulk Actions Bar */}
             {activeTab === "products" && canEditProducts && (
                 <BulkActionsBar
@@ -1205,6 +1257,7 @@ function ProductsContent() {
                         .filter((p) => selectedIds.has(p.id))
                         .map((p) => p.name)}
                     onUpdatePrice={canManageProducts ? handleBulkUpdatePrice : undefined}
+                    describePrice={describeBulkPrice}
                     onArchive={handleBulkArchive}
                     onExport={handleBulkExport}
                     onShowOnStore={handleBulkShow}

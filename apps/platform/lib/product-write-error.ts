@@ -4,6 +4,8 @@ import { ProductChangedElsewhereError, ProductWriteDeniedError } from "@/lib/rep
 const PG_INSUFFICIENT_PRIVILEGE = "42501";
 /** Postgres unique_violation: the slug or barcode is already used by another product. */
 const PG_UNIQUE_VIOLATION = "23505";
+/** Postgres foreign_key_violation: another record (purchase order, stock count) still points at it. */
+const PG_FOREIGN_KEY_VIOLATION = "23503";
 
 /**
  * The i18n key that tells the merchant why a product write failed. The
@@ -19,6 +21,7 @@ export function productWriteErrorKey(err: unknown): string {
         const { code, message } = err as { code?: unknown; message?: unknown };
         if (code === PG_INSUFFICIENT_PRIVILEGE) return "products.errors.notPermitted";
         if (code === PG_UNIQUE_VIOLATION) return "products.errors.duplicate";
+        if (code === PG_FOREIGN_KEY_VIOLATION) return "products.errors.inUse";
         if (typeof message === "string" && /tenant is paused/i.test(message)) return "products.errors.storePaused";
     }
     return "products.errors.saveFailed";

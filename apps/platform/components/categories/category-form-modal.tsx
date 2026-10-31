@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Layers, Eye, EyeOff } from "lucide-react";
 import type { Category } from "@/types/product";
 import { slugify } from "@scheniders/shared";
+import { toast } from "@/hooks/use-toast";
+import { productWriteErrorKey } from "@/lib/product-write-error";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CategoryFormModalProps {
     isOpen: boolean;
@@ -47,6 +50,7 @@ export function CategoryFormModal({
     categories,
     mode,
 }: CategoryFormModalProps) {
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<CategoryFormData>({
         name: "",
@@ -89,7 +93,8 @@ export function CategoryFormModal({
             await onSubmit(formData);
             onClose();
         } catch (error) {
-            console.error("Error submitting category:", error);
+            // Keep the form open with what was typed, and say why it failed.
+            toast.error(t(productWriteErrorKey(error)));
         } finally {
             setLoading(false);
         }
@@ -128,7 +133,7 @@ export function CategoryFormModal({
                                 <Layers className="w-5 h-5 text-amber-700" />
                             </div>
                             <h2 className="text-xl font-bold text-foreground">
-                                {mode === "add" ? "Add Category" : "Edit Category"}
+                                {mode === "add" ? t("categories.form.addTitle") : t("categories.form.editTitle")}
                             </h2>
                         </div>
                         <button
@@ -143,13 +148,13 @@ export function CategoryFormModal({
                         {/* Name */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                Category Name *
+                                {t("categories.form.name")} *
                             </label>
                             <input
                                 type="text"
                                 value={formData.name}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                                placeholder="e.g., Perfumes, Accessories"
+                                placeholder={t("categories.form.namePlaceholder")}
                                 required
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
@@ -158,14 +163,14 @@ export function CategoryFormModal({
                         {/* Slug */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                URL Slug *
+                                {t("categories.form.slug")} *
                             </label>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={formData.slug}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, slug: slugify(e.target.value) }))}
-                                    placeholder="e.g., perfumes"
+                                    placeholder={t("categories.form.slugPlaceholder")}
                                     required
                                     className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                 />
@@ -177,7 +182,7 @@ export function CategoryFormModal({
                                     disabled={!formData.name}
                                     className="px-4 py-3 bg-[var(--pastel-yellow)] text-amber-900 rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                                 >
-                                    Auto
+                                    {t("categories.form.autoSlug")}
                                 </button>
                             </div>
                         </div>
@@ -185,12 +190,12 @@ export function CategoryFormModal({
                         {/* Description */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                Description
+                                {t("categories.form.description")}
                             </label>
                             <textarea
                                 value={formData.description}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                                placeholder="Optional category description..."
+                                placeholder={t("categories.form.descriptionPlaceholder")}
                                 rows={2}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
                             />
@@ -199,7 +204,7 @@ export function CategoryFormModal({
                         {/* Image URL */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                Image URL
+                                {t("categories.form.imageUrl")}
                             </label>
                             <input
                                 type="url"
@@ -213,14 +218,14 @@ export function CategoryFormModal({
                         {/* Parent Category */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                Parent Category
+                                {t("categories.form.parent")}
                             </label>
                             <select
                                 value={formData.parent_id ?? ""}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, parent_id: e.target.value || null }))}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             >
-                                <option value="">— None (top-level) —</option>
+                                <option value="">{t("categories.form.parentNone")}</option>
                                 {parentOptions.map((cat) => (
                                     <option key={cat.id} value={cat.id}>
                                         {cat.name}
@@ -233,7 +238,7 @@ export function CategoryFormModal({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-2">
-                                    Display Order
+                                    {t("categories.form.displayOrder")}
                                 </label>
                                 <input
                                     type="number"
@@ -244,7 +249,7 @@ export function CategoryFormModal({
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-2">
-                                    Visibility
+                                    {t("categories.form.visibility")}
                                 </label>
                                 <button
                                     type="button"
@@ -256,9 +261,9 @@ export function CategoryFormModal({
                                     }`}
                                 >
                                     {formData.is_visible ? (
-                                        <><Eye className="w-4 h-4" /> Visible</>
+                                        <><Eye className="w-4 h-4" /> {t("categories.form.visible")}</>
                                     ) : (
-                                        <><EyeOff className="w-4 h-4" /> Hidden</>
+                                        <><EyeOff className="w-4 h-4" /> {t("categories.form.hidden")}</>
                                     )}
                                 </button>
                             </div>
@@ -271,7 +276,7 @@ export function CategoryFormModal({
                                 onClick={onClose}
                                 className="flex-1 px-6 py-3 bg-[var(--background)] text-foreground rounded-xl font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("common.cancel")}
                             </button>
                             <button
                                 type="submit"
@@ -281,12 +286,12 @@ export function CategoryFormModal({
                                 {loading ? (
                                     <>
                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        Saving...
+                                        {t("common.saving")}
                                     </>
                                 ) : (
                                     <>
                                         {mode === "add" ? <Plus className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
-                                        {mode === "add" ? "Add Category" : "Save Changes"}
+                                        {mode === "add" ? t("categories.form.addTitle") : t("categories.form.saveChanges")}
                                     </>
                                 )}
                             </button>

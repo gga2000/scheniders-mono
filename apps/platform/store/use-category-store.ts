@@ -14,7 +14,7 @@ const debouncedLocalStorage: StateStorage = {
   removeItem: (name) => localStorage.removeItem(name),
 };
 
-export type CategoryViewMode = "tree" | "grid" | "megamenu";
+export type CategoryViewMode = "tree" | "grid";
 export type CategorySortBy = "manual" | "name" | "products" | "revenue" | "updated";
 
 export interface CategoryFilterState {
