@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { Order } from "@/lib/supabase";
 import { normalizeGovernorate, governorateLabel } from "@/lib/governorate-normalize";
+import { baghdadDayKey } from "@/lib/order-window";
 
 export interface AgingBucket {
     id: "fresh" | "aging" | "stale" | "stuck";
@@ -126,7 +127,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
                 cashCollected += value;
                 const ref = new Date(o.delivered_at || o.updated_at || o.created_at);
                 if (ref >= earliest) {
-                    const key = ref.toISOString().split("T")[0];
+                    const key = baghdadDayKey(ref);
                     const entry = daily.get(key) || { collected: 0, float: 0 };
                     entry.collected += value;
                     daily.set(key, entry);
@@ -178,7 +179,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
 
                 const ref = new Date(statusReference(o));
                 if (ref >= earliest) {
-                    const key = ref.toISOString().split("T")[0];
+                    const key = baghdadDayKey(ref);
                     const entry = daily.get(key) || { collected: 0, float: 0 };
                     entry.float += value;
                     daily.set(key, entry);
@@ -258,7 +259,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
         const cashSeries: CashPositionResult["cashSeries"] = [];
         const cursor = new Date(earliest);
         while (cursor.getTime() <= now) {
-            const key = cursor.toISOString().split("T")[0];
+            const key = baghdadDayKey(cursor);
             const entry = daily.get(key) || { collected: 0, float: 0 };
             cashSeries.push({ date: key, ts: cursor.getTime(), collected: entry.collected, float: entry.float });
             cursor.setDate(cursor.getDate() + 1);

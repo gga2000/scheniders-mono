@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronDown, Check, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FinancePeriod, PresetKey } from "@/hooks/use-finance-period";
+import { baghdadDayKey } from "@/lib/order-window";
 
 interface PeriodPickerProps {
     period: FinancePeriod;
@@ -176,7 +177,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
 }
 
 function formatISO(d: Date): string {
-    return d.toISOString().split("T")[0];
+    return baghdadDayKey(d);
 }
 
 function formatRangeLabel(p: FinancePeriod): string {

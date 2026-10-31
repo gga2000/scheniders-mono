@@ -13,6 +13,7 @@ import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { cn } from "@/lib/utils";
 import type { FinancePeriod, Granularity } from "@/hooks/use-finance-period";
+import { resolveItemCost } from "@/lib/finance/item-cost";
 
 interface Props {
     orders: Order[];
@@ -49,17 +50,7 @@ export function ProductsFinanceTab({ orders, products, period }: Props) {
         const end = range.end.getTime();
         const map = new Map<string, SkuRow>();
 
-        const productCost = (item: { name?: string; sku?: string; quantity: number }): number => {
-            if (item.sku) {
-                const p = products.find(p => p.sku?.toLowerCase() === item.sku?.toLowerCase());
-                if (p?.cost) return p.cost * item.quantity;
-            }
-            if (item.name) {
-                const p = products.find(p => p.name.toLowerCase() === item.name?.toLowerCase());
-                if (p?.cost) return p.cost * item.quantity;
-            }
-            return 0;
-        };
+        const productCost = (item: Parameters<typeof resolveItemCost>[0]): number => resolveItemCost(item, products).cost;
 
         const productLink = (item: { name?: string; sku?: string }): string | undefined => {
             if (item.sku) {
