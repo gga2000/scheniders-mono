@@ -276,7 +276,6 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <div className="col-span-12 lg:col-span-7">
                     <DossierNotesCard
                         notes={profile.notes}
-                        phone={profile.phone}
                         onAddNote={() => store.setAddNoteModalOpen(true)}
                     />
                 </div>

@@ -4,7 +4,6 @@ import type {
     CustomerTag,
     CustomerTagAssignment,
     CustomerMetadata,
-    CustomerNote,
     CustomerStatus,
     CommunityRating,
 } from "@/types/customer";
@@ -124,59 +123,6 @@ export const customerRepository = {
                     { customer_phone: normalizePhoneForSearch(phone), ...updates, tenant_id: tenantId },
                     { onConflict: "tenant_id,customer_phone" }
                 );
-
-            if (error) throw error;
-        });
-    },
-
-    // =============================================
-    // NOTES
-    // =============================================
-
-    async findNotesByPhone(tenantId: string, phone: string): Promise<CustomerNote[]> {
-        return withRetry('customerRepository.findNotesByPhone', async () => {
-            const { data, error } = await supabase
-                .from("customer_notes")
-                .select("*")
-                .eq("tenant_id", tenantId)
-                .eq("customer_phone", phone)
-                .order("created_at", { ascending: false });
-
-            if (error) throw error;
-            return data as CustomerNote[];
-        });
-    },
-
-    async createNote(phone: string, note: string, tenantId: string | null): Promise<CustomerNote> {
-        return withRetry('customerRepository.createNote', async () => {
-            const { data, error } = await supabase
-                .from("customer_notes")
-                .insert([{ customer_phone: phone, note, tenant_id: tenantId }])
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
-        });
-    },
-
-    async updateNote(id: string, note: string): Promise<void> {
-        return withRetry('customerRepository.updateNote', async () => {
-            const { error } = await supabase
-                .from("customer_notes")
-                .update({ note })
-                .eq("id", id);
-
-            if (error) throw error;
-        });
-    },
-
-    async deleteNote(id: string): Promise<void> {
-        return withRetry('customerRepository.deleteNote', async () => {
-            const { error } = await supabase
-                .from("customer_notes")
-                .delete()
-                .eq("id", id);
 
             if (error) throw error;
         });

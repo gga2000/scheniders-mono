@@ -8,6 +8,8 @@
  * of several real causes and is a guess rather than a reading of the error.
  */
 
+import { ExchangedOrderStatusError, isExchangedOriginalStatusViolation } from "@/lib/order-status-guard";
+
 /** A single failed row from a settled bulk operation. */
 export type BulkFailure = {
     id: string;
@@ -15,7 +17,10 @@ export type BulkFailure = {
 };
 
 /** Why a row was left behind. Drives the wording the operator sees. */
-export type BulkFailureReason = "conflict" | "permission" | "missing" | "network" | "unknown";
+export type BulkFailureReason = "conflict" | "permission" | "missing" | "network" | "exchanged" | "unknown";
+
+/** Reasons a retry cannot fix: the same request is refused the same way. */
+const FINAL_REASONS: ReadonlySet<BulkFailureReason> = new Set(["permission", "missing", "exchanged"]);
 
 /** Minimum an order must expose to be named in a failure message. */
 export type BulkOrderLabel = {
@@ -40,7 +45,9 @@ function messageOf(error: unknown): string {
  * Classify a failure by what actually went wrong.
  *
  * `CONFLICT_DETECTED` is thrown by the optimistic-concurrency guard in
- * order-repository; Postgres `42501` is an RLS/permission denial.
+ * order-repository; Postgres `42501` is an RLS/permission denial; the
+ * exchanged-original guard refuses a delivered order that has an exchange or
+ * return.
  */
 export function classifyBulkFailure(error: unknown): BulkFailureReason {
     const message = messageOf(error);
@@ -50,6 +57,7 @@ export function classifyBulkFailure(error: unknown): BulkFailureReason {
             : "";
 
     if (message === "CONFLICT_DETECTED") return "conflict";
+    if (error instanceof ExchangedOrderStatusError || isExchangedOriginalStatusViolation(error)) return "exchanged";
     if (code === "42501" || /permission denied|row-level security/i.test(message)) return "permission";
     if (/row not found|no rows/i.test(message)) return "missing";
     if (/network|fetch failed|timeout|aborted/i.test(message)) return "network";
@@ -68,6 +76,8 @@ export function describeBulkFailureReason(reason: BulkFailureReason, count: numb
             return `${count} ${orders} no longer exist`;
         case "network":
             return `${count} ${orders} failed to reach the server`;
+        case "exchanged":
+            return `${count} ${orders} delivered with an exchange or return — keep ${count === 1 ? "it" : "them"} delivered and record the outcome on the exchange or return order`;
         default:
             return `${count} ${orders} failed for an unexpected reason`;
     }
@@ -100,8 +110,10 @@ export type BulkFailureSummary = {
     title: string;
     /** Reasons plus the affected order references. */
     description: string;
-    /** Ids that failed, so the caller can keep them selected for a retry. */
+    /** Ids that failed, so the caller can keep them selected. */
     failedIds: string[];
+    /** Failed ids a retry could still succeed for; empty means offer no retry. */
+    retryableIds: string[];
 };
 
 /**
@@ -125,6 +137,9 @@ export function summarizeBulkFailures(
         .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
 
     const failedIds = failures.map((failure) => failure.id);
+    const retryableIds = failures
+        .filter((failure) => !FINAL_REASONS.has(classifyBulkFailure(failure.error)))
+        .map((failure) => failure.id);
     const noun = failures.length === 1 ? "order" : "orders";
     const reasons = byReason.map(({ reason, count }) => describeBulkFailureReason(reason, count));
     const list = formatFailedOrderList(failedIds, orders);
@@ -135,6 +150,7 @@ export function summarizeBulkFailures(
         title: `${failures.length} of ${attempted} ${noun} were not ${verb}`,
         description: list ? `${reasons.join("; ")}. Affected: ${list}` : reasons.join("; "),
         failedIds,
+        retryableIds,
     };
 }
 

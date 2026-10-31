@@ -105,10 +105,12 @@ export function useOrderBulkOperations() {
                     description: historyNote ? `${summary.description}. ${historyNote}` : summary.description,
                     variant: result.count === 0 ? "error" : "warning",
                     duration: 20000,
-                    action: {
-                        label: t("orders.bulk.retry").replace("{count}", String(summary.failedIds.length)),
-                        onClick: () => { void runBulkStatus(summary.failedIds, status, onSettled); },
-                    },
+                    action: summary.retryableIds.length > 0
+                        ? {
+                            label: t("orders.bulk.retry").replace("{count}", String(summary.retryableIds.length)),
+                            onClick: () => { void runBulkStatus(summary.retryableIds, status, onSettled); },
+                        }
+                        : undefined,
                 });
             }
             onSettled?.(result);

@@ -2,16 +2,15 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerRepository } from "@/lib/repositories/customer-repository";
-import { CustomerTag, CustomerNote, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/types/customer";
+import { CustomerTag, CustomerMetadata, CustomerTagAssignment, CustomerStatus } from "@/types/customer";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { useAuth } from "@/components/auth/auth-provider";
 
 // Query Keys. Every key carries the active store, so switching stores never
-// shows the other store's tags, notes or metadata from cache.
+// shows the other store's tags or metadata from cache.
 export const customerKeys = {
     all: (tenantId: string | null) => ["customers", "store", tenantId] as const,
     tags: (tenantId: string | null) => [...customerKeys.all(tenantId), "tags"] as const,
-    notes: (tenantId: string | null, phone: string) => [...customerKeys.all(tenantId), "notes", phone] as const,
     metadata: (tenantId: string | null, phone: string) => [...customerKeys.all(tenantId), "metadata", phone] as const,
     assignments: (tenantId: string | null, phone: string) => [...customerKeys.all(tenantId), "assignments", phone] as const,
 };
@@ -51,15 +50,6 @@ export function useCustomerMetadataQuery(phone: string) {
     return useQuery({
         queryKey: customerKeys.metadata(tenantId, phone),
         queryFn: () => customerRepository.findMetadataByPhone(requireStore(tenantId), phone),
-        enabled: !!tenantId && !!phone,
-    });
-}
-
-export function useCustomerNotesQuery(phone: string) {
-    const { tenantId } = useAuth();
-    return useQuery({
-        queryKey: customerKeys.notes(tenantId, phone),
-        queryFn: () => customerRepository.findNotesByPhone(requireStore(tenantId), phone),
         enabled: !!tenantId && !!phone,
     });
 }
@@ -205,80 +195,3 @@ export function useUpdateMetadataMutation() {
     });
 }
 
-// Notes
-export function useAddNoteMutation() {
-    const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
-    return useMutation({
-        mutationFn: async ({ phone, note }: { phone: string; note: string }) => {
-            return customerRepository.createNote(phone, note, tenantId);
-        },
-        onMutate: async ({ phone, note }) => {
-            const key = customerKeys.notes(tenantId, phone);
-            await queryClient.cancelQueries({ queryKey: key });
-            const previousNotes = queryClient.getQueryData<CustomerNote[]>(key);
-            const tempNote: CustomerNote = {
-                id: `temp-${Date.now()}`,
-                customer_phone: phone,
-                note,
-                created_at: new Date().toISOString(),
-            };
-            queryClient.setQueryData<CustomerNote[]>(key, (old) => [tempNote, ...(old || [])]);
-            return { previousNotes, phone };
-        },
-        onError: (_err, _vars, context) => {
-            if (context?.previousNotes) queryClient.setQueryData(customerKeys.notes(tenantId, context.phone), context.previousNotes);
-        },
-        onSettled: (_data, _error, vars) => {
-            queryClient.invalidateQueries({ queryKey: customerKeys.notes(tenantId, vars.phone) });
-        },
-    });
-}
-
-export function useUpdateNoteMutation() {
-    const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
-    return useMutation({
-        mutationFn: async ({ id, note }: { id: string; note: string; phone: string }) => {
-            await customerRepository.updateNote(id, note);
-            return id;
-        },
-        onMutate: async ({ id, note, phone }) => {
-            const key = customerKeys.notes(tenantId, phone);
-            await queryClient.cancelQueries({ queryKey: key });
-            const previousNotes = queryClient.getQueryData<CustomerNote[]>(key);
-            queryClient.setQueryData<CustomerNote[]>(key, (old) => old?.map(n => n.id === id ? { ...n, note } : n) || []);
-            return { previousNotes, phone };
-        },
-        onError: (_err, _vars, context) => {
-            if (context?.previousNotes) queryClient.setQueryData(customerKeys.notes(tenantId, context.phone), context.previousNotes);
-        },
-        onSettled: (_data, _error, vars) => {
-            queryClient.invalidateQueries({ queryKey: customerKeys.notes(tenantId, vars.phone) });
-        },
-    });
-}
-
-export function useDeleteNoteMutation() {
-    const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
-    return useMutation({
-        mutationFn: async ({ id }: { id: string; phone: string }) => {
-            await customerRepository.deleteNote(id);
-            return id;
-        },
-        onMutate: async ({ id, phone }) => {
-            const key = customerKeys.notes(tenantId, phone);
-            await queryClient.cancelQueries({ queryKey: key });
-            const previousNotes = queryClient.getQueryData<CustomerNote[]>(key);
-            queryClient.setQueryData<CustomerNote[]>(key, (old) => old?.filter(n => n.id !== id) || []);
-            return { previousNotes, phone };
-        },
-        onError: (_err, _vars, context) => {
-            if (context?.previousNotes) queryClient.setQueryData(customerKeys.notes(tenantId, context.phone), context.previousNotes);
-        },
-        onSettled: (_data, _error, vars) => {
-            queryClient.invalidateQueries({ queryKey: customerKeys.notes(tenantId, vars.phone) });
-        },
-    });
-}
