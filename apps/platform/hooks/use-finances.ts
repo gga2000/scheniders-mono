@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useExpenses } from "./use-expenses";
 import { ExpenseCategory } from "@/types/expense";
 import type { Order, Product } from "@/lib/supabase";
+import { isRealizedRevenue, isSaleOrder } from "@/lib/order-revenue";
+import { resolveItemCost } from "@/lib/finance/item-cost";
 import { baghdadDayKey } from "@/lib/order-window";
 
 export interface DateRange {
@@ -98,26 +100,20 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
 
         filteredOrders.forEach((order) => {
             const orderValue = order.price || 0;
+            if (!isSaleOrder(order)) {
+                if (order.status === "rejected") cancelledRevenue += orderValue;
+                return;
+            }
             totalRevenue += orderValue;
-
-            switch (order.status) {
-                case "delivered":
-                    deliveredRevenue += orderValue;
-                    deliveredCount++;
-                    break;
-                case "confirmed":
-                case "contacted":
-                case "new":
-                    pendingRevenue += orderValue;
-                    break;
-                case "rejected":
-                    cancelledRevenue += orderValue;
-                    totalRevenue -= orderValue; // Don't count rejected in total
-                    break;
+            if (isRealizedRevenue(order)) {
+                deliveredRevenue += orderValue;
+                deliveredCount++;
+            } else {
+                pendingRevenue += orderValue;
             }
         });
 
-        const orderCount = filteredOrders.filter((o) => o.status !== "rejected").length;
+        const orderCount = filteredOrders.filter(isSaleOrder).length;
 
         return {
             totalRevenue,
@@ -137,16 +133,9 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
         // Calculate product costs from delivered orders
         let productCosts = 0;
         filteredOrders.forEach((order) => {
-            if (order.status === "delivered" && order.items) {
+            if (isRealizedRevenue(order) && order.items) {
                 order.items.forEach((item) => {
-                    // Find matching product to get cost
-                    const product = products.find((p) =>
-                        (p.sku && item.sku && p.sku.toLowerCase() === item.sku.toLowerCase()) ||
-                        p.name.toLowerCase() === item.name.toLowerCase()
-                    );
-                    if (product && product.cost) {
-                        productCosts += product.cost * item.quantity;
-                    }
+                    productCosts += resolveItemCost(item, products).cost;
                 });
             }
         });
@@ -171,7 +160,7 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
 
         // Process orders
         filteredOrders.forEach((order) => {
-            if (order.status === "rejected") return;
+            if (!isSaleOrder(order)) return;
 
             const date = baghdadDayKey(new Date(order.created_at));
             const existing = dataMap.get(date) || { date, revenue: 0, profit: 0, orders: 0, expenses: 0 };
@@ -210,7 +199,7 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
         }
 
         filteredOrders.forEach((order) => {
-            if (order.status === "rejected") return;
+            if (!isSaleOrder(order)) return;
 
             const hour = new Date(order.created_at).getHours();
             const existing = hourlyMap.get(hour)!;
@@ -259,7 +248,7 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
         // Calculate total relevant orders (excluding cancelled? or all?)
         // Usually rejection rate is Rejected / (Delivered + Rejected) or Total Shipped
         // Let's use (Delivered + Rejected) as "Attempted Deliveries"
-        const attemptedDeliveries = filteredOrders.filter(o => o.status === "delivered" || o.status === "rejected").length;
+        const attemptedDeliveries = filteredOrders.filter(o => isRealizedRevenue(o) || o.status === "rejected").length;
         const rejectionRate = attemptedDeliveries > 0 ? (totalRejected / attemptedDeliveries) * 100 : 0;
 
         const byReason = Array.from(reasonsMap.entries()).map(([reason, count]) => ({
@@ -319,20 +308,20 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
 
         previousOrders.forEach((order) => {
             const value = order.price || 0;
-            if (order.status !== "rejected") {
-                prevTotal += value;
+            if (!isSaleOrder(order)) {
+                if (order.status === "rejected") prevCancelled += value;
+                return;
             }
-            if (order.status === "delivered") {
+            prevTotal += value;
+            if (isRealizedRevenue(order)) {
                 prevDelivered += value;
                 prevDeliveredCount++;
-            } else if (order.status === "rejected") {
-                prevCancelled += value;
             } else {
                 prevPending += value;
             }
         });
 
-        const prevCount = previousOrders.filter((o) => o.status !== "rejected").length;
+        const prevCount = previousOrders.filter(isSaleOrder).length;
 
         const previousStats: RevenueStats = {
             totalRevenue: prevTotal,
