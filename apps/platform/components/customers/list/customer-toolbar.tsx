@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Search, LayoutGrid, List, ChevronDown, X } from "lucide-react";
+import { Search, LayoutGrid, List, ChevronDown, X, Tag } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerToolbarProps {
@@ -12,11 +12,14 @@ interface CustomerToolbarProps {
     onSort: (sortBy: string, order: "asc" | "desc") => void;
     view: "grid" | "list";
     onView: (v: "grid" | "list") => void;
+    tags: { id: string; name: string }[];
+    tagId: string;
+    onTag: (tagId: string) => void;
     /** Reliability chips slot. */
     children?: React.ReactNode;
 }
 
-export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, view, onView, children }: CustomerToolbarProps) {
+export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, tags, tagId, onTag, view, onView, children }: CustomerToolbarProps) {
     const { t } = useLanguage();
 
     const sortLabels: Record<string, string> = {
@@ -29,7 +32,7 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, v
     const currentSort = `${sortBy}:${sortOrder}`;
 
     return (
-        <div className="sticky top-0 z-40 -mx-1 px-1 pt-2 pb-1">
+        <div className="sm:sticky sm:top-0 z-40 -mx-1 px-1 pt-2 pb-1">
             <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -62,11 +65,31 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, v
 
                     {/* Right cluster: sort + view toggle */}
                     <div className="flex items-center gap-2 ml-auto">
+                        {tags.length > 0 && (
+                            <div className="relative h-11 px-3.5 rounded-xl flex items-center gap-2 text-sm font-semibold bg-(--card-bg) border border-(--card-border) cursor-pointer">
+                                <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="max-w-28 truncate">
+                                    {tags.find((x) => x.id === tagId)?.name ?? t("customers.filter.tagAll", "All tags")}
+                                </span>
+                                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                                <select
+                                    value={tagId}
+                                    onChange={(e) => onTag(e.target.value)}
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    aria-label={t("customers.filter.tag", "Filter by tag")}
+                                >
+                                    <option value="">{t("customers.filter.tagAll", "All tags")}</option>
+                                    {tags.map((x) => (
+                                        <option key={x.id} value={x.id}>{x.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div className="relative h-11 px-3.5 rounded-xl flex items-center gap-2 text-sm font-semibold bg-(--card-bg) border border-(--card-border) cursor-pointer">
                             <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                                 {t("customers.sort.label")}
                             </span>
-                            <span>{sortLabels[sortBy] || sortBy}</span>
+                            <span>{sortLabels[sortBy] || sortBy} {sortOrder === "asc" ? "↑" : "↓"}</span>
                             <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                             <select
                                 value={currentSort}
@@ -77,11 +100,16 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, v
                                 className="absolute inset-0 opacity-0 cursor-pointer"
                                 aria-label={t("customers.sort.label")}
                             >
-                                <option value="trust_score:desc">{t("customers.sort.reliability")}</option>
-                                <option value="last_order_date:desc">{t("customers.lastOrder")}</option>
-                                <option value="total_spent:desc">{t("customers.totalSpent")}</option>
-                                <option value="total_orders:desc">{t("customers.orders")}</option>
-                                <option value="name:asc">{sortLabels.name}</option>
+                                <option value="trust_score:desc">{sortLabels.trust_score ?? "trust_score"} ↓</option>
+                                <option value="trust_score:asc">{sortLabels.trust_score ?? "trust_score"} ↑</option>
+                                <option value="last_order_date:desc">{sortLabels.last_order_date ?? "last_order_date"} ↓</option>
+                                <option value="last_order_date:asc">{sortLabels.last_order_date ?? "last_order_date"} ↑</option>
+                                <option value="total_spent:desc">{sortLabels.total_spent ?? "total_spent"} ↓</option>
+                                <option value="total_spent:asc">{sortLabels.total_spent ?? "total_spent"} ↑</option>
+                                <option value="total_orders:desc">{sortLabels.total_orders ?? "total_orders"} ↓</option>
+                                <option value="total_orders:asc">{sortLabels.total_orders ?? "total_orders"} ↑</option>
+                                <option value="name:desc">{sortLabels.name ?? "name"} ↓</option>
+                                <option value="name:asc">{sortLabels.name ?? "name"} ↑</option>
                             </select>
                         </div>
 
