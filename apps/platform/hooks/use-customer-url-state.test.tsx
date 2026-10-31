@@ -87,3 +87,22 @@ describe("useCustomerUrlState search writes", () => {
         vi.useRealTimers();
     });
 });
+
+describe("useCustomerUrlState back/forward", () => {
+    it("shows the URL search again after leaving and coming back to it", () => {
+        vi.useFakeTimers();
+        const { result, rerender } = renderHook(() => useCustomerUrlState());
+        act(() => result.current.setSearch("ali"));
+        act(() => { vi.advanceTimersByTime(300); });
+        rerender();
+        // A global-search jump replaces the search…
+        currentSearch = "07701234567";
+        rerender();
+        expect(result.current.rawSearch).toBe("07701234567");
+        // …and browser Back restores the earlier one.
+        currentSearch = "ali";
+        rerender();
+        expect(result.current.rawSearch).toBe("ali");
+        vi.useRealTimers();
+    });
+});

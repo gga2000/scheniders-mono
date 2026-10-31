@@ -47,6 +47,10 @@ interface CustomerStore {
   // returns to the same filters (in memory only; a reload starts clean).
   lastListQuery: string;
   setLastListQuery: (query: string) => void;
+  // Phone of the profile the list's drawer just opened, so that profile's Back
+  // can step back in history (keeping scroll) instead of stacking a new entry.
+  profileFromList: string | null;
+  setProfileFromList: (phone: string | null) => void;
 
   // View mode
   viewMode: 'grid' | 'list';
@@ -131,6 +135,8 @@ export const useCustomerStore = create<CustomerStore>()(
 
       lastListQuery: "",
       setLastListQuery: (query) => set({ lastListQuery: query }),
+      profileFromList: null,
+      setProfileFromList: (phone) => set({ profileFromList: phone }),
 
       // View mode
       viewMode: 'grid' as const,

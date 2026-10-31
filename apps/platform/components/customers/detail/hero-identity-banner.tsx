@@ -11,7 +11,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
 import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
-import { displayScore } from "@/lib/customer-reliability";
+import { displayScore, hasRatedScore } from "@/lib/customer-reliability";
 
 interface HeroIdentityBannerProps {
     name: string;
@@ -63,7 +63,8 @@ export function HeroIdentityBanner({
         .toUpperCase();
 
     // Shown out of 100 the same way the drawer shows it.
-    const shownScore = trustScore === null ? null : displayScore(trustScore);
+    // Unrated ("new") customers have no proven score, same as the drawer.
+    const shownScore = trustScore === null || !hasRatedScore(tier) ? null : displayScore(trustScore);
 
     const memberSince = firstOrderDate
         ? new Date(firstOrderDate).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
@@ -159,7 +160,7 @@ export function HeroIdentityBanner({
 
                     {/* Peer badges — integrated into hero, not floating below */}
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                        {shownScore !== null && <PeerComparisonBadge phone={phone} />}
+                        {shownScore !== null && tier !== "blocked" && <PeerComparisonBadge phone={phone} />}
                         <ConfidenceIndicator orderCount={totalOrders} />
                     </div>
 
