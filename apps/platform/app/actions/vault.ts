@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { pickCustomerWrite, pickProductWrite, RESTORE_ROWS_BATCH_SIZE } from "@/lib/vault-restore";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { resolveCaller, type Caller } from "@/lib/auth/resolve-order-caller";
 import {
@@ -116,4 +117,90 @@ export async function logVaultEventAction(accessToken: string, input: unknown): 
     });
     if (error) return { success: false, error: "Could not record the audit entry" };
     return { success: true };
+}
+
+const restoreInput = z.discriminatedUnion("table", [
+    z.object({
+        table: z.literal("products"),
+        rows: z.array(z.looseObject({ id: z.uuid(), name: z.string().min(1) })).min(1).max(RESTORE_ROWS_BATCH_SIZE),
+    }),
+    z.object({
+        table: z.literal("customers"),
+        rows: z.array(z.looseObject({ customer_phone: z.string().min(1) })).min(1).max(RESTORE_ROWS_BATCH_SIZE),
+    }),
+]);
+
+/**
+ * Restores a batch of products or customers into the caller's own store.
+ *
+ * Runs with the service role (a browser cannot write product stock columns),
+ * so the checks here are the tenant boundary: the tenant comes from the
+ * caller's membership, every row is written with it, only the columns in
+ * lib/vault-restore are written, and a batch holding a product id that belongs
+ * to another store is refused whole rather than overwriting that store's row.
+ */
+export async function restoreVaultRowsAction(
+    accessToken: string,
+    input: unknown,
+): Promise<VaultResult<{ created: number; updated: number }>> {
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+    const denied = vaultRoleError(resolved.caller);
+    if (denied) return { success: false, error: denied };
+
+    const parsed = restoreInput.safeParse(input);
+    if (!parsed.success) return { success: false, error: "The backup's rows are not in the expected format" };
+
+    const { tenantId } = resolved.caller;
+    const supabase = createSupabaseServiceClient();
+
+    if (parsed.data.table === "customers") {
+        const writes = parsed.data.rows.map((row) => pickCustomerWrite(row, tenantId));
+        const phones = writes.map((write) => write.customer_phone as string);
+        const { data: existing, error: existingError } = await supabase
+            .from("customer_metadata")
+            .select("customer_phone")
+            .eq("tenant_id", tenantId)
+            .in("customer_phone", phones);
+        if (existingError) return { success: false, error: "Could not check existing customers" };
+
+        const { error } = await supabase.from("customer_metadata").upsert(writes, { onConflict: "customer_phone,tenant_id" });
+        if (error) return { success: false, error: `Customers restore failed: ${error.message}` };
+        const updated = (existing ?? []).length;
+        return { success: true, created: writes.length - updated, updated };
+    }
+
+    const ids = parsed.data.rows.map((row) => row.id);
+    const { data: existing, error: existingError } = await supabase
+        .from("products")
+        .select("id, tenant_id")
+        .in("id", ids);
+    if (existingError) return { success: false, error: "Could not check existing products" };
+
+    const foreign = (existing ?? []).filter((row) => row.tenant_id !== tenantId).length;
+    if (foreign > 0) return { success: false, error: `${foreign} product(s) in this backup belong to another store` };
+
+    // A category deleted since the backup, or one that belongs to another store,
+    // would fail the foreign key or link across stores: the product restores uncategorised instead.
+    const categoryIds = [...new Set(parsed.data.rows.map((row) => row.category_id).filter((id): id is string => typeof id === "string"))];
+    const validCategories = new Set<string>();
+    if (categoryIds.length > 0) {
+        const { data: categories, error: categoriesError } = await supabase
+            .from("categories")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .in("id", categoryIds);
+        if (categoriesError) return { success: false, error: "Could not check product categories" };
+        for (const category of categories ?? []) validCategories.add(category.id);
+    }
+
+    const existingIds = new Set((existing ?? []).map((row) => row.id));
+    const writes = parsed.data.rows.map((row) => {
+        const write = pickProductWrite(row, tenantId, existingIds.has(row.id));
+        if ("category_id" in write && !validCategories.has(write.category_id as string)) write.category_id = null;
+        return write;
+    });
+    const { error } = await supabase.from("products").upsert(writes, { onConflict: "id" });
+    if (error) return { success: false, error: `Products restore failed: ${error.message}` };
+    return { success: true, created: writes.length - existingIds.size, updated: existingIds.size };
 }

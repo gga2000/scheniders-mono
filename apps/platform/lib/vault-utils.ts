@@ -9,9 +9,11 @@ import {
     prepareCloudUploadAction,
     getCloudDownloadUrlAction,
     logVaultEventAction,
+    restoreVaultRowsAction,
     type CloudVaultEntry,
 } from "@/app/actions/vault";
 import { VAULT_BUCKET } from "./vault-paths";
+import { RESTORE_ROWS_BATCH_SIZE } from "./vault-restore";
 import { VaultError, type VaultProgress } from "./vault-progress";
 import { vaultFileSchema, type VaultData, type VaultRow } from "./vault-schema";
 import * as XLSX from "xlsx";
@@ -340,23 +342,19 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (pr
         const products = injectTenant(vaultData.data.products);
         const orders = injectTenant(vaultData.data.orders);
 
-        // 1. Restore Customers
-        if (customers && customers.length > 0) {
-            if (onProgress) onProgress({ step: "restoring", table: "customers", count: customers.length });
-            const { error: customerError } = await supabase
-                .from('customer_metadata')
-                .upsert(customers, { onConflict: 'customer_phone,tenant_id' });
-            if (customerError) throw new Error(`Customers Restore Failed: ${customerError.message}`);
-        }
+        const accessToken = await requireAccessToken();
+        const restoreTable = async (table: "customers" | "products", rows: VaultRow[]) => {
+            if (rows.length === 0) return;
+            if (onProgress) onProgress({ step: "restoring", table, count: rows.length });
+            for (let start = 0; start < rows.length; start += RESTORE_ROWS_BATCH_SIZE) {
+                const result = await restoreVaultRowsAction(accessToken, { table, rows: rows.slice(start, start + RESTORE_ROWS_BATCH_SIZE) });
+                if (!result.success) throw new Error(result.error);
+            }
+        };
 
-        // 2. Restore Products 
-        if (products && products.length > 0) {
-            if (onProgress) onProgress({ step: "restoring", table: "products", count: products.length });
-            const { error: productError } = await supabase
-                .from('products')
-                .upsert(products, { onConflict: 'id' });
-            if (productError) throw new Error(`Products Restore Failed: ${productError.message}`);
-        }
+        // Customers, then products, then orders (which reference both).
+        await restoreTable("customers", customers);
+        await restoreTable("products", products);
 
         // 3. Restore Orders (Dependent on Products)
         if (orders && orders.length > 0) {
