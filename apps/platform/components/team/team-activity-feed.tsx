@@ -31,10 +31,12 @@ interface TeamActivityFeedProps {
     actionFilter: string;
     onActionFilterChange: (value: string) => void;
     isNew: (activityId: string) => boolean;
+    /** Maps an entry to the member's display name, so the feed and the roster name people the same way. */
+    resolveName?: (activity: ActivityLogEntry) => string | null;
 }
 
 /** Live, filterable activity feed for the whole store. */
-export function TeamActivityFeed({ feed, actionFilter, onActionFilterChange, isNew }: TeamActivityFeedProps) {
+export function TeamActivityFeed({ feed, actionFilter, onActionFilterChange, isNew, resolveName }: TeamActivityFeedProps) {
     const { t } = useLanguage();
     return (
             <PastelCard className="overflow-hidden">
@@ -125,6 +127,7 @@ export function TeamActivityFeed({ feed, actionFilter, onActionFilterChange, isN
                                 showUserInfo={true}
                                 maxItems={50}
                                 isNew={isNew}
+                                resolveName={resolveName}
                             />
 
                             {/* Load More */}

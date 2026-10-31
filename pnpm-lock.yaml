@@ -415,6 +415,9 @@ importers:
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@20.19.39)(jsdom@29.1.1)(lightningcss@1.32.0)(terser@5.46.1)
+      webpack:
+        specifier: 5.105.4
+        version: 5.105.4(esbuild@0.28.0)
       webpack-bundle-analyzer:
         specifier: ^5.1.0
         version: 5.3.0

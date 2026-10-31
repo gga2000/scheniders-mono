@@ -66,6 +66,10 @@ export function TeamRosterTable({ members, activeUserIds, now, onSelect }: TeamR
 
     const teamTotal = useMemo(() => members.reduce((s, m) => s + m.total_actions, 0), [members]);
     const idleCount = useMemo(() => members.filter((m) => m.total_actions === 0).length, [members]);
+    const onlineCount = useMemo(
+        () => members.filter((m) => presenceOf(m, activeUserIds, now) !== "away").length,
+        [members, activeUserIds, now],
+    );
 
     const sorted = useMemo(() => {
         const dir = sortDir === "asc" ? 1 : -1;
@@ -123,7 +127,7 @@ export function TeamRosterTable({ members, activeUserIds, now, onSelect }: TeamR
             <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-3">
                 <h2 className="text-lg font-bold text-[#1E1E1E] dark:text-white">{t("team.roster.title")}</h2>
                 <p className="text-xs text-[#6B6B6B] dark:text-gray-400 tabular-nums">
-                    {t("team.roster.summary", { count: members.length, idle: idleCount })}
+                    {t("team.roster.summary", { count: members.length, online: onlineCount, idle: idleCount })}
                 </p>
             </div>
 

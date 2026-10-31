@@ -47,10 +47,10 @@ function rowOrder(names: string[]) {
 describe("TeamRosterTable", () => {
     const members = [member("a", "Zaid", 5), member("b", "Ali", 40), member("c", "Huda", 0)];
 
-    it("sorts by actions, busiest first, and counts idle members", () => {
+    it("sorts by actions, busiest first, and counts online and idle members", () => {
         render(<TeamRosterTable members={members} activeUserIds={new Set()} now={NOW} onSelect={() => {}} />);
         expect(rowOrder(["Ali", "Zaid", "Huda"])).toEqual(["Ali", "Zaid", "Huda"]);
-        expect(screen.getByText("team.roster.summary:3,1")).toBeTruthy();
+        expect(screen.getByText("team.roster.summary:3,0,1")).toBeTruthy();
         expect(screen.getByText("team.roster.noActivity")).toBeTruthy();
     });
 
