@@ -70,7 +70,7 @@ interface UseProductsCrudOptions {
  */
 export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = {}) {
     const queryClient = useQueryClient();
-    const { data: rawProducts, isLoading: loading, error: queryError } = useProductsQuery();
+    const { data: rawProducts, isLoading: loading, isPending: pending, error: queryError } = useProductsQuery();
     const salesByProductId = useProductSalesQuery(withSales);
 
     // Mutations
@@ -181,6 +181,8 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     return {
         products: products || [],
         loading,
+        /** True until the first result, including while the query waits for the session. */
+        pending,
         error: queryError ? (queryError instanceof Error ? queryError.message : "Error fetching products") : null,
         // CRUD operations
         addProduct,

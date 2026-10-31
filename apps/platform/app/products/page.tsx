@@ -82,6 +82,7 @@ import { ForecastingCards } from "@/components/products/forecasting-cards";
 
 // Store
 import { uniqueCopyValue } from "@/lib/unique-copy-value";
+import { normalizeArabicText } from "@/lib/order-filter-utils";
 import { useProductStore, type ViewMode } from "@/store/use-product-store";
 
 export default function ProductsPage() {
@@ -254,16 +255,18 @@ function ProductsContent() {
 
         // Text search
         if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+            const query = normalizeArabicText(searchQuery);
+            const matches = (value: string | null | undefined) => !!value && normalizeArabicText(value).includes(query);
             // Every name a product goes by (same set as the top-bar search):
             // order cards show the short name or the imported alias, and that
             // is what gets typed. Description is left out: long marketing
             // text matched generic words like عطر on every product.
             result = result.filter((product) =>
-                product.name.toLowerCase().includes(query) ||
-                (product.short_name?.toLowerCase().includes(query)) ||
-                (product.sku?.toLowerCase().includes(query)) ||
-                (product.lightfunnels_aliases?.some((alias) => alias.toLowerCase().includes(query)))
+                matches(product.name) ||
+                matches(product.short_name) ||
+                matches(product.sku) ||
+                matches(product.barcode) ||
+                !!product.lightfunnels_aliases?.some(matches)
             );
         }
 

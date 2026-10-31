@@ -12,6 +12,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 import { usePermission } from "@/hooks/use-permission";
+import { uniqueCopyValue } from "@/lib/unique-copy-value";
 import { PERMISSIONS } from "@/lib/permissions";
 
 export interface ProductOptionFormData {
@@ -500,7 +501,7 @@ interface UseProductEditorOptions {
 
 export function useProductEditor({ product, mode, defaultIsSupply = false }: UseProductEditorOptions) {
     const router = useRouter();
-    const { addProduct, updateProduct, addVariant, updateVariant, deleteVariant } = useProductsCrud();
+    const { products: catalogue, addProduct, updateProduct, addVariant, updateVariant, deleteVariant } = useProductsCrud();
     const { tenantId } = useAuth();
     const { t } = useLanguage();
     const { can } = usePermission();
@@ -1249,7 +1250,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         } finally {
             setSaving(false);
         }
-    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost, mode, relatedDataLoaded]);
+    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost, relatedDataLoaded]);
 
     // Duplicate product
     const duplicateProduct = useCallback(async () => {
@@ -1264,7 +1265,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 name: t("products.ed.copyOf", { name: formData.name }),
                 short_name: formData.short_name.trim() ? t("products.ed.copyOf", { name: formData.short_name.trim() }) : null,
                 description: formData.description,
-                sku: formData.sku ? `${formData.sku}-copy` : undefined,
+                sku: formData.sku ? uniqueCopyValue(formData.sku, new Set(catalogue.flatMap((p) => (p.sku ? [p.sku] : [])))) : undefined,
                 price: formData.price,
                 compare_at_price: formData.compare_at_price || undefined,
                 cost: formData.cost,
@@ -1275,7 +1276,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 tag_color: formData.tag_color,
                 is_supply: formData.is_supply,
                 is_filler: formData.is_filler,
-                slug: formData.slug ? `${formData.slug}-copy` : undefined,
+                slug: formData.slug ? uniqueCopyValue(formData.slug, new Set(catalogue.flatMap((p) => (p.slug ? [p.slug] : [])))) : undefined,
                 is_visible: false,
                 display_order: formData.display_order,
                 category_id: formData.category_id,
@@ -1328,7 +1329,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         } finally {
             setSaving(false);
         }
-    }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId, t, relatedDataLoaded]);
+    }, [formData, product, catalogue, addProduct, addVariant, router, saveRelatedData, tenantId, t, relatedDataLoaded]);
 
     return {
         showCost,
