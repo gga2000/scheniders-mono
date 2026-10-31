@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Landmark, Truck, Clock, AlertTriangle, Target } from "lucide-react";
 import { FinanceValue } from "../primitives/finance-value";
 import { Sparkline } from "../primitives/sparkline";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { CashPositionResult } from "@/hooks/use-cash-position";
 
@@ -12,14 +13,15 @@ interface Props {
 }
 
 export function CashPositionHero({ data }: Props) {
+    const { t } = useLanguage();
     const floatSeries = data.cashSeries.map((s) => s.float);
     const collectedSeries = data.cashSeries.map((s) => s.collected);
 
     const tiles = [
         {
             id: "collected",
-            label: "Collected",
-            sublabel: "Delivered & paid",
+            label: t("finances.cash.collected"),
+            sublabel: t("finances.cash.collectedSub"),
             value: data.cashCollected,
             Icon: Landmark,
             accent: "emerald" as const,
@@ -28,8 +30,8 @@ export function CashPositionHero({ data }: Props) {
         },
         {
             id: "transit",
-            label: "In Transit",
-            sublabel: `${data.inTransitCount} orders floating`,
+            label: t("finances.cash.transit"),
+            sublabel: t("finances.cash.transitSub", { count: data.inTransitCount }),
             value: data.cashInTransit,
             Icon: Truck,
             accent: "cyan" as const,
@@ -37,8 +39,8 @@ export function CashPositionHero({ data }: Props) {
         },
         {
             id: "confirmed",
-            label: "Confirmed",
-            sublabel: `${data.confirmedCount} not shipped yet`,
+            label: t("finances.cash.confirmed"),
+            sublabel: t("finances.cash.confirmedSub", { count: data.confirmedCount }),
             value: data.cashConfirmed,
             Icon: Clock,
             accent: "violet" as const,
@@ -46,8 +48,8 @@ export function CashPositionHero({ data }: Props) {
         },
         {
             id: "risk",
-            label: "At Risk",
-            sublabel: data.stuckCount > 0 ? `${data.stuckCount} orders stuck 15+ days` : "No stuck orders",
+            label: t("finances.cash.risk"),
+            sublabel: data.stuckCount > 0 ? t("finances.cash.riskSub", { count: data.stuckCount }) : t("finances.cash.noStuck"),
             value: data.cashAtRisk,
             Icon: AlertTriangle,
             accent: "rose" as const,
@@ -56,8 +58,8 @@ export function CashPositionHero({ data }: Props) {
         },
         {
             id: "projection",
-            label: "Projected Cash",
-            sublabel: `@${data.historicalDeliveryRate.toFixed(0)}% delivery rate`,
+            label: t("finances.cash.projected"),
+            sublabel: t("finances.cash.projectedSub", { rate: data.historicalDeliveryRate.toFixed(0) }),
             value: data.netProjection,
             Icon: Target,
             accent: "slate" as const,
@@ -73,43 +75,43 @@ export function CashPositionHero({ data }: Props) {
             transition={{ duration: 0.2 }}
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3"
         >
-            {tiles.map((t, i) => (
+            {tiles.map((tile, i) => (
                 <motion.div
-                    key={t.id}
+                    key={tile.id}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
                     className={cn(
                         "relative rounded-2xl border p-4 overflow-hidden",
                         "bg-[var(--card-bg)] border-[var(--card-border)]",
-                        t.priority && "ring-1 ring-emerald-500/30",
-                        t.warning && "ring-1 ring-rose-500/30",
-                        t.dashed && "border-dashed"
+                        tile.priority && "ring-1 ring-emerald-500/30",
+                        tile.warning && "ring-1 ring-rose-500/30",
+                        tile.dashed && "border-dashed"
                     )}
                 >
                     <div className="flex items-start justify-between mb-2">
-                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", accentBg(t.accent))}>
-                            <t.Icon className={cn("w-4 h-4", accentText(t.accent))} />
+                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", accentBg(tile.accent))}>
+                            <tile.Icon className={cn("w-4 h-4", accentText(tile.accent))} />
                         </div>
                     </div>
-                    <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">{t.label}</div>
+                    <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">{tile.label}</div>
                     <div className="mt-1">
                         <FinanceValue
-                            value={t.value}
+                            value={tile.value}
                             currency="IQD"
                             abbreviate
-                            className={cn("text-[22px] leading-none", accentText(t.accent))}
+                            className={cn("text-[22px] leading-none", accentText(tile.accent))}
                         />
                     </div>
-                    <div className="text-[11px] text-muted mt-1 truncate">{t.sublabel}</div>
-                    {t.series.length > 0 && (
-                        <div className={cn("mt-2 -mb-1", accentText(t.accent))}>
+                    <div className="text-[11px] text-muted mt-1 truncate">{tile.sublabel}</div>
+                    {tile.series.length > 0 && (
+                        <div className={cn("mt-2 -mb-1", accentText(tile.accent))}>
                             <Sparkline
-                                data={t.series}
+                                data={tile.series}
                                 width={180}
                                 height={22}
                                 stroke="currentColor"
-                                fill={accentFill(t.accent)}
+                                fill={accentFill(tile.accent)}
                             />
                         </div>
                     )}

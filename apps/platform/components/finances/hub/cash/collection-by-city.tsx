@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { MapPin } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import { governorateLabel } from "@/lib/governorate-normalize";
 import type { GovernorateCollection } from "@/hooks/use-cash-position";
@@ -13,19 +14,20 @@ interface Props {
 }
 
 export function CollectionByCity({ rows }: Props) {
+    const { t } = useLanguage();
     const top = rows.slice(0, 10);
     const hasAtRisk = rows.some((r) => r.at_risk_value > 0);
 
     if (rows.length === 0) {
         return (
             <SectionCard
-                title="Collection by City"
-                subtitle="No city data yet"
+                title={t("finances.cash.cityTitle")}
+                subtitle={t("finances.cash.cityNone")}
                 icon={MapPin}
                 accent="violet"
             >
                 <div className="py-8 text-center text-sm text-muted">
-                    Need delivered or in-transit orders with city codes to populate this view.
+                    {t("finances.cash.cityEmpty")}
                 </div>
             </SectionCard>
         );
@@ -33,8 +35,8 @@ export function CollectionByCity({ rows }: Props) {
 
     return (
         <SectionCard
-            title="Collection by City"
-            subtitle={`Delivery success rate across ${rows.length} cities`}
+            title={t("finances.cash.cityTitle")}
+            subtitle={t("finances.cash.citySub", { count: rows.length })}
             icon={MapPin}
             accent="violet"
         >
@@ -81,10 +83,10 @@ export function CollectionByCity({ rows }: Props) {
                                 />
                             </div>
                             <div className="mt-0.5 flex items-center gap-3 text-[10px] text-muted">
-                                <span>{r.delivered}/{r.attempted} delivered</span>
+                                <span>{t("finances.cash.cityDelivered", { delivered: r.delivered, attempted: r.attempted })}</span>
                                 {r.at_risk_value > 0 && (
                                     <span className="text-rose-500">
-                                        · {formatAbbrev(r.at_risk_value)} at risk
+                                        · {t("finances.cash.cityRisk", { value: formatAbbrev(r.at_risk_value) })}
                                     </span>
                                 )}
                             </div>
@@ -94,7 +96,7 @@ export function CollectionByCity({ rows }: Props) {
             </div>
             {hasAtRisk && (
                 <div className="mt-4 pt-3 border-t border-[var(--card-border)] text-[11px] text-muted">
-                    Cities with at-risk IQD have orders stuck 15+ days. Check those routes with your delivery partner.
+                    {t("finances.cash.cityNote")}
                 </div>
             )}
         </SectionCard>
