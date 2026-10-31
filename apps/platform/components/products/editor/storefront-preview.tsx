@@ -61,7 +61,11 @@ export function StorefrontPreview({
     // Descriptions are rich text anyone with products.edit (or an import) can write:
     // strip scripts and event handlers before this admin session renders them.
     const safeDescription = useMemo(
-        () => (DOMPurify.isSupported ? DOMPurify.sanitize(description) : ""),
+        () => (DOMPurify.isSupported ? DOMPurify.sanitize(description, {
+                  // Rich text only: no styles, forms or embeds that could cover the admin UI.
+                  FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select", "iframe", "object", "embed"],
+                  FORBID_ATTR: ["style"],
+              }) : ""),
         [description],
     );
 

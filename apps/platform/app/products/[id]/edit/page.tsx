@@ -4,6 +4,9 @@ import { Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useLanguage } from "@/hooks/use-language";
+import { RoleGuard } from "@/components/auth/role-guard";
+import { AccessDenied } from "@/components/auth/access-denied";
+import { PERMISSIONS } from "@/lib/permissions";
 import { ProductEditorPage } from "@/components/products/editor/product-editor-page";
 
 export default function EditProductPage() {
@@ -61,7 +64,11 @@ function EditProductContent() {
         );
     }
 
-    return <ProductEditorPage product={product} mode="edit" />;
+    return (
+        <RoleGuard requiredPermission={PERMISSIONS.EDIT_PRODUCTS} fallback={<AccessDenied />}>
+            <ProductEditorPage product={product} mode="edit" />
+        </RoleGuard>
+    );
 }
 
 function EditorSkeleton() {

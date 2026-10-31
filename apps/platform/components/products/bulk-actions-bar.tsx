@@ -270,7 +270,7 @@ export function BulkActionsBar({
                     exit={{ opacity: 0, y: 20 }}
                     className="fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+var(--safe-area-bottom)+0.75rem)] md:bottom-6 z-50 flex justify-center pointer-events-none"
                 >
-                    <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-2 max-w-full px-4 py-3 sm:px-6 sm:py-4 bg-[var(--ink)] rounded-2xl shadow-2xl">
+                    <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-2 max-w-full px-4 py-3 sm:px-6 sm:py-4 bg-[var(--ink)] border border-white/15 rounded-2xl shadow-2xl">
                         {/* Selection Count */}
                         <div className="flex items-center gap-2 pr-4 border-r border-white/20">
                             <span className="text-white font-bold text-lg">

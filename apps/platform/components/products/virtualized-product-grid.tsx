@@ -25,6 +25,8 @@ import { ProductGridCard } from "./product-grid-card";
 import { SwipeableCard } from "./swipeable-card";
 import { computeColumnCount, type GridDensity } from "./density-toggle";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 
 interface Category {
     id: string;
@@ -120,6 +122,9 @@ export function VirtualizedProductGrid({
     const [scrollMargin, setScrollMargin] = useState(0);
     const columnCount = useColumnCount(density);
     const isMobile = columnCount === 1;
+    // Swipe archives or opens the editor, so viewers get no swipe.
+    const { can } = usePermission();
+    const swipeDisabled = !isMobile || !can(PERMISSIONS.EDIT_PRODUCTS);
     const { t } = useLanguage();
 
     useLayoutEffect(() => {
@@ -279,7 +284,7 @@ export function VirtualizedProductGrid({
                     <SortableGridItem key={product.id} product={product}>
                         {({ listeners, isDragging }) => (
                             <SwipeableCard
-                                disabled={!isMobile}
+                                disabled={swipeDisabled}
                                 onSwipeLeft={() => onArchive(product.id)}
                                 onSwipeRight={() => onEdit(product)}
                             >
@@ -304,7 +309,7 @@ export function VirtualizedProductGrid({
                 ) : (
                     <SwipeableCard
                         key={product.id}
-                        disabled={!isMobile}
+                        disabled={swipeDisabled}
                         onSwipeLeft={() => onArchive(product.id)}
                         onSwipeRight={() => onEdit(product)}
                     >
@@ -333,7 +338,7 @@ export function VirtualizedProductGrid({
                 <div className="w-7 h-7 rounded-lg bg-[var(--background)] flex items-center justify-center">
                     <FolderOpen className="w-3.5 h-3.5 text-muted" />
                 </div>
-                <span className="font-semibold text-sm text-[var(--ink)]">{row.categoryName}</span>
+                <span className="font-semibold text-sm text-foreground">{row.categoryName}</span>
                 <span className="text-xs text-muted ml-1">
                     {t("products.groupByCategory.productCount", { count: row.count.toString() })}
                 </span>

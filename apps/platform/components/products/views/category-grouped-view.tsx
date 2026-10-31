@@ -355,7 +355,7 @@ export function CategoryGroupedView({
                                 }
                             }}
                             placeholder={t("products.newCategory.placeholder")}
-                            className="bg-transparent text-xs text-[var(--ink)] placeholder:text-muted focus:outline-none w-48"
+                            className="bg-transparent text-xs text-foreground placeholder:text-muted focus:outline-none w-48"
                         />
                         <button
                             onClick={submitNewCategory}
@@ -383,7 +383,7 @@ export function CategoryGroupedView({
                 ) : (
                     <button
                         onClick={() => setNewCategoryOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--ink)] hover:bg-[var(--background)] transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-[var(--background)] transition-colors"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         {t("products.newCategory.button")}
@@ -391,14 +391,14 @@ export function CategoryGroupedView({
                 )}
                 <button
                     onClick={() => setSuggesterOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--ink)] hover:bg-[var(--background)] transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-[var(--background)] transition-colors"
                 >
                     <Sparkles className="w-3.5 h-3.5" />
                     {t("products.suggester.title")}
                 </button>
                 <button
                     onClick={allCollapsed ? expandAll : collapseAll}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--ink)] hover:bg-[var(--background)] transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-[var(--background)] transition-colors"
                 >
                     {allCollapsed ? (
                         <>
@@ -477,7 +477,7 @@ export function CategoryGroupedView({
                                             {hasMore && !isShowingAll && (
                                                 <button
                                                     onClick={() => toggleShowAll(group.id)}
-                                                    className="mt-3 ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:text-[var(--ink)] transition-colors rounded-lg hover:bg-[var(--background)]"
+                                                    className="mt-3 ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:text-foreground transition-colors rounded-lg hover:bg-[var(--background)]"
                                                 >
                                                     {t("products.views.category.showAll")}{" "}
                                                     {group.products.length}
@@ -488,7 +488,7 @@ export function CategoryGroupedView({
                                             {hasMore && isShowingAll && (
                                                 <button
                                                     onClick={() => toggleShowAll(group.id)}
-                                                    className="mt-3 ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted hover:text-[var(--ink)] transition-colors rounded-lg hover:bg-[var(--background)]"
+                                                    className="mt-3 ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground transition-colors rounded-lg hover:bg-[var(--background)]"
                                                 >
                                                     {t("products.views.category.collapseAll")}
                                                 </button>
@@ -529,7 +529,7 @@ export function CategoryGroupedView({
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-[var(--ink)] truncate">
+                                    <p className="text-sm font-medium text-foreground truncate">
                                         {activeProduct.name}
                                     </p>
                                     <span className="text-xs font-semibold text-[var(--foreground)]">
@@ -650,21 +650,21 @@ function CategorySection({
                     )}
 
                     {/* Category name */}
-                    <span className="font-semibold text-sm text-[var(--ink)]">
+                    <span className="font-semibold text-sm text-foreground">
                         {group.name}
                     </span>
 
                     {/* Stats */}
                     <div className="flex items-center gap-2 ml-auto text-xs text-muted">
-                        <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-blue)] text-[var(--ink)] font-medium">
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-blue)] text-foreground font-medium">
                             {group.products.length}{" "}
                             {t("products.views.category.products")}
                         </span>
-                        <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-yellow)] text-[var(--ink)] font-medium">
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-yellow)] text-foreground font-medium">
                             {group.totalStock.toLocaleString()}{" "}
                             {t("products.views.category.units")}
                         </span>
-                        <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-green)] text-[var(--ink)] font-medium">
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-green)] text-foreground font-medium">
                             {formatIQD(group.totalRevenue)}
                         </span>
 
@@ -686,7 +686,7 @@ function CategorySection({
 
                 {/* Drop-here floating label */}
                 {isOver && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none px-3 py-1 rounded-full bg-[var(--pastel-yellow)] text-[var(--ink)] text-xs font-semibold shadow-md">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none px-3 py-1 rounded-full bg-[var(--pastel-yellow)] text-foreground text-xs font-semibold shadow-md">
                         {t("products.views.category.dropHere") ||
                             `Drop here — ${group.name}`}
                     </div>
@@ -800,7 +800,7 @@ function MiniProductCard({
 
             {/* Product info */}
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--ink)] truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                     {product.name}
                     <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
                 </p>

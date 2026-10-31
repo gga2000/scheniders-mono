@@ -113,7 +113,7 @@ export function QCBulkBar({
                 >
                     <div className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] rounded-2xl shadow-2xl border border-white/10">
                         <div className="flex items-center gap-2 pr-3 border-r border-white/20">
-                            <span className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center text-[var(--ink)] font-bold">
+                            <span className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center text-black font-bold">
                                 {count}
                             </span>
                             <span className="text-white text-sm font-medium hidden sm:inline">{t("qc.bulk.selected")}</span>

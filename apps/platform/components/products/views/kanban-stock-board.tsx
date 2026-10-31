@@ -165,7 +165,7 @@ function MiniCard({
 
                 {/* Product Info */}
                 <div className="flex-1 min-w-0 space-y-1">
-                    <p className="text-sm font-semibold text-[var(--ink)] truncate">
+                    <p className="text-sm font-semibold text-foreground truncate">
                         {product.name}
                     </p>
 
@@ -255,7 +255,7 @@ export function KanbanStockBoard({
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className={col.badgeText}>{col.icon}</span>
-                                <h3 className="font-bold text-sm text-[var(--ink)]">
+                                <h3 className="font-bold text-sm text-foreground">
                                     {t(col.i18nKey)}
                                 </h3>
                             </div>
@@ -273,7 +273,7 @@ export function KanbanStockBoard({
                         {/* Total value */}
                         <p className="text-xs text-muted">
                             {t("products.views.kanban.value")}:{" "}
-                            <span className="font-semibold text-[var(--ink)]">
+                            <span className="font-semibold text-foreground">
                                 {formatIQD(col.value)}
                             </span>
                         </p>
