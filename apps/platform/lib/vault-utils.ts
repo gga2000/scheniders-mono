@@ -4,6 +4,14 @@ import { PRODUCT_READ_COLUMNS } from "@/lib/repositories/product-columns";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { restoreOrderRows } from "@/lib/backup-utils";
 import { encryptVaultData, decryptVaultData } from "./crypto-utils";
+import {
+    listCloudVaultsAction,
+    prepareCloudUploadAction,
+    getCloudDownloadUrlAction,
+    logVaultEventAction,
+    type CloudVaultEntry,
+} from "@/app/actions/vault";
+import { VAULT_BUCKET } from "./vault-paths";
 import * as XLSX from "xlsx";
 
 export type ExportFormat = "vault" | "excel" | "csv";
@@ -41,7 +49,7 @@ export interface VaultBackupOptions {
  * SELECT on their margin / cost columns and a `*` read of either table is
  * refused (migrations 20261021090000, 20261031004000).
  */
-async function fetchTableData(tableName: string, columns = "*") {
+async function fetchTableData(tableName: string, tenantId: string, orderBy: string, columns = "*") {
     let allData: any[] = [];
     let from = 0;
     const step = 1000;
@@ -51,6 +59,8 @@ async function fetchTableData(tableName: string, columns = "*") {
         const { data, error } = await supabase
             .from(tableName)
             .select(columns)
+            .eq("tenant_id", tenantId)
+            .order(orderBy, { ascending: true })
             .range(from, from + step - 1);
 
         if (error) throw new Error(`Failed to fetch ${tableName}: ${error.message}`);
@@ -65,15 +75,36 @@ async function fetchTableData(tableName: string, columns = "*") {
     return allData;
 }
 
-/** Products with the cost this member may see (product_costs), per store. */
-async function fetchProductsWithCost() {
-    const products = await fetchTableData("products", PRODUCT_READ_COLUMNS);
-    const tenants = [...new Set(products.map((p) => p.tenant_id as string))];
-    const costs = new Map<string, number | null>();
-    for (const tenant of tenants) {
-        for (const [id, cost] of await productRepository.getProductCosts(tenant)) costs.set(id, cost);
-    }
+/** Products with the cost this member may see (product_costs), for the active store. */
+async function fetchProductsWithCost(tenantId: string) {
+    const products = await fetchTableData("products", tenantId, "id", PRODUCT_READ_COLUMNS);
+    const costs = await productRepository.getProductCosts(tenantId);
     return products.map((p) => ({ ...p, cost: costs.get(p.id) ?? null }));
+}
+
+/**
+ * The active store, from the server's view of the caller. Export and restore
+ * both refuse to run without it: an export would read every store the user
+ * belongs to, and a restore would write rows carrying whatever tenant the file says.
+ */
+async function requireTenantId(): Promise<string> {
+    const { data, error } = await supabase.rpc("get_current_tenant_id");
+    if (error || typeof data !== "string" || !data) {
+        throw new Error("Could not confirm which store you are working in. Reload and try again.");
+    }
+    return data;
+}
+
+async function requireAccessToken(): Promise<string> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Your session has expired. Sign in again.");
+    return session.access_token;
+}
+
+/** Audit entry; a failure to log is reported, not hidden, but never undoes the finished action. */
+async function recordVaultEvent(action: "VAULT_EXPORT" | "VAULT_CLOUD_SYNC" | "VAULT_CLOUD_DOWNLOAD" | "VAULT_RESTORE", details: Record<string, string | number | boolean>) {
+    const result = await logVaultEventAction(await requireAccessToken(), { action, details });
+    if (!result.success) console.error("[vault] audit entry not recorded:", result.error);
 }
 
 /**
@@ -82,10 +113,11 @@ async function fetchProductsWithCost() {
 async function fetchAllData(options: VaultBackupOptions, onProgress?: (msg: string) => void): Promise<VaultData> {
     if (onProgress) onProgress("Fetching Database...");
 
+    const tenantId = await requireTenantId();
     const [orders, products, customers] = await Promise.all([
-        options.includeOrders ? fetchTableData("orders", ORDER_READ_COLUMNS) : Promise.resolve([]),
-        options.includeProducts ? fetchProductsWithCost() : Promise.resolve([]),
-        options.includeCustomers ? fetchTableData("customer_metadata") : Promise.resolve([])
+        options.includeOrders ? fetchTableData("orders", tenantId, "id", ORDER_READ_COLUMNS) : Promise.resolve([]),
+        options.includeProducts ? fetchProductsWithCost(tenantId) : Promise.resolve([]),
+        options.includeCustomers ? fetchTableData("customer_metadata", tenantId, "customer_phone") : Promise.resolve([])
     ]);
 
     return {
@@ -118,6 +150,7 @@ export async function generateVaultBackup(
     const opts = options || { includeOrders: true, includeProducts: true, includeCustomers: true };
     const vaultData = await fetchAllData(opts, onProgress);
     const timestamp = new Date().toISOString().split("T")[0];
+    await recordVaultEvent("VAULT_EXPORT", { format, ...vaultData.metadata.counts });
 
     if (format === "vault") {
         if (!password) throw new Error("Password required for encrypted vault export");
@@ -284,26 +317,23 @@ export async function calculateVaultDiff(parsedVault: VaultData) {
  */
 export async function executeVaultRestore(vaultData: VaultData, onProgress?: (msg: string) => void): Promise<void> {
     try {
-        let { customers, products, orders } = vaultData.data;
+                if (onProgress) onProgress("Initializing security context...");
+        const tenantId = await requireTenantId();
 
-        if (onProgress) onProgress("Initializing security context...");
-        const { data: tenantId, error: tenantError } = await supabase.rpc('get_current_tenant_id');
-
-        if (!tenantError && tenantId) {
-            // Inject the active tenant_id into all records to satisfy strict Row Level Security
-            // This is required especially for Excel file uploads or legacy backups.
-            const injectTenant = (items: any[]) => items?.map(item => ({ ...item, tenant_id: tenantId })) || [];
-            customers = injectTenant(customers);
-            products = injectTenant(products);
-            orders = injectTenant(orders);
-        }
+        // Every row is written into the active store whatever the file says
+        // (Excel files and legacy backups carry none, or another store's).
+        const injectTenant = (items: Record<string, unknown>[] | undefined) =>
+            items?.map(item => ({ ...item, tenant_id: tenantId })) ?? [];
+        const customers = injectTenant(vaultData.data.customers);
+        const products = injectTenant(vaultData.data.products);
+        const orders = injectTenant(vaultData.data.orders);
 
         // 1. Restore Customers
         if (customers && customers.length > 0) {
             if (onProgress) onProgress(`Restoring ${customers.length} Customers...`);
             const { error: customerError } = await supabase
                 .from('customer_metadata')
-                .upsert(customers, { onConflict: 'customer_phone' });
+                .upsert(customers, { onConflict: 'customer_phone,tenant_id' });
             if (customerError) throw new Error(`Customers Restore Failed: ${customerError.message}`);
         }
 
@@ -326,20 +356,19 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
             }
         }
 
-        // Log the security event
-        await supabase.from('security_logs').insert([{
-            action: 'VAULT_RESTORE',
-            details: vaultData.metadata.counts,
-            tenant_id: typeof tenantId === 'string' ? tenantId : undefined
-        }]);
-
-    } catch (e: any) {
-        throw new Error(e.message || "An unexpected error occurred during database restoration.");
+        await recordVaultEvent("VAULT_RESTORE", {
+            orders: orders.length,
+            products: products.length,
+            customers: customers.length,
+        });
+    } catch (e: unknown) {
+        throw new Error(e instanceof Error ? e.message : "An unexpected error occurred during database restoration.");
     }
 }
 
 /**
- * Encrypts and uploads the Vault directly to the secure Cloud Bucket (Time Machine Sync)
+ * Encrypts in the browser, then uploads straight to the caller's own folder.
+ * The server only hands out a one-shot upload slot; it never sees the key.
  */
 export async function uploadVaultToCloud(password: string, options?: VaultBackupOptions, onProgress?: (msg: string) => void): Promise<void> {
     const opts = options || { includeOrders: true, includeProducts: true, includeCustomers: true };
@@ -349,40 +378,31 @@ export async function uploadVaultToCloud(password: string, options?: VaultBackup
     const encryptedBlob = await encryptVaultData(vaultData, password);
 
     if (onProgress) onProgress("Syncing to Secure Cloud...");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `sync_${timestamp}.scheniders`;
+    const slot = await prepareCloudUploadAction(await requireAccessToken());
+    if (!slot.success) throw new Error(`Cloud Sync Failed: ${slot.error}`);
 
     const { error: uploadError } = await supabase.storage
-        .from('vault_backups')
-        .upload(filename, encryptedBlob, { contentType: 'application/octet-stream' });
-
+        .from(VAULT_BUCKET)
+        .uploadToSignedUrl(slot.path, slot.token, encryptedBlob, { contentType: "application/octet-stream" });
     if (uploadError) throw new Error(`Cloud Sync Failed: ${uploadError.message}`);
 
-    // Log the sync event
-    await supabase.from('security_logs').insert([{
-        action: 'VAULT_CLOUD_SYNC',
-        details: { filename, counts: vaultData.metadata.counts }
-    }]);
+    await recordVaultEvent("VAULT_CLOUD_SYNC", { file: slot.path.split("/").pop() ?? "", ...vaultData.metadata.counts });
 }
 
-/**
- * Fetches the list of all historical Vault Backups stashed in the private cloud bucket.
- */
-export async function fetchCloudVaults() {
-    const { data, error } = await supabase.storage.from('vault_backups').list('', {
-        limit: 100,
-        sortBy: { column: 'created_at', order: 'desc' }
-    });
-
-    if (error) throw new Error(`Could not fetch cloud backups: ${error.message}`);
-    return data || [];
+/** The caller's cloud backups, newest first. */
+export async function fetchCloudVaults(): Promise<CloudVaultEntry[]> {
+    const result = await listCloudVaultsAction(await requireAccessToken());
+    if (!result.success) throw new Error(result.error);
+    return result.vaults;
 }
 
-/**
- * Downloads a specific cloud vault file as a Blob so it can be parsed and restored.
- */
+/** Downloads one of the caller's cloud backups so it can be unlocked and restored. */
 export async function downloadCloudVault(filename: string): Promise<Blob> {
-    const { data, error } = await supabase.storage.from('vault_backups').download(filename);
-    if (error) throw new Error(`Failed to download ${filename}: ${error.message}`);
-    return data as Blob;
+    const result = await getCloudDownloadUrlAction(await requireAccessToken(), filename);
+    if (!result.success) throw new Error(result.error);
+
+    const response = await fetch(result.url);
+    if (!response.ok) throw new Error(`Failed to download ${filename}`);
+    await recordVaultEvent("VAULT_CLOUD_DOWNLOAD", { file: filename });
+    return response.blob();
 }

@@ -59,7 +59,9 @@ function generateCsv(data: any[]): string {
  
 async function fetchAllInBatches(
     supabase: any,
-    tableName: string
+    tableName: string,
+    tenantId: string,
+    orderBy: string
 ): Promise<any[]> {
     let allRows: any[] = [];
     let hasMore = true;
@@ -70,6 +72,8 @@ async function fetchAllInBatches(
         const { data, error } = await supabase
             .from(tableName)
             .select('*')
+            .eq('tenant_id', tenantId)
+            .order(orderBy, { ascending: true })
             .range(pageIndex * BATCH_CHUNK_SIZE, (pageIndex + 1) * BATCH_CHUNK_SIZE - 1);
 
         if (error) {
@@ -107,56 +111,60 @@ export async function GET(request: Request) {
 
         // `customers` is not a table and never has been — the customer record is
         // derived, and `mv_customer_metrics` is what the app itself reads.
-        // Backing up a name that does not exist threw PGRST205 on every run.
         const DATASETS = [
-            { file: 'orders.csv', source: 'orders' },
-            { file: 'customers.csv', source: 'mv_customer_metrics' },
-            { file: 'products.csv', source: 'products' },
+            { file: 'orders.csv', source: 'orders', orderBy: 'id' },
+            { file: 'customers.csv', source: 'mv_customer_metrics', orderBy: 'customer_phone' },
+            { file: 'products.csv', source: 'products', orderBy: 'id' },
         ] as const;
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const folderName = `auto_csv_${timestamp}`;
+        const { data: tenants, error: tenantsError } = await supabase.from('tenants').select('id');
+        if (tenantsError) throw tenantsError;
 
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const saved: Record<string, number> = {};
         const failures: { file: string; reason: string }[] = [];
 
-        // Each dataset stands alone. Previously all three were fetched before
-        // anything was uploaded, so one bad source meant nothing was written at
-        // all — the reason this bucket is empty rather than merely incomplete.
-        for (const { file, source } of DATASETS) {
-            try {
-                const rows = await fetchAllInBatches(supabase, source);
-                const { error } = await supabase.storage
-                    .from('vault_backups')
-                    .upload(`${folderName}/${file}`, generateCsv(rows), {
-                        contentType: 'text/csv',
-                        upsert: true,
-                    });
-                if (error) throw error;
-                saved[file] = rows.length;
-            } catch (err) {
-                // Not swallowed: recorded, logged, and turned into a non-200
-                // below. Continuing means the datasets that ARE readable still
-                // get written instead of being lost with the broken one.
-                const reason = describeError(err);
-                console.error(`[Cron:Backup] ${file} failed:`, reason);
-                failures.push({ file, reason });
-            }
-        }
+        // One folder per store, one table at a time: a store's backup holds only
+        // its own rows, and one bad source or store does not stop the rest.
+        for (const { id: tenantId } of tenants ?? []) {
+            const folderName = `${tenantId}/auto_csv_${timestamp}`;
+            const storeSaved: Record<string, number> = {};
+            const storeFailures: { file: string; reason: string }[] = [];
 
-        // Written even on a partial run, so "when did a backup last work, and
-        // what was in it" is answerable from the audit trail rather than by
-        // listing the bucket.
-        await supabase.from('security_logs').insert({
-            action: 'automated_csv_backup',
-            user_id: null,
-            details: {
-                folder: folderName,
-                files: Object.keys(saved),
-                counts: saved,
-                failures,
-            },
-        });
+            for (const { file, source, orderBy } of DATASETS) {
+                try {
+                    const rows = await fetchAllInBatches(supabase, source, tenantId, orderBy);
+                    const { error } = await supabase.storage
+                        .from('vault_backups')
+                        .upload(`${folderName}/${file}`, generateCsv(rows), {
+                            contentType: 'text/csv',
+                            upsert: true,
+                        });
+                    if (error) throw error;
+                    storeSaved[file] = rows.length;
+                    saved[`${tenantId}/${file}`] = rows.length;
+                } catch (err) {
+                    const reason = describeError(err);
+                    console.error(`[Cron:Backup] ${tenantId}/${file} failed:`, reason);
+                    storeFailures.push({ file, reason });
+                    failures.push({ file: `${tenantId}/${file}`, reason });
+                }
+            }
+
+            // Written even on a partial run, so "when did a backup last work, and
+            // what was in it" is answerable per store from the audit trail.
+            await supabase.from('security_logs').insert({
+                action: 'automated_csv_backup',
+                user_id: null,
+                tenant_id: tenantId,
+                details: {
+                    folder: folderName,
+                    files: Object.keys(storeSaved),
+                    counts: storeSaved,
+                    failures: storeFailures,
+                },
+            });
+        }
 
         if (failures.length > 0) {
             // A partial backup must not report success — a green cron over a
@@ -172,7 +180,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json({
             success: true,
-            message: `Automated CSV backup completed. Saved ${saved['orders.csv'] ?? 0} orders.`,
+            message: `Automated CSV backup completed for ${(tenants ?? []).length} store(s).`,
             saved,
         });
 

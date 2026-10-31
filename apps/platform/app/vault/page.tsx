@@ -102,8 +102,8 @@ export default function VaultPage() {
         try {
             const vaults = await fetchCloudVaults();
             setCloudVaults(vaults);
-        } catch {
-            // Cloud vault loading failed silently
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Could not load cloud backups.");
         } finally {
             setIsFetchingCloud(false);
         }
@@ -673,8 +673,8 @@ export default function VaultPage() {
                                     <div className="flex items-center gap-3 overflow-hidden">
                                         <Cloud className="w-8 h-8 text-[var(--foreground-subtle)] group-hover:text-[var(--vault-accent)] flex-shrink-0 transition-colors" />
                                         <div className="overflow-hidden">
-                                            <p className="text-sm font-medium truncate">{vault.created_at ? new Date(vault.created_at).toLocaleString() : vault.name}</p>
-                                            <p className="text-[10px] text-[var(--foreground-subtle)] uppercase tracking-wide">{((vault.metadata?.size ?? 0) / 1024 / 1024).toFixed(2)} MB • Sync</p>
+                                            <p className="text-sm font-medium truncate">{vault.createdAt ? new Date(vault.createdAt).toLocaleString() : vault.name}</p>
+                                            <p className="text-[10px] text-[var(--foreground-subtle)] uppercase tracking-wide">{((vault.size ?? 0) / 1024 / 1024).toFixed(2)} MB • Sync</p>
                                         </div>
                                     </div>
                                     <button
