@@ -4,6 +4,7 @@ import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { ProductThumb } from "@/components/products/product-thumb";
+import { StockPinControls, type StockPinState } from "@/components/orders/stock-pin-controls";
 import {
     laneState,
     OPEN_BOX_LOW_AT,
@@ -41,15 +42,15 @@ const TONE: Record<StockState, { box: string; num: string }> = {
  * new and open box side by side, coloured by how worried to be. The numbers
  * behind it (reserved, waiting, today) live in the detailed view.
  */
-export function StockTodayGlance({ items }: { items: readonly StockTodayItem[] }) {
+export function StockTodayGlance({ items, pins }: { items: readonly StockTodayItem[]; pins: StockPinState }) {
     return (
         <ul className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 gap-2.5 pt-3">
-            {items.map(item => <GlanceCard key={item.key} item={item} />)}
+            {items.map(item => <GlanceCard key={item.key} item={item} pins={pins} />)}
         </ul>
     );
 }
 
-function GlanceCard({ item }: { item: StockTodayItem }) {
+function GlanceCard({ item, pins }: { item: StockTodayItem; pins: StockPinState }) {
     const { t } = useLanguage();
     const today = item.fresh.today + (item.openBox?.today ?? 0);
     return (
@@ -60,7 +61,7 @@ function GlanceCard({ item }: { item: StockTodayItem }) {
                         ? <ProductThumb src={item.imageUrl} alt="" sizes="36px" />
                         : <Package className="w-4 h-4 text-[var(--foreground-muted)]" />}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <p className="truncate text-left text-[15px] font-bold leading-tight" dir="auto" title={item.name}>
                         {item.shortName}
                     </p>
@@ -68,6 +69,7 @@ function GlanceCard({ item }: { item: StockTodayItem }) {
                         <p className="truncate text-left text-[11px] text-[var(--foreground-muted)]" dir="auto">{item.variantName}</p>
                     )}
                 </div>
+                <StockPinControls itemKey={item.key} pins={pins} />
             </div>
             <div className={cn("grid gap-2", item.openBox && "grid-cols-2")}>
                 <LeftCount lane={item.fresh} state={laneState(item.fresh, item.lowAt)} label={t("orders.stockToday.new", "New")} />

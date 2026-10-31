@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
+import { StockPinChips } from "@/components/orders/stock-pin-chips";
 import { StockTodayDialog } from "@/components/orders/stock-today-dialog";
 import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
 import { useStockShortfallGuard } from "@/hooks/use-stock-shortfall-guard";
@@ -1190,6 +1191,8 @@ export default function OrdersPage() {
                                                                 </span>
                                                             )}
                                                         </button>
+
+                                                        <StockPinChips onOpen={() => setIsStockTodayOpen(true)} />
 
                                                         {/* Selection Indicator */}
                                                         <AnimatePresence>
