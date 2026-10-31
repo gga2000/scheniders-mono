@@ -69,27 +69,27 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const page = await browser.newPage();
+    let pdf: Uint8Array;
+    try {
+      const page = await browser.newPage();
 
-    // Set content and wait for all resources (fonts, images, SVGs)
-    await page.setContent(html, {
-      waitUntil: ['networkidle0', 'load', 'domcontentloaded'],
-    });
+      // Wait for the label font (Google Fonts) and inline SVG codes to load.
+      await page.setContent(html, {
+        waitUntil: ['networkidle0', 'load', 'domcontentloaded'],
+      });
+      await page.evaluate(() => document.fonts.ready);
 
-    // Brief wait for SVG barcodes/QR codes to render
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Generate PDF with configurable page size
-    const pdf = await page.pdf({
-      width: pageWidth,
-      height: pageHeight,
-      printBackground: true,
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      preferCSSPageSize: true,
-      scale: 1,
-    });
-
-    await browser.close();
+      pdf = await page.pdf({
+        width: pageWidth,
+        height: pageHeight,
+        printBackground: true,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        preferCSSPageSize: true,
+        scale: 1,
+      });
+    } finally {
+      await browser.close();
+    }
 
     return new NextResponse(pdf as unknown as BodyInit, {
       status: 200,

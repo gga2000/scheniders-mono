@@ -9,6 +9,7 @@ import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { computeRefundPayout, courierAmount } from "@/lib/order-money";
 import QRCode from "qrcode";
+import { code128Svg, qrSvg } from "@/lib/print-codes";
 
 // =============================================
 // TYPES
@@ -42,6 +43,16 @@ const LABEL_SIZES: Record<LabelSize, { width: string; height: string; fontSize: 
     "80x120": { width: "80mm", height: "120mm", fontSize: "9px", padding: "3mm" },
 };
 
+// Widest a barcode may be on each label (label width minus padding and a margin).
+const BARCODE_MAX_WIDTH_MM: Record<LabelSize, number> = {
+    "4x6": 85,
+    "3x2": 66,
+    "a5": 120,
+    "a6": 85,
+    "compact": 66,
+    "80x120": 72,
+};
+
 // =============================================
 // SCHNEIDERS LOGO (B&W for thermal printing)
 // =============================================
@@ -56,134 +67,6 @@ const SCHNEIDERS_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="50" 
 </svg>`;
 
 // =============================================
-// QR CODE GENERATION
-// =============================================
-
-async function generateQRCodeDataUrl(data: string): Promise<string> {
-    try {
-        return await QRCode.toDataURL(data, {
-            width: 80,
-            margin: 1,
-            color: {
-                dark: "#000000",
-                light: "#ffffff",
-            },
-        });
-    } catch (err) {
-        console.error("Error generating QR code:", err);
-        return "";
-    }
-}
-
-// =============================================
-// BARCODE GENERATION (Code128-like SVG)
-// =============================================
-
-function generateBarcodeHTML(orderId: string): string {
-    // Simple barcode representation using CSS
-    const chars = orderId.split("");
-    const bars = chars.map((char) => {
-        const code = char.charCodeAt(0);
-        return `
-            <div style="display:inline-block;width:${(code % 3) + 1}px;height:30px;background:${code % 2 === 0 ? '#000' : '#fff'};"></div>
-            <div style="display:inline-block;width:${((code + 1) % 2) + 1}px;height:30px;background:${code % 2 === 0 ? '#fff' : '#000'};"></div>
-        `;
-    }).join("");
-
-    return `
-        <div style="text-align:center;margin:8px 0;">
-            <div style="display:inline-block;background:white;padding:4px 8px;">
-                ${bars}
-            </div>
-            <div style="font-family:monospace;font-size:10px;margin-top:2px;">${orderId}</div>
-        </div>
-    `;
-}
-
-// =============================================
-// REAL BARCODE GENERATION (JsBarcode → PNG data URL for thermal printer compatibility)
-// =============================================
-
-async function generateRealBarcodeHTML(data: string): Promise<string> {
-    if (typeof window === 'undefined') {
-        return `<div style="text-align:center;font-family:monospace;font-size:12px;font-weight:bold;padding:4px 0;">${data}</div>`;
-    }
-    try {
-        const JsBarcode = (await import('jsbarcode')).default;
-        // Render to canvas for PNG output (thermal printers handle bitmaps better than SVGs)
-        const canvas = document.createElement('canvas');
-        JsBarcode(canvas, data, {
-            format: "CODE128",
-            width: 2,
-            height: 50,
-            displayValue: true,
-            fontSize: 14,
-            fontOptions: "bold",
-            textMargin: 3,
-            margin: 4,
-            background: "#ffffff",
-            lineColor: "#000000",
-        });
-        const pngDataUrl = canvas.toDataURL('image/png');
-        return `<div style="text-align:center;margin-top:auto;padding-top:4px;"><img src="${pngDataUrl}" style="width:100%;max-width:250px;height:auto;image-rendering:pixelated;" /></div>`;
-    } catch (err) {
-        console.error('Barcode generation failed:', err);
-        return `<div style="text-align:center;font-family:monospace;font-size:12px;font-weight:bold;padding:4px 0;">${data}</div>`;
-    }
-}
-
-// =============================================
-// QR CODE → PNG DATA URL (for thermal printer compatibility)
-// =============================================
-
-async function generateQRCodePngDataUrl(data: string, width = 150): Promise<string> {
-    try {
-        return await QRCode.toDataURL(data, {
-            width,
-            margin: 1,
-            color: { dark: '#000000', light: '#ffffff' },
-            errorCorrectionLevel: 'M',
-        });
-    } catch (err) {
-        console.error('QR code PNG generation failed:', err);
-        return '';
-    }
-}
-
-// =============================================
-// LOGO SVG → PNG DATA URL (for thermal printer compatibility)
-// =============================================
-
-function generateLogoPngDataUrl(): Promise<string> {
-    return new Promise((resolve) => {
-        if (typeof window === 'undefined') {
-            resolve('');
-            return;
-        }
-        const canvas = document.createElement('canvas');
-        const size = 100; // High res for crisp thermal printing
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(''); return; }
-
-        const img = new Image();
-        const svgBlob = new Blob([SCHNEIDERS_LOGO_SVG], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
-        img.onload = () => {
-            ctx.drawImage(img, 0, 0, size, size);
-            URL.revokeObjectURL(url);
-            resolve(canvas.toDataURL('image/png'));
-        };
-        img.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve('');
-        };
-        img.src = url;
-    });
-}
-
-// =============================================
 // LABEL HTML GENERATION
 // =============================================
 
@@ -192,8 +75,8 @@ export async function generateLabelHTML(
     options: EnhancedLabelOptions
 ): Promise<string> {
     const sizeConfig = LABEL_SIZES[options.size];
-    const qrCodeDataUrl = options.showQrCode
-        ? await generateQRCodeDataUrl(`ORDER:${order.order_id}|PHONE:${order.phone}`)
+    const qrCode = options.showQrCode
+        ? qrSvg(`ORDER:${order.order_id}|PHONE:${order.phone}`, { moduleSteps: 2, maxSizeMm: 18 })
         : "";
 
     const subtotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || Number(order.price);
@@ -260,12 +143,14 @@ export async function generateLabelHTML(
         : "";
 
     // QR Code section
-    const qrSection = qrCodeDataUrl
-        ? `<img src="${qrCodeDataUrl}" style="width:60px;height:60px;position:absolute;top:10px;left:10px;" />`
+    const qrSection = qrCode
+        ? `<div style="position:absolute;top:10px;left:10px;line-height:0;">${qrCode}</div>`
         : "";
 
     // Barcode section
-    const barcodeSection = options.showBarcode ? generateBarcodeHTML(order.order_id) : "";
+    const barcodeSection = options.showBarcode
+        ? `<div style="text-align:center;margin:8px 0;line-height:0;">${code128Svg(order.order_id, { heightMm: 12, maxWidthMm: BARCODE_MAX_WIDTH_MM[options.size] })}<div style="font-family:monospace;font-size:10pt;font-weight:700;line-height:1.2;margin-top:2px;">${order.order_id}</div></div>`
+        : "";
 
     return `
 <!DOCTYPE html>
@@ -994,15 +879,10 @@ export async function generateShippingLabelHTML(
 ): Promise<string> {
     const displayOrderId = getBaseOrderId(order.order_id);
 
-    // Generate QR code as PNG data URL (thermal printers handle bitmaps better than SVGs)
-    const qrCodePng = await generateQRCodePngDataUrl(displayOrderId, 150);
-
-    // Generate logo as PNG data URL
-    const logoPng = await generateLogoPngDataUrl();
-
-    // Generate real barcode (already outputs PNG via canvas)
+    // Vector codes on the printer's dot grid: crisp at 203 and 300 dpi (see lib/print-codes.ts).
+    const qrCode = qrSvg(displayOrderId, { moduleSteps: 2, maxSizeMm: 14 });
     const barcodeHtml = options.showBarcode
-        ? await generateRealBarcodeHTML(displayOrderId)
+        ? `<div class="sl-barcode">${code128Svg(displayOrderId, { heightMm: 15, maxWidthMm: BARCODE_MAX_WIDTH_MM["80x120"] })}<div class="sl-barcode-text">${displayOrderId}</div></div>`
         : '';
 
     // Clean phone number (normalize to local format)
@@ -1030,9 +910,9 @@ export async function generateShippingLabelHTML(
     return `
 <div class="shipping-label" dir="rtl">
     <div class="sl-header">
-        <div class="sl-logo">${logoPng ? `<img src="${logoPng}" width="50" height="50" style="display:block;" />` : SCHNEIDERS_LOGO_SVG}</div>
+        <div class="sl-logo">${SCHNEIDERS_LOGO_SVG}</div>
         <div class="sl-brand">Schneiders Perfumes</div>
-        <div class="sl-qr">${qrCodePng ? `<img src="${qrCodePng}" width="55" height="55" style="display:block;" />` : ''}</div>
+        <div class="sl-qr">${qrCode}</div>
     </div>
 
     ${order.is_return ? `<div style="border:3px solid #000;text-align:center;font-weight:900;font-size:16px;padding:4px;margin:4px 0;">استرجاع مبلغ · REFUND — لا تستلم مبلغاً من الزبون</div>` : ''}
@@ -1092,91 +972,103 @@ export async function generateShippingLabelHTML(
     `;
 }
 
-// CSS for shipping labels (used in bulk wrapper and preview)
+// Arabic-first font for printed labels. Loaded from Google Fonts like the payslip;
+// falls back to system fonts when offline.
+export const LABEL_FONT_LINK = `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">`;
+
+// CSS for shipping labels (used in bulk wrapper and preview).
+// Thermal printers only print black dots: no greys, no tinted fills, no hairlines,
+// and sizes in pt so text keeps its size at any printer resolution.
 export const SHIPPING_LABEL_CSS = `
     .shipping-label {
         width: 80mm;
         height: 120mm;
-        border: 1px solid #000;
+        border: 0.5mm solid #000;
         padding: 3mm;
         display: flex;
         flex-direction: column;
-        background: white;
-        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 9px;
+        background: #fff;
+        font-family: 'Almarai', 'Segoe UI', Tahoma, sans-serif;
+        font-size: 8pt;
         color: #000;
         direction: rtl;
         overflow: hidden;
         box-sizing: border-box;
+        -webkit-font-smoothing: none;
     }
     .sl-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding-bottom: 4px;
-        border-bottom: 2px solid #000;
-        margin-bottom: 4px;
+        padding-bottom: 1.5mm;
+        border-bottom: 0.5mm solid #000;
+        margin-bottom: 1.5mm;
     }
-    .sl-logo { flex-shrink: 0; width: 50px; height: 50px; }
-    .sl-logo svg { width: 50px; height: 50px; display: block; }
-    .sl-logo img { width: 50px; height: 50px; display: block; }
+    .sl-logo { flex-shrink: 0; width: 13mm; height: 13mm; }
+    .sl-logo svg { width: 13mm; height: 13mm; display: block; }
     .sl-brand {
-        font-family: 'Arial Black', 'Segoe UI Black', 'Segoe UI', sans-serif;
-        font-size: 14px;
+        font-family: 'Arial Black', 'Segoe UI Black', 'Almarai', sans-serif;
+        font-size: 11pt;
         font-weight: 900;
         color: #000;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3pt;
         text-align: center;
         flex: 1;
-        padding: 0 6px;
+        padding: 0 2mm;
         line-height: 1.2;
     }
-    .sl-qr { flex-shrink: 0; width: 55px; height: 55px; }
-    .sl-qr svg { width: 100%; height: 100%; display: block; }
-    .sl-qr img { width: 100%; height: 100%; display: block; }
+    .sl-qr { flex-shrink: 0; line-height: 0; }
+    .sl-qr svg { display: block; }
     .sl-shipment {
         text-align: center;
-        padding: 3px 0;
-        border-bottom: 1px solid #000;
-        margin-bottom: 4px;
+        padding: 1mm 0;
+        border-bottom: 0.35mm solid #000;
+        margin-bottom: 1.5mm;
     }
-    .sl-shipment-label { font-size: 9px; color: #333; margin-left: 6px; }
-    .sl-shipment-value { font-size: 14px; font-weight: 900; color: #000; }
+    .sl-shipment-label { font-size: 8pt; font-weight: 700; margin-left: 2mm; }
+    .sl-shipment-value { font-size: 13pt; font-weight: 800; letter-spacing: 0.5pt; }
     .sl-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 3px;
+        margin-bottom: 1mm;
     }
     .sl-table td {
-        border: 1px solid #999;
-        padding: 3px 4px;
-        font-size: 8px;
+        border: 0.3mm solid #000;
+        padding: 0.8mm 1.2mm;
         vertical-align: middle;
+        line-height: 1.25;
     }
     .sl-td-label {
-        background: #f0f0f0;
-        font-weight: 700;
-        color: #000;
+        font-weight: 800;
         width: 24%;
-        font-size: 8px;
+        font-size: 7.5pt;
+        white-space: nowrap;
     }
     .sl-td-value {
-        font-weight: 500;
-        color: #000;
-        font-size: 9px;
+        font-weight: 700;
+        font-size: 8pt;
     }
     .sl-amount {
-        font-weight: 900;
-        font-size: 11px;
+        font-weight: 800;
+        font-size: 10pt;
     }
     .sl-section-title {
-        font-size: 10px;
+        font-size: 8.5pt;
         font-weight: 800;
-        color: #000;
-        padding: 3px 0 2px 0;
-        border-bottom: 1px solid #000;
-        margin-bottom: 2px;
+        padding: 0.8mm 0 0.5mm 0;
+        border-bottom: 0.35mm solid #000;
+        margin-bottom: 1mm;
         text-align: center;
+    }
+    .sl-barcode { margin-top: auto; padding-top: 1mm; text-align: center; line-height: 0; }
+    .sl-barcode svg { display: inline-block; }
+    .sl-barcode-text {
+        font-family: 'Courier New', monospace;
+        font-size: 11pt;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: 1pt;
+        direction: ltr;
     }
 `;
 
@@ -1197,6 +1089,7 @@ export async function generateBulkShippingLabelsHTML(
 <head>
     <meta charset="UTF-8">
     <title>ملصقات الشحن - ${orders.length} طلب</title>
+    ${LABEL_FONT_LINK}
     <style>
         @page { size: 80mm 120mm; margin: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1225,23 +1118,29 @@ export async function generateBulkShippingLabelsHTML(
 <body>
     ${labelContents.map(label => `<div class="label-page">${label}</div>`).join('\n')}
     <script>
-        window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
+        window.onload = function() {
+            document.fonts.ready.then(function() {
+                window.print();
+                window.onafterprint = function() { window.close(); };
+            });
+        };
     </script>
 </body>
 </html>
     `;
 }
 
-export async function printBulkShippingLabels(
-    orders: Order[],
-    options: EnhancedLabelOptions
-): Promise<void> {
-    const html = await generateBulkShippingLabelsHTML(orders, options);
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) {
-        alert("Please allow popups to print labels");
-        return;
-    }
+/**
+ * Opens an empty print window. Call it synchronously inside the click handler,
+ * before any await, so pop-up blockers allow it.
+ */
+export function openPrintWindow(): Window | null {
+    return window.open("", "_blank", "width=600,height=800");
+}
+
+/** Writes a print document into a window from openPrintWindow; its own script starts printing. */
+export function writePrintWindow(printWindow: Window, html: string): void {
+    printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
 }
@@ -1959,43 +1858,6 @@ export async function generateBulkA6InvoicesHTML(orders: Order[], options: Enhan
 // =============================================
 // PRINT FUNCTIONS
 // =============================================
-
-export async function printEnhancedLabel(order: Order, options: EnhancedLabelOptions): Promise<void> {
-    const html = await generateLabelHTML(order, options);
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) {
-        alert("Please allow popups to print labels");
-        return;
-    }
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-export async function printBulkEnhancedLabels(
-    orders: Order[],
-    options: EnhancedLabelOptions,
-    customerOrderCounts?: Record<string, number>
-): Promise<void> {
-    const html = await generateBulkLabelsHTML(orders, options, customerOrderCounts);
-    const printWindow = window.open("", "_blank", "width=600,height=800");
-    if (!printWindow) {
-        alert("Please allow popups to print labels");
-        return;
-    }
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-export function printInvoice(order: Order, options: EnhancedLabelOptions): void {
-    const html = generateInvoiceHTML(order, options);
-    const printWindow = window.open("", "_blank", "width=800,height=1000");
-    if (!printWindow) {
-        alert("Please allow popups to print invoices");
-        return;
-    }
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
 
 export async function printBulkInvoices(orders: Order[], options: EnhancedLabelOptions): Promise<void> {
     // Use the new compact invoice layout (6-up on A4)

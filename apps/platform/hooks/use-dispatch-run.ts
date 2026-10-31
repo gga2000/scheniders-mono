@@ -9,10 +9,10 @@ import { toast } from "@/hooks/use-toast";
 import {
     type EnhancedLabelOptions,
     generateBulkA6InvoicesHTML,
+    generateBulkLabelsHTML,
     generateBulkShippingLabelsHTML,
-    printBulkEnhancedLabels,
-    printBulkInvoices,
-    printBulkShippingLabels,
+    openPrintWindow,
+    writePrintWindow,
 } from "@/lib/enhanced-label-generator";
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { partitionByShipDay } from "@/lib/order-bulk-scope";
@@ -97,18 +97,26 @@ export function useDispatchRun({
     const executePrint = async (ordersToPrint: Order[]) => {
         if (!checkPrintable(ordersToPrint)) return;
 
-        const options = labelOptions();
-        if (printType === "labels") {
-            if (options.size === "80x120") {
-                await printBulkShippingLabels(ordersToPrint, options);
-            } else {
-                await printBulkEnhancedLabels(ordersToPrint, options, customerOrderCounts);
-            }
-        } else {
-            printBulkInvoices(ordersToPrint, options);
+        // Opened before any await so pop-up blockers allow it.
+        const printWindow = openPrintWindow();
+        if (!printWindow) {
+            toast.error(t("printing.popupBlockedTitle"), t("printing.popupBlockedBody"));
+            return;
         }
 
-        if (!(await recordRun(ordersToPrint))) return;
+        const options = labelOptions();
+        const html =
+            printType === "invoices"
+                ? await generateBulkA6InvoicesHTML(ordersToPrint, options)
+                : options.size === "80x120"
+                  ? await generateBulkShippingLabelsHTML(ordersToPrint, options)
+                  : await generateBulkLabelsHTML(ordersToPrint, options, customerOrderCounts);
+
+        // Record before the print dialog opens: the dialog pauses this tab until it is
+        // closed, so a record queued after it is lost if the tab is reloaded meanwhile.
+        const recorded = await recordRun(ordersToPrint);
+        writePrintWindow(printWindow, html);
+        if (!recorded) return;
 
         if (autoShipAfterPrint) {
             const { shippable } = shippableToday(ordersToPrint, "printing.laterKeptPrintBody");
