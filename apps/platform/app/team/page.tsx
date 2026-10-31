@@ -16,7 +16,6 @@ import {
     BarChart3,
     GitCompare,
     Target,
-    Settings2,
 } from "lucide-react";
 import { z } from "zod";
 import { baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
@@ -31,7 +30,6 @@ import { EmployeeComparison } from "@/components/team/employee-comparison";
 import { GoalTracking } from "@/components/team/goal-tracking";
 import { PastelCard } from "@/components/team/shared-pastel-components";
 import { TeamMemberCard } from "@/components/team/team-member-card";
-import { AssignmentRulesTab } from "@/components/team/assignment-rules-tab";
 import { toast } from "@/hooks/use-toast";
 import { EmployeeStats } from "@/lib/team-types";
 import { useTeamRealtime, type RealtimeActivity } from "@/components/team/hooks/use-team-realtime";
@@ -42,7 +40,7 @@ import { EmployeeDrawer } from "@/components/team/employee-drawer";
 import { Skeleton } from "@scheniders/ui/skeletons";
 
 type TimeRange = "today" | "week" | "month" | "all";
-type ViewMode = "overview" | "analytics" | "comparison" | "goals" | "rules";
+type ViewMode = "overview" | "analytics" | "comparison" | "goals";
 
 // Action filter options
 const ACTION_FILTERS = [
@@ -555,7 +553,6 @@ export default function TeamPage() {
         { id: "analytics", label: t("team.tabs.analytics"), icon: BarChart3 },
         { id: "comparison", label: t("team.tabs.comparison"), icon: GitCompare },
         { id: "goals", label: t("team.tabs.goals"), icon: Target },
-        { id: "rules", label: t("team.tabs.rules"), icon: Settings2 },
     ];
 
     return (
@@ -913,21 +910,6 @@ export default function TeamPage() {
                         exit={{ opacity: 0, x: -20 }}
                     >
                         <GoalTracking employees={employeesAdapter} />
-                    </motion.div>
-                )}
-
-                {viewMode === "rules" && (
-                    <motion.div
-                        key="rules"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                    >
-                        <AssignmentRulesTab employees={leaderboard.map(emp => ({
-                            id: emp.user_id,
-                            name: emp.display_name || emp.user_email?.split("@")[0] || "",
-                            avatarUrl: emp.avatar_url,
-                        }))} />
                     </motion.div>
                 )}
             </AnimatePresence>
