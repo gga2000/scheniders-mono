@@ -26,6 +26,7 @@ import { RoleDefaultsModal } from "./role-defaults-modal";
 import { PayslipPreviewModal } from "./payslip-preview-modal";
 
 import type { EmployeePayrollData } from "@/types/salary";
+import { useLanguage } from "@/hooks/use-language";
 
 type SubTab = "current" | "history" | "advances" | "penalties";
 
@@ -39,10 +40,10 @@ function thirtyDaysAgo() {
 
 type PaymentMethod = "cash" | "zain_cash" | "qi_card";
 
-const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
-    { value: "cash", label: "Cash", icon: "💵" },
-    { value: "zain_cash", label: "ZainCash", icon: "📱" },
-    { value: "qi_card", label: "Qi Card", icon: "💳" },
+const PAYMENT_METHODS: { value: PaymentMethod; labelKey: string; icon: string }[] = [
+    { value: "cash", labelKey: "payroll.method.cash", icon: "💵" },
+    { value: "zain_cash", labelKey: "payroll.method.zainCash", icon: "📱" },
+    { value: "qi_card", labelKey: "payroll.method.qiCard", icon: "💳" },
 ];
 
 // Confirm dialog component
@@ -61,6 +62,7 @@ function ConfirmPayrollDialog({
 }) {
     const [notes, setNotes] = useState("");
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+    const { t } = useLanguage();
 
     if (!isOpen || !data) return null;
 
@@ -70,6 +72,11 @@ function ConfirmPayrollDialog({
 
     const { calculation } = data;
     const name = data.employee.displayName || data.employee.email.split("@")[0];
+    const carriedOver = Math.max(
+        0,
+        calculation.absenceDeduction + calculation.advancesTotal + calculation.penaltiesTotal - calculation.grossSalary,
+    );
+    const iqd = t("common.iqd");
 
     return (
         <AnimatePresence>
@@ -93,7 +100,7 @@ function ConfirmPayrollDialog({
                                 <CheckCircle className="w-5 h-5 text-emerald-600" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-foreground">Confirm Payroll</h2>
+                                <h2 className="text-lg font-bold text-foreground">{t("payroll.confirm.title")}</h2>
                                 <p className="text-xs text-muted">{name}</p>
                             </div>
                         </div>
@@ -103,42 +110,47 @@ function ConfirmPayrollDialog({
                         {/* Breakdown summary */}
                         <div className="bg-[var(--background)] rounded-xl p-4 space-y-2">
                             {[
-                                { label: "Base Salary", value: calculation.baseSalary, sign: "" },
-                                { label: `Order Bonus (${calculation.completedOrdersCount} payable)`, value: calculation.orderBonus, sign: "+" },
-                                { label: "Performance Bonuses", value: calculation.performanceBonusesTotal, sign: "+" },
-                                { label: "Absence Deduction", value: calculation.absenceDeduction, sign: "−" },
-                                { label: "Advances", value: calculation.advancesTotal, sign: "−" },
-                                { label: "Penalties", value: calculation.penaltiesTotal, sign: "−" },
+                                { label: t("payroll.line.base"), value: calculation.baseSalary, sign: "" },
+                                { label: t("payroll.line.orderBonus", { count: calculation.completedOrdersCount }), value: calculation.orderBonus, sign: "+" },
+                                { label: t("payroll.line.performanceBonuses"), value: calculation.performanceBonusesTotal, sign: "+" },
+                                { label: t("payroll.line.absence"), value: calculation.absenceDeduction, sign: "−" },
+                                { label: t("payroll.line.advances"), value: calculation.advancesTotal, sign: "−" },
+                                { label: t("payroll.line.penalties"), value: calculation.penaltiesTotal, sign: "−" },
                             ]
                                 .filter(item => item.value > 0)
                                 .map(item => (
                                     <div key={item.label} className="flex justify-between text-sm">
                                         <span className="text-muted">{item.label}</span>
                                         <span className="font-medium text-foreground tabular-nums">
-                                            {item.sign}{fmtIQD(item.value)} IQD
+                                            {item.sign}{fmtIQD(item.value)} {iqd}
                                         </span>
                                     </div>
                                 ))}
                             <div className="border-t border-[var(--card-border)] pt-2 flex justify-between">
-                                <span className="font-semibold text-foreground">Net Payable</span>
+                                <span className="font-semibold text-foreground">{t("payroll.line.netPayable")}</span>
                                 <span className="font-bold text-emerald-600 tabular-nums">
-                                    {fmtIQD(calculation.netSalary)} IQD
+                                    {fmtIQD(calculation.netSalary)} {iqd}
                                 </span>
                             </div>
+                            {carriedOver > 0 && (
+                                <p className="text-xs text-amber-700 dark:text-amber-400 pt-1 border-t border-[var(--card-border)]">
+                                    {t("payroll.confirm.carryOver", { amount: fmtIQD(carriedOver), currency: iqd })}
+                                </p>
+                            )}
                             {calculation.orderBreakdown.replacements + calculation.orderBreakdown.refunds > 0 && (
                                 <p className="text-xs text-muted pt-1 border-t border-[var(--card-border)]">
-                                    {calculation.orderBreakdown.completedTotal} completed ·{" "}
-                                    {calculation.orderBreakdown.replacements} replacement
-                                    {calculation.orderBreakdown.replacements !== 1 ? "s" : ""} and{" "}
-                                    {calculation.orderBreakdown.refunds} refund
-                                    {calculation.orderBreakdown.refunds !== 1 ? "s" : ""} excluded from the bonus.
+                                    {t("payroll.confirm.excluded", {
+                                        total: calculation.orderBreakdown.completedTotal,
+                                        replacements: calculation.orderBreakdown.replacements,
+                                        refunds: calculation.orderBreakdown.refunds,
+                                    })}
                                 </p>
                             )}
                         </div>
 
                         {/* Payment method */}
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">Payment Method</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">{t("payroll.confirm.paymentMethod")}</label>
                             <div className="flex gap-2">
                                 {PAYMENT_METHODS.map(m => (
                                     <button
@@ -152,25 +164,25 @@ function ConfirmPayrollDialog({
                                         )}
                                     >
                                         <span className="text-base">{m.icon}</span>
-                                        {m.label}
+                                        {t(m.labelKey)}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">Notes (optional)</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">{t("payroll.confirm.notes")}</label>
                             <input
                                 type="text"
                                 value={notes}
                                 onChange={e => setNotes(e.target.value)}
-                                placeholder="Any additional notes..."
+                                placeholder={t("payroll.confirm.notesPlaceholder")}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all"
                             />
                         </div>
 
                         <p className="text-xs text-muted bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-                            This will lock the payroll record and mark all pending advances, penalties, and bonuses as applied. This cannot be undone.
+                            {t("payroll.confirm.warning")}
                         </p>
 
                         <div className="flex gap-3">
@@ -178,7 +190,7 @@ function ConfirmPayrollDialog({
                                 onClick={onClose}
                                 className="flex-1 px-4 py-3 bg-[var(--background)] text-foreground rounded-xl font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("common.cancel")}
                             </button>
                             {onPreview && (
                                 <button
@@ -186,7 +198,7 @@ function ConfirmPayrollDialog({
                                     className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] text-foreground rounded-xl font-medium hover:border-[var(--ink)] transition-all flex items-center justify-center gap-2"
                                 >
                                     <Eye className="w-4 h-4" />
-                                    Preview
+                                    {t("payroll.confirm.preview")}
                                 </button>
                             )}
                             <button
@@ -194,7 +206,7 @@ function ConfirmPayrollDialog({
                                 className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
                             >
                                 <CheckCircle className="w-4 h-4" />
-                                Confirm & Lock
+                                {t("payroll.confirm.submit")}
                             </button>
                         </div>
                     </div>
@@ -869,6 +881,8 @@ function BulkPayAllDialog({
     onClose: () => void;
 }) {
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+    const { t } = useLanguage();
+    const iqd = t("common.iqd");
 
     if (!isOpen) return null;
 
@@ -898,8 +912,8 @@ function BulkPayAllDialog({
                                 <CheckCircle className="w-5 h-5 text-emerald-600" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-foreground">Pay All Employees</h2>
-                                <p className="text-xs text-muted">{employees.length} employees · {fmtIQD(total)} IQD total</p>
+                                <h2 className="text-lg font-bold text-foreground">{t("payroll.bulk.title")}</h2>
+                                <p className="text-xs text-muted">{t("payroll.bulk.summary", { count: employees.length, total: fmtIQD(total), currency: iqd })}</p>
                             </div>
                         </div>
                     </div>
@@ -914,7 +928,7 @@ function BulkPayAllDialog({
                                         <p className="font-medium text-foreground">{name}</p>
                                         <p className="text-xs text-muted capitalize">{d.employee.role}</p>
                                     </div>
-                                    <p className="font-semibold text-foreground tabular-nums">{fmtIQD(d.calculation.netSalary)} IQD</p>
+                                    <p className="font-semibold text-foreground tabular-nums">{fmtIQD(d.calculation.netSalary)} {iqd}</p>
                                 </div>
                             );
                         })}
@@ -923,7 +937,7 @@ function BulkPayAllDialog({
                     <div className="p-6 border-t border-[var(--card-border)] space-y-4 shrink-0">
                         {/* Payment method */}
                         <div>
-                            <p className="text-sm font-medium text-foreground mb-2">Payment Method</p>
+                            <p className="text-sm font-medium text-foreground mb-2">{t("payroll.confirm.paymentMethod")}</p>
                             <div className="flex gap-2">
                                 {PAYMENT_METHODS.map(m => (
                                     <button
@@ -937,26 +951,26 @@ function BulkPayAllDialog({
                                         )}
                                     >
                                         <span className="text-base">{m.icon}</span>
-                                        {m.label}
+                                        {t(m.labelKey)}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         <p className="text-xs text-muted bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-                            This will lock payroll records for all {employees.length} employees and generate payslips. This cannot be undone.
+                            {t("payroll.bulk.warning", { count: employees.length })}
                         </p>
 
                         <div className="flex gap-3">
                             <button onClick={onClose} className="flex-1 px-4 py-3 bg-[var(--background)] text-foreground rounded-xl font-medium hover:bg-[var(--card-border)] transition-colors">
-                                Cancel
+                                {t("common.cancel")}
                             </button>
                             <button
                                 onClick={() => onConfirm(paymentMethod)}
                                 className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
                             >
                                 <CheckCircle className="w-4 h-4" />
-                                Pay {employees.length} Employees
+                                {t("payroll.bulk.submit", { count: employees.length })}
                             </button>
                         </div>
                     </div>
