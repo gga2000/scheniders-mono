@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { formatVaultDate } from "@/lib/vault-format";
 import { CloudTimeline } from "@/components/vault/cloud-timeline";
 import { FormatCard } from "@/components/vault/format-card";
 import { BackupHealth } from "@/components/vault/backup-health";
@@ -406,11 +407,11 @@ export default function VaultPage() {
                                             value={vaultKey}
                                             onChange={(e) => setVaultKey(e.target.value)}
                                             placeholder={t("vault.key.placeholder", "Enter a strong password to lock this backup")}
-                                            className="w-full bg-[var(--background)] border border-[var(--card-border)] rounded-xl px-4 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
+                                            className="w-full bg-[var(--background)] border border-[var(--card-border)] rounded-xl ps-4 pe-11 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
                                         />
                                         <button
                                             onClick={() => setShowVaultKey(!showVaultKey)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
+                                            className="absolute end-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
                                             aria-label={showVaultKey ? t("vault.key.hide", "Hide vault key") : t("vault.key.show", "Show vault key")}
                                         >
                                             {showVaultKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -447,7 +448,7 @@ export default function VaultPage() {
                                         onChange={(e) => setConfirmKey(e.target.value)}
                                         aria-invalid={keyMismatch}
                                         className={cn(
-                                            "w-full bg-[var(--background)] border rounded-xl px-4 py-3 text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] transition-all",
+                                            "w-full bg-[var(--background)] border rounded-xl ps-4 pe-11 py-3 text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] transition-all",
                                             keyMismatch ? "border-red-500" : "border-[var(--card-border)] focus:border-[var(--vault-accent)]"
                                         )}
                                     />
@@ -617,11 +618,11 @@ export default function VaultPage() {
                                                         value={restoreKey}
                                                         onChange={(e) => setRestoreKey(e.target.value)}
                                                         placeholder={t("vault.restore.passwordPlaceholder", "Enter password...")}
-                                                        className="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl px-4 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
+                                                        className="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl ps-4 pe-11 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
                                                     />
                                                     <button
                                                         onClick={() => setShowRestoreKey(!showRestoreKey)}
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
+                                                        className="absolute end-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
                                                         aria-label={showRestoreKey ? t("vault.key.hide", "Hide vault key") : t("vault.key.show", "Show vault key")}
                                                     >
                                                         {showRestoreKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -733,7 +734,7 @@ export default function VaultPage() {
                                                 {t("vault.restore.stockNote", "Stock counts and costs of products that already exist are kept as they are now.")}
                                             </div>
                                             <div className="text-xs text-[var(--foreground-muted)] mt-2">
-                                                {t("vault.restore.createdOn", "Backup created on:")} <span className="text-[var(--foreground)] font-medium">{new Date(diffResult.timestamp).toLocaleString()}</span>
+                                                {t("vault.restore.createdOn", "Backup created on:")} <span className="text-[var(--foreground)] font-medium">{formatVaultDate(diffResult.timestamp)}</span>
                                             </div>
                                         </div>
 

@@ -2,6 +2,7 @@
 
 import { Activity, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatVaultDate } from "@/lib/vault-format";
 import type { VaultActivityEntry } from "@/lib/vault-utils";
 
 interface BackupHealthProps {
@@ -33,8 +34,7 @@ function autoRunFailed(entry: VaultActivityEntry): boolean {
 }
 
 export function BackupHealth({ activity, isLoading, failed }: BackupHealthProps) {
-    const { t, language } = useLanguage();
-    const locale = language === "ar" ? "ar-IQ" : "en-GB";
+    const { t } = useLanguage();
     const lastAuto = activity.find((entry) => entry.action === "automated_csv_backup");
     const autoOk = lastAuto ? !autoRunFailed(lastAuto) : false;
 
@@ -62,11 +62,11 @@ export function BackupHealth({ activity, isLoading, failed }: BackupHealthProps)
                             <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                         )}
                         <div>
-                            <p className="text-sm font-medium">
+                            <p className="text-base font-medium">
                                 {lastAuto
                                     ? autoOk
-                                        ? t("vault.health.autoOk", "Last automatic backup: {when}", { when: new Date(lastAuto.createdAt).toLocaleString(locale) })
-                                        : t("vault.health.autoPartial", "Last automatic backup had problems: {when}", { when: new Date(lastAuto.createdAt).toLocaleString(locale) })
+                                        ? t("vault.health.autoOk", "Last automatic backup: {when}", { when: formatVaultDate(lastAuto.createdAt) })
+                                        : t("vault.health.autoPartial", "Last automatic backup had problems: {when}", { when: formatVaultDate(lastAuto.createdAt) })
                                     : t("vault.health.autoNone", "No automatic backup has run for this store yet.")}
                             </p>
                             <p className="text-xs text-[var(--foreground-subtle)] mt-0.5">
@@ -82,7 +82,7 @@ export function BackupHealth({ activity, isLoading, failed }: BackupHealthProps)
                                 return (
                                     <li key={entry.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm bg-[var(--background)]">
                                         <span className="truncate">{label}</span>
-                                        <span className="text-xs text-[var(--foreground-subtle)] flex-shrink-0">{new Date(entry.createdAt).toLocaleString(locale)}</span>
+                                        <span className="text-xs text-[var(--foreground-subtle)] flex-shrink-0">{formatVaultDate(entry.createdAt)}</span>
                                     </li>
                                 );
                             })}
