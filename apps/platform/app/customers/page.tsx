@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo, useCallback, Suspense } from "react";
+import { useState, useMemo, useCallback, useRef, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Search, Download } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
@@ -95,6 +95,7 @@ function CustomersPageContent() {
     }, []);
 
     const toggleSelect = useCallback((phone: string) => {
+        setAllSelectedFor(null);
         const row = allCustomers.find((c) => c.phone === phone);
         setSelected((prev) => {
             const next = new Map(prev);
@@ -103,7 +104,10 @@ function CustomersPageContent() {
             return next;
         });
     }, [allCustomers]);
-    const clearSelected = useCallback(() => setSelected(new Map()), []);
+    const clearSelected = useCallback(() => {
+        setSelected(new Map());
+        setAllSelectedFor(null);
+    }, []);
     const selectedPhones = useMemo(() => Array.from(selected.keys()), [selected]);
     const selectedSet = useMemo(() => new Set(selected.keys()), [selected]);
     const broadcastRecipients = useMemo(
@@ -187,6 +191,8 @@ function CustomersPageContent() {
             if (error) throw error;
             const page = data ?? [];
             rows.push(...page.map(mapCustomerRow));
+            // Callers hold customers.export (the server pages everyone else at 100),
+            // so a short page really is the last one.
             if (page.length < EXPORT_PAGE) break;
         }
         return rows;
@@ -209,10 +215,19 @@ function CustomersPageContent() {
     }, [fetchAllMatching, customerCsvHeader, customerCsvRow, t]);
 
     const [selectingAll, setSelectingAll] = useState(false);
+    // The filter whose every match is selected; null once the selection is edited.
+    const [allSelectedFor, setAllSelectedFor] = useState<string | null>(null);
+    const filtersKey = JSON.stringify(filters);
+    const latestFiltersKey = useRef(filtersKey);
+    latestFiltersKey.current = filtersKey;
     const selectAllMatching = useCallback(async () => {
+        const startedFor = filtersKey;
         setSelectingAll(true);
         try {
             const rows = await fetchAllMatching();
+            // The filters moved while fetching: these rows are for the old filter.
+            if (latestFiltersKey.current !== startedFor) return;
+            setAllSelectedFor(startedFor);
             setSelected((prev) => {
                 const next = new Map(prev);
                 for (const row of rows) next.set(row.phone, row);
@@ -223,7 +238,7 @@ function CustomersPageContent() {
         } finally {
             setSelectingAll(false);
         }
-    }, [fetchAllMatching, t]);
+    }, [fetchAllMatching, filtersKey, t]);
 
     const repeatPct = stats ? pct(stats.repeat_customer_count, stats.total_customers) : 0;
 
@@ -361,7 +376,8 @@ function CustomersPageContent() {
             <CustomerBulkBar
                 selectedCount={selected.size}
                 totalMatching={totalCount}
-                onSelectAll={selectAllMatching}
+                onSelectAll={canExport ? selectAllMatching : undefined}
+                allSelected={allSelectedFor === filtersKey}
                 selectingAll={selectingAll}
                 onExport={canExport ? exportSelected : undefined}
                 onAddTag={() => setShowBulkTag(true)}
@@ -372,6 +388,7 @@ function CustomersPageContent() {
                 isOpen={showBroadcast}
                 onClose={() => setShowBroadcast(false)}
                 recipients={broadcastRecipients}
+                canCopyNumbers={canExport}
             />
             <BulkTagModal
                 isOpen={showBulkTag}

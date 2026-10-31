@@ -18,6 +18,8 @@ interface BroadcastModalProps {
     isOpen: boolean;
     onClose: () => void;
     recipients: BroadcastRecipient[];
+    /** Copying the numbers is a bulk read of customer data: export permission only. */
+    canCopyNumbers: boolean;
 }
 
 /** "{name}" in the message becomes the customer's first name, or nothing when no order carried a name. */
@@ -32,7 +34,7 @@ function personalise(message: string, name: string): string {
  * with the message filled in, and the row is marked sent. Blocked customers are
  * left out.
  */
-export function BroadcastModal({ isOpen, onClose, recipients }: BroadcastModalProps) {
+export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: BroadcastModalProps) {
     const { t } = useLanguage();
     const [message, setMessage] = useState("");
     const [step, setStep] = useState<"compose" | "send">("compose");
@@ -145,14 +147,16 @@ export function BroadcastModal({ isOpen, onClose, recipients }: BroadcastModalPr
                     <div className="p-4 border-t border-(--card-border) flex flex-wrap items-center justify-between gap-3">
                         {step === "compose" ? (
                             <>
-                                <button
-                                    onClick={copyNumbers}
-                                    disabled={sendable.length === 0}
-                                    className="min-h-11 px-4 inline-flex items-center gap-2 rounded-xl border border-(--card-border) text-sm font-medium text-foreground hover:bg-muted/30 disabled:opacity-50"
-                                >
-                                    <Copy className="w-4 h-4" />
-                                    {t("customers.broadcast.copyNumbers")}
-                                </button>
+                                {canCopyNumbers ? (
+                                    <button
+                                        onClick={copyNumbers}
+                                        disabled={sendable.length === 0}
+                                        className="min-h-11 px-4 inline-flex items-center gap-2 rounded-xl border border-(--card-border) text-sm font-medium text-foreground hover:bg-muted/30 disabled:opacity-50"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                        {t("customers.broadcast.copyNumbers")}
+                                    </button>
+                                ) : <span />}
                                 <button
                                     onClick={() => setStep("send")}
                                     disabled={!message.trim() || sendable.length === 0}

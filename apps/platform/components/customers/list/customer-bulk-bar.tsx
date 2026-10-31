@@ -7,9 +7,12 @@ import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerBulkBarProps {
   selectedCount: number;
-  /** Customers the current filters match; offers "select all" while more than are selected. */
+  /** Customers the current filters match, shown on the "select all" offer. */
   totalMatching: number;
-  onSelectAll: () => void;
+  /** Omitted when the user may not bulk-read customers (export permission). */
+  onSelectAll?: () => void;
+  /** Every match of the current filters is already selected. */
+  allSelected: boolean;
   selectingAll: boolean;
   /** Omitted when the user may not export customer data. */
   onExport?: () => void;
@@ -22,6 +25,7 @@ export function CustomerBulkBar({
   selectedCount,
   totalMatching,
   onSelectAll,
+  allSelected,
   selectingAll,
   onExport,
   onAddTag,
@@ -48,7 +52,7 @@ export function CustomerBulkBar({
               {t("customers.bulk.selected")}
             </div>
 
-            {totalMatching > selectedCount && (
+            {onSelectAll && !allSelected && totalMatching > 0 && (
               <button
                 onClick={onSelectAll}
                 disabled={selectingAll}
