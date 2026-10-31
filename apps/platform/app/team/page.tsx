@@ -19,6 +19,7 @@ import {
     Settings2,
 } from "lucide-react";
 import { z } from "zod";
+import { baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 import { supabase } from "@/lib/supabase";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -255,7 +256,7 @@ const periodTotalsSchema = z.array(z.object({
 // ============================================
 
 export default function TeamPage() {
-    const { role, isLoading: authLoading } = useAuth();
+    const { role, isLoading: authLoading, tenantId } = useAuth();
     const isAdmin = isAdminRole(role);
     const { t } = useLanguage();
 
@@ -284,7 +285,7 @@ export default function TeamPage() {
     const getDateFilter = useCallback((range: TimeRange): string | null => {
         const now = new Date();
         switch (range) {
-            case "today": now.setHours(0, 0, 0, 0); return now.toISOString();
+            case "today": return new Date(baghdadDayStart(baghdadDayKey())).toISOString();
             case "week": now.setDate(now.getDate() - 7); return now.toISOString();
             case "month": now.setMonth(now.getMonth() - 1); return now.toISOString();
             case "all": return null;
@@ -296,10 +297,13 @@ export default function TeamPage() {
         const start = new Date();
         const end = new Date();
         switch (range) {
-            case "today":
-                start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
-                end.setHours(0, 0, 0, 0);
-                return { start: start.toISOString(), end: end.toISOString() };
+            case "today": {
+                const todayStart = baghdadDayStart(baghdadDayKey());
+                return {
+                    start: new Date(todayStart - 24 * 60 * 60 * 1000).toISOString(),
+                    end: new Date(todayStart).toISOString(),
+                };
+            }
             case "week":
                 start.setDate(start.getDate() - 14);
                 end.setDate(end.getDate() - 7);
@@ -359,9 +363,21 @@ export default function TeamPage() {
             return;
         }
 
-        const rows = parsed.data;
-        const userIds = rows.map((r) => r.user_id);
+        // The roster is every active member of this store, not just people with activity in the
+        // window: a manager needs to see who did nothing today. Role is the per-store role.
+        const { data: members } = tenantId
+            ? await supabase
+                .from("tenant_members")
+                .select("user_id, role")
+                .eq("tenant_id", tenantId)
+                .eq("status", "active")
+            : { data: null };
+        const memberRoleById = new Map<string, string>((members ?? []).map((m) => [m.user_id, m.role]));
+
+        const rowById = new Map(parsed.data.map((r) => [r.user_id, r]));
+        const userIds = Array.from(new Set([...memberRoleById.keys(), ...rowById.keys()]));
         const profileById = new Map<string, {
+            email: string | null;
             display_name: string | null;
             avatar_url: string | null;
             role: string | null;
@@ -371,27 +387,28 @@ export default function TeamPage() {
         if (userIds.length > 0) {
             const { data: profiles } = await supabase
                 .from("user_profiles")
-                .select("id, display_name, avatar_url, role, is_active, last_login_at")
+                .select("id, email, display_name, avatar_url, role, is_active, last_login_at")
                 .in("id", userIds);
             profiles?.forEach((p) => profileById.set(p.id, p));
         }
 
-        const stats: EmployeeStats[] = rows.map((r) => {
-            const profile = profileById.get(r.user_id);
+        const stats: EmployeeStats[] = userIds.map((userId) => {
+            const profile = profileById.get(userId);
+            const r = rowById.get(userId);
             return {
-                user_id: r.user_id,
-                user_email: r.user_email || "",
+                user_id: userId,
+                user_email: r?.user_email || profile?.email || "",
                 display_name: profile?.display_name ?? null,
                 avatar_url: profile?.avatar_url ?? null,
-                role: profile?.role || "employee",
+                role: memberRoleById.get(userId) || profile?.role || "employee",
                 is_active: profile?.is_active ?? true,
                 last_login_at: profile?.last_login_at ?? null,
-                total_actions: r.total_actions,
-                status_changes: r.status_changes,
-                orders_created: r.orders_created,
-                orders_printed: r.orders_printed,
-                orders_edited: r.orders_edited,
-                logins: r.logins,
+                total_actions: r?.total_actions ?? 0,
+                status_changes: r?.status_changes ?? 0,
+                orders_created: r?.orders_created ?? 0,
+                orders_printed: r?.orders_printed ?? 0,
+                orders_edited: r?.orders_edited ?? 0,
+                logins: r?.logins ?? 0,
             };
         });
         setLeaderboard(stats.sort((a, b) => b.total_actions - a.total_actions));
@@ -413,7 +430,7 @@ export default function TeamPage() {
             statusChanges: row?.status_changes ?? 0,
             ordersPrinted: row?.orders_printed ?? 0,
         });
-    }, [timeRange, getDateFilter, getPreviousWindow]);
+    }, [timeRange, tenantId, getDateFilter, getPreviousWindow]);
 
     // Keep ref in sync
     useEffect(() => {
@@ -673,7 +690,7 @@ export default function TeamPage() {
                         />
 
                         {/* Top Performers */}
-                        {leaderboard.length > 0 && (
+                        {leaderboard.some(e => e.total_actions > 0) && (
                             <PastelCard className="p-6">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-10 h-10 rounded-xl bg-[#FBE38E] dark:bg-amber-500/20 flex items-center justify-center">
@@ -683,7 +700,7 @@ export default function TeamPage() {
                                         {t(`team.leaderboard.${timeRange}`)}
                                     </h2>
                                 </div>
-                                <TopPerformerPodium performers={leaderboard} />
+                                <TopPerformerPodium performers={leaderboard.filter(e => e.total_actions > 0)} />
                             </PastelCard>
                         )}
 
