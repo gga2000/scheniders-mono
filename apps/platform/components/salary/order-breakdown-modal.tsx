@@ -5,20 +5,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, RefreshCw, Undo2, AlertTriangle, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 import type { OrderBreakdown, CountedOrderDetail, ReturnedAfterPayment, OrderBucket } from "@/types/salary";
 
 function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
-function fmtDate(d: string) {
-    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), "MMM d, yyyy"); } catch { return d; }
+function fmtDate(d: string, isArabic: boolean) {
+    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), "MMM d, yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
 }
 
-const BUCKET_META: Record<OrderBucket, { label: string; cls: string }> = {
-    genuine: { label: "Payable", cls: "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400" },
-    replacement: { label: "Replacement", cls: "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400" },
-    refund: { label: "Refund", cls: "bg-rose-100 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400" },
+const BUCKET_META: Record<OrderBucket, { labelKey: string; cls: string }> = {
+    genuine: { labelKey: "payroll.breakdown.payable", cls: "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400" },
+    replacement: { labelKey: "payroll.breakdown.replacement", cls: "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400" },
+    refund: { labelKey: "payroll.breakdown.refund", cls: "bg-rose-100 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400" },
 };
 
 type Filter = "all" | OrderBucket;
@@ -46,6 +48,8 @@ export function OrderBreakdownModal({
     returnedAfterPayment,
     perOrderBonus,
 }: OrderBreakdownModalProps) {
+    const { t, language } = useLanguage();
+    const isArabic = language === "ar";
     const [filter, setFilter] = useState<Filter>("all");
 
     const filtered = useMemo(
@@ -58,10 +62,10 @@ export function OrderBreakdownModal({
     if (!isOpen) return null;
 
     const tabs: { key: Filter; label: string; count: number }[] = [
-        { key: "all", label: "All", count: breakdown.completedTotal },
-        { key: "genuine", label: "Payable", count: breakdown.genuine },
-        { key: "replacement", label: "Replacements", count: breakdown.replacements },
-        { key: "refund", label: "Refunds", count: breakdown.refunds },
+        { key: "all", label: t("payroll.breakdown.all"), count: breakdown.completedTotal },
+        { key: "genuine", label: t("payroll.breakdown.payable"), count: breakdown.genuine },
+        { key: "replacement", label: t("payroll.breakdown.replacements"), count: breakdown.replacements },
+        { key: "refund", label: t("payroll.breakdown.refunds"), count: breakdown.refunds },
     ];
 
     return (
@@ -85,7 +89,7 @@ export function OrderBreakdownModal({
                                 <Package className="w-5 h-5 text-foreground" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-foreground">Order Breakdown</h2>
+                                <h2 className="text-lg font-bold text-foreground">{t("payroll.breakdown.title")}</h2>
                                 <p className="text-xs text-muted">{employeeName} · {periodLabel}</p>
                             </div>
                         </div>
@@ -96,12 +100,12 @@ export function OrderBreakdownModal({
 
                     {/* Summary stat row */}
                     <div className="px-5 py-4 border-b border-[var(--card-border)] shrink-0 grid grid-cols-2 sm:grid-cols-5 gap-2">
-                        <Stat label="Completed" value={breakdown.completedTotal} icon={<CheckCircle className="w-3.5 h-3.5" />} />
-                        <Stat label="Payable" value={breakdown.genuine} tone="emerald" />
-                        <Stat label="Replacements" value={breakdown.replacements} tone="amber" icon={<RefreshCw className="w-3.5 h-3.5" />} />
-                        <Stat label="Refunds" value={breakdown.refunds} tone="rose" icon={<Undo2 className="w-3.5 h-3.5" />} />
+                        <Stat label={t("payroll.breakdown.completed")} value={breakdown.completedTotal} icon={<CheckCircle className="w-3.5 h-3.5" />} />
+                        <Stat label={t("payroll.breakdown.payable")} value={breakdown.genuine} tone="emerald" />
+                        <Stat label={t("payroll.breakdown.replacements")} value={breakdown.replacements} tone="amber" icon={<RefreshCw className="w-3.5 h-3.5" />} />
+                        <Stat label={t("payroll.breakdown.refunds")} value={breakdown.refunds} tone="rose" icon={<Undo2 className="w-3.5 h-3.5" />} />
                         <Stat
-                            label="Quality"
+                            label={t("payroll.breakdown.quality")}
                             valueText={breakdown.completedTotal > 0 ? `${qualityPct}%` : "—"}
                             tone={qualityPct >= 90 ? "emerald" : qualityPct >= 70 ? "amber" : "rose"}
                         />
@@ -112,10 +116,13 @@ export function OrderBreakdownModal({
                         <div className="mx-5 mt-3 flex items-start gap-2 p-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-xs text-muted shrink-0">
                             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
                             <span>
-                                <span className="font-semibold text-foreground">{breakdown.replacements + breakdown.refunds}</span> order
-                                {breakdown.replacements + breakdown.refunds !== 1 ? "s" : ""} excluded from pay
-                                ({breakdown.replacements} replacement{breakdown.replacements !== 1 ? "s" : ""}, {breakdown.refunds} refund{breakdown.refunds !== 1 ? "s" : ""}).
-                                Bonus paid on <span className="font-semibold text-foreground">{breakdown.genuine}</span> × {fmtIQD(perOrderBonus)} IQD.
+                                {t("payroll.breakdown.excluded", {
+                                    total: breakdown.replacements + breakdown.refunds,
+                                    replacements: breakdown.replacements,
+                                    refunds: breakdown.refunds,
+                                    genuine: breakdown.genuine,
+                                    bonus: fmtIQD(perOrderBonus),
+                                })}
                             </span>
                         </div>
                     )}
@@ -123,16 +130,16 @@ export function OrderBreakdownModal({
                     {/* Filter tabs */}
                     <div className="px-5 pt-3 shrink-0">
                         <div className="flex bg-[var(--background)] rounded-xl p-0.5 border border-[var(--card-border)] w-fit">
-                            {tabs.map(t => (
+                            {tabs.map(tab => (
                                 <button
-                                    key={t.key}
-                                    onClick={() => setFilter(t.key)}
+                                    key={tab.key}
+                                    onClick={() => setFilter(tab.key)}
                                     className={cn(
                                         "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap",
-                                        filter === t.key ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground"
+                                        filter === tab.key ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground"
                                     )}
                                 >
-                                    {t.label} ({t.count})
+                                    {tab.label} ({tab.count})
                                 </button>
                             ))}
                         </div>
@@ -141,7 +148,7 @@ export function OrderBreakdownModal({
                     {/* Order list */}
                     <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
                         {shown.length === 0 ? (
-                            <p className="text-xs text-muted text-center py-8">No orders in this category.</p>
+                            <p className="text-xs text-muted text-center py-8">{t("payroll.breakdown.empty")}</p>
                         ) : (
                             shown.map(o => (
                                 <div key={o.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-xl bg-[var(--background)] text-sm">
@@ -151,14 +158,14 @@ export function OrderBreakdownModal({
                                         </p>
                                         <p className="text-xs text-muted">
                                             {o.completedAt
-                                                ? `Completed ${fmtDate(o.completedAt)}`
-                                                : fmtDate(o.createdAt)}
+                                                ? t("payroll.breakdown.completedOn", { date: fmtDate(o.completedAt, isArabic) })
+                                                : fmtDate(o.createdAt, isArabic)}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <span className="text-xs text-muted tabular-nums">{fmtIQD(o.amount)} IQD</span>
                                         <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", BUCKET_META[o.bucket].cls)}>
-                                            {BUCKET_META[o.bucket].label}
+                                            {t(BUCKET_META[o.bucket].labelKey)}
                                         </span>
                                     </div>
                                 </div>
@@ -166,7 +173,7 @@ export function OrderBreakdownModal({
                         )}
                         {filtered.length > RENDER_CAP && (
                             <p className="text-xs text-muted text-center py-2">
-                                Showing first {RENDER_CAP} of {filtered.length}. Use the filters to narrow down.
+                                {t("payroll.breakdown.capped", { cap: RENDER_CAP, total: filtered.length })}
                             </p>
                         )}
                     </div>
@@ -177,21 +184,21 @@ export function OrderBreakdownModal({
                             <div className="flex items-center gap-2 mb-2">
                                 <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
                                 <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wide">
-                                    Returned after payment ({returnedAfterPayment.length})
+                                    {t("payroll.breakdown.returnedTitle", { count: returnedAfterPayment.length })}
                                 </p>
                             </div>
                             <p className="text-xs text-muted mb-2">
-                                These orders were returned but fall inside a period already paid out. Review — no automatic deduction is applied.
+                                {t("payroll.breakdown.returnedHint")}
                             </p>
                             <div className="space-y-1">
                                 {returnedAfterPayment.slice(0, 50).map(r => (
                                     <div key={r.id} className="flex items-center justify-between gap-2 text-xs py-1">
                                         <span className="text-foreground truncate">#{r.orderId} · {r.customerName}</span>
-                                        <span className="text-muted shrink-0">{fmtDate(r.createdAt)}</span>
+                                        <span className="text-muted shrink-0">{fmtDate(r.createdAt, isArabic)}</span>
                                     </div>
                                 ))}
                                 {returnedAfterPayment.length > 50 && (
-                                    <p className="text-xs text-muted pt-1">+{returnedAfterPayment.length - 50} more</p>
+                                    <p className="text-xs text-muted pt-1">{t("payroll.breakdown.more", { count: returnedAfterPayment.length - 50 })}</p>
                                 )}
                             </div>
                         </div>

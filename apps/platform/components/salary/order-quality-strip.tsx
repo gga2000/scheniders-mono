@@ -3,6 +3,7 @@
 import { CheckCircle, RefreshCw, Undo2, Gauge, Package } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { OrderBreakdown } from "@/types/salary";
 
 interface OrderQualityStripProps {
@@ -12,6 +13,7 @@ interface OrderQualityStripProps {
 
 /** Business-wide completed-order quality summary for the selected period. */
 export function OrderQualityStrip({ breakdown }: OrderQualityStripProps) {
+    const { t } = useLanguage();
     const reduce = useReducedMotion();
     const qualityPct = Math.round(breakdown.qualityScore * 100);
     const qualityTone =
@@ -27,16 +29,16 @@ export function OrderQualityStrip({ breakdown }: OrderQualityStripProps) {
             transition={{ duration: 0.3, ease: "easeOut", delay: reduce ? 0 : 0.05 }}
             className="flex items-stretch flex-wrap sm:flex-nowrap bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden divide-x divide-[var(--card-border)]"
         >
-            <Cell icon={<Package className="w-4 h-4 text-foreground" />} bg="bg-[var(--background)]" label="Completed Orders" value={breakdown.completedTotal} />
-            <Cell icon={<CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />} bg="bg-emerald-100 dark:bg-emerald-900/30" label="Payable (genuine)" value={breakdown.genuine} valueCls="text-emerald-600 dark:text-emerald-400" />
-            <Cell icon={<RefreshCw className="w-4 h-4 text-amber-600 dark:text-amber-400" />} bg="bg-amber-100 dark:bg-amber-900/30" label="Replacements" value={breakdown.replacements} valueCls="text-amber-600 dark:text-amber-400" />
-            <Cell icon={<Undo2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />} bg="bg-rose-100 dark:bg-rose-900/30" label="Refunds / Returns" value={breakdown.refunds} valueCls="text-rose-600 dark:text-rose-400" />
+            <Cell icon={<Package className="w-4 h-4 text-foreground" />} bg="bg-[var(--background)]" label={t("payroll.strip.completed")} value={breakdown.completedTotal} />
+            <Cell icon={<CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />} bg="bg-emerald-100 dark:bg-emerald-900/30" label={t("payroll.strip.payable")} value={breakdown.genuine} valueCls="text-emerald-600 dark:text-emerald-400" />
+            <Cell icon={<RefreshCw className="w-4 h-4 text-amber-600 dark:text-amber-400" />} bg="bg-amber-100 dark:bg-amber-900/30" label={t("payroll.breakdown.replacements")} value={breakdown.replacements} valueCls="text-amber-600 dark:text-amber-400" />
+            <Cell icon={<Undo2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />} bg="bg-rose-100 dark:bg-rose-900/30" label={t("payroll.strip.refunds")} value={breakdown.refunds} valueCls="text-rose-600 dark:text-rose-400" />
             <div className="flex items-center gap-2.5 px-4 py-3">
                 <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
                     <Gauge className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                    <p className="text-[11px] text-muted leading-none mb-1">Quality</p>
+                    <p className="text-[11px] text-muted leading-none mb-1">{t("payroll.breakdown.quality")}</p>
                     <p className={cn("text-sm font-bold tabular-nums tracking-tight", qualityTone)}>
                         {breakdown.completedTotal > 0 ? `${qualityPct}%` : "—"}
                     </p>
