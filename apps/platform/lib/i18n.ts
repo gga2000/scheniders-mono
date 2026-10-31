@@ -2792,6 +2792,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "settings.section.lightfunnels": "Lightfunnels",
         "settings.section.waseet": "Al-Waseet",
         "settings.section.pages": "Pages Access",
+        "settings.data.title": "Data Management",
+        "settings.data.subtitle": "Backups, exports and restores are in the Data Vault.",
+        "settings.data.vaultTitle": "Data Vault",
+        "settings.data.vaultDesc": "Download encrypted, Excel or CSV backups, keep cloud copies, and restore with a preview before anything is written.",
+        "settings.data.openVault": "Open Data Vault",
         "settings.section.data": "Data & Backup",
 
         // ── Message Templates ──
@@ -6948,6 +6953,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "settings.section.lightfunnels": "Lightfunnels",
         "settings.section.waseet": "الوسيط",
         "settings.section.pages": "الوصول للصفحات",
+        "settings.data.title": "إدارة البيانات",
+        "settings.data.subtitle": "النسخ الاحتياطي والتصدير والاستعادة موجودة في خزينة البيانات.",
+        "settings.data.vaultTitle": "خزينة البيانات",
+        "settings.data.vaultDesc": "نزّل نسخًا مشفرة أو Excel أو CSV، واحتفظ بنسخ سحابية، واستعد بعد معاينة قبل كتابة أي شيء.",
+        "settings.data.openVault": "فتح خزينة البيانات",
         "settings.section.data": "البيانات والنسخ الاحتياطي",
 
         // ── Message Templates ──
