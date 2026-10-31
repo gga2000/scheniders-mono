@@ -18,7 +18,7 @@ import { ActionBreakdownChart } from "./charts/action-breakdown-chart";
 import { ActivityHeatmap } from "./charts/activity-heatmap";
 import { PeakHoursHeatmap } from "./charts/peak-hours-heatmap";
 import { ActivityLogEntry } from "@/lib/activity-logger";
-import { PastelCard, StatCard, pastelColors } from "./shared-pastel-components";
+import { PastelCard, StatCard } from "./shared-pastel-components";
 import { useLanguage } from "@/hooks/use-language";
 
 // Types

@@ -4,10 +4,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ActivityLogEntry } from "@/lib/activity-logger";
 import { RealtimeActivity } from "./use-team-realtime";
+import { teamRangeStart, type TeamTimeRange } from "@/lib/team-time-window";
 
 interface UseInfiniteActivitiesOptions {
     pageSize?: number;
-    timeRange?: "today" | "week" | "month" | "all";
+    timeRange?: TeamTimeRange;
     userId?: string;
     actionFilter?: string;
 }
@@ -42,23 +43,8 @@ export function useInfiniteActivities(
     const cursorRef = useRef<string | null>(null);
     const loadingRef = useRef(false);
 
-    // Get date filter based on time range
-    const getDateFilter = useCallback((): string | null => {
-        const now = new Date();
-        switch (timeRange) {
-            case "today":
-                now.setHours(0, 0, 0, 0);
-                return now.toISOString();
-            case "week":
-                now.setDate(now.getDate() - 7);
-                return now.toISOString();
-            case "month":
-                now.setMonth(now.getMonth() - 1);
-                return now.toISOString();
-            case "all":
-                return null;
-        }
-    }, [timeRange]);
+    // Same Baghdad-day window as the leaderboard, so "Today" means the same thing everywhere.
+    const getDateFilter = useCallback((): string | null => teamRangeStart(timeRange), [timeRange]);
 
     // Build query with filters
     const buildQuery = useCallback(() => {

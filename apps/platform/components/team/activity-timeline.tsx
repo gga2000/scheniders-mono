@@ -211,20 +211,12 @@ export function ActivityTimeline({
         limitedActivities.forEach((activity) => {
             const date = new Date(activity.created_at);
             let key: string;
-            let label: string;
 
             if (groupBy === "hour") {
-                const hour = date.getHours();
-                key = `${date.toDateString()}-${hour}`;
-                label = date.toLocaleTimeString(language === "ar" ? "ar-IQ" : "en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                }).replace(/:\d{2}$/, ":00");
+                key = `${date.toDateString()}-${date.getHours()}`;
             } else {
-                const minutes = date.getMinutes();
-                const halfHour = minutes < 30 ? "00" : "30";
+                const halfHour = date.getMinutes() < 30 ? "00" : "30";
                 key = `${date.toDateString()}-${date.getHours()}-${halfHour}`;
-                label = `${date.getHours().toString().padStart(2, "0")}:${halfHour}`;
             }
 
             if (!groupMap.has(key)) {
@@ -249,7 +241,7 @@ export function ActivityTimeline({
         });
 
         return result;
-    }, [activities, groupBy, maxItems]);
+    }, [activities, groupBy, maxItems, language]);
 
     if (activities.length === 0) {
         return (

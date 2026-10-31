@@ -1,16 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
     Activity,
-    Users,
-    TrendingUp,
-    TrendingDown,
     Package,
     Printer,
     RefreshCw,
-    Zap,
     ArrowUpRight,
     ArrowDownRight,
 } from "lucide-react";
@@ -36,12 +31,14 @@ interface HeroStatsBannerProps {
     ordersPrinted: StatData;
     onlineCount: number;
     totalEmployees: number;
-    sparklineData?: { day: string; value: number }[];
+    /** Real per-day counts for the last 7 Baghdad days. */
+    actionsTrend?: { day: string; value: number }[];
+    ordersTrend?: { day: string; value: number }[];
     isLoading?: boolean;
 }
 
 // Animated Counter
-function AnimatedCounter({ value, duration = 1200 }: { value: number; duration?: number }) {
+function AnimatedCounter({ value }: { value: number }) {
     return (
         <motion.span
             key={value}
@@ -192,20 +189,11 @@ export function HeroStatsBanner({
     ordersPrinted,
     onlineCount,
     totalEmployees,
-    sparklineData,
+    actionsTrend,
+    ordersTrend,
     isLoading = false,
 }: HeroStatsBannerProps) {
     const { t } = useLanguage();
-    // Generate sparkline variants for each stat
-    const actionSparkline = useMemo(
-        () => sparklineData?.map((d, i) => ({ ...d, value: d.value * (1 + Math.random() * 0.2) })),
-        [sparklineData]
-    );
-    const ordersSparkline = useMemo(
-        () => sparklineData?.map((d, i) => ({ ...d, value: d.value * 0.3 * (1 + Math.random() * 0.3) })),
-        [sparklineData]
-    );
-
     if (isLoading) {
         return (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 animate-pulse">
@@ -230,7 +218,7 @@ export function HeroStatsBanner({
                     value={totalActions.current}
                     trend={totalActions.trend}
                     color="#F59E0B"
-                    sparklineData={actionSparkline}
+                    sparklineData={actionsTrend}
                     delay={0.1}
                 />
                 <HeroStatCard
@@ -239,7 +227,7 @@ export function HeroStatsBanner({
                     value={ordersCreated.current}
                     trend={ordersCreated.trend}
                     color="#10B981"
-                    sparklineData={ordersSparkline}
+                    sparklineData={ordersTrend}
                     delay={0.15}
                 />
                 <HeroStatCard

@@ -73,6 +73,7 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
     const instanceId = useId();
 
     useEffect(() => {
+        const timeouts = activeTimeoutsRef.current;
         if (!enabled) {
             return;
         }
@@ -121,8 +122,8 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
         // Cleanup
         return () => {
             // Clear all timeouts
-            activeTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
-            activeTimeoutsRef.current.clear();
+            timeouts.forEach((timeout) => clearTimeout(timeout));
+            timeouts.clear();
 
             // Unsubscribe from channel
             if (channelRef.current) {
@@ -138,36 +139,4 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
         lastActivity,
         activeUserIds,
     };
-}
-
-/**
- * Hook to get pulse animation trigger when a specific user has activity
- */
-export function useActivityPulse(userId: string, activeUserIds: Set<string>): boolean {
-    const [isPulsing, setIsPulsing] = useState(false);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    useEffect(() => {
-        if (activeUserIds.has(userId)) {
-            setIsPulsing(true);
-
-            // Clear existing timeout
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-            }
-
-            // Stop pulsing after 2 seconds
-            timeoutRef.current = setTimeout(() => {
-                setIsPulsing(false);
-            }, 2000);
-        }
-
-        return () => {
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-            }
-        };
-    }, [userId, activeUserIds]);
-
-    return isPulsing;
 }

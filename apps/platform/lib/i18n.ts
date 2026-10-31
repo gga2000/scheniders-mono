@@ -3398,6 +3398,7 @@ export const translations: Record<Locale, Record<string, string>> = {
 
         "team.activities.latest": "Latest Activities",
         "team.activities.loadMore": "Load More",
+        "team.activities.loadFailed": "Could not load activity",
         "team.activities.emptyTitle": "No activity yet",
         "team.activities.emptyAll": "New orders, edits, and logins will appear here the moment they happen.",
         "team.activities.emptyFiltered": "No activities match this filter for the selected period.",
@@ -7747,6 +7748,7 @@ export const translations: Record<Locale, Record<string, string>> = {
 
         "team.activities.latest": "آخر النشاطات",
         "team.activities.loadMore": "تحميل المزيد",
+        "team.activities.loadFailed": "تعذّر تحميل النشاط",
         "team.activities.emptyTitle": "لا توجد نشاطات بعد",
         "team.activities.emptyAll": "ستظهر الطلبات الجديدة والتعديلات وعمليات تسجيل الدخول هنا لحظة حدوثها.",
         "team.activities.emptyFiltered": "لا توجد نشاطات تطابق هذا الفلتر للفترة المحددة.",

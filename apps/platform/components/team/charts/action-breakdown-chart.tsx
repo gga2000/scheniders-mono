@@ -68,7 +68,7 @@ export function ActionBreakdownChart({
                 color: config?.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
             };
         });
-    }, [data]);
+    }, [data, t]);
 
     const totalCount = useMemo(() => {
         return data.reduce((sum, item) => sum + item.count, 0);
@@ -143,7 +143,7 @@ export function ActionBreakdownChart({
                                 verticalAlign="middle"
                                 iconType="circle"
                                 iconSize={8}
-                                formatter={(value, entry) => (
+                                formatter={(value) => (
                                     <span className="text-xs text-foreground">{value}</span>
                                 )}
                                 wrapperStyle={{

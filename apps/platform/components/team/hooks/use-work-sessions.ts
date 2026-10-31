@@ -187,7 +187,10 @@ export function useWorkSessions(
 /**
  * Format session duration for display
  */
-export function formatSessionDuration(minutes: number, t: any): string {
+export function formatSessionDuration(
+    minutes: number,
+    t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
     if (minutes < 60) {
         return t("team.stats.minutes", { count: minutes.toString() });
     }
