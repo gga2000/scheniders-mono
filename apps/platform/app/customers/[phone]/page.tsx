@@ -165,6 +165,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     const { t } = useLanguage();
     const { can } = usePermission();
     const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
+    const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const { tenantId } = useAuth();
     const router = useRouter();
     const store = useCustomerStore();
@@ -282,7 +283,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <div className="col-span-12 lg:col-span-7">
                     <DossierNotesCard
                         notes={profile.notes}
-                        onAddNote={() => store.setAddNoteModalOpen(true)}
+                        onAddNote={canEdit ? () => store.setAddNoteModalOpen(true) : undefined}
                     />
                 </div>
 

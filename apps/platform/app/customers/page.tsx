@@ -41,6 +41,7 @@ function CustomersPageContent() {
     const { t, language } = useLanguage();
     const { can } = usePermission();
     const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
+    const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const { state, rawSearch, setSearch, setSort, setView } = useCustomerUrlState();
     const { viewMode, setViewMode } = useCustomerStore();
 
@@ -141,16 +142,17 @@ function CustomersPageContent() {
         );
     }, [selected, customerCsvHeader, customerCsvRow]);
 
-    const onConfirmTags = useCallback(async (tagIds: string[]) => {
+    const onConfirmTags = useCallback(async (tagIds: string[]): Promise<boolean> => {
         try {
             await bulkAddTags(selectedPhones, tagIds);
         } catch {
             toast({ variant: "error", title: t("customers.bulk.tagFailed") });
-            return;
+            return false;
         }
         toast({ variant: "success", title: t("customers.bulk.tagged", { count: String(selectedPhones.length) }) });
         setShowBulkTag(false);
         clearSelected();
+        return true;
     }, [bulkAddTags, selectedPhones, clearSelected, t]);
 
     const onValue = useCallback((next: ValueFilter) => {
@@ -379,7 +381,7 @@ function CustomersPageContent() {
                 allSelected={allSelectedFor === filtersKey}
                 selectingAll={selectingAll}
                 onExport={canExport ? exportSelected : undefined}
-                onAddTag={() => setShowBulkTag(true)}
+                onAddTag={canEdit ? () => setShowBulkTag(true) : undefined}
                 onBroadcast={() => setShowBroadcast(true)}
                 onClear={clearSelected}
             />

@@ -49,3 +49,21 @@ describe("CustomerBulkBar select all", () => {
         expect(screen.queryByText(/selectAllMatching/)).toBeNull();
     });
 });
+
+describe("CustomerBulkBar tagging", () => {
+    it("hides Add tag from users without customers.edit", () => {
+        render(
+            <CustomerBulkBar selectedCount={3} totalMatching={3} allSelected selectingAll={false}
+                onBroadcast={noop} onClear={noop} />,
+        );
+        expect(screen.queryByText("customers.bulk.addTag")).toBeNull();
+    });
+
+    it("shows Add tag when the page supplies the handler", () => {
+        render(
+            <CustomerBulkBar selectedCount={3} totalMatching={3} allSelected selectingAll={false}
+                onAddTag={noop} onBroadcast={noop} onClear={noop} />,
+        );
+        expect(screen.getByText("customers.bulk.addTag")).toBeTruthy();
+    });
+});

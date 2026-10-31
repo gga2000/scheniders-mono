@@ -17,6 +17,8 @@ import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 
 interface CustomerCardProps {
     customer: PaginatedCustomer;
@@ -32,6 +34,8 @@ interface CustomerCardProps {
 
 export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: CustomerCardProps) {
     const { t, language } = useLanguage();
+    const { can } = usePermission();
+    const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const [quickOpen, setQuickOpen] = useState(false);
     const select = onToggleSelect as (() => void) | undefined;
 
@@ -137,13 +141,15 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                     <span className="truncate">{pending ? t("customers.card.firstDeliveryPending") : recency.label}</span>
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setQuickOpen(true); }}
-                        className="w-11 h-11 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
-                        aria-label={t("customers.quick.title", "Tag or note")}
-                    >
-                        <Tag className="w-4 h-4" />
-                    </button>
+                    {canEdit && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setQuickOpen(true); }}
+                            className="w-11 h-11 rounded-xl border border-(--card-border) text-muted-foreground flex items-center justify-center hover:bg-muted/40 transition-colors"
+                            aria-label={t("customers.quick.title", "Tag or note")}
+                        >
+                            <Tag className="w-4 h-4" />
+                        </button>
+                    )}
                     <button
                         onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
                         className="w-11 h-11 rounded-xl bg-lime-50 text-lime-700 flex items-center justify-center hover:bg-lime-100 transition-colors"
