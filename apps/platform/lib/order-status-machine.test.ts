@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     classifyTransition,
     isUnusualTransition,
+    resolveStatusForOrder,
     PRE_FULFILMENT_STATUSES,
     FULFILMENT_OUTCOME_STATUSES,
 } from "./order-status-machine";
@@ -93,5 +94,13 @@ describe("classifyTransition", () => {
         for (const status of PRE_FULFILMENT_STATUSES) {
             expect(FULFILMENT_OUTCOME_STATUSES).not.toContain(status);
         }
+    });
+});
+
+describe("resolveStatusForOrder", () => {
+    it("turns delivered into refund_delivered for a return order only", () => {
+        expect(resolveStatusForOrder({ is_return: true }, "delivered")).toBe("refund_delivered");
+        expect(resolveStatusForOrder({ is_return: false }, "delivered")).toBe("delivered");
+        expect(resolveStatusForOrder({ is_return: true }, "cancelled")).toBe("cancelled");
     });
 });

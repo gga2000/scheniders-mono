@@ -68,3 +68,11 @@ export function classifyTransition(from: OrderStatus, to: OrderStatus): Transiti
 export function isUnusualTransition(from: OrderStatus, to: OrderStatus): boolean {
     return classifyTransition(from, to).kind === "unusual";
 }
+
+/**
+ * A return (refund) order is never "delivered" like a sale: delivering it is
+ * `refund_delivered`, so it is counted as a refund and not as revenue.
+ */
+export function resolveStatusForOrder(order: Pick<Order, "is_return">, status: OrderStatus): OrderStatus {
+    return order.is_return && status === "delivered" ? "refund_delivered" : status;
+}

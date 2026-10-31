@@ -125,6 +125,14 @@ describe("update_order_status", () => {
         expect(env.tables.orders[1].status).toBe("new");
     });
 
+    it("delivers a return order as refund_delivered, like the orders page", async () => {
+        env.tables.orders.push({ ...order("r1", "1003", STORE, "in_transit"), is_return: true });
+        const res = await call("update_order_status", { orders: ["1003"], status: "delivered", confirm: false });
+        expect(res.text).toContain("in_transit → refund_delivered");
+        expect(env.tables.orders[3].status).toBe("refund_delivered");
+        expect(env.tables.order_status_history).toEqual([expect.objectContaining({ order_id: "r1", to_status: "refund_delivered" })]);
+    });
+
     it("cannot reach another store's order", async () => {
         const res = await call("update_order_status", { orders: ["1001-B"], status: "cancelled", confirm: true });
         expect(res).toEqual({ isError: true, text: "No order 1001-B in this store." });

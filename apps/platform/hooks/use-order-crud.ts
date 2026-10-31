@@ -32,7 +32,7 @@ import {
     catchUpAfterOwnWrite,
 } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
-import { classifyTransition } from "@/lib/order-status-machine";
+import { classifyTransition, resolveStatusForOrder } from "@/lib/order-status-machine";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
 import { scheduleDayFromToday } from "@/lib/order-format-utils";
@@ -187,9 +187,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         const previousOrder = currentCache?.find(o => o.id === orderId) || orders.find(o => o.id === orderId);
 
         // Auto-redirect: return orders marked as "delivered" should use "refund_delivered"
-        if (previousOrder?.is_return && status === 'delivered') {
-            status = 'refund_delivered' as Order["status"];
-        }
+        if (previousOrder) status = resolveStatusForOrder(previousOrder, status);
 
         // COR-3: report a status change that has no legitimate reading — an order
         // claiming a fulfilment outcome it was never shipped for. Deliberately
