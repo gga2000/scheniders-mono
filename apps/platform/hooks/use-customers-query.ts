@@ -112,6 +112,7 @@ export function useAssignTagMutation() {
     const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ phone, tagId }: { phone: string; tagId: string }) => {
+            if (!tenantId) throw new Error("No active tenant");
             await customerRepository.assignTag(phone, tagId, tenantId);
             return { phone, tagId };
         },
