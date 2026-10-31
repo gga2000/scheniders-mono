@@ -22,3 +22,17 @@ export function isExchangedOriginalStatusViolation(error: unknown): boolean {
     const { code, message } = error as { code?: unknown; message?: unknown };
     return code === "23514" && typeof message === "string" && message.includes(EXCHANGED_ORIGINAL_MESSAGE);
 }
+
+/**
+ * The message staff see for a failed order write, in their language: the
+ * exchange guard and a version conflict get their own wording, anything else
+ * its own message. One place, so every caller says the same thing.
+ */
+export function orderWriteErrorMessage(error: unknown, t: (key: string) => string): string {
+    if (error instanceof ExchangedOrderStatusError || isExchangedOriginalStatusViolation(error)) {
+        return t("orders.status.exchangedOriginal");
+    }
+    if (error instanceof Error && error.message === "CONFLICT_DETECTED") return t("orders.error.conflict");
+    if (error instanceof Error && error.message) return error.message;
+    return t("orders.error.updateFailed");
+}

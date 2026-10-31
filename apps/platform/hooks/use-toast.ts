@@ -128,7 +128,12 @@ function createToast(options: ToastOptions & { id?: string }) {
     const variant = options.variant || "default";
     // A caller-chosen id updates that toast in place (progress messages).
     if (options.id && memoryState.toasts.some((t) => t.id === options.id)) {
-        dispatch({ type: "UPDATE_TOAST", toast: { ...options, id: options.id, variant } });
+        // The new variant's duration, so a loading toast that turns into a
+        // result does not stay up for the loading timeout.
+        dispatch({
+            type: "UPDATE_TOAST",
+            toast: { ...options, id: options.id, variant, duration: options.duration ?? DURATIONS[variant] },
+        });
         return options.id;
     }
     const duration = options.duration ?? DURATIONS[variant];
