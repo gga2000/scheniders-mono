@@ -8,6 +8,9 @@ import { useLanguage } from "@/hooks/use-language";
 import { useStockTodayQuery } from "@/hooks/use-stock-today-query";
 import { ProductThumb } from "@/components/products/product-thumb";
 import { StockTodayGlance } from "@/components/orders/stock-today-glance";
+import { StockPinControls, type StockPinState } from "@/components/orders/stock-pin-controls";
+import { useStockPins } from "@/hooks/use-stock-pins";
+import { pinnedFirst } from "@/lib/orders/stock-pins";
 import { StockUnitBar, SWATCH } from "@/components/orders/stock-unit-bar";
 import {
     filterStockToday,
@@ -86,10 +89,18 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
     const [shown, setShown] = useState(page);
 
     const items = useMemo(() => data ?? [], [data]);
+    const stockPins = useStockPins(items);
+    const pins: StockPinState = useMemo(() => ({
+        keys: stockPins.pinned.map(p => p.key),
+        canEdit: stockPins.canEdit,
+        isFull: stockPins.isFull,
+        toggle: stockPins.toggle,
+        move: stockPins.move,
+    }), [stockPins]);
     const summary = useMemo(() => stockTodaySummary(items), [items]);
     const list = useMemo(
-        () => filterStockToday(items, filter, view === "glance" ? "both" : lane, query),
-        [items, filter, lane, query, view]
+        () => filterStockToday(pinnedFirst(items, stockPins.pinned), filter, view === "glance" ? "both" : lane, query),
+        [items, stockPins.pinned, filter, lane, query, view]
     );
     const rest = list.length - shown;
 
@@ -239,7 +250,7 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                         {view === "glance" ? (
                             list.length === 0
                                 ? <p className="py-12 text-center text-sm text-[var(--foreground-muted)]">{t("orders.stockToday.empty", "No products match.")}</p>
-                                : <StockTodayGlance items={list.slice(0, shown)} />
+                                : <StockTodayGlance items={list.slice(0, shown)} pins={pins} />
                         ) : (
                         <>
                         <div className={cn("hidden md:grid gap-4 pt-3 pb-1 text-[11px] uppercase tracking-wider text-[var(--foreground-muted)]", cols)}>
@@ -252,7 +263,7 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                         ) : (
                             <ul>
                                 {list.slice(0, shown).map(item => (
-                                    <StockRow key={item.key} item={item} lane={lane} cols={cols} />
+                                    <StockRow key={item.key} item={item} lane={lane} cols={cols} pins={pins} />
                                 ))}
                             </ul>
                         )}
@@ -287,7 +298,7 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
     );
 }
 
-function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneFilter; cols: string }) {
+function StockRow({ item, lane, cols, pins }: { item: StockTodayItem; lane: StockLaneFilter; cols: string; pins: StockPinState }) {
     const { t } = useLanguage();
     const [stateKey, stateFallback] = STOCK_STATE_LABEL[item.state];
     return (
@@ -298,7 +309,7 @@ function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneF
                         ? <ProductThumb src={item.imageUrl} alt="" sizes="48px" />
                         : <Package className="w-4 h-4 text-[var(--foreground-muted)]" />}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-left text-[15px] font-bold leading-snug" dir="auto" title={item.name}>
                         {item.shortName}{item.variantName ? ` · ${item.variantName}` : ""}
                     </p>
@@ -307,6 +318,7 @@ function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneF
                         {t(stateKey, stateFallback)}
                     </span>
                 </div>
+                <StockPinControls itemKey={item.key} pins={pins} />
             </div>
             {lane !== "openBox" && (
                 <StockUnitBar lane={item.fresh} state={laneState(item.fresh, item.lowAt)} label={t("orders.stockToday.new", "New")} />

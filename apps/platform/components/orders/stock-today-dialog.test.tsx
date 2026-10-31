@@ -26,6 +26,22 @@ vi.mock("@/hooks/use-stock-today-query", () => ({
     }),
 }));
 
+let pinKeys: string[] = [];
+let canEditPins = true;
+const togglePin = vi.fn();
+vi.mock("@/hooks/use-stock-pins", async () => {
+    const { resolveStockPins } = await import("@/lib/orders/stock-pins");
+    return {
+        useStockPins: (items: Parameters<typeof resolveStockPins>[0]) => ({
+            pinned: resolveStockPins(items, pinKeys),
+            canEdit: canEditPins,
+            isFull: pinKeys.length >= 3,
+            toggle: togglePin,
+            move: vi.fn(),
+        }),
+    };
+});
+
 import { StockTodayDialog } from "./stock-today-dialog";
 
 function row(i: number, over: Partial<StockTodayRow> = {}): StockTodayRow {
@@ -38,7 +54,7 @@ function row(i: number, over: Partial<StockTodayRow> = {}): StockTodayRow {
     };
 }
 
-afterEach(() => { cleanup(); rows = []; window.localStorage.clear(); });
+afterEach(() => { cleanup(); rows = []; pinKeys = []; canEditPins = true; togglePin.mockClear(); window.localStorage.clear(); });
 
 describe("StockTodayDialog, simple view", () => {
     it("opens on the simple board: six cards, worst first, minus sign when oversold", () => {
@@ -107,5 +123,41 @@ describe("StockTodayDialog, detailed view", () => {
         const items = screen.getAllByRole("listitem");
         expect(items).toHaveLength(1);
         expect(items[0].textContent).toContain("Envoy");
+    });
+});
+
+describe("StockTodayDialog, pinned products", () => {
+    it("shows pinned products first, in pin order, ahead of worse-off ones", () => {
+        rows = [
+            row(1, { name: "Fine A" }),
+            row(2, { name: "Oversold B", on_hand: -3 }),
+            row(3, { name: "Fine C" }),
+        ];
+        pinKeys = ["p3", "p1"];
+        render(<StockTodayDialog open onOpenChange={vi.fn()} />);
+        const names = screen.getAllByRole("listitem").map(li => li.textContent ?? "");
+        expect(names[0]).toContain("Fine C");
+        expect(names[1]).toContain("Fine A");
+        expect(names[2]).toContain("Oversold B");
+    });
+
+    it("lets an admin pin and unpin, and stops at three", () => {
+        rows = [row(1), row(2), row(3), row(4)];
+        pinKeys = ["p1", "p2", "p3"];
+        render(<StockTodayDialog open onOpenChange={vi.fn()} />);
+        fireEvent.click(screen.getAllByRole("button", { name: "orders.stockToday.pin.unpin" })[0]);
+        expect(togglePin).toHaveBeenCalledWith("p1");
+        const pinButtons = screen.getAllByRole("button", { name: "orders.stockToday.pin.pin" });
+        expect(pinButtons).toHaveLength(1);
+        expect((pinButtons[0] as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("shows team members who cannot edit a mark instead of buttons", () => {
+        rows = [row(1), row(2)];
+        pinKeys = ["p1"];
+        canEditPins = false;
+        render(<StockTodayDialog open onOpenChange={vi.fn()} />);
+        expect(screen.queryAllByRole("button", { name: /orders\.stockToday\.pin\./ })).toHaveLength(0);
+        expect(screen.getAllByTitle("orders.stockToday.pin.pinned")).toHaveLength(1);
     });
 });

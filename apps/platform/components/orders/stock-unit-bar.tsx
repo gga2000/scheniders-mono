@@ -23,7 +23,7 @@ const FREE: Record<StockState, string> = {
     ok: SWATCH.free,
 };
 
-const NUMBER: Record<StockState, string> = {
+export const STATE_NUMBER: Record<StockState, string> = {
     oversold: "text-red-600 dark:text-red-400",
     short: "text-amber-600 dark:text-amber-400",
     out: "text-[var(--foreground-muted)]",
@@ -62,7 +62,7 @@ export function StockUnitBar({ lane, state, label }: StockUnitBarProps) {
         <div className="min-w-0 space-y-3 rounded-2xl bg-[var(--background)] p-3.5">
             <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[11px] font-medium text-[var(--foreground-muted)]">{label}</span>
-                <span className={cn("font-mono text-2xl font-semibold leading-none tabular-nums", NUMBER[state])}>
+                <span className={cn("font-mono text-2xl font-semibold leading-none tabular-nums", STATE_NUMBER[state])}>
                     {over ? `−${Math.abs(lane.left)}` : lane.left}
                     <small className="ms-1.5 font-sans text-[11px] font-medium text-[var(--foreground-muted)]">
                         {over ? t("orders.stockToday.over", "over") : t("orders.stockToday.freeToSell", "free to sell")}
