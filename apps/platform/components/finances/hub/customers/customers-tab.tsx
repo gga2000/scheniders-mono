@@ -7,6 +7,7 @@ import {
     Crown, AlarmClock, Search, ExternalLink, Sparkles,
 } from "lucide-react";
 import type { Order } from "@/lib/supabase";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useFinanceCustomers } from "@/hooks/use-finance-customers";
 import type { FinancePeriod, Granularity } from "@/hooks/use-finance-period";
 import { SectionCard } from "../primitives/section-card";
@@ -137,7 +138,7 @@ function TopSpendersTable({ rows }: { rows: CustomerSummary[] }) {
                                     </div>
                                 </div>
                                 <Link
-                                    href={`/customers?phone=${encodeURIComponent(c.phone)}`}
+                                    href={`/customers/${encodeURIComponent(normalizePhoneForSearch(c.phone))}`}
                                     className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-[var(--background)] transition-colors"
                                     title="Open customer"
                                 >
@@ -208,7 +209,7 @@ function DormantHighValueTable({ rows }: { rows: DormantCustomer[] }) {
                                     </div>
                                 </div>
                                 <Link
-                                    href={`/customers?phone=${encodeURIComponent(c.phone)}`}
+                                    href={`/customers/${encodeURIComponent(normalizePhoneForSearch(c.phone))}`}
                                     className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-[var(--background)] transition-colors"
                                     title="Open customer"
                                 >

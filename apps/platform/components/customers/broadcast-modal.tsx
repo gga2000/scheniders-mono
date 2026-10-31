@@ -8,6 +8,9 @@ import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
 
+// The 10-digit key customers are stored under: 7XXXXXXXXX. Anything else has no WhatsApp account to open.
+const IRAQ_MOBILE = /^7\d{9}$/;
+
 export interface BroadcastRecipient {
     phone: string;
     name: string;
@@ -40,8 +43,9 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
     const [step, setStep] = useState<"compose" | "send">("compose");
     const [sent, setSent] = useState<Set<string>>(new Set());
 
-    const sendable = useMemo(() => recipients.filter((r) => !r.is_blacklisted), [recipients]);
-    const blockedCount = recipients.length - sendable.length;
+    const sendable = useMemo(() => recipients.filter((r) => !r.is_blacklisted && IRAQ_MOBILE.test(r.phone)), [recipients]);
+    const blockedCount = recipients.filter((r) => r.is_blacklisted).length;
+    const invalidCount = recipients.length - blockedCount - sendable.length;
 
     if (!isOpen) return null;
 
@@ -89,6 +93,7 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                             <p className="text-sm text-muted-foreground mt-1">
                                 {t("customers.broadcast.recipients", { count: sendable.length })}
                                 {blockedCount > 0 && ` · ${t("customers.broadcast.blockedSkipped", { count: blockedCount })}`}
+                                {invalidCount > 0 && ` · ${t("customers.broadcast.invalidSkipped", { count: invalidCount })}`}
                             </p>
                         </div>
                         <button
