@@ -7,7 +7,6 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useDeleteCustomerNote } from "@/hooks/use-customer-notes";
 import { usePermission } from "@/hooks/use-permission";
 import { toast } from "@/hooks/use-toast";
-import { isAdminRole } from "@/lib/permissions";
 import type { CustomerNote } from "@/types/customer";
 
 interface DossierNotesCardProps {
@@ -20,8 +19,9 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
     const { user } = useAuth();
     const { role } = usePermission();
     const deleteNote = useDeleteCustomerNote();
-    // Mirrors the database rule: authors delete their own notes, admins any.
-    const canDelete = (note: CustomerNote) => isAdminRole(role) || (!!note.created_by && note.created_by === user?.id);
+    // Mirrors the database rule: authors delete their own notes, the store's
+    // admins any (platform staff are not store admins there).
+    const canDelete = (note: CustomerNote) => role === "admin" || (!!note.created_by && note.created_by === user?.id);
     const onDelete = (id: string) =>
         deleteNote.mutate(id, {
             onError: () => toast({ variant: "error", title: t("customers.profile.noteDeleteFailed") }),

@@ -9,6 +9,7 @@ import { TRUST_TIER_CONFIG, type TrustTier } from "@/types/customer";
 import { cn } from "@/lib/utils";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
 import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
+import { displayScore } from "@/lib/customer-reliability";
 
 interface HeroIdentityBannerProps {
     name: string;
@@ -56,8 +57,8 @@ export function HeroIdentityBanner({
         .slice(0, 2)
         .toUpperCase();
 
-    // Score is uncapped — can go above 100 or below 0
-    const displayScore = trustScore;
+    // Shown out of 100 the same way the drawer shows it.
+    const shownScore = displayScore(trustScore);
 
     const memberSince = firstOrderDate
         ? new Date(firstOrderDate).toLocaleDateString("en-US", {
@@ -213,7 +214,7 @@ export function HeroIdentityBanner({
 
                 <div className="flex items-end gap-1.5">
                     <span className="text-5xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
-                        {displayScore.toLocaleString("en-US")}
+                        {shownScore.toLocaleString("en-US")}
                     </span>
                     <span className="text-lg text-muted-foreground mb-0.5">/100</span>
                 </div>
