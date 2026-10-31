@@ -24,6 +24,7 @@ interface BucketPoint {
     product_cost: number;
     delivery_cost: number;
     discount: number;
+    refunds: number;
     expenses: number;
     profit: number;
 }
@@ -209,7 +210,9 @@ export function useFinanceOverview(
             const marketing_cost = eList.filter((e) => e.category === "marketing").reduce((s, e) => s + e.amount, 0);
 
             const gross_profit = delivered_revenue - product_cost;
-            const net_profit = gross_profit - delivery_cost_sum - expense_total;
+            // Courier bills are entered as `shipping` expenses, and a delivery fee is the courier's, so
+            // neither is subtracted here; refunds are, as in Claude's profit_report (lib/finance/profit.ts).
+            const net_profit = gross_profit - refund_value - expense_total;
             const margin_pct = delivered_revenue > 0 ? (net_profit / delivered_revenue) * 100 : 0;
             const orders_count = non_rejected.length;
             const aov = orders_count > 0 ? gross / orders_count : 0;
@@ -220,12 +223,12 @@ export function useFinanceOverview(
             // time series
             const map = new Map<string, BucketPoint>();
             for (const o of oList) {
-                const d = toDate(o.created_at);
+                const d = reportDate(o) ?? toDate(o.created_at);
                 const { key, ts } = bucketKey(d, granularity);
                 if (!map.has(key)) {
                     map.set(key, {
                         bucket: key, ts, revenue: 0, delivered_revenue: 0, orders: 0, delivered: 0,
-                        product_cost: 0, delivery_cost: 0, discount: 0, expenses: 0, profit: 0,
+                        product_cost: 0, delivery_cost: 0, discount: 0, refunds: 0, expenses: 0, profit: 0,
                     });
                 }
                 const b = map.get(key)!;
@@ -240,6 +243,7 @@ export function useFinanceOverview(
                         for (const it of o.items) b.product_cost += resolveItemCost(it, products).cost;
                     }
                 }
+                if (o.status === "refund_delivered") b.refunds += Math.abs(o.price || 0);
                 b.delivery_cost += o.delivery_fee || o.delivery_cost || 0;
                 b.discount += o.discount_amount || 0;
             }
@@ -249,7 +253,7 @@ export function useFinanceOverview(
                 if (!map.has(key)) {
                     map.set(key, {
                         bucket: key, ts, revenue: 0, delivered_revenue: 0, orders: 0, delivered: 0,
-                        product_cost: 0, delivery_cost: 0, discount: 0, expenses: 0, profit: 0,
+                        product_cost: 0, delivery_cost: 0, discount: 0, refunds: 0, expenses: 0, profit: 0,
                     });
                 }
                 map.get(key)!.expenses += e.amount;
@@ -264,7 +268,7 @@ export function useFinanceOverview(
                 if (!map.has(key)) {
                     map.set(key, {
                         bucket: key, ts, revenue: 0, delivered_revenue: 0, orders: 0, delivered: 0,
-                        product_cost: 0, delivery_cost: 0, discount: 0, expenses: 0, profit: 0,
+                        product_cost: 0, delivery_cost: 0, discount: 0, refunds: 0, expenses: 0, profit: 0,
                     });
                 }
                 if (granularity === "day") cursor.setDate(cursor.getDate() + 1);
@@ -274,7 +278,7 @@ export function useFinanceOverview(
                 else cursor.setMonth(cursor.getMonth() + 1);
             }
             const series = Array.from(map.values()).sort((a, b) => a.ts - b.ts);
-            for (const s of series) s.profit = s.delivered_revenue - s.product_cost - s.delivery_cost - s.expenses;
+            for (const s of series) s.profit = s.delivered_revenue - s.product_cost - s.refunds - s.expenses;
 
             return {
                 gross_revenue: gross,

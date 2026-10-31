@@ -27,18 +27,16 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
         // HeroStrip and use-finance-overview (which compute profit on realized cash only).
         const delivered = data.delivered_revenue;
         const gross_profit = delivered - data.product_cost;
-        const after_delivery = gross_profit - data.delivery_cost;
-        const net_profit = after_delivery - data.expenses;
-        const undelivered = Math.max(0, data.gross_revenue - delivered - data.refund_value);
+        const net_profit = gross_profit - data.refund_value - data.expenses;
+        const undelivered = Math.max(0, data.gross_revenue - delivered);
 
         return [
             { id: "gross", label: "Gross Revenue", value: data.gross_revenue, kind: "base" },
-            { id: "refunds", label: "− Refunds / Returns", value: -data.refund_value, kind: "deduction" },
             { id: "undelivered", label: "− In transit / unconfirmed", value: -undelivered, kind: "deduction" },
             { id: "delivered_rev", label: "Delivered Revenue", value: delivered, kind: "result" },
             { id: "cogs", label: "− COGS", value: -data.product_cost, kind: "deduction" },
             { id: "gross_profit", label: "Gross Profit", value: gross_profit, kind: "result" },
-            { id: "delivery", label: "− Delivery", value: -data.delivery_cost, kind: "deduction" },
+            { id: "refunds", label: "− Refunds / Returns", value: -data.refund_value, kind: "deduction" },
             { id: "expenses", label: "− Expenses", value: -data.expenses, kind: "deduction" },
             { id: "net_profit", label: "Net Profit", value: net_profit, kind: "result" },
         ];
@@ -121,7 +119,7 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
             <div className="mt-5 pt-4 border-t border-[var(--card-border)] grid grid-cols-3 gap-3 text-center">
                 <Stat label="Net Margin" value={`${data.margin_pct.toFixed(1)}%`} good={data.margin_pct >= 10} />
                 <Stat label="COGS Ratio" value={data.delivered_revenue > 0 ? `${((data.product_cost / data.delivered_revenue) * 100).toFixed(0)}%` : "—"} />
-                <Stat label="Delivery Ratio" value={data.gross_revenue > 0 ? `${((data.delivery_cost / data.gross_revenue) * 100).toFixed(1)}%` : "—"} />
+                <Stat label="Refund Ratio" value={data.delivered_revenue > 0 ? `${((data.refund_value / data.delivered_revenue) * 100).toFixed(1)}%` : "—"} />
             </div>
         </SectionCard>
     );
