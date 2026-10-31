@@ -43,14 +43,15 @@ function CustomersPageContent() {
     const { can } = usePermission();
     const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
-    const { state, rawSearch, setSearch, setSort, setView, setTag } = useCustomerUrlState();
+    const { state, chips, setChips, rawSearch, setSearch, setSort, setView, setTag } = useCustomerUrlState();
     const { tags } = useCustomerTags();
     const { viewMode, setViewMode } = useCustomerStore();
 
     // Two independent server-side axes + the client-only action-lane cohorts.
-    const [valueFilter, setValueFilter] = useState<ValueFilter>("all");
-    const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
-    const [laneFilter, setLaneFilter] = useState<LaneSegment | null>(null);
+    // Kept in the URL, so opening a profile and coming back (or a reload) keeps them.
+    const valueFilter: ValueFilter = chips.value;
+    const riskFilter: RiskFilter = chips.risk;
+    const laneFilter: LaneSegment | null = chips.lane;
     const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
 
     // Multi-select for bulk actions (WhatsApp, tag, export). The selected rows are
@@ -80,7 +81,7 @@ function CustomersPageContent() {
 
     const filtered = !!(state.search || state.city || state.tagId || filters.valueFilter || filters.riskFilter || laneFilter);
 
-    const { data, isLoading, isError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
+    const { data, isLoading, isError, isFetchNextPageError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
 
     const allCustomers = useMemo(() => data?.pages.flatMap((p) => p.customers) || [], [data]);
@@ -162,35 +163,26 @@ function CustomersPageContent() {
         return true;
     }, [bulkAddTags, selectedPhones, clearSelected, t]);
 
-    const onValue = useCallback((next: ValueFilter) => {
-        setValueFilter(next);
-        setLaneFilter(null);
-    }, []);
+    const onValue = (next: ValueFilter) => setChips({ value: next, risk: riskFilter, lane: null });
 
-    const onRisk = useCallback((next: RiskFilter) => {
-        setRiskFilter(next);
-        setLaneFilter(null);
-    }, []);
+    const onRisk = (next: RiskFilter) => setChips({ value: valueFilter, risk: next, lane: null });
 
-    const onSegmentSelect = useCallback((s: SegmentState) => {
-        setValueFilter(s.value);
-        setRiskFilter(s.risk);
-        setLaneFilter(s.lane);
+    const onSegmentSelect = (s: SegmentState) => {
         const sortBy = parseCustomerSort(s.sort?.by);
-        if (s.sort && sortBy) setSort(sortBy, s.sort.order);
-    }, [setSort]);
+        setChips(
+            { value: s.value, risk: s.risk, lane: s.lane === "risky" ? null : s.lane },
+            s.sort && sortBy ? { by: sortBy, order: s.sort.order } : undefined,
+        );
+    };
 
-    const onSegment = useCallback((kind: LaneSegment) => {
+    const onSegment = (kind: LaneSegment) => {
         // "High COD risk" maps to the server-side risk filter so the whole cohort loads.
         if (kind === "risky") {
-            setRiskFilter((prev) => (prev === "high" ? "all" : "high"));
-            setLaneFilter(null);
+            setChips({ value: valueFilter, risk: riskFilter === "high" ? "all" : "high", lane: null });
             return;
         }
-        setLaneFilter((prev) => (prev === kind ? null : kind));
-        setValueFilter("all");
-        setRiskFilter("all");
-    }, []);
+        setChips({ value: "all", risk: "all", lane: laneFilter === kind ? null : kind });
+    };
 
     // Every customer the current filters match, fetched in pages so the API row cap
     // never truncates it. Export and "select all" share it.
@@ -327,7 +319,7 @@ function CustomersPageContent() {
                             <div key={i} className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-6 h-44 animate-pulse" />
                         ))}
                     </div>
-                ) : isError ? (
+                ) : isError && !isFetchNextPageError ? (
                     <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-12 text-center">
                         <p className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
                         <p className="text-sm text-muted-foreground mb-5">{t("customers.loadFailedHint")}</p>
@@ -367,7 +359,10 @@ function CustomersPageContent() {
                             <CustomerGrid customers={displayed} onCustomerClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
                         )}
                         {hasNextPage && (
-                            <div className="flex justify-center pt-2">
+                            <div className="flex flex-col items-center gap-2 pt-2">
+                                {isFetchNextPageError && (
+                                    <p role="alert" className="text-sm text-rose-600">{t("customers.loadMoreFailed", "Couldn't load more customers. Try again.")}</p>
+                                )}
                                 <button
                                     onClick={() => fetchNextPage()}
                                     disabled={isFetchingNextPage}

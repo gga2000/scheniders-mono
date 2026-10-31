@@ -13,7 +13,9 @@ export function PeerComparisonBadge({ phone, city }: PeerComparisonBadgeProps) {
     const { t } = useLanguage();
     const { data, isLoading } = useCustomerPercentile(phone);
 
-    if (!city || isLoading || !data) return null;
+    // The RPC pools by the customer's preferred city, which can differ from the
+    // profile city; a pool of one is no comparison.
+    if (!city || isLoading || !data || data.total_in_group < 2 || !data.city_name || data.city_name === "all") return null;
 
     const percentile = data.percentile;
 
@@ -27,7 +29,7 @@ export function PeerComparisonBadge({ phone, city }: PeerComparisonBadgeProps) {
             <bdi>
                 {t("customers.trust.percentile", {
                     percent: percentile.toLocaleString("en-US"),
-                    city,
+                    city: data.city_name,
                 })}
             </bdi>
         </motion.div>

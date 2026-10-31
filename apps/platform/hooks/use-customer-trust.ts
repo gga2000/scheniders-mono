@@ -96,7 +96,7 @@ export function useCustomerPercentile(phone: string | undefined) {
             if (error) throw error;
             const row = (data || [])[0];
             return {
-                percentile: Number(row?.percentile || 50),
+                percentile: Number(row?.percentile ?? 0),
                 city_name: row?.city_name || '',
                 total_in_group: Number(row?.total_in_group || 0),
             };
