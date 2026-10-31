@@ -57,19 +57,8 @@ export function usePrinting(orders: Order[]) {
     const [batches, setBatches] = useState<PrintBatch[]>([]);
     const [printHistory, setPrintHistory] = useState<PrintHistoryEntry[]>([]);
     const [loading, setLoading] = useState(false);
-    // Helper to get date in YYYY-MM-DD format using LOCAL timezone
-    const getLocalDateString = (date: Date = new Date()) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    const [filters, setFilters] = useState<PrintingFilters>({
-        status: "confirmed",
-        dateFrom: getLocalDateString(),
-        dateTo: getLocalDateString(),
-    });
+    // No date window by default: a confirmed order from yesterday still needs to ship.
+    const [filters, setFilters] = useState<PrintingFilters>({ status: "confirmed" });
     const [labelSettings, setLabelSettings] = useState<LabelSettings>({
         size: "80x120",
         showQrCode: true,
@@ -183,47 +172,29 @@ export function usePrinting(orders: Order[]) {
         }
     }
 
+    /**
+     * Record a print run in one transaction: history rows, print counters and the
+     * batch row. The store comes from the session on the server, never from here.
+     */
     async function recordPrint(
         orderIds: string[],
         printType: "label" | "invoice",
-        batchId?: string,
-        labelSize?: string
-    ) {
-        try {
-            // Create history entries
-            const entries = orderIds.map((orderId) => ({
-                order_id: orderId,
-                batch_id: batchId,
-                print_type: printType,
-                label_size: labelSize,
-            }));
-
-            const { error: historyError } = await supabase
-                .from("print_history")
-                .insert(entries);
-
-            if (historyError) throw historyError;
-
-            // Update orders with print count and timestamp
-            for (const orderId of orderIds) {
-                const order = orders.find((o) => o.id === orderId);
-                const newCount = (order?.print_count || 0) + 1;
-
-                await supabase
-                    .from("orders")
-                    .update({
-                        printed_at: new Date().toISOString(),
-                        print_count: newCount,
-                        last_batch_id: batchId,
-                    })
-                    .eq("id", orderId);
-            }
-
-            return { success: true };
-        } catch (err) {
-            console.error("Error recording print:", err);
-            return { success: false, error: err instanceof Error ? err.message : "Failed to record print" };
+        labelSize: string,
+        batchName: string,
+        invoiceTemplate: string
+    ): Promise<{ success: true; batchId: string } | { success: false; error: string }> {
+        const { data, error } = await supabase.rpc("record_print_run", {
+            p_order_ids: orderIds,
+            p_print_type: printType,
+            p_label_size: labelSize,
+            p_batch_name: batchName,
+            p_invoice_template: invoiceTemplate,
+        });
+        if (error || !data) {
+            return { success: false, error: error?.message ?? "Print run was not recorded" };
         }
+        await fetchBatches();
+        return { success: true, batchId: data };
     }
 
     function isReprintOrder(orderId: string): boolean {
