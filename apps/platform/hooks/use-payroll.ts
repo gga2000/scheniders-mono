@@ -30,82 +30,34 @@ export function usePayroll() {
     }, [fetchHistory]);
 
     /**
-     * Locks a payroll record and marks all pending deductions as applied.
-     * Runs as individual sequential updates (Supabase JS client doesn't support transactions).
+     * Pays an employee: run_payroll writes the record and marks pending deductions applied atomically.
      */
     const runPayroll = useCallback(
         async (
             calculation: PayrollCalculation,
-            paidBy: string,
             notes?: string,
             payslipMeta?: { employeeName: string; employeeEmail: string; employeeRole: string; perOrderBonus: number },
             paymentMethod: "cash" | "zain_cash" | "qi_card" = "cash"
-        ): Promise<{ error: string | null; record?: PayrollRecord; deductionWarnings?: string[] }> => {
-            // 1. Insert the payroll record
-            const insertRes = await supabase
-                .from("payroll_records")
-                .insert({
-                    employee_id: calculation.employeeId,
-                    period_start: calculation.periodStart,
-                    period_end: calculation.periodEnd,
-                    base_salary: calculation.baseSalary,
-                    completed_orders_count: calculation.completedOrdersCount,
-                    order_bonus: calculation.orderBonus,
-                    performance_bonuses_total: calculation.performanceBonusesTotal,
-                    advances_deducted: calculation.advancesTotal,
-                    penalties_deducted: calculation.penaltiesTotal,
-                    absence_days: calculation.absenceDays,
-                    absence_deduction: calculation.absenceDeduction,
-                    gross_salary: calculation.grossSalary,
-                    net_salary: calculation.netSalary,
-                    status: "paid",
-                    paid_at: new Date().toISOString(),
-                    paid_by: paidBy,
-                    notes: notes || null,
-                    payment_method: paymentMethod,
-                    tenant_id: tenantId,
-                })
-                .select()
-                .single();
-            const insertError = insertRes.error;
-            let record = insertRes.data;
-
-            if (insertError || !record) {
-                return { error: insertError?.message || "Failed to create payroll record" };
+        ): Promise<{ error: string | null; record?: PayrollRecord }> => {
+            // Record + deductions are written in one DB transaction (amounts re-summed server-side).
+            const { data: created, error: rpcError } = await supabase.rpc("run_payroll", {
+                p_employee_id: calculation.employeeId,
+                p_period_start: calculation.periodStart,
+                p_period_end: calculation.periodEnd,
+                p_base_salary: calculation.baseSalary,
+                p_completed_orders_count: calculation.completedOrdersCount,
+                p_order_bonus: calculation.orderBonus,
+                p_absence_days: calculation.absenceDays,
+                p_absence_deduction: calculation.absenceDeduction,
+                p_notes: notes ?? null,
+                p_payment_method: paymentMethod,
+            });
+            if (rpcError || !created) {
+                return { error: rpcError?.message || "Failed to create payroll record" };
             }
 
+            let record = created as PayrollRecord;
             const payrollId = record.id;
-
-            // 2. Mark pending advances as deducted
-            const deductionWarnings: string[] = [];
-            if (calculation.pendingAdvances.length > 0) {
-                const advanceIds = calculation.pendingAdvances.map(a => a.id);
-                const { error: advErr } = await supabase
-                    .from("salary_advances")
-                    .update({ is_deducted: true, payroll_id: payrollId })
-                    .in("id", advanceIds);
-                if (advErr) deductionWarnings.push(`advances: ${advErr.message}`);
-            }
-
-            // 3. Mark pending penalties as applied
-            if (calculation.pendingPenalties.length > 0) {
-                const penaltyIds = calculation.pendingPenalties.map(p => p.id);
-                const { error: penErr } = await supabase
-                    .from("salary_penalties")
-                    .update({ is_applied: true, payroll_id: payrollId })
-                    .in("id", penaltyIds);
-                if (penErr) deductionWarnings.push(`penalties: ${penErr.message}`);
-            }
-
-            // 4. Mark pending bonuses as applied
-            if (calculation.pendingBonuses.length > 0) {
-                const bonusIds = calculation.pendingBonuses.map(b => b.id);
-                const { error: bonErr } = await supabase
-                    .from("performance_bonuses")
-                    .update({ is_applied: true, payroll_id: payrollId })
-                    .in("id", bonusIds);
-                if (bonErr) deductionWarnings.push(`bonuses: ${bonErr.message}`);
-            }
 
             // 5. Generate PDF, upload to storage, save signed URL
             if (payslipMeta) {
@@ -153,35 +105,17 @@ export function usePayroll() {
                 }
             }
 
-            const finalRecord = record as PayrollRecord;
-            if (deductionWarnings.length > 0) {
-                console.warn("[Payroll] Deduction updates failed:", deductionWarnings.join("; "));
-            }
-
-            return {
-                error: null,
-                record: finalRecord,
-                deductionWarnings: deductionWarnings.length > 0 ? deductionWarnings : undefined,
-            };
+            return { error: null, record };
         },
         [tenantId]
     );
 
     /**
      * Void a payroll record — restores advances/penalties/bonuses to pending
-     * and marks the record status as "voided".
+     * and marks the record status as "voided" (void_payroll, one transaction).
      */
     const voidPayroll = useCallback(async (recordId: string): Promise<{ error: string | null }> => {
-        // Restore deductions to pending
-        await supabase.from("salary_advances").update({ is_deducted: false, payroll_id: null }).eq("payroll_id", recordId);
-        await supabase.from("salary_penalties").update({ is_applied: false, payroll_id: null }).eq("payroll_id", recordId);
-        await supabase.from("performance_bonuses").update({ is_applied: false, payroll_id: null }).eq("payroll_id", recordId);
-
-        const { error } = await supabase
-            .from("payroll_records")
-            .update({ status: "voided" })
-            .eq("id", recordId);
-
+        const { error } = await supabase.rpc("void_payroll", { p_record_id: recordId });
         if (error) return { error: error.message };
 
         // Remove from local state
