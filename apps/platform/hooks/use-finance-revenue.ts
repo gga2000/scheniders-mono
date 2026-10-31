@@ -5,6 +5,7 @@ import type { Order, Product } from "@/lib/supabase";
 import type { DateInterval } from "./use-finance-overview";
 import type { Granularity } from "./use-finance-period";
 import { isRefundRow, refundPaidAt, reportDate } from "@/lib/refunds/refund-reporting";
+import { resolveItemCost } from "@/lib/finance/item-cost";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
 export interface RevenueDecomposition {
@@ -77,21 +78,6 @@ const CHANNEL_LABELS: Record<string, string> = {
 
 function within(d: Date, i: DateInterval): boolean {
     return d >= i.start && d <= i.end;
-}
-
-function findCost(
-    item: { name?: string; sku?: string; quantity: number; price: number },
-    products: Product[]
-): number {
-    if (item.sku) {
-        const bySku = products.find((p) => p.sku?.toLowerCase() === item.sku?.toLowerCase());
-        if (bySku?.cost) return bySku.cost * item.quantity;
-    }
-    if (item.name) {
-        const byName = products.find((p) => p.name.toLowerCase() === item.name?.toLowerCase());
-        if (byName?.cost) return byName.cost * item.quantity;
-    }
-    return 0;
 }
 
 function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number } {
@@ -198,7 +184,7 @@ export function useFinanceRevenue(
             for (const it of o.items) {
                 const name = it.name || "Unknown";
                 const unitRev = (it.price || 0) * it.quantity;
-                const unitCost = findCost(it, products);
+                const unitCost = resolveItemCost(it, products).cost;
 
                 const tot = productTotals.get(name) || { revenue: 0, cogs: 0, units: 0 };
                 tot.revenue += unitRev;
@@ -298,7 +284,7 @@ export function useFinanceRevenue(
                 row.delivered_revenue += o.price || 0;
                 row.delivered_orders++;
                 if (o.items) {
-                    for (const it of o.items) row.product_cost += findCost(it, products);
+                    for (const it of o.items) row.product_cost += resolveItemCost(it, products).cost;
                 }
             }
             channelMap.set(ch, row);

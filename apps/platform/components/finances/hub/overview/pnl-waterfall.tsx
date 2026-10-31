@@ -78,6 +78,11 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
                 </div>
             }
         >
+            {data.missing_cost_units > 0 && (
+                <p className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600">
+                    {data.missing_cost_units} delivered {data.missing_cost_units === 1 ? "unit has" : "units have"} no cost set, so COGS is understated and profit is higher than real. Add the cost on the product.
+                </p>
+            )}
             <div className="space-y-2">
                 {steps.map((s, i) => {
                     const barPct = (Math.abs(s.value) / maxAbs) * 100;
