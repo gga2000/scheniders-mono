@@ -95,17 +95,9 @@ export async function POST(request: NextRequest) {
                 orderSnapshots.map(o => `${o.order_id} (${o.status})`).join(', '));
         }
 
-        const t9 = performance.now();
-        // Unlink self-referencing FK first
-        await supabaseAdmin
-            .from('orders')
-            .update({ original_order_id: null })
-            .in('original_order_id', ids)
-            .eq('tenant_id', tenantId);
-        const t10 = performance.now();
-        console.log(`[Perf] FK unlink update took: ${(t10 - t9).toFixed(2)}ms`);
-
-        // Soft-delete the orders by setting deleted_at
+        // Soft-delete only. original_order_id links on returns, replacements
+        // and exchanges are left intact so the after-sale chain survives a
+        // delete and a restore.
         const t11 = performance.now();
         const { data: deletedRows, error: deleteError } = await supabaseAdmin
             .from('orders')
