@@ -12,6 +12,8 @@ interface StockQuickAdjustProps {
     productId: string;
     productName: string;
     currentStock: number;
+    /** Held by open orders; shown so "on hand" matches the card's available count. */
+    reserved?: number;
     onClose: () => void;
     anchorRef?: React.RefObject<HTMLElement | null>;
 }
@@ -24,7 +26,7 @@ const REASONS = [
     { value: "other", labelKey: "products.stockAdjust.other" },
 ] as const;
 
-export function StockQuickAdjust({ productId, productName, currentStock, onClose }: StockQuickAdjustProps) {
+export function StockQuickAdjust({ productId, productName, currentStock, reserved = 0, onClose }: StockQuickAdjustProps) {
     const { t } = useLanguage();
     const [deltaText, setDeltaText] = useState("0");
     const delta = parseWholeNumber(deltaText, { allowNegative: true }) ?? 0;
@@ -61,7 +63,7 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
     return (
         <div
             onClick={(e) => e.stopPropagation()}
-            className="w-72 p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-2xl space-y-3"
+            className="w-80 p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-2xl space-y-3"
         >
             <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-foreground truncate">
@@ -80,14 +82,21 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
                 <span className="text-xs text-muted">
                     {t("products.stockAdjust.current")}
                 </span>
-                <span className="text-sm font-semibold text-foreground">{currentStock}</span>
+                <span className="text-sm font-semibold text-foreground tabular-nums">
+                    {currentStock}
+                    {reserved > 0 && (
+                        <span className="ms-1.5 text-xs font-normal text-muted">
+                            {t("products.stock.reservedCount", { count: reserved })}
+                        </span>
+                    )}
+                </span>
             </div>
 
             <div className="flex items-center gap-2">
                 <button
                     type="button"
                     onClick={() => setDeltaText(String(delta - 1))}
-                    className="w-10 h-10 rounded-lg bg-[var(--pastel-pink)] text-rose-700 flex items-center justify-center hover:opacity-90"
+                    className="size-10 shrink-0 rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground flex items-center justify-center hover:bg-[var(--card-border)]"
                     aria-label={t("products.stockAdjust.decrease")}
                 >
                     <Minus className="w-4 h-4" />
@@ -99,12 +108,12 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
                     aria-label={t("products.stockAdjust.change")}
                     value={deltaText}
                     onChange={(e) => setDeltaText(e.target.value)}
-                    className="flex-1 h-10 px-3 text-center font-semibold bg-[var(--background)] border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                    className="flex-1 min-w-0 h-10 px-3 text-center font-semibold tabular-nums bg-[var(--background)] border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                 />
                 <button
                     type="button"
                     onClick={() => setDeltaText(String(delta + 1))}
-                    className="w-10 h-10 rounded-lg bg-[var(--pastel-green)] text-green-700 flex items-center justify-center hover:opacity-90"
+                    className="size-10 shrink-0 rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground flex items-center justify-center hover:bg-[var(--card-border)]"
                     aria-label={t("products.stockAdjust.increase")}
                 >
                     <Plus className="w-4 h-4" />
@@ -117,9 +126,9 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
                     className={cn(
                         "font-semibold",
                         newQuantity > currentStock
-                            ? "text-green-600"
+                            ? "text-emerald-600 dark:text-emerald-400"
                             : newQuantity < currentStock
-                                ? "text-rose-600"
+                                ? "text-rose-600 dark:text-rose-400"
                                 : "text-muted"
                     )}
                 >
@@ -169,7 +178,7 @@ export function StockQuickAdjust({ productId, productName, currentStock, onClose
                     type="button"
                     onClick={submit}
                     disabled={adjust.isPending || delta === 0}
-                    className="flex-1 px-3 py-2 text-sm bg-[var(--ink)] text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-3 py-2 text-sm bg-[var(--ink)] text-white rounded-lg font-medium whitespace-nowrap hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {adjust.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                     {t("products.stockAdjust.save")}

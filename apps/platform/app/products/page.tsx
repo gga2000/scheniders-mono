@@ -18,8 +18,6 @@ import { toast } from "@/hooks/use-toast";
 import {
     Search,
     Package,
-    Grid3X3,
-    List,
     ChevronDown,
     ChevronRight,
     X,
@@ -30,14 +28,12 @@ import {
     Square,
     Filter,
     Layers,
-    FolderTree,
-    Columns3,
-    BarChart3,
     ShoppingCart,
     DollarSign,
     TrendingUp,
 } from "lucide-react";
 import { DensityToggle } from "@/components/products/density-toggle";
+import { ViewModeSwitcher } from "@/components/products/view-mode-switcher";
 import { formatIQD, maskIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
@@ -806,7 +802,7 @@ function ProductsContent() {
                                 )}
 
                                 {/* Count Pill — orders-style glass pill */}
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
                                     <Package className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-lg font-bold text-foreground leading-none tabular-nums">
@@ -819,7 +815,7 @@ function ProductsContent() {
                                 </div>
 
                                 {/* Units sold pill */}
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
                                     <ShoppingCart className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-lg font-bold text-foreground leading-none tabular-nums">
@@ -832,21 +828,21 @@ function ProductsContent() {
                                 </div>
 
                                 {/* Total revenue pill (masked via RevealToggle) */}
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
                                     <DollarSign className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-lg font-bold text-foreground leading-none tabular-nums">
                                             {maskIQD(stats.totalRevenue, showFinancials)}
                                         </span>
                                         <span className="text-xs font-medium text-[var(--foreground-muted)]">
-                                            {t("products.totalRevenue")}
+                                            {t("products.revenue")}
                                         </span>
                                         <RevealToggle className="text-muted-foreground hover:text-foreground" />
                                     </div>
                                 </div>
 
                                 {/* Avg price per unit sold (masked via RevealToggle) */}
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
                                     <TrendingUp className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-lg font-bold text-foreground leading-none tabular-nums">
@@ -1035,31 +1031,7 @@ function ProductsContent() {
                                         </button>
 
                                         {/* View Toggle */}
-                                        <div className="flex bg-[var(--background)] rounded-xl p-1 border border-[var(--card-border)]">
-                                            {([
-                                                { mode: "grid" as const, icon: Grid3X3, label: "products.views.grid" },
-                                                { mode: "list" as const, icon: List, label: "products.views.list" },
-                                                { mode: "category" as const, icon: FolderTree, label: "products.views.category" },
-                                                { mode: "kanban" as const, icon: Columns3, label: "products.views.kanban" },
-                                                { mode: "heatmap" as const, icon: BarChart3, label: "products.views.heatmap" },
-                                            ]).filter(({ mode }) => mode !== "heatmap" || canManageProducts).map(({ mode, icon: Icon, label }) => (
-                                                <button
-                                                    key={mode}
-                                                    onClick={() => setViewMode(mode)}
-                                                    className={cn(
-                                                        "relative p-2 rounded-lg transition-all before:absolute before:-inset-1.5 before:content-['']",
-                                                        viewMode === mode
-                                                            ? "bg-[var(--ink)] text-white"
-                                                            : "text-muted hover:text-foreground"
-                                                    )}
-                                                    title={t(label)}
-                                                    aria-label={t(label)}
-                                                    aria-pressed={viewMode === mode}
-                                                >
-                                                    <Icon className="w-4 h-4" />
-                                                </button>
-                                            ))}
-                                        </div>
+                                        <ViewModeSwitcher canSeeHeatmap={canManageProducts} />
 
                                         {/* Density + Group-by-category — card grid only */}
                                         {viewMode === "grid" && <DensityToggle />}

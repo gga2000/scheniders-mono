@@ -501,6 +501,13 @@ body {
   color: #000000 !important;
 }
 
+/* A button that declares its own disabled look keeps it in dark mode too;
+   the neon rules above would otherwise make "nothing to save" look clickable. */
+.dark button[class*="bg-[var(--ink)]"][class*="disabled:bg-"]:disabled {
+  background: var(--background) !important;
+  color: var(--foreground-muted) !important;
+}
+
 /* ============================================
    Orders Dark Mode — Stitch Neon Reference  
    Deep charcoal + neon yellow/cyan accents

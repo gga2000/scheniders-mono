@@ -256,11 +256,11 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
           </div>
         )}
         <p className="mt-1.5 flex flex-wrap gap-x-2 text-xs text-muted tabular-nums">
-          {(["A", "B", "C", "D", "F"] as const).map((g) => (
-            <span key={g}>
-              {g} {stats.gradeCounts[g]}
-            </span>
-          ))}
+          {t("products.forecast.gradeSummary", {
+            good: stats.gradeCounts.A + stats.gradeCounts.B,
+            fair: stats.gradeCounts.C,
+            poor: stats.gradeCounts.D + stats.gradeCounts.F,
+          })}
         </p>
       </div>
     </div>
