@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 export default function ProductsError({
     error,
@@ -10,8 +12,13 @@ export default function ProductsError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    const { t } = useLanguage();
+
     useEffect(() => {
-        console.error("Products segment error:", error);
+        Sentry.captureException(error, {
+            tags: { area: "products", operation: "products-segment-render" },
+            extra: { digest: error.digest },
+        });
     }, [error]);
 
     return (
@@ -21,11 +28,11 @@ export default function ProductsError({
             </div>
 
             <h2 className="mb-2 text-xl font-bold text-foreground">
-                Products Data Error
+                {t("products.errorTitle")}
             </h2>
 
             <p className="mb-6 max-w-md text-muted">
-                We encountered an issue while retrieving the product catalog.
+                {t("products.errorBody")}
             </p>
 
             <button
@@ -33,7 +40,7 @@ export default function ProductsError({
                 className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
                 <RefreshCw className="h-4 w-4" />
-                Try Again
+                {t("products.errorRetry")}
             </button>
         </div>
     );
