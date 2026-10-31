@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import puppeteer from "puppeteer-core";
-import { verifyAccessToken } from "@/lib/supabase-server";
-import { buildPayslipHTML, type PayslipData } from "@/lib/payslip-html";
+import { ACCOUNT_CHECK_FAILED, requireAdminOverUser } from "@/lib/auth/require-action-caller";
+import { buildPayslipHTML } from "@/lib/payslip-html";
+import { payslipRequestSchema } from "@/lib/payslip-schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,12 +30,17 @@ export async function POST(req: NextRequest) {
         const authHeader = req.headers.get("Authorization");
         const token = authHeader?.replace("Bearer ", "");
         if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const data = (await req.json()) as PayslipData;
-        if (!data?.record?.id || !data.employeeName) {
-            return NextResponse.json({ error: "Invalid payslip data" }, { status: 400 });
+        const parsed = payslipRequestSchema.safeParse(await req.json());
+        if (!parsed.success) return NextResponse.json({ error: "Invalid payslip data" }, { status: 400 });
+        const data = parsed.data;
+
+        // Payslips are payroll: only an admin of the caller's active store, for a member of that
+        // store. Checked before launching Chrome so nobody else can spend a render.
+        const auth = await requireAdminOverUser(token, data.record.employee_id);
+        if (!auth.ok) {
+            const status = auth.error === "Unauthorized" ? 401 : auth.error === ACCOUNT_CHECK_FAILED ? 503 : 403;
+            return NextResponse.json({ error: auth.error }, { status });
         }
 
         const html = buildPayslipHTML(data);

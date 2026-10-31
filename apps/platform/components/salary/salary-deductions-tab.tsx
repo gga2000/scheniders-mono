@@ -13,7 +13,7 @@ function fmtIQD(n: number) {
 }
 
 function fmtDate(d: string, isArabic: boolean) {
-    try { return format(new Date(d), "MMM d, yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
+    try { return format(new Date(d), isArabic ? "d MMMM yyyy" : "MMM d, yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
 }
 
 interface SalaryDeductionsTabProps {
@@ -150,7 +150,7 @@ function DeductionRow({
             </div>
             <div className="text-right shrink-0">
                 <p className={cn("font-semibold text-sm tabular-nums", isBonus ? "text-violet-600" : "text-rose-600")}>
-                    {isBonus ? "+" : "−"}{fmtIQD(amount)} IQD
+                    {isBonus ? "+" : "−"}{fmtIQD(amount)} {t("common.iqd")}
                 </p>
                 {!isApplied && (confirming ? (
                     <div className="mt-1 flex items-center justify-end gap-1">

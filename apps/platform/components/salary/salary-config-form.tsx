@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
 import type { EffectiveSalaryRate } from "@/types/salary";
-import { useSalaryConfig, type SalaryConfigHistoryRow } from "@/hooks/use-salary-config";
+import type { SalaryConfigHistoryRow } from "@/hooks/use-salary-config";
 
 function fmtIQD(n: number | null) {
     if (n === null) return "—";
@@ -25,6 +25,8 @@ interface SalaryConfigFormProps {
         per_order_bonus: number;
         use_role_defaults: boolean;
     }) => Promise<void>;
+    /** Loads the member's last rate changes when the form opens. */
+    loadHistory: (employeeId: string) => Promise<SalaryConfigHistoryRow[]>;
 }
 
 export function SalaryConfigForm({
@@ -34,6 +36,7 @@ export function SalaryConfigForm({
     employeeId,
     currentRate,
     onSubmit,
+    loadHistory,
 }: SalaryConfigFormProps) {
     const [baseSalary, setBaseSalary] = useState(currentRate.baseMonthlySalary);
     const [perOrderBonus, setPerOrderBonus] = useState(currentRate.perOrderBonus);
@@ -41,8 +44,8 @@ export function SalaryConfigForm({
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<SalaryConfigHistoryRow[]>([]);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyFailed, setHistoryFailed] = useState(false);
 
-    const { fetchConfigHistory } = useSalaryConfig();
     const { t, language } = useLanguage();
 
     useEffect(() => {
@@ -51,9 +54,11 @@ export function SalaryConfigForm({
             setPerOrderBonus(currentRate.perOrderBonus);
             setUseRoleDefaults(currentRate.source === "role_default");
             setHistoryOpen(false);
-            fetchConfigHistory(employeeId).then(setHistory);
+            setHistory([]);
+            setHistoryFailed(false);
+            loadHistory(employeeId).then(setHistory, () => setHistoryFailed(true));
         }
-    }, [isOpen, currentRate, employeeId, fetchConfigHistory]);
+    }, [isOpen, currentRate, employeeId, loadHistory]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -174,6 +179,9 @@ export function SalaryConfigForm({
                         </div>
                     </form>
 
+                    {historyFailed && (
+                        <p role="alert" className="text-xs text-rose-600">{t("payroll.config.historyFailed")}</p>
+                    )}
                     {/* Change history */}
                     {history.length > 0 && (
                         <div className="px-6 pb-6">

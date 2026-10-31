@@ -12,6 +12,7 @@ import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { EmployeePayrollData, PayrollRecord } from "@/types/salary";
+import type { SalaryConfigHistoryRow } from "@/hooks/use-salary-config";
 import { PayrollAdjustmentModal } from "./payroll-adjustment-modal";
 import { SalaryConfigForm } from "./salary-config-form";
 import { OrderBreakdownModal } from "./order-breakdown-modal";
@@ -74,28 +75,17 @@ function useCountUp(target: number, durationMs = 550) {
     return value;
 }
 
-// ─── Avatar with name-based gradient ─────────────────────────────────────────
-
-const AVATAR_GRADIENTS = [
-    "from-indigo-500 to-purple-600",
-    "from-emerald-500 to-teal-600",
-    "from-rose-500 to-pink-600",
-    "from-amber-500 to-orange-500",
-    "from-blue-500 to-cyan-600",
-    "from-violet-500 to-fuchsia-600",
-    "from-teal-500 to-green-600",
-    "from-orange-500 to-red-500",
-];
+// ─── Avatar ──────────────────────────────────────────────────────────────────
 
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
-    const initials = name.split(" ").map(p => p[0]).join("").toUpperCase().slice(0, 2) || "?";
-    const gradient = AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
+    // First letter of the first two words; brackets and digits ("Hassan (packing)") are skipped.
+    const initials = name.split(/\s+/).map(p => p.match(/\p{L}/u)?.[0] ?? "").join("").toUpperCase().slice(0, 2) || "?";
 
     if (avatarUrl) {
         return <img src={avatarUrl} alt={name} className="w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-[var(--card-border)]" />;
     }
     return (
-        <div role="img" aria-label={name} className={cn("w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm shrink-0", gradient)}>
+        <div role="img" aria-label={name} className="w-11 h-11 rounded-xl bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center text-foreground font-semibold text-sm shrink-0">
             <span aria-hidden="true">{initials}</span>
         </div>
     );
@@ -113,7 +103,9 @@ function CompactLineItem({
     onClick,
     title,
     ariaLabel,
+    unit,
 }: {
+    unit: string;
     label: string;
     value: number;
     type: "positive" | "negative" | "neutral" | "total";
@@ -137,7 +129,7 @@ function CompactLineItem({
             )}>
                 {type === "positive" ? "+" : type === "negative" ? "−" : ""}
                 {fmtIQD(value)}
-                {showUnit && <span className="text-[10px] text-muted font-normal ml-0.5">IQD</span>}
+                {showUnit && <span className="text-[10px] text-muted font-normal ml-0.5">{unit}</span>}
             </span>
             {/* fixed chevron slot keeps the amount column aligned across clickable + static rows */}
             <span className="w-3 shrink-0 flex items-center justify-center">
@@ -179,6 +171,8 @@ interface EmployeePayrollCardProps {
     onPeriodOverride: (employeeId: string, start: string, end: string) => void;
     onClearPeriodOverride: (employeeId: string) => void;
     onHide: (employeeId: string) => void;
+    /** Rate-change history for the pay settings form. */
+    loadConfigHistory: (employeeId: string) => Promise<SalaryConfigHistoryRow[]>;
     hasOverride: boolean;
     isPayingOut?: boolean;
     recentPayments?: PayrollRecord[];
@@ -201,6 +195,7 @@ export function EmployeePayrollCard({
     onPeriodOverride,
     onClearPeriodOverride,
     onHide,
+    loadConfigHistory,
     hasOverride,
     isPayingOut = false,
     recentPayments = [],
@@ -228,36 +223,36 @@ export function EmployeePayrollCard({
     const isFullyCovered = overlappingPayroll?.fullyCovered === true;
     const isPartialOverlap = !!overlappingPayroll && !isFullyCovered;
 
-    // Payroll math shown as a single running ledger: earnings → deductions → Net.
-    // The order bonus is computed on EVERY completed order (the pre-deduction figure), then
-    // replacements and refunds are subtracted — which nets to the genuine-only bonus that is
-    // actually paid. This only reframes how the same total is presented; Net stays
-    // calculation.netSalary, so nobody's pay changes.
+    // Payroll math as one running ledger: earnings → deductions → Net, with the same lines
+    // the payslip and payroll record use (gross = base + order bonus + bonuses). The order
+    // bonus is the paid one: genuine orders only, a partly refunded order counting its kept
+    // share. Replacements and refunds earn nothing, so they are listed as "not counted",
+    // never as money taken off.
     const perOrderBonus = effectiveRate.perOrderBonus;
-    const ordersGross = breakdown.completedTotal * perOrderBonus;
-    const replacementDeduction = breakdown.replacements * perOrderBonus;
-    const refundDeduction = breakdown.refunds * perOrderBonus;
+    const orderBonus = calculation.orderBonus;
+    // Paid order units (fractional when a refund was partial), shown in the Orders line.
+    const paidUnits = perOrderBonus > 0 ? Math.round((orderBonus / perOrderBonus) * 10) / 10 : calculation.completedOrdersCount;
+    const notCounted = breakdown.replacements + breakdown.refunds;
     const preDeductions =
-        calculation.baseSalary + ordersGross + calculation.performanceBonusesTotal;
+        calculation.baseSalary + orderBonus + calculation.performanceBonusesTotal;
     // Count of non-zero earning lines — a "Before deductions" subtotal is only worth showing
     // when it sums more than one (otherwise it just repeats the single earning line above it).
     const earningLines =
         (calculation.baseSalary > 0 ? 1 : 0) +
-        (ordersGross > 0 ? 1 : 0) +
+        (orderBonus > 0 ? 1 : 0) +
         (calculation.performanceBonusesTotal > 0 ? 1 : 0);
     const hasEarnings = earningLines > 0;
     const hasAnyDeduction =
-        replacementDeduction > 0 || refundDeduction > 0 ||
         calculation.absenceDeduction > 0 || calculation.advancesTotal > 0 ||
         calculation.penaltiesTotal > 0;
     const totalDeductions =
-        replacementDeduction + refundDeduction + calculation.absenceDeduction +
-        calculation.advancesTotal + calculation.penaltiesTotal;
+        calculation.absenceDeduction + calculation.advancesTotal + calculation.penaltiesTotal;
+    // The "total deducted" rollup only earns its row when it sums two or more lines.
+    const deductionLines =
+        (calculation.absenceDeduction > 0 ? 1 : 0) + (calculation.advancesTotal > 0 ? 1 : 0) + (calculation.penaltiesTotal > 0 ? 1 : 0);
     // True signed result of the ledger. Net is clamped at 0 (use-salaries), so when this is
     // negative the displayed lines can't sum to the 0 hero — surface the gap instead of hiding it.
-    const rawNet =
-        preDeductions - replacementDeduction - refundDeduction -
-        calculation.absenceDeduction - calculation.advancesTotal - calculation.penaltiesTotal;
+    const rawNet = preDeductions - totalDeductions;
     const overDeducted = rawNet < -0.5;
 
     // Hero count-up
@@ -305,8 +300,7 @@ export function EmployeePayrollCard({
                 initial={reduce ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: reduce ? 0 : Math.min(index * 0.05, 0.4) }}
-                whileHover={reduce ? undefined : { y: -3 }}
-                className="group bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden hover:border-[var(--ink)]/25 hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.18)] dark:hover:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.6)] transition-[box-shadow,border-color] flex flex-col"
+                className="group bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden hover:border-[var(--ink)]/25 transition-colors flex flex-col"
             >
 
                 {/* ── A. Header — identity ── */}
@@ -325,8 +319,8 @@ export function EmployeePayrollCard({
                         <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <p className="font-semibold text-foreground truncate leading-tight">{displayName}</p>
-                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-muted bg-[var(--background)]">
-                                    {employee.role}
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium text-muted bg-[var(--background)]">
+                                    {t(`payroll.roles.${employee.role}`, employee.role)}
                                 </span>
                             </div>
                             <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
@@ -371,7 +365,7 @@ export function EmployeePayrollCard({
                                         : qualityPct >= 70 ? "text-amber-700 dark:text-amber-400"
                                             : "text-rose-600 dark:text-rose-400",
                                 )}>
-                                    {t("payroll.card.quality", { pct: qualityPct })}
+                                    {qualityPct}% <span className="font-medium">{t("payroll.card.qualityWord")}</span>
                                 </span>
                             </div>
                             {/* Stacked composition bar: genuine / replacements / refunds */}
@@ -496,23 +490,36 @@ export function EmployeePayrollCard({
                 )}
 
                 {/* ── E. Money panel — ledger resolving to the Net hero + pay action ── */}
-                <div className="mx-4 mb-3 mt-auto rounded-xl border border-[var(--card-border)] bg-[var(--background)] overflow-hidden">
+                <div className="mx-4 mb-3 rounded-xl border border-[var(--card-border)] bg-[var(--background)] overflow-hidden">
                     {/* Ledger: earnings → deductions (one running ledger) */}
                     <div className="p-3 pb-2.5 flex gap-3">
                         <div className="flex-1 min-w-0 space-y-0">
                             {/* Earnings */}
                             {calculation.baseSalary > 0 && (
-                                <CompactLineItem label={t("payroll.line.base")} value={calculation.baseSalary} type="neutral" />
+                                <CompactLineItem unit={iqd} label={t("payroll.line.base")} value={calculation.baseSalary} type="neutral" />
                             )}
-                            {ordersGross > 0 && (
+                            {orderBonus > 0 && (
                                 <CompactLineItem
-                                    label={t("payroll.card.ordersLine", { count: breakdown.completedTotal, rate: fmtIQD(perOrderBonus) })}
-                                    value={ordersGross}
+                                    unit={iqd}
+                                    label={t("payroll.card.ordersLine", { count: paidUnits, rate: fmtIQD(perOrderBonus) })}
+                                    value={orderBonus}
                                     type="positive"
                                 />
                             )}
+                            {notCounted > 0 && perOrderBonus > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setBreakdownOpen(true)}
+                                    title={t("payroll.card.replacementsHint")}
+                                    className="flex w-full items-center gap-1 py-[3px] text-[11px] text-muted hover:text-foreground transition-colors"
+                                >
+                                    {t("payroll.card.notCounted", { replacements: breakdown.replacements, refunds: breakdown.refunds })}
+                                    <ChevronRight className="w-3 h-3 opacity-60" aria-hidden="true" />
+                                </button>
+                            )}
                             {calculation.performanceBonusesTotal > 0 && (
                                 <CompactLineItem
+                                    unit={iqd}
                                     label={t("payroll.card.bonusesLine", { count: calculation.pendingBonuses.length })}
                                     value={calculation.performanceBonusesTotal}
                                     type="positive"
@@ -526,7 +533,7 @@ export function EmployeePayrollCard({
                             {earningLines >= 2 && (
                                 <>
                                     <div className="border-t border-[var(--card-border)] my-1" />
-                                    <CompactLineItem label={t("payroll.card.beforeDeductions")} value={preDeductions} type="total" bold />
+                                    <CompactLineItem unit={iqd} label={t("payroll.card.beforeDeductions")} value={preDeductions} type="total" bold />
                                 </>
                             )}
 
@@ -534,28 +541,9 @@ export function EmployeePayrollCard({
                             {hasAnyDeduction && (
                                 <>
                                     {earningLines < 2 && <div className="border-t border-[var(--card-border)] my-1" />}
-                                    {breakdown.replacements > 0 && (
-                                        <CompactLineItem
-                                            label={t("payroll.card.replacementsLine", { count: breakdown.replacements })}
-                                            value={replacementDeduction}
-                                            type="negative"
-                                            onClick={() => setBreakdownOpen(true)}
-                                            ariaLabel={t("payroll.card.replacementsAria", { count: breakdown.replacements, amount: fmtIQD(replacementDeduction), currency: iqd })}
-                                            title={t("payroll.card.replacementsHint")}
-                                        />
-                                    )}
-                                    {breakdown.refunds > 0 && (
-                                        <CompactLineItem
-                                            label={t("payroll.card.refundsLine", { count: breakdown.refunds })}
-                                            value={refundDeduction}
-                                            type="negative"
-                                            onClick={() => setBreakdownOpen(true)}
-                                            ariaLabel={t("payroll.card.refundsAria", { count: breakdown.refunds, amount: fmtIQD(refundDeduction), currency: iqd })}
-                                            title={t("payroll.card.refundsHint")}
-                                        />
-                                    )}
                                     {calculation.absenceDeduction > 0 && (
                                         <CompactLineItem
+                                    unit={iqd}
                                             label={t("payroll.card.absenceLine", { days: calculation.absenceDays })}
                                             value={calculation.absenceDeduction}
                                             type="negative"
@@ -563,6 +551,7 @@ export function EmployeePayrollCard({
                                     )}
                                     {calculation.advancesTotal > 0 && (
                                         <CompactLineItem
+                                    unit={iqd}
                                             label={t("payroll.card.advancesLine", { count: calculation.pendingAdvances.length })}
                                             value={calculation.advancesTotal}
                                             type="negative"
@@ -570,18 +559,19 @@ export function EmployeePayrollCard({
                                     )}
                                     {calculation.penaltiesTotal > 0 && (
                                         <CompactLineItem
+                                    unit={iqd}
                                             label={t("payroll.card.penaltiesLine", { count: calculation.pendingPenalties.length })}
                                             value={calculation.penaltiesTotal}
                                             type="negative"
                                         />
                                     )}
                                     {/* Rollup so the red lines visibly sum and the ledger reconciles to Net */}
-                                    <div className="flex items-end gap-1.5 pt-1 mt-0.5 border-t border-dashed border-[var(--card-border)] text-[11px]">
+                                    {deductionLines >= 2 && <div className="flex items-end gap-1.5 pt-1 mt-0.5 border-t border-dashed border-[var(--card-border)] text-[11px]">
                                         <span className="text-muted shrink-0">{t("payroll.card.totalDeducted")}</span>
                                         <span aria-hidden className="flex-1 border-b border-dotted border-[var(--card-border)] mb-[3px] min-w-[10px]" />
                                         <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0">−{fmtIQD(totalDeductions)}</span>
                                         <span className="w-3 shrink-0" />
-                                    </div>
+                                    </div>}
                                 </>
                             )}
                         </div>
@@ -681,7 +671,7 @@ export function EmployeePayrollCard({
                                         title={calculation.netSalary === 0 ? t("payroll.card.nothingToPayShort") : undefined}
                                         className={cn(
                                             "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
-                                            "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/25",
+                                            "bg-emerald-600 text-white hover:bg-emerald-700",
                                             "disabled:opacity-50 disabled:cursor-not-allowed"
                                         )}
                                     >
@@ -712,23 +702,23 @@ export function EmployeePayrollCard({
                 <div className="px-4 py-3 border-t border-[var(--card-border)] flex gap-2">
                     <button
                         onClick={() => setAdvanceOpen(true)}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium border border-[var(--card-border)] bg-[var(--background)] text-foreground hover:border-[var(--ink)]/30 transition-colors"
                     >
-                        <TrendingDown className="w-3 h-3" />
+                        <TrendingDown className="w-3 h-3 text-amber-600" aria-hidden="true" />
                         {t("payroll.card.addAdvance")}
                     </button>
                     <button
                         onClick={() => setPenaltyOpen(true)}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium border border-[var(--card-border)] bg-[var(--background)] text-foreground hover:border-[var(--ink)]/30 transition-colors"
                     >
-                        <AlertCircle className="w-3 h-3" />
+                        <AlertCircle className="w-3 h-3 text-rose-600" aria-hidden="true" />
                         {t("payroll.card.addPenalty")}
                     </button>
                     <button
                         onClick={() => setBonusOpen(true)}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium border border-[var(--card-border)] bg-[var(--background)] text-foreground hover:border-[var(--ink)]/30 transition-colors"
                     >
-                        <Star className="w-3 h-3" />
+                        <Star className="w-3 h-3 text-emerald-600" aria-hidden="true" />
                         {t("payroll.card.addBonus")}
                     </button>
                     <button
@@ -882,6 +872,7 @@ export function EmployeePayrollCard({
                 employeeId={employee.id}
                 currentRate={effectiveRate}
                 onSubmit={config => onUpdateConfig(employee.id, config)}
+                loadHistory={loadConfigHistory}
             />
             <OrderBreakdownModal
                 isOpen={breakdownOpen}
