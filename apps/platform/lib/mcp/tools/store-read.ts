@@ -169,12 +169,20 @@ export function registerStoreReadTools(server: McpServer): void {
             const phoneKey = normalizePhoneLikeDb(list[0].phone);
             const last10 = phoneKey.slice(-10);
             const variants = storedPhoneVariants(normalizePhoneForSearch(list[0].phone));
-            const [trust, blacklist, tags, notes] = await Promise.all([
+            const [trust, totals, blacklist, tags, notes] = await Promise.all([
                 caller.db
                     .from("customer_trust")
                     .select("trust_tier, trust_score, delivery_success_rate, total_orders, delivered_count, total_spent")
                     .eq("tenant_id", caller.tenantId)
                     .eq("phone", phoneKey)
+                    .maybeSingle(),
+                // The customers page's own counts: split orders count once, an
+                // exchanged delivery stays delivered, test and archived orders are out.
+                caller.db
+                    .from("customer_aggregates")
+                    .select("total_orders, completed_count, rejected_count, no_response_count, cancelled_count, returned_count, total_spent")
+                    .eq("tenant_id", caller.tenantId)
+                    .eq("customer_phone", phoneKey)
                     .maybeSingle(),
                 caller.db.from("blacklist").select("reason").eq("tenant_id", caller.tenantId).like("phone", `%${last10}`).limit(1),
                 caller.db
@@ -191,6 +199,7 @@ export function registerStoreReadTools(server: McpServer): void {
                     .limit(5),
             ]);
             if (trust.error) throw trust.error;
+            if (totals.error) throw totals.error;
             if (blacklist.error) throw blacklist.error;
             if (tags.error) throw tags.error;
             if (notes.error) throw notes.error;
@@ -199,16 +208,15 @@ export function registerStoreReadTools(server: McpServer): void {
                 .filter((n): n is string => !!n);
             const noteRows = (notes.data ?? []) as Array<{ note: string; created_at: string }>;
 
-            const sales = list.filter((o) => !o.is_return);
-            const delivered = sales.filter((o) => o.status === "delivered" || o.status === "completed").length;
-            const rejected = sales.filter((o) => o.status === "rejected").length;
+            const c = totals.data;
             const t = trust.data;
             return [
                 `Customer: ${list[0].customer_name} | ${list[0].phone}`,
-                `Orders: ${sales.length} (delivered ${delivered}, rejected ${rejected}, returns ${list.length - sales.length})`,
-                t
-                    ? `Trust: ${t.trust_tier} (score ${t.trust_score}, delivery success ${t.delivery_success_rate}%)${canSeeMoney(caller) ? `, total spent ${iqd(t.total_spent)}` : ""}`
-                    : "Trust: not scored yet",
+                c
+                    ? `Orders: ${c.total_orders} (delivered ${c.completed_count}, rejected ${c.rejected_count}, no answer ${c.no_response_count}, ` +
+                      `cancelled ${c.cancelled_count}, returns ${c.returned_count})${canSeeMoney(caller) ? `, total spent ${iqd(Number(c.total_spent))}` : ""}`
+                    : "Orders: totals are not counted yet for this customer (they refresh every 10 minutes); the list below is complete.",
+                t ? `Trust: ${t.trust_tier} (score ${t.trust_score}, delivery success ${t.delivery_success_rate}%)` : "Trust: not scored yet",
                 blacklist.data && blacklist.data.length > 0 ? `BLACKLISTED: ${blacklist.data[0].reason}` : "Not blacklisted",
                 `Tags: ${tagNames.length > 0 ? tagNames.join(", ") : "none"}`,
                 ...(noteRows.length > 0

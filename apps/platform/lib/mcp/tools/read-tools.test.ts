@@ -87,7 +87,27 @@ describe("read tools", () => {
         expect(search).not.toContain("#11");
 
         const customer = await call("find_customer", { phone: "+964 770 111 2222" });
-        expect(customer).toContain("Orders: 1 (delivered 1, rejected 0, returns 0)");
+        expect(customer).toContain("Orders: totals are not counted yet");
+        expect(customer).toContain("#10");
+    });
+
+    it("find_customer takes its counts from the customers page totals of this store", async () => {
+        const order = { ...row("30", STORE, "rejected", 34750), phone: "07701112222", customer_name: "Zainab" };
+        const totals = (tenant: string, spent: number) => ({
+            tenant_id: tenant, customer_phone: "7701112222", total_orders: 2, completed_count: 1, rejected_count: 0,
+            no_response_count: 0, cancelled_count: 1, returned_count: 0, total_spent: spent,
+        });
+        env = fakeDb(
+            { activity_logs: [], customer_aggregates: [totals("tenant-b", 999000), totals(STORE, 34750)] },
+            { search_orders_v2: () => [order] },
+        );
+        asCaller("admin");
+        const text = await call("find_customer", { phone: "07701112222" });
+        expect(text).toContain("Orders: 2 (delivered 1, rejected 0, no answer 0, cancelled 1, returns 0), total spent 34,750 IQD");
+        expect(text).not.toContain("999,000");
+
+        asCaller("employee");
+        expect(await call("find_customer", { phone: "07701112222" })).not.toContain("total spent");
     });
 
     it("find_customer lists candidates when a phone matches no customer exactly", async () => {
