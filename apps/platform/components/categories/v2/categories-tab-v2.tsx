@@ -6,6 +6,9 @@ import { Undo2 } from "lucide-react";
 import Fuse from "fuse.js";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import {
   useCategoriesQuery,
   useAddCategoryMutation,
@@ -164,22 +167,58 @@ export function CategoriesTabV2() {
     [addMutation, updateMutation, modalMode, editingCategory, t],
   );
 
+  // Category writes need products.edit; RLS has the final say, and a refused
+  // write now throws (it used to match no rows and still toast success).
+  const canEditCategories = usePermission().can(PERMISSIONS.EDIT_PRODUCTS);
+  const reportCategoryError = useCallback(
+    (err: unknown) => toast.error(t(productWriteErrorKey(err))),
+    [t],
+  );
+  /** Runs one write per id; reports how many failed instead of stopping at the first. */
+  const runForEach = useCallback(
+    async (ids: string[], write: (id: string) => Promise<unknown>): Promise<string[]> => {
+      const results = await Promise.allSettled(ids.map((id) => write(id)));
+      const done = ids.filter((_, i) => results[i].status === "fulfilled");
+      const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (failed) {
+        toast.error(
+          t("categories.error.someFailed", { failed: ids.length - done.length, total: ids.length }) +
+            " " + t(productWriteErrorKey(failed.reason)),
+        );
+      }
+      return done;
+    },
+    [t],
+  );
+
   const handleArchive = useCallback(
     async (c: Category) => {
-      await archiveMutation.mutateAsync(c.id);
+      if (!canEditCategories) return;
+      try {
+        await archiveMutation.mutateAsync(c.id);
+      } catch (err) {
+        reportCategoryError(err);
+        return;
+      }
       setLastArchivedIds([c.id]);
       startUndoCountdown();
       toast.success(t("categories.toast.archived") || "Category archived");
     },
-    [archiveMutation, startUndoCountdown, t],
+    [archiveMutation, startUndoCountdown, t, canEditCategories, reportCategoryError],
   );
 
   const handleRestore = useCallback(
     async (c: Category) => {
-      await restoreMutation.mutateAsync(c.id);
+      if (!canEditCategories) return;
+      try {
+        await restoreMutation.mutateAsync(c.id);
+      } catch (err) {
+        reportCategoryError(err);
+        return;
+      }
       toast.success(t("categories.toast.restored") || "Category restored");
     },
-    [restoreMutation, t],
+    [restoreMutation, t, canEditCategories, reportCategoryError],
   );
 
   const handleDelete = useCallback(
@@ -199,40 +238,61 @@ export function CategoriesTabV2() {
       ) {
         return;
       }
-      await deleteMutation.mutateAsync(c.id);
+      try {
+        await deleteMutation.mutateAsync(c.id);
+      } catch (err) {
+        reportCategoryError(err);
+        return;
+      }
       toast.success(t("categories.toast.deleted") || "Category deleted");
     },
-    [deleteMutation, productCountMap, t],
+    [deleteMutation, productCountMap, t, reportCategoryError],
   );
 
   const handleDuplicate = useCallback(
     async (c: Category) => {
-      await duplicateMutation.mutateAsync({ id: c.id, withProducts: false });
+      if (!canEditCategories) return;
+      try {
+        await duplicateMutation.mutateAsync({ id: c.id, withProducts: false });
+      } catch (err) {
+        reportCategoryError(err);
+        return;
+      }
       toast.success(t("categories.toast.duplicated") || "Category duplicated");
     },
-    [duplicateMutation, t],
+    [duplicateMutation, t, canEditCategories, reportCategoryError],
   );
 
   // Scope is a one-field write, so it commits on click instead of making the
   // merchant open the edit sheet to change who a category is for.
   const handleScopeChange = useCallback(
     async (c: Category, scope: CategoryScope) => {
-      await updateMutation.mutateAsync({
-        id: c.id,
-        data: { scope },
-      });
+      if (!canEditCategories) return;
+      try {
+        await updateMutation.mutateAsync({
+          id: c.id,
+          data: { scope },
+        });
+      } catch (err) {
+        reportCategoryError(err);
+      }
     },
-    [updateMutation],
+    [updateMutation, canEditCategories, reportCategoryError],
   );
 
   const handleToggleVisibility = useCallback(
     async (c: Category) => {
-      await updateMutation.mutateAsync({
-        id: c.id,
-        data: { is_visible: !c.is_visible } as Partial<Category>,
-      });
+      if (!canEditCategories) return;
+      try {
+        await updateMutation.mutateAsync({
+          id: c.id,
+          data: { is_visible: !c.is_visible } as Partial<Category>,
+        });
+      } catch (err) {
+        reportCategoryError(err);
+      }
     },
-    [updateMutation],
+    [updateMutation, canEditCategories, reportCategoryError],
   );
 
   const handleReorder = useCallback(
@@ -246,54 +306,55 @@ export function CategoriesTabV2() {
   );
 
   const handleBulkArchive = useCallback(async () => {
-    const ids = [...selectedIds];
-    await Promise.all(ids.map((id) => archiveMutation.mutateAsync(id)));
-    setLastArchivedIds(ids);
+    if (!canEditCategories) return;
+    const ids = await runForEach([...selectedIds], (id) => archiveMutation.mutateAsync(id));
     clearSelection();
+    if (ids.length === 0) return;
+    setLastArchivedIds(ids);
     startUndoCountdown();
     toast.success(
       (t("categories.toast.bulkArchived") || "Archived") + ` (${ids.length})`,
     );
-  }, [selectedIds, archiveMutation, clearSelection, startUndoCountdown, t]);
+  }, [selectedIds, archiveMutation, clearSelection, startUndoCountdown, t, canEditCategories, runForEach]);
 
   const handleBulkRestore = useCallback(async () => {
-    const ids = [...selectedIds];
-    await Promise.all(ids.map((id) => restoreMutation.mutateAsync(id)));
+    if (!canEditCategories) return;
+    const ids = await runForEach([...selectedIds], (id) => restoreMutation.mutateAsync(id));
     clearSelection();
+    if (ids.length === 0) return;
     toast.success(
       (t("categories.toast.bulkRestored") || "Restored") + ` (${ids.length})`,
     );
-  }, [selectedIds, restoreMutation, clearSelection, t]);
+  }, [selectedIds, restoreMutation, clearSelection, t, canEditCategories, runForEach]);
 
   const handleBulkToggleNav = useCallback(
     async (show: boolean) => {
-      const ids = [...selectedIds];
-      await Promise.all(
-        ids.map((id) =>
-          updateMutation.mutateAsync({
-            id,
-            data: { show_in_main_nav: show } as Partial<Category>,
-          }),
-        ),
+      if (!canEditCategories) return;
+      const ids = await runForEach([...selectedIds], (id) =>
+        updateMutation.mutateAsync({
+          id,
+          data: { show_in_main_nav: show } as Partial<Category>,
+        }),
       );
       clearSelection();
+      if (ids.length === 0) return;
       toast.success(
         show
           ? t("categories.toast.bulkShowNav") || "Shown in nav"
           : t("categories.toast.bulkHideNav") || "Hidden from nav",
       );
     },
-    [selectedIds, updateMutation, clearSelection, t],
+    [selectedIds, updateMutation, clearSelection, t, canEditCategories, runForEach],
   );
 
   const handleUndoArchive = useCallback(async () => {
     if (lastArchivedIds.length === 0) return;
     clearUndoTimers();
     setUndoTimeLeft(0);
-    await Promise.all(lastArchivedIds.map((id) => restoreMutation.mutateAsync(id)));
+    const restored = await runForEach(lastArchivedIds, (id) => restoreMutation.mutateAsync(id));
     setLastArchivedIds([]);
-    toast.success(t("categories.toast.undoArchive") || "Restored");
-  }, [lastArchivedIds, restoreMutation, clearUndoTimers, t]);
+    if (restored.length > 0) toast.success(t("categories.toast.undoArchive") || "Restored");
+  }, [lastArchivedIds, restoreMutation, clearUndoTimers, t, runForEach]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -13,7 +13,7 @@ import {
     Undo2,
     Trash2,
 } from "lucide-react";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { cn, parseWholeNumber } from "@/lib/utils";
@@ -25,6 +25,8 @@ interface BulkActionsBarProps {
     selectedProductNames?: string[];
     /** Absent when the user's role may not bulk-change prices. */
     onUpdatePrice?: (newPrice: number) => Promise<void> | void;
+    /** Side effects of a bulk price, shown under the input before Apply. */
+    describePrice?: (newPrice: number) => { clearsCompareAt: number; keepsStorePrice: number };
     onArchive: () => Promise<void> | void;
     onExport: () => void;
     onShowOnStore?: () => Promise<void> | void;
@@ -44,6 +46,7 @@ export function BulkActionsBar({
     totalCount,
     selectedProductNames = [],
     onUpdatePrice,
+    describePrice,
     onArchive,
     onExport,
     onShowOnStore,
@@ -134,6 +137,16 @@ export function BulkActionsBar({
         },
         [t, onUndo, startUndoCountdown]
     );
+
+    const priceImpact = useMemo(() => {
+        const price = parseWholeNumber(newPrice);
+        if (!describePrice || price === null || price <= 0) return null;
+        const { clearsCompareAt, keepsStorePrice } = describePrice(price);
+        const parts: string[] = [];
+        if (clearsCompareAt > 0) parts.push(t("products.bulk.priceClearsCompare", { count: clearsCompareAt }));
+        if (keepsStorePrice > 0) parts.push(t("products.bulk.priceKeepsStore", { count: keepsStorePrice }));
+        return parts.length > 0 ? parts.join(" ") : null;
+    }, [newPrice, describePrice, t]);
 
     const handlePriceSubmit = useCallback(async () => {
         // Whole IQD only: the price columns reject fractions.
@@ -347,7 +360,7 @@ export function BulkActionsBar({
                             </div>
                         ) : showPriceInput ? (
                             /* Price input */
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -380,6 +393,9 @@ export function BulkActionsBar({
                                 >
                                     <X className="w-4 h-4 text-white/70" />
                                 </button>
+                                {priceImpact && (
+                                    <p className="basis-full text-xs text-white/70">{priceImpact}</p>
+                                )}
                             </div>
                         ) : (
                             /* Action buttons */

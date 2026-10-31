@@ -52,12 +52,10 @@ export function QuickActionsMenu({
     // Editing is for products.edit; everyone else sees the product, not the buttons.
     const canEdit = usePermission().can(PERMISSIONS.EDIT_PRODUCTS);
     const [confirmingArchive, setConfirmingArchive] = useState(false);
-    const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     const handleOpenChange = (next: boolean) => {
         if (!next) {
             setConfirmingArchive(false);
-            setConfirmingDelete(false);
         }
         onOpenChange?.(next);
     };
@@ -167,42 +165,15 @@ export function QuickActionsMenu({
                         </DropdownMenu.Item>
                     )}
 
-                    {/* Delete with inline confirmation (available regardless of archive state) */}
+                    {/* Delete opens the impact dialog, which offers Archive instead. */}
                     {onDelete && (
-                        <>
-                            {confirmingDelete ? (
-                                <DropdownMenu.Item
-                                    className={cn(
-                                        itemClasses,
-                                        "text-rose-600 bg-rose-50 dark:bg-rose-950/30 data-[highlighted]:bg-rose-100 dark:data-[highlighted]:bg-rose-950/50"
-                                    )}
-                                    onSelect={(e) => {
-                                        e.preventDefault();
-                                        onDelete();
-                                        setConfirmingDelete(false);
-                                    }}
-                                >
-                                    <AlertTriangle className="w-4 h-4" />
-                                    <div>
-                                        <div>{t("products.actions.confirmDelete")}</div>
-                                        <div className="text-[10px] opacity-70">
-                                            {t("products.actions.deleteWarning")}
-                                        </div>
-                                    </div>
-                                </DropdownMenu.Item>
-                            ) : (
-                                <DropdownMenu.Item
-                                    className={cn(itemClasses, "text-rose-600")}
-                                    onSelect={(e) => {
-                                        e.preventDefault();
-                                        setConfirmingDelete(true);
-                                    }}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    {t("products.actions.deletePermanently")}
-                                </DropdownMenu.Item>
-                            )}
-                        </>
+                        <DropdownMenu.Item
+                            className={cn(itemClasses, "text-rose-600")}
+                            onSelect={() => onDelete()}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            {t("products.actions.deletePermanently")}
+                        </DropdownMenu.Item>
                     )}
                 </DropdownMenu.Content>
             </DropdownMenu.Portal>

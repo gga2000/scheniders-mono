@@ -47,6 +47,7 @@ import { LowStockAlert } from "@/components/products/low-stock-alert";
 import { AdvancedFilters, FilterValues } from "@/components/products/advanced-filters";
 import { ActiveFilterPills } from "@/components/products/active-filter-pills";
 import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
+import { ProductDeleteDialog } from "@/components/products/product-delete-dialog";
 import { BulkActionsBar } from "@/components/products/bulk-actions-bar";
 import { ExportMenu } from "@/components/products/export-menu";
 import { AbcTierProvider } from "@/components/products/abc-tier-context";
@@ -428,7 +429,11 @@ function ProductsContent() {
         router.push(`/products/${newProduct.id}/edit`);
     }, [addProduct, products, router, reportWriteError, t, canSeeCost]);
 
-    const handleDeleteProduct = useCallback(async (product: Product) => {
+    // Delete opens the impact dialog; the dialog calls confirmDeleteProduct.
+    const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+    const handleDeleteProduct = useCallback((product: Product) => setDeleteTarget(product), []);
+
+    const confirmDeleteProduct = useCallback(async (product: Product) => {
         try {
             await deleteProduct(product.id);
             toast.success(t("products.deleted"));
@@ -510,10 +515,29 @@ function ProductsContent() {
     // Bulk action handlers. BulkActionsBar reports success (with its own undo
     // countdown for archive) or the failure, so these only do the work and let
     // a failed write reject.
+    const selectedForPrice = useMemo(
+        () => products.filter((p) => selectedIds.has(p.id)),
+        [products, selectedIds],
+    );
+
+    // What a bulk price would also change, shown before Apply.
+    const describeBulkPrice = useCallback((newPrice: number) => ({
+        clearsCompareAt: selectedForPrice.filter((p) => p.compare_at_price != null && p.compare_at_price <= newPrice).length,
+        keepsStorePrice: selectedForPrice.filter((p) => p.website_price != null && p.website_price !== newPrice).length,
+    }), [selectedForPrice]);
+
     const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
-        await bulkUpdatePrices(Array.from(selectedIds), newPrice);
+        await bulkUpdatePrices(
+            selectedForPrice.map((p) => ({
+                id: p.id,
+                oldPrice: p.price,
+                // A "was" price at or below the new price would show a fake discount.
+                clearCompareAt: p.compare_at_price != null && p.compare_at_price <= newPrice,
+            })),
+            newPrice,
+        );
         clearSelection();
-    }, [selectedIds, bulkUpdatePrices, clearSelection]);
+    }, [selectedForPrice, bulkUpdatePrices, clearSelection]);
 
     // The one bulk action the Undo toast reverses: archive, show or hide.
     const lastUndoableRef = useRef<
@@ -1196,6 +1220,13 @@ function ProductsContent() {
                 products={products}
             />
 
+            <ProductDeleteDialog
+                product={deleteTarget}
+                onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+                onArchive={(p) => handleArchive(p.id)}
+                onDelete={confirmDeleteProduct}
+            />
+
             {/* Bulk Actions Bar */}
             {activeTab === "products" && canEditProducts && (
                 <BulkActionsBar
@@ -1205,6 +1236,7 @@ function ProductsContent() {
                         .filter((p) => selectedIds.has(p.id))
                         .map((p) => p.name)}
                     onUpdatePrice={canManageProducts ? handleBulkUpdatePrice : undefined}
+                    describePrice={describeBulkPrice}
                     onArchive={handleBulkArchive}
                     onExport={handleBulkExport}
                     onShowOnStore={handleBulkShow}
