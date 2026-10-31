@@ -78,6 +78,9 @@ interface ViewPreferencesSlice {
     collapsedCategories: Set<string>;
     gridDensity: GridDensity;
     gridGroupByCategory: boolean;
+    /** Forecast cards above the list; folded by default so products come first. */
+    showInsights: boolean;
+    setShowInsights: (on: boolean) => void;
     setViewMode: (mode: ViewMode) => void;
     setSortBy: (sort: SortField) => void;
     addFilterPreset: (preset: SavedFilterPreset) => void;
@@ -153,11 +156,13 @@ export const useProductStore = create<ProductStore>()(
             collapsedCategories: new Set(),
             gridDensity: "compact" as GridDensity,
             gridGroupByCategory: false,
+            showInsights: false,
 
             setViewMode: (mode) => set({ viewMode: mode }),
             setSortBy: (sort) => set({ sortBy: sort }),
             setGridDensity: (density) => set({ gridDensity: density }),
             setGridGroupByCategory: (on) => set({ gridGroupByCategory: on }),
+            setShowInsights: (on) => set({ showInsights: on }),
             addFilterPreset: (preset) =>
                 set((state) => ({
                     savedFilterPresets: [...state.savedFilterPresets, preset],
@@ -298,6 +303,7 @@ export const useProductStore = create<ProductStore>()(
                 lowStockAlertSnoozedUntil: state.lowStockAlertSnoozedUntil,
                 gridDensity: state.gridDensity,
                 gridGroupByCategory: state.gridGroupByCategory,
+                showInsights: state.showInsights,
             }),
             merge: (persisted: any, current) => ({
                 ...current,

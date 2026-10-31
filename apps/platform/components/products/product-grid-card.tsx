@@ -200,9 +200,10 @@ export const ProductGridCard = React.memo(function ProductGridCard({
 
             {/* Product Info */}
             <div className="p-3 space-y-2">
-                {/* Name (left) · margin % + price (right) */}
-                <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-base font-bold text-foreground leading-tight line-clamp-2 flex-1 min-w-0">
+                {/* Name on its own (two lines), then price · margin. Sharing one row
+                    with the price cut names to about ten characters. */}
+                <div className="space-y-1.5">
+                    <h3 className="text-[15px] font-semibold text-foreground leading-snug line-clamp-2 min-h-[2.5em]">
                         <span dir="auto">{product.name}</span>
                         <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
                         {/* A draft is not on the store even when its eye says visible. */}
@@ -212,7 +213,18 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                             </span>
                         )}
                     </h3>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-col items-start">
+                            <p className="text-base font-bold text-foreground whitespace-nowrap leading-tight tabular-nums">
+                                {formatIQD(product.price)}
+                            </p>
+                            {/* The storefront sells at its own price when one is set. */}
+                            {product.website_price != null && product.website_price !== product.price && (
+                                <p className="text-[11px] text-muted whitespace-nowrap tabular-nums">
+                                    {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
+                                </p>
+                            )}
+                        </div>
                         {canSeeCost && !!product.cost && product.cost > 0 && product.price > 0 && (
                             <span
                                 className={cn(
@@ -223,22 +235,11 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                                             ? "bg-[var(--pastel-yellow)] text-amber-700"
                                             : "bg-[var(--pastel-pink)] text-rose-700"
                                 )}
-                                title="Margin"
+                                title={t("products.marginLabel")}
                             >
                                 {(((product.price - product.cost) / product.price) * 100).toFixed(0)}%
                             </span>
                         )}
-                        <div className="flex flex-col items-end">
-                            <p className="text-[15px] font-bold text-foreground whitespace-nowrap leading-tight">
-                                {formatIQD(product.price)}
-                            </p>
-                            {/* The storefront sells at its own price when one is set. */}
-                            {product.website_price != null && product.website_price !== product.price && (
-                                <p className="text-[11px] text-muted whitespace-nowrap tabular-nums">
-                                    {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
-                                </p>
-                            )}
-                        </div>
                     </div>
                 </div>
 

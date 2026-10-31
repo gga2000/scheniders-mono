@@ -171,10 +171,10 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
     // Phones: one swipeable row instead of three rows of cards above the list.
     <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [&>*]:min-w-[44%] [&>*]:shrink-0 [&>*]:snap-start md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 md:pb-0 md:[&>*]:min-w-0 xl:grid-cols-6">
       {/* Card 1: Total Products */}
-      <div className={cn("pastel-card pastel-card-yellow p-4")}>
+      <div className={cn("pastel-card border border-[var(--card-border)] p-4")}>
         <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-            <Package className="w-5 h-5 text-amber-600" />
+          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
+            <Package className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
         </div>
         <p className="text-2xl font-bold mt-3">{stats.activeCount}</p>
@@ -188,10 +188,10 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
       </div>
 
       {/* Card 2: Inventory Value */}
-      <div className={cn("pastel-card pastel-card-mint p-4")}>
+      <div className={cn("pastel-card border border-[var(--card-border)] p-4")}>
         <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-            <DollarSign className="w-5 h-5 text-teal-600" />
+          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-teal-600 dark:text-teal-400" />
           </div>
         </div>
         <p className="text-2xl font-bold mt-3">
@@ -211,13 +211,13 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
         onClick={onDrillDown ? () => onDrillDown("stockout") : undefined}
         disabled={!onDrillDown}
         className={cn(
-          "pastel-card pastel-card-pink p-4 text-left",
+          "pastel-card border border-[var(--card-border)] p-4 text-left",
           onDrillDown && "hover:shadow-md transition-shadow cursor-pointer"
         )}
       >
         <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-rose-600" />
+          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
           </div>
           <TrendGlyph direction={stats.outOfStockCount > 0 ? "up" : "flat"} />
         </div>
@@ -238,13 +238,13 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
         onClick={onDrillDown ? () => onDrillDown("revenue") : undefined}
         disabled={!onDrillDown}
         className={cn(
-          "pastel-card pastel-card-green p-4 text-left",
+          "pastel-card border border-[var(--card-border)] p-4 text-left",
           onDrillDown && "hover:shadow-md transition-shadow cursor-pointer"
         )}
       >
         <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-emerald-600" />
+          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           </div>
         </div>
         <p className="text-2xl font-bold mt-3">
@@ -260,10 +260,10 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
       </button>
 
       {/* Card 5: Avg Turnover */}
-      <div className={cn("pastel-card pastel-card-blue p-4")}>
+      <div className={cn("pastel-card border border-[var(--card-border)] p-4")}>
         <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-            <RefreshCw className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
+            <RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
         </div>
         <p className="text-2xl font-bold mt-3">
@@ -276,26 +276,26 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
       </div>
 
       {/* Card 6: Health Overview */}
-      <div className={cn("pastel-card pastel-card-yellow p-4")}>
+      <div className={cn("pastel-card border border-[var(--card-border)] p-4")}>
         <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-            <Activity className="w-5 h-5 text-amber-600" />
+          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
+            <Activity className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
         </div>
         <div className="flex items-center gap-1 mt-3">
-          <span className="text-emerald-700 font-bold text-sm">
+          <span className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">
             A:{stats.gradeCounts.A}
           </span>
-          <span className="text-blue-700 font-bold text-sm">
+          <span className="text-blue-700 dark:text-blue-400 font-bold text-sm">
             B:{stats.gradeCounts.B}
           </span>
-          <span className="text-amber-700 font-bold text-sm">
+          <span className="text-amber-700 dark:text-amber-400 font-bold text-sm">
             C:{stats.gradeCounts.C}
           </span>
-          <span className="text-orange-700 font-bold text-sm">
+          <span className="text-orange-700 dark:text-orange-400 font-bold text-sm">
             D:{stats.gradeCounts.D}
           </span>
-          <span className="text-rose-700 font-bold text-sm">
+          <span className="text-rose-700 dark:text-rose-400 font-bold text-sm">
             F:{stats.gradeCounts.F}
           </span>
         </div>

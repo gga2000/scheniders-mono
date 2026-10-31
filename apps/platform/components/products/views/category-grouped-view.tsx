@@ -356,7 +356,7 @@ export function CategoryGroupedView({
                                 }
                             }}
                             placeholder={t("products.newCategory.placeholder")}
-                            className="bg-transparent text-xs text-foreground placeholder:text-muted focus:outline-none w-48"
+                            className="bg-transparent text-xs text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none w-48"
                         />
                         <button
                             onClick={submitNewCategory}

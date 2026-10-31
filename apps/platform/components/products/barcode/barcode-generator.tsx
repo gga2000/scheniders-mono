@@ -122,7 +122,7 @@ export function BarcodeGenerator({
                         onChange={(e) => onChange(e.target.value)}
                         disabled={disabled}
                         placeholder={t("products.barcode.placeholder")}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                 </div>
 

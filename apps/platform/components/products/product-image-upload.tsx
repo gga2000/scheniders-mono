@@ -232,7 +232,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                                     value={urlInput}
                                     onChange={(e) => setUrlInput(e.target.value)}
                                     placeholder="https://example.com/image.jpg"
-                                    className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                    className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                 />
                                 <button
                                     type="button"

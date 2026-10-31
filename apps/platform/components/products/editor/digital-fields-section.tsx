@@ -129,7 +129,7 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
                         value={formData.download_url || ""}
                         onChange={(e) => updateField("download_url", e.target.value)}
                         placeholder="https://example.com/file.zip"
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
             </div>
@@ -146,7 +146,7 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
                     value={formData.license_key_pattern || ""}
                     onChange={(e) => updateField("license_key_pattern", e.target.value)}
                     placeholder="e.g., XXXX-XXXX-XXXX-XXXX"
-                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />
                 <p className="text-xs text-muted mt-1">
                     Use X for random characters. Keys will be auto-generated for each purchase.

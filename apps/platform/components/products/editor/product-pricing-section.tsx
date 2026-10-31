@@ -43,7 +43,7 @@ export function ProductPricingSection({
                                 onChange={(e) => updateField("price", parseInt(e.target.value, 10) || 0)}
                                 placeholder="0"
                                 min={0}
-                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
                         </div>
 
@@ -58,7 +58,7 @@ export function ProductPricingSection({
                                 onChange={(e) => updateField("compare_at_price", parseInt(e.target.value, 10) || 0)}
                                 placeholder="0"
                                 min={0}
-                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
                         </div>
                     </>
@@ -76,7 +76,7 @@ export function ProductPricingSection({
                         onChange={(e) => updateField("cost", parseInt(e.target.value, 10) || 0)}
                         placeholder="0"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
                 )}

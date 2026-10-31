@@ -213,7 +213,7 @@ function SortableValueChip({
                         onBlur={() => setEditingHex(false)}
                         placeholder="#FF0000"
                         autoFocus
-                        className="w-24 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                        className="w-24 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                     />
                 </div>
             )}
@@ -233,7 +233,7 @@ function SortableValueChip({
                         onBlur={() => setEditingMeasurement(false)}
                         placeholder="e.g. 42cm"
                         autoFocus
-                        className="w-28 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                        className="w-28 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                     />
                 </div>
             )}
@@ -253,7 +253,7 @@ function SortableValueChip({
                         onBlur={() => setEditingDescription(false)}
                         placeholder="e.g. 100% organic"
                         autoFocus
-                        className="w-40 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                        className="w-40 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                     />
                 </div>
             )}
@@ -451,7 +451,7 @@ function SortableOptionGroup({
                                 t("products.variants.optionNamePlaceholder")
                             }
                             readOnly={disabled}
-                            className="flex-1 px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                            className="flex-1 px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                         />
                     </div>
 
@@ -500,7 +500,7 @@ function SortableOptionGroup({
                                                 placeholder={
                                                     t("products.variants.typeAndPress")
                                                 }
-                                                className="min-w-[140px] px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                                                className="min-w-[140px] px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                                             />
                                             <button
                                                 type="button"

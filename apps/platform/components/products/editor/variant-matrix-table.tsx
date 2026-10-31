@@ -602,7 +602,7 @@ export function VariantMatrixTable({
                                             }
                                             placeholder="0"
                                             min={0}
-                                            className={cn(INPUT_BASE, "flex-1 text-right placeholder:text-muted")}
+                                            className={cn(INPUT_BASE, "flex-1 text-right placeholder:text-[var(--foreground-muted)]")}
                                         />
                                         <button
                                             type="button"
@@ -633,7 +633,7 @@ export function VariantMatrixTable({
                                             }
                                             placeholder="0"
                                             min={0}
-                                            className={cn(INPUT_BASE, "flex-1 text-right placeholder:text-muted")}
+                                            className={cn(INPUT_BASE, "flex-1 text-right placeholder:text-[var(--foreground-muted)]")}
                                         />
                                         <button
                                             type="button"
@@ -665,7 +665,7 @@ export function VariantMatrixTable({
                                             }
                                             placeholder="0"
                                             min={0}
-                                            className={cn(INPUT_BASE, "flex-1 text-right placeholder:text-muted")}
+                                            className={cn(INPUT_BASE, "flex-1 text-right placeholder:text-[var(--foreground-muted)]")}
                                         />
                                         <button
                                             type="button"
@@ -1112,7 +1112,7 @@ export function VariantMatrixTable({
                                                         disabled={disabled}
                                                         className={cn(
                                                             INPUT_BASE,
-                                                            "w-24 text-right placeholder:text-muted",
+                                                            "w-24 text-right placeholder:text-[var(--foreground-muted)]",
                                                             editingCell?.row === index &&
                                                                 editingCell?.col === "price" &&
                                                                 "ring-2 ring-[var(--pastel-yellow)]",
@@ -1152,7 +1152,7 @@ export function VariantMatrixTable({
                                                         disabled={disabled}
                                                         className={cn(
                                                             INPUT_BASE,
-                                                            "w-24 text-right placeholder:text-muted",
+                                                            "w-24 text-right placeholder:text-[var(--foreground-muted)]",
                                                             editingCell?.row === index &&
                                                                 editingCell?.col === "cost" &&
                                                                 "ring-2 ring-[var(--pastel-yellow)]",
@@ -1212,7 +1212,7 @@ export function VariantMatrixTable({
                                                             disabled={disabled}
                                                             className={cn(
                                                                 INPUT_BASE,
-                                                                "w-20 text-right placeholder:text-muted",
+                                                                "w-20 text-right placeholder:text-[var(--foreground-muted)]",
                                                                 editingCell?.row === index &&
                                                                     editingCell?.col ===
                                                                         "stock_quantity" &&
@@ -1253,7 +1253,7 @@ export function VariantMatrixTable({
                                                             disabled={disabled}
                                                             className={cn(
                                                                 INPUT_BASE,
-                                                                "w-28 text-left placeholder:text-muted",
+                                                                "w-28 text-left placeholder:text-[var(--foreground-muted)]",
                                                                 editingCell?.row === index &&
                                                                     editingCell?.col === "sku" &&
                                                                     "ring-2 ring-[var(--pastel-yellow)]",
@@ -1317,7 +1317,7 @@ export function VariantMatrixTable({
                                                             disabled={disabled}
                                                             className={cn(
                                                                 INPUT_BASE,
-                                                                "w-28 text-left placeholder:text-muted",
+                                                                "w-28 text-left placeholder:text-[var(--foreground-muted)]",
                                                                 editingCell?.row === index &&
                                                                     editingCell?.col ===
                                                                         "barcode" &&

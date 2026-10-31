@@ -277,7 +277,7 @@ export function TagInput({ productId, disabled = false }: TagInputProps) {
                         placeholder={t?.("Add tags...") ?? "Add tags..."}
                         className={cn(
                             "w-full pl-9 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)]",
-                            "rounded-xl text-foreground placeholder:text-muted",
+                            "rounded-xl text-foreground placeholder:text-[var(--foreground-muted)]",
                             "focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]",
                             "text-sm"
                         )}

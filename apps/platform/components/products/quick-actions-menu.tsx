@@ -65,17 +65,19 @@ export function QuickActionsMenu({
             open={open}
             onOpenChange={handleOpenChange}
         >
-            <DropdownMenu.Trigger asChild>
-                <Tooltip content={t("products.actions.menuTooltip")} side="top" align="center">
+            {/* Tooltip outside the trigger: the trigger's Slot must reach the button itself
+                (it passes the open handler and ref; the tooltip wrapper would drop them). */}
+            <Tooltip content={t("products.actions.menuTooltip")} side="top" align="center">
+                <DropdownMenu.Trigger asChild>
                     <button
                         onClick={(e) => e.stopPropagation()}
                         className="p-2 rounded-lg hover:bg-[var(--background)] transition-colors opacity-60 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--foreground)] min-w-[44px] min-h-[44px] flex items-center justify-center"
-                        aria-label="Product actions"
+                        aria-label={t("products.actions.menuTooltip")}
                     >
                         <MoreVertical className="w-4 h-4 text-muted" />
                     </button>
-                </Tooltip>
-            </DropdownMenu.Trigger>
+                </DropdownMenu.Trigger>
+            </Tooltip>
 
             <DropdownMenu.Portal>
                 <DropdownMenu.Content

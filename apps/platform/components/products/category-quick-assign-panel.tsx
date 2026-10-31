@@ -267,7 +267,7 @@ export function CategoryQuickAssignPanel({
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         placeholder={t("products.quickAssign.searchPlaceholder")}
-                                        className="w-full ps-9 pe-3 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                                        className="w-full ps-9 pe-3 py-2.5 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                                     />
                                 </div>
 

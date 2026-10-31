@@ -65,7 +65,7 @@ export function DensityToggle() {
                         className={cn(
                             "p-2 rounded-lg transition-all",
                             active
-                                ? "bg-[var(--foreground)] text-white"
+                                ? "bg-[var(--foreground)] text-[var(--background)]"
                                 : "text-muted hover:text-foreground"
                         )}
                     >

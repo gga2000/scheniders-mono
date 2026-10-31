@@ -28,7 +28,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                         value={formData.name}
                         onChange={(e) => updateField("name", e.target.value)}
                         placeholder={t("products.ed.namePh")}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
 
@@ -43,7 +43,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                         value={formData.short_name}
                         onChange={(e) => updateField("short_name", e.target.value)}
                         placeholder={t("products.ed.shortNamePh")}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                     <p className="text-xs text-muted mt-1">{t("products.ed.shortNameHint")}</p>
                 </div>
@@ -58,7 +58,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                         value={formData.sku}
                         onChange={(e) => updateField("sku", e.target.value)}
                         placeholder="e.g., DIOR-SAU-100"
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
             </div>
@@ -86,7 +86,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                     placeholder={t("products.ed.shortDescriptionPh")}
                     rows={2}
                     maxLength={200}
-                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
+                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
                 />
                 <p className="text-xs text-muted mt-1 text-end">
                     {formData.short_description.length}/200

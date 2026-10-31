@@ -152,7 +152,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             onChange={(e) => updateSupplier(index, { supplier_name: e.target.value })}
                                             placeholder={t("products.ed.supplier.companyPh")}
                                             required
-                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
 
@@ -166,7 +166,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             value={supplier.supplier_contact}
                                             onChange={(e) => updateSupplier(index, { supplier_contact: e.target.value })}
                                             placeholder={t("products.ed.supplier.fullNamePh")}
-                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
 
@@ -180,7 +180,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             value={supplier.supplier_email}
                                             onChange={(e) => updateSupplier(index, { supplier_email: e.target.value })}
                                             placeholder={t("products.ed.supplier.emailPh")}
-                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
 
@@ -198,7 +198,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             }}
                                             placeholder={t("products.ed.supplier.leadPh")}
                                             min={0}
-                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
 
@@ -216,7 +216,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             }}
                                             placeholder={t("products.ed.supplier.moqPh")}
                                             min={0}
-                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
 
@@ -235,7 +235,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             }}
                                             placeholder={t("products.ed.supplier.unitCostPh")}
                                             min={0}
-                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
                                     )}
@@ -250,7 +250,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             onChange={(e) => updateSupplier(index, { notes: e.target.value })}
                                             placeholder={t("products.ed.supplier.notesPh")}
                                             rows={2}
-                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
+                                            className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
                                         />
                                     </div>
 

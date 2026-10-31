@@ -317,7 +317,7 @@ export function ProductLocationPicker({
                         onChange={(e) => setNewQuantity(e.target.value)}
                         placeholder={"Qty"}
                         min={1}
-                        className="w-24 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
+                        className="w-24 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                     />
 
                     <button

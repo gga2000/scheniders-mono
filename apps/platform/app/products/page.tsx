@@ -160,6 +160,8 @@ function ProductsContent() {
     const viewMode = storedViewMode === "heatmap" && !canManageProducts ? "grid" : storedViewMode;
     const setViewMode = useProductStore((s) => s.setViewMode);
     const sortBy = useProductStore((s) => s.sortBy);
+    const showInsights = useProductStore((s) => s.showInsights);
+    const setShowInsights = useProductStore((s) => s.setShowInsights);
     const setSortBy = useProductStore((s) => s.setSortBy);
     const gridDensity = useProductStore((s) => s.gridDensity);
     const gridGroupByCategory = useProductStore((s) => s.gridGroupByCategory);
@@ -958,11 +960,21 @@ function ProductsContent() {
                                 onViewProduct={handleViewDetails}
                             />
 
-                            {/* Forecasting Cards */}
+                            {/* Forecasting Cards — folded by default so the products come first */}
+                            <button
+                                type="button"
+                                onClick={() => setShowInsights(!showInsights)}
+                                aria-expanded={showInsights}
+                                className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-foreground transition-colors"
+                            >
+                                {showInsights ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                {t(showInsights ? "products.insights.hide" : "products.insights.show")}
+                            </button>
+                            {showInsights && (
                             <motion.div
-                                initial={{ opacity: 0, y: 20 }}
+                                initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.15 }}
+                                transition={{ duration: 0.2 }}
                             >
                                 <ForecastingCards
                                     products={products}
@@ -992,6 +1004,7 @@ function ProductsContent() {
                                     }}
                                 />
                             </motion.div>
+                            )}
 
                             {/* Sentinel — flips isFilterStuck when the sticky filter reaches top */}
                             <div ref={filterSentinelRef} aria-hidden className="h-px -mb-6" />
@@ -1016,7 +1029,7 @@ function ProductsContent() {
                                             placeholder={t("products.searchPlaceholder")}
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-10 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                            className="w-full pl-12 pr-10 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
                                         />
                                         {searchQuery && (
                                             <button
