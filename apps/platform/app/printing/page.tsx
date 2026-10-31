@@ -53,6 +53,8 @@ import {
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { partitionByShipDay } from "@/lib/order-bulk-scope";
+import { toast } from "@/hooks/use-toast";
 
 export default function PrintingPage() {
     const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
@@ -202,33 +204,36 @@ export default function PrintingPage() {
             printBulkInvoices(ordersToPrint, labelOptions);
         }
 
-        // Record print history
-        await printing.recordPrint(
-            ordersToPrint.map((o) => o.id),
-            printType === "labels" ? "label" : "invoice",
-            undefined,
-            printing.labelSettings.size
-        );
-
-        // Auto-create batch for this print job
-        const batchName = `${new Date().toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-        })} - ${new Date().toLocaleTimeString('en-US', {
+        // The print dialog has already opened by now, so a failed record must be
+        // loud: unrecorded prints look "never printed" and get printed twice.
+        const batchName = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', {
             hour: '2-digit',
             minute: '2-digit',
         })}`;
-        await printing.createBatch(
-            batchName,
+        const recorded = await printing.recordPrint(
             ordersToPrint.map((o) => o.id),
-            ordersToPrint,
-            invoiceTemplate,
-            printType
+            printType === "labels" ? "label" : "invoice",
+            printing.labelSettings.size,
+            batchName,
+            invoiceTemplate
         );
+        if (!recorded.success) {
+            toast.error("Printed, but not recorded", recorded.error);
+            return;
+        }
 
-        // Auto-ship if enabled
         if (autoShipAfterPrint) {
-            await bulkUpdateStatus(ordersToPrint.map((o) => o.id), "in_transit");
+            // Orders postponed to a later day stay home, same rule as the orders page.
+            const { shippable, scheduledLater } = partitionByShipDay(ordersToPrint);
+            if (scheduledLater.length > 0) {
+                toast.warning(
+                    `${scheduledLater.length} scheduled for a later day kept back`,
+                    "They were printed but not moved to In Transit."
+                );
+            }
+            if (shippable.length > 0) {
+                await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
+            }
             setSelectedOrders(new Set());
         }
     };
