@@ -501,13 +501,18 @@ export default function VaultPage() {
                         )}
                     </div>
 
+                    {exportFormat === "vault" && !keyReady && (
+                        <p className="mt-6 text-xs text-[var(--foreground-subtle)]">{t("vault.hint.needKey", "Type the key twice (at least 10 characters) to continue.")}</p>
+                    )}
                     <button
                         onClick={handleGenerateBackup}
                         disabled={isGenerating || (exportFormat === "vault" && !keyReady)}
                         className={cn(
-                            "mt-8 w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden",
-                            "bg-[var(--primary)] text-[var(--primary-fg)] hover:bg-[var(--button-primary-hover)] hover:shadow-lg",
-                            (isGenerating || (exportFormat === "vault" && !keyReady)) && "opacity-60 cursor-not-allowed hover:shadow-none"
+                            exportFormat === "vault" && !keyReady ? "mt-2" : "mt-8",
+                            "w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden",
+                            isGenerating || (exportFormat === "vault" && !keyReady)
+                                ? "bg-[var(--card-border)] text-[var(--foreground-subtle)] cursor-not-allowed"
+                                : "bg-[var(--primary)] text-[var(--primary-fg)] hover:bg-[var(--button-primary-hover)] hover:shadow-lg"
                         )}
                     >
                         <AnimatePresence mode="wait">
@@ -637,6 +642,13 @@ export default function VaultPage() {
                                                 </p>
                                             </div>
                                         )}
+                                        {(!restoreFile || (!restoreFile.name.endsWith(".xlsx") && !restoreKey)) && (
+                                            <p className="text-xs text-[var(--foreground-subtle)]">
+                                                {!restoreFile
+                                                    ? t("vault.hint.needFile", "Choose a backup file first.")
+                                                    : t("vault.hint.needRestoreKey", "Enter the vault key to open this file.")}
+                                            </p>
+                                        )}
                                         <button
                                             onClick={handleAnalyzeRestore}
                                             disabled={!restoreFile || (!restoreFile.name.endsWith(".xlsx") && !restoreKey) || isAnalyzing}
@@ -755,6 +767,13 @@ export default function VaultPage() {
                                             </span>
                                         </label>
 
+                                        {(!restoreAcknowledged || scopeEmpty) && (
+                                            <p className="text-xs text-[var(--foreground-subtle)]">
+                                                {scopeEmpty
+                                                    ? t("vault.hint.needScope", "Pick at least one table to restore.")
+                                                    : t("vault.hint.needAcknowledge", "Tick the box above to confirm.")}
+                                            </p>
+                                        )}
                                         <button
                                             onClick={handleExecuteRestore}
                                             disabled={isRestoring || !restoreAcknowledged || scopeEmpty}
