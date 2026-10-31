@@ -588,15 +588,18 @@ export default function VaultPage() {
                                             </div>
                                             <div className="grid grid-cols-3 gap-2 text-center text-sm">
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
-                                                    <div className="font-semibold">{diffResult.ordersToRestore}</div>
+                                                    <div className="font-semibold">{diffResult.orders.total}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{diffResult.orders.create} new · {diffResult.orders.overwrite} overwritten</div>
                                                     <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">Orders</div>
                                                 </div>
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
-                                                    <div className="font-semibold">{diffResult.productsToRestore}</div>
+                                                    <div className="font-semibold">{diffResult.products.total}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{diffResult.products.create} new · {diffResult.products.overwrite} overwritten</div>
                                                     <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">Products</div>
                                                 </div>
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
-                                                    <div className="font-semibold">{diffResult.customersToRestore}</div>
+                                                    <div className="font-semibold">{diffResult.customers.total}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{diffResult.customers.create} new · {diffResult.customers.overwrite} overwritten</div>
                                                     <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">Customers</div>
                                                 </div>
                                             </div>

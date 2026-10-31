@@ -75,7 +75,7 @@ export async function encryptVaultData(data: object, password: string): Promise<
  * Decrypts a secure Blob (.scheniders format) back into the original object.
  * Throws an error if the password is wrong or data is corrupted.
  */
-export async function decryptVaultData(blob: Blob, password: string): Promise<any> {
+export async function decryptVaultData(blob: Blob, password: string): Promise<unknown> {
     const arrayBuffer = await blob.arrayBuffer();
     const data = new Uint8Array(arrayBuffer);
 
@@ -97,7 +97,7 @@ export async function decryptVaultData(blob: Blob, password: string): Promise<an
                 iv: iv,
             },
             key,
-            Buffer.from ? Buffer.from(encryptedContent) : encryptedContent // Node/Browser compat
+            encryptedContent
         );
 
         const dec = new TextDecoder();
