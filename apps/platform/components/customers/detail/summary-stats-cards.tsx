@@ -122,7 +122,7 @@ export function SummaryStatsCards({ totalOrders, totalSpent, orders }: SummarySt
     const avgFormatted = avgBasket ? formatLargeNumber(avgBasket) : null;
 
     return (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-4">
             {/* Order Count card — 1/3 width */}
             <motion.div
                 initial={{ opacity: 0, y: 12 }}

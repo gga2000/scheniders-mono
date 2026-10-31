@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Clock, User, MapPin, Phone, Home } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 import { useIdentityTimeline, type IdentityEvent } from "@/hooks/use-identity-timeline";
 
 interface IdentityTimelineProps {
@@ -48,6 +49,7 @@ function getIconColor(type: IdentityEvent["type"]): string {
 }
 
 export function IdentityTimeline({ phone }: IdentityTimelineProps) {
+    const { language } = useLanguage();
     const { data, isLoading } = useIdentityTimeline(phone);
 
     return (
@@ -106,10 +108,11 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                                             {getLabel(event)}
                                         </p>
                                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                                            {new Date(event.created_at).toLocaleDateString("en-US", {
+                                            {new Date(event.created_at).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
                                                 month: "short",
                                                 day: "numeric",
                                                 year: "numeric",
+                                                timeZone: "Asia/Baghdad",
                                             })}
                                         </p>
                                     </div>
