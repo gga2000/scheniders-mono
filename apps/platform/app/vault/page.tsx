@@ -643,6 +643,17 @@ export default function VaultPage() {
                                                     <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.customers", "Customers")}</div>
                                                 </div>
                                             </div>
+                                            {Object.values(diffResult.extras).some((count) => count > 0) && (
+                                                <div className="text-xs text-[var(--foreground-muted)] mb-2">
+                                                    {t("vault.restore.extras", "Also in this file: {categories} categories, {tags} tags, {assignments} tag assignments, {notes} notes, {expenses} expenses.", {
+                                                        categories: diffResult.extras.categories,
+                                                        tags: diffResult.extras.customer_tags,
+                                                        assignments: diffResult.extras.customer_tag_assignments,
+                                                        notes: diffResult.extras.customer_notes,
+                                                        expenses: diffResult.extras.expenses,
+                                                    })}
+                                                </div>
+                                            )}
                                             <div className="text-xs text-[var(--foreground-muted)]">
                                                 {t("vault.restore.stockNote", "Stock counts and costs of products that already exist are kept as they are now.")}
                                             </div>

@@ -11,6 +11,12 @@ describe("vaultFileSchema", () => {
         expect(vaultFileSchema.safeParse(valid).success).toBe(true);
     });
 
+    it("reads a backup taken before the smaller tables were added", () => {
+        const parsed = vaultFileSchema.parse(valid);
+        expect(parsed.data.categories).toEqual([]);
+        expect(parsed.metadata.counts.expenses).toBe(0);
+    });
+
     it("defaults a missing table to empty", () => {
         const parsed = vaultFileSchema.parse({ ...valid, data: { orders: [{ id: "a" }] } });
         expect(parsed.data.products).toEqual([]);

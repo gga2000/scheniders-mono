@@ -22,6 +22,7 @@ const RESTORING_FALLBACKS = {
     customers: "Restoring {count} customers...",
     products: "Restoring {count} products...",
     orders: "Restoring {count} orders...",
+    extras: "Restoring categories, tags, notes and expenses ({count} rows)...",
 } as const;
 
 const ERROR_FALLBACKS = {

@@ -100,8 +100,8 @@ describe("restoreOrderRows", () => {
 describe("executeVaultRestore", () => {
     it("sends orders to the server without the margin columns", async () => {
         const vault: VaultData = {
-            metadata: { version: "1", timestamp: "2026-10-01T00:00:00.000Z", counts: { orders: 1, products: 0, customers: 0 } },
-            data: { orders: [legacyOrderRow("o1")], products: [], customers: [] },
+            metadata: { version: "1", timestamp: "2026-10-01T00:00:00.000Z", counts: { orders: 1, products: 0, customers: 0, categories: 0, expenses: 0, customer_tags: 0, customer_tag_assignments: 0, customer_notes: 0 } },
+            data: { orders: [legacyOrderRow("o1")], products: [], customers: [], categories: [], expenses: [], customer_tags: [], customer_tag_assignments: [], customer_notes: [] },
         };
 
         await executeVaultRestore(vault);

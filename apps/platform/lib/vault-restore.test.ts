@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickCustomerWrite, pickProductWrite } from "./vault-restore";
+import { pickCustomerWrite, pickExtraWrite, pickProductWrite } from "./vault-restore";
 
 const row = {
     id: "p1", name: "Oud", price: 1000, cost: 400, cost_breakdown_json: {}, stock_quantity: 5,
@@ -24,5 +24,19 @@ describe("pickCustomerWrite", () => {
         expect(pickCustomerWrite({ customer_phone: "0770", tenant_id: "x", extra: 1, birthday: null }, "mine")).toEqual({
             customer_phone: "0770", birthday: null, tenant_id: "mine",
         });
+    });
+});
+
+describe("pickExtraWrite", () => {
+    it("forces the caller's tenant and drops columns that are not listed", () => {
+        expect(pickExtraWrite("customer_tags", { id: "t1", name: "VIP", color: "red", tenant_id: "x", extra: 1 }, "mine")).toEqual({
+            id: "t1", name: "VIP", color: "red", tenant_id: "mine",
+        });
+    });
+
+    it("never writes a category's parent or brand in the first pass", () => {
+        const write = pickExtraWrite("categories", { id: "c1", name: "Oud", parent_id: "c0", brand_id: "b1" }, "mine");
+        expect(write).not.toHaveProperty("parent_id");
+        expect(write).not.toHaveProperty("brand_id");
     });
 });
