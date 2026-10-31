@@ -12,7 +12,6 @@ import { BatchManager } from "@/components/printing/batch-manager";
 import { BatchDetailsModal } from "@/components/printing/batch-details-modal";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
-import { DateRangePicker } from "@scheniders/ui/date-range-picker";
 import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateBulkShippingLabelsHTML } from "@/lib/enhanced-label-generator";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 import { downloadLabelPdf } from "@/lib/pdf-download";
@@ -22,15 +21,11 @@ import { useLanguage } from "@/hooks/use-language";
 import {
     Printer,
     CheckSquare,
-    MapPin,
     FileText,
     Tag,
     Truck,
     CheckCircle,
-    Search,
     ChevronDown,
-    X,
-    CalendarDays,
     Eye,
     RefreshCw,
     SlidersHorizontal,
@@ -42,6 +37,7 @@ import { toast } from "@/hooks/use-toast";
 import { useCustomerOrderCounts } from "@/hooks/use-customer-order-counts";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
+import { QueueFilters, type SortBy } from "@/components/printing/queue-filters";
 import { QueueRow } from "@/components/printing/queue-row";
 import { DispatchSummary } from "@/components/printing/dispatch-summary";
 
@@ -57,8 +53,7 @@ export default function PrintingPage() {
 
     // UI state
     const [showFilters, setShowFilters] = useState(true);
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [sortBy, setSortBy] = useState<"priority" | "date" | "city" | "price">("priority");
+    const [sortBy, setSortBy] = useState<SortBy>("priority");
     const [sortDirection] = useState<"asc" | "desc">("asc");
 
     // Modal state
@@ -575,168 +570,16 @@ export default function PrintingPage() {
                                 className="space-y-4"
                                 style={{ overflow: "hidden" }}
                             >
-                                {/* Search & Filters */}
-                                <div className="pastel-card p-4 space-y-4">
-                                    <div className="flex flex-col lg:flex-row gap-4">
-                                        {/* Search */}
-                                        <div className="relative flex-1">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />
-                                            <input
-                                                type="text"
-                                                placeholder={t("printing.searchPlaceholder")}
-                                                value={printing.filters.searchQuery || ""}
-                                                onChange={(e) =>
-                                                    printing.setFilters({
-                                                        ...printing.filters,
-                                                        searchQuery: e.target.value || undefined,
-                                                    })
-                                                }
-                                                className="w-full pl-12 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] transition-all"
-                                            />
-                                        </div>
-
-                                        {/* City Filter */}
-                                        <div className="relative">
-                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                                            <select
-                                                value={printing.filters.city || ""}
-                                                onChange={(e) =>
-                                                    printing.setFilters({
-                                                        ...printing.filters,
-                                                        city: e.target.value || undefined,
-                                                    })
-                                                }
-                                                className="pl-10 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer min-w-[150px]"
-                                            >
-                                                <option value="">{t("printing.allCities")}</option>
-                                                {printing.availableCities.map((city) => (
-                                                    <option key={city} value={city}>
-                                                        {city}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                        </div>
-
-                                        {/* Sort */}
-                                        <div className="relative">
-                                            <select
-                                                value={sortBy}
-                                                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                                                className="pl-4 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer"
-                                            >
-                                                <option value="priority">{t("printing.sortPriority")}</option>
-                                                <option value="date">{t("printing.sortDate")}</option>
-                                                <option value="city">{t("printing.sortCity")}</option>
-                                                <option value="price">{t("printing.sortPrice")}</option>
-                                            </select>
-                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-                                        </div>
-
-                                        {/* Date Range */}
-                                        <div className="relative">
-                                            <button
-                                                onClick={() => setShowDatePicker(!showDatePicker)}
-                                                className={cn(
-                                                    "p-3 rounded-2xl border transition-all shadow-sm flex items-center gap-2",
-                                                    (printing.filters.dateFrom || printing.filters.dateTo)
-                                                        ? "bg-amber-100 border-amber-200 text-amber-700"
-                                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                                )}
-                                                title="Date Filter"
-                                            >
-                                                <CalendarDays className="w-4 h-4" />
-                                                {printing.filters.dateFrom && (
-                                                    <span className="text-xs font-medium hidden sm:inline">
-                                                        {printing.filters.dateFrom === printing.filters.dateTo
-                                                            ? new Date(printing.filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                                                            : `${new Date(printing.filters.dateFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${printing.filters.dateTo ? new Date(printing.filters.dateTo).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '...'}`
-                                                        }
-                                                    </span>
-                                                )}
-                                            </button>
-
-                                            {showDatePicker && (
-                                                <div className="absolute right-0 top-full mt-2 z-50 shadow-2xl rounded-3xl">
-                                                    <DateRangePicker
-                                                        inline
-                                                        dateFrom={printing.filters.dateFrom}
-                                                        dateTo={printing.filters.dateTo}
-                                                        onDateChange={(from, to) => {
-                                                            printing.setFilters({
-                                                                ...printing.filters,
-                                                                dateFrom: from,
-                                                                dateTo: to,
-                                                            });
-                                                            setShowDatePicker(false);
-                                                        }}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Clear Filters */}
-                                        {(printing.filters.searchQuery ||
-                                            printing.filters.city ||
-                                            printing.filters.dateFrom) && (
-                                                <button
-                                                    onClick={printing.clearFilters}
-                                                    className="px-4 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 transition-all flex items-center gap-2"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                    {t("printing.clear")}
-                                                </button>
-                                            )}
-                                    </div>
-
-                                    {/* Priority Pills */}
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm text-muted mr-2">Priority:</span>
-                                        {["all", "urgent", "high", "normal"].map((priority) => (
-                                            <button
-                                                key={priority}
-                                                onClick={() =>
-                                                    printing.setFilters({
-                                                        ...printing.filters,
-                                                        priority: priority === "all" ? undefined : (priority as Order["priority"]),
-                                                    })
-                                                }
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                                                    (priority === "all" && !printing.filters.priority) ||
-                                                        printing.filters.priority === priority
-                                                        ? priority === "urgent"
-                                                            ? "bg-red-500 text-white"
-                                                            : priority === "high"
-                                                                ? "bg-orange-500 text-white"
-                                                                : "bg-[var(--ink)] text-white"
-                                                        : "bg-[var(--background)] border border-[var(--card-border)] text-muted hover:bg-[var(--card-border)]"
-                                                )}
-                                            >
-                                                {priority === "all" ? "All" : priority.charAt(0).toUpperCase() + priority.slice(1)}
-                                            </button>
-                                        ))}
-
-                                        {/* Auto-ship toggle */}
-                                        <div className="ml-auto flex items-center gap-2">
-                                            <span className="text-sm text-muted">{t("printing.autoShip")}</span>
-                                            <button
-                                                onClick={() => setAutoShipAfterPrint(!autoShipAfterPrint)}
-                                                className={cn(
-                                                    "w-10 h-6 rounded-full transition-all relative",
-                                                    autoShipAfterPrint ? "bg-green-500" : "bg-gray-300"
-                                                )}
-                                            >
-                                                <div
-                                                    className={cn(
-                                                        "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow",
-                                                        autoShipAfterPrint ? "left-5" : "left-1"
-                                                    )}
-                                                />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <QueueFilters
+                                    filters={printing.filters}
+                                    onFiltersChange={printing.setFilters}
+                                    onClear={printing.clearFilters}
+                                    availableCities={printing.availableCities}
+                                    sortBy={sortBy}
+                                    onSortByChange={setSortBy}
+                                    autoShip={autoShipAfterPrint}
+                                    onAutoShipChange={setAutoShipAfterPrint}
+                                />
 
                                 {/* Label Settings */}
                                 <LabelSettingsPanel
@@ -744,35 +587,6 @@ export default function PrintingPage() {
                                     onSettingsChange={printing.setLabelSettings}
                                     isExpanded={false}
                                 />
-
-                                {/* Auto-Ship After Print Toggle */}
-                                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                    <div className="flex items-center gap-3">
-                                        <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                        <div>
-                                            <div className="font-semibold text-gray-900 dark:text-white">
-                                                Auto-Ship After Print
-                                            </div>
-                                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                                                Automatically mark orders as &ldquo;In Transit&rdquo; after printing
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => setAutoShipAfterPrint(!autoShipAfterPrint)}
-                                        className={cn(
-                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                                            autoShipAfterPrint ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                                                autoShipAfterPrint ? "translate-x-6" : "translate-x-1"
-                                            )}
-                                        />
-                                    </button>
-                                </div>
 
                                 {/* Batch Manager */}
                                 <BatchManager

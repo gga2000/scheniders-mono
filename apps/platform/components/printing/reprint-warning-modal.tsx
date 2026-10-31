@@ -1,15 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Order } from "@/lib/supabase";
 import {
     AlertTriangle,
     Printer,
-    X,
     RefreshCw,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ReprintWarningModalProps {
     isOpen: boolean;
@@ -26,6 +24,7 @@ export function ReprintWarningModal({
     onConfirm,
     onPrintNewOnly,
 }: ReprintWarningModalProps) {
+    const { t } = useLanguage();
     if (!isOpen || reprintOrders.length === 0) return null;
 
     return (
@@ -54,9 +53,9 @@ export function ReprintWarningModal({
                                 <AlertTriangle className="w-6 h-6 text-amber-600" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-amber-900">Reprint Warning</h3>
+                                <h3 className="text-lg font-bold text-amber-900">{t("printing.reprintTitle")}</h3>
                                 <p className="text-sm text-amber-700">
-                                    {reprintOrders.length} order{reprintOrders.length > 1 ? "s have" : " has"} been printed before
+                                    {t("printing.reprintSubtitle").replace("{count}", String(reprintOrders.length))}
                                 </p>
                             </div>
                         </div>
@@ -81,7 +80,7 @@ export function ReprintWarningModal({
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs font-medium text-amber-700">
-                                            Printed {order.print_count || 1}x
+                                            {t("printing.flagPrinted").replace("{count}", String(order.print_count || 1))}
                                         </p>
                                     </div>
                                 </div>
@@ -96,21 +95,21 @@ export function ReprintWarningModal({
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--ink)] text-white font-semibold hover:scale-[1.01] transition-all"
                         >
                             <Printer className="w-4 h-4" />
-                            Print All Anyway
+                            {t("printing.reprintAll")}
                         </button>
 
                         <button
                             onClick={onPrintNewOnly}
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--pastel-green)] text-green-900 font-medium hover:shadow-md transition-all"
                         >
-                            Print New Only (Skip Reprints)
+                            {t("printing.reprintNewOnly")}
                         </button>
 
                         <button
                             onClick={onClose}
                             className="w-full px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground font-medium hover:bg-[var(--card-border)] transition-colors"
                         >
-                            Cancel
+                            {t("common.cancel")}
                         </button>
                     </div>
                 </motion.div>
