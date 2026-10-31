@@ -605,6 +605,9 @@ export default function VaultPage() {
                                                     <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.customers", "Customers")}</div>
                                                 </div>
                                             </div>
+                                            <div className="text-xs text-[var(--foreground-muted)]">
+                                                {t("vault.restore.stockNote", "Stock counts and costs of products that already exist are kept as they are now.")}
+                                            </div>
                                             <div className="text-xs text-[var(--foreground-muted)] mt-2">
                                                 {t("vault.restore.createdOn", "Backup created on:")} <span className="text-[var(--foreground)] font-medium">{new Date(diffResult.timestamp).toLocaleString()}</span>
                                             </div>
