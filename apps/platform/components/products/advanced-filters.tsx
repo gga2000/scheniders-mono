@@ -35,7 +35,7 @@ export interface FilterValues {
     tagId: string | null;
 }
 
-const defaultFilters: FilterValues = {
+export const EMPTY_ADVANCED_FILTERS: FilterValues = {
     priceMin: null,
     priceMax: null,
     salesMin: null,
@@ -74,13 +74,13 @@ const labelClasses = "block text-sm font-medium text-foreground mb-2";
 
 export function AdvancedFilters({ value, onApply, onReset, embedded = false }: AdvancedFiltersProps) {
     const [isOpen, setIsOpen] = useState(embedded);
-    const [filters, setFilters] = useState<FilterValues>(value ?? defaultFilters);
+    const [filters, setFilters] = useState<FilterValues>(value ?? EMPTY_ADVANCED_FILTERS);
     // Follow the page: a removed pill, a forecast card or the URL changes the
     // applied filters, and the draft here must not bring the old ones back.
     const [appliedValue, setAppliedValue] = useState(value);
     if (value !== appliedValue) {
         setAppliedValue(value);
-        setFilters(value ?? defaultFilters);
+        setFilters(value ?? EMPTY_ADVANCED_FILTERS);
     }
     const [showSavePreset, setShowSavePreset] = useState(false);
     const [presetName, setPresetName] = useState("");
@@ -109,7 +109,7 @@ export function AdvancedFilters({ value, onApply, onReset, embedded = false }: A
     const activeCount = countActiveFilters(filters);
 
     const handleReset = () => {
-        setFilters(defaultFilters);
+        setFilters(EMPTY_ADVANCED_FILTERS);
         onReset();
     };
 
@@ -135,7 +135,7 @@ export function AdvancedFilters({ value, onApply, onReset, embedded = false }: A
 
     const handleLoadPreset = (presetFilters: Partial<FilterValues> | null) => {
         // Presets saved by older versions may miss newer fields; fill them with defaults.
-        const loaded: FilterValues = { ...defaultFilters, ...(presetFilters ?? {}) };
+        const loaded: FilterValues = { ...EMPTY_ADVANCED_FILTERS, ...(presetFilters ?? {}) };
         setFilters(loaded);
         onApply(loaded);
     };

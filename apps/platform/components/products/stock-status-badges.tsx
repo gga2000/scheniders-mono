@@ -55,49 +55,49 @@ export const StockStatusBadges = React.memo(function StockStatusBadges({
   const neverSold = !Number.isFinite(daysSinceLastSale);
   const deadSuffix = neverSold
     ? t("products.status.neverSold")
-    : `${daysSinceLastSale}d`;
-  const supplySuffix = Number.isFinite(daysOfSupply) ? `${daysOfSupply}d` : "—";
+    : t("products.status.daysShort", { days: daysSinceLastSale });
+  const supplySuffix = Number.isFinite(daysOfSupply) ? t("products.status.daysShort", { days: daysOfSupply }) : "—";
 
   const badges: BadgeConfig[] = [
     {
       key: "outOfStock",
       show: isOutOfStock,
-      bg: "bg-rose-500/15 text-rose-700 border border-rose-500/30",
+      bg: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30",
       icon: <XCircle className={iconSize} />,
       label: t("products.status.outOfStock"),
     },
     {
       key: "deadStock",
       show: flags.isDeadStock,
-      bg: "bg-rose-500/10 text-rose-700 border border-rose-500/20",
+      bg: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20",
       icon: <Moon className={iconSize} />,
       label: `${t("products.status.deadStock")} · ${deadSuffix}`,
     },
     {
       key: "slowMover",
       show: flags.isSlowMover && !flags.isDeadStock,
-      bg: "bg-orange-500/10 text-orange-700 border border-orange-500/20",
+      bg: "bg-orange-500/10 text-orange-700 dark:text-orange-300 border border-orange-500/20",
       icon: <TrendingDown className={iconSize} />,
-      label: `${t("products.status.slowMover")} · ${(dailySalesRate * 7).toFixed(1)}/wk`,
+      label: `${t("products.status.slowMover")} · ${t("products.status.perWeek", { rate: (dailySalesRate * 7).toFixed(1) })}`,
     },
     {
       key: "overstock",
       show: flags.isOverstocked,
-      bg: "bg-blue-500/10 text-blue-700 border border-blue-500/20",
+      bg: "bg-blue-500/10 text-blue-700 dark:text-sky-300 border border-blue-500/20",
       icon: <Package className={iconSize} />,
       label: `${t("products.status.overstock")} · ${supplySuffix}`,
     },
     {
       key: "understock",
       show: flags.isUnderstocked,
-      bg: "bg-amber-500/10 text-amber-700 border border-amber-500/20",
+      bg: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20",
       icon: <AlertTriangle className={iconSize} />,
       label: `${t("products.status.understock")} · ${supplySuffix} ${t("products.status.leftSuffix")}`,
     },
     {
       key: "negativeMargin",
       show: flags.isNegativeMargin,
-      bg: "bg-rose-500/10 text-rose-700 border border-rose-500/20",
+      bg: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20",
       icon: <TrendingDown className={iconSize} />,
       label: t("products.status.negativeMargin"),
     },

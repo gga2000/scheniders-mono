@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, FileSpreadsheet, FileText, Printer, ChevronDown } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ExportMenuProps {
     onExportCSV: () => void;
@@ -11,6 +12,7 @@ interface ExportMenuProps {
 }
 
 export function ExportMenu({ onExportCSV, onExportExcel, onPrintReport }: ExportMenuProps) {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -32,22 +34,22 @@ export function ExportMenu({ onExportCSV, onExportExcel, onPrintReport }: Export
 
     const menuItems = [
         {
-            label: "Export as CSV",
+            label: t("products.exportMenu.csv"),
             icon: FileText,
             onClick: onExportCSV,
-            description: "Comma-separated values",
+            description: t("products.exportMenu.csvHint"),
         },
         {
-            label: "Export as Excel",
+            label: t("products.exportMenu.excel"),
             icon: FileSpreadsheet,
             onClick: onExportExcel,
-            description: "Microsoft Excel format",
+            description: t("products.exportMenu.excelHint"),
         },
         {
-            label: "Print Report",
+            label: t("products.exportMenu.print"),
             icon: Printer,
             onClick: onPrintReport,
-            description: "Generate printable PDF",
+            description: t("products.exportMenu.printHint"),
         },
     ];
 
@@ -55,10 +57,12 @@ export function ExportMenu({ onExportCSV, onExportExcel, onPrintReport }: Export
         <div ref={menuRef} className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-green)] text-green-800 rounded-xl font-medium hover:bg-[var(--pastel-mint)] transition-colors"
+                type="button"
+                aria-expanded={isOpen}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-[var(--background)] transition-colors"
             >
                 <Download className="w-4 h-4" />
-                Export
+                {t("products.exportMenu.label")}
                 <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </button>
 
@@ -78,7 +82,7 @@ export function ExportMenu({ onExportCSV, onExportExcel, onPrintReport }: Export
                                     item.onClick();
                                     setIsOpen(false);
                                 }}
-                                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--background)] transition-colors"
+                                className="w-full flex items-start gap-3 px-4 py-3 text-start hover:bg-[var(--background)] transition-colors"
                             >
                                 <item.icon className="w-5 h-5 text-muted mt-0.5" />
                                 <div>

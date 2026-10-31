@@ -303,7 +303,7 @@ export const ProductListRow = React.memo(function ProductListRow({
 
                 {/* Revenue */}
                 <div className="hidden lg:flex flex-col items-end min-w-[100px]">
-                    <p className="text-lg font-bold text-green-700">
+                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">
                         {maskIQD(product.total_revenue || 0, showFinancials)}
                     </p>
                     <p className="text-xs text-muted">{t("products.revenue")}</p>

@@ -2,9 +2,7 @@
 
 import { useMemo } from "react";
 import {
-  Package,
   DollarSign,
-  AlertTriangle,
   TrendingUp,
   RefreshCw,
   Activity,
@@ -22,7 +20,6 @@ import {
   type HealthGrade,
   type ProductScoreInput,
 } from "@/lib/utils/product-scoring";
-import { TrendGlyph } from "@/components/ui/mini-sparkline";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -30,7 +27,7 @@ import { TrendGlyph } from "@/components/ui/mini-sparkline";
 
 interface ForecastingCardsProps {
   products: Product[];
-  onDrillDown?: (target: "stockout" | "revenue" | "lowStock") => void;
+  onDrillDown?: (target: "revenue") => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,14 +43,8 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
 
   // ---- Derived stats (single pass where possible) ----
   const stats = useMemo(() => {
-    let activeCount = 0;
-    let visibleCount = 0;
-    let hiddenCount = 0;
     let inventoryValueCost = 0;
     let inventoryValueRetail = 0;
-    let outOfStockCount = 0;
-    let lowStockCount = 0;
-    let approachingCount = 0;
     let totalRevenue = 0;
     let totalSold = 0;
     let turnoverSum = 0;
@@ -77,28 +68,9 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
       const stock = p.stock_quantity ?? 0;
       const threshold = p.low_stock_threshold ?? 0;
 
-      if (isActive) {
-        activeCount++;
-        if (p.is_visible !== false) visibleCount++;
-        else hiddenCount++;
-      }
-
       // Inventory value
       inventoryValueCost += stock * cost;
       inventoryValueRetail += stock * p.price;
-
-      // Stockout risk
-      if (stock === 0 && isActive) {
-        outOfStockCount++;
-      } else if (stock > 0 && stock <= threshold && isActive) {
-        lowStockCount++;
-      } else if (
-        stock > threshold &&
-        stock <= threshold * 1.2 &&
-        isActive
-      ) {
-        approachingCount++;
-      }
 
       // Revenue
       totalRevenue += revenue;
@@ -137,14 +109,8 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
       turnoverCount > 0 ? Math.round(turnoverSum / turnoverCount) : 0;
 
     return {
-      activeCount,
-      visibleCount,
-      hiddenCount,
       inventoryValueCost,
       inventoryValueRetail,
-      outOfStockCount,
-      lowStockCount,
-      approachingCount,
       totalRevenue,
       totalSold,
       avgTurnover,
@@ -169,24 +135,7 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
   // ---- Render ----
   return (
     // Phones: one swipeable row instead of three rows of cards above the list.
-    <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [&>*]:min-w-[44%] [&>*]:shrink-0 [&>*]:snap-start md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 md:pb-0 md:[&>*]:min-w-0 xl:grid-cols-6">
-      {/* Card 1: Total Products */}
-      <div className={cn("pastel-card border border-[var(--card-border)] p-4")}>
-        <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
-            <Package className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          </div>
-        </div>
-        <p className="text-2xl font-bold mt-3">{stats.activeCount}</p>
-        <p className="text-xs text-muted">
-          {t("products.forecast.totalProducts")}
-        </p>
-        <p className="text-xs text-muted mt-1">
-          {stats.visibleCount} {t("products.forecast.visible")} &middot;{" "}
-          {stats.hiddenCount} {t("products.forecast.hidden")}
-        </p>
-      </div>
-
+    <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [&>*]:min-w-[44%] [&>*]:shrink-0 [&>*]:snap-start md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 md:pb-0 md:[&>*]:min-w-0 xl:grid-cols-4">
       {/* Card 2: Inventory Value */}
       <div className={cn("pastel-card border border-[var(--card-border)] p-4")}>
         <div className="flex items-start justify-between">
@@ -204,33 +153,6 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
           {t("products.forecast.retail")}: {maskIQD(stats.inventoryValueRetail, revealed)}
         </p>
       </div>
-
-      {/* Card 3: Stockout Risk */}
-      <button
-        type="button"
-        onClick={onDrillDown ? () => onDrillDown("stockout") : undefined}
-        disabled={!onDrillDown}
-        className={cn(
-          "pastel-card border border-[var(--card-border)] p-4 text-left",
-          onDrillDown && "hover:shadow-md transition-shadow cursor-pointer"
-        )}
-      >
-        <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-xl bg-[var(--background)] flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
-          </div>
-          <TrendGlyph direction={stats.outOfStockCount > 0 ? "up" : "flat"} />
-        </div>
-        <p className="text-2xl font-bold mt-3">{stats.outOfStockCount}</p>
-        <p className="text-xs text-muted flex items-center gap-1">
-          {t("products.forecast.stockoutRisk")}
-          {onDrillDown && <ChevronRight className="w-3 h-3" />}
-        </p>
-        <p className="text-xs text-muted mt-1">
-          {stats.lowStockCount} {t("products.forecast.lowStock")} &middot;{" "}
-          {stats.approachingCount} {t("products.forecast.approaching")}
-        </p>
-      </button>
 
       {/* Card 4: Revenue (30d) */}
       <button
@@ -282,25 +204,11 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
             <Activity className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
         </div>
-        <div className="flex items-center gap-1 mt-3">
-          <span className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">
-            A:{stats.gradeCounts.A}
-          </span>
-          <span className="text-blue-700 dark:text-blue-400 font-bold text-sm">
-            B:{stats.gradeCounts.B}
-          </span>
-          <span className="text-amber-700 dark:text-amber-400 font-bold text-sm">
-            C:{stats.gradeCounts.C}
-          </span>
-          <span className="text-orange-700 dark:text-orange-400 font-bold text-sm">
-            D:{stats.gradeCounts.D}
-          </span>
-          <span className="text-rose-700 dark:text-rose-400 font-bold text-sm">
-            F:{stats.gradeCounts.F}
-          </span>
-        </div>
+        <p className="text-2xl font-bold mt-3 tabular-nums">
+          {totalGraded > 0 ? Math.round(((stats.gradeCounts.A + stats.gradeCounts.B) / totalGraded) * 100) : 0}%
+        </p>
         <p className="text-xs text-muted">
-          {t("products.forecast.healthOverview")}
+          {t("products.forecast.healthyShare")}
         </p>
         {totalGraded > 0 && (
           <div className="h-2 rounded-full overflow-hidden flex mt-2">
@@ -346,6 +254,13 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
             )}
           </div>
         )}
+        <p className="mt-1.5 flex flex-wrap gap-x-2 text-[11px] text-muted tabular-nums">
+          {(["A", "B", "C", "D", "F"] as const).map((g) => (
+            <span key={g}>
+              {g} {stats.gradeCounts[g]}
+            </span>
+          ))}
+        </p>
       </div>
     </div>
   );

@@ -173,7 +173,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 )}
                 {/* Health score overlay — keep one grade indicator on the card */}
                 <div
-                    className="absolute bottom-2 left-2 bg-white/25 backdrop-blur-md border border-white/40 rounded-xl px-1.5 py-0.5 shadow-lg ring-1 ring-black/5"
+                    className="absolute bottom-2 left-2 bg-white/90 dark:bg-neutral-900/85 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-xl px-1.5 py-0.5 shadow-sm"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <HealthScoreBadge score={healthScore} size="sm" showTooltip />
@@ -203,12 +203,12 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 {/* Name on its own (two lines), then price · margin. Sharing one row
                     with the price cut names to about ten characters. */}
                 <div className="space-y-1.5">
-                    <h3 className="text-[15px] font-semibold text-foreground leading-snug line-clamp-2 min-h-[2.5em]">
-                        <span dir="auto">{product.name}</span>
+                    <h3 dir="auto" className="text-[15px] font-semibold text-foreground leading-snug line-clamp-2 min-h-[2.5em] text-start">
+                        <bdi>{product.name}</bdi>
                         <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
                         {/* A draft is not on the store even when its eye says visible. */}
                         {product.status === "draft" && (
-                            <span className="align-middle ms-1.5 inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-800">
+                            <span className="align-middle ms-1.5 inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                                 {t("products.ed.status.draft")}
                             </span>
                         )}
@@ -230,10 +230,10 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                                 className={cn(
                                     "text-[10px] font-semibold px-2 py-0.5 rounded-md",
                                     ((product.price - product.cost) / product.price) * 100 >= 40
-                                        ? "bg-[var(--pastel-green)] text-green-700"
+                                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                         : ((product.price - product.cost) / product.price) * 100 >= 20
-                                            ? "bg-[var(--pastel-yellow)] text-amber-700"
-                                            : "bg-[var(--pastel-pink)] text-rose-700"
+                                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                            : "bg-rose-500/10 text-rose-700 dark:text-rose-300"
                                 )}
                                 title={t("products.marginLabel")}
                             >
@@ -355,10 +355,10 @@ export const ProductGridCard = React.memo(function ProductGridCard({
 
                     {hasReserved && (
                         <span
-                            className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-md font-medium"
+                            className="text-[10px] bg-[var(--background)] border border-[var(--card-border)] text-[var(--foreground-muted)] px-1.5 py-0.5 rounded-md font-medium tabular-nums"
                             title={t("products.stock.reservedStock")}
                         >
-                            {product.reserved_quantity} R
+                            {t("products.stock.reservedCount", { count: product.reserved_quantity || 0 })}
                         </span>
                     )}
                 </div>
@@ -422,7 +422,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 {/* Sales & Revenue */}
                 <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-[var(--card-border)]">
                     <div className="flex items-center gap-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-2 py-1">
-                        <ShoppingCart className="w-3 h-3 text-amber-700 shrink-0" />
+                        <ShoppingCart className="w-3 h-3 text-[var(--foreground-muted)] shrink-0" />
                         <div className="flex flex-col leading-tight min-w-0">
                             <span className="text-xs font-semibold text-foreground truncate">
                                 {product.times_sold || 0}
@@ -432,13 +432,13 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                             </span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 rounded-lg bg-[var(--pastel-green)]/40 border border-emerald-500/20 px-2 py-1">
-                        <span className="text-[9px] font-bold text-emerald-700 shrink-0">IQD</span>
+                    <div className="flex items-center gap-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-2 py-1">
+                        <span className="text-[9px] font-bold text-[var(--foreground-muted)] shrink-0">IQD</span>
                         <div className="flex flex-col leading-tight min-w-0">
-                            <span className="text-xs font-semibold text-emerald-800 truncate">
+                            <span className="text-xs font-semibold text-foreground truncate tabular-nums">
                                 {maskIQD(product.total_revenue || 0, showFinancials).replace(/^IQD\s*/, "")}
                             </span>
-                            <span className="text-[9px] text-emerald-700/70 uppercase tracking-wide">
+                            <span className="text-[9px] text-muted uppercase tracking-wide">
                                 {t("products.revenue")}
                             </span>
                         </div>

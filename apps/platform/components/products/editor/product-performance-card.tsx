@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
 import { TrendingUp, DollarSign, ShoppingCart, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -15,8 +15,6 @@ interface ProductPerformanceCardProps {
     averageOrderValue?: number;
 }
 
-const periods = ["7d", "30d", "90d", "All"] as const;
-type Period = (typeof periods)[number];
 
 function formatIQD(value: number): string {
     return new Intl.NumberFormat("en-IQ").format(Math.round(value)) + " IQD";
@@ -25,25 +23,25 @@ function formatIQD(value: number): string {
 const stats = [
     {
         key: "totalSales",
-        label: "Total Sales",
+        label: "products.ed.perf.totalSales",
         icon: ShoppingCart,
         color: "var(--pastel-blue)",
     },
     {
         key: "revenue",
-        label: "Revenue",
+        label: "products.ed.perf.revenue",
         icon: DollarSign,
         color: "var(--pastel-green)",
     },
     {
         key: "profitMargin",
-        label: "Profit Margin",
+        label: "products.ed.perf.profitMargin",
         icon: TrendingUp,
         color: "var(--pastel-yellow)",
     },
     {
         key: "avgOrderValue",
-        label: "Avg Order Value",
+        label: "products.ed.perf.avgOrderValue",
         icon: BarChart3,
         color: "var(--pastel-pink)",
     },
@@ -55,7 +53,7 @@ export function ProductPerformanceCard({
     profitMargin,
     averageOrderValue,
 }: ProductPerformanceCardProps) {
-    const [activePeriod, setActivePeriod] = useState<Period>("30d");
+    const { t } = useLanguage();
 
     function getValue(key: (typeof stats)[number]["key"]): string {
         switch (key) {
@@ -72,27 +70,12 @@ export function ProductPerformanceCard({
 
     return (
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 space-y-4">
-            {/* Header with period selector */}
+            {/* Header: lifetime figures */}
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                    Performance
+                    {t("products.ed.perf.title")}
                 </h3>
-                <div className="flex gap-1 bg-[var(--background)] rounded-lg p-0.5">
-                    {periods.map((period) => (
-                        <button
-                            key={period}
-                            type="button"
-                            onClick={() => setActivePeriod(period)}
-                            className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
-                                activePeriod === period
-                                    ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                                    : "text-muted hover:text-foreground"
-                            }`}
-                        >
-                            {period}
-                        </button>
-                    ))}
-                </div>
+                <span className="text-xs text-muted">{t("products.ed.perf.allTime")}</span>
             </div>
 
             {/* 2x2 stat grid */}
@@ -113,7 +96,7 @@ export function ProductPerformanceCard({
                             >
                                 <Icon className="w-4 h-4 text-foreground" />
                             </div>
-                            <span className="text-xs text-muted">{stat.label}</span>
+                            <span className="text-xs text-muted">{t(stat.label)}</span>
                             <span className="text-sm font-bold text-foreground leading-tight">
                                 {getValue(stat.key)}
                             </span>

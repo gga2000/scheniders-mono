@@ -126,14 +126,22 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                         {many ? (
                             <>
                                 {t("products.delete.bodyMany")}
-                                <span dir="auto" className="mt-1.5 block font-medium text-foreground">
-                                    {products.slice(0, 5).map((p) => p.name).join(", ")}
-                                    {products.length > 5 && ` ${t("products.bulk.andMore").replace("{count}", String(products.length - 5))}`}
+                                <span className="mt-1.5 block">
+                                    {products.slice(0, 5).map((p) => (
+                                        <span key={p.id} className="block truncate font-medium text-foreground">
+                                            <bdi>{p.name}</bdi>
+                                        </span>
+                                    ))}
+                                    {products.length > 5 && (
+                                        <span className="block text-muted">
+                                            {t("products.bulk.andMore").replace("{count}", String(products.length - 5))}
+                                        </span>
+                                    )}
                                 </span>
                             </>
                         ) : (
                             <>
-                                <span dir="auto" className="font-semibold text-foreground">{products[0]?.name}</span>
+                                <bdi className="font-semibold text-foreground">{products[0]?.name}</bdi>
                                 {" "}
                                 {t("products.delete.body")}
                             </>
@@ -144,11 +152,11 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                 {isPending ? (
                     <div className="flex items-center gap-2 py-3 text-sm text-muted">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        {t("products.delete.checking")}
+                        {t(many ? "products.delete.checkingMany" : "products.delete.checking")}
                     </div>
                 ) : isError ? (
                     <div className="flex items-center justify-between gap-3 py-3 text-sm">
-                        <p className="text-rose-600">{t("products.delete.checkFailed")}</p>
+                        <p className="text-rose-600">{t(many ? "products.delete.checkFailedMany" : "products.delete.checkFailed")}</p>
                         <button
                             type="button"
                             onClick={() => {
@@ -162,8 +170,8 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                     </div>
                 ) : (
                     <ul className="my-2 space-y-1.5 text-sm">
-                        {sold > 0 && <li>{t("products.delete.sold", { count: sold })}</li>}
-                        {(impact?.usedByOthers ?? 0) > 0 && <li>{t("products.delete.usedByOthers", { count: impact?.usedByOthers ?? 0 })}</li>}
+                        {sold > 0 && <li>{t(many ? "products.delete.soldMany" : "products.delete.sold", { count: sold })}</li>}
+                        {(impact?.usedByOthers ?? 0) > 0 && <li>{t(many ? "products.delete.usedByOthersMany" : "products.delete.usedByOthers", { count: impact?.usedByOthers ?? 0 })}</li>}
                         {(impact?.reviews ?? 0) > 0 && <li>{t("products.delete.reviews", { count: impact?.reviews ?? 0 })}</li>}
                         <li>{t(many ? "products.delete.historyMany" : "products.delete.history")}</li>
                         {blocked && (
@@ -171,7 +179,12 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                                 {many ? (
                                     <>
                                         {t("products.delete.blockedSome", { count: blockedProducts.length })}{" "}
-                                        <span dir="auto">{blockedProducts.map((p) => p.name).join(", ")}</span>
+                                        {blockedProducts.map((p, i) => (
+                                            <span key={p.id}>
+                                                {i > 0 && ", "}
+                                                <bdi>{p.name}</bdi>
+                                            </span>
+                                        ))}
                                     </>
                                 ) : (
                                     t("products.delete.blocked")

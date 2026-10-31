@@ -45,7 +45,7 @@ import { RevealToggle } from "@/components/ui/reveal-toggle";
 // Import components
 import { ProductDetailModal } from "@/components/products/product-detail-modal";
 import { LowStockAlert } from "@/components/products/low-stock-alert";
-import { AdvancedFilters, FilterValues } from "@/components/products/advanced-filters";
+import { AdvancedFilters, EMPTY_ADVANCED_FILTERS, FilterValues } from "@/components/products/advanced-filters";
 import { ActiveFilterPills } from "@/components/products/active-filter-pills";
 import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
 import { ProductDeleteDialog } from "@/components/products/product-delete-dialog";
@@ -768,7 +768,7 @@ function ProductsContent() {
 
     return (
         <PageTransition>
-            <div className="min-h-screen p-6 md:p-8">
+            <div className={cn("min-h-screen p-6 md:p-8", selectedIds.size > 0 && "pb-32 md:pb-32")}>
                 <div className="space-y-6">
                     {/* Page Header */}
                     <motion.div
@@ -873,7 +873,7 @@ function ProductsContent() {
                                             initial={{ opacity: 0, scale: 0.8, x: -20 }}
                                             animate={{ opacity: 1, scale: 1, x: 0 }}
                                             exit={{ opacity: 0, scale: 0.8, x: -20 }}
-                                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
+                                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--ink)] text-white"
                                         >
                                             <span className="text-sm font-bold">{selectedIds.size}</span>
                                             <span className="text-xs font-medium opacity-80">{t("products.selection.selected")}</span>
@@ -958,6 +958,9 @@ function ProductsContent() {
                             <LowStockAlert
                                 products={products}
                                 onViewProduct={handleViewDetails}
+                                onShowInList={(stockStatus) =>
+                                    setAdvancedFilters({ ...(advancedFilters ?? EMPTY_ADVANCED_FILTERS), stockStatus })
+                                }
                             />
 
                             {/* Forecasting Cards — folded by default so the products come first */}
@@ -978,30 +981,7 @@ function ProductsContent() {
                             >
                                 <ForecastingCards
                                     products={products}
-                                    onDrillDown={(target) => {
-                                        const base: FilterValues = advancedFilters ?? {
-                                            priceMin: null,
-                                            priceMax: null,
-                                            salesMin: null,
-                                            salesMax: null,
-                                            revenueMin: null,
-                                            revenueMax: null,
-                                            stockStatus: "all",
-                                            showArchived: false,
-                                            categoryId: null,
-                                            visibility: "all",
-                                            productType: null,
-                                            hasVariants: "all",
-                                            tagId: null,
-                                        };
-                                        if (target === "stockout") {
-                                            setAdvancedFilters({ ...base, stockStatus: "out_of_stock" });
-                                        } else if (target === "lowStock") {
-                                            setAdvancedFilters({ ...base, stockStatus: "low_stock" });
-                                        } else if (target === "revenue") {
-                                            setSortBy("revenue");
-                                        }
-                                    }}
+                                    onDrillDown={() => setSortBy("revenue")}
                                 />
                             </motion.div>
                             )}

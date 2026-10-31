@@ -1,18 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-    AlertTriangle,
-    X,
-    XCircle,
-    AlertCircle,
-    Info,
-    ChevronDown,
-    ChevronUp,
-    Clock,
-    TrendingDown,
-} from "lucide-react";
+import { useMemo } from "react";
+import { AlertTriangle, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { Product, getStockStatus } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -21,415 +10,183 @@ import { useProductStore } from "@/store/use-product-store";
 interface LowStockAlertProps {
     products: Product[];
     onViewProduct?: (product: Product) => void;
+    /** Filters the list to out-of-stock or low-stock products. */
+    onShowInList?: (stockStatus: "out_of_stock" | "low_stock") => void;
 }
 
 type Severity = "critical" | "warning" | "info";
 
+type AlertProduct = Product & { available: number; daysOfSupply: number | null };
+
 interface SeverityGroup {
     severity: Severity;
-    products: (Product & { daysOfSupply: number | null })[];
-    icon: React.ElementType;
-    bgGradient: string;
-    iconBg: string;
-    iconColor: string;
-    textColor: string;
-    badgeColor: string;
-    chipBg: string;
-    chipText: string;
-    chipHover: string;
+    products: AlertProduct[];
 }
 
-function estimateDaysOfSupply(product: Product): number | null {
+const SEVERITY_DOT: Record<Severity, string> = {
+    critical: "bg-rose-500",
+    warning: "bg-amber-500",
+    info: "bg-sky-500",
+};
+
+const SEVERITY_COUNT_KEY: Record<Severity, string> = {
+    critical: "products.alert.outOfStockCount",
+    warning: "products.alert.lowStockCount",
+    info: "products.alert.approachingCount",
+};
+
+const SEVERITY_STATUS: Record<Severity, "out_of_stock" | "low_stock" | null> = {
+    critical: "out_of_stock",
+    warning: "low_stock",
+    info: null,
+};
+
+function estimateDaysOfSupply(available: number, product: Product): number | null {
     // Units sold in the last 30 days, per day. Lifetime sales would overstate
     // the rate for any product older than a month.
-    const dailySalesRate =
-        product.times_sold_30d && product.times_sold_30d > 0
-            ? product.times_sold_30d / 30
-            : null;
-
-    if (!dailySalesRate || dailySalesRate <= 0) return null;
-
-    const available = Math.max(
-        0,
-        product.stock_quantity - (product.reserved_quantity || 0)
-    );
+    const dailySalesRate = product.times_sold_30d && product.times_sold_30d > 0 ? product.times_sold_30d / 30 : null;
+    if (!dailySalesRate) return null;
     return Math.round(available / dailySalesRate);
 }
 
-const PREVIEW_LIMIT = 5;
+function byUrgency(a: AlertProduct, b: AlertProduct): number {
+    if (a.daysOfSupply === null && b.daysOfSupply === null) return a.available - b.available;
+    if (a.daysOfSupply === null) return 1;
+    if (b.daysOfSupply === null) return -1;
+    return a.daysOfSupply - b.daysOfSupply;
+}
 
-export function LowStockAlert({ products, onViewProduct }: LowStockAlertProps) {
-    const { t, language } = useLanguage();
+/**
+ * One quiet row above the list: how many products are out, low or close to
+ * low. The products themselves open on demand, so the catalogue stays first.
+ */
+export function LowStockAlert({ products, onViewProduct, onShowInList }: LowStockAlertProps) {
+    const { t } = useLanguage();
     const alertSnooze = useProductStore((s) => s.alertSnooze);
     const snoozeAlertSeverity = useProductStore((s) => s.snoozeAlertSeverity);
-    const lowStockAlertExpanded = useProductStore((s) => s.lowStockAlertExpanded);
-    const toggleLowStockAlertExpanded = useProductStore(
-        (s) => s.toggleLowStockAlertExpanded
-    );
+    const expanded = useProductStore((s) => s.lowStockAlertExpanded);
+    const toggleExpanded = useProductStore((s) => s.toggleLowStockAlertExpanded);
 
-    const [dismissedSeverities, setDismissedSeverities] = useState<Set<Severity>>(
-        new Set()
-    );
-
-    const isSnoozed = (severity: Severity): boolean => {
-        const snoozedUntil = alertSnooze[severity];
-        return snoozedUntil !== null && Date.now() < snoozedUntil;
-    };
-
-    const severityGroups = useMemo(() => {
+    const groups = useMemo<SeverityGroup[]>(() => {
         // Supplies and filler are not held in main stock (the list hides
         // them too), so a low count on them is not something to restock.
-        const activeProducts = products.filter((p) => !p.is_archived && !p.is_supply && !p.is_filler);
-
-        const outOfStock: (Product & { daysOfSupply: number | null })[] = [];
-        const lowStock: (Product & { daysOfSupply: number | null })[] = [];
-        const approaching: (Product & { daysOfSupply: number | null })[] = [];
-
-        for (const product of activeProducts) {
+        const buckets: Record<Severity, AlertProduct[]> = { critical: [], warning: [], info: [] };
+        for (const product of products) {
+            if (product.is_archived || product.is_supply || product.is_filler) continue;
+            const available = Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
+            const enriched = { ...product, available, daysOfSupply: estimateDaysOfSupply(available, product) };
             const status = getStockStatus(product);
-            const daysOfSupply = estimateDaysOfSupply(product);
-            const enriched = { ...product, daysOfSupply };
-
-            if (status === "out_of_stock") {
-                outOfStock.push(enriched);
-            } else if (status === "low_stock") {
-                lowStock.push(enriched);
-            } else {
-                // Check if approaching threshold (within 120% of low_stock_threshold)
-                const available =
-                    product.stock_quantity - (product.reserved_quantity || 0);
-                const threshold = product.low_stock_threshold || 5;
-                if (available <= threshold * 1.2) {
-                    approaching.push(enriched);
-                }
-            }
+            if (status === "out_of_stock") buckets.critical.push(enriched);
+            else if (status === "low_stock") buckets.warning.push(enriched);
+            // Within 120% of the low-stock line: worth a look before it gets there.
+            else if (available <= (product.low_stock_threshold || 5) * 1.2) buckets.info.push(enriched);
         }
-
-        // Sort each group by urgency (lowest days of supply first)
-        const sortByUrgency = (
-            a: { daysOfSupply: number | null },
-            b: { daysOfSupply: number | null }
-        ) => {
-            if (a.daysOfSupply === null && b.daysOfSupply === null) return 0;
-            if (a.daysOfSupply === null) return 1;
-            if (b.daysOfSupply === null) return -1;
-            return a.daysOfSupply - b.daysOfSupply;
-        };
-
-        outOfStock.sort(sortByUrgency);
-        lowStock.sort(sortByUrgency);
-        approaching.sort(sortByUrgency);
-
-        const groups: SeverityGroup[] = [];
-
-        if (outOfStock.length > 0) {
-            groups.push({
-                severity: "critical",
-                products: outOfStock,
-                icon: XCircle,
-                bgGradient: "from-rose-50 to-red-50 dark:from-rose-950/30 dark:to-red-950/30",
-                iconBg: "bg-rose-100 dark:bg-rose-900/50",
-                iconColor: "text-rose-600 dark:text-rose-400",
-                textColor: "text-rose-900 dark:text-rose-100",
-                badgeColor: "bg-rose-500",
-                chipBg: "bg-rose-100 dark:bg-rose-900/40",
-                chipText: "text-rose-700 dark:text-rose-300",
-                chipHover: "hover:bg-rose-200 dark:hover:bg-rose-800/50",
-            });
-        }
-
-        if (lowStock.length > 0) {
-            groups.push({
-                severity: "warning",
-                products: lowStock,
-                icon: AlertTriangle,
-                bgGradient: "from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30",
-                iconBg: "bg-amber-100 dark:bg-amber-900/50",
-                iconColor: "text-amber-600 dark:text-amber-400",
-                textColor: "text-amber-900 dark:text-amber-100",
-                badgeColor: "bg-amber-500",
-                chipBg: "bg-amber-100 dark:bg-amber-900/40",
-                chipText: "text-amber-700 dark:text-amber-300",
-                chipHover: "hover:bg-amber-200 dark:hover:bg-amber-800/50",
-            });
-        }
-
-        if (approaching.length > 0) {
-            groups.push({
-                severity: "info",
-                products: approaching,
-                icon: Info,
-                bgGradient: "from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/30",
-                iconBg: "bg-blue-100 dark:bg-blue-900/50",
-                iconColor: "text-blue-600 dark:text-blue-400",
-                textColor: "text-blue-900 dark:text-blue-100",
-                badgeColor: "bg-blue-500",
-                chipBg: "bg-blue-100 dark:bg-blue-900/40",
-                chipText: "text-blue-700 dark:text-blue-300",
-                chipHover: "hover:bg-blue-200 dark:hover:bg-blue-800/50",
-            });
-        }
-
-        return groups;
+        return (["critical", "warning", "info"] as const)
+            .map((severity) => ({ severity, products: buckets[severity].sort(byUrgency) }))
+            .filter((g) => g.products.length > 0);
     }, [products]);
 
-    // Filter out snoozed and dismissed severity groups
-    const visibleGroups = severityGroups.filter(
-        (g) => !isSnoozed(g.severity) && !dismissedSeverities.has(g.severity)
-    );
+    const now = Date.now();
+    const visible = groups.filter((g) => {
+        const until = alertSnooze[g.severity];
+        return until === null || now >= until;
+    });
+    if (visible.length === 0) return null;
 
-    if (visibleGroups.length === 0) return null;
-
-    const totalCount = visibleGroups.reduce(
-        (sum, g) => sum + g.products.length,
-        0
-    );
-
-    const handleSnooze = (severity: Severity) => {
-        snoozeAlertSeverity(severity, 24);
-    };
-
-    const handleDismiss = (severity: Severity) => {
-        setDismissedSeverities((prev) => {
-            const next = new Set(prev);
-            next.add(severity);
-            return next;
-        });
-    };
-
-    const formatSupplyDays = (days: number | null): string => {
-        if (days === null) return t("products.alert.noSalesData");
-        return t("products.alert.daysUntilStockout").replace("{days}", String(days));
-    };
+    const hasCritical = visible.some((g) => g.severity === "critical");
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-2"
+        <section
+            aria-label={t("products.alert.stockAlert")}
+            className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]"
         >
-            <AnimatePresence mode="popLayout">
-                {visibleGroups.map((group) => {
-                    const isExpanded = lowStockAlertExpanded;
-                    const displayProducts = isExpanded
-                        ? group.products
-                        : group.products.slice(0, PREVIEW_LIMIT);
-                    const hasMore = group.products.length > PREVIEW_LIMIT;
+            <div className="flex items-center gap-3 px-4 py-2">
+                <AlertTriangle
+                    className={cn("h-4 w-4 shrink-0", hasCritical ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400")}
+                    aria-hidden
+                />
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-foreground">
+                    {visible.map((g) => {
+                        const label = (
+                            <>
+                                <span className={cn("h-2 w-2 rounded-full", SEVERITY_DOT[g.severity])} aria-hidden />
+                                <span className={g.severity === "critical" ? "font-semibold" : undefined}>
+                                    {t(SEVERITY_COUNT_KEY[g.severity], { count: g.products.length })}
+                                </span>
+                            </>
+                        );
+                        const status = SEVERITY_STATUS[g.severity];
+                        return onShowInList && status ? (
+                            <button
+                                key={g.severity}
+                                type="button"
+                                onClick={() => onShowInList(status)}
+                                title={t("products.alert.showInList")}
+                                className="inline-flex items-center gap-1.5 rounded-md underline-offset-4 hover:underline"
+                            >
+                                {label}
+                            </button>
+                        ) : (
+                            <span key={g.severity} className="inline-flex items-center gap-1.5">
+                                {label}
+                            </span>
+                        );
+                    })}
+                </div>
+                <button
+                    type="button"
+                    onClick={toggleExpanded}
+                    aria-expanded={expanded}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-[var(--background)]"
+                >
+                    {t(expanded ? "products.alert.collapse" : "products.alert.review")}
+                    {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => visible.forEach((g) => snoozeAlertSeverity(g.severity, 24))}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--foreground-muted)] hover:bg-[var(--background)] hover:text-foreground"
+                >
+                    <Clock className="h-3.5 w-3.5" />
+                    {t("products.alert.snooze24h")}
+                </button>
+            </div>
 
-                    const severityLabel =
-                        group.severity === "critical"
-                            ? t("products.alert.critical")
-                            : group.severity === "warning"
-                              ? t("products.alert.warning")
-                              : t("products.alert.info");
-
-                    const countLabel =
-                        group.severity === "critical"
-                            ? t("products.alert.outOfStockCount").replace(
-                                  "{count}",
-                                  String(group.products.length)
-                              )
-                            : group.severity === "warning"
-                              ? t("products.alert.lowStockCount").replace(
-                                    "{count}",
-                                    String(group.products.length)
-                                )
-                              : t("products.alert.approachingCount").replace(
-                                    "{count}",
-                                    String(group.products.length)
-                                );
-
-                    const Icon = group.icon;
-
-                    return (
-                        <motion.div
-                            key={group.severity}
-                            layout
-                            initial={{ opacity: 0, y: -8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="relative overflow-hidden rounded-2xl"
-                        >
-                            <div
-                                className={cn(
-                                    "absolute inset-0 bg-gradient-to-r",
-                                    group.bgGradient
-                                )}
-                            />
-
-                            <div className="relative p-4">
-                                {/* Header */}
-                                <div className="flex items-start gap-3">
-                                    <div
-                                        className={cn(
-                                            "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
-                                            group.iconBg
-                                        )}
+            {expanded && (
+                <div className="space-y-2 border-t border-[var(--card-border)] px-4 py-3">
+                    {visible.map((g) => (
+                        <ul key={g.severity} className="flex flex-wrap gap-1.5" aria-label={t(SEVERITY_COUNT_KEY[g.severity], { count: g.products.length })}>
+                            {g.products.map((product) => (
+                                <li key={product.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => onViewProduct?.(product)}
+                                        className="inline-flex items-center gap-2 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-foreground transition-colors hover:border-[var(--foreground-muted)]"
                                     >
-                                        <Icon
-                                            className={cn("w-5 h-5", group.iconColor)}
-                                        />
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
+                                        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", SEVERITY_DOT[g.severity])} aria-hidden />
+                                        <bdi className="max-w-[180px] truncate font-medium">{product.name}</bdi>
+                                        <span className="tabular-nums text-[var(--foreground-muted)]">
+                                            {t("products.alert.leftCount", { count: product.available })}
+                                        </span>
+                                        {product.daysOfSupply !== null && product.daysOfSupply > 0 && (
                                             <span
                                                 className={cn(
-                                                    "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider text-white",
-                                                    group.badgeColor
+                                                    "tabular-nums",
+                                                    product.daysOfSupply <= 7
+                                                        ? "font-medium text-rose-600 dark:text-rose-400"
+                                                        : "text-[var(--foreground-muted)]"
                                                 )}
                                             >
-                                                {severityLabel}
+                                                {t("products.alert.daysUntilStockout", { days: product.daysOfSupply })}
                                             </span>
-                                            <h3
-                                                className={cn(
-                                                    "text-sm font-semibold",
-                                                    group.textColor
-                                                )}
-                                            >
-                                                {countLabel}
-                                            </h3>
-                                        </div>
-
-                                        <p
-                                            className={cn(
-                                                "text-xs mt-0.5 opacity-70",
-                                                group.textColor
-                                            )}
-                                        >
-                                            {group.severity === "critical"
-                                                ? t("products.alert.actionNeeded")
-                                                : group.severity === "warning"
-                                                  ? t("products.alert.reorderSoon")
-                                                  : t("products.alert.monitorStock")}
-                                        </p>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                        <button
-                                            onClick={() => handleSnooze(group.severity)}
-                                            className={cn(
-                                                "inline-flex items-center justify-center gap-1 px-2.5 rounded-lg text-xs font-medium transition-colors min-h-[44px] min-w-[44px]",
-                                                group.chipBg,
-                                                group.chipText,
-                                                group.chipHover
-                                            )}
-                                            title={t("products.alert.snooze24h")}
-                                        >
-                                            <Clock className="w-3 h-3" />
-                                            <span className="hidden sm:inline">
-                                                {t("products.alert.snooze24h")}
-                                            </span>
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                handleDismiss(group.severity)
-                                            }
-                                            className={cn(
-                                                "inline-flex items-center justify-center rounded-lg transition-colors min-h-[44px] min-w-[44px]",
-                                                group.chipHover
-                                            )}
-                                            title="Dismiss"
-                                            aria-label="Dismiss alert"
-                                        >
-                                            <X
-                                                className={cn(
-                                                    "w-4 h-4",
-                                                    group.iconColor
-                                                )}
-                                            />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Product chips */}
-                                <div className="flex flex-wrap gap-1.5 mt-3">
-                                    {displayProducts.map((product) => (
-                                        <button
-                                            key={product.id}
-                                            onClick={() =>
-                                                onViewProduct?.(product)
-                                            }
-                                            className={cn(
-                                                "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                                                group.chipBg,
-                                                group.chipText,
-                                                group.chipHover
-                                            )}
-                                        >
-                                            <span className="truncate max-w-[120px]">
-                                                {product.name}
-                                            </span>
-                                            <span className="opacity-60 text-[10px] flex items-center gap-0.5">
-                                                ({product.stock_quantity})
-                                            </span>
-                                            {product.daysOfSupply !== null &&
-                                                product.daysOfSupply > 0 && (
-                                                    <span
-                                                        className={cn(
-                                                            "flex items-center gap-0.5 text-[10px]",
-                                                            product.daysOfSupply <=
-                                                                3
-                                                                ? "text-rose-600 dark:text-rose-400"
-                                                                : product.daysOfSupply <=
-                                                                    7
-                                                                  ? "text-amber-600 dark:text-amber-400"
-                                                                  : "opacity-60"
-                                                        )}
-                                                    >
-                                                        <TrendingDown className="w-2.5 h-2.5" />
-                                                        {formatSupplyDays(
-                                                            product.daysOfSupply
-                                                        )}
-                                                    </span>
-                                                )}
-                                        </button>
-                                    ))}
-
-                                    {hasMore && !isExpanded && (
-                                        <button
-                                            onClick={toggleLowStockAlertExpanded}
-                                            className={cn(
-                                                "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                                                group.chipBg,
-                                                group.chipText,
-                                                group.chipHover
-                                            )}
-                                        >
-                                            {t("products.alert.showMore").replace(
-                                                "{count}",
-                                                String(
-                                                    group.products.length -
-                                                        PREVIEW_LIMIT
-                                                )
-                                            )}
-                                            <ChevronDown className="w-3 h-3" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Collapse button when expanded */}
-                                {isExpanded && hasMore && (
-                                    <button
-                                        onClick={toggleLowStockAlertExpanded}
-                                        className={cn(
-                                            "flex items-center gap-1 mt-2 text-xs font-medium transition-colors",
-                                            group.chipText,
-                                            "opacity-70 hover:opacity-100"
                                         )}
-                                    >
-                                        <ChevronUp className="w-3 h-3" />
-                                        {t("products.alert.collapse")}
                                     </button>
-                                )}
-                            </div>
-                        </motion.div>
-                    );
-                })}
-            </AnimatePresence>
-        </motion.div>
+                                </li>
+                            ))}
+                        </ul>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }

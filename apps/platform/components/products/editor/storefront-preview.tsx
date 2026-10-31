@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState } from "react";
 import DOMPurify from "dompurify";
 import {
@@ -47,6 +48,7 @@ export function StorefrontPreview({
     slug,
     variantOptions,
 }: StorefrontPreviewProps) {
+    const { t } = useLanguage();
     /* Variant selector visual state */
     const [selectedVariants, setSelectedVariants] = useState<
         Record<string, string>
@@ -81,11 +83,11 @@ export function StorefrontPreview({
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
                 <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                     <Eye className="w-4 h-4" />
-                    Storefront Preview
+                    {t("products.ed.preview.title")}
                 </h2>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[var(--pastel-green)] text-green-800 text-xs font-medium rounded-full">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-medium rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse" />
-                    Live Preview
+                    {t("products.ed.preview.live")}
                 </span>
             </div>
 
@@ -127,7 +129,7 @@ export function StorefrontPreview({
                             ) : (
                                 <div className="flex flex-col items-center gap-2 text-muted">
                                     <ImageIcon className="w-12 h-12" />
-                                    <span className="text-xs">No image</span>
+                                    <span className="text-xs">{t("products.ed.preview.noImage")}</span>
                                 </div>
                             )}
                         </div>
@@ -215,7 +217,7 @@ export function StorefrontPreview({
                             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[var(--ink)] text-white rounded-xl text-sm font-semibold cursor-not-allowed opacity-90 transition-colors"
                         >
                             <ShoppingCart className="w-4 h-4" />
-                            Add to Cart
+                            {t("products.ed.preview.addToCart")}
                         </button>
                     </div>
                 </div>
@@ -226,7 +228,7 @@ export function StorefrontPreview({
                 {description && (
                     <div>
                         <h2 className="text-lg font-semibold text-[var(--foreground)] mb-4">
-                            Description
+                            {t("products.ed.preview.description")}
                         </h2>
                         <div
                             className="prose prose-sm max-w-none text-[var(--foreground)]"
