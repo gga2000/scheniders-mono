@@ -169,6 +169,8 @@ export function useTeamLeaderboard({ timeRange, tenantId, enabled, onError }: Us
         leaderboard: query.data?.leaderboard ?? [],
         previousTotals: query.data?.previousTotals ?? ZERO_TOTALS,
         loading: query.isPending,
+        /** When the data was fetched; used as "now" for presence so render stays pure. */
+        updatedAt: query.dataUpdatedAt,
         refetch: async () => {
             await query.refetch();
         },
