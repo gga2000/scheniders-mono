@@ -86,8 +86,7 @@ export function TagInput({ productId, disabled = false }: TagInputProps) {
             const { data, error } = await supabase
                 .from("product_tag_assignments")
                 .select("tag_id, product_tags(*)")
-                .eq("product_id", productId)
-                .eq("tenant_id", tenantId);
+                .eq("product_id", productId);
             if (error) throw error;
             return (data ?? []) as unknown as TagAssignment[];
         },

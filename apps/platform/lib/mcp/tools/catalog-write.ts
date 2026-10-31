@@ -34,7 +34,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
             .object({
                 product: productRefSchema,
                 variant: variantRefSchema.optional(),
-                price: z.number().int().min(0).max(100_000_000).optional(),
+                price: z.number().int().min(1).max(100_000_000).optional(),
                 compare_at_price: z
                     .number()
                     .int()

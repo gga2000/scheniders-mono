@@ -190,7 +190,6 @@ function ProductsContent() {
             const { data, error } = await supabase
                 .from("product_tag_assignments")
                 .select("product_id")
-                .eq("tenant_id", tenantId)
                 .eq("tag_id", selectedTagId);
             if (error) throw error;
             return new Set((data ?? []).map((r: any) => r.product_id as string));
@@ -572,22 +571,22 @@ function ProductsContent() {
 
     const handleBulkExport = useCallback(() => {
         const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-        exportToCSV(selectedProducts, "selected-products");
+        exportToCSV(selectedProducts, "selected-products", canSeeCost);
         clearSelection();
-    }, [products, selectedIds, clearSelection]);
+    }, [products, selectedIds, clearSelection, canSeeCost]);
 
     // Export handlers
     const handleExportCSV = useCallback(() => {
-        exportToCSV(filteredProducts, "products");
-    }, [filteredProducts]);
+        exportToCSV(filteredProducts, "products", canSeeCost);
+    }, [filteredProducts, canSeeCost]);
 
     const handleExportExcel = useCallback(() => {
-        exportToExcel(filteredProducts, "products");
-    }, [filteredProducts]);
+        exportToExcel(filteredProducts, "products", canSeeCost);
+    }, [filteredProducts, canSeeCost]);
 
     const handlePrintReport = useCallback(() => {
-        printProductReport(filteredProducts);
-    }, [filteredProducts]);
+        printProductReport(filteredProducts, canSeeCost);
+    }, [filteredProducts, canSeeCost]);
 
     // Keyboard chord: G then {G|L|C|K|H} to switch view mode
     useEffect(() => {

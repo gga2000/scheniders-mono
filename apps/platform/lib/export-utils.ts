@@ -44,7 +44,10 @@ export async function exportOrdersToWaseetXLSX(orderIds: string[], ordersData: O
 /**
  * Export products to CSV format
  */
-export function exportToCSV(products: Product[], filename: string = "products"): void {
+/** Columns that reveal cost or sales money; hidden from callers without financial access. */
+const CSV_FINANCIAL_COLUMNS = new Set([3, 4, 8, 9]);
+
+export function exportToCSV(products: Product[], filename: string = "products", includeFinancials: boolean = true): void {
     const headers = [
         "Name",
         "Description",
@@ -61,7 +64,7 @@ export function exportToCSV(products: Product[], filename: string = "products"):
     ];
 
     const rows = products.map((product) => {
-        const profitMargin = product.cost
+        const profitMargin = product.cost && product.price > 0
             ? (((product.price - product.cost) / product.price) * 100).toFixed(1)
             : "";
 
@@ -81,9 +84,11 @@ export function exportToCSV(products: Product[], filename: string = "products"):
         ];
     });
 
+    const keep = <T,>(cells: T[]): T[] =>
+        includeFinancials ? cells : cells.filter((_, i) => !CSV_FINANCIAL_COLUMNS.has(i));
     const csvContent = [
-        headers.join(","),
-        ...rows.map((row) => row.map(csvCell).join(",")),
+        keep(headers).join(","),
+        ...rows.map((row) => keep(row).map(csvCell).join(",")),
     ].join("\n");
 
     // The BOM makes Excel read the file as UTF-8, so Arabic names stay readable.
@@ -113,9 +118,9 @@ function csvCell(value: string): string {
  * Export products to Excel format using simple XML
  * This creates an XML spreadsheet that Excel can open
  */
-export function exportToExcel(products: Product[], filename: string = "products"): void {
+export function exportToExcel(products: Product[], filename: string = "products", includeFinancials: boolean = true): void {
     const worksheetData = products.map((product) => {
-        const profitMargin = product.cost
+        const profitMargin = product.cost && product.price > 0
             ? (((product.price - product.cost) / product.price) * 100).toFixed(1)
             : "";
 
@@ -134,6 +139,15 @@ export function exportToExcel(products: Product[], filename: string = "products"
             "Created At": new Date(product.created_at).toLocaleDateString(),
         };
     });
+
+    if (!includeFinancials) {
+        for (const row of worksheetData) {
+            delete (row as Partial<typeof row>)["Cost (IQD)"];
+            delete (row as Partial<typeof row>)["Profit Margin (%)"];
+            delete (row as Partial<typeof row>)["Total Revenue (IQD)"];
+            delete (row as Partial<typeof row>)["AOV (IQD)"];
+        }
+    }
 
     // Create XML spreadsheet
     const headers = Object.keys(worksheetData[0] || {});
@@ -169,7 +183,7 @@ export function exportToExcel(products: Product[], filename: string = "products"
 /**
  * Generate printable HTML report
  */
-export function generatePrintableReport(products: Product[]): string {
+export function generatePrintableReport(products: Product[], includeFinancials: boolean = true): string {
     const totalProducts = products.length;
     const totalRevenue = products.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
     const totalSold = products.reduce((sum, p) => sum + (p.times_sold || 0), 0);
@@ -259,10 +273,10 @@ export function generatePrintableReport(products: Product[]): string {
             <h3>Total Units Sold</h3>
             <p>${totalSold.toLocaleString()}</p>
         </div>
-        <div class="summary-card">
+        ${includeFinancials ? `<div class="summary-card">
             <h3>Total Revenue</h3>
             <p>${formatIQD(totalRevenue)}</p>
-        </div>
+        </div>` : ""}
     </div>
     
     <table>
@@ -273,7 +287,7 @@ export function generatePrintableReport(products: Product[]): string {
                 <th class="text-right">Price</th>
                 <th class="text-right">Stock</th>
                 <th class="text-right">Sold</th>
-                <th class="text-right">Revenue</th>
+                ${includeFinancials ? '<th class="text-right">Revenue</th>' : ""}
                 <th>Status</th>
             </tr>
         </thead>
@@ -287,7 +301,7 @@ export function generatePrintableReport(products: Product[]): string {
                     <td class="text-right">${formatIQD(product.price)}</td>
                     <td class="text-right">${product.stock_quantity}</td>
                     <td class="text-right">${product.times_sold || 0}</td>
-                    <td class="text-right">${formatIQD(product.total_revenue || 0)}</td>
+                    ${includeFinancials ? `<td class="text-right">${formatIQD(product.total_revenue || 0)}</td>` : ""}
                     <td class="${product.is_archived ? "status-archived" : "status-active"}">
                         ${product.is_archived ? "Archived" : "Active"}
                     </td>
@@ -308,8 +322,8 @@ export function generatePrintableReport(products: Product[]): string {
 /**
  * Open print dialog with generated report
  */
-export function printProductReport(products: Product[]): void {
-    const reportHtml = generatePrintableReport(products);
+export function printProductReport(products: Product[], includeFinancials: boolean = true): void {
+    const reportHtml = generatePrintableReport(products, includeFinancials);
     const printWindow = window.open("", "_blank");
 
     if (printWindow) {
