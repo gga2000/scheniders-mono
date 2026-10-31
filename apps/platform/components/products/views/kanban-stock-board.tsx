@@ -137,7 +137,7 @@ function MiniCard({
     isSelected: boolean;
     onToggleSelection: (id: string) => void;
     onViewDetails: (product: Product) => void;
-    t: (key: string) => string;
+    t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
     const threshold = product.low_stock_threshold || 5;
     const days = getDaysOfSupply(product);
@@ -167,7 +167,7 @@ function MiniCard({
 
                 {/* Product Info */}
                 <div className="flex-1 min-w-0 space-y-1">
-                    <p className="text-sm font-semibold text-foreground truncate">
+                    <p dir="auto" className="text-sm font-semibold text-foreground line-clamp-2 break-words text-start">
                         {product.name}
                     </p>
 
@@ -185,7 +185,7 @@ function MiniCard({
                     {product.stock_quantity > 0 && (
                         <p className="text-[11px] text-muted">
                             {days
-                                ? `~${days}${t("products.views.kanban.daysSupply")}`
+                                ? t("products.views.kanban.daysSupply", { days })
                                 : t("products.views.kanban.noSales")}
                         </p>
                     )}
