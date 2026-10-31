@@ -271,21 +271,28 @@ export function useAdjustStockMutation() {
     });
 }
 
+export type StockPile = "new" | "open_box";
+
 interface CountStockArgs {
     productId: string;
     variantId?: string | null;
+    /** Which pile was counted: new units or open box. */
+    pile: StockPile;
     counted: number;
     notes?: string;
 }
 
+/** One count's identity: a product can have a new and an open-box count in one save. */
+export const countKey = (productId: string, pile: StockPile) => `${productId}:${pile}`;
+
 export interface CountStockResult {
     saved: number;
-    /** The counts that did not save, by product id, and the first error. */
+    /** The counts that did not save, by countKey, and the first error. */
     failed: Map<string, unknown>;
 }
 
 /**
- * Set stock to shelf counts, one product at a time; the database logs each
+ * Set stock to shelf counts, one pile at a time; the database logs each
  * difference. A failure doesn't stop the rest. The catalogue is refetched
  * once at the end, not after every row.
  */
@@ -296,10 +303,11 @@ export function useSetCountedStockMutation() {
             const result: CountStockResult = { saved: 0, failed: new Map() };
             for (const args of counts) {
                 try {
-                    await productRepository.setCountedStock(args);
+                    if (args.pile === "open_box") await productRepository.setCountedOpenBox(args);
+                    else await productRepository.setCountedStock(args);
                     result.saved++;
                 } catch (err) {
-                    result.failed.set(args.productId, err);
+                    result.failed.set(countKey(args.productId, args.pile), err);
                 }
             }
             return result;

@@ -5,6 +5,8 @@ import { Product, getStockStatus } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useLongPress } from "@/hooks/use-long-press";
 import {
     Package,
@@ -64,6 +66,8 @@ export const ProductGridCard = React.memo(function ProductGridCard({
     isDragging,
 }: ProductGridCardProps) {
     const { t } = useLanguage();
+    // Cost and margin are for admins only (products.manage).
+    const canSeeCost = usePermission().can(PERMISSIONS.MANAGE_PRODUCTS);
     const stockStatus = getStockStatus(product);
     const availableStock = Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
     const threshold = product.low_stock_threshold || 5;
@@ -201,7 +205,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         )}
                     </h3>
                     <div className="flex items-center gap-1.5 shrink-0">
-                        {product.cost && product.cost > 0 && product.price > 0 && (
+                        {canSeeCost && !!product.cost && product.cost > 0 && product.price > 0 && (
                             <span
                                 className={cn(
                                     "text-[10px] font-semibold px-2 py-0.5 rounded-md",

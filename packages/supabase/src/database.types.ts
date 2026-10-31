@@ -8918,6 +8918,15 @@ export type Database = {
         Args: { p_children: Json; p_product_id: string }
         Returns: undefined
       }
+      set_counted_open_box: {
+        Args: {
+          p_counted: number
+          p_notes?: string
+          p_product_id: string
+          p_variant_id?: string
+        }
+        Returns: number
+      }
       set_counted_stock: {
         Args: {
           p_counted: number

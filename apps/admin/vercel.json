@@ -1,4 +1,11 @@
 {
   "framework": "nextjs",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "**": false
+    }
+  },
+  "ignoreCommand": "bash ../../scripts/vercel-ignore-build.sh apps/admin packages/shared packages/supabase/src packages/supabase/package.json packages/ui"
 }

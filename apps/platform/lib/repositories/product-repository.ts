@@ -8,7 +8,7 @@ import type { Json } from "@scheniders/supabase";
  * Stock is never part of a generic update. A product edit carries the stock it
  * loaded, which can be minutes old; writing it back would undo every order
  * that shipped since. Stock moves through adjustStock (a delta) or
- * setCountedStock (a shelf count), both applied to the row's current value.
+ * setCountedStock / setCountedOpenBox (shelf counts), applied to the row's current value.
  */
 export type ProductUpdate = Omit<Partial<Product>, "stock_quantity">;
 export type VariantUpdate = Omit<Partial<ProductVariant>, "stock_quantity">;
@@ -162,6 +162,22 @@ export const productRepository = {
      */
     async setCountedStock(args: { productId: string; variantId?: string | null; counted: number; notes?: string }): Promise<number> {
         const { data, error } = await supabase.rpc("set_counted_stock", {
+            p_product_id: args.productId,
+            p_variant_id: args.variantId ?? undefined,
+            p_counted: args.counted,
+            p_notes: args.notes,
+        });
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Set the open-box pile from a shelf count. The database subtracts the
+     * open-box units confirmed orders still hold and logs the difference.
+     * Returns the open box left to sell.
+     */
+    async setCountedOpenBox(args: { productId: string; variantId?: string | null; counted: number; notes?: string }): Promise<number> {
+        const { data, error } = await supabase.rpc("set_counted_open_box", {
             p_product_id: args.productId,
             p_variant_id: args.variantId ?? undefined,
             p_counted: args.counted,
