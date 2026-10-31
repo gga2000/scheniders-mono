@@ -18,6 +18,8 @@ import {
     ChevronDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { productWriteErrorKey } from "@/lib/product-write-error";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { StockIndicator } from "./stock-indicator";
 import { QuickActionsMenu } from "./quick-actions-menu";
 import { HealthScoreBadge } from "./health-score-badge";
@@ -141,90 +143,89 @@ export const ProductListRow = React.memo(function ProductListRow({
                 {/* Product Info */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-foreground truncate">{product.name}</h3>
+                        <h3 dir="auto" className="font-bold text-foreground truncate">{product.name}</h3>
                         <FillerBadge isFiller={product.is_filler} className="shrink-0" />
                         {/* Inline category picker — click chip to change this product's category. */}
-                        <div className="relative flex-shrink-0">
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCategoryPickerOpen((v) => !v);
-                                }}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onPointerUp={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)] cursor-pointer transition-colors group/catchip"
-                                disabled={!canEdit}
-                                aria-haspopup="listbox"
-                                aria-expanded={categoryPickerOpen}
-                            >
-                                <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
-                                <span
-                                    className={cn(
-                                        "text-[10px] font-medium",
-                                        categoryName
-                                            ? "text-[var(--foreground-subtle)]"
-                                            : "text-muted"
-                                    )}
-                                >
-                                    {categoryName ?? t("products.category.uncategorized")}
-                                </span>
-                                <ChevronDown className="w-3 h-3 text-[var(--foreground-subtle)] opacity-0 group-hover/catchip:opacity-100 transition-opacity" />
-                            </button>
-                            {categoryPickerOpen && (
-                                <>
-                                    <div
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setCategoryPickerOpen(false);
-                                        }}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="fixed inset-0 z-30"
-                                    />
-                                    <div
-                                        className="absolute left-0 top-full mt-1 z-40 min-w-[240px]"
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <CategoryCombobox
-                                            variant="anchored"
-                                            open={categoryPickerOpen}
-                                            onOpenChange={setCategoryPickerOpen}
-                                            value={product.category_id ?? null}
-                                            onChange={(newId) => {
-                                                if (newId === (product.category_id ?? null)) {
-                                                    setCategoryPickerOpen(false);
-                                                    return;
-                                                }
-                                                const targetName =
-                                                    newId
-                                                        ? allCategories.find((c) => c.id === newId)?.name ?? ""
-                                                        : t("products.category.uncategorized");
-                                                updateProductMutation.mutate(
-                                                    { id: product.id, data: { category_id: newId } },
-                                                    {
-                                                        onSuccess: () => {
-                                                            toast.success(
-                                                                t("products.bulkCategory.success", {
-                                                                    count: 1,
-                                                                    targetName,
-                                                                })
-                                                            );
-                                                        },
-                                                    }
-                                                );
-                                                setCategoryPickerOpen(false);
-                                            }}
-                                        />
-                                    </div>
-                                </>
+                    {/* Category chip — inline picker */}
+                    <Popover open={categoryPickerOpen} onOpenChange={setCategoryPickerOpen}>
+                    <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)] cursor-pointer transition-colors group/catchip"
+                        disabled={!canEdit}
+                        aria-haspopup="listbox"
+                        aria-expanded={categoryPickerOpen}
+                    >
+                        <Tag className="w-3 h-3 text-[var(--foreground-subtle)]" />
+                        <span
+                            className={cn(
+                                "text-[10px] font-medium truncate max-w-[140px]",
+                                categoryName
+                                    ? "text-[var(--foreground-subtle)]"
+                                    : "text-muted"
                             )}
-                        </div>
+                        >
+                            {categoryName ?? t("products.category.uncategorized")}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-[var(--foreground-subtle)] opacity-0 group-hover/catchip:opacity-100 transition-opacity" />
+                    </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        align="start"
+                        sideOffset={4}
+                        collisionPadding={16}
+                        className="w-[260px] max-w-[90vw] p-0 border-0 bg-transparent shadow-none z-[9999]"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                                <CategoryCombobox
+                                    variant="anchored"
+                                    open={categoryPickerOpen}
+                                    onOpenChange={setCategoryPickerOpen}
+                                    value={product.category_id ?? null}
+                                    onChange={(newId) => {
+                                        if (newId === (product.category_id ?? null)) {
+                                            setCategoryPickerOpen(false);
+                                            return;
+                                        }
+                                        const targetName =
+                                            newId
+                                                ? allCategories.find((c) => c.id === newId)?.name ?? ""
+                                                : t("products.category.uncategorized");
+                                        updateProductMutation.mutate(
+                                            { id: product.id, data: { category_id: newId } },
+                                            {
+                                                onSuccess: () => {
+                                                    toast.success(
+                                                        t("products.bulkCategory.success", {
+                                                            count: 1,
+                                                            targetName,
+                                                        })
+                                                    );
+                                                },
+                                                onError: (err) => toast.error(t(productWriteErrorKey(err))),
+                                            }
+                                        );
+                                        setCategoryPickerOpen(false);
+                                    }}
+                                />
+                    </PopoverContent>
+                    </Popover>
                     </div>
                     <div className="flex items-center gap-3 mt-1">
                         {product.sku && (
                             <span className="text-xs text-muted font-mono">{product.sku}</span>
                         )}
+                    </div>
+                    {/* Phone: price and stock live under the name; wider screens get their own columns. */}
+                    <div className="flex items-center gap-3 mt-1 md:hidden text-xs">
+                        <span className="font-bold text-foreground tabular-nums">{formatIQD(product.price)}</span>
+                        <span className="sm:hidden">
+                            <StockIndicator status={stockStatus} quantity={availableStock} size="sm" />
+                        </span>
                     </div>
                 </div>
 

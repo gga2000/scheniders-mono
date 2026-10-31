@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import DOMPurify from "dompurify";
 import {
     Eye,
     ImageIcon,
@@ -56,6 +57,13 @@ export function StorefrontPreview({
         });
         return initial;
     });
+
+    // Descriptions are rich text anyone with products.edit (or an import) can write:
+    // strip scripts and event handlers before this admin session renders them.
+    const safeDescription = useMemo(
+        () => (DOMPurify.isSupported ? DOMPurify.sanitize(description) : ""),
+        [description],
+    );
 
     /* Discount */
     const discountPercentage =
@@ -218,7 +226,7 @@ export function StorefrontPreview({
                         </h2>
                         <div
                             className="prose prose-sm max-w-none text-[var(--foreground)]"
-                            dangerouslySetInnerHTML={{ __html: description }}
+                            dangerouslySetInnerHTML={{ __html: safeDescription }}
                         />
                     </div>
                 )}

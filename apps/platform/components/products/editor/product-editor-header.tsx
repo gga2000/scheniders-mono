@@ -39,9 +39,9 @@ export function ProductEditorHeader({
 
     return (
         <div className="sticky top-0 z-30 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--card-border)]">
-            <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
                 {/* Left: Back + Title */}
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                     <button
                         onClick={() => router.push("/products")}
                         aria-label={t("products.ed.back")}
@@ -54,7 +54,7 @@ export function ProductEditorHeader({
                             {mode === "create" ? t("products.ed.newProduct") : (productName || t("products.ed.untitled"))}
                         </h1>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${statusColors[status]}`}>
+                    <span className={`hidden sm:inline px-3 py-1 rounded-full text-xs font-medium shrink-0 ${statusColors[status]}`}>
                         {t(`products.ed.status.${status}`)}
                     </span>
                     {children ? (
@@ -72,29 +72,31 @@ export function ProductEditorHeader({
                 </div>
 
                 {/* Right: Actions */}
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     {mode === "edit" && onDuplicate && (
                         <button
                             onClick={onDuplicate}
-                            className="px-4 py-2.5 bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--background)] transition-colors flex items-center gap-2"
+                            aria-label={t("products.ed.duplicate")}
+                            className="px-3 sm:px-4 py-2.5 bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--background)] transition-colors flex items-center gap-2"
                         >
                             <Copy className="w-4 h-4" />
-                            {t("products.ed.duplicate")}
+                            <span className="hidden sm:inline">{t("products.ed.duplicate")}</span>
                         </button>
                     )}
                     {isDirty && (
                         <button
                             onClick={onDiscard}
-                            className="px-4 py-2.5 bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--background)] transition-colors flex items-center gap-2"
+                            aria-label={t("products.ed.discard")}
+                            className="px-3 sm:px-4 py-2.5 bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--background)] transition-colors flex items-center gap-2"
                         >
                             <RotateCcw className="w-4 h-4" />
-                            {t("products.ed.discard")}
+                            <span className="hidden sm:inline">{t("products.ed.discard")}</span>
                         </button>
                     )}
                     <button
                         onClick={onSave}
                         disabled={saving || (!isDirty && mode === "edit")}
-                        className="px-6 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        className="px-4 sm:px-6 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         {saving ? (
                             <>

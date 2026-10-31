@@ -1268,7 +1268,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 sku: formData.sku ? uniqueCopyValue(formData.sku, new Set(catalogue.flatMap((p) => (p.sku ? [p.sku] : [])))) : undefined,
                 price: formData.price,
                 compare_at_price: formData.compare_at_price || undefined,
-                cost: formData.cost,
+                ...(showCost && { cost: formData.cost }),
                 stock_quantity: 0,
                 low_stock_threshold: formData.low_stock_threshold,
                 reorder_point: formData.reorder_point,
@@ -1301,7 +1301,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     await addVariant(newProduct.id, {
                         name: variant.name,
                         price: variant.price,
-                        cost: variant.cost,
+                        ...(showCost && { cost: variant.cost }),
                         stock_quantity: 0,
                         sku: variant.sku ? `${variant.sku}-copy` : "",
                         option_values: variant.option_values,

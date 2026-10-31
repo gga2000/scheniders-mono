@@ -24,6 +24,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                     </label>
                     <input
                         type="text"
+                        dir="auto"
                         value={formData.name}
                         onChange={(e) => updateField("name", e.target.value)}
                         placeholder={t("products.ed.namePh")}
@@ -38,6 +39,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                     </label>
                     <input
                         type="text"
+                        dir="auto"
                         value={formData.short_name}
                         onChange={(e) => updateField("short_name", e.target.value)}
                         placeholder={t("products.ed.shortNamePh")}
@@ -78,6 +80,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                     <span className="text-xs text-muted ms-1">{t("products.ed.shortDescriptionHint")}</span>
                 </label>
                 <textarea
+                    dir="auto"
                     value={formData.short_description}
                     onChange={(e) => updateField("short_description", e.target.value)}
                     placeholder={t("products.ed.shortDescriptionPh")}
