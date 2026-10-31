@@ -298,6 +298,12 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
         }
     }, [blockedLookupFailed, t]);
 
+    const customerPhone = customer?.phone;
+    useEffect(() => {
+        setBlacklistMode(null);
+        setCreatingOrder(false);
+    }, [customerPhone]);
+
     useEffect(() => {
         if (!customer) return;
         setLimit(60); // reset paging each time a new customer opens

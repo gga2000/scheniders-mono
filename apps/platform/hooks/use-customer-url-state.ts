@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { PaginatedCustomerFilters, parseCustomerSort } from "@/hooks/use-paginated-customers";
 import { CustomerStatus, TrustTier } from "@/types/customer";
@@ -67,12 +67,28 @@ export function useCustomerUrlState() {
         }
     };
 
-    // 3. Sync debounced search to URL
+    // 3. Sync debounced search to URL. Only a change of the typed text pushes;
+    // a URL that moved on its own (below) must not be pushed back to the old text.
+    const lastUrlSearch = useRef(state.search ?? "");
+    const lastDebounced = useRef(debouncedSearch);
     useEffect(() => {
-        if (debouncedSearch !== state.search) {
+        if (debouncedSearch === lastDebounced.current) return;
+        lastDebounced.current = debouncedSearch;
+        if (debouncedSearch !== (state.search ?? "")) {
+            lastUrlSearch.current = debouncedSearch;
             pushStateToUrl("search", debouncedSearch || null);
         }
-    }, [debouncedSearch, state.search]); // Depend on derived state to prevent loops
+    }, [debouncedSearch]);
+
+    // A search that arrives from outside the box (a global-search result, browser
+    // back/forward) replaces what is typed; the box's own pushes are not echoed back.
+    useEffect(() => {
+        const urlSearch = state.search ?? "";
+        if (urlSearch !== lastUrlSearch.current) {
+            lastUrlSearch.current = urlSearch;
+            setLocalSearch(urlSearch);
+        }
+    }, [state.search]);
 
     // Setters just push to the URL. React will handle the re-render.
     const setSearch = (search: string) => setLocalSearch(search);
