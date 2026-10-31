@@ -11,9 +11,7 @@ import { format, differenceInCalendarDays } from "date-fns";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import type { EmployeePayrollData, PayrollRecord } from "@/types/salary";
-import { AddAdvanceModal } from "./add-advance-modal";
-import { AddPenaltyModal } from "./add-penalty-modal";
-import { AddBonusModal } from "./add-bonus-modal";
+import { PayrollAdjustmentModal } from "./payroll-adjustment-modal";
 import { SalaryConfigForm } from "./salary-config-form";
 import { OrderBreakdownModal } from "./order-breakdown-modal";
 
@@ -849,23 +847,26 @@ export function EmployeePayrollCard({
             </motion.div>
 
             {/* Modals */}
-            <AddAdvanceModal
+            <PayrollAdjustmentModal
+                kind="advance"
                 isOpen={advanceOpen}
                 onClose={() => setAdvanceOpen(false)}
                 employeeName={displayName}
-                onSubmit={(amount, reason) => onAddAdvance(employee.id, amount, reason)}
+                onSubmit={(amount, reason) => onAddAdvance(employee.id, amount, reason || undefined)}
             />
-            <AddPenaltyModal
+            <PayrollAdjustmentModal
+                kind="penalty"
                 isOpen={penaltyOpen}
                 onClose={() => setPenaltyOpen(false)}
                 employeeName={displayName}
                 onSubmit={(amount, reason) => onAddPenalty(employee.id, amount, reason)}
             />
-            <AddBonusModal
+            <PayrollAdjustmentModal
+                kind="bonus"
                 isOpen={bonusOpen}
                 onClose={() => setBonusOpen(false)}
                 employeeName={displayName}
-                onSubmit={(amount, reason) => onAddBonus(employee.id, amount, reason)}
+                onSubmit={(amount, reason) => onAddBonus(employee.id, amount, reason || undefined)}
             />
             <SalaryConfigForm
                 isOpen={configOpen}

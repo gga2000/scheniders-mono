@@ -3,6 +3,7 @@
 import { DollarSign, TrendingDown, AlertCircle, Users, ChevronRight } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
@@ -78,6 +79,8 @@ export function SalaryOverviewCards({
     onPenaltiesClick,
 }: SalaryOverviewCardsProps) {
     const reduce = useReducedMotion();
+    const { t } = useLanguage();
+    const iqd = t("common.iqd");
     return (
         <motion.div
             initial={reduce ? false : { opacity: 0, y: 8 }}
@@ -85,10 +88,10 @@ export function SalaryOverviewCards({
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="flex items-stretch flex-wrap sm:flex-nowrap bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden divide-x divide-[var(--card-border)]"
         >
-            <Tile Icon={DollarSign} tone="emerald" label="Total Payroll Due" value={`${fmtIQD(totalDue)} IQD`} primary />
-            <Tile Icon={TrendingDown} tone="amber" label="Active Advances" value={`${fmtIQD(totalPendingAdvances)} IQD`} onClick={onAdvancesClick} />
-            <Tile Icon={AlertCircle} tone="rose" label="Pending Penalties" value={`${fmtIQD(totalPendingPenalties)} IQD`} onClick={onPenaltiesClick} />
-            <Tile Icon={Users} tone="blue" label="Employees" value={String(employeeCount)} />
+            <Tile Icon={DollarSign} tone="emerald" label={t("payroll.overview.totalDue")} value={`${fmtIQD(totalDue)} ${iqd}`} primary />
+            <Tile Icon={TrendingDown} tone="amber" label={t("payroll.overview.advances")} value={`${fmtIQD(totalPendingAdvances)} ${iqd}`} onClick={onAdvancesClick} />
+            <Tile Icon={AlertCircle} tone="rose" label={t("payroll.overview.penalties")} value={`${fmtIQD(totalPendingPenalties)} ${iqd}`} onClick={onPenaltiesClick} />
+            <Tile Icon={Users} tone="blue" label={t("payroll.overview.employees")} value={String(employeeCount)} />
         </motion.div>
     );
 }
