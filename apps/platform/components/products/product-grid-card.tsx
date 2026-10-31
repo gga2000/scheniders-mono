@@ -29,6 +29,7 @@ import { FillerBadge } from "./filler-badge";
 import { StockStatusBadges } from "./stock-status-badges";
 import { BatchBadge } from "./batch-tracking/batch-badge";
 import { CategoryCombobox } from "./category-combobox";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { useUpdateProductMutation } from "@/hooks/use-products-query";
@@ -200,7 +201,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 {/* Name (left) · margin % + price (right) */}
                 <div className="flex items-center justify-between gap-2">
                     <h3 className="text-base font-bold text-foreground leading-tight line-clamp-2 flex-1 min-w-0">
-                        {product.name}
+                        <span dir="auto">{product.name}</span>
                         <FillerBadge isFiller={product.is_filler} className="align-middle mr-1.5" />
                         {/* A draft is not on the store even when its eye says visible. */}
                         {product.status === "draft" && (
@@ -301,6 +302,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                                                         })
                                                     );
                                                 },
+                                                onError: (err) => toast.error(t(productWriteErrorKey(err))),
                                             }
                                         );
                                         setCategoryPickerOpen(false);

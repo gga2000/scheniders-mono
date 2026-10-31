@@ -67,7 +67,7 @@ export function exportToCSV(products: Product[], filename: string = "products"):
 
         return [
             product.name,
-            product.description || "",
+            htmlToPlainText(product.description || ""),
             product.price.toString(),
             (product.cost || "").toString(),
             profitMargin,
@@ -83,12 +83,30 @@ export function exportToCSV(products: Product[], filename: string = "products"):
 
     const csvContent = [
         headers.join(","),
-        ...rows.map((row) =>
-            row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")
-        ),
+        ...rows.map((row) => row.map(csvCell).join(",")),
     ].join("\n");
 
-    downloadFile(csvContent, `${filename}.csv`, "text/csv;charset=utf-8;");
+    // The BOM makes Excel read the file as UTF-8, so Arabic names stay readable.
+    downloadFile(`\uFEFF${csvContent}`, `${filename}.csv`, "text/csv;charset=utf-8;");
+}
+
+/** Rich-text descriptions are HTML; a spreadsheet cell wants the words only. */
+function htmlToPlainText(html: string): string {
+    return html
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/** Quote a CSV cell; a leading = + - @ would run as a formula in Excel, so prefix it with a quote mark. */
+function csvCell(value: string): string {
+    const isNumber = /^-?\d+(\.\d+)?$/.test(value);
+    const safe = !isNumber && /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+    return `"${safe.replace(/"/g, '""')}"`;
 }
 
 /**
