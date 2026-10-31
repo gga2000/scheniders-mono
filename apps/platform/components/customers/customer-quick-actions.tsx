@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerTags, useCustomerTagAssignments } from "@/hooks/use-customer-management";
 import { useAddCustomerNote } from "@/hooks/use-customer-notes";
+import { toast } from "@/hooks/use-toast";
 import { tagColorClasses, type TagColor } from "@/types/customer";
 
 interface Assignment { tag_id: string }
@@ -39,8 +40,8 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
     const toggle = async (tagId: string) => {
         setPendingTag(tagId);
         try {
-            if (assignedIds.has(tagId)) await removeTag(tagId);
-            else await assignTag(tagId);
+            const ok = assignedIds.has(tagId) ? await removeTag(tagId) : await assignTag(tagId);
+            if (!ok) toast({ variant: "error", title: t("customers.quick.tagFailed", "Couldn't update the tag. Try again.") });
             refresh();
         } finally {
             setPendingTag(null);
@@ -53,18 +54,27 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
         setCreating(true);
         try {
             const tg = await createTag(name, "blue");
-            if (tg) { await assignTag(tg.id); setNewTag(""); refresh(); }
+            if (!tg || !(await assignTag(tg.id))) {
+                toast({ variant: "error", title: t("customers.quick.tagFailed", "Couldn't update the tag. Try again.") });
+            } else {
+                setNewTag("");
+            }
+            refresh();
         } finally {
             setCreating(false);
         }
     };
 
-    const submitNote = async () => {
+    const submitNote = () => {
         const v = note.trim();
         if (!v || addNote.isPending) return;
-        await addNote.mutateAsync(v);
-        setNote("");
-        refresh();
+        addNote.mutate(v, {
+            onSuccess: () => {
+                setNote("");
+                refresh();
+            },
+            onError: () => toast({ variant: "error", title: t("customers.quick.noteFailed", "Couldn't save the note. Try again.") }),
+        });
     };
 
     return (
