@@ -4,11 +4,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     AlertCircle,
-    Truck,
     CheckCircle,
-    X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ConfirmationDialogProps {
     isOpen: boolean;
@@ -55,11 +54,12 @@ export function ConfirmationDialog({
     onConfirm,
     title,
     message,
-    confirmLabel = "Confirm",
-    cancelLabel = "Cancel",
+    confirmLabel,
+    cancelLabel,
     type = "default",
     orderCount,
 }: ConfirmationDialogProps) {
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(false);
     const styles = typeStyles[type];
     const Icon = styles.icon;
@@ -100,7 +100,7 @@ export function ConfirmationDialog({
                         <div>
                             <h3 className="text-lg font-bold text-foreground">{title}</h3>
                             {orderCount !== undefined && (
-                                <p className="text-sm text-muted">{orderCount} orders selected</p>
+                                <p className="text-sm text-muted">{t("printing.ordersCount").replace("{count}", String(orderCount))}</p>
                             )}
                         </div>
                     </div>
@@ -114,7 +114,7 @@ export function ConfirmationDialog({
                             onClick={onClose}
                             className="flex-1 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground font-medium hover:bg-[var(--card-border)] transition-colors"
                         >
-                            {cancelLabel}
+                            {cancelLabel ?? t("common.cancel")}
                         </button>
                         <button
                             onClick={handleConfirm}
@@ -128,7 +128,7 @@ export function ConfirmationDialog({
                             {loading ? (
                                 <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
                             ) : (
-                                confirmLabel
+                                confirmLabel ?? t("common.confirm")
                             )}
                         </button>
                     </div>
@@ -150,14 +150,15 @@ export function MarkAsShippedDialog({
     onConfirm: () => void;
     orderCount: number;
 }) {
+    const { t } = useLanguage();
     return (
         <ConfirmationDialog
             isOpen={isOpen}
             onClose={onClose}
             onConfirm={onConfirm}
-            title="Mark as Shipped"
-            message="This will update the selected orders to 'In Transit' status. They will be removed from the print queue."
-            confirmLabel="Mark as Shipped"
+            title={t("printing.shipDialogTitle")}
+            message={t("printing.shipDialogBody")}
+            confirmLabel={t("printing.shipDialogTitle")}
             type="success"
             orderCount={orderCount}
         />
@@ -175,14 +176,15 @@ export function MarkAsDeliveredDialog({
     onConfirm: () => void;
     orderCount: number;
 }) {
+    const { t } = useLanguage();
     return (
         <ConfirmationDialog
             isOpen={isOpen}
             onClose={onClose}
             onConfirm={onConfirm}
-            title="Mark as Delivered"
-            message="This will mark the selected orders as delivered. This action starts the 7-day guarantee period."
-            confirmLabel="Mark as Delivered"
+            title={t("printing.deliverDialogTitle")}
+            message={t("printing.deliverDialogBody")}
+            confirmLabel={t("printing.deliverDialogTitle")}
             type="success"
             orderCount={orderCount}
         />
