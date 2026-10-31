@@ -3,6 +3,7 @@
 import { ArrowUpRight, ArrowDownRight, Sparkles } from "lucide-react";
 import { FinanceValue } from "../primitives/finance-value";
 import { SectionCard } from "../primitives/section-card";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 
@@ -11,47 +12,48 @@ interface TopMoversProps {
 }
 
 export function TopMovers({ data }: TopMoversProps) {
+    const { t } = useLanguage();
     const { top_gainer_product, top_loser_product, top_gainer_channel, top_loser_channel } = data;
 
     const items = [
         {
             id: "gain_prod",
             kind: "gain" as const,
-            label: "Biggest product gain",
+            label: t("finances.overview.movers.prodGain"),
             entity: top_gainer_product?.name || "—",
             delta: top_gainer_product?.delta || 0,
-            context: top_gainer_product ? `${top_gainer_product.name} revenue is up` : "No change",
+            context: top_gainer_product ? t("finances.overview.movers.prodUp", { name: top_gainer_product.name }) : t("finances.overview.movers.none"),
         },
         {
             id: "lose_prod",
             kind: "lose" as const,
-            label: "Biggest product drop",
+            label: t("finances.overview.movers.prodDrop"),
             entity: top_loser_product?.name || "—",
             delta: top_loser_product?.delta || 0,
-            context: top_loser_product ? `${top_loser_product.name} revenue is down` : "No change",
+            context: top_loser_product ? t("finances.overview.movers.prodDown", { name: top_loser_product.name }) : t("finances.overview.movers.none"),
         },
         {
             id: "gain_ch",
             kind: "gain" as const,
-            label: "Biggest channel gain",
+            label: t("finances.overview.movers.chGain"),
             entity: top_gainer_channel?.name || "—",
             delta: top_gainer_channel?.delta || 0,
-            context: top_gainer_channel ? `${top_gainer_channel.name} is carrying growth` : "No change",
+            context: top_gainer_channel ? t("finances.overview.movers.chUp", { name: top_gainer_channel.name }) : t("finances.overview.movers.none"),
         },
         {
             id: "lose_ch",
             kind: "lose" as const,
-            label: "Biggest channel drop",
+            label: t("finances.overview.movers.chDrop"),
             entity: top_loser_channel?.name || "—",
             delta: top_loser_channel?.delta || 0,
-            context: top_loser_channel ? `${top_loser_channel.name} is slowing` : "No change",
+            context: top_loser_channel ? t("finances.overview.movers.chDown", { name: top_loser_channel.name }) : t("finances.overview.movers.none"),
         },
     ];
 
     return (
         <SectionCard
-            title="Top Movers"
-            subtitle="vs. previous period"
+            title={t("finances.overview.movers.title")}
+            subtitle={t("finances.overview.movers.sub")}
             icon={Sparkles}
             accent="amber"
         >
@@ -67,7 +69,7 @@ export function TopMovers({ data }: TopMoversProps) {
                                 "rounded-xl p-3 border bg-[var(--background)] border-[var(--card-border)]"
                             )}
                         >
-                            <div className="flex items-center justify-between mb-1">
+                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1">
                                 <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">{it.label}</span>
                                 {show && (
                                     <span

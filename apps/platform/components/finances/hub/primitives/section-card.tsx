@@ -43,7 +43,7 @@ export function SectionCard({
                 className
             )}
         >
-            <header className={cn("flex items-start justify-between gap-3", dense ? "p-4" : "p-5")}>
+            <header className={cn("flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3", dense ? "p-4" : "p-5")}>
                 <div className="flex items-center gap-3 min-w-0">
                     {Icon && (
                         <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", accentMap[accent])}>
@@ -51,11 +51,11 @@ export function SectionCard({
                         </div>
                     )}
                     <div className="min-w-0">
-                        <h3 className="text-[15px] font-semibold text-foreground truncate">{title}</h3>
-                        {subtitle && <p className="text-xs text-muted mt-0.5 truncate">{subtitle}</p>}
+                        <h3 className="text-[15px] font-semibold text-foreground sm:truncate">{title}</h3>
+                        {subtitle && <p className="text-xs text-muted mt-0.5 sm:truncate">{subtitle}</p>}
                     </div>
                 </div>
-                {action && <div className="shrink-0">{action}</div>}
+                {action && <div className="min-w-0 max-w-full sm:shrink-0">{action}</div>}
             </header>
             <div className={cn(dense ? "px-4 pb-4" : "px-5 pb-5", bodyClassName)}>{children}</div>
         </section>

@@ -56,7 +56,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                 className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] hover:border-[var(--ink)] transition-colors"
             >
                 <Calendar className="w-4 h-4 text-muted" />
-                <span className="text-[13px] font-medium text-foreground">{label}</span>
+                <span className="text-[13px] font-medium text-foreground whitespace-nowrap">{label}</span>
                 <ChevronDown className={cn("w-3.5 h-3.5 text-muted transition-transform", open && "rotate-180")} />
             </button>
 

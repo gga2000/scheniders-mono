@@ -59,7 +59,7 @@ export function TabsShell({ activeTab, onChange }: TabsShellProps) {
     const { t: translate } = useLanguage();
     return (
         <div className="relative border-b border-[var(--card-border)]">
-            <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide -mb-px">
+            <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide -mb-px [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]">
                 {TABS.map((t) => {
                     const active = t.id === activeTab;
                     const Icon = t.icon;
