@@ -8,9 +8,10 @@ import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
-import { productWriteErrorKey } from "@/lib/product-write-error";
+import { categoryWriteErrorKey } from "@/lib/product-write-error";
 import {
   useCategoriesQuery,
+  useCategoryMembershipsQuery,
   useAddCategoryMutation,
   useUpdateCategoryMutation,
   useArchiveCategoryMutation,
@@ -40,6 +41,7 @@ export function CategoriesTabV2() {
     includeArchived: true,
   });
   const { products } = useProductsCrud();
+  const { data: memberships = [], isSuccess: membershipsReady } = useCategoryMembershipsQuery();
 
   const addMutation = useAddCategoryMutation();
   const updateMutation = useUpdateCategoryMutation();
@@ -92,18 +94,32 @@ export function CategoriesTabV2() {
     };
   }, [clearUndoTimers]);
 
-  const productCountMap = useMemo(() => {
+  // A category holds the products that point at it plus its curated members
+  // (product_categories), the same set the storefront shows on its page.
+  const curatedCountMap = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const p of products) {
-      if (p.category_id) map[p.category_id] = (map[p.category_id] ?? 0) + 1;
-    }
+    for (const m of memberships) map[m.category_id] = (map[m.category_id] ?? 0) + 1;
     return map;
-  }, [products]);
+  }, [memberships]);
 
-  const uncategorizedCount = useMemo(
-    () => products.filter((p) => !p.category_id && !p.is_archived).length,
-    [products],
-  );
+  const productCountMap = useMemo(() => {
+    const members = new Map<string, Set<string>>();
+    const add = (categoryId: string, productId: string) => {
+      const set = members.get(categoryId) ?? new Set<string>();
+      set.add(productId);
+      members.set(categoryId, set);
+    };
+    for (const p of products) if (p.category_id) add(p.category_id, p.id);
+    for (const m of memberships) add(m.category_id, m.product_id);
+    const map: Record<string, number> = {};
+    for (const [id, set] of members) map[id] = set.size;
+    return map;
+  }, [products, memberships]);
+
+  const uncategorizedCount = useMemo(() => {
+    const curated = new Set(memberships.map((m) => m.product_id));
+    return products.filter((p) => !p.category_id && !curated.has(p.id) && !p.is_archived).length;
+  }, [products, memberships]);
 
   const fuse = useMemo(
     () =>
@@ -169,9 +185,12 @@ export function CategoriesTabV2() {
 
   // Category writes need products.edit; RLS has the final say, and a refused
   // write now throws (it used to match no rows and still toast success).
-  const canEditCategories = usePermission().can(PERMISSIONS.EDIT_PRODUCTS);
+  const { can } = usePermission();
+  const canEditCategories = can(PERMISSIONS.EDIT_PRODUCTS);
+  // RLS lets only products.manage delete a category.
+  const canDeleteCategories = can(PERMISSIONS.MANAGE_PRODUCTS);
   const reportCategoryError = useCallback(
-    (err: unknown) => toast.error(t(productWriteErrorKey(err))),
+    (err: unknown) => toast.error(t(categoryWriteErrorKey(err))),
     [t],
   );
   /** Runs one write per id; reports how many failed instead of stopping at the first. */
@@ -183,7 +202,7 @@ export function CategoriesTabV2() {
       if (failed) {
         toast.error(
           t("categories.error.someFailed", { failed: ids.length - done.length, total: ids.length }) +
-            " " + t(productWriteErrorKey(failed.reason)),
+            " " + t(categoryWriteErrorKey(failed.reason)),
         );
       }
       return done;
@@ -223,11 +242,23 @@ export function CategoriesTabV2() {
 
   const handleDelete = useCallback(
     async (c: Category) => {
-      if (productCountMap[c.id] && productCountMap[c.id] > 0) {
-        toast.error(
-          t("categories.error.hasProducts") ||
-            "Cannot delete a category with products assigned. Archive instead.",
-        );
+      if (!canDeleteCategories) return;
+      // Deleting cascades into curated members and subcategories, so the check
+      // waits for the membership list instead of passing on an empty one.
+      if (!membershipsReady) {
+        toast.error(t("products.errors.saveFailed"));
+        return;
+      }
+      if ((curatedCountMap[c.id] ?? 0) > 0) {
+        toast.error(t("categories.error.hasCurated"));
+        return;
+      }
+      if ((productCountMap[c.id] ?? 0) > 0) {
+        toast.error(t("categories.error.hasProducts"));
+        return;
+      }
+      if (categories.some((other) => other.parent_id === c.id)) {
+        toast.error(t("categories.error.hasChildren"));
         return;
       }
       if (
@@ -246,14 +277,14 @@ export function CategoriesTabV2() {
       }
       toast.success(t("categories.toast.deleted") || "Category deleted");
     },
-    [deleteMutation, productCountMap, t, reportCategoryError],
+    [deleteMutation, productCountMap, curatedCountMap, membershipsReady, categories, canDeleteCategories, t, reportCategoryError],
   );
 
   const handleDuplicate = useCallback(
     async (c: Category) => {
       if (!canEditCategories) return;
       try {
-        await duplicateMutation.mutateAsync({ id: c.id, withProducts: false });
+        await duplicateMutation.mutateAsync({ id: c.id, withProducts: false, copySuffix: t("categories.copySuffix") });
       } catch (err) {
         reportCategoryError(err);
         return;
@@ -366,7 +397,7 @@ export function CategoriesTabV2() {
           target.isContentEditable);
       if (inForm && e.key !== "Escape") return;
 
-      if (e.key === "n" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (canEditCategories && e.key === "n" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         openNew();
       } else if (e.key === "/") {
@@ -381,7 +412,7 @@ export function CategoriesTabV2() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openNew, selectedIds.length, clearSelection]);
+  }, [openNew, selectedIds.length, clearSelection, canEditCategories]);
 
   return (
     <PageTransition>
@@ -424,7 +455,7 @@ export function CategoriesTabV2() {
             onEdit={openEdit}
             onDuplicate={handleDuplicate}
             onArchive={handleArchive}
-            onDelete={handleDelete}
+            onDelete={canDeleteCategories ? handleDelete : undefined}
             onToggleVisibility={handleToggleVisibility}
             onScopeChange={handleScopeChange}
             onReorder={handleReorder}

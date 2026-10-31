@@ -26,3 +26,14 @@ export function productWriteErrorKey(err: unknown): string {
     }
     return "products.errors.saveFailed";
 }
+
+/**
+ * Same as productWriteErrorKey, but a clash or a dangling reference is
+ * described in category terms (a category's unique key is its URL slug).
+ */
+export function categoryWriteErrorKey(err: unknown): string {
+    const key = productWriteErrorKey(err);
+    if (key === "products.errors.duplicate") return "categories.errors.duplicateSlug";
+    if (key === "products.errors.inUse") return "categories.errors.inUse";
+    return key;
+}

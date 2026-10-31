@@ -6,7 +6,7 @@ import { X, Plus, Layers, Eye, EyeOff } from "lucide-react";
 import type { Category } from "@/types/product";
 import { slugify } from "@scheniders/shared";
 import { toast } from "@/hooks/use-toast";
-import { productWriteErrorKey } from "@/lib/product-write-error";
+import { categoryWriteErrorKey } from "@/lib/product-write-error";
 import { useLanguage } from "@/hooks/use-language";
 
 interface CategoryFormModalProps {
@@ -94,7 +94,7 @@ export function CategoryFormModal({
             onClose();
         } catch (error) {
             // Keep the form open with what was typed, and say why it failed.
-            toast.error(t(productWriteErrorKey(error)));
+            toast.error(t(categoryWriteErrorKey(error)));
         } finally {
             setLoading(false);
         }

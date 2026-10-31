@@ -21,7 +21,7 @@ import {
     Grid3X3,
     List,
     ChevronDown,
-    ChevronLeft,
+    ChevronRight,
     Plus,
     RefreshCw,
     ClipboardList,
@@ -1101,14 +1101,14 @@ function ProductsContent() {
                                     disabled={!!searchQuery}
                                     aria-expanded={showFiller || !!searchQuery}
                                     className={cn(
-                                        "w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-colors text-right",
+                                        "w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-colors text-start",
                                         "bg-[var(--background)] border-[var(--card-border)]",
                                         searchQuery ? "opacity-60 cursor-default" : "hover:bg-[var(--card-bg)]"
                                     )}
                                 >
                                     {showFiller || searchQuery
                                         ? <ChevronDown className="w-4 h-4 text-muted shrink-0" />
-                                        : <ChevronLeft className="w-4 h-4 text-muted shrink-0" />}
+                                        : <ChevronRight className="w-4 h-4 text-muted shrink-0" />}
                                     <Layers className="w-4 h-4 text-muted shrink-0" />
                                     <span className="flex-1 min-w-0">
                                         <span className="block text-sm font-semibold text-foreground truncate">

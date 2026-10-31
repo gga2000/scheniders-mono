@@ -311,7 +311,7 @@ export const productRepository = {
 
             if (error) throw error;
             assertChanged("productRepository.delete", changed, 1);
-        });
+        }, WRITE_ONCE);
     },
 
     /** Bulk-update price for multiple products. */
@@ -366,7 +366,7 @@ export const productRepository = {
             await withRetry('productRepository.bulkPriceHistory', async () => {
                 const { error } = await supabase.from("product_price_history").insert(history);
                 if (error) throw error;
-            });
+            }, WRITE_ONCE);
         }
     },
 
@@ -409,7 +409,7 @@ export const productRepository = {
 
             if (error) throw error;
             assertChanged("productRepository.bulkDelete", changed, ids.length);
-        });
+        }, WRITE_ONCE);
     },
 
     /** Bulk-update storefront visibility for multiple products. */
@@ -691,7 +691,7 @@ export const productRepository = {
                 .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
 
             if (error) throw error;
-        });
+        }, WRITE_ONCE);
     },
 
     // =============================================
@@ -706,7 +706,7 @@ export const productRepository = {
                 .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
 
             if (error) throw error;
-        });
+        }, WRITE_ONCE);
     },
 
     // =============================================
