@@ -1130,16 +1130,17 @@ export async function generateBulkShippingLabelsHTML(
     `;
 }
 
-export async function printBulkShippingLabels(
-    orders: Order[],
-    options: EnhancedLabelOptions
-): Promise<void> {
-    const html = await generateBulkShippingLabelsHTML(orders, options);
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) {
-        alert("Please allow popups to print labels");
-        return;
-    }
+/**
+ * Opens an empty print window. Call it synchronously inside the click handler,
+ * before any await, so pop-up blockers allow it.
+ */
+export function openPrintWindow(): Window | null {
+    return window.open("", "_blank", "width=600,height=800");
+}
+
+/** Writes a print document into a window from openPrintWindow; its own script starts printing. */
+export function writePrintWindow(printWindow: Window, html: string): void {
+    printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
 }
@@ -1857,43 +1858,6 @@ export async function generateBulkA6InvoicesHTML(orders: Order[], options: Enhan
 // =============================================
 // PRINT FUNCTIONS
 // =============================================
-
-export async function printEnhancedLabel(order: Order, options: EnhancedLabelOptions): Promise<void> {
-    const html = await generateLabelHTML(order, options);
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) {
-        alert("Please allow popups to print labels");
-        return;
-    }
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-export async function printBulkEnhancedLabels(
-    orders: Order[],
-    options: EnhancedLabelOptions,
-    customerOrderCounts?: Record<string, number>
-): Promise<void> {
-    const html = await generateBulkLabelsHTML(orders, options, customerOrderCounts);
-    const printWindow = window.open("", "_blank", "width=600,height=800");
-    if (!printWindow) {
-        alert("Please allow popups to print labels");
-        return;
-    }
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-export function printInvoice(order: Order, options: EnhancedLabelOptions): void {
-    const html = generateInvoiceHTML(order, options);
-    const printWindow = window.open("", "_blank", "width=800,height=1000");
-    if (!printWindow) {
-        alert("Please allow popups to print invoices");
-        return;
-    }
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
 
 export async function printBulkInvoices(orders: Order[], options: EnhancedLabelOptions): Promise<void> {
     // Use the new compact invoice layout (6-up on A4)
