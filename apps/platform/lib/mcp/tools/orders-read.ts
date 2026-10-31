@@ -8,7 +8,6 @@ import {
     baghdadDayStart,
     baghdadTime,
     iqd,
-    itemsText,
     orderLine,
     statusText,
     type OrderSummaryRow,
@@ -113,14 +112,19 @@ export function registerOrderReadTools(server: McpServer): void {
             if (history.error) throw history.error;
             if (notes.error) throw notes.error;
 
+            const itemsTotal = (o.items ?? []).reduce((sum, i) => sum + i.price * i.quantity, 0);
             const lines = [
                 `Order #${o.order_id} (id ${o.id})${o.is_return ? " — return" : ""}${o.is_replacement ? " — replacement" : ""}`,
                 `Status: ${statusText(o.status)}${o.rejection_reason ? ` — reason: ${o.rejection_reason}` : ""}`,
                 `Created: ${baghdadTime(o.created_at)}${o.scheduled_date ? ` | scheduled ${o.scheduled_date}` : ""}`,
                 `Customer: ${o.customer_name} | ${o.phone}${o.secondary_phone ? ` / ${o.secondary_phone}` : ""}`,
                 `Address: ${o.city ?? "-"}, ${o.address_details ?? "-"}`,
-                `Items: ${itemsText(o.items)}`,
-                `Money: items ${iqd(o.price)} (after discount ${iqd(o.discount_amount)}) + delivery ${iqd(o.delivery_fee)} = COD ${iqd((o.price ?? 0) + (o.delivery_fee ?? 0))}`,
+                `Source: ${o.source ?? "-"}${o.ad_channel ? ` (ad: ${o.ad_channel})` : ""}`,
+                "Items:",
+                ...(o.items ?? []).map(
+                    (i) => `  ${i.quantity}× ${i.name} @ ${iqd(i.price)}${i.is_open_box ? " [open box]" : ""} (product ${i.product_id ?? "-"}${i.variant_id ? `, variant ${i.variant_id}` : ""})`,
+                ),
+                `Money: items ${iqd(itemsTotal)} − discount ${iqd(o.discount_amount ?? 0)} = ${iqd(o.price)}; delivery ${iqd(o.delivery_fee)}; COD ${iqd((o.price ?? 0) + (o.delivery_fee ?? 0))}`,
                 `Delivery: ${o.delivery_company ?? "not sent"}${o.waseet_qr_id ? ` | Waseet ${o.waseet_qr_id} ${o.waseet_status_text ?? ""}` : ""}`,
                 `Notes: ${o.notes || "-"} | Internal: ${o.internal_notes || "-"}`,
                 `Version: ${o.version}`,

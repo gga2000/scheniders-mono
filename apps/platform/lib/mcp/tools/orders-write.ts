@@ -23,6 +23,80 @@ import type { CreateOrderInput, Order, OrderItem } from "@/types/order";
 /** One status change can touch at most this many orders. */
 const MAX_BULK_ORDERS = 100;
 
+/** Where the order came from, as the order form's "source" picker offers it. */
+const orderSourceSchema = z.enum(["whatsapp", "lightfunnels", "meta", "tiktok", "shop", "telegram", "storefront", "other"]);
+
+/** Statuses whose items can still change: nothing has been handed to a courier. */
+const ITEMS_EDITABLE: readonly Order["status"][] = ["new", "contacted", "no_response", "suspended", "confirmed"];
+/** Price and discount can also change while the order is with the courier (the courier is told the new COD). */
+const MONEY_EDITABLE: readonly Order["status"][] = [...ITEMS_EDITABLE, "in_transit"];
+
+const orderLineInputSchema = z.object({
+    product_id: z.string().uuid(),
+    variant_id: z.string().uuid().optional(),
+    quantity: z.number().int().min(1).max(1000),
+    price: z.number().int().min(0).max(100_000_000).optional().describe("Unit price for this order only; the catalog price when left out"),
+});
+type OrderLineInput = z.infer<typeof orderLineInputSchema>;
+
+type CatalogRow = { id: string; name: string; short_name: string | null; price: number | null; sku: string | null; image_url: string | null; compare_at_price: number | null };
+
+/**
+ * Order lines from catalog products, the way the New order form builds them:
+ * the line carries the product's short (internal) name, not the long marketing
+ * title, and the catalog price unless a price for this order is given.
+ * `existing` lets an edit keep a line's tag colour / open-box flag.
+ */
+async function buildOrderItems(caller: McpCaller, lines: readonly OrderLineInput[], existing: readonly OrderItem[] = []): Promise<OrderItem[]> {
+    const productIds = [...new Set(lines.map((i) => i.product_id))];
+    const variantIds = lines.flatMap((i) => (i.variant_id ? [i.variant_id] : []));
+    const [productsRes, variantsRes] = await Promise.all([
+        caller.db
+            .from("products")
+            .select("id, name, short_name, price, sku, image_url, compare_at_price, is_archived")
+            .eq("tenant_id", caller.tenantId)
+            .in("id", productIds),
+        variantIds.length === 0
+            ? Promise.resolve({ data: [], error: null })
+            : caller.db
+                  .from("product_variants")
+                  .select("id, product_id, name, price, sku, image_url, compare_at_price, is_enabled")
+                  .eq("tenant_id", caller.tenantId)
+                  .in("id", variantIds),
+    ]);
+    if (productsRes.error) throw productsRes.error;
+    if (variantsRes.error) throw variantsRes.error;
+    const products = new Map((productsRes.data ?? []).map((p) => [p.id as string, p as CatalogRow & { is_archived: boolean | null }]));
+    const variants = new Map(
+        (variantsRes.data ?? []).map((v) => [v.id as string, v as Omit<CatalogRow, "short_name"> & { product_id: string; is_enabled: boolean | null }]),
+    );
+
+    const pool = [...existing];
+    return lines.map((line) => {
+        const product = products.get(line.product_id);
+        if (!product || product.is_archived) throw new McpToolError(`Product ${line.product_id} is not in this store's catalog.`);
+        const variant = line.variant_id ? variants.get(line.variant_id) : undefined;
+        if (line.variant_id && (!variant || variant.product_id !== product.id || variant.is_enabled === false)) {
+            throw new McpToolError(`Variant ${line.variant_id} is not an active variant of ${product.name}.`);
+        }
+        const source = variant ?? product;
+        const productName = product.short_name?.trim() || product.name;
+        const kept = pool.findIndex((e) => e.product_id === line.product_id && (e.variant_id ?? null) === (line.variant_id ?? null));
+        const carried = kept >= 0 ? pool.splice(kept, 1)[0] : undefined;
+        return {
+            ...(carried ?? {}),
+            product_id: product.id,
+            ...(variant ? { variant_id: variant.id } : {}),
+            name: variant ? `${productName} - ${variant.name}` : productName,
+            quantity: line.quantity,
+            price: Math.round(line.price ?? source.price ?? product.price ?? 0),
+            ...(source.sku ? { sku: source.sku } : {}),
+            ...(source.image_url ?? product.image_url ? { image_url: (source.image_url ?? product.image_url) as string } : {}),
+            ...(source.compare_at_price ? { compare_at_price: Math.round(source.compare_at_price) } : {}),
+        };
+    });
+}
+
 /**
  * The entry the order's activity timeline reads. Runs after the change has
  * landed, so a failure is reported back as a warning, never as "not changed".
@@ -174,7 +248,11 @@ export function registerOrderWriteTools(server: McpServer): void {
         title: "Edit an order",
         kind: "write",
         description:
-            "Edit an order's customer and delivery details: name, phones, governorate, address, notes, internal notes, delivery fee. Only the fields given are changed.",
+            "Edit an order: customer and delivery details (name, phones, governorate, address, notes, internal notes, delivery fee), where it came from (source), " +
+            "its items (replaces the whole list; lines use the product's short name and the catalog price unless a price is given), its discount and its price. " +
+            "`price` is the items total after discount; when items or discount change it is recomputed unless you give it. Only the fields given are changed. " +
+            "Items can change until the order is with the courier; price and discount also while in transit; after that use refund_order or replace_order. " +
+            "Changing items, price or discount returns a preview first; call again with confirm: true.",
         input: z
             .object({
                 order: orderRefSchema,
@@ -186,11 +264,32 @@ export function registerOrderWriteTools(server: McpServer): void {
                 notes: z.string().max(1000).optional(),
                 internal_notes: z.string().max(1000).optional(),
                 delivery_fee: z.number().int().min(0).max(1_000_000).optional(),
+                source: orderSourceSchema.optional(),
+                items: z.array(orderLineInputSchema).min(1).max(50).optional().describe("The complete new list of lines, not a delta"),
+                discount: z.number().int().min(0).max(100_000_000).optional(),
+                price: z.number().int().min(0).max(100_000_000).optional().describe("Items total after discount, when it differs from the sum of the lines"),
+                confirm: z.boolean().default(false).describe("Needed to apply a change to items, price or discount"),
             })
-            .refine((v) => Object.keys(v).some((k) => k !== "order" && v[k as keyof typeof v] !== undefined), "Give at least one field to change"),
+            .refine(
+                (v) => Object.keys(v).some((k) => k !== "order" && k !== "confirm" && v[k as keyof typeof v] !== undefined),
+                "Give at least one field to change",
+            ),
         async run(caller, input) {
             requireWriter(caller);
             const order = await findOrder(caller, input.order);
+
+            const changesItems = input.items !== undefined;
+            const changesMoney = changesItems || input.discount !== undefined || input.price !== undefined;
+            if (changesItems && !ITEMS_EDITABLE.includes(order.status)) {
+                throw new McpToolError(
+                    `Order #${order.order_id} is ${order.status}: its items are locked once the courier has it. Use refund_order or replace_order for after-sale changes.`,
+                );
+            }
+            if (changesMoney && !MONEY_EDITABLE.includes(order.status)) {
+                throw new McpToolError(
+                    `Order #${order.order_id} is ${order.status}: its price is locked. Use refund_order or replace_order for after-sale changes.`,
+                );
+            }
 
             const next: Partial<Order> = {};
             if (input.customer_name !== undefined) next.customer_name = input.customer_name;
@@ -201,17 +300,41 @@ export function registerOrderWriteTools(server: McpServer): void {
             if (input.notes !== undefined) next.notes = input.notes;
             if (input.internal_notes !== undefined) next.internal_notes = input.internal_notes;
             if (input.delivery_fee !== undefined) next.delivery_fee = input.delivery_fee;
+            if (input.source !== undefined) next.source = input.source;
 
+            if (changesMoney) {
+                const items = input.items ? await buildOrderItems(caller, input.items, order.items ?? []) : (order.items ?? []);
+                const itemsTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+                const discount = input.discount ?? order.discount_amount ?? 0;
+                if (discount > itemsTotal) {
+                    throw new McpToolError(`The discount (${iqd(discount)}) is more than the items total (${iqd(itemsTotal)}).`);
+                }
+                if (changesItems) next.items = items;
+                if (input.discount !== undefined) next.discount_amount = discount;
+                next.price = input.price ?? itemsTotal - discount;
+            }
+
+            const describe = (key: string, value: unknown): string =>
+                key === "items" ? itemsText(value as OrderItem[]) : key === "price" || key === "discount_amount" ? iqd(Number(value)) : String(value ?? "-");
             const changes: Record<string, { from: unknown; to: unknown }> = {};
             const patch: Record<string, unknown> = {};
             for (const [key, to] of Object.entries(next)) {
                 const from = order[key as keyof Order];
                 const value = to === undefined ? null : to;
-                if ((from ?? null) === value) continue;
+                if (JSON.stringify(from ?? null) === JSON.stringify(value)) continue;
                 changes[key] = { from: from ?? null, to: value };
                 patch[key] = value;
             }
             if (Object.keys(patch).length === 0) return `Order #${order.order_id} already has those values; nothing changed.`;
+
+            const lines = Object.entries(changes).map(([k, c]) => `  ${k}: ${describe(k, c.from)} → ${describe(k, c.to)}`);
+            if (changesMoney && !input.confirm) {
+                return [
+                    `Preview — nothing changed yet. Order #${order.order_id} (${order.status}):`,
+                    ...lines,
+                    "Call again with confirm: true to apply.",
+                ].join("\n");
+            }
 
             const { data, error } = await caller.db
                 .from("orders")
@@ -225,11 +348,7 @@ export function registerOrderWriteTools(server: McpServer): void {
             if (!data) throw new McpToolError(`Order #${order.order_id} changed while Claude was working on it. Open it again and retry.`);
 
             const logWarning = await logOrderActivity(caller, "order.edit", order, { changes });
-            return [
-                `Order #${order.order_id} updated:`,
-                ...Object.entries(changes).map(([k, c]) => `  ${k}: ${String(c.from ?? "-")} → ${String(c.to ?? "-")}`),
-                ...(logWarning ? [`Warning: ${logWarning}`] : []),
-            ].join("\n");
+            return [`Order #${order.order_id} updated:`, ...lines, ...(logWarning ? [`Warning: ${logWarning}`] : [])].join("\n");
         },
     });
 
@@ -259,7 +378,7 @@ export function registerOrderWriteTools(server: McpServer): void {
         kind: "write",
         description:
             "Create a COD delivery order, exactly like the New order form: products come from the catalog (use list_products for ids), " +
-            "prices are the catalog prices, the order starts as confirmed, plan limits and billing apply, and the store's order number is assigned. " +
+            "lines carry the product's short name and the catalog price (or the price given for the line), the order starts as confirmed, plan limits and billing apply, and the store's order number is assigned. " +
             "`price` stored = items total minus discount; the delivery fee is separate (default 5,000 IQD).",
         input: z.object({
             customer_name: z.string().trim().min(1).max(120),
@@ -267,16 +386,8 @@ export function registerOrderWriteTools(server: McpServer): void {
             secondary_phone: z.string().trim().max(30).optional(),
             governorate: governorateInputSchema,
             address_details: z.string().trim().min(1).max(500),
-            items: z
-                .array(
-                    z.object({
-                        product_id: z.string().uuid(),
-                        variant_id: z.string().uuid().optional(),
-                        quantity: z.number().int().min(1).max(1000),
-                    }),
-                )
-                .min(1)
-                .max(50),
+            items: z.array(orderLineInputSchema).min(1).max(50),
+            source: orderSourceSchema.default("other").describe("Where the order came from (whatsapp, meta, tiktok, telegram, shop, ...)"),
             delivery_fee: z.number().int().min(0).max(1_000_000).default(5000),
             discount: z.number().int().min(0).max(100_000_000).default(0),
             notes: z.string().max(1000).optional(),
@@ -287,49 +398,7 @@ export function registerOrderWriteTools(server: McpServer): void {
             const gov = resolveOrderGovernorate(input.governorate);
             const phone = orderPhone(input.phone, "Phone");
 
-            const productIds = [...new Set(input.items.map((i) => i.product_id))];
-            const variantIds = input.items.flatMap((i) => (i.variant_id ? [i.variant_id] : []));
-            const [productsRes, variantsRes] = await Promise.all([
-                caller.db
-                    .from("products")
-                    .select("id, name, price, sku, image_url, compare_at_price, is_archived")
-                    .eq("tenant_id", caller.tenantId)
-                    .in("id", productIds),
-                variantIds.length === 0
-                    ? Promise.resolve({ data: [], error: null })
-                    : caller.db
-                          .from("product_variants")
-                          .select("id, product_id, name, price, sku, image_url, compare_at_price, is_enabled")
-                          .eq("tenant_id", caller.tenantId)
-                          .in("id", variantIds),
-            ]);
-            if (productsRes.error) throw productsRes.error;
-            if (variantsRes.error) throw variantsRes.error;
-            type CatalogRow = { id: string; name: string; price: number | null; sku: string | null; image_url: string | null; compare_at_price: number | null };
-            const products = new Map((productsRes.data ?? []).map((p) => [p.id as string, p as CatalogRow & { is_archived: boolean | null }]));
-            const variants = new Map(
-                (variantsRes.data ?? []).map((v) => [v.id as string, v as CatalogRow & { product_id: string; is_enabled: boolean | null }]),
-            );
-
-            const items: OrderItem[] = input.items.map((line) => {
-                const product = products.get(line.product_id);
-                if (!product || product.is_archived) throw new McpToolError(`Product ${line.product_id} is not in this store's catalog.`);
-                const variant = line.variant_id ? variants.get(line.variant_id) : undefined;
-                if (line.variant_id && (!variant || variant.product_id !== product.id || variant.is_enabled === false)) {
-                    throw new McpToolError(`Variant ${line.variant_id} is not an active variant of ${product.name}.`);
-                }
-                const source = variant ?? product;
-                return {
-                    product_id: product.id,
-                    ...(variant ? { variant_id: variant.id } : {}),
-                    name: variant ? `${product.name} - ${variant.name}` : product.name,
-                    quantity: line.quantity,
-                    price: Math.round(source.price ?? product.price ?? 0),
-                    ...(source.sku ? { sku: source.sku } : {}),
-                    ...(source.image_url ?? product.image_url ? { image_url: (source.image_url ?? product.image_url) as string } : {}),
-                    ...(source.compare_at_price ? { compare_at_price: Math.round(source.compare_at_price) } : {}),
-                };
-            });
+            const items = await buildOrderItems(caller, input.items);
 
             const itemsTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
             if (input.discount > itemsTotal) {
@@ -337,7 +406,7 @@ export function registerOrderWriteTools(server: McpServer): void {
             }
             const price = itemsTotal - input.discount;
             const summary = [
-                `${input.customer_name} | ${phone} | ${gov.city}, ${input.address_details}`,
+                `${input.customer_name} | ${phone} | ${gov.city}, ${input.address_details} | source ${input.source}`,
                 `Items: ${itemsText(items)}`,
                 `Items total ${iqd(itemsTotal)} − discount ${iqd(input.discount)} = ${iqd(price)}; delivery ${iqd(input.delivery_fee)}; customer pays ${iqd(price + input.delivery_fee)}`,
             ];
@@ -359,7 +428,7 @@ export function registerOrderWriteTools(server: McpServer): void {
                 internal_notes: "",
                 is_shop_order: false,
                 is_replacement: false,
-                source: "other",
+                source: input.source,
             };
             // The service behind the New order form's server action, given the
             // store that resolveMcpCaller verified: plan limits, the pause
