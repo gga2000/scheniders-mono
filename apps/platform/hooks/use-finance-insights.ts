@@ -61,7 +61,7 @@ export function useFinanceInsights(data: FinanceOverviewResult): Insight[] {
                     id: "margin_negative",
                     severity: "critical",
                     title: "You are losing money this period",
-                    detail: `Net profit is ${formatIQD(data.net_profit)}. After COGS (${formatIQD(data.product_cost)}), delivery (${formatIQD(data.delivery_cost)}) and expenses (${formatIQD(data.expenses)}), the math doesn't work.`,
+                    detail: `Net profit is ${formatIQD(data.net_profit)}. After COGS (${formatIQD(data.product_cost)}), refunds (${formatIQD(data.refund_value)}) and expenses (${formatIQD(data.expenses)}), the math doesn't work.`,
                     metric: { label: "Margin", value: `${data.margin_pct.toFixed(1)}%` },
                     suggestion: "Review discount-heavy SKUs and high-delivery-fee cities.",
                 });

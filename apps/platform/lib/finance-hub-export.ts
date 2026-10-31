@@ -50,11 +50,11 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
     rows.push(["P&L WATERFALL"]);
     rows.push(["Step", "Value (IQD)"]);
     rows.push(["Gross Revenue", overview.gross_revenue]);
-    rows.push(["- Refunds / Returns", -overview.refund_value]);
-    rows.push(["Net Revenue", overview.net_revenue]);
+    rows.push(["- In transit / unconfirmed", -Math.max(0, overview.gross_revenue - overview.delivered_revenue)]);
+    rows.push(["Delivered Revenue", overview.delivered_revenue]);
     rows.push(["- COGS", -overview.product_cost]);
     rows.push(["Gross Profit", overview.gross_profit]);
-    rows.push(["- Delivery", -overview.delivery_cost]);
+    rows.push(["- Refunds / Returns", -overview.refund_value]);
     rows.push(["- Expenses", -overview.expenses]);
     rows.push(["Net Profit", overview.net_profit]);
     rows.push([]);
@@ -174,11 +174,11 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 <section><h2>Profit & Loss</h2>
 <table>
 <tr><td>Gross Revenue</td><td class="num">${formatIQD(overview.gross_revenue)}</td></tr>
-<tr><td>− Refunds / Returns</td><td class="num negative">${formatIQD(-overview.refund_value)}</td></tr>
-<tr><td><b>Net Revenue</b></td><td class="num"><b>${formatIQD(overview.net_revenue)}</b></td></tr>
+<tr><td>− In transit / unconfirmed</td><td class="num negative">${formatIQD(-Math.max(0, overview.gross_revenue - overview.delivered_revenue))}</td></tr>
+<tr><td><b>Delivered Revenue</b></td><td class="num"><b>${formatIQD(overview.delivered_revenue)}</b></td></tr>
 <tr><td>− COGS</td><td class="num negative">${formatIQD(-overview.product_cost)}</td></tr>
 <tr><td><b>Gross Profit</b></td><td class="num"><b>${formatIQD(overview.gross_profit)}</b></td></tr>
-<tr><td>− Delivery</td><td class="num negative">${formatIQD(-overview.delivery_cost)}</td></tr>
+<tr><td>− Refunds / Returns</td><td class="num negative">${formatIQD(-overview.refund_value)}</td></tr>
 <tr><td>− Expenses</td><td class="num negative">${formatIQD(-overview.expenses)}</td></tr>
 <tr><td><b>Net Profit</b></td><td class="num ${tone(overview.net_profit)}"><b>${formatIQD(overview.net_profit)}</b></td></tr>
 </table></section>
