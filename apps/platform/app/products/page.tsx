@@ -348,6 +348,16 @@ function ProductsContent() {
         return result;
     }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds, showFiller]);
 
+    // A selection never outlives what is on screen: bulk price, archive and
+    // delete act on the selected ids, so one hidden by a search or filter
+    // would be changed without being seen.
+    useEffect(() => {
+        if (selectedIds.size === 0) return;
+        const visible = new Set(filteredProducts.map((p) => p.id));
+        const kept = Array.from(selectedIds).filter((id) => visible.has(id));
+        if (kept.length !== selectedIds.size) selectAll(kept);
+    }, [filteredProducts, selectedIds, selectAll]);
+
     // Calculate stats — separate memo from filtering
     const stats = useMemo(() => {
         const activeProducts = products.filter((p) => !p.is_archived && !p.is_supply);
